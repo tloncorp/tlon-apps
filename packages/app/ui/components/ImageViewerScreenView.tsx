@@ -1,5 +1,9 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  ensureFileExtension,
+  downloadImageForWeb
+} from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
@@ -79,31 +83,7 @@ export function ImageViewerScreenView(props: {
       }
 
       try {
-        const response = await fetch(props.uri);
-        if (!response.ok) {
-          logger.trackError('Failed to fetch image', {
-            status: response.status,
-            uri: props.uri,
-          });
-          console.error('Failed to fetch image:', response.statusText);
-        }
-
-        const blob = await response.blob();
-
-        const blobUrl = URL.createObjectURL(blob);
-
-        const filename = props.uri.split('/').pop() || 'downloaded-image.jpg';
-
-        // Create download link and trigger click
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        await downloadImageForWeb(props.uri);
       } catch (error) {
         logger.trackError('Download error:', error);
         console.error('Download error:', error);
@@ -204,7 +184,9 @@ export function ImageViewerScreenView(props: {
           return;
         }
 
-        const filename = props.uri.split('/').pop() || 'downloaded-image.jpg';
+        const baseFilename =
+          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
+        const filename = ensureFileExtension(baseFilename);
         const localUri = `${FileSystem.documentDirectory}${filename}`;
 
         try {

@@ -681,6 +681,58 @@
     (~(has in roles.u.seat) `role-id:v7:gv`p.inline)
   ==
 ::
+++  channel-drop-bad-links
+  |=  chan=v-channel:c
+  ^+  chan
+  %_  chan
+      posts
+    %+  run:on-v-posts:c
+      posts.chan
+    |=  post=(may:c v-post:c)
+    ?.  ?=(%& -.post)  post
+    post(content (drop-bad-links content.post))
+  ::
+      log
+    %+  run:log-on:c
+      log.chan
+    |=  upd=u-channel:c
+    ?.  ?=([%post * ?([%set %& *] [%essay *])] upd)  upd
+    ?-  -.u-post.upd
+      %set    upd(content.post.u-post (drop-bad-links content.post.u-post.upd))
+      %essay  upd(content.essay.u-post (drop-bad-links content.essay.u-post.upd))
+    ==
+  ==
+++  drop-bad-links
+  |^  |=  content=story:c
+      ^+  content
+      (turn content strip)
+  ++  strip
+    |=  =verse:s
+    ^+  verse
+    ?-  -.verse
+        %block
+      ?+  -.p.verse  verse
+        %image  ?:((is-good-link src.p.verse) verse verse(src.p ''))
+        %link   ?:((is-good-link url.p.verse) verse verse(url.p ''))
+      ==
+    ::
+        %inline
+      :-  %inline
+      %+  turn  p.verse
+      |=  =inline:s
+      ?+  inline  inline
+        [%link *]  ?:((is-good-link p.inline) inline inline(p ''))
+      ==
+    ==
+  ++  is-good-link
+    |=  =cord
+    ?|  =('' cord)
+        =('http' (end 3^4 cord))
+        =('#' (end 3 cord))
+        =('/' (end 3 cord))
+    ==
+  --
+::
 ++  flatten
   |=  content=(list verse:s)
   ^-  cord
