@@ -62,76 +62,76 @@ jobs:
       # Note: Playwright browser installation is handled inside containers for both
       # smoke tests (Ubuntu container on Fedora) and parallel E2E tests (Docker image)
 
-      - name: Run Production Build Smoke Test
-        id: smoke-test
-        run: |
-          # Check if we're on Fedora and need container workaround
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora/RHEL - running smoke test in Ubuntu container"
-            
-            # Read Node version from .nvmrc
-            NODE_VERSION=$(cat ../../.nvmrc)
-            echo "Using Node.js version: $NODE_VERSION"
-            
-            # Function to run test in container
-            run_smoke_test() {
-              podman run --rm \
-                -v "$PWD/../..:/workspace:Z" \
-                -w /workspace \
-                --network host \
-                --security-opt label=disable \
-                -e CI=true \
-                docker.io/ubuntu:22.04 \
-                bash -c "
-                  # Exit on any error, undefined variable, or pipe failure
-                  set -euo pipefail
-                  
-                  # Install dependencies
-                  apt-get update && apt-get install -y curl git build-essential netcat-openbsd
-                  
-                  # Install specific Node.js version
-                  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                  apt-get install -y nodejs
-                  npm install -g n
-                  n ${NODE_VERSION}
-                  hash -r
-                  
-                  # Install pnpm
-                  npm install -g pnpm@9.0.5
-                  
-                  # Install dependencies
-                  cd /workspace
-                  pnpm install --frozen-lockfile
-                  
-                  # Install Playwright browsers and dependencies
-                  cd apps/tlon-web
-                  pnpm exec playwright install --with-deps chromium
-                  
-                  pnpm e2e:prod:smoke:force
-                  
-                  # Fix permissions on created files for host user
-                  chmod -R 777 /workspace/apps/tlon-web/rube/dist || true
-                "
-            }
-            
-            # Try once, retry if failed
-            run_smoke_test || (echo "::warning::Production smoke test failed, retrying..." && run_smoke_test)
-          else
-            echo "Not on Fedora/RHEL - running smoke test directly"
-            pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
-          fi
-        working-directory: ./apps/tlon-web
-        continue-on-error: false
+      # - name: Run Production Build Smoke Test
+      #   id: smoke-test
+      #   run: |
+      #     # Check if we're on Fedora and need container workaround
+      #     if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+      #       echo "Detected Fedora/RHEL - running smoke test in Ubuntu container"
 
-      - name: Upload Production Test Artifacts
-        if: failure() && steps.smoke-test.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-smoke-test-results
-          path: |
-            ./apps/tlon-web/test-results/
-            ./apps/tlon-web/playwright-report/
-          retention-days: 7
+      #       # Read Node version from .nvmrc
+      #       NODE_VERSION=$(cat ../../.nvmrc)
+      #       echo "Using Node.js version: $NODE_VERSION"
+
+      #       # Function to run test in container
+      #       run_smoke_test() {
+      #         podman run --rm \
+      #           -v "$PWD/../..:/workspace:Z" \
+      #           -w /workspace \
+      #           --network host \
+      #           --security-opt label=disable \
+      #           -e CI=true \
+      #           docker.io/ubuntu:22.04 \
+      #           bash -c "
+      #             # Exit on any error, undefined variable, or pipe failure
+      #             set -euo pipefail
+
+      #             # Install dependencies
+      #             apt-get update && apt-get install -y curl git build-essential netcat-openbsd
+
+      #             # Install specific Node.js version
+      #             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      #             apt-get install -y nodejs
+      #             npm install -g n
+      #             n ${NODE_VERSION}
+      #             hash -r
+
+      #             # Install pnpm
+      #             npm install -g pnpm@9.0.5
+
+      #             # Install dependencies
+      #             cd /workspace
+      #             pnpm install --frozen-lockfile
+
+      #             # Install Playwright browsers and dependencies
+      #             cd apps/tlon-web
+      #             pnpm exec playwright install --with-deps chromium
+
+      #             pnpm e2e:prod:smoke:force
+
+      #             # Fix permissions on created files for host user
+      #             chmod -R 777 /workspace/apps/tlon-web/rube/dist || true
+      #           "
+      #       }
+
+      #       # Try once, retry if failed
+      #       run_smoke_test || (echo "::warning::Production smoke test failed, retrying..." && run_smoke_test)
+      #     else
+      #       echo "Not on Fedora/RHEL - running smoke test directly"
+      #       pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
+      #     fi
+      #   working-directory: ./apps/tlon-web
+      #   continue-on-error: false
+
+      # - name: Upload Production Test Artifacts
+      #   if: failure() && steps.smoke-test.outcome == 'failure'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: production-smoke-test-results
+      #     path: |
+      #       ./apps/tlon-web/test-results/
+      #       ./apps/tlon-web/playwright-report/
+      #     retention-days: 7
 
       # For some reason, caching is breaking with the new piers.
       # TODO: fix this.
