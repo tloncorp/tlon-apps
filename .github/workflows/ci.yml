@@ -32,6 +32,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false  # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -262,6 +264,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false  # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
