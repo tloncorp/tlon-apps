@@ -65,6 +65,7 @@ export function NotificationsPrompt() {
     isWeb ||
     !perms.initialized ||
     perms.hasPermission ||
+    perms.canAskPermission ||
     notifNag.isLoading ||
     !notifNag.shouldShow
   ) {
