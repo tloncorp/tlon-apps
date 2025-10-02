@@ -12,17 +12,18 @@ jobs:
         run: |
           # Clean up any root-owned files from previous container runs
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora - fixing permissions on workspace from previous runs"
+            echo "Detected Fedora - cleaning up root-owned files from previous runs"
             # The workspace path exists even before checkout
             WORKSPACE_PATH="${{ github.workspace }}"
             if [ -d "$WORKSPACE_PATH" ]; then
-              echo "Fixing permissions on $WORKSPACE_PATH"
-              # Use podman to fix permissions as root
+              echo "Cleaning root-owned artifacts in $WORKSPACE_PATH"
+              # Use podman to fix permissions on entire workspace, then delete specific dirs
               podman run --rm \
                 -v "$WORKSPACE_PATH:/workspace:Z" \
                 --security-opt label=disable \
-                docker.io/ubuntu:22.04 \
-                bash -c "chmod -R 777 /workspace 2>/dev/null || true"
+                docker.io/alpine:latest \
+                sh -c "chmod -R 777 /workspace 2>/dev/null || true; rm -rf /workspace/apps/tlon-web/test-results /workspace/apps/tlon-web/playwright-report /workspace/apps/tlon-web/rube/dist 2>/dev/null || true"
+              echo "Cleanup completed"
             else
               echo "Workspace doesn't exist yet, skipping cleanup"
             fi
@@ -252,7 +253,7 @@ jobs:
                 -v "$WORKSPACE_PATH:/workspace:Z" \
                 --security-opt label=disable \
                 docker.io/alpine:latest \
-                sh -c "rm -rf /workspace/apps/tlon-web/test-results/shard-* 2>/dev/null || true"
+                sh -c "rm -rf /workspace/apps/tlon-web/test-results /workspace/apps/tlon-web/playwright-report /workspace/apps/tlon-web/rube/dist 2>/dev/null || true"
             fi
           fi
         continue-on-error: true
