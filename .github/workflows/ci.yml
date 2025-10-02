@@ -241,7 +241,6 @@ jobs:
       - self-hosted
       - Linux
       - X64
-    needs: test-build # Run after main tests to ensure build works
     name: E2E Tests (Parallel - 2 shards)
     steps:
       - name: Clean workspace (Fedora container fix)
