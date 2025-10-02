@@ -15,8 +15,8 @@ import BootHelpers from '../lib/bootHelpers';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 
-const HANDLE_INVITES_TIMEOUT = 1000 * 30;
-const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 60;
+const HANDLE_INVITES_TIMEOUT = 1000 * 20;
+const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
 
 const logger = createDevLogger('boot sequence', true);
 
