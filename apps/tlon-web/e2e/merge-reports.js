@@ -70,7 +70,7 @@ function mergeJUnitReports(existingShards) {
   let totalTests = 0;
   let totalFailures = 0;
   let totalErrors = 0;
-  let totalTime = 0;
+  let maxTime = 0; // Use max time since shards run in parallel
 
   for (const shard of existingShards) {
     const junitPath = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}`, 'junit.xml');
@@ -86,7 +86,7 @@ function mergeJUnitReports(existingShards) {
       if (testsMatch) totalTests += parseInt(testsMatch[1]);
       if (failuresMatch) totalFailures += parseInt(failuresMatch[1]);
       if (errorsMatch) totalErrors += parseInt(errorsMatch[1]);
-      if (timeMatch) totalTime += parseFloat(timeMatch[1]);
+      if (timeMatch) maxTime = Math.max(maxTime, parseFloat(timeMatch[1]));
 
       // Extract test cases
       const testCases = content.match(/<testcase[^>]*>[\s\S]*?<\/testcase>/g);
@@ -101,8 +101,8 @@ function mergeJUnitReports(existingShards) {
   // Create merged JUnit report
   if (junitReports.length > 0) {
     const mergedJUnit = `<?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Playwright Tests" tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" time="${totalTime.toFixed(2)}">
-  <testsuite name="E2E Tests" tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" time="${totalTime.toFixed(2)}">
+<testsuites name="Playwright Tests" tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" time="${maxTime.toFixed(2)}">
+  <testsuite name="E2E Tests" tests="${totalTests}" failures="${totalFailures}" errors="${totalErrors}" time="${maxTime.toFixed(2)}">
     ${junitReports.join('\n    ')}
   </testsuite>
 </testsuites>`;
@@ -115,7 +115,7 @@ function mergeJUnitReports(existingShards) {
       totalTests,
       totalFailures,
       totalErrors,
-      totalTime: totalTime.toFixed(2),
+      totalTime: maxTime.toFixed(2),
     };
   }
 
