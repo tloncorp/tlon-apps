@@ -89,10 +89,12 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         postHog,
       };
       runPostSignupActions(postSignupParams);
+      logger.trackEvent('Signup Timing Test', bootReport ?? {});
       logger.trackEvent('hosted signup report', {
-        bootDuration: bootReport
-          ? bootReport.completedAt - bootReport.startedAt
-          : null,
+        bootDuration:
+          bootReport && bootReport.completedAt && bootReport.startedAt
+            ? bootReport.completedAt - bootReport.startedAt
+            : null,
         userSatWaitingFor: values.userWasReadyAt
           ? Date.now() - values.userWasReadyAt
           : null,
@@ -130,6 +132,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     if (
       values.didCompleteOnboarding &&
       bootPhase === NodeBootPhase.READY &&
+      bootReport?.completedAt &&
       !handlingPostSignup.current
     ) {
       handlingPostSignup.current = true;

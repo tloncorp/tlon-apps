@@ -22,10 +22,10 @@ const logger = createDevLogger('boot sequence', true);
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-interface BootSequenceReport {
-  startedAt: number;
-  completedAt: number;
-}
+type BootSequenceReport = {
+  startedAt?: number;
+  completedAt?: number;
+} & Record<string, number | boolean>;
 
 /*
   Takes a fresh hosting account and holds its hand until it has a node that's ready to transition
@@ -112,7 +112,7 @@ export function useBootSequence() {
         setShip({ ...shipInfo, needsSplashSequence: true });
         telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
-        await wait(2000);
+        await wait(200);
 
         configureUrbitClient({
           shipName: shipInfo.ship,
@@ -135,7 +135,8 @@ export function useBootSequence() {
     // CONNECTING: make sure the connection is established
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
-      await wait(1000);
+      // forcing a subscribe once down the channel reduces connection time significantly
+      store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
         return NodeBootPhase.SCAFFOLDING_WAYFINDING;
@@ -148,9 +149,6 @@ export function useBootSequence() {
     //
     // SCAFFOLDING WAYFINDING: make sure the starter group is created
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
-      // provide some wiggle room for sync start to run
-      await wait(3000);
-
       try {
         await store.scaffoldPersonalGroup();
 
@@ -212,22 +210,31 @@ export function useBootSequence() {
     // ACCEPTING_INVITES [optional]: join the invited groups
     //
     if (bootPhase === NodeBootPhase.ACCEPTING_INVITES) {
-      const { invitedDm, invitedGroup, tlonTeamDM } =
+      const { invitedDm, invitedGroup, tlonTeamDM, personalGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
+
+      // if expected items aren't there, re-run this step
+      if (
+        !tlonTeamDM ||
+        !invitedDm ||
+        (lureMeta?.inviteType === 'group' && !invitedGroup)
+      ) {
+        return NodeBootPhase.ACCEPTING_INVITES;
+      }
 
       // if we have invites, accept them
       if (tlonTeamDM && tlonTeamDM.isDmInvite) {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have tlon team dm invite, accepting`,
         });
-        await store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
+        store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
       }
 
       if (invitedDm && invitedDm.isDmInvite) {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have dm invite from inviter, accepting`,
         });
-        await store.respondToDMInvite({ channel: invitedDm, accept: true });
+        store.respondToDMInvite({ channel: invitedDm, accept: true });
       }
 
       if (
@@ -238,63 +245,26 @@ export function useBootSequence() {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have group invite, joining`,
         });
-        await store.joinGroup(invitedGroup);
+        store.joinGroup(invitedGroup);
       }
 
-      // give it some time to process, then hard refresh the data
-      await wait(2000);
-      if (invitedGroup) {
-        try {
-          await store.syncGroup(invitedGroup?.id, undefined, { force: true });
-        } catch (e) {
-          logger.error('failed to sync group?', e.body);
+      // give the joins some time to process, then resync & pin
+      setTimeout(() => {
+        if (invitedGroup && !invitedGroup.currentUserIsMember) {
+          store.syncGroup(invitedGroup?.id, undefined, { force: true });
         }
-      }
-      if (invitedDm) {
-        try {
-          await store.syncDms();
-        } catch (e) {
-          logger.error('failed to sync dms?', e);
+        if (invitedDm && invitedDm.isDmInvite) {
+          store.syncDms();
         }
-      }
-
-      // check if we successfully joined
-      const {
-        invitedDm: updatedDm,
-        invitedGroup: updatedGroup,
-        tlonTeamDM: updatedTlonTeamDm,
-        personalGroup,
-      } = await BootHelpers.getInvitedGroupAndDm(lureMeta);
-
-      const dmIsGood = updatedDm && !updatedDm.isDmInvite;
-      const tlonTeamIsGood = updatedTlonTeamDm && !updatedTlonTeamDm.isDmInvite;
-      const groupIsGood =
-        updatedGroup &&
-        updatedGroup.currentUserIsMember &&
-        updatedGroup.channels &&
-        updatedGroup.channels.length > 0;
-
-      const hadSuccess =
-        lureMeta?.inviteType === 'user' ? dmIsGood : groupIsGood && dmIsGood;
-
-      if (hadSuccess) {
-        logger.crumb('successfully accepted invites');
-        if (updatedTlonTeamDm) {
-          store.pinChannel(updatedTlonTeamDm);
+        if (tlonTeamDM) {
+          store.pinChannel(tlonTeamDM);
         }
         if (personalGroup) {
           store.pinGroup(personalGroup);
         }
-        return NodeBootPhase.READY;
-      }
+      }, 5000);
 
-      logger.trackEvent(AnalyticsEvent.InviteDebug, {
-        context: `not all invites are confirmed accepted`,
-        dmReady: dmIsGood,
-        groupReady: groupIsGood,
-        tlonTeamReady: tlonTeamIsGood,
-      });
-      return NodeBootPhase.ACCEPTING_INVITES;
+      return NodeBootPhase.READY;
     }
 
     return bootPhase;
@@ -313,6 +283,7 @@ export function useBootSequence() {
   const [bootStepCounter, setBootCounter] = useState(0);
   const tryingWayfindingSince = useRef<number | null>(null);
   const tryingInviteHandling = useRef<number | null>(null);
+  const lastPhaseCompletedAt = useRef<number | null>(null);
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -330,7 +301,7 @@ export function useBootSequence() {
         const lastRunDidNotAdvance = bootPhase === lastRunPhaseRef.current;
         if (lastRunDidNotAdvance || lastRunErrored.current) {
           logger.crumb('waiting before retrying last phase');
-          await wait(3000);
+          await wait(1000);
         }
 
         lastRunPhaseRef.current = bootPhase;
@@ -338,6 +309,18 @@ export function useBootSequence() {
         logger.log(`running boot sequence phase: ${BootPhaseNames[bootPhase]}`);
 
         const nextBootPhase = await runBootPhase();
+        if (nextBootPhase !== bootPhase) {
+          const prevStepMarker =
+            lastPhaseCompletedAt.current ?? sequenceStartTimeRef.current;
+          const durationSeconds = (Date.now() - prevStepMarker) / 1000;
+
+          setReport((r) => ({
+            ...r,
+            [`${BootPhaseNames[bootPhase]}Duration`]:
+              Math.round(durationSeconds * 10) / 10,
+          }));
+          lastPhaseCompletedAt.current = Date.now();
+        }
         setBootPhase(nextBootPhase);
       } catch (e) {
         logger.trackError('runBootPhase error', {
@@ -415,11 +398,15 @@ export function useBootSequence() {
 
   // once finished, set the report
   useEffect(() => {
-    if (bootPhase === NodeBootPhase.READY && report === null) {
-      setReport({
+    if (bootPhase === NodeBootPhase.READY && !report?.completedAt) {
+      setReport((prev) => ({
+        ...prev,
         startedAt: sequenceStartTimeRef.current,
         completedAt: Date.now(),
-      });
+        duration: Number(
+          ((Date.now() - sequenceStartTimeRef.current) / 1000).toFixed(1)
+        ),
+      }));
     }
   }, [bootPhase, report]);
 
