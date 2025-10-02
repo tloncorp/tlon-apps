@@ -280,9 +280,6 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Build packages
-        run: pnpm build:all
-
       - name: Build E2E Docker Image
         run: |
           cd apps/tlon-web
