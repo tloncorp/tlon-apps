@@ -8,10 +8,15 @@ const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
 
 test.use({ permissions: ['clipboard-write', 'clipboard-read'] });
 
-test.skip(!INCLUDE_OPTIONAL_SHIPS, 'should generate an invite link and be able to redeem group/personal invites', async ({
+test('should generate an invite link and be able to redeem group/personal invites', async ({
   zodSetup,
   tenSetup,
 }) => {
+  test.skip(
+    !INCLUDE_OPTIONAL_SHIPS,
+    'Test requires ~mug ship (set INCLUDE_OPTIONAL_SHIPS=true)'
+  );
+
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -70,7 +75,7 @@ test.skip(!INCLUDE_OPTIONAL_SHIPS, 'should generate an invite link and be able t
   await tenPage.goto(tenUserInviteUrl);
   await tenPage.waitForTimeout(6000);
   await expect(tenPage.getByText('Remove contact')).toBeVisible();
-  
+
   // Clean up: Remove ~zod from ~ten's contacts to prevent test pollution
   await tenPage.getByText('Remove contact').click();
   await tenPage.waitForTimeout(1000);
