@@ -3,6 +3,7 @@ import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -183,10 +184,13 @@ export function EditProfileScreenView(props: Props) {
     }
   };
 
-  const handleUpdatePinnedGroups = useCallback((groups: db.Group[]) => {
-    setPinnedGroups(groups);
-    store.updateProfilePinnedGroups(groups);
-  }, []);
+  const handleUpdatePinnedGroups = useCallback(
+    (groups: db.Group[]) => {
+      setPinnedGroups(groups);
+      store.updateProfilePinnedGroups(groups);
+    },
+    [store]
+  );
 
   const isWindowNarrow = useIsWindowNarrow();
 
