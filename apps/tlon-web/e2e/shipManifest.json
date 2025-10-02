@@ -23,7 +23,8 @@
     "webUrl": "http://localhost:3001",
     "skipCommit": true,
     "skipSetup": false,
-    "skipAuth": false
+    "skipAuth": false,
+    "optional": true
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
@@ -49,6 +50,7 @@
     "webUrl": "http://localhost:3003",
     "skipCommit": false,
     "skipSetup": false,
-    "skipAuth": true
+    "skipAuth": true,
+    "optional": true
   }
 }

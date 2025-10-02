@@ -3,7 +3,9 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should test direct message protocol mismatch', async ({ zodPage }) => {
+const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
+
+test.skip(!INCLUDE_OPTIONAL_SHIPS, 'should test direct message protocol mismatch', async ({ zodPage }) => {
   const page = zodPage;
 
   await helpers.createDirectMessage(page, '~bus');

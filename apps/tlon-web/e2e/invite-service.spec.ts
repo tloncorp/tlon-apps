@@ -4,9 +4,11 @@ import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
 
+const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
+
 test.use({ permissions: ['clipboard-write', 'clipboard-read'] });
 
-test('should generate an invite link and be able to redeem group/personal invites', async ({
+test.skip(!INCLUDE_OPTIONAL_SHIPS, 'should generate an invite link and be able to redeem group/personal invites', async ({
   zodSetup,
   tenSetup,
 }) => {
