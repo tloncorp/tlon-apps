@@ -23,7 +23,7 @@ export async function signUpHostedUser(params: {
   priorityToken: string;
   recaptcha: {
     token: string;
-    platform: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+    platform: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
   };
 }): Promise<HostingAccountIssue | undefined> {
   try {

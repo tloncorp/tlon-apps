@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { deSig, unixToDa } from '@urbit/aura';
 import { formatDa } from '@urbit/aura';
 import * as FileSystem from 'expo-file-system';
-import { manipulateAsync } from 'expo-image-manipulator';
+import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import { ImagePickerAsset } from 'expo-image-picker';
 
 import { RNFile, getCurrentUserId } from '../../api';
@@ -12,6 +12,7 @@ import { createDevLogger, escapeLog } from '../../debug';
 import { setUploadState } from './storageUploadState';
 import {
   fetchFileFromUri,
+  getExtensionFromMimeType,
   getMemexUpload,
   hasCustomS3Creds,
   hasHostingUploadCreds,
@@ -20,6 +21,22 @@ import {
 const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
+
+function getSaveFormat(mimeType?: string): SaveFormat {
+  if (!mimeType) {
+    return SaveFormat.JPEG;
+  }
+
+  const lowercaseMime = mimeType.toLowerCase();
+  if (lowercaseMime.includes('png')) {
+    return SaveFormat.PNG;
+  }
+  if (lowercaseMime.includes('webp')) {
+    return SaveFormat.WEBP;
+  }
+  // expo-image-manipulator only supports JPEG, PNG, and WEBP
+  return SaveFormat.JPEG;
+}
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   if (asset.uri === PLACEHOLDER_ASSET_URI) {
@@ -38,8 +55,10 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   try {
     logger.log('resizing asset', asset.uri);
     let resizedAsset = asset;
+    const originalMimeType = asset.mimeType;
     // avoid resizing gifs
     if (!asset.mimeType?.includes('gif')) {
+      const format = getSaveFormat(asset.mimeType);
       resizedAsset = await manipulateAsync(
         asset.uri,
         [
@@ -48,10 +67,16 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
               asset.width > asset.height ? { width: 1200 } : { height: 1200 },
           },
         ],
-        { compress: 0.75 }
+        {
+          compress: 0.75,
+          format,
+        }
       );
     }
-    const remoteUri = await performUpload(resizedAsset, isWeb);
+    const remoteUri = await performUpload(
+      { ...resizedAsset, mimeType: originalMimeType },
+      isWeb
+    );
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
@@ -63,7 +88,7 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
 };
 
 export const performUpload = async (
-  params: Pick<RNFile, 'uri' | 'height' | 'width'>,
+  params: Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string },
   isWeb = false
 ) => {
   logger.log('performing upload', params.uri, 'isWeb', isWeb);
@@ -83,9 +108,14 @@ export const performUpload = async (
   }
 
   const contentType = file.type;
+  const baseFileName = params.uri.split('/').pop()?.split('?')[0] || 'image';
+  const extension = getExtensionFromMimeType(params.mimeType || contentType);
+  const fileName = baseFileName.includes('.')
+    ? baseFileName
+    : `${baseFileName}${extension}`;
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
-  )}-${params.uri.split('/').pop()?.split('?')[0]}`;
+  )}-${fileName}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {

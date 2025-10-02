@@ -5,8 +5,6 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -19,6 +17,8 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform, TouchableOpacity } from 'react-native';
@@ -26,6 +26,7 @@ import { Platform, TouchableOpacity } from 'react-native';
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { selectRecaptchaPlatform } from '../../lib/hostingAuth';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -96,7 +97,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
             await hostingApi.requestLoginOtp({
               phoneNumber,
               recaptchaToken,
-              platform: Platform.OS,
+              platform: selectRecaptchaPlatform(),
             });
           } catch (err) {
             if (err instanceof HostingError) {
@@ -127,7 +128,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
             await hostingApi.requestLoginOtp({
               email,
               recaptchaToken,
-              platform: Platform.OS,
+              platform: selectRecaptchaPlatform(),
             });
           } catch (err) {
             if (err instanceof HostingError) {

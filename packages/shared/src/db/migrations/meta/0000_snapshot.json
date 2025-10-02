@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a108bc67-9524-43d1-a7aa-6c43f27c4dfa",
+  "id": "e18c0ac2-ca5d-4de8-b4c6-ef72695d9807",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
