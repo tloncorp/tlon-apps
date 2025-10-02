@@ -98,8 +98,7 @@ function getShips(): Record<string, Ship> {
 
         // Use standard ports - containers handle isolation
         const httpPort = parseInt(v.httpPort, 10);
-        const webPort =
-          parseInt(v.webUrl.match(/:(\d+)/)?.[1] || '3000', 10);
+        const webPort = parseInt(v.webUrl.match(/:(\d+)/)?.[1] || '3000', 10);
 
         // In containers, extract directly to short paths to avoid socket path limit
         // and to avoid disk space issues from copying large ships
@@ -213,7 +212,10 @@ const execPromise = (command: string): Promise<string> =>
 const getPiers = async () => {
   // If running in container with pre-extracted ships, copy them to working location
   if (IN_CONTAINER && PRE_EXTRACTED_SHIPS) {
-    console.log('🐳 Container mode: Using pre-extracted ships from', PRE_EXTRACTED_SHIPS);
+    console.log(
+      '🐳 Container mode: Using pre-extracted ships from',
+      PRE_EXTRACTED_SHIPS
+    );
 
     for (const shipConfig of Object.values(ships) as Ship[]) {
       if (targetShip && targetShip !== shipConfig.ship) {
@@ -243,7 +245,9 @@ const getPiers = async () => {
               fs.rmSync(targetPath, { recursive: true, force: true });
             } catch (e: any) {
               if (e.code === 'EBUSY') {
-                console.warn(`Warning: Could not remove ${targetPath} (EBUSY), attempting to overwrite...`);
+                console.warn(
+                  `Warning: Could not remove ${targetPath} (EBUSY), attempting to overwrite...`
+                );
               } else {
                 throw e;
               }
@@ -256,10 +260,14 @@ const getPiers = async () => {
           await execPromise(`cp -a ${sourceShipPath}/. ${targetPath}/`);
           console.log(`Copied pre-extracted ${ship} pier to ${targetPath}`);
         } else {
-          console.log(`${ship} pier already exists at ${targetPath}, skipping copy`);
+          console.log(
+            `${ship} pier already exists at ${targetPath}, skipping copy`
+          );
         }
       } else {
-        console.warn(`Warning: Pre-extracted ship ${ship} not found at ${sourceShipPath}`);
+        console.warn(
+          `Warning: Pre-extracted ship ${ship} not found at ${sourceShipPath}`
+        );
       }
     }
     return; // Skip download/extract logic
@@ -308,18 +316,26 @@ const getUrbitBinary = async () => {
   // If running in container with pre-installed binary, skip download
   if (IN_CONTAINER && URBIT_BINARY_PATH) {
     if (fs.existsSync(URBIT_BINARY_PATH)) {
-      console.log('🐳 Container mode: Using pre-installed Urbit binary at', URBIT_BINARY_PATH);
+      console.log(
+        '🐳 Container mode: Using pre-installed Urbit binary at',
+        URBIT_BINARY_PATH
+      );
 
       // Create symlink to expected location for compatibility
       const expectedPath = path.join(WORKSPACE_DIR, 'urbit_extracted', 'urbit');
       if (!fs.existsSync(expectedPath)) {
         fs.mkdirSync(path.dirname(expectedPath), { recursive: true });
         fs.symlinkSync(URBIT_BINARY_PATH, expectedPath);
-        console.log(`Created symlink from ${URBIT_BINARY_PATH} to ${expectedPath}`);
+        console.log(
+          `Created symlink from ${URBIT_BINARY_PATH} to ${expectedPath}`
+        );
       }
       return;
     } else {
-      console.warn('Warning: Pre-installed Urbit binary not found at', URBIT_BINARY_PATH);
+      console.warn(
+        'Warning: Pre-installed Urbit binary not found at',
+        URBIT_BINARY_PATH
+      );
       // Fall through to download if pre-installed binary is missing
     }
   }
@@ -950,66 +966,122 @@ const cleanupSpawnedProcesses = () => {
     }
   });
 
-  // Give processes 1 second to terminate gracefully
-  const timeout = Date.now() + 1000;
-  while (Date.now() < timeout) {
-    if (spawnedProcesses.every((p) => p.killed)) break;
-  }
-
-  // Force kill any remaining direct children
-  spawnedProcesses.forEach((proc) => {
-    if (!proc.killed && proc.pid) {
+  // Helper to check if any ship ports are still open
+  const areShipPortsOpen = (): boolean => {
+    const shipPorts = ['35453', '36963', '38473', '39983'];
+    for (const port of shipPorts) {
       try {
-        proc.kill('SIGKILL');
+        // Check if port is in use (lsof returns success if port is open)
+        childProcess.execSync(`lsof -ti:${port}`, { stdio: 'ignore' });
+        return true; // Port is still open
       } catch {
-        // Process may already be dead
+        // Port is closed, continue checking others
       }
     }
-  });
+    return false; // All ports closed
+  };
+
+  // Give processes up to 60 seconds to terminate gracefully
+  console.log('Waiting for ships to shut down gracefully...');
+  const timeout = Date.now() + 60000; // 60 seconds
+  let lastProgressUpdate = Date.now();
+  let shipsStoppedCleanly = false;
+
+  while (Date.now() < timeout) {
+    // Check if all processes have exited
+    const allProcessesKilled = spawnedProcesses.every((p) => p.killed);
+
+    // Check if ship ports are all closed
+    const portsOpen = areShipPortsOpen();
+
+    if (allProcessesKilled && !portsOpen) {
+      console.log('All ships shut down cleanly');
+      shipsStoppedCleanly = true;
+      break;
+    }
+
+    // Show progress every 5 seconds
+    if (Date.now() - lastProgressUpdate > 5000) {
+      const elapsed = Math.floor((Date.now() - (timeout - 60000)) / 1000);
+      console.log(`  Still waiting... (${elapsed}s elapsed)`);
+      lastProgressUpdate = Date.now();
+    }
+
+    // Small sleep to avoid busy-waiting
+    childProcess.execSync('sleep 0.1', { stdio: 'ignore' });
+  }
+
+  // Force kill any remaining direct children if they didn't stop gracefully
+  if (!shipsStoppedCleanly) {
+    console.log('Ships did not stop cleanly within 60s, forcing shutdown...');
+    spawnedProcesses.forEach((proc) => {
+      if (!proc.killed && proc.pid) {
+        try {
+          proc.kill('SIGKILL');
+        } catch {
+          // Process may already be dead
+        }
+      }
+    });
+  }
 
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
-  try {
-    // Kill all Urbit processes matching our rube pattern
-    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
-    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+  // Only run aggressive cleanup if ships didn't stop cleanly
+  if (!shipsStoppedCleanly) {
+    console.log(
+      'Running aggressive cleanup (pattern-based process killing)...'
+    );
+    try {
+      // Kill all Urbit processes matching our rube pattern
+      const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+      childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
 
-    // Also use our existing commands as additional cleanup
-    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore' });
-    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore' });
+      // Also use our existing commands as additional cleanup
+      childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore' });
+      childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore' });
+    } catch {
+      // Ignore command errors
+    }
+  }
 
-    // Kill any processes on our known ports
-    const ports = [
-      '35453',
-      '36963',
-      '38473',
-      '39983',
-      '3000',
-      '3001',
-      '3002',
-      '3003',
-    ];
-    ports.forEach((port) => {
-      try {
-        // First try lsof (most common)
+  // Clean up ports as final safety check (only if ships didn't stop cleanly)
+  if (!shipsStoppedCleanly) {
+    console.log('Cleaning up ports (force-killing remaining processes)...');
+    try {
+      // Kill any processes on our known ports
+      const ports = [
+        '35453',
+        '36963',
+        '38473',
+        '39983',
+        '3000',
+        '3001',
+        '3002',
+        '3003',
+      ];
+      ports.forEach((port) => {
         try {
-          const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
-          childProcess.execSync(cmd, { stdio: 'ignore' });
-        } catch {
-          // If lsof doesn't exist, try fuser as fallback
+          // First try lsof (most common)
           try {
-            const cmd = `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`;
+            const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
             childProcess.execSync(cmd, { stdio: 'ignore' });
           } catch {
-            // Neither tool available - skip port cleanup
+            // If lsof doesn't exist, try fuser as fallback
+            try {
+              const cmd = `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`;
+              childProcess.execSync(cmd, { stdio: 'ignore' });
+            } catch {
+              // Neither tool available - skip port cleanup
+            }
           }
+        } catch {
+          // Ignore errors for ports that may not be in use
         }
-      } catch {
-        // Ignore errors for ports that may not be in use
-      }
-    });
-  } catch {
-    // Ignore command errors
+      });
+    } catch {
+      // Ignore command errors
+    }
   }
 
   // Clean up PID files
@@ -1508,7 +1580,9 @@ const main = async () => {
     if (INCLUDE_OPTIONAL_SHIPS) {
       await setReelServiceShip();
     } else {
-      console.log('Skipping reel service ship setup (optional ships not included)');
+      console.log(
+        'Skipping reel service ship setup (optional ships not included)'
+      );
     }
     await setStorageConfiguration();
 
