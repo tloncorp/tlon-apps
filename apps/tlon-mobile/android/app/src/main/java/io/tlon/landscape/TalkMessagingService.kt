@@ -82,7 +82,9 @@ class TalkMessagingService : FirebaseMessagingService() {
                 if (data["action"] == "notify") {
                     try {
                         data["uid"]?.let { uid ->
-                            processNotificationBlocking(this, uid)
+                            data["id"]?.let { id ->
+                                processNotificationBlocking(this, uid, id)
+                            }
                         }
                     } catch (e: NotificationException) {
                         NotificationLogger.logError(e)
@@ -93,7 +95,9 @@ class TalkMessagingService : FirebaseMessagingService() {
                 if (data["action"] == "dismiss") {
                     try {
                         data["dismissSource"]?.let { source ->
-                            dismissNotifications(this, source)
+                            data["id"]?.let { id ->
+                                dismissNotifications(this, source, id)
+                            }
                         }
                     } catch (e: Error) {
                         data["uid"]?.let { uid ->
@@ -104,13 +108,14 @@ class TalkMessagingService : FirebaseMessagingService() {
             }
     }
 
-    private fun dismissNotifications(context: Context, dismissSource: String) {
+    private fun dismissNotifications(context: Context, dismissSource: String, id: String) {
         val notificationManager = NotificationManagerCompat.from(context)
         val activeNotifications: List<StatusBarNotification> =
             notificationManager.activeNotifications
 
         for (notification in activeNotifications) {
-            if (notification.notification.group == dismissSource) {
+            val notifId = notification.notification.extras.getString("id", "0")
+            if (notification.notification.group == dismissSource && id >= notifId) {
                 notificationManager.cancel(notification.id)
             }
         }

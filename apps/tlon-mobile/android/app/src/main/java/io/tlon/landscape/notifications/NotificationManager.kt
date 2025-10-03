@@ -32,7 +32,7 @@ val notificationMessagesCache = HashMap<String, Array<NotificationCompat.Messagi
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
-suspend fun processNotification(context: Context, uid: String) {
+suspend fun processNotification(context: Context, uid: String, id: String) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
 
@@ -65,6 +65,7 @@ suspend fun processNotification(context: Context, uid: String) {
     try {
         // Proceed with rich notification
         val extras = Bundle()
+        extras.putString("id", id)
         extras.putString("activityEventJsonString", activityEventJSON)
 
         showRichNotification(context, uid, preview, extras)
@@ -188,8 +189,8 @@ fun NotificationCompat.Builder.buildMessagingTappable(context: Context, id: Int,
     return builder
 }
 
-fun processNotificationBlocking(context: Context, uid: String) =
-    runBlocking { processNotification(context, uid) }
+fun processNotificationBlocking(context: Context, uid: String, id: String) =
+    runBlocking { processNotification(context, uid, id) }
 
 open class NotificationException(
     message: String,
