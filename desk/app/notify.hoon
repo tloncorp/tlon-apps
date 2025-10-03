@@ -191,7 +191,7 @@
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
       ::
-        ?.  =(~wanmep-witnul-nocsyx-lassul our.bowl)  ~
+        ?.  =(~rivfur-livmet our.bowl)  ~
         [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
     ==
   ::
@@ -209,7 +209,7 @@
       caz
     :*  (~(watch-our pass:io /activity) %activity /notifications)
         (~(watch-our pass:io /unreads) %activity /v4/unreads)
-        ?.  =(~wanmep-witnul-nocsyx-lassul our.bowl)  caz
+        ?.  =(~rivfur-livmet our.bowl)  caz
         [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
     ==
   ::
@@ -393,7 +393,7 @@
     ++  provider-state-message
       ^-  (quip card _state)
       ~&  "provider-state-message"
-      ?>  =(our.bowl ~wanmep-witnul-nocsyx-lassul)
+      ?>  =(our.bowl ~rivfur-livmet)
       =/  now  now.bowl
       =/  time-since-last  (sub `@`last-timer `@`now)
       ~&  ['time since last daily-stats-interval' time-since-last]

@@ -24,21 +24,21 @@ import NotificationCenter
             return .invalid
         }
 
-        do {
-            let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
-            let event = try JSONSerialization.jsonObject(with: aerData)
-            switch action {
-            case "notify":
-                return .notify(uid: uid, event: event)
-            case "dismiss":
-                return .dismiss
 
-            default:
-                return .invalid
+        switch action {
+        case "notify":
+            do {
+                let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
+                let event = try JSONSerialization.jsonObject(with: aerData)
+            } catch {
+                return .failedFetchContents(error)
             }
+            return .notify(uid: uid, event: event)
+        case "dismiss":
+            return .dismiss
 
-        } catch {
-            return .failedFetchContents(error)
+        default:
+            return .invalid
         }
     }
 }
