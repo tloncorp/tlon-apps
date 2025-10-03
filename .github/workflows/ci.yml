@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          clean: false  # Our cleanup step handles root-owned files
+          clean: false # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -241,6 +241,7 @@ jobs:
       - self-hosted
       - Linux
       - X64
+      - product
     name: E2E Tests (Parallel - 2 shards)
     steps:
       - name: Clean workspace (Fedora container fix)
@@ -265,7 +266,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          clean: false  # Our cleanup step handles root-owned files
+          clean: false # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
