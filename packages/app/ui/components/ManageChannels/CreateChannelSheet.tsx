@@ -26,6 +26,7 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
+import { PrivateChannelToggle } from './EditChannelScreenView';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {
@@ -66,22 +67,42 @@ export function CreateChannelSheet({
   onOpenChange: (open: boolean) => void;
   group: db.Group;
 }) {
-  const { control, handleSubmit } = useForm<{
+  const { control, handleSubmit, watch, setValue } = useForm<{
     title: string;
     channelType: ChannelTypeName;
+    isPrivate: boolean;
   }>({
     defaultValues: {
       title: '',
       channelType: 'chat',
+      isPrivate: false,
     },
   });
 
+  const isPrivate = watch('isPrivate');
+
+  const handleTogglePrivate = useCallback(
+    (value: boolean) => {
+      setValue('isPrivate', value, { shouldDirty: true });
+    },
+    [setValue]
+  );
+
   const handlePressSave = useCallback(
-    async (data: { title: string; channelType: ChannelTypeName }) => {
+    async (data: {
+      title: string;
+      channelType: ChannelTypeName;
+      isPrivate: boolean;
+    }) => {
+      const readers = data.isPrivate ? ['admin'] : [];
+      const writers = data.isPrivate ? ['admin'] : [];
+
       createChannel({
         groupId: group.id,
         title: data.title,
         channelType: data.channelType,
+        readers,
+        writers,
       });
       onOpenChange(false);
     },
@@ -103,6 +124,19 @@ export function CreateChannelSheet({
             }}
             rules={{ required: 'Channel title is required' }}
           />
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <YStack
+            borderColor="$secondaryBorder"
+            borderWidth={1}
+            borderRadius="$m"
+            overflow="hidden"
+          >
+            <PrivateChannelToggle
+              isPrivate={isPrivate}
+              onTogglePrivate={handleTogglePrivate}
+            />
+          </YStack>
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
           <Form.ControlledListItemField

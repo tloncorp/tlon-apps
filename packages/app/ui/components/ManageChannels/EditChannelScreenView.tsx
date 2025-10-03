@@ -189,6 +189,38 @@ const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
     value: role.id ?? '',
   }));
 
+export function PrivateChannelToggle({
+  isPrivate,
+  onTogglePrivate,
+}: {
+  isPrivate: boolean;
+  onTogglePrivate: (value: boolean) => void;
+}) {
+  return (
+    <XStack
+      padding="$xl"
+      justifyContent="space-between"
+      alignItems="center"
+      gap="$xl"
+      backgroundColor="$secondaryBackground"
+      width="100%"
+    >
+      <YStack gap="$xl" flex={1}>
+        <Text size="$label/l">Private Channel</Text>
+        <Text size="$label/s" color="$tertiaryText">
+          By making a channel private, only select members and roles will be
+          able to view this channel.
+        </Text>
+      </YStack>
+      <Switch
+        value={isPrivate}
+        onValueChange={onTogglePrivate}
+        testID="PrivateChannelToggle"
+      />
+    </XStack>
+  );
+}
+
 export function ChannelPermissionsSelector({
   groupRoles,
 }: {
@@ -240,32 +272,15 @@ export function ChannelPermissionsSelector({
   return (
     <YStack
       width="100%"
-      borderColor="$secondaryBorder"
-      borderWidth={1}
-      borderRadius="$m"
       overflow="hidden"
+      borderRadius="$m"
+      borderWidth={1}
+      borderColor="$secondaryBorder"
     >
-      <XStack
-        padding="$xl"
-        justifyContent="space-between"
-        alignItems="center"
-        gap="$xl"
-        backgroundColor="$secondaryBackground"
-        borderBottomColor="$secondaryBorder"
-      >
-        <YStack gap="$xl" flex={1}>
-          <Text size="$label/l">Private Channel</Text>
-          <Text size="$label/s" color="$tertiaryText">
-            By making a channel private, only select members and roles will be
-            able to view this channel.
-          </Text>
-        </YStack>
-        <Switch
-          value={isPrivate}
-          onValueChange={handleTogglePrivate}
-          testID="PrivateChannelToggle"
-        />
-      </XStack>
+      <PrivateChannelToggle
+        isPrivate={isPrivate}
+        onTogglePrivate={handleTogglePrivate}
+      />
 
       {isPrivate && (
         <YStack

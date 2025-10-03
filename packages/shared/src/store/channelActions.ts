@@ -21,6 +21,8 @@ export async function createChannel({
   channelType: rawChannelType,
   contentConfiguration,
   customSlug,
+  readers = [],
+  writers = [],
 }: {
   groupId: string;
   title: string;
@@ -28,6 +30,8 @@ export async function createChannel({
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
   customSlug?: string;
+  readers?: string[];
+  writers?: string[];
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
@@ -79,8 +83,8 @@ export async function createChannel({
       title,
       description: encodedDescription ?? '',
       meta: null,
-      readers: [],
-      writers: [],
+      readers,
+      writers,
     });
     return newChannel;
   } catch (e) {
