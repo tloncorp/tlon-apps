@@ -399,13 +399,13 @@
         %+  ~(rib by our-metadata)  *(list card)
         |=  [[=token:reel meta=metadata:reel] caz=(list card)]
         ^-  [(list card) [token:reel metadata:reel]]
-        =;  [new-meta=metadata:reel new-update=_update]
-          :_  [token new-meta]
+        =;  new-update=_update
+          :_  :-  token
+              meta(fields (~(uni by fields.meta) fields.new-update))
           :_  caz
           [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token new-update])]
-        =;  =_update
-          :_  update
-          meta(fields (~(uni by fields.meta) fields.update))
+        ::  insert open-graph metadata into update
+        ::
         =+  type=(~(get by fields.meta) %'inviteType')
         ?:  |(?=(~ type) =('group' u.type))
           =/  group-title=@t
