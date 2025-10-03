@@ -700,7 +700,7 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin && {
-            title: 'Edit channel',
+            title: 'Channel settings',
             action: wrappedAction.bind(null, () => onPressEditChannel(false)),
             endIcon: 'ChevronRight',
           },
