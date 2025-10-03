@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     netcat-openbsd \
     ca-certificates \
+    lsof \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (match version from .nvmrc)
@@ -56,13 +58,9 @@ COPY ../../../.npmrc* /workspace/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
-# Now copy only the source code we need (excluding what's in .dockerignore)
-COPY ../../../packages/ /workspace/packages/
-COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
-COPY ../../../desk/ /workspace/desk/
-
 # Pre-download and extract ships + Urbit binary in parallel
 # URLs must match those in shipManifest.json
+# NOTE: These URLs are automatically updated by archive-piers.sh when ship versions change
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
@@ -82,6 +80,11 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
     chmod +x urbit-binary/urbit && \
     echo "Ships and binary ready at /opt/ships" && \
     ls -la /opt/ships/
+
+# Now copy the rest of the source code
+COPY ../../../packages/ /workspace/packages/
+COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
+COPY ../../../desk/ /workspace/desk/
 
 # Install Playwright browsers and dependencies
 WORKDIR /workspace/apps/tlon-web

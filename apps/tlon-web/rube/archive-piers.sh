@@ -9,6 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
+DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/e2e/Dockerfile"
 
 # Security: Expected GCP configuration
 EXPECTED_PROJECT="tlon-groups-mobile"
@@ -719,6 +720,32 @@ update_manifest() {
     print_status "Updated manifest for ~$ship"
 }
 
+# Update Dockerfile URLs to match manifest
+update_dockerfile() {
+    local ship=$1
+    local version=$2
+    local archive_name="rube-${ship}${version}.tgz"
+    local new_url="https://bootstrap.urbit.org/$archive_name"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "[DRY RUN] Would update Dockerfile for ~$ship with URL: $new_url"
+        return 0
+    fi
+
+    print_info "Updating Dockerfile for ~$ship..."
+
+    # Use sed to update the URL line for this ship
+    # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
+    # macOS sed requires empty string after -i, GNU sed works with or without
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+    else
+        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+    fi
+
+    print_status "Updated Dockerfile for ~$ship"
+}
+
 # Main execution
 main() {
     print_info "Starting pier archive and upload process"
@@ -818,9 +845,12 @@ main() {
                 print_info "Manual fix required:"
                 echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
                 echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/rube-${ship}${next_version}.tgz"
-                
+
                 # Optional: Could implement automatic rollback here
                 # gsutil rm "$GCS_BUCKET/rube-${ship}${next_version}.tgz" 2>/dev/null
+            else
+                # Also update Dockerfile URLs to match manifest
+                update_dockerfile "$ship" "$next_version"
             fi
         else
             print_error "Failed to upload $ship, skipping manifest update"
@@ -878,13 +908,13 @@ main() {
         if [ "$VERIFY_AFTER_UPLOAD" = "false" ]; then
             print_info "Next steps:"
             echo "  1. Verify the new archives work: ./verify-archives.sh"
-            echo "  2. Commit the updated shipManifest.json"
+            echo "  2. Commit the updated shipManifest.json and e2e/Dockerfile"
             echo "  3. Create a PR with the changes"
             echo ""
             print_info "Tip: Use --verify flag to automatically verify after upload"
         else
             print_info "Next steps:"
-            echo "  1. Commit the updated shipManifest.json"
+            echo "  1. Commit the updated shipManifest.json and e2e/Dockerfile"
             echo "  2. Create a PR with the changes"
         fi
     fi

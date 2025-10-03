@@ -958,10 +958,11 @@ const cleanupSpawnedProcesses = () => {
   spawnedProcesses.forEach((proc) => {
     if (!proc.killed && proc.pid) {
       try {
-        console.log(`Killing process PID: ${proc.pid}`);
+        console.log(`Sending SIGTERM to process PID: ${proc.pid}`);
         proc.kill('SIGTERM');
-      } catch {
-        // Process may already be dead
+        console.log(`  Signal sent, proc.killed=${proc.killed}`);
+      } catch (error) {
+        console.log(`  Failed to kill PID ${proc.pid}: ${error}`);
       }
     }
   });
@@ -1003,7 +1004,12 @@ const cleanupSpawnedProcesses = () => {
     // Show progress every 5 seconds
     if (Date.now() - lastProgressUpdate > 5000) {
       const elapsed = Math.floor((Date.now() - (timeout - 60000)) / 1000);
-      console.log(`  Still waiting... (${elapsed}s elapsed)`);
+      const killedStatus = spawnedProcesses
+        .map((p) => `${p.pid}:${p.killed}`)
+        .join(', ');
+      console.log(
+        `  Still waiting... (${elapsed}s elapsed) - allKilled=${allProcessesKilled}, portsOpen=${portsOpen}, status=[${killedStatus}]`
+      );
       lastProgressUpdate = Date.now();
     }
 
