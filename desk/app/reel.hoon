@@ -407,9 +407,7 @@
           :_  update
           meta(fields (~(uni by fields.meta) fields.update))
         =+  type=(~(get by fields.meta) %'inviteType')
-        ::  by default we assume a group invite
-        ::
-        ?~  type
+        ?:  |(?=(~ type) =('group' u.type))
           =/  group-title=@t
             =+  til=(~(get by fields.meta) %'invitedGroupTitle')
             ?:  |(?=(~ til) =('' u.til))
@@ -425,17 +423,18 @@
           =.  fields.update
             (~(put by fields.update) %'$twitter_title' title)
           update
-        ::  non-empty inviteType, assume a personal invite
-        ::
-        =/  title=@t
-          %-  crip
-          ?:  |(?=(~ nickname) =('' u.nickname))
-            "Tlon Messenger: You've Been Invited"
-          "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
-        =.  fields.update
-          (~(put by fields.update) %'$og_title' title)
-        =.  fields.update
-          (~(put by fields.update) %'$twitter_title' title)
+        ?:  =('user' u.type)
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You've Been Invited"
+            "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+          =.  fields.update
+            (~(put by fields.update) %'$og_title' title)
+          =.  fields.update
+            (~(put by fields.update) %'$twitter_title' title)
+          update
+        ::  unknown invite type, ignore
         update
       [caz this]
     ==
