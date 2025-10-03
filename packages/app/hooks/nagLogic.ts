@@ -74,32 +74,3 @@ export function createDefaultNagState(): NagState {
     firstEligibleTime: 0,
   };
 }
-
-export function validateNagConfig(config: NagConfig): string[] {
-  const errors: string[] = [];
-
-  if (!config.key || typeof config.key !== 'string') {
-    errors.push('key must be a non-empty string');
-  }
-
-  if (config.refreshInterval !== undefined) {
-    if (
-      typeof config.refreshInterval !== 'number' ||
-      config.refreshInterval <= 0
-    ) {
-      errors.push('refreshInterval must be a positive number');
-    }
-  }
-
-  if (config.refreshCycle !== undefined) {
-    if (
-      typeof config.refreshCycle !== 'number' ||
-      config.refreshCycle <= 0 ||
-      !Number.isInteger(config.refreshCycle)
-    ) {
-      errors.push('refreshCycle must be a positive integer');
-    }
-  }
-
-  return errors;
-}

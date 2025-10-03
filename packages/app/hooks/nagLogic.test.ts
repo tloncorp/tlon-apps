@@ -2,12 +2,10 @@ import { NagState } from '@tloncorp/shared/domain';
 import { describe, expect, it } from 'vitest';
 
 import {
-  type NagConfig,
   createDefaultNagState,
   createDismissedState,
   createEliminatedState,
   shouldShowNag,
-  validateNagConfig,
 } from './nagLogic';
 
 describe('nagLogic', () => {
@@ -198,72 +196,6 @@ describe('nagLogic', () => {
         eliminated: false,
         firstEligibleTime: 0,
       });
-    });
-  });
-
-  describe('validateNagConfig', () => {
-    it('should pass validation for valid config', () => {
-      const config: NagConfig = {
-        key: 'test',
-        refreshInterval: 1000,
-        refreshCycle: 3,
-      };
-
-      const errors = validateNagConfig(config);
-      expect(errors).toEqual([]);
-    });
-
-    it('should fail validation for missing key', () => {
-      const config = {
-        key: '',
-      } as NagConfig;
-
-      const errors = validateNagConfig(config);
-      expect(errors).toContain('key must be a non-empty string');
-    });
-
-    it('should fail validation for invalid refreshInterval', () => {
-      const config: NagConfig = {
-        key: 'test',
-        refreshInterval: -1000,
-      };
-
-      const errors = validateNagConfig(config);
-      expect(errors).toContain('refreshInterval must be a positive number');
-    });
-
-    it('should fail validation for invalid refreshCycle', () => {
-      const config: NagConfig = {
-        key: 'test',
-        refreshCycle: -1,
-      };
-
-      const errors = validateNagConfig(config);
-      expect(errors).toContain('refreshCycle must be a positive integer');
-    });
-
-    it('should fail validation for non-integer refreshCycle', () => {
-      const config: NagConfig = {
-        key: 'test',
-        refreshCycle: 2.5,
-      };
-
-      const errors = validateNagConfig(config);
-      expect(errors).toContain('refreshCycle must be a positive integer');
-    });
-
-    it('should collect multiple validation errors', () => {
-      const config = {
-        key: '',
-        refreshInterval: -1000,
-        refreshCycle: -1,
-      } as NagConfig;
-
-      const errors = validateNagConfig(config);
-      expect(errors).toHaveLength(3);
-      expect(errors).toContain('key must be a non-empty string');
-      expect(errors).toContain('refreshInterval must be a positive number');
-      expect(errors).toContain('refreshCycle must be a positive integer');
     });
   });
 });

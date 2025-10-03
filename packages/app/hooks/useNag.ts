@@ -20,7 +20,6 @@ export {
   createDismissedState,
   createEliminatedState,
   createDefaultNagState,
-  validateNagConfig,
 } from './nagLogic';
 
 export interface NagHookReturn {
