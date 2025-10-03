@@ -444,6 +444,17 @@ else
     echo ""
     echo -e "${GREEN}All shards completed!${NC}"
 
+    # Capture container logs for all shards (for debugging)
+    echo -e "${BLUE}Capturing container logs...${NC}"
+    mkdir -p "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/logs"
+    for shard in $(seq 1 $TOTAL_SHARDS); do
+        container_name="${CONTAINER_NAME}-shard-${shard}"
+        if $CONTAINER_CMD ps -a | grep -q $container_name; then
+            echo "  Saving logs for shard $shard..."
+            $CONTAINER_CMD logs $container_name > "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/logs/shard-${shard}.log" 2>&1 || true
+        fi
+    done
+
     # Check for failures
     failed_shards=""
     for shard in $(seq 1 $TOTAL_SHARDS); do

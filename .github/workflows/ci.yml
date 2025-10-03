@@ -306,4 +306,5 @@ jobs:
           path: |
             apps/tlon-web/test-results/merged-report/
             apps/tlon-web/test-results/junit-merged.xml
+            apps/tlon-web/test-results/logs/
           retention-days: 30
