@@ -1,9 +1,4 @@
-export interface NagState {
-  lastDismissed: number;
-  dismissCount: number;
-  eliminated: boolean;
-  firstEligibleTime: number;
-}
+import { NagState } from '@tloncorp/shared/domain';
 
 export interface NagBehaviorConfig {
   refreshInterval?: number;
@@ -36,7 +31,10 @@ export function shouldShowNag(
   }
 
   // If we have a refresh cycle limit and we've hit it, don't show
-  if (config.refreshCycle !== undefined && state.dismissCount >= config.refreshCycle) {
+  if (
+    config.refreshCycle !== undefined &&
+    state.dismissCount >= config.refreshCycle
+  ) {
     return false;
   }
 
@@ -85,13 +83,20 @@ export function validateNagConfig(config: NagConfig): string[] {
   }
 
   if (config.refreshInterval !== undefined) {
-    if (typeof config.refreshInterval !== 'number' || config.refreshInterval <= 0) {
+    if (
+      typeof config.refreshInterval !== 'number' ||
+      config.refreshInterval <= 0
+    ) {
       errors.push('refreshInterval must be a positive number');
     }
   }
 
   if (config.refreshCycle !== undefined) {
-    if (typeof config.refreshCycle !== 'number' || config.refreshCycle <= 0 || !Number.isInteger(config.refreshCycle)) {
+    if (
+      typeof config.refreshCycle !== 'number' ||
+      config.refreshCycle <= 0 ||
+      !Number.isInteger(config.refreshCycle)
+    ) {
       errors.push('refreshCycle must be a positive integer');
     }
   }

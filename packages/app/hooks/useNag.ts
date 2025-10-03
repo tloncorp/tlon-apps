@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import * as kv from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared';
+import * as kv from '@tloncorp/shared/db';
+import type { NagState } from '@tloncorp/shared/domain';
+import { useCallback, useEffect, useMemo } from 'react';
+
 import {
-  shouldShowNag,
+  type NagConfig,
+  createDefaultNagState,
   createDismissedState,
   createEliminatedState,
-  createDefaultNagState,
-  type NagConfig,
+  shouldShowNag,
 } from './nagLogic';
-import type { NagState } from '@tloncorp/shared/db';
 
-const logger = createDevLogger('useNag', true);
+const logger = createDevLogger('useNag', false);
 
 export type { NagConfig, NagBehaviorConfig } from './nagLogic';
 export type { NagState } from '@tloncorp/shared/db';
@@ -38,26 +39,45 @@ export function useNag(config: NagConfig): NagHookReturn {
 
   const { value: nagState, isLoading, setValue } = storageItem.useStorageItem();
 
-  const updateNagState = useCallback(async (updater: (prev: NagState) => NagState) => {
-    try {
-      await setValue(updater);
-    } catch (error) {
-      logger.log(`Failed to save nag state for key "${key}":`, error);
-    }
-  }, [setValue, key]);
+  const updateNagState = useCallback(
+    async (updater: (prev: NagState) => NagState) => {
+      try {
+        await setValue(updater);
+      } catch (error) {
+        logger.log(`Failed to save nag state for key "${key}":`, error);
+      }
+    },
+    [setValue, key]
+  );
 
   // Initialize firstEligibleTime when needed
   useEffect(() => {
-    if (!isLoading && nagState.firstEligibleTime === 0 && nagState.dismissCount === 0) {
-      const eligibleTime = initialDelay ? Date.now() + initialDelay : Date.now();
+    if (
+      !isLoading &&
+      nagState.firstEligibleTime === 0 &&
+      nagState.dismissCount === 0
+    ) {
+      const eligibleTime = initialDelay
+        ? Date.now() + initialDelay
+        : Date.now();
       updateNagState((prev) => ({ ...prev, firstEligibleTime: eligibleTime }));
     }
-  }, [isLoading, nagState.firstEligibleTime, nagState.dismissCount, initialDelay, updateNagState]);
+  }, [
+    isLoading,
+    nagState.firstEligibleTime,
+    nagState.dismissCount,
+    initialDelay,
+    updateNagState,
+  ]);
 
   const shouldShow = useMemo(() => {
     if (isLoading) return false;
 
-    const result = shouldShowNag(nagState, { refreshInterval, refreshCycle, initialDelay });
+    const result = shouldShowNag(nagState, {
+      refreshInterval,
+      refreshCycle,
+      initialDelay,
+    });
 
     logger.log(`shouldShow for "${key}":`, {
       result,

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { NagState } from '@tloncorp/shared/domain';
+import { describe, expect, it } from 'vitest';
 
 import {
-  shouldShowNag,
+  type NagConfig,
+  createDefaultNagState,
   createDismissedState,
   createEliminatedState,
-  createDefaultNagState,
+  shouldShowNag,
   validateNagConfig,
-  type NagState,
-  type NagConfig,
 } from './nagLogic';
 
 describe('nagLogic', () => {
@@ -68,7 +68,7 @@ describe('nagLogic', () => {
     });
 
     it('should show nag again after refresh interval passes', () => {
-      const oneDayAgo = fixedTime - (24 * 60 * 60 * 1000);
+      const oneDayAgo = fixedTime - 24 * 60 * 60 * 1000;
       const state: NagState = {
         lastDismissed: oneDayAgo,
         dismissCount: 1,
@@ -83,7 +83,7 @@ describe('nagLogic', () => {
     });
 
     it('should not show nag if refresh interval has not passed', () => {
-      const oneHourAgo = fixedTime - (1 * 60 * 60 * 1000);
+      const oneHourAgo = fixedTime - 1 * 60 * 60 * 1000;
       const state: NagState = {
         lastDismissed: oneHourAgo,
         dismissCount: 1,
@@ -98,7 +98,7 @@ describe('nagLogic', () => {
     });
 
     it('should not show nag after reaching refresh cycle limit', () => {
-      const oneDayAgo = fixedTime - (24 * 60 * 60 * 1000);
+      const oneDayAgo = fixedTime - 24 * 60 * 60 * 1000;
       const state: NagState = {
         lastDismissed: oneDayAgo,
         dismissCount: 3, // At limit
@@ -114,7 +114,7 @@ describe('nagLogic', () => {
     });
 
     it('should show nag if under refresh cycle limit', () => {
-      const oneDayAgo = fixedTime - (24 * 60 * 60 * 1000);
+      const oneDayAgo = fixedTime - 24 * 60 * 60 * 1000;
       const state: NagState = {
         lastDismissed: oneDayAgo,
         dismissCount: 2, // Under limit
@@ -200,7 +200,6 @@ describe('nagLogic', () => {
       });
     });
   });
-
 
   describe('validateNagConfig', () => {
     it('should pass validation for valid config', () => {
