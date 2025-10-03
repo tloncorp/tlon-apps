@@ -64,6 +64,13 @@ fi
 
 echo "Using container runtime: $CONTAINER_CMD"
 
+# Configure SELinux relabeling for Podman volume mounts
+if [ "$CONTAINER_CMD" = "podman" ]; then
+    VOLUME_LABEL_SUFFIX=":Z"
+else
+    VOLUME_LABEL_SUFFIX=""
+fi
+
 # Check for any existing e2e containers
 existing_containers=$($CONTAINER_CMD ps -a --filter "name=${CONTAINER_NAME}-shard" --format "{{.Names}}" 2>/dev/null | wc -l)
 if [ "$existing_containers" -gt 0 ]; then
@@ -108,7 +115,7 @@ if [ -d "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR" ] && [ "$(ls -A "$PROJECT_ROO
     echo -e "${YELLOW}Cleaning up previous test results...${NC}"
     # Use a lightweight container to remove root-owned files
     $CONTAINER_CMD run --rm \
-        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR:/cleanup" \
+        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR:/cleanup$VOLUME_LABEL_SUFFIX" \
         alpine:latest \
         sh -c "rm -rf /cleanup/shard-* /cleanup/blob-reports-temp /cleanup/merged-report /cleanup/artifacts 2>/dev/null || true"
 fi
@@ -203,6 +210,7 @@ run_shard() {
         -e "IN_CONTAINER=true"
         -e "SKIP_DOWNLOAD=true"
         -e "FORCE_EXTRACTION=true"
+        -e "TMPDIR=/tmp"
     )
 
     # Add storage configuration if available
@@ -228,17 +236,22 @@ run_shard() {
     # Volume mounts for results and workspace
     # Ships will stay inside container to avoid Unix socket path issues
     local volumes=(
-        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}:/workspace/apps/tlon-web/test-results"
-        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}-report:/workspace/apps/tlon-web/playwright-report"
-        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}-workspace:/tmp/rube-workspace"
+        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}:/workspace/apps/tlon-web/test-results$VOLUME_LABEL_SUFFIX"
+        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}-report:/workspace/apps/tlon-web/playwright-report$VOLUME_LABEL_SUFFIX"
+        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}-workspace:/tmp/rube-workspace$VOLUME_LABEL_SUFFIX"
     )
 
     # Storage options and performance optimizations
     local storage_opts=(
         --shm-size=4g  # Increased shared memory for better browser performance
         # Use tmpfs for entire /tmp to improve I/O performance
-        --tmpfs /tmp:rw,size=16g,exec
+        --tmpfs /tmp:rw,size=16g,exec,mode=1777
     )
+
+    # For Podman on SELinux-enabled hosts, disable labels to avoid permission issues
+    if [ "$CONTAINER_CMD" = "podman" ]; then
+        storage_opts+=(--security-opt label=disable)
+    fi
 
     # Add CPU affinity if system has enough cores
     # Note: CPU affinity is disabled on macOS because Docker runs in a VM
