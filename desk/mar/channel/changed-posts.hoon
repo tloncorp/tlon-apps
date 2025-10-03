@@ -8,8 +8,6 @@
   ++  json
     %-  pairs:enjs:format
     =,  enjs:j
-    ::REVIEW  turn seems slightly faster than murn,
-    ::        even if that means we produce bigger json
     %+  turn  ~(tap by changes)
     |=  [=nest:c posts=(unit posts:c)]
     :-  (nest-cord nest)
