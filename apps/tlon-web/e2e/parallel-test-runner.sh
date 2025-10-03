@@ -473,9 +473,9 @@ else
         $CONTAINER_CMD rm -f $container_name 2>/dev/null || true
     done
 
-    # Clean up Docker build cache to prevent disk space issues
-    echo -e "${YELLOW}Cleaning up Docker build cache...${NC}"
-    $CONTAINER_CMD builder prune -af > /dev/null 2>&1 || true
+    # Clean up only dangling build cache (preserves layer cache for faster rebuilds)
+    echo -e "${YELLOW}Cleaning up dangling Docker cache...${NC}"
+    $CONTAINER_CMD builder prune -f > /dev/null 2>&1 || true
     echo -e "${GREEN}Docker cleanup complete${NC}"
 
     # Exit with failure if any shards failed
