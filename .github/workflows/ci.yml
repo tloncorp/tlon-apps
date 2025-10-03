@@ -2,10 +2,7 @@ name: CI (Test and Build)
 on: pull_request
 jobs:
   test-build:
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
+    runs-on: ubuntu-latest
     steps:
       - name: Clean workspace (Fedora container fix)
         if: runner.os == 'Linux'
