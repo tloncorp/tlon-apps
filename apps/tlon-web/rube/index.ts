@@ -993,38 +993,41 @@ const cleanupSpawnedProcesses = () => {
   try {
     // Kill all Urbit processes matching our rube pattern
     const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
-    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore', timeout: 5000 });
 
     // Also use our existing commands as additional cleanup
-    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore' });
-    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore' });
+    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore', timeout: 5000 });
+    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore', timeout: 5000 });
   } catch {
     // Ignore command errors
   }
 
-  // Clean up ports as final safety check
-  console.log('Cleaning up ports...');
-  try {
-    const ports = [
-      '35453',
-      '36963',
-      '38473',
-      '39983',
-      '3000',
-      '3001',
-      '3002',
-      '3003',
-    ];
-    ports.forEach((port) => {
-      try {
-        const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
-        childProcess.execSync(cmd, { stdio: 'ignore' });
-      } catch {
-        // Ignore errors
-      }
-    });
-  } catch {
-    // Ignore command errors
+  // Skip port cleanup in containers (IN_CONTAINER env var set in Dockerfile)
+  // Containers are destroyed after tests, so port cleanup is unnecessary
+  if (!process.env.IN_CONTAINER) {
+    console.log('Cleaning up ports...');
+    try {
+      const ports = [
+        '35453',
+        '36963',
+        '38473',
+        '39983',
+        '3000',
+        '3001',
+        '3002',
+        '3003',
+      ];
+      ports.forEach((port) => {
+        try {
+          const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
+          childProcess.execSync(cmd, { stdio: 'ignore', timeout: 1000 });
+        } catch {
+          // Ignore errors
+        }
+      });
+    } catch {
+      // Ignore command errors
+    }
   }
 
   // Clean up PID files
