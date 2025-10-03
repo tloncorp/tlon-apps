@@ -681,32 +681,52 @@
     (~(has in roles.u.seat) `role-id:v7:gv`p.inline)
   ==
 ::
-++  channel-drop-bad-links
-  |=  chan=v-channel:c
-  ^+  chan
-  %_  chan
-      posts
-    %+  run:on-v-posts:c
-      posts.chan
-    |=  post=(may:c v-post:c)
-    ?.  ?=(%& -.post)  post
-    post(content (drop-bad-links content.post))
-  ::
-      log
-    %+  run:log-on:c
-      log.chan
-    |=  upd=u-channel:c
-    ?.  ?=([%post * ?([%set %& *] [%essay *])] upd)  upd
-    ?-  -.u-post.upd
-      %set    upd(content.post.u-post (drop-bad-links content.post.u-post.upd))
-      %essay  upd(content.essay.u-post (drop-bad-links content.essay.u-post.upd))
-    ==
-  ==
 ++  drop-bad-links
-  |^  |=  content=story:c
-      ^+  content
-      (turn content strip)
-  ++  strip
+  |%
+  ++  channel
+    |=  chan=v-channel:c
+    ^+  chan
+    %_  chan
+        posts
+      %+  run:on-v-posts:c
+        posts.chan
+      |=  post=(may:c v-post:c)
+      ?.  ?=(%& -.post)  post
+      post(+>+ (essay +>+.post))
+    ::
+        log
+      %+  run:log-on:c
+        log.chan
+      |=  upd=u-channel:c
+      ?.  ?=([%post * ?([%set %& *] [%essay *])] upd)  upd
+      ?-  -.u-post.upd
+        %set    upd(+>+.post.u-post (essay +>+.post.u-post.upd))
+        %essay  upd(essay.u-post (essay essay.u-post.upd))
+      ==
+    ==
+  ++  said
+    |=  =said:c
+    ?+  q.said  said
+      [%post %& *]     said(+>.post.q (essay +>.post.q.said))
+      [%reply @ %& *]  said(content.reply.q (story content.reply.q.said))
+    ==
+  ++  essay
+    |=  =essay:c
+    %_  essay
+      content  (story content.essay)
+      meta     (bind meta.essay meta)
+    ==
+  ++  meta
+    |=  =data:m
+    %_  data
+      image  ?:((is-good-link image.data) image.data '')
+      cover  ?:((is-good-link cover.data) cover.data '')
+    ==
+  ++  story
+    |=  content=story:c
+    ^+  content
+    (turn content verse)
+  ++  verse
     |=  =verse:s
     ^+  verse
     ?-  -.verse
