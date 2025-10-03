@@ -19,9 +19,9 @@ import io.tlon.landscape.notifications.NotificationException
 import io.tlon.landscape.notifications.NotificationLogger
 import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.notifications.buildMessagingTappable
-import io.tlon.landscape.notifications.getLogPayload
 import io.tlon.landscape.notifications.processNotificationBlocking
 import io.tlon.landscape.notifications.toBasicBundle
+import android.service.notification.StatusBarNotification
 import io.tlon.landscape.utils.UvParser
 
 private const val TALK_MESSAGING_SERVICE = "talk-messaging-service"
@@ -89,7 +89,31 @@ class TalkMessagingService : FirebaseMessagingService() {
                         showFallbackNotification(this, e, remoteMessage)
                     }
                 }
+
+                if (data["action"] == "dismiss") {
+                    try {
+                        data["dismissSource"]?.let { source ->
+                            dismissNotifications(this, source)
+                        }
+                    } catch (e: Error) {
+                        data["uid"]?.let { uid ->
+                            NotificationLogger.logError(NotificationException("Dismiss source missing", uid, null, e))
+                        }
+                    }
+                }
             }
+    }
+
+    private fun dismissNotifications(context: Context, dismissSource: String) {
+        val notificationManager = NotificationManagerCompat.from(context)
+        val activeNotifications: List<StatusBarNotification> =
+            notificationManager.activeNotifications
+
+        for (notification in activeNotifications) {
+            if (notification.notification.group == dismissSource) {
+                notificationManager.cancel(notification.id)
+            }
+        }
     }
 
     private fun showFallbackNotification(
