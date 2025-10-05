@@ -69,12 +69,14 @@ GenericEmbed.displayName = 'GenericEmbed';
 interface EmbedContentProps {
   url: string;
   content?: string;
+  height?: number;
   renderWrapper: (children: React.ReactNode) => React.ReactNode;
 }
 
 const EmbedContent = memo(function EmbedContent({
   url,
   content,
+  height,
   renderWrapper,
 }: EmbedContentProps) {
   const { embed } = useEmbed(
@@ -125,6 +127,7 @@ const EmbedContent = memo(function EmbedContent({
               url={embedUrl ?? url}
               provider={providerConfig}
               embedHtml={embedHtml}
+              embedHeight={height}
               onError={onEmbedError}
             />
           );

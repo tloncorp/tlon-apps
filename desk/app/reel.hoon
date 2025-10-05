@@ -329,7 +329,7 @@
   ^-  (quip card _this)
   =/  =(pole knot)  wire
   ?+    pole  (on-agent:def wire sign)
-      [%update %contact ~]
+      [%update ?(%contact %profile) ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
     %-  (fail:log %poke-ack 'profile update failed' u.p.sign)

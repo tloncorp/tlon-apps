@@ -3,6 +3,8 @@ import CookieManager from '@react-native-cookies/cookies';
 import { createDevLogger } from '@tloncorp/shared';
 import { getHostingHeartBeat } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { getConstants } from '@tloncorp/shared/domain';
+import { Platform } from 'react-native';
 
 const logger = createDevLogger('refreshHostingAuth', false);
 
@@ -74,4 +76,18 @@ async function deviceIsOnline(): Promise<boolean> {
   }
 
   return isOnline;
+}
+
+export function selectRecaptchaPlatform():
+  | 'ios'
+  | 'android'
+  | 'web'
+  | 'ios_test'
+  | 'android_test' {
+  const env = getConstants();
+  if (env.AUTOMATED_TEST) {
+    return Platform.OS === 'android' ? 'android_test' : 'ios_test';
+  }
+
+  return Platform.OS === 'android' ? 'android' : 'ios';
 }

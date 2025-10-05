@@ -1,9 +1,9 @@
 /-  g=groups, gv=groups-ver, c=channels
-/+  *test-agent, s=subscriber, imp=import-aid
+/+  *test-agent, test, utils=channel-utils, s=subscriber, imp=import-aid
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %13
+  $:  %15
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -203,7 +203,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -240,7 +240,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -309,7 +309,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -363,7 +363,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
@@ -372,4 +372,32 @@
     =.  save  !<(vase (slot 3 save))  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
+::
+++  test-drop-bad-links
+  =/  =story:c
+    :~  [%block %image 'https://good.com/' 1 2 'alt']
+        [%block %image 'data:image/png;bad' 1 2 'alt']
+        [%block %image '#good' 1 2 'alt']
+        [%block %link 'data:image/png;bad' ~]
+        :-  %inline
+        :~  [%link 'http://good.net/' 'txt']
+            [%link 'data:image/png;bad' 'txt']
+            [%link '#good' 'txt']
+            [%link '/good' 'txt']
+        ==
+    ==
+  %+  expect-eq:test
+    !>  ^-  story:c
+    :~  [%block %image 'https://good.com/' 1 2 'alt']
+        [%block %image '' 1 2 'alt']
+        [%block %image '#good' 1 2 'alt']
+        [%block %link '' ~]
+        :-  %inline
+        :~  [%link 'http://good.net/' 'txt']
+            [%link '' 'txt']
+            [%link '#good' 'txt']
+            [%link '/good' 'txt']
+        ==
+    ==
+  !>((story:drop-bad-links:utils story))
 --

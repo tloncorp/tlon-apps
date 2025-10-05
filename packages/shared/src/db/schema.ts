@@ -60,14 +60,24 @@ export const settings = sqliteTable('settings', {
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
 });
 
-export const systemContacts = sqliteTable('system_contacts', {
-  id: text('id').primaryKey(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
-  phoneNumber: text('phone_number'),
-  email: text('email'),
-  contactId: text('contact_id'),
-});
+export const systemContacts = sqliteTable(
+  'system_contacts',
+  {
+    id: text('id').primaryKey(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    phoneNumber: text('phone_number'),
+    email: text('email'),
+    contactId: text('contact_id'),
+  },
+  (table) => {
+    return {
+      contactIdIndex: index('system_contacts_contact_id_index').on(
+        table.contactId
+      ),
+    };
+  }
+);
 
 export const systemContactRelations = relations(
   systemContacts,
@@ -91,6 +101,9 @@ export const systemContactSentInvites = sqliteTable(
     pk: primaryKey({
       columns: [table.invitedTo, table.systemContactId],
     }),
+    systemContactIdIndex: index(
+      'system_contact_sent_invites_system_contact_id_index'
+    ).on(table.systemContactId),
   })
 );
 
@@ -104,34 +117,44 @@ export const systemContactSentInviteRelations = relations(
   })
 );
 
-export const contacts = sqliteTable('contacts', {
-  id: text('id').primaryKey(),
+export const contacts = sqliteTable(
+  'contacts',
+  {
+    id: text('id').primaryKey(),
 
-  peerNickname: text('peerNickname'),
-  customNickname: text('customNickname'),
-  nickname: text('nickname').generatedAlwaysAs(
-    (): SQL =>
-      sql`COALESCE(${contacts.customNickname}, ${contacts.peerNickname})`,
-    { mode: 'stored' }
-  ),
+    peerNickname: text('peerNickname'),
+    customNickname: text('customNickname'),
+    nickname: text('nickname').generatedAlwaysAs(
+      (): SQL =>
+        sql`COALESCE(${contacts.customNickname}, ${contacts.peerNickname})`,
+      { mode: 'stored' }
+    ),
 
-  peerAvatarImage: text('peerAvatarImage'),
-  customAvatarImage: text('customAvatarImage'),
-  avatarImage: text('avatarImage').generatedAlwaysAs(
-    (): SQL =>
-      sql`COALESCE(${contacts.customAvatarImage}, ${contacts.peerAvatarImage})`,
-    { mode: 'stored' }
-  ),
+    peerAvatarImage: text('peerAvatarImage'),
+    customAvatarImage: text('customAvatarImage'),
+    avatarImage: text('avatarImage').generatedAlwaysAs(
+      (): SQL =>
+        sql`COALESCE(${contacts.customAvatarImage}, ${contacts.peerAvatarImage})`,
+      { mode: 'stored' }
+    ),
 
-  bio: text('bio'),
-  status: text('status'),
-  color: text('color'),
-  coverImage: text('coverImage'),
-  isBlocked: boolean('blocked'),
-  isContact: boolean('isContact'),
-  isContactSuggestion: boolean('isContactSuggestion'),
-  systemContactId: text('systemContactId'),
-});
+    bio: text('bio'),
+    status: text('status'),
+    color: text('color'),
+    coverImage: text('coverImage'),
+    isBlocked: boolean('blocked'),
+    isContact: boolean('isContact'),
+    isContactSuggestion: boolean('isContactSuggestion'),
+    systemContactId: text('systemContactId'),
+  },
+  (table) => {
+    return {
+      systemContactIdIndex: index('contacts_system_contact_id_index').on(
+        table.systemContactId
+      ),
+    };
+  }
+);
 
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
   pinnedGroups: many(contactGroups),
@@ -155,6 +178,12 @@ export const contactGroups = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.contactId, table.groupId] }),
+      contactIdIndex: index('contact_group_pins_contact_id_index').on(
+        table.contactId
+      ),
+      groupIdIndex: index('contact_group_pins_group_id_index').on(
+        table.groupId
+      ),
     };
   }
 );
@@ -185,6 +214,12 @@ export const contactAttestations = sqliteTable(
       pk: primaryKey({
         columns: [table.contactId, table.attestationId],
       }),
+      contactIdIndex: index('contact_attestations_contact_id_index').on(
+        table.contactId
+      ),
+      attestationIdIndex: index('contact_attestations_attestation_id_index').on(
+        table.attestationId
+      ),
     };
   }
 );
@@ -206,22 +241,32 @@ export const contactAttestationRelations = relations(
 export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
 export type AttestationDiscoverability = 'public' | 'verified' | 'hidden';
 export type AttestationStatus = 'waiting' | 'pending' | 'verified';
-export const attestations = sqliteTable('attestations', {
-  id: text('id').primaryKey(),
-  provider: text('provider').notNull(),
-  type: text('type').$type<AttestationType>().notNull(),
-  value: text('value'),
-  initiatedAt: timestamp('initiated_at'),
-  discoverability: text('discoverability')
-    .$type<AttestationDiscoverability>()
-    .notNull(),
-  status: text('status').$type<AttestationStatus>().notNull(),
-  statusMessage: text('status_message'),
-  contactId: text('contact_id').notNull(),
-  providerUrl: text('provider__url'),
-  provingTweetId: text('proving_tweet_id'),
-  signature: text('signature'),
-});
+export const attestations = sqliteTable(
+  'attestations',
+  {
+    id: text('id').primaryKey(),
+    provider: text('provider').notNull(),
+    type: text('type').$type<AttestationType>().notNull(),
+    value: text('value'),
+    initiatedAt: timestamp('initiated_at'),
+    discoverability: text('discoverability')
+      .$type<AttestationDiscoverability>()
+      .notNull(),
+    status: text('status').$type<AttestationStatus>().notNull(),
+    statusMessage: text('status_message'),
+    contactId: text('contact_id').notNull(),
+    providerUrl: text('provider__url'),
+    provingTweetId: text('proving_tweet_id'),
+    signature: text('signature'),
+  },
+  (table) => {
+    return {
+      contactIdIndex: index('attestations_contact_id_index').on(
+        table.contactId
+      ),
+    };
+  }
+);
 
 export const attestationRelations = relations(attestations, ({ one }) => ({
   contact: one(contacts, {
@@ -230,16 +275,26 @@ export const attestationRelations = relations(attestations, ({ one }) => ({
   }),
 }));
 
-export const channelUnreads = sqliteTable('channel_unreads', {
-  channelId: text('channel_id').primaryKey(),
-  type: text('type').$type<'channel' | 'dm'>().notNull(),
-  notify: boolean('notify').notNull(),
-  count: integer('count').notNull(),
-  countWithoutThreads: integer('count_without_threads').notNull(),
-  updatedAt: timestamp('updated_at').notNull(),
-  firstUnreadPostId: text('first_unread_post_id'),
-  firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
-});
+export const channelUnreads = sqliteTable(
+  'channel_unreads',
+  {
+    channelId: text('channel_id').primaryKey(),
+    type: text('type').$type<'channel' | 'dm'>().notNull(),
+    notify: boolean('notify').notNull(),
+    count: integer('count').notNull(),
+    countWithoutThreads: integer('count_without_threads').notNull(),
+    updatedAt: timestamp('updated_at').notNull(),
+    firstUnreadPostId: text('first_unread_post_id'),
+    firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
+  },
+  (table) => {
+    return {
+      channelIdIndex: index('channel_unreads_channel_id_index').on(
+        table.channelId
+      ),
+    };
+  }
+);
 
 export const unreadsRelations = relations(channelUnreads, ({ one, many }) => ({
   channel: one(channels, {
@@ -345,6 +400,12 @@ export const activityEventContactGroups = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.activityEventId, table.groupId] }),
+      activityEventIdIndex: index(
+        'activity_event_contact_groups_activity_event_id_index'
+      ).on(table.activityEventId),
+      groupIdIndex: index('activity_event_contact_groups_group_id_index').on(
+        table.groupId
+      ),
     };
   }
 );
@@ -477,6 +538,7 @@ export const groupRoles = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.groupId, table.id] }),
+      groupIdIndex: index('group_roles_group_id_index').on(table.groupId),
     };
   }
 );
@@ -507,6 +569,10 @@ export const chatMembers = sqliteTable(
       pk: primaryKey({
         columns: [table.chatId, table.contactId],
       }),
+      chatIdIndex: index('group_members_chat_id_index').on(table.chatId),
+      contactIdIndex: index('group_members_contact_id_index').on(
+        table.contactId
+      ),
     };
   }
 );
@@ -527,6 +593,16 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
+      groupIdIndex: index('group_flagged_posts_group_id_index').on(
+        table.groupId
+      ),
+      postIdIndex: index('group_flagged_posts_post_id_index').on(table.postId),
+      channelIdIndex: index('group_flagged_posts_channel_id_index').on(
+        table.channelId
+      ),
+      flaggedByContactIdIndex: index(
+        'group_flagged_posts_flagged_by_contact_id_index'
+      ).on(table.flaggedByContactId),
     };
   }
 );
@@ -567,6 +643,12 @@ export const groupMemberInvites = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.contactId],
       }),
+      groupIdIndex: index('group_member_invites_group_id_index').on(
+        table.groupId
+      ),
+      contactIdIndex: index('group_member_invites_contact_id_index').on(
+        table.contactId
+      ),
     };
   }
 );
@@ -599,6 +681,12 @@ export const groupJoinRequests = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.contactId],
       }),
+      groupIdIndex: index('group_join_requests_group_id_index').on(
+        table.groupId
+      ),
+      contactIdIndex: index('group_join_requests_contact_id_index').on(
+        table.contactId
+      ),
     };
   }
 );
@@ -631,6 +719,10 @@ export const groupMemberBans = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.contactId],
       }),
+      groupIdIndex: index('group_member_bans_group_id_index').on(table.groupId),
+      contactIdIndex: index('group_member_bans_contact_id_index').on(
+        table.contactId
+      ),
     };
   }
 );
@@ -663,6 +755,7 @@ export const groupRankBans = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.rankId],
       }),
+      groupIdIndex: index('group_rank_bans_group_id_index').on(table.groupId),
     };
   }
 );
@@ -685,6 +778,10 @@ export const channelReaders = sqliteTable(
       pk: primaryKey({
         columns: [table.channelId, table.roleId],
       }),
+      channelIdIndex: index('channel_readers_channel_id_index').on(
+        table.channelId
+      ),
+      roleIdIndex: index('channel_readers_role_id_index').on(table.roleId),
     };
   }
 );
@@ -713,6 +810,10 @@ export const channelWriters = sqliteTable(
       pk: primaryKey({
         columns: [table.channelId, table.roleId],
       }),
+      channelIdIndex: index('channel_writers_channel_id_index').on(
+        table.channelId
+      ),
+      roleIdIndex: index('channel_writers_role_id_index').on(table.roleId),
     };
   }
 );
@@ -760,6 +861,11 @@ export const chatMemberGroupRoles = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.contactId, table.roleId],
       }),
+      groupIdIndex: index('chat_member_roles_group_id_index').on(table.groupId),
+      contactIdIndex: index('chat_member_roles_contact_id_index').on(
+        table.contactId
+      ),
+      roleIdIndex: index('chat_member_roles_role_id_index').on(table.roleId),
     };
   }
 );
@@ -778,21 +884,31 @@ export const chatMemberRolesRelations = relations(
   })
 );
 
-export const groupNavSections = sqliteTable('group_nav_sections', {
-  // `{groupId}-{sectionId}` is the primary key
-  id: text('id').primaryKey(),
-  // this separate ID is necessary for the groupNavSectionChannels table
-  // because every group has a `default` section/zone, so we can't use that as
-  // the primary key, but we still need to use the sectionId when communicating
-  // with the backend
-  sectionId: text('section_id').notNull(),
-  groupId: text('group_id').references(() => groups.id, {
-    onDelete: 'cascade',
-  }),
-  ...metaFields,
-  // a column cannot be named "index" because it's a reserved word in SQLite
-  sectionIndex: integer('section_index'),
-});
+export const groupNavSections = sqliteTable(
+  'group_nav_sections',
+  {
+    // `{groupId}-{sectionId}` is the primary key
+    id: text('id').primaryKey(),
+    // this separate ID is necessary for the groupNavSectionChannels table
+    // because every group has a `default` section/zone, so we can't use that as
+    // the primary key, but we still need to use the sectionId when communicating
+    // with the backend
+    sectionId: text('section_id').notNull(),
+    groupId: text('group_id').references(() => groups.id, {
+      onDelete: 'cascade',
+    }),
+    ...metaFields,
+    // a column cannot be named "index" because it's a reserved word in SQLite
+    sectionIndex: integer('section_index'),
+  },
+  (table) => {
+    return {
+      groupIdIndex: index('group_nav_sections_group_id_index').on(
+        table.groupId
+      ),
+    };
+  }
+);
 
 export const groupNavSectionRelations = relations(
   groupNavSections,
@@ -821,6 +937,12 @@ export const groupNavSectionChannels = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.groupNavSectionId, table.channelId] }),
+    groupNavSectionIdIndex: index(
+      'group_nav_section_channels_group_nav_section_id_index'
+    ).on(table.groupNavSectionId),
+    channelIdIndex: index('group_nav_section_channels_channel_id_index').on(
+      table.channelId
+    ),
   })
 );
 
@@ -838,13 +960,21 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
-export const volumeSettings = sqliteTable('volume_settings', {
-  itemId: text('item_id').primaryKey(),
-  itemType: text('item_type')
-    .$type<'group' | 'channel' | 'thread' | 'base'>()
-    .notNull(),
-  level: text('level').$type<NotificationLevel>().notNull(),
-});
+export const volumeSettings = sqliteTable(
+  'volume_settings',
+  {
+    itemId: text('item_id').primaryKey(),
+    itemType: text('item_type')
+      .$type<'group' | 'channel' | 'thread' | 'base'>()
+      .notNull(),
+    level: text('level').$type<NotificationLevel>().notNull(),
+  },
+  (table) => {
+    return {
+      itemIdIndex: index('volume_settings_item_id_index').on(table.itemId),
+    };
+  }
+);
 
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 
@@ -898,6 +1028,8 @@ export const channels = sqliteTable(
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),
     lastPostAtIndex: index('last_post_at').on(table.lastPostAt),
+    groupIdIndex: index('channels_group_id_index').on(table.groupId),
+    contactIdIndex: index('channels_contact_id_index').on(table.contactId),
   })
 );
 
@@ -997,6 +1129,8 @@ export const posts = sqliteTable(
     ),
     channelId: index('posts_channel_id').on(table.channelId, table.id),
     groupId: index('posts_group_id').on(table.groupId, table.id),
+    authorIdIndex: index('posts_author_id_index').on(table.authorId),
+    parentIdIndex: index('posts_parent_id_index').on(table.parentId),
   })
 );
 
@@ -1042,6 +1176,7 @@ export const postImages = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.postId, table.src] }),
+    postIdIndex: index('post_images_post_id_index').on(table.postId),
   })
 );
 
@@ -1064,6 +1199,10 @@ export const postReactions = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.contactId, table.postId] }),
+      contactIdIndex: index('post_reactions_contact_id_index').on(
+        table.contactId
+      ),
+      postIdIndex: index('post_reactions_post_id_index').on(table.postId),
     };
   }
 );
