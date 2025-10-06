@@ -43,7 +43,7 @@ export function GroupSelectorSheet(props: SheetProps) {
               onPress={props.onClose}
               testID="CloseFavoriteGroupSelectorSheet"
             >
-              Close
+              Save
             </SheetHeader.ButtonText>
           </SheetHeader.RightControls>
         </SheetHeader>

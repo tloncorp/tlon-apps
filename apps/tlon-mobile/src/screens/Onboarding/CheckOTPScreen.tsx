@@ -25,7 +25,10 @@ import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
-import { clearHostingNativeCookie } from '../../lib/hostingAuth';
+import {
+  clearHostingNativeCookie,
+  selectRecaptchaPlatform,
+} from '../../lib/hostingAuth';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -81,7 +84,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         }
         const recaptchaInfo = {
           token,
-          platform: Platform.OS,
+          platform: selectRecaptchaPlatform(),
         };
 
         const maybeAccountIssue = await store.signUpHostedUser({
@@ -222,13 +225,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         await apiCall({
           email: params.email ?? signupContext.email!,
           recaptchaToken,
-          platform: Platform.OS,
+          platform: selectRecaptchaPlatform(),
         });
       } else {
         await apiCall({
           phoneNumber: params.phoneNumber ?? signupContext.phoneNumber!,
           recaptchaToken,
-          platform: Platform.OS,
+          platform: selectRecaptchaPlatform(),
         });
       }
     } catch (err) {

@@ -43,6 +43,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultOnboardingPhoneNumber: process.env.ONBOARDING_DEFAULT_PHONE_NUMBER,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
+    recaptchaSiteKeyIOSTest: process.env.RECAPTCHA_SITE_KEY_IOS_TEST,
+    recaptchaSiteKeyAndroidTest: process.env.RECAPTCHA_SITE_KEY_ANDROID_TEST,
     enabledLoggers: process.env.ENABLED_LOGGERS,
     ignoreCosmos: process.env.IGNORE_COSMOS,
     TlonEmployeeGroup: process.env.TLON_EMPLOYEE_GROUP,
@@ -51,13 +53,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
+    automatedTest: process.env.AUTOMATED_TEST,
   },
   ios: {
     runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
-    bundleIdentifier:
-      process.env.EAS_BUILD_PROFILE === 'demo' ? 'io.tlon.groups' : undefined,
+    bundleIdentifier: ['demo', 'e2e'].includes(process.env.EAS_BUILD_PROFILE!)
+      ? 'io.tlon.groups'
+      : undefined,
     config: {
       usesNonExemptEncryption: false,
     },

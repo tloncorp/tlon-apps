@@ -131,6 +131,7 @@ export async function createGroupInviteLink(groupId: string) {
     await createInviteLink(
       groupId,
       groupsDescribe({
+        inviteType: 'group',
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? '',
         inviterAvatarImage: user?.avatarImage ?? '',

@@ -92,7 +92,9 @@ export const syncInitData = async (
     // This avoids the race condition where IDs arrive before posts exist
     if (initData.hiddenPostIds && initData.hiddenPostIds.length > 0) {
       (globalThis as any).__tempHiddenPostIds = initData.hiddenPostIds;
-      logger.crumb(`stored ${initData.hiddenPostIds.length} hidden post IDs for later`);
+      logger.crumb(
+        `stored ${initData.hiddenPostIds.length} hidden post IDs for later`
+      );
     }
     await db
       .insertBlockedContacts({ blockedIds: initData.blockedUsers }, queryCtx)
@@ -1805,8 +1807,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         const hiddenPostIds = (globalThis as any).__tempHiddenPostIds;
         if (hiddenPostIds && hiddenPostIds.length > 0) {
           try {
-            await db.resetHiddenPosts(hiddenPostIds, ctx);
-            logger.crumb(`applied ${hiddenPostIds.length} hidden post IDs after sync`);
+            await db.resetHiddenPosts(hiddenPostIds, queryCtx);
+            logger.crumb(
+              `applied ${hiddenPostIds.length} hidden post IDs after sync`
+            );
           } catch (e) {
             logger.error('Failed to apply hidden posts after sync:', e);
             // Don't fail the entire sync if this fails
