@@ -181,6 +181,7 @@ run_shard() {
         $((3000 + port_offset))
         $((3001 + port_offset))
         $((3002 + port_offset))
+        $((3003 + port_offset))
     )
 
     for port in "${ports_to_check[@]}"; do
@@ -286,12 +287,14 @@ run_shard() {
         -p $((3000 + $port_offset)):3000
         -p $((3001 + $port_offset)):3001
         -p $((3002 + $port_offset)):3002
+        -p $((3003 + $port_offset)):3003
     )
 
     local ship_ports=(
         -p $((35453 + $port_offset)):35453
         -p $((36963 + $port_offset)):36963
         -p $((38473 + $port_offset)):38473
+        -p $((39983 + $port_offset)):39983
     )
 
     # Run the container
