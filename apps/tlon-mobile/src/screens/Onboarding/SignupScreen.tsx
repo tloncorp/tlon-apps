@@ -113,6 +113,7 @@ export const SignupScreen = ({ navigation }: Props) => {
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
         priorityToken: signupParams.priorityToken,
+        lure: lureMeta?.id,
       });
       if (!enabled) {
         logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {

@@ -47,7 +47,11 @@ export function useBootSequence() {
   const configureUrbitClient = useConfigureUrbitClient();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
-  const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
+  const [reservedNode, setReservedNode] = useState<{
+    id: string;
+    code?: string;
+    isReady?: boolean;
+  } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
   const isRunningRef = useRef(false);
@@ -72,15 +76,15 @@ export function useBootSequence() {
     // RESERVING: reserve a node for the hosting account, or get one if it already exists
     //
     if (bootPhase === NodeBootPhase.RESERVING) {
-      const reservedNodeId = await BootHelpers.reserveNode(hostingUserId);
-      setReservedNodeId(reservedNodeId);
-      logger.crumb(`reserved node`, reservedNodeId);
+      const reservedNode = await BootHelpers.reserveNode(hostingUserId);
+      setReservedNode(reservedNode);
+      logger.crumb(`reserved node`, reservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
       return NodeBootPhase.BOOTING;
     }
 
     // you should not be able to advance past here unless reservedNodeId is set
-    if (!reservedNodeId) {
+    if (!reservedNode?.id) {
       throw new Error(
         `cannot run boot phase ${bootPhase} without a reserved node`
       );
@@ -90,6 +94,11 @@ export function useBootSequence() {
     // BOOTING: confirm the node has finished booting on hosting
     //
     if (bootPhase === NodeBootPhase.BOOTING) {
+      if (reservedNode.isReady) {
+        // if we've cached that it's ready during the reservation step, skip this check
+        return NodeBootPhase.AUTHENTICATING;
+      }
+
       const isReady = await BootHelpers.checkNodeBooted();
       if (isReady) {
         logger.crumb('checked hosting, node is ready');
@@ -105,7 +114,9 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
       try {
-        const shipInfo = await store.authenticateWithReadyNode();
+        const shipInfo = await store.authenticateWithReadyNode(
+          reservedNode.code
+        );
         if (!shipInfo) {
           throw new Error('Could not authenticate with node');
         }
@@ -273,7 +284,7 @@ export function useBootSequence() {
     configureUrbitClient,
     connectionStatus,
     lureMeta,
-    reservedNodeId,
+    reservedNode,
     setShip,
     telemetry,
   ]);
@@ -386,7 +397,7 @@ export function useBootSequence() {
   const resetBootSequence = useCallback(() => {
     setBootPhase(NodeBootPhase.IDLE);
     setReport(null);
-    setReservedNodeId(null);
+    setReservedNode(null);
     isRunningRef.current = false;
     lastRunPhaseRef.current = NodeBootPhase.IDLE;
     lastRunErrored.current = false;
