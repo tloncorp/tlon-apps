@@ -1,5 +1,6 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { Button, Text } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
@@ -7,6 +8,8 @@ import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
 import { useStore } from '../contexts';
+
+const logger = createDevLogger('SystemNotices', false);
 
 const SystemNotices = {
   ContactBookPrompt,
@@ -37,11 +40,21 @@ export default SystemNotices;
 export function NotificationsPrompt() {
   const notifNag = useNag({
     key: 'notificationsPrompt',
-    refreshInterval: 24 * 60 * 60 * 1000, // 24 hours
+    refreshInterval: 24 * 60 * 60 * 1000,
     refreshCycle: 3,
+    initialDelay: 3 * 24 * 60 * 60 * 1000,
   });
 
   const perms = useNotificationPermissions();
+  const openedSettingsRef = useRef(false);
+
+  useEffect(() => {
+    if (openedSettingsRef.current && perms.hasPermission) {
+      logger.trackEvent(AnalyticsEvent.ActionNotifPermsGrantedFromNag);
+      notifNag.eliminate();
+      openedSettingsRef.current = false;
+    }
+  }, [perms.hasPermission, notifNag]);
 
   const handleDismiss = useCallback(() => {
     notifNag.dismiss();
@@ -57,6 +70,8 @@ export function NotificationsPrompt() {
         notifNag.dismiss();
       }
     } else {
+      logger.trackEvent(AnalyticsEvent.ActionNotifPermsSettingsOpened);
+      openedSettingsRef.current = true;
       perms.openSettings();
     }
   }, [perms, notifNag]);
@@ -65,6 +80,7 @@ export function NotificationsPrompt() {
     isWeb ||
     !perms.initialized ||
     perms.hasPermission ||
+    perms.canAskPermission ||
     notifNag.isLoading ||
     !notifNag.shouldShow
   ) {

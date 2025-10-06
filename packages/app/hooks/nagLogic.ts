@@ -1,12 +1,9 @@
-export interface NagState {
-  lastDismissed: number;
-  dismissCount: number;
-  eliminated: boolean;
-}
+import { NagState } from '@tloncorp/shared/domain';
 
 export interface NagBehaviorConfig {
   refreshInterval?: number;
   refreshCycle?: number;
+  initialDelay?: number;
 }
 
 export interface NagConfig extends NagBehaviorConfig {
@@ -23,13 +20,21 @@ export function shouldShowNag(
     return false;
   }
 
-  // If never dismissed, show it
+  // If never dismissed, check if initial delay has elapsed
   if (state.dismissCount === 0) {
-    return true;
+    // If firstEligibleTime is 0, initialize it now
+    if (state.firstEligibleTime === 0) {
+      return false; // Will be initialized in the hook
+    }
+    // Check if initial delay has elapsed
+    return currentTime >= state.firstEligibleTime;
   }
 
   // If we have a refresh cycle limit and we've hit it, don't show
-  if (config.refreshCycle !== undefined && state.dismissCount >= config.refreshCycle) {
+  if (
+    config.refreshCycle !== undefined &&
+    state.dismissCount >= config.refreshCycle
+  ) {
     return false;
   }
 
@@ -66,27 +71,6 @@ export function createDefaultNagState(): NagState {
     lastDismissed: 0,
     dismissCount: 0,
     eliminated: false,
+    firstEligibleTime: 0,
   };
-}
-
-export function validateNagConfig(config: NagConfig): string[] {
-  const errors: string[] = [];
-
-  if (!config.key || typeof config.key !== 'string') {
-    errors.push('key must be a non-empty string');
-  }
-
-  if (config.refreshInterval !== undefined) {
-    if (typeof config.refreshInterval !== 'number' || config.refreshInterval <= 0) {
-      errors.push('refreshInterval must be a positive number');
-    }
-  }
-
-  if (config.refreshCycle !== undefined) {
-    if (typeof config.refreshCycle !== 'number' || config.refreshCycle <= 0 || !Number.isInteger(config.refreshCycle)) {
-      errors.push('refreshCycle must be a positive integer');
-    }
-  }
-
-  return errors;
 }
