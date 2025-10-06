@@ -27,6 +27,9 @@
       %'invitedGroupDescription'
       %'invitedGroupIconImageUrl'
       %'invitedGroupDeleted'
+    ::
+      %'$og_title'
+      %'$twitter_title'
   ==
 +$  metadata  [tag=term fields=(map field cord)]
 +$  confirmation  [=nonce =token]
