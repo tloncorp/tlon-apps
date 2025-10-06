@@ -24,67 +24,58 @@ function formatTimeAgo(timestamp: number): string {
 export function useSyncStatus() {
   const connectionStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
-  const headsSyncedAt = db.headsSyncedAt.useValue();
-  const changesSyncedAt = db.changesSyncedAt.useValue();
-  const lastEventReceivedAt = db.lastEventReceivedAt.useValue();
+  const lastActivityAt = db.lastActivityAt.useValue();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   // Set up periodic refresh for time display updates
   useEffect(() => {
     const startTime = Date.now();
-    
+
     const scheduleRefresh = () => {
       const elapsedTime = Date.now() - startTime;
       const fifteenMinutes = 15 * 60 * 1000;
       const threeMinutes = 3 * 60 * 1000;
       const thirtyMinutes = 30 * 60 * 1000;
-      
+
       // More frequent updates in the first 15 minutes, then less frequent
       const interval = elapsedTime < fifteenMinutes ? threeMinutes : thirtyMinutes;
-      
+
       return setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
         scheduleRefresh();
       }, interval);
     };
-    
+
     const timeoutId = scheduleRefresh();
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
-  
+
+  const mostRecentSyncTime = useMemo(() => {
+    const syncTimes = [session?.startTime ?? 0, lastActivityAt].filter(time => time > 0);
+    return syncTimes.length > 0 ? Math.max(...syncTimes) : 0;
+  }, [session?.startTime, lastActivityAt]);
+
   const subtitle = useMemo(() => {
     // If not connected, show connection status
     if (connectionStatus !== 'Connected') {
       return `${connectionStatus}...`;
     }
 
-    // Connected case - determine the most recent sync time from multiple sources
-    const sessionStartTime = session?.startTime ?? 0;
-    const syncPhase = session?.phase;
-    
     // If we're still in initial sync phases, show syncing
-    if (syncPhase === 'init' || syncPhase === 'high' || syncPhase === 'low') {
+    if (session?.phase === 'init' || session?.phase === 'high' || session?.phase === 'low') {
       return 'Connected • Syncing with node...';
     }
-    
-    // Find the most recent sync time from available sources
-    const syncTimes = [sessionStartTime, headsSyncedAt, changesSyncedAt ?? 0, lastEventReceivedAt].filter(time => time > 0);
-    
-    if (syncTimes.length > 0) {
-      const mostRecentSync = Math.max(...syncTimes);
-      const formattedTime = formatTimeAgo(mostRecentSync);
+
+    // Show most recent sync time
+    if (mostRecentSyncTime > 0) {
+      const formattedTime = formatTimeAgo(mostRecentSyncTime);
       return `Connected • Last sync ${formattedTime}`;
     }
     return 'Connected • Sync pending...';
     // refreshTrigger is needed to force periodic updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionStatus, session, headsSyncedAt, changesSyncedAt, lastEventReceivedAt, refreshTrigger]);
-
-  const mostRecentSyncTime = useMemo(() => {
-    const syncTimes = [session?.startTime ?? 0, headsSyncedAt, changesSyncedAt ?? 0, lastEventReceivedAt].filter(time => time > 0);
-    return syncTimes.length > 0 ? Math.max(...syncTimes) : 0;
-  }, [session?.startTime, headsSyncedAt, changesSyncedAt, lastEventReceivedAt]);
+  }, [connectionStatus, session?.phase, mostRecentSyncTime, refreshTrigger]);
 
   return {
     connectionStatus,

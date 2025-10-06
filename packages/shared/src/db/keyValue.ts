@@ -287,8 +287,8 @@ export const changesSyncedAt = createStorageItem<number | null>({
   defaultValue: null,
 });
 
-export const lastEventReceivedAt = createStorageItem<number>({
-  key: 'lastEventReceivedAt',
+export const lastActivityAt = createStorageItem<number>({
+  key: 'lastActivityAt',
   defaultValue: 0,
 });
 
