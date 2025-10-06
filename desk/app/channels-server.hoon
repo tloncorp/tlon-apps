@@ -745,7 +745,7 @@
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(flag.r-groups group.perm.perm.channel)  ~
+    ?.  =(flag.r-groups group.perm.channel)  ~
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
@@ -812,7 +812,7 @@
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
-  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
+  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  ca-abet
     %_  cor
         v-channels
@@ -827,7 +827,7 @@
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
   ++  ca-watch-create
-    =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+    =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
     =/  =path  /[kind.nest]/[name.nest]/create
     =/  =cage  [%channel-update !>(update)]
     (give %fact ~[path] cage)
@@ -878,7 +878,7 @@
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
-      =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+      =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
       =/  =cage  [%channel-update !>(update)]
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
@@ -939,17 +939,17 @@
     ::
         %add-writers
       ?>  (is-admin:ca-perms src.bowl)
-      =/  new-writers  (~(uni in writers.perm.perm.channel) sects.c-channel)
+      =/  new-writers  (~(uni in writers.perm.channel) sects.c-channel)
       =^  changed  perm.channel
-        (next-rev:c perm.channel new-writers group.perm.perm.channel)
+        (next-rev:c perm.channel new-writers group.perm.channel)
       ?.  changed  ca-core
       (ca-update %perm perm.channel)
     ::
         %del-writers
       ?>  (is-admin:ca-perms src.bowl)
-      =/  new-writers  (~(dif in writers.perm.perm.channel) sects.c-channel)
+      =/  new-writers  (~(dif in writers.perm.channel) sects.c-channel)
       =^  changed  perm.channel
-        (next-rev:c perm.channel new-writers group.perm.perm.channel)
+        (next-rev:c perm.channel new-writers group.perm.channel)
       ?.  changed  ca-core
       (ca-update %perm perm.channel)
     ::
@@ -963,7 +963,7 @@
   ++  ca-c-post
     |=  =c-post:c
     ^-  [(unit u-channel:c) _ca-core]
-    ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
+    ?>  (can-write:ca-perms src.bowl writers.perm.channel)
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
@@ -1295,7 +1295,7 @@
     ::  to remove any missing sects.
     ::
     =/  missing=(set sect:v0:gv)
-      (~(dif in writers.perm.perm.channel) sects)
+      (~(dif in writers.perm.channel) sects)
     =?  ca-core  !=(missing ~)
       =/  =c-channels:c  [%channel nest %del-writers missing]
       =/  =cage  [%channel-command !>(c-channels)]
@@ -1326,7 +1326,7 @@
   ^-  bowl:h
   =/  group=(unit group:v7:gv)
     ?~  channel  ~
-    =*  flag  group.perm.perm.+.u.channel
+    =*  flag  group.perm.u.channel
     %-  some
     ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
