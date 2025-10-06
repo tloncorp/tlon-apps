@@ -116,7 +116,7 @@ e2e-parallel:
         INCLUDE_OPTIONAL_SHIPS: false  # Set to true for full test coverage
       run: |
         pnpm e2e:parallel:build
-        ./e2e/parallel-test-runner.sh --shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
+        ./rube/parallel-runner.sh --shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
@@ -135,7 +135,7 @@ e2e-parallel:
 ## Implementation Details
 
 - **Dockerfile**: Ubuntu 22.04 base with Node 20, pnpm, Playwright, pre-baked ship archives
-- **parallel-test-runner.sh**: Orchestrates container lifecycle, manages port allocation, handles cleanup
+- **parallel-runner.sh**: Orchestrates container lifecycle, manages port allocation, handles cleanup
 - **rube/index.ts**: Modified to support `RUBE_WORKSPACE` env var and `INCLUDE_OPTIONAL_SHIPS`
 - **playwright.config.ts**: Blob reporter for sharded runs, filters optional ships from webServers
 - **auth.setup.ts**: Filters optional ships during authentication

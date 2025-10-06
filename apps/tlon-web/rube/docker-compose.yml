@@ -6,7 +6,7 @@ services:
     image: tlon-e2e-runner
     build:
       context: ../../..
-      dockerfile: apps/tlon-web/e2e/Dockerfile
+      dockerfile: apps/tlon-web/rube/Dockerfile
     container_name: tlon-e2e-shard-1
     environment:
       - SHARD=1
@@ -30,7 +30,7 @@ services:
     image: tlon-e2e-runner
     build:
       context: ../../..
-      dockerfile: apps/tlon-web/e2e/Dockerfile
+      dockerfile: apps/tlon-web/rube/Dockerfile
     container_name: tlon-e2e-shard-2
     environment:
       - SHARD=2
@@ -54,7 +54,7 @@ services:
     image: tlon-e2e-runner
     build:
       context: ../../..
-      dockerfile: apps/tlon-web/e2e/Dockerfile
+      dockerfile: apps/tlon-web/rube/Dockerfile
     container_name: tlon-e2e-shard-3
     environment:
       - SHARD=3
@@ -78,7 +78,7 @@ services:
     image: tlon-e2e-runner
     build:
       context: ../../..
-      dockerfile: apps/tlon-web/e2e/Dockerfile
+      dockerfile: apps/tlon-web/rube/Dockerfile
     container_name: tlon-e2e-shard-4
     environment:
       - SHARD=4

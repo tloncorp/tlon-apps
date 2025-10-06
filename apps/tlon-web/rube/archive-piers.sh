@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
-DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/e2e/Dockerfile"
+DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/rube/Dockerfile"
 
 # Security: Expected GCP configuration
 EXPECTED_PROJECT="tlon-groups-mobile"
@@ -908,13 +908,13 @@ main() {
         if [ "$VERIFY_AFTER_UPLOAD" = "false" ]; then
             print_info "Next steps:"
             echo "  1. Verify the new archives work: ./verify-archives.sh"
-            echo "  2. Commit the updated shipManifest.json and e2e/Dockerfile"
+            echo "  2. Commit the updated shipManifest.json and rube/Dockerfile"
             echo "  3. Create a PR with the changes"
             echo ""
             print_info "Tip: Use --verify flag to automatically verify after upload"
         else
             print_info "Next steps:"
-            echo "  1. Commit the updated shipManifest.json and e2e/Dockerfile"
+            echo "  1. Commit the updated shipManifest.json and rube/Dockerfile"
             echo "  2. Create a PR with the changes"
         fi
     fi

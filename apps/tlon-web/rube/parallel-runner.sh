@@ -80,7 +80,7 @@ fi
 # Build the container image if needed
 build_image() {
     echo -e "${YELLOW}Building test container image...${NC}"
-    cd "$PROJECT_ROOT/apps/tlon-web/e2e"
+    cd "$PROJECT_ROOT/apps/tlon-web/rube"
     # Enable BuildKit for cache mounts and parallel downloads
     if [ "$CONTAINER_CMD" = "docker" ]; then
         DOCKER_BUILDKIT=1 $CONTAINER_CMD build -t $IMAGE_NAME -f Dockerfile "$PROJECT_ROOT"
@@ -485,7 +485,7 @@ else
     # Merge test results
     echo -e "${BLUE}Merging test results...${NC}"
     cd "$PROJECT_ROOT/apps/tlon-web"
-    TOTAL_SHARDS=$TOTAL_SHARDS node e2e/merge-reports.js
+    TOTAL_SHARDS=$TOTAL_SHARDS node rube/merge-reports.js
 
     echo -e "${GREEN}Test execution complete!${NC}"
 
