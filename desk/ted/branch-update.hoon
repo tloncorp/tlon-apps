@@ -83,7 +83,6 @@
 =.  meta  (~(del by meta) 'domain')
 =.  meta  (~(del by meta) 'state')
 =.  meta  (~(del by meta) 'creation_source')
-::
 =/  write=request:http
   :*  %'PUT'
       %-  crip  "{(trip branch-url)}?".
