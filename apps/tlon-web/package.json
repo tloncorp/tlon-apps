@@ -43,7 +43,6 @@
     "e2e:parallel:debug": "./rube/debug-parallel.sh",
     "e2e:parallel:cleanup": "./rube/cleanup-containers.sh",
     "e2e:shard": "tsc --isolatedModules --skipLibCheck ./rube/index.ts --outDir ./rube/dist && node ./rube/dist/index.js",
-    "e2e:docker-compose": "docker-compose -f ./rube/docker-compose.yml up",
     "e2e:merge-reports": "node ./rube/merge-reports.js"
   },
   "lint-staged": {
