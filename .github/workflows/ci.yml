@@ -59,8 +59,39 @@ jobs:
       - name: Build packages
         run: pnpm build:all
 
-      # Note: Playwright browser installation is handled inside containers for both
-      # smoke tests (Ubuntu container on Fedora) and parallel E2E tests (Docker image)
+      - name: Get Playwright version
+        id: playwright-version
+        run:
+          echo "version=$(node -p
+          "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
+        working-directory: ./apps/tlon-web
+
+      - name: Cache Playwright browsers
+        # Skip cache on Fedora since we'll use container
+        if:
+          ${{ !contains(runner.os, 'Linux') || !contains(runner.name, 'fedora')
+          }}
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key:
+            playwright-${{ runner.os }}-${{
+            steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          # Only install on non-Fedora systems since Fedora will use container
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Skipping browser install on Fedora - will be installed in container"
+          else
+            pnpm exec playwright install chromium
+          fi
+        working-directory: ./apps/tlon-web
+
+      # Note: Playwright browsers installed above for ubuntu-latest runner
+      # Fedora self-hosted runners install browsers inside containers (both smoke test and parallel E2E)
 
       - name: Run Production Build Smoke Test
         id: smoke-test
