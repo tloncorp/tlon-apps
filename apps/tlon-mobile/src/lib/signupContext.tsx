@@ -12,6 +12,7 @@ import {
   SignupParams,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import * as utils from '@tloncorp/shared/utils';
 import * as LibPhone from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import {
@@ -90,13 +91,11 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       };
       runPostSignupActions(postSignupParams);
       logger.trackEvent('hosted signup report', {
-        bootDuration: bootReport
-          ? bootReport.completedAt - bootReport.startedAt
-          : null,
+        ...bootReport,
         userSatWaitingFor: values.userWasReadyAt
-          ? Date.now() - values.userWasReadyAt
+          ? utils.formattedDuration(values.userWasReadyAt, Date.now())
           : null,
-        timeUnit: 'ms',
+        timeUnit: 's',
       });
     } catch (e) {
       logger.trackError('post signup error', {
@@ -130,6 +129,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     if (
       values.didCompleteOnboarding &&
       bootPhase === NodeBootPhase.READY &&
+      bootReport?.completedAt &&
       !handlingPostSignup.current
     ) {
       handlingPostSignup.current = true;
