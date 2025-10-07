@@ -105,6 +105,7 @@
         [/gangs/updates %gangs ~]
         [/gangs/$/$/preview %group-preview ~]
       ::
+        [/v1/foreigns %foreigns-1 ~]
         [/v1/foreigns/$/$/preview %group-preview-3 ~]
         [/v1/foreigns/index/$ %group-previews-1 ~]
     ==
@@ -124,6 +125,7 @@
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
       [/x/groups/$/$/seats/$ %noun]
     ::
+      [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
       [/x/v1/light/groups %groups-1]
       [/x/v2/light/groups %groups-2]
@@ -472,7 +474,10 @@
       =/  far=(unit foreign:v8:gv)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
         ?~  far  ~
-        ?~  invites.u.far  ~
+        =*  invites  invites.u.far
+        |-
+        ?~  invites  ~
+        ?.  valid.i.invites  $(invites t.invites)
         token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
@@ -2186,6 +2191,7 @@
     (emit:se-core (revoke-invite:se-pass:se-core ship tok))
   ::  +se-prune-tokens: delete any expired tokens and revoke invites
   ::
+  ::
   ++  se-prune-tokens
     ^+  se-core
     %+  roll  ~(tap by tokens.ad)
@@ -2788,6 +2794,8 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
+      ::  the invited list is local
+      =.  invited.admissions.group  ~
       ::  clear .active-channels, as this is updated locally
       =.  active-channels.group  ~
       (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
@@ -3338,7 +3346,7 @@
     ::
         ::  invited a ship to the group
         ::
-        [%invite ship=@ ~]
+        [%invite %send ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
@@ -3346,7 +3354,7 @@
     ::
         ::  invited a ship to the group (backcompat)
         ::
-        [%invite ship=@ %old ~]
+        [%invite %send ship=@ %old ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
