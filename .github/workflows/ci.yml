@@ -159,7 +159,8 @@ jobs:
             ./apps/tlon-web/test-results/
             ./apps/tlon-web/playwright-report/
           retention-days: 7
-
+      - name: Run Backend Tests for Groups
+        run: ./backend/run-tests.sh
       # For some reason, caching is breaking with the new piers.
       # TODO: fix this.
       # - name: Cache E2E Piers
