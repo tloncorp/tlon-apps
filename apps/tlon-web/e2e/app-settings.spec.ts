@@ -10,7 +10,7 @@ test('should test app settings', async ({ zodSetup }) => {
   await expect(page.getByText('Settings', { exact: true })).toBeVisible();
 
   await page.getByText('Notification settings').click();
-  await expect(page.getByText('Push Notifications')).toBeVisible();
+  await expect(page.getByText('Notifications')).toBeVisible();
   await page.getByText('Blocked users').click();
   await expect(page.getByText('Blocked users').first()).toBeVisible();
   await page.getByText('Privacy').click();
