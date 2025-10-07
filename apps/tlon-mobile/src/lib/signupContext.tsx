@@ -12,6 +12,7 @@ import {
   SignupParams,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import * as utils from '@tloncorp/shared/utils';
 import * as LibPhone from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import {
@@ -92,7 +93,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       logger.trackEvent('hosted signup report', {
         ...bootReport,
         userSatWaitingFor: values.userWasReadyAt
-          ? Number(((Date.now() - values.userWasReadyAt) / 1000).toFixed(1))
+          ? utils.formattedDuration(values.userWasReadyAt, Date.now())
           : null,
         timeUnit: 's',
       });

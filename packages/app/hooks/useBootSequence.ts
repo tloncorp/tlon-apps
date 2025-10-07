@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
+import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
@@ -148,7 +149,7 @@ export function useBootSequence() {
     // CONNECTING: make sure the connection is established
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
-      // forcing a subscribeOnce down the channel reduces connection time significantly
+      // immediately subscribing on a path that generates a fact significantly reduces connection time
       store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
@@ -417,8 +418,9 @@ export function useBootSequence() {
         ...prev,
         startedAt: sequenceStartTimeRef.current,
         completedAt: Date.now(),
-        duration: Number(
-          ((Date.now() - sequenceStartTimeRef.current) / 1000).toFixed(1)
+        duration: utils.formattedDuration(
+          sequenceStartTimeRef.current,
+          Date.now()
         ),
       }));
     }
