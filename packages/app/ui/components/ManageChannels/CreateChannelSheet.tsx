@@ -157,7 +157,7 @@ export function CreateChannelSheet({
             <ActionSheet.SimpleHeader title="Create a new channel" />
             <ActionSheet.ScrollableContent>
               <ScrollWrapper>
-                <ActionSheet.FormBlock backgroundColor={'green'}>
+                <ActionSheet.FormBlock>
                   <Form.ControlledTextField
                     control={control}
                     name="title"
