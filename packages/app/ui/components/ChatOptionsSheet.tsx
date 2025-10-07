@@ -637,6 +637,7 @@ export function ChannelOptionsSheetContent({
     onPressChatDetails,
     onPressChannelMembers,
     onPressChannelMeta,
+    onPressEditChannel,
     onPressChannelTemplate,
     togglePinned,
     leaveChannel,
@@ -727,6 +728,11 @@ export function ChannelOptionsSheetContent({
             action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
           },
+          currentUserIsAdmin && {
+            title: 'Channel settings',
+            action: wrappedAction.bind(null, () => onPressEditChannel(false)),
+            endIcon: 'ChevronRight',
+          },
           currentUserIsAdmin &&
             enableCustomChannels && {
               title: 'Configure view',
@@ -771,6 +777,7 @@ export function ChannelOptionsSheetContent({
       canMarkRead,
       markChannelRead,
       onPressChannelMeta,
+      onPressEditChannel,
       onPressChannelMembers,
       group,
       handlePressChatDetails,
