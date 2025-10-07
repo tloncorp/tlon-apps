@@ -94,7 +94,7 @@ export const updateDMMeta = async ({
 export type ChatEvent =
   | { type: 'showPost'; postId: string }
   | { type: 'hidePost'; postId: string }
-  | { type: 'addDmInvites'; channels: db.Channel[] }
+  | { type: 'syncDmInvites'; channels: db.Channel[] }
   | { type: 'groupDmsUpdate' }
   | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
   | { type: 'deletePost'; postId: string }
@@ -127,11 +127,11 @@ export function subscribeToChatUpdates(
         return eventHandler({ type: 'hidePost', postId });
       }
 
-      // check for DM invites
+      // check for DM invites sync
       if (Array.isArray(event)) {
-        // dm invites
+        // dm invites - this is the complete list of pending invites
         return eventHandler({
-          type: 'addDmInvites',
+          type: 'syncDmInvites',
           channels: toClientDms(event, true),
         });
       }

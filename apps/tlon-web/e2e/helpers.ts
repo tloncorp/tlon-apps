@@ -1544,12 +1544,11 @@ export async function getAllContacts(page: Page): Promise<string[]> {
       // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
       const shipId = ariaLabel.replace('ContactListItem-', '');
       if (shipId && shipId.startsWith('~')) {
-        // Skip own ship
-        const ownShip = page.url().includes('localhost:3000')
-          ? '~zod'
-          : page.url().includes('localhost:3002')
-            ? '~ten'
-            : '~bus';
+        // Skip own ship - determine by port pattern (works with sharding)
+        const urlMatch = page.url().match(/:(\d+)/);
+        const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+        const portMod = port % 10;
+        const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
         if (shipId !== ownShip) {
           contacts.push(shipId);
         }
@@ -1633,8 +1632,11 @@ export async function removeAllContacts(page: Page) {
     if (contact.includes('You')) {
       continue;
     }
-    // Skip own ship (check if we're on zod or ten)
-    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    // Skip own ship - determine by port pattern (works with sharding)
+    const urlMatch = page.url().match(/:(\d+)/);
+    const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+    const portMod = port % 10;
+    const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
     if (contact === ownShip || contact.includes(ownShip.substring(1))) {
       continue;
     }

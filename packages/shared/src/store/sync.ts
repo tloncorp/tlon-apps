@@ -1393,14 +1393,64 @@ export const handleChatUpdate = async (
         ctx
       );
       break;
-    case 'addDmInvites':
-      db.insertChannels(update.channels, ctx);
+    case 'syncDmInvites':
+      // This event contains the complete list of pending DM invites
+      // We need to sync our local state with this list
+      await handleSyncDmInvites(update.channels, ctx);
       break;
     case 'groupDmsUpdate':
       syncDms();
       break;
   }
 };
+
+async function handleSyncDmInvites(invites: db.Channel[], ctx?: QueryCtx) {
+  const allChannels = await db.getAllChannels(ctx);
+
+  const currentDmInvites = allChannels.filter(
+    (ch) => ch.type === 'dm' && ch.isDmInvite === true
+  );
+  const currentRegularDms = allChannels.filter(
+    (ch) => ch.type === 'dm' && ch.isDmInvite === false
+  );
+
+  const newInviteIds = new Set(invites.map((ch) => ch.id));
+  const currentInviteIds = new Set(currentDmInvites.map((ch) => ch.id));
+
+  const missingInvites = currentDmInvites.filter(
+    (ch) => !newInviteIds.has(ch.id)
+  );
+
+  const backendDms = await api.getDms();
+  const backendDmIds = new Set(backendDms.map((dm) => dm.id));
+
+  for (const invite of missingInvites) {
+    if (backendDmIds.has(invite.id)) {
+      logger.log('dm invite was accepted, updating to regular dm', invite.id);
+      await db.updateChannel({ id: invite.id, isDmInvite: false }, ctx);
+    } else {
+      logger.log('dm invite was declined, deleting', invite.id);
+      await db.deleteChannels([invite.id], ctx);
+    }
+  }
+
+  for (const regularDm of currentRegularDms) {
+    if (!backendDmIds.has(regularDm.id)) {
+      logger.log('regular dm was removed on backend, deleting', regularDm.id);
+      await db.deleteChannels([regularDm.id], ctx);
+    }
+  }
+
+  const toAdd = invites.filter((ch) => !currentInviteIds.has(ch.id));
+
+  if (toAdd.length > 0) {
+    logger.log(
+      'adding new dm invites',
+      toAdd.map((ch) => ch.id)
+    );
+    await db.insertChannels(toAdd, ctx);
+  }
+}
 
 let lastAdded: string;
 

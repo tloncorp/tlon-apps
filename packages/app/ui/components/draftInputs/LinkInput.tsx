@@ -196,7 +196,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   }, [data, hasIssue, isEmbed, url]);
 
   const handlePressDone = useCallback(() => {
-    if (isDirty && isValid) {
+    if ((editingPost || isDirty) && isValid) {
       handleSubmit((formData) => {
         const defaultMeta = {
           title: formData.title,
@@ -262,7 +262,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         });
       })();
     }
-  }, [isDirty, isValid, handleSubmit, block, onSave]);
+  }, [editingPost, isDirty, isValid, handleSubmit, block, onSave]);
 
   useRegisterChannelHeaderItem(
     useMemo(
