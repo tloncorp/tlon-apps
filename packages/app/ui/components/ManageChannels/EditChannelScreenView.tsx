@@ -21,7 +21,7 @@ interface ChannelFormSchema {
   writers: string[];
 }
 
-interface RoleOption {
+export interface RoleOption {
   label: string;
   value: string;
 }
@@ -183,7 +183,7 @@ const mapRoleIdsToOptions = (
     return { label: role?.label ?? roleId, value: roleId };
   });
 
-const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
+export const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
   groupRoles.map((role) => ({
     label: role.title ?? 'Unknown role',
     value: role.id ?? '',
@@ -340,7 +340,7 @@ export function ChannelPermissionsSelector({
   );
 }
 
-function RoleChip({
+export function RoleChip({
   role,
   onRemove,
 }: {
@@ -528,7 +528,7 @@ function PermissionTableControlCell({
   );
 }
 
-function RoleSelectionSheet({
+export function RoleSelectionSheet({
   open,
   onOpenChange,
   allRoles,
