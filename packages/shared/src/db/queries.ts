@@ -1951,12 +1951,11 @@ export const getChannelVolumeSetting = createReadQuery(
 export const getVolumeExceptions = createReadQuery(
   'getVolumeExceptions',
   async (ctx: QueryCtx) => {
-    const base = await ctx.db.query.volumeSettings.findFirst({
-      where: eq($volumeSettings.itemType, 'base'),
-    });
-
     const exceptions = await ctx.db.query.volumeSettings.findMany({
-      where: not(eq($volumeSettings.level, base?.level || 'default')),
+      where: or(
+        eq($volumeSettings.itemType, 'group'),
+        eq($volumeSettings.itemType, 'channel')
+      ),
     });
 
     const groupIds = [];
