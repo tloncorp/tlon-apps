@@ -504,7 +504,7 @@ export async function editChannel(
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   if (newTitle) {
     await fillFormField(page, 'ChannelTitleInput', newTitle, true);
@@ -532,7 +532,7 @@ export async function deleteChannel(
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   await page.getByText('Delete channel for everyone').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
@@ -547,23 +547,33 @@ export async function setChannelPermissions(
   readerRoles?: string[],
   writerRoles?: string[]
 ) {
-  // Change to custom permissions
-  await page.getByText('Custom', { exact: true }).click();
+  if (readerRoles && readerRoles.length > 0) {
+    const privateToggle = page.getByTestId('PrivateChannelToggle');
+    const isEnabled = await privateToggle.getAttribute('aria-checked');
 
-  if (readerRoles) {
-    await page.getByTestId('ReaderRoleSelector').click();
-    for (const role of readerRoles) {
-      await page.getByText(role).click();
+    if (isEnabled !== 'true') {
+      await privateToggle.click();
     }
-    await page.getByText('Readers').click();
+
+    await page.getByText('Add roles').click();
+    await expect(page.getByText('Search and add roles')).toBeVisible();
+
+    for (const role of readerRoles) {
+      if (role.toLowerCase() === 'admin') continue;
+      await page.getByTestId('RoleSearchInput').fill(role);
+      await page.getByText(role, { exact: true }).click();
+      await page.getByTestId('RoleSearchInput').fill('');
+    }
+    await page.getByTestId('RoleSelectionSaveButton').click();
   }
 
-  if (writerRoles) {
-    await page.getByTestId('WriterRoleSelector').click();
+  if (writerRoles && writerRoles.length > 0) {
     for (const role of writerRoles) {
-      await page.getByText(role).nth(1).click();
+      if (role.toLowerCase() === 'admin') continue;
+      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
+      await expect(writeToggle).toBeVisible();
+      await writeToggle.click();
     }
-    await page.getByText('Writers').click();
   }
 }
 
@@ -1548,7 +1558,8 @@ export async function getAllContacts(page: Page): Promise<string[]> {
         const urlMatch = page.url().match(/:(\d+)/);
         const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
         const portMod = port % 10;
-        const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
+        const ownShip =
+          portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
         if (shipId !== ownShip) {
           contacts.push(shipId);
         }

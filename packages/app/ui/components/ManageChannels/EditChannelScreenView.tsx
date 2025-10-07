@@ -153,7 +153,7 @@ export function EditChannelScreenView({
               </>
             )}
             <YStack gap="$2xl">
-              <Button hero onPress={handleSubmit(handleSave)}>
+              <Button hero onPress={handleSubmit(handleSave)} testID="ChannelSettingsSaveButton">
                 <Button.Text>Save</Button.Text>
               </Button>
               <Button heroDestructive onPress={handlePressDelete}>
@@ -229,6 +229,7 @@ export function ChannelPermissionsSelector({
   const { watch, setValue } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
+  const writers = watch('writers');
   const [showRoleSelector, setShowRoleSelector] = useState(false);
 
   const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
@@ -253,8 +254,15 @@ export function ChannelPermissionsSelector({
           shouldDirty: true,
         }
       );
+      setValue(
+        'writers',
+        writers.filter((w) => w !== roleId),
+        {
+          shouldDirty: true,
+        }
+      );
     },
-    [readers, setValue]
+    [readers, writers, setValue]
   );
 
   const displayedRoles = useMemo(
@@ -362,7 +370,7 @@ export function RoleChip({
         {role.label}
       </Text>
       {onRemove && (
-        <Pressable onPress={onRemove}>
+        <Pressable onPress={onRemove} testID={`RemoveRole-${role.label}`}>
           <Icon type="Close" size="$s" color="$positiveActionText" />
         </Pressable>
       )}
@@ -487,19 +495,19 @@ function PermissionTableRow({
         </Text>
       </YStack>
       <PermissionTableControlCell>
-        <RadioControl checked disabled testID={`ReadToggle-${role.value}`} />
+        <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
       </PermissionTableControlCell>
       <PermissionTableControlCell>
         {isAdmin ? (
           <RadioControl
             checked={canWrite}
             disabled
-            testID={`WriteToggle-${role.value}`}
+            testID={`WriteToggle-${role.label}`}
           />
         ) : (
           <Pressable
             onPress={onToggleWrite}
-            testID={`WriteToggle-${role.value}`}
+            testID={`WriteToggle-${role.label}`}
           >
             <RadioControl checked={canWrite} />
           </Pressable>
@@ -636,7 +644,7 @@ export function RoleSelectionSheet({
         borderTopWidth={1}
         borderTopColor="$border"
       >
-        <Button hero onPress={handleSave}>
+        <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
           <Button.Text>Save</Button.Text>
         </Button>
       </ActionSheet.Content>
