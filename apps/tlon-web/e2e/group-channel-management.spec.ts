@@ -74,7 +74,7 @@ test.skip('should handle channel management operations', async ({
     page.getByTestId('ChannelItem-Second chat channel-1')
   ).toBeVisible({ timeout: 10000 });
 
-  // Edit channel
+  // Channel settings
   await helpers.editChannel(
     page,
     'Second chat channel',
