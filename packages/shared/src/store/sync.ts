@@ -1482,7 +1482,6 @@ export async function syncInitialPosts(config: {
       numPostsSynced: posts.length,
     });
   } catch (err) {
-    console.log(`bl: it threw?`, err);
     logger.trackError('Failed to sync initial posts', {
       errorMessage: err.toString(),
     });
