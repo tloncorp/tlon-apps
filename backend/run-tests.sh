@@ -46,7 +46,7 @@ archive=`basename $download_url`
 if [ ! -f $archive ]
 then
   echo "Downloading ~zod archive $archive"
-  wget $download_url
+  curl $download_url > $archive
 fi
 
 # Unpack the pier
