@@ -129,7 +129,7 @@
             ==
           ::
               %group-invite
-            =+  .^(=foreigns:v7:gv %gx /(scot %p our)/groups/(scot %da now)/v1/foreigns/noun)
+            =+  .^(=foreigns:v8:gv %gx /(scot %p our)/groups/(scot %da now)/v1/foreigns/noun)
             :~  [%ship ship.event]
                 ' sent you an invite to '
                 ?~  foreign=(~(get by foreigns) group.event)  'a group'
