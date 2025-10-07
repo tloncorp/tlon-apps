@@ -161,7 +161,7 @@ jobs:
           retention-days: 7
       - name: Run Backend Tests for Groups
         run: |
-          apt-get install -y socat
+          sudo dnf install socat
           ./backend/run-tests.sh
       # For some reason, caching is breaking with the new piers.
       # TODO: fix this.
