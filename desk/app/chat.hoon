@@ -1,6 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, g=groups
 /-  u=ui, e=epic, activity, s=story, meta
-/-  ha=hark
 /-  contacts-0
 /+  default-agent, verb-lib=verb, dbug,
     neg=negotiate, discipline, logs,
@@ -1260,13 +1259,6 @@
   |=  [=whom:c =unread:unreads:c]
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
-++  pass-hark
-  |=  =cage
-  ^-  card
-  =/  =wire  /hark
-  =/  =dock  [our.bowl %hark]
-  [%pass wire %agent dock %poke cage]
-::
 ++  pass-activity
   =,  activity
   |=  $:  =whom
@@ -2028,15 +2020,6 @@
   ++  cu-remark-diff
     |=  diff=remark-diff:c
     ^+  cu-core
-    =?  cor  =(%read -.diff)
-      %-  emil
-      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
-      %+  murn
-        ~(tap by cable.carpet)
-      |=  [=rope:ha =thread:ha]
-      ?.  =(/club/(scot %uv id) ted.rope)  ~
-      =/  =cage  hark-action-1+!>([%saw-rope rope])
-      `(pass-hark cage)
     =.  remark.club
       ?-  -.diff
         %watch    remark.club(watching &)
@@ -2643,15 +2626,6 @@
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core
-    =?  cor  =(%read -.diff)
-      %-  emil
-      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
-      %+  murn
-        ~(tap by cable.carpet)
-      |=  [=rope:ha =thread:ha]
-      ?.  =(/dm/(scot %p ship) ted.rope)  ~
-      =/  =cage  hark-action-1+!>([%saw-rope rope])
-      `(pass-hark cage)
     =.  remark.dm
       ?-  -.diff
         %watch    remark.dm(watching &)
