@@ -538,7 +538,7 @@ export function RadioInputRow<T>({
         disabled={option.disabled}
         checked={checked}
       />
-      <YStack gap="$l">
+      <YStack gap="$l" flex={1}>
         <Text size="$label/xl" color="$primaryText">
           {option.title}
         </Text>
