@@ -4,7 +4,8 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 
 ## Quick Reference
 
--   Full suite: `pnpm e2e` (first run downloads ships, ~15 min; automatically nukes ship state)
+-   **Parallel (fastest)**: `pnpm e2e:parallel` (~24 min local, ~12 min CI with 4 shards)
+-   Full suite (sequential): `pnpm e2e` (first run downloads ships, ~48 min; automatically nukes ship state)
 -   Full suite with explicit extraction: `pnpm e2e:force` (forces complete re-extraction of ships instead of just nuking state)
 -   Development: `pnpm e2e:ui` (interactive debugging)
 -   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
@@ -14,6 +15,34 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 -   View results: `npx playwright show-report`
 -   If you have an issue with a run, try it again with `force`.
 
+## Parallel Testing
+
+For faster test execution, use the parallel test runner that splits tests across multiple isolated Docker containers:
+
+-   **Local**: `pnpm e2e:parallel` (2 shards, ~24 minutes)
+-   **CI**: Automatically uses 4 shards (~12 minutes)
+
+See [PARALLEL-TESTING.md](../rube/PARALLEL-TESTING.md) for detailed documentation on:
+
+-   Setup and configuration
+-   Architecture and how it works
+-   Troubleshooting
+-   CI integration
+
+**Quick commands:**
+
+```bash
+pnpm e2e:parallel:build  # Build Docker image (first time only)
+pnpm e2e:parallel        # Run tests in parallel
+pnpm e2e:parallel:cleanup # Clean up stuck containers
+```
+
+**Requirements:**
+
+-   Docker or Podman installed
+-   16GB+ RAM for 2 shards, 32GB+ for 4 shards
+-   ~20GB free disk space
+
 ## Overview
 
 Our e2e testing infrastructure provides:
@@ -22,7 +51,7 @@ Our e2e testing infrastructure provides:
 -   Cross-ship communication testing
 -   Comprehensive UI interaction testing
 -   Authentication and session management
--   Parallel test execution capabilities (not yet implemented)
+-   Parallel test execution capabilities (see [PARALLEL-TESTING.md](../rube/PARALLEL-TESTING.md))
 
 ## Architecture
 
@@ -55,13 +84,14 @@ Our e2e testing infrastructure provides:
 
 ## Available Test Ships
 
-The testing environment uses three pre-configured Urbit ships:
+The testing environment uses four pre-configured Urbit ships:
 
-| Ship | Web URL               | HTTP Port | Auth File        | Purpose                                                                       |
-| ---- | --------------------- | --------- | ---------------- | ----------------------------------------------------------------------------- |
-| ~zod | http://localhost:3000 | 35453     | `.auth/zod.json` | Primary test ship                                                             |
+| Ship | Web URL               | HTTP Port | Auth File        | Purpose                                                                        |
+| ---- | --------------------- | --------- | ---------------- | ------------------------------------------------------------------------------ |
+| ~zod | http://localhost:3000 | 35453     | `.auth/zod.json` | Primary test ship                                                              |
 | ~bus | http://localhost:3001 | 36963     | `.auth/bus.json` | Secondary ship for protocol mismatch tests (purposefully not kept up to date) |
-| ~ten | http://localhost:3002 | 38473     | `.auth/ten.json` | Third ship for cross-ship testing                                             |
+| ~ten | http://localhost:3002 | 38473     | `.auth/ten.json` | Third ship for cross-ship testing                                              |
+| ~mug | http://localhost:3003 | 39983     | `.auth/mug.json` | Invite service provider (optional, started with `INCLUDE_OPTIONAL_SHIPS=true`) |
 
 ## Test Categories
 
@@ -97,8 +127,8 @@ The testing environment uses three pre-configured Urbit ships:
 ### Prerequisites
 
 -   Node.js and pnpm installed
--   Sufficient disk space for ship downloads (~500MB per ship)
--   Available ports: 3000-3002, 35453, 36963, 38473
+-   Sufficient disk space for ship downloads (~500MB-1GB compressed per ship, 1.3-3.2GB extracted)
+-   Available ports: 3000-3003 (web), 35453, 36963, 38473, 39983 (ships)
 
 ### Basic Commands
 
@@ -376,7 +406,7 @@ The Rube system automatically:
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 3000-3002, 35453, 36963, 38473 are available
+1. **Port conflicts**: Ensure ports 3000-3003, 35453, 36963, 38473, 39983 are available
 2. **Ship download failures**: Check internet connection and bootstrap.urbit.org availability
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
@@ -492,9 +522,10 @@ Some tests create persistent state that isn't immediately obvious:
 ### GitHub Actions Workflow
 
 -   Tests run on every pull request via `.github/workflows/ci.yml`
+-   Uses parallel execution with 4 shards on self-hosted Fedora runner
 -   Playwright browsers are cached, but ship piers are **not cached** (due to current issues)
 -   Each CI run downloads fresh ship images (~1.5GB total)
--   Full CI run including setup takes approximately 25 minutes
+-   Full CI run including setup takes approximately 12-15 minutes with parallel execution
 
 ### CI-Specific Behavior
 
@@ -513,10 +544,12 @@ npx playwright show-report /path/to/downloaded/playwright-report
 
 ## Performance Considerations
 
--   Full test suite takes approximately 15 minutes
--   Each ship requires ~500MB disk space + memory for Urbit process
--   Tests run sequentially to avoid state conflicts
+-   **Parallel execution**: ~24 minutes (local, 2 shards) or ~12 minutes (CI, 4 shards) - recommended
+-   **Sequential execution**: ~48 minutes for full suite
+-   Each ship requires ~500MB-1GB compressed, 1.3-3.2GB extracted disk space + memory for Urbit process
+-   Sequential tests run with 1 worker to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development
+-   For fastest results, use `pnpm e2e:parallel` (requires Docker/Podman)
 
 ### Optimized Ship and Desk Management
 

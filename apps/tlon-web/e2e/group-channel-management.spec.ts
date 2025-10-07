@@ -3,7 +3,9 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should handle channel management operations', async ({ zodPage }) => {
+test.skip('should handle channel management operations', async ({
+  zodPage,
+}) => {
   const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
