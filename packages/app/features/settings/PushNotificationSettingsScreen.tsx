@@ -4,6 +4,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import { ComponentProps, useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -12,14 +13,13 @@ import {
   ChannelListItem,
   ChatOptionsProvider,
   GroupListItem,
-  Icon,
   ListItem,
-  Pressable,
+  RadioInput,
+  RadioInputOption,
   ScreenHeader,
   ScrollView,
-  SizableText,
+  TlonText,
   View,
-  XStack,
   YStack,
   useIsWindowNarrow,
 } from '../../ui';
@@ -30,6 +30,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   const baseVolumeSetting = store.useBaseVolumeLevel();
   const { data: exceptions } = store.useVolumeExceptions();
   const isWindowNarrow = useIsWindowNarrow();
+  const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const numExceptions = useMemo(
     () => (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0),
@@ -55,94 +56,63 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
     []
   );
 
-  const LevelIndicator = useCallback(
-    (props: { levels: ub.NotificationLevel[] }) => {
-      if (props.levels.includes(baseVolumeSetting)) {
-        return (
-          <View
-            height="$2xl"
-            width="$2xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Icon type="Checkmark" />
-          </View>
-        );
-      }
+  const notificationOptions: RadioInputOption<ub.NotificationLevel>[] =
+    useMemo(() => {
+      return [
+        {
+          title: 'All group activity',
+          value: 'medium' as ub.NotificationLevel,
+          description:
+            'Notify for all posts, mentions, and replies in groups. Direct messages always notify unless muted.',
+        },
+        {
+          title: 'Mentions and replies only',
+          value: 'soft' as ub.NotificationLevel,
+          description:
+            'Notify only when someone mentions you or replies to your posts. Direct messages always notify unless muted.',
+        },
+        {
+          title: 'Nothing',
+          value: 'hush' as ub.NotificationLevel,
+          description: isNative
+            ? 'No notifications for anything, even if push notifications are enabled on your device.'
+            : 'No notifications for anything.',
+        },
+      ];
+    }, [isNative]);
 
-      return (
-        <View
-          borderRadius="$4xl"
-          borderWidth={1}
-          borderColor="$secondaryBorder"
-          height="$2xl"
-          width="$2xl"
-        />
-      );
-    },
-    [baseVolumeSetting]
-  );
+  const insets = useSafeAreaInsets();
 
   return (
     <ChatOptionsProvider {...useChatSettingsNavigation()}>
-      <View flex={1} backgroundColor="$background">
+      <View
+        flex={1}
+        paddingBottom={insets.bottom}
+        backgroundColor="$background"
+      >
         <ScreenHeader
-          title="Push Notifications"
+          title="Notifications"
           backAction={() => navigation.goBack()}
         />
-        <View
-          marginTop="$m"
-          marginHorizontal={isWindowNarrow ? '$2xl' : 'auto'}
-          width="100%"
-          maxWidth={600}
-          flex={1}
-        >
-          <SizableText marginLeft="$m" marginTop="$xl" size="$m">
-            Configure what kinds of messages will send you notifications.
-          </SizableText>
-
-          <YStack marginLeft="$m" marginTop="$3xl">
-            <Pressable onPress={() => setLevel('medium')}>
-              <XStack>
-                <LevelIndicator levels={['loud', 'medium']} />
-                <SizableText marginLeft="$l">All group activity</SizableText>
-              </XStack>
-            </Pressable>
-
-            <Pressable marginTop="$xl" onPress={() => setLevel('soft')}>
-              <XStack>
-                <LevelIndicator levels={['soft', 'default']} />
-                <YStack marginLeft="$l">
-                  <SizableText>Mentions and replies only</SizableText>
-                  <SizableText
-                    width="80%"
-                    marginTop="$m"
-                    size="$s"
-                    color="$secondaryText"
-                  >
-                    Direct messages will still notify unless you mute them.
-                  </SizableText>
-                </YStack>
-              </XStack>
-            </Pressable>
-
-            <Pressable marginTop="$xl" onPress={() => setLevel('hush')}>
-              <XStack>
-                <LevelIndicator levels={['hush']} />
-                <SizableText marginLeft="$l">Nothing</SizableText>
-              </XStack>
-            </Pressable>
-          </YStack>
-
+        <ScrollView flex={1} paddingHorizontal={'$2xl'}>
+          <TlonText.Text size={'$label/m'} marginVertical={'$l'}>
+            Configure what kinds of messages will send you
+            {isNative ? ` device push notifications and ` : ' '}in-app alerts.
+          </TlonText.Text>
+          <RadioInput
+            options={notificationOptions}
+            value={baseVolumeSetting}
+            onChange={setLevel}
+            paddingRight={isWindowNarrow ? '$4xl' : undefined}
+          />
           {numExceptions > 0 ? (
             <ExceptionsDisplay
-              marginTop="$2xl"
               channels={exceptions?.channels ?? []}
               groups={exceptions?.groups ?? []}
               removeException={removeException}
             />
           ) : null}
-        </View>
+        </ScrollView>
       </View>
     </ChatOptionsProvider>
   );
@@ -158,66 +128,64 @@ export function ExceptionsDisplay({
   channels: db.Channel[];
   removeException: (exception: db.Group | db.Channel) => void;
 } & ComponentProps<typeof YStack>) {
-  const insets = useSafeAreaInsets();
   return (
-    <YStack flex={1} {...rest}>
-      <SizableText
-        marginHorizontal="$l"
-        marginBottom="$m"
-        color="$secondaryText"
-      >
-        Exceptions
-      </SizableText>
-      <ScrollView flex={1}>
-        {groups.map((group) => {
-          return (
-            <GroupListItem
-              model={group}
-              key={group.id}
-              pressStyle={{ backgroundColor: '$background' }}
-              customSubtitle={
-                group.volumeSettings?.level
-                  ? ub.NotificationNamesShort[group.volumeSettings.level]
-                  : undefined
-              }
-              EndContent={
-                <ListItem.SystemIcon
-                  icon="Close"
-                  backgroundColor="unset"
-                  onPress={() => removeException(group)}
-                />
-              }
-              paddingVertical="$s"
-              disableOptions
-            />
-          );
-        })}
-        {channels.map((channel) => {
-          return (
-            <ChannelListItem
-              model={channel}
-              key={channel.id}
-              pressStyle={{ backgroundColor: '$background' }}
-              customSubtitle={
-                channel.volumeSettings?.level
-                  ? ub.NotificationNamesShort[channel.volumeSettings.level]
-                  : undefined
-              }
-              EndContent={
-                <ListItem.SystemIcon
-                  icon="Close"
-                  backgroundColor="unset"
-                  onPress={() => removeException(channel)}
-                />
-              }
-              paddingVertical="$s"
-              disableOptions
-            />
-          );
-        })}
-        {/* applying padding to the scrollview doesn't work, so use a spacer view */}
-        <View paddingBottom={insets.bottom} />
-      </ScrollView>
+    <YStack marginTop={'$l'} flex={1} {...rest}>
+      <TlonText.Text size={'$label/2xl'} marginBottom={'$l'}>
+        Overrides
+      </TlonText.Text>
+      <TlonText.Text size={'$label/m'} marginBottom={'$xl'}>
+        These groups, channels, and DMs have custom notification settings. Tap
+        the &quot;X&quot; to remove the override and return to the default
+        setting.
+      </TlonText.Text>
+      {groups.map((group) => {
+        return (
+          <GroupListItem
+            model={group}
+            key={group.id}
+            pressStyle={{ backgroundColor: '$background' }}
+            customSubtitle={
+              group.volumeSettings?.level
+                ? ub.NotificationNamesShort[group.volumeSettings.level]
+                : undefined
+            }
+            EndContent={
+              <ListItem.SystemIcon
+                icon="Close"
+                backgroundColor="unset"
+                onPress={() => removeException(group)}
+              />
+            }
+            paddingVertical="$xs"
+            paddingHorizontal={0}
+            disableOptions
+          />
+        );
+      })}
+      {channels.map((channel) => {
+        return (
+          <ChannelListItem
+            model={channel}
+            key={channel.id}
+            pressStyle={{ backgroundColor: '$background' }}
+            customSubtitle={
+              channel.volumeSettings?.level
+                ? ub.NotificationNamesShort[channel.volumeSettings.level]
+                : undefined
+            }
+            EndContent={
+              <ListItem.SystemIcon
+                icon="Close"
+                backgroundColor="unset"
+                onPress={() => removeException(channel)}
+              />
+            }
+            paddingVertical={'$xs'}
+            paddingHorizontal={0}
+            disableOptions
+          />
+        );
+      })}
     </YStack>
   );
 }
