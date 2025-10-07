@@ -135,7 +135,7 @@ export function ExceptionsDisplay({
       </TlonText.Text>
       <TlonText.Text size={'$label/m'} marginBottom={'$xl'}>
         These groups, channels, and DMs have custom notification settings. Tap
-        the &quot;X&quot; to remove the override and return to the default
+        the &quot;X&quot; to remove the override and return to the above
         setting.
       </TlonText.Text>
       {groups.map((group) => {
