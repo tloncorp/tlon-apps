@@ -123,6 +123,8 @@ export function useBootSequence() {
         setShip({ ...shipInfo, needsSplashSequence: true });
         telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
+        // deeper logic relies on the setShip result being available, use small delay
+        // to avoid race conditions
         await wait(200);
 
         configureUrbitClient({
@@ -146,7 +148,7 @@ export function useBootSequence() {
     // CONNECTING: make sure the connection is established
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
-      // forcing a subscribe once down the channel reduces connection time significantly
+      // forcing a subscribeOnce down the channel reduces connection time significantly
       store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
