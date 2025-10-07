@@ -2150,11 +2150,7 @@
   (~(has in nets) net.dm)
 ::
 ++  give-invites
-  |=  [s=@p n=@tas]
-  =/  invites
-    ?:  =(n %invited)
-      (~(put in ~(key by pending-dms)) s)
-    ~(key by pending-dms)
+  =/  invites  ~(key by pending-dms)
   (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
@@ -2323,7 +2319,8 @@
       cor
     =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
-      (give-invites ship net.dm)
+      =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
+      give-invites
     ?-  -.q.diff
         ?(%add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -2419,10 +2416,10 @@
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
     ?.  ok
-      ::  when declining/leaving a DM, send updated invite list to subscribers
-      ::  remove the current ship from the list since we're declining it
-      =/  updated-invites  (~(del in ~(key by pending-dms)) ship)
-      =.  cor  (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(updated-invites))
+      ::  When declining/leaving a DM, send updated invite list to subscribers
+      =.  cor
+        =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
+        give-invites
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
       ?:  =(src.bowl ship)
         di-core
@@ -2430,11 +2427,10 @@
     =.  cor
       (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed ~[ship]])])
     =.  net.dm  %done
-    ::  when accepting a DM, also send updated invite list to subscribers
-    ::  remove the accepted DM from the list since it's no longer an invite
-    =/  updated-invites  (~(del in ~(key by pending-dms)) ship)
+    ::  When accepting a DM, also send updated invite list to subscribers
     =.  cor
-      (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(updated-invites))
+      =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
+      give-invites
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
