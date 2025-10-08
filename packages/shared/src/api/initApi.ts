@@ -5,7 +5,10 @@ import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
+  extractChannelReaders,
+  toClientGroups,
   toClientGroupsFromForeigns,
+  toClientGroupsFromGangs,
   toClientGroupsV7,
   toClientPinnedItems,
 } from './groupsApi';
@@ -38,21 +41,31 @@ export const getInitData = async () => {
   return toInitData(response);
 };
 
-export const toInitData = (response: ub.GroupsInit5): InitData => {
+export const toInitData = (
+  response: ub.GroupsInit4 | ub.GroupsInit5
+): InitData => {
   logger.crumb('converting init data to client data');
   logger.log('response.groups:', response.groups);
 
   const pins = toClientPinnedItems(response.pins);
 
-  // Extract channel readers from v7 groups
-  const channelReaders: Record<string, string[]> = {};
-  Object.entries(response.groups).forEach(([_groupId, group]) => {
-    if (group.channels) {
-      Object.entries(group.channels).forEach(([channelId, channel]) => {
-        channelReaders[channelId] = channel.readers ?? [];
-      });
-    }
-  });
+  const isV5 = 'foreigns' in response;
+
+  const channelReaders: Record<string, string[]> = isV5
+    ? // v5: Extract from v7 groups
+      (() => {
+        const readers: Record<string, string[]> = {};
+        Object.entries(response.groups).forEach(([_groupId, group]) => {
+          if ('channels' in group && group.channels) {
+            Object.entries(group.channels).forEach(([channelId, channel]) => {
+              readers[channelId] = channel.readers ?? [];
+            });
+          }
+        });
+        return readers;
+      })()
+    : // v4: Extract from v2 groups
+      extractChannelReaders(response.groups);
 
   const channelsInit = toClientChannelsInit(
     response.channel.channels,
@@ -74,11 +87,15 @@ export const toInitData = (response: ub.GroupsInit5): InitData => {
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true);
+  const groups = isV5
+    ? toClientGroupsV7(response.groups as Record<string, ub.GroupV7>, true)
+    : toClientGroups(response.groups as ub.Groups, true);
 
   logger.crumb('converting unjoined groups to client data');
 
-  const unjoinedGroups = toClientGroupsFromForeigns(response.foreigns);
+  const unjoinedGroups = isV5
+    ? toClientGroupsFromForeigns((response as ub.GroupsInit5).foreigns)
+    : toClientGroupsFromGangs((response as ub.GroupsInit4).gangs);
 
   logger.crumb('converting dm channels to client data');
 
