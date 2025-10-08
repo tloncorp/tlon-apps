@@ -200,7 +200,7 @@ jobs:
           clean: false # Our cleanup step handles root-owned files
       - name: Run Backend Tests for Groups
         run: |
-          sudo dnf install -y socat
+          sudo dnf install -y socat patch
           ./backend/run-tests.sh
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
