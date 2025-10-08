@@ -1,13 +1,15 @@
 import {
+  DraftInputId,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
+import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { Story } from '@tloncorp/shared/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -38,6 +40,7 @@ import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
+import { DraftInputView } from './Channel/DraftInputView';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -72,6 +75,98 @@ interface ChannelContext {
   onPressDelete: (post: db.Post) => void;
 }
 
+interface GalleryDraftInputProps {
+  channel: db.Channel;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
+  editingPost?: db.Post;
+  getDraft: (draftType?: string) => Promise<JSONContent | null>;
+  group: db.Group | null;
+  clearDraft: (draftType?: string) => Promise<void>;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  setShouldBlur: (shouldBlur: boolean) => void;
+  shouldBlur: boolean;
+  storeDraft: (content: JSONContent, draftType?: string) => Promise<void>;
+}
+
+const GalleryDraftInput = memo(function GalleryDraftInput({
+  channel,
+  editPost,
+  editingPost,
+  getDraft,
+  group,
+  clearDraft,
+  setEditingPost,
+  setShouldBlur,
+  shouldBlur,
+  storeDraft,
+}: GalleryDraftInputProps) {
+  const configuration = useMemo(
+    () =>
+      channel.contentConfiguration == null
+        ? undefined
+        : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+            .configuration,
+    [channel.contentConfiguration]
+  );
+
+  const noOpCallbacks = useMemo(
+    () => ({
+      onPresentationModeChange: () => {},
+      sendPost: async () => {},
+      sendPostFromDraft: async () => {},
+    }),
+    []
+  );
+
+  const draftInputContext = useMemo(
+    () => ({
+      configuration,
+      draftInputRef: { current: null },
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      channel,
+      clearDraft,
+      onPresentationModeChange: noOpCallbacks.onPresentationModeChange,
+      sendPost: noOpCallbacks.sendPost,
+      sendPostFromDraft: noOpCallbacks.sendPostFromDraft,
+      setEditingPost,
+      setShouldBlur,
+      shouldBlur,
+      storeDraft,
+    }),
+    [
+      configuration,
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      channel,
+      clearDraft,
+      noOpCallbacks.onPresentationModeChange,
+      noOpCallbacks.sendPost,
+      noOpCallbacks.sendPostFromDraft,
+      setEditingPost,
+      setShouldBlur,
+      shouldBlur,
+      storeDraft,
+    ]
+  );
+
+  return (
+    <DraftInputView
+      draftInputContext={draftInputContext}
+      type={DraftInputId.gallery}
+    />
+  );
+});
+
 export function PostScreenView({
   channel,
   group,
@@ -98,10 +193,7 @@ export function PostScreenView({
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(
-    channel.groupId ?? '',
-    currentUserId
-  );
+  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
@@ -124,22 +216,27 @@ export function PostScreenView({
   }, [channel, parentPost, isWindowNarrow]);
 
   const showEdit = useMemo(() => {
-    // This logic assumes this screen only shows a single post - if we're
-    // swapping out different posts (e.g. in a carousel), we'll need to rewrite
-    // this to look at the currently-focused post.
-    // No need to at the moment because we only allow edit in notebooks.
-    if (mode !== 'single') {
+    // For notebook posts, only show edit button in single mode
+    if (channel.type === 'notebook' && mode !== 'single') {
       return false;
     }
 
-    return (
-      !editingPost &&
-      channel.type === 'notebook' &&
-      (parentPost?.authorId === currentUserId || currentUserIsAdmin)
-    );
+    // For gallery posts, allow editing in both single and carousel modes
+    // since we're editing the currently focused post in the carousel
+    if (channel.type === 'gallery' || mode === 'single') {
+      return (
+        !editingPost &&
+        negotiationMatch &&
+        (channel.type === 'notebook' || channel.type === 'gallery') &&
+        (parentPost?.authorId === currentUserId || currentUserIsAdmin)
+      );
+    }
+
+    return false;
   }, [
     mode,
     editingPost,
+    negotiationMatch,
     channel.type,
     parentPost?.authorId,
     currentUserId,
@@ -147,14 +244,14 @@ export function PostScreenView({
   ]);
 
   const handleEditPress = useCallback(() => {
-    setEditingPost?.(parentPost ?? undefined);
-  }, [parentPost, setEditingPost]);
+    setEditingPost?.(focusedPost ?? undefined);
+  }, [focusedPost, setEditingPost]);
 
   const { bottom } = useSafeAreaInsets();
 
   const isEditingParent = useMemo(() => {
-    return editingPost && editingPost.id === parentPost?.id;
-  }, [editingPost, parentPost]);
+    return editingPost?.id === focusedPost?.id;
+  }, [editingPost, focusedPost]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -518,7 +615,10 @@ function SinglePostView({
       {negotiationMatch &&
         channel &&
         canWrite &&
-        !(isEditingParent && channel.type === 'notebook') && (
+        !(
+          isEditingParent &&
+          (channel.type === 'notebook' || channel.type === 'gallery')
+        ) && (
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               placeholder="Reply"
@@ -572,22 +672,37 @@ function SinglePostView({
           bottom={0}
           backgroundColor="$background"
         >
-          <BigInput
-            channelType={urbit.getChannelType(parentPost.channelId)}
-            channelId={parentPost?.channelId}
-            editingPost={editingPost}
-            setEditingPost={setEditingPost}
-            editPost={editPost}
-            shouldBlur={inputShouldBlur}
-            setShouldBlur={setInputShouldBlur}
-            sendPost={async () => {}}
-            sendPostFromDraft={async () => {}}
-            getDraft={getDraft}
-            storeDraft={storeDraft}
-            clearDraft={clearDraft}
-            groupMembers={groupMembers}
-            groupRoles={groupRoles}
-          />
+          {channel.type === 'gallery' ? (
+            <GalleryDraftInput
+              channel={channel}
+              editPost={editPost}
+              editingPost={editingPost}
+              getDraft={getDraft}
+              group={group}
+              clearDraft={clearDraft}
+              setEditingPost={setEditingPost}
+              setShouldBlur={setInputShouldBlur}
+              shouldBlur={inputShouldBlur}
+              storeDraft={storeDraft}
+            />
+          ) : (
+            <BigInput
+              channelType={urbit.getChannelType(parentPost.channelId)}
+              channelId={parentPost?.channelId}
+              editingPost={editingPost}
+              setEditingPost={setEditingPost}
+              editPost={editPost}
+              shouldBlur={inputShouldBlur}
+              setShouldBlur={setInputShouldBlur}
+              sendPost={async () => {}}
+              sendPostFromDraft={async () => {}}
+              getDraft={getDraft}
+              storeDraft={storeDraft}
+              clearDraft={clearDraft}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+            />
+          )}
         </View>
       ) : null}
     </YStack>
@@ -718,6 +833,7 @@ export function PresentationalCarouselPostScreenContent({
           maxToRenderPerBatch: 3,
           windowSize: 3,
           keyboardShouldPersistTaps: 'handled',
+          scrollEnabled: !channelContext.editingPost,
         }}
       >
         {carouselChildren}

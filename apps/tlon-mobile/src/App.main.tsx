@@ -44,41 +44,42 @@ SplashScreen.preventAutoHideAsync().catch((err) => {
   console.warn('Failed to prevent auto hide splash screen', err);
 });
 
-splashScreenProgress.emitter.on('complete', async () => {
-  try {
-    await withRetry(() => SplashScreen.hideAsync());
-  } catch (error) {
-    splashscreenLogger.trackError('Failed to hide splash screen', { error });
-  }
-});
+const useSplashHider = () => {
+  const [splashHidden, setSplashHidden] = useState(
+    splashScreenProgress.finished
+  );
+
+  useEffect(() => {
+    const onComplete = () => {
+      try {
+        withRetry(async () => {
+          await SplashScreen.hideAsync();
+          setSplashHidden(true);
+        });
+      } catch (err) {
+        splashscreenLogger.trackError('Failed to hide splash screen', {
+          errorMessage: err.message,
+        });
+      }
+    };
+
+    // check if progress completed before mounting
+    if (splashScreenProgress.finished) {
+      onComplete();
+      return;
+    }
+
+    splashScreenProgress.emitter.on('complete', onComplete);
+
+    return () => {
+      splashScreenProgress.emitter.off('complete', onComplete);
+    };
+  }, []);
+
+  return splashHidden;
+};
 
 registerBackgroundSyncTask();
-
-// Used for debugging our background task identifier from Info.plist
-const UrbitModule = NativeModules.UrbitModule;
-if (UrbitModule) {
-  UrbitModule.getDebugInfo()
-    .then((identifiers: string[]) => {
-      if (identifiers.length) {
-        db.debugPermittedSchedulerId.setValue(identifiers[0]);
-        splashscreenLogger.trackEvent(
-          `set debug Permitted Scheduler ID to ${identifiers[0]}`
-        );
-      } else {
-        throw new Error('No permitted scheduler identifiers found');
-      }
-    })
-    .catch((error: any) => {
-      splashscreenLogger.trackError(
-        'Failed to find permitted scheduler identifiers',
-        {
-          errorMessage:
-            error instanceof Error ? error.message : error.toString(),
-          stack: error instanceof Error ? error.stack : undefined,
-        }
-      );
-    });
-}
 
 // Android notification tap handler passes initial params here
 const App = () => {
@@ -179,6 +180,7 @@ export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const migrationState = useMigrations();
+  const splashIsHidden = useSplashHider();
 
   return (
     <FeatureFlagConnectedInstrumentationProvider>
@@ -191,7 +193,7 @@ export default function ConnectedApp() {
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
-                  <App />
+                  {splashIsHidden ? <App /> : null}
 
                   {__DEV__ && (
                     <DevTools navigationContainerRef={navigationContainerRef} />

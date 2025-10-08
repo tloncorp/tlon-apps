@@ -51,6 +51,7 @@ const mockStash: Channels = {
 
 const mockCurios: Posts = {
   '170141184505776467152677676749638598656': {
+    type: 'post',
     seal: {
       id: '170141184505776467152677676749638598656',
       replies: [],
@@ -60,7 +61,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
-      seq: '1',
+      seq: 1,
     },
     essay: {
       kind: '/heap',
@@ -81,6 +82,7 @@ const mockCurios: Posts = {
     },
   },
   '170141184505776467152677676749638598657': {
+    type: 'post',
     seal: {
       id: '170141184505776467152677676749638598657',
       replies: [],
@@ -90,7 +92,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
-      seq: '2',
+      seq: 1,
     },
     essay: {
       kind: '/heap',
@@ -111,6 +113,7 @@ const mockCurios: Posts = {
     },
   },
   '170141184505776467152677676749638598658': {
+    type: 'post',
     seal: {
       id: '170141184505776467152677676749638598658',
       replies: [],
@@ -120,7 +123,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
-      seq: '3',
+      seq: 1,
     },
     essay: {
       kind: '/heap',
@@ -141,6 +144,7 @@ const mockCurios: Posts = {
     },
   },
   '170141184505776467152677676749638598659': {
+    type: 'post',
     seal: {
       id: '170141184505776467152677676749638598659',
       replies: [],
@@ -150,7 +154,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
-      seq: '4',
+      seq: 4,
     },
     essay: {
       kind: '/heap',
@@ -168,6 +172,7 @@ const mockCurios: Posts = {
     },
   },
   '170141184505776467152677676749638598660': {
+    type: 'post',
     seal: {
       id: '170141184505776467152677676749638598660',
       replies: [],
@@ -177,7 +182,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
-      seq: '5',
+      seq: 1,
     },
     essay: {
       kind: '/heap',

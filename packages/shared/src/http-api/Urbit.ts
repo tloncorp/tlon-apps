@@ -3,6 +3,7 @@ import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
 import { TimeoutError } from '../api';
+import { createDevLogger } from '../debug';
 import { desig } from '../urbit';
 import * as utils from '../utils';
 import { EventEmitter } from '../utils/EventEmitter';
@@ -28,6 +29,8 @@ import {
   headers,
 } from './types';
 import { hexString, unpackJamBytes } from './utils';
+
+const logger = createDevLogger('UrbitHttpApi', false);
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
@@ -474,12 +477,14 @@ export class Urbit {
           if (!(error instanceof FatalError)) {
             const context: any = {};
             if (error instanceof SSEBadResponseError) {
+              if (error.status === 500) {
+                this.seamlessReset();
+                return;
+              }
               context.message = error.message;
               context.requestStatus = error.status;
             }
-            if (error instanceof SSETimeoutError) {
-              context.message = error.message;
-            }
+            context.message = error.message;
             this.emit('status-update', { status: 'reconnecting', context });
             return Math.min(5000, Math.pow(2, this.errorCount - 1) * 750);
           }
@@ -513,7 +518,7 @@ export class Urbit {
     this.sseClientInitialized = false;
   }
 
-  private seamlessReset() {
+  seamlessReset() {
     // called if a channel was reaped by %eyre before we reconnected
     // so we have to make a new channel.
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
@@ -576,6 +581,8 @@ export class Urbit {
   private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
     const body = formatUw(jam(dejs.list(args)).number.toString());
+    this.validatePokeBodySize(body);
+
     const response = await this.fetchFn(this.channelUrl, {
       ...options,
       signal: this.channelAbort.signal,
@@ -601,11 +608,14 @@ export class Urbit {
   }
 
   private async sendJSONtoChannel(...json: (Message | Ack)[]): Promise<void> {
+    const body = JSON.stringify(json);
+    this.validatePokeBodySize(body);
+
     const response = await this.fetchFn(this.channelUrl, {
       ...this.fetchOptions,
       signal: this.channelAbort.signal,
       method: 'PUT',
-      body: JSON.stringify(json),
+      body,
     });
 
     if (!response.ok) {
@@ -626,6 +636,18 @@ export class Urbit {
       }
 
       await this.eventSource();
+    }
+  }
+
+  /**
+   * Validates the size of the poke body.
+   * This prevents us from accidentally sending large payloads (eg base64 images)
+   * @param body The body to validate.
+   */
+  validatePokeBodySize(body: string) {
+    if (body.length / 1024 > 512) {
+      logger.trackError('Body too large to send to channel');
+      throw new Error('Body too large to send to channel');
     }
   }
 
@@ -846,6 +868,27 @@ export class Urbit {
     }
   }
 
+  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
+    try {
+      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
+        method: 'GET',
+      });
+      if (response.status === 204) {
+        return 'available';
+      }
+      if (response.status === 429) {
+        return 'busy';
+      }
+      logger.trackEvent('Unexpected node busy response', {
+        status: response.status,
+      });
+      return 'unknown';
+    } catch (e) {
+      logger.trackEvent('Failed to check if node is busy', { error: e });
+      return 'unknown';
+    }
+  }
+
   /**
    * Scry into an gall agent at a path
    *
@@ -863,6 +906,17 @@ export class Urbit {
    * @returns The scry result
    */
   async scry<T = any>(params: Scry): Promise<T> {
+    const { result } = await this.scryWithInfo(params);
+    return result;
+  }
+
+  async scryWithInfo<T = any>(
+    params: Scry
+  ): Promise<{
+    responseStatus: number;
+    responseSizeInBytes: number;
+    result: T;
+  }> {
     const { app, path, timeout } = params;
     const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
@@ -878,10 +932,25 @@ export class Urbit {
       return Promise.reject(response);
     }
 
-    return await response.json();
+    const result = await response.json();
+    const responseSize = response.headers.get('content-length');
+    return {
+      responseStatus: response.status,
+      responseSizeInBytes: Number(responseSize),
+      result,
+    };
   }
 
   async scryNoun(params: Scry): Promise<Noun> {
+    const { result } = await this.scryNounWithInfo(params);
+    return result;
+  }
+
+  async scryNounWithInfo(params: Scry): Promise<{
+    responseStatus: number;
+    responseSizeInBytes: number;
+    result: Noun;
+  }> {
     const { app, path } = params;
 
     try {
@@ -905,7 +974,12 @@ export class Urbit {
 
       try {
         const unpacked = await unpackJamBytes(buffer);
-        return unpacked;
+        const responseSize = response.headers.get('content-length');
+        return {
+          responseStatus: response.status,
+          responseSizeInBytes: Number(responseSize),
+          result: unpacked,
+        };
       } catch (e) {
         console.error('Unpack failed', e);
         throw e;

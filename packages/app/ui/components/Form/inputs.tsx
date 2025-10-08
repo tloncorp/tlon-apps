@@ -1,4 +1,4 @@
-import { VariantsFromValues, useIsWindowNarrow } from '@tloncorp/ui';
+import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { Alert, TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import {
   ScrollView,
   Spinner,
@@ -189,6 +189,7 @@ export const ImageInput = XStack.styleable<{
   );
   const { canUpload } = useAttachmentContext();
   const isWindowNarrow = useIsWindowNarrow();
+  const showToast = useToast();
 
   useEffect(() => {
     if (assetUri !== value) {
@@ -204,10 +205,14 @@ export const ImageInput = XStack.styleable<{
 
   const handleSheetToggled = useCallback(() => {
     if (!canUpload) {
-      Alert.alert('Configure storage to upload images');
+      showToast({
+        message: 'Please configure storage settings to upload images',
+        duration: 3000,
+      });
+      return; // Don't open the sheet
     }
     setSheetOpen((open) => !open);
-  }, [canUpload]);
+  }, [canUpload, showToast]);
 
   const { attachment } = useMappedImageAttachments(
     assetUri ? { attachment: assetUri } : {}
@@ -216,8 +221,18 @@ export const ImageInput = XStack.styleable<{
   useEffect(() => {
     if (attachment && attachment.uploadState?.status === 'success') {
       setAssetUri?.(attachment.uploadState.remoteUri);
+    } else if (attachment && attachment.uploadState?.status === 'error') {
+      // Show toast with error message
+      const errorMessage =
+        attachment.uploadState.errorMessage || 'Upload failed';
+      showToast({
+        message: `Failed to upload image: ${errorMessage}`,
+        duration: 5000,
+      });
+      // Clear the failed upload so user can try again
+      setAssetUri(undefined);
     }
-  }, [attachment]);
+  }, [attachment, showToast]);
 
   const handleImageRemoved = useCallback(() => {
     setAssetUri(undefined);
@@ -226,14 +241,23 @@ export const ImageInput = XStack.styleable<{
   return (
     <>
       <XStack gap="$m" ref={ref}>
-        <ImageInputButtonFrame group onPress={handleSheetToggled}>
-          <ImageInputButtonText>{buttonLabel}</ImageInputButtonText>
+        <ImageInputButtonFrame
+          group
+          onPress={handleSheetToggled}
+          disabled={!canUpload}
+          opacity={canUpload ? 1 : 0.5}
+        >
+          <ImageInputButtonText disabled={!canUpload}>
+            {!canUpload ? 'Storage not configured' : buttonLabel}
+          </ImageInputButtonText>
         </ImageInputButtonFrame>
         <ImageInputPreviewFrame
           height={isWindowNarrow ? undefined : '100%'}
           onPress={handleSheetToggled}
+          disabled={!canUpload}
+          opacity={!canUpload && !assetUri ? 0.5 : 1}
         >
-          <Icon type="Camera" color="$tertiaryText" />
+          <Icon type="Camera" color={canUpload ? '$tertiaryText' : '$border'} />
           {placeholderUri ? (
             <ImageInputPreviewImage source={{ uri: placeholderUri }} />
           ) : null}
@@ -264,6 +288,14 @@ const ImageInputButtonFrame = styled(InputFrame, {
   padding: '$xl',
   flex: 1,
   pressStyle: { backgroundColor: '$border' },
+  variants: {
+    disabled: {
+      true: {
+        cursor: 'not-allowed',
+        pressStyle: { backgroundColor: 'transparent' },
+      },
+    },
+  },
 });
 
 const ImageInputButtonText = styled(Text, {
@@ -272,6 +304,14 @@ const ImageInputButtonText = styled(Text, {
   color: '$secondaryText',
   lineHeight: '$s',
   '$group-press': { color: '$tertiaryText' },
+  variants: {
+    disabled: {
+      true: {
+        color: '$tertiaryText',
+        '$group-press': { color: '$tertiaryText' },
+      },
+    },
+  },
 });
 
 const ImageInputPreviewFrame = styled(View, {
@@ -282,6 +322,14 @@ const ImageInputPreviewFrame = styled(View, {
   alignItems: 'center',
   justifyContent: 'center',
   pressStyle: { opacity: 0.5 },
+  variants: {
+    disabled: {
+      true: {
+        cursor: 'not-allowed',
+        pressStyle: { opacity: 1 },
+      },
+    },
+  },
 });
 
 const ImageInputPreviewImage = styled(Image, {
@@ -382,7 +430,8 @@ const ControlFrame = styled(InputFrame, {
     },
     disabled: {
       true: {
-        backgroundColor: '$border',
+        backgroundColor: '$tertiaryText',
+        borderColor: '$tertiaryText',
       },
     },
     type: {
@@ -402,7 +451,9 @@ export const Control = ControlFrame.styleable<{
 }>((props, ref) => {
   return (
     <ControlFrame {...props} ref={ref}>
-      {props.checked ? <Icon color="$background" type="Checkmark" /> : null}
+      {props.checked ? (
+        <Icon color="$background" type="Checkmark" marginLeft={-4} />
+      ) : null}
     </ControlFrame>
   );
 });

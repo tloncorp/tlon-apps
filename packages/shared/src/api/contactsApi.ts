@@ -22,13 +22,29 @@ export const getContacts = async () => {
     app: 'contacts',
     path: '/v1/book',
   });
-  const skipContacts = new Set(Object.keys(contactsResponse));
 
   const suggestionsResponse = await scry<string[]>({
     app: 'groups-ui',
     path: '/suggested-contacts',
   });
 
+  return toContactsData({
+    peersResponse: peersResponse,
+    contactsResponse: contactsResponse,
+    suggestionsResponse: suggestionsResponse,
+  });
+};
+
+export const toContactsData = ({
+  peersResponse,
+  contactsResponse,
+  suggestionsResponse,
+}: {
+  peersResponse: ub.ContactRolodex;
+  contactsResponse: ub.ContactBookScryResult1;
+  suggestionsResponse: string[];
+}) => {
+  const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
 
   const peerProfiles = v0PeersToClientProfiles(peersResponse, {

@@ -316,11 +316,6 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   },
 });
 
-export const didDismissSystemContactsPrompt = createStorageItem<boolean>({
-  key: 'didDismissSystemContactsPrompt',
-  defaultValue: false,
-});
-
 export const lastLanyardSalt = createStorageItem<string | null>({
   key: 'lastLanyardSalt',
   defaultValue: null,
@@ -339,14 +334,35 @@ export const debugMessageJson = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
-export const debugShowSequenceStubs = createStorageItem<boolean>({
-  key: 'debugShowSequenceStubs',
-  defaultValue: false,
-  persistAfterLogout: false,
-});
-
 export const debugPermittedSchedulerId = createStorageItem<string | null>({
   key: 'debugPermittedSchedulerId',
   defaultValue: null,
   persistAfterLogout: true,
 });
+
+export const didSyncInitialPosts = createStorageItem<boolean>({
+  key: 'didSyncInitialPosts',
+  defaultValue: false,
+  persistAfterLogout: false,
+});
+
+export type NagState = {
+  lastDismissed: number;
+  dismissCount: number;
+  eliminated: boolean;
+  firstEligibleTime: number;
+};
+
+const defaultNagState: NagState = {
+  lastDismissed: 0,
+  dismissCount: 0,
+  eliminated: false,
+  firstEligibleTime: 0,
+};
+
+export const createNagStorageItem = (key: string) => {
+  return createStorageItem<NagState>({
+    key: `nag:${key}`,
+    defaultValue: defaultNagState,
+  });
+};

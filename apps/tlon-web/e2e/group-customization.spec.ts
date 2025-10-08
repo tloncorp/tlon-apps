@@ -50,23 +50,67 @@ test('should customize group name, icon, and description', async ({
     await page.getByText('My Group').click();
   }
 
-  // Change the group icon/picture
-  await helpers.openGroupCustomization(page);
-  await helpers.changeGroupIcon(page); // No image path provided, so it will just test the interface
+  // Change the group icon/picture if storage is configured
+  // Check if storage is configured by looking for environment variables
+  const isStorageConfigured =
+    process.env.E2E_S3_ENDPOINT &&
+    process.env.E2E_S3_ACCESS_KEY_ID &&
+    process.env.E2E_S3_SECRET_ACCESS_KEY &&
+    process.env.E2E_S3_BUCKET_NAME;
 
-  // close the modal
-  // not clear why we need to click the first one, but it works
-  await page.getByTestId('AttachmentSheetCloseButton').first().click();
+  if (isStorageConfigured) {
+    await helpers.openGroupCustomization(page);
+    // Test image upload functionality
+    await helpers.changeGroupIcon(page); // This will test the upload interface
+    // Close the attachment sheet after testing
+    // await page.getByTestId('AttachmentSheetCloseButton').first().click();
+    // wait for upload to complete
+    await page.waitForTimeout(10000);
+    // press the save button
+    await page.getByText('Save').click();
+
+    // Verify the group icon was uploaded to S3 (not base64)
+
+    // navigate to group settings
+    await helpers.openGroupSettings(page);
+
+    // Wait for the group icon to be visible
+    const groupIcon = page.getByTestId('GroupIcon').first().getByRole('img');
+    await expect(groupIcon).toBeVisible({ timeout: 10000 });
+
+    // Get the src attribute and verify it's a URL, not base64
+    const iconSrc = await groupIcon.getAttribute('src');
+    expect(iconSrc).toBeTruthy();
+
+    // Check that it's NOT a base64 data URI
+    expect(iconSrc).not.toMatch(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/);
+
+    // Check that it IS an HTTP(S) URL (likely from S3)
+    expect(iconSrc).toMatch(/^https?:\/\//);
+
+    console.log('✅ Group icon uploaded to S3 successfully:', iconSrc);
+    await helpers.navigateBack(page);
+  } else {
+    console.log('Skipping image upload test - S3 storage not configured');
+  }
+
+  // Open group settings to edit the description
+  await helpers.openGroupSettings(page);
+
+  await page.getByText('Edit').click();
 
   // Change the group description
   await helpers.changeGroupDescription(page, 'This is a test group');
 
-  // Verify the description was saved (optional check)
-  await helpers.openGroupCustomization(page);
+  // Navigate back to verify the changes
+  await helpers.navigateBack(page);
+
+  // Optionally verify the description was saved by opening customization again
+  await helpers.openGroupSettings(page);
+  await page.getByText('Edit').click();
   const descriptionField = page.getByTestId('GroupDescriptionInput');
   if (await descriptionField.isVisible()) {
     await expect(descriptionField).toHaveValue('This is a test group');
   }
   await page.getByText('Cancel').click();
 });
-

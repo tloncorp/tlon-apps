@@ -1,4 +1,5 @@
 export * from './channelUtils';
+export * from './clipboardUtils';
 export * from './groupUtils';
 export * from './colorUtils';
 export * from './user';

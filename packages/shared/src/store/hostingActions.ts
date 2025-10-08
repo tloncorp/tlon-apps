@@ -5,7 +5,6 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
-import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('hostingActions', true);
 
@@ -24,7 +23,7 @@ export async function signUpHostedUser(params: {
   priorityToken: string;
   recaptcha: {
     token: string;
-    platform: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+    platform: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
   };
 }): Promise<HostingAccountIssue | undefined> {
   try {
@@ -212,7 +211,9 @@ export async function checkHostingNodeStatus(
   }
 }
 
-export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
+export async function authenticateWithReadyNode(
+  preloadedCode?: string | null
+): Promise<db.ShipInfo | null> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -221,17 +222,19 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
     throw new Error('Cannot check node status, no node ID found');
   }
 
-  let accessCode = null;
-  try {
-    const result = await api.getShipAccessCode(nodeId);
-    accessCode = result.code;
-  } catch (e) {
-    logger.trackError(AnalyticsEvent.LoginDebug, {
-      context: 'Failed to get access code',
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
-    return null;
+  let accessCode = preloadedCode;
+  if (!accessCode) {
+    try {
+      const result = await api.getShipAccessCode(nodeId);
+      accessCode = result.code;
+    } catch (e) {
+      logger.trackError(AnalyticsEvent.LoginDebug, {
+        context: 'Failed to get access code',
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+      return null;
+    }
   }
 
   const nodeUrl = logic.getShipUrl(nodeId);

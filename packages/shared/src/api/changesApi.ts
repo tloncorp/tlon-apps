@@ -6,11 +6,14 @@ import { toClientUnreads } from './activityApi';
 import { v1PeerToClientProfile } from './contactsApi';
 import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { scry } from './urbit';
+import { checkIsNodeBusy, scry } from './urbit';
 
 export async function fetchChangesSince(
   timestamp: number
-): Promise<db.ChangesResult> {
+): Promise<
+  db.ChangesResult & { nodeBusyStatus: 'available' | 'busy' | 'unknown' }
+> {
+  const nodeIsBusy = checkIsNodeBusy();
   const encodedTimestamp = formatDa(unixToDa(timestamp));
   const response = await scry<ub.Changes>({
     app: 'groups-ui',
@@ -37,5 +40,13 @@ export function parseChanges(input: ub.Changes): db.ChangesResult {
 
   const unreads = toClientUnreads(input.activity);
 
-  return { groups, posts, contacts, unreads };
+  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
+
+  return { groups, posts, contacts, unreads, nodeBusyStatus };
+}
+
+// We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
+// so should in theory always be quicker. But adding a timeout race to be safe.
+async function timedOutDefault(ms: number): Promise<'unknown'> {
+  return new Promise((resolve) => setTimeout(() => resolve('unknown'), ms));
 }

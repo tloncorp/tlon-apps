@@ -556,6 +556,10 @@ async function track<R>(
   });
 }
 
+export async function checkIsNodeBusy() {
+  return config.client?.checkIsNodeBusy() || Promise.resolve('unknown');
+}
+
 export async function scry<T>({
   app,
   path,
@@ -578,24 +582,26 @@ export async function scry<T>({
     shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
   try {
-    const result = await config.client.scry<T>({
-      app,
-      path,
-      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
-    });
-    trackDuration('success');
+    const { result, responseSizeInBytes, responseStatus } =
+      await config.client.scryWithInfo<T>({
+        app,
+        path,
+        timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+      });
+    trackDuration('success', { responseSizeInBytes, responseStatus });
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      const result = await config.client.scry<T>({ app, path });
-      trackDuration('success');
+      const { result, responseSizeInBytes, responseStatus } =
+        await config.client.scryWithInfo<T>({ app, path });
+      trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
     trackDuration('error', {
-      message: res.message,
+      errorMessage: res.message,
       responseStatus: res.status,
     });
     throw new BadResponseError(res.status, res.toString());
@@ -624,20 +630,22 @@ export async function scryNoun({
     shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
   try {
-    const result = await config.client.scryNoun({
-      app,
-      path,
-      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
-    });
-    trackDuration('success');
+    const { result, responseSizeInBytes, responseStatus } =
+      await config.client.scryNounWithInfo({
+        app,
+        path,
+        timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+      });
+    trackDuration('success', { responseSizeInBytes, responseStatus });
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      const result = config.client.scryNoun({ app, path });
-      trackDuration('success');
+      const { result, responseSizeInBytes, responseStatus } =
+        await config.client.scryNounWithInfo({ app, path });
+      trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
     trackDuration('error', {
@@ -727,31 +735,34 @@ async function reauth() {
     const code = await config.getCode();
     config.pendingAuth = new Promise<string>((resolve, reject) => {
       const tryAuth = async () => {
-        logger.log('trying to auth with code', code);
-        const authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
+        try {
+          logger.log('trying to auth with code', code);
+          const authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
 
-        if (!authCookie && tries < 3) {
-          logger.log('auth failed, trying again', tries);
-          tries++;
-          setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
-          return;
-        }
+          if (!authCookie && tries < 3) {
+            logger.log('auth failed, trying again', tries);
+            tries++;
+            setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
+            return;
+          }
 
-        if (!authCookie) {
-          if (config.handleAuthFailure) {
-            logger.log('auth failed, calling auth failure handler');
+          if (!authCookie) {
             config.pendingAuth = null;
-            return config.handleAuthFailure();
+            if (config.handleAuthFailure) {
+              logger.log('auth failed, calling auth failure handler');
+              config.handleAuthFailure();
+            }
+
+            reject(new Error("Couldn't authenticate with urbit"));
+            return;
           }
 
           config.pendingAuth = null;
-          reject(new Error("Couldn't authenticate with urbit"));
+          resolve(authCookie);
           return;
+        } catch (e) {
+          reject(new Error(`Error during reauth: ${e}`));
         }
-
-        config.pendingAuth = null;
-        resolve(authCookie);
-        return;
       };
 
       tryAuth();
@@ -779,6 +790,7 @@ function createDurationTracker<T extends Record<string, any>>(
       ...data,
       ...properties,
       status,
+      scryStatus: status,
       duration: Date.now() - startTime,
     });
   };

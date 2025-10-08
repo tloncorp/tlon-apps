@@ -1,3 +1,4 @@
+import NetInfo from '@react-native-community/netinfo';
 import {
   AppStatus,
   useAppStatusChange,
@@ -7,7 +8,6 @@ import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedCo
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
-import { hapticPerfSignal } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -15,7 +15,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync, updateSession } from '@tloncorp/shared';
+import { sync, syncSince, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -43,8 +43,6 @@ function AuthenticatedApp() {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         await checkForCachedChanges();
-        updateSession({ isSyncing: true });
-        hapticPerfSignal(sync.syncSince, 'syncSince', 2000);
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -53,20 +51,14 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
-        // sync.syncUnreads({ priority: sync.SyncPriority.High });
+        updateSession({ isSyncing: true });
+        syncSince({ callCtx: { cause: 'app-foregrounded' } });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
       }
-
-      // app opened
-      if (status === 'opened') {
-        db.headsSyncedAt.resetValue().then(() => {
-          sync.syncLatestPosts({ priority: sync.SyncPriority.High });
-        });
-      }
     },
-    [checkNodeStopped, telemetry]
+    [checkForCachedChanges, checkNodeStopped, telemetry]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -88,9 +80,27 @@ export default function ConnectedAuthenticatedApp() {
   const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
-    configureClient();
-    sync.syncStart();
-    setClientReady(true);
+    async function setup() {
+      configureClient();
+      // we store a flag to ensure this runs only once per login, not anytime
+      // the app is opened
+      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+      sync.syncStart().then(async () => {
+        if (!didSyncInitialPosts) {
+          const net = await NetInfo.fetch();
+          const syncSize =
+            net.isConnected &&
+            (net.type === 'wifi' ||
+              (net.type === 'cellular' &&
+                ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
+              ? 'heavy'
+              : 'light';
+          sync.syncInitialPosts({ syncSize });
+        }
+      });
+      setClientReady(true);
+    }
+    setup();
   }, [configureClient]);
 
   return (

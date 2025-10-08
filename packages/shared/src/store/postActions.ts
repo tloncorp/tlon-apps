@@ -286,19 +286,38 @@ export async function retrySendPost({
   try {
     await sessionActionQueue.add(async () => {
       await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
-      return api.sendPost({
-        channelId: post.channelId,
-        authorId: post.authorId,
-        content: story,
-        metadata:
-          post.image || post.title
-            ? {
-                title: post.title,
-                image: post.image,
-              }
-            : undefined,
-        sentAt: post.sentAt,
-      });
+
+      if (post.parentId) {
+        const parentPost = await db.getPost({ postId: post.parentId });
+        if (!parentPost) {
+          throw new Error(
+            `Parent post ${post.parentId} not found for thread retry`
+          );
+        }
+
+        return api.sendReply({
+          channelId: post.channelId,
+          parentId: post.parentId,
+          parentAuthor: parentPost.authorId,
+          authorId: post.authorId,
+          content: story,
+          sentAt: post.sentAt,
+        });
+      } else {
+        return api.sendPost({
+          channelId: post.channelId,
+          authorId: post.authorId,
+          content: story,
+          metadata:
+            post.image || post.title
+              ? {
+                  title: post.title,
+                  image: post.image,
+                }
+              : undefined,
+          sentAt: post.sentAt,
+        });
+      }
     });
     await sync.syncChannelMessageDelivery({ channelId: post.channelId });
   } catch (e) {
@@ -585,7 +604,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   try {
     await sessionActionQueue.add(() => api.hidePost(post));
   } catch (e) {
-    console.error('Failed to hide post', e);
+    logger.trackError('Failed to hide post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });
@@ -653,7 +672,12 @@ export async function reportPost({
   post: db.Post;
 }) {
   if (!post.groupId) {
-    console.error('Cannot report post without groupId', post);
+    logger.trackError('Cannot report post without groupId', {
+      postId: post.id,
+      channelId: post.channelId,
+      authorId: post.authorId,
+      sentAt: post.sentAt,
+    });
     return;
   }
 
@@ -666,7 +690,7 @@ export async function reportPost({
     );
     await hidePost({ post });
   } catch (e) {
-    console.error('Failed to report post', e);
+    logger.trackError('Failed to report post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });
@@ -680,13 +704,16 @@ export async function addPostReaction(
 ) {
   // Reject shortcodes - they should be converted to native emojis before reaching this function
   if (/^:[a-zA-Z0-9_+-]+:?$/.test(emoji)) {
-    logger.trackError('Shortcode provided to addPostReaction - this should not happen', {
-      postId: post.id,
-      channelId: post.channelId,
-      emoji,
-      context: 'store_layer_shortcode_rejected',
-      stack: new Error().stack
-    });
+    logger.trackError(
+      'Shortcode provided to addPostReaction - this should not happen',
+      {
+        postId: post.id,
+        channelId: post.channelId,
+        emoji,
+        context: 'store_layer_shortcode_rejected',
+        stack: new Error().stack,
+      }
+    );
     return; // Don't add shortcode reactions
   }
 
@@ -696,11 +723,11 @@ export async function addPostReaction(
       postId: post.id,
       channelId: post.channelId,
       emoji,
-      context: 'store_layer_invalid_emoji'
+      context: 'store_layer_invalid_emoji',
     });
     return;
   }
-  
+
   const channel = await db.getChannel({ id: post.channelId });
   let group = null;
   if (channel && channel.groupId) {

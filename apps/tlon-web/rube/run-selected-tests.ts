@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 import * as childProcess from 'child_process';
+import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
 
 import { Ship } from './index';
+
+// Load environment variables from .env.test if it exists
+const envPath = path.join(__dirname, '../../.env.test');
+if (fs.existsSync(envPath)) {
+  const result = dotenv.config({ path: envPath });
+  if (result.parsed) {
+    console.log('Loaded environment variables from .env.test');
+  }
+}
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -12,15 +22,21 @@ const testFiles = args.filter((arg) => arg.endsWith('.spec.ts'));
 const playwrightFlags = args.filter((arg) => !arg.endsWith('.spec.ts'));
 
 if (testFiles.length === 0) {
-  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts> [test-file2.spec.ts ...]');
+  console.error(
+    'Usage: pnpm e2e:test [flags] <test-file.spec.ts> [test-file2.spec.ts ...]'
+  );
   console.error('Examples:');
   console.error('  # Single test file:');
   console.error('  pnpm e2e:test chat-functionality.spec.ts');
   console.error('  pnpm e2e:test --debug chat-functionality.spec.ts');
   console.error('  ');
   console.error('  # Multiple test files:');
-  console.error('  pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts');
-  console.error('  pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts');
+  console.error(
+    '  pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts'
+  );
+  console.error(
+    '  pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts'
+  );
   console.error('');
   console.error('Common flags: --debug, --headed, --ui, --trace=on');
   process.exit(1);
@@ -205,8 +221,15 @@ async function waitForReadiness() {
   // Import ship manifest to get Urbit ship URLs (not web server URLs)
   // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
   const shipManifest = require('../../e2e/shipManifest.json');
+  const includeOptional = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
   const shipUrls = Object.values(shipManifest)
-    .filter((ship: Ship) => !ship.skipSetup)
+    .filter((ship: Ship) => {
+      // Skip if marked as skipSetup
+      if (ship.skipSetup) return false;
+      // Skip optional ships unless explicitly included
+      if (ship.optional && !includeOptional) return false;
+      return true;
+    })
     .map((ship: Ship) => ship.url);
 
   const maxAttempts = 60; // 5 minutes
@@ -258,13 +281,13 @@ async function runTest(): Promise<void> {
     playwrightFlags.length > 0
       ? ` with flags: ${playwrightFlags.join(' ')}`
       : '';
-  
+
   // Display which tests are being run
   if (testFiles.length === 1) {
     console.log(`🧪 Running test: ${testFiles[0]}${flagsDisplay}`);
   } else {
     console.log(`🧪 Running ${testFiles.length} tests${flagsDisplay}:`);
-    testFiles.forEach(file => console.log(`   - ${file}`));
+    testFiles.forEach((file) => console.log(`   - ${file}`));
   }
 
   return new Promise<void>((resolve, reject) => {
@@ -281,6 +304,7 @@ async function runTest(): Promise<void> {
     const testProcess = childProcess.spawn('npx', args, {
       stdio: 'inherit',
       cwd: path.join(__dirname, '../..'), // Go up two levels from rube/dist
+      env: { ...process.env }, // Explicitly pass environment variables including those from .env.test
     } as childProcess.SpawnOptions);
 
     testProcess.on('close', (code: number | null) => {

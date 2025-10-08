@@ -1,28 +1,29 @@
 name: CI (Test and Build)
-on: pull_request
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
 jobs:
   test-build:
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
+    runs-on: ubuntu-latest
     steps:
       - name: Clean workspace (Fedora container fix)
         if: runner.os == 'Linux'
         run: |
           # Clean up any root-owned files from previous container runs
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora - fixing permissions on workspace from previous runs"
+            echo "Detected Fedora - cleaning up root-owned files from previous runs"
             # The workspace path exists even before checkout
             WORKSPACE_PATH="${{ github.workspace }}"
             if [ -d "$WORKSPACE_PATH" ]; then
-              echo "Fixing permissions on $WORKSPACE_PATH"
-              # Use podman to fix permissions as root
-              podman run --rm \
+              echo "Wiping entire workspace: $WORKSPACE_PATH"
+              # Use sudo podman to run as root and delete root-owned files
+              sudo podman run --rm \
                 -v "$WORKSPACE_PATH:/workspace:Z" \
                 --security-opt label=disable \
-                docker.io/ubuntu:22.04 \
-                bash -c "chmod -R 777 /workspace 2>/dev/null || true"
+                docker.io/alpine:latest \
+                sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null || true"
+              echo "Workspace wiped - checkout will recreate it"
             else
               echo "Workspace doesn't exist yet, skipping cleanup"
             fi
@@ -31,6 +32,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -78,6 +81,7 @@ jobs:
           key:
             playwright-${{ runner.os }}-${{
             steps.playwright-version.outputs.version }}
+
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: |
@@ -89,17 +93,20 @@ jobs:
           fi
         working-directory: ./apps/tlon-web
 
+      # Note: Playwright browsers installed above for ubuntu-latest runner
+      # Fedora self-hosted runners install browsers inside containers (both smoke test and parallel E2E)
+
       - name: Run Production Build Smoke Test
         id: smoke-test
         run: |
           # Check if we're on Fedora and need container workaround
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
             echo "Detected Fedora/RHEL - running smoke test in Ubuntu container"
-            
+
             # Read Node version from .nvmrc
             NODE_VERSION=$(cat ../../.nvmrc)
             echo "Using Node.js version: $NODE_VERSION"
-            
+
             # Function to run test in container
             run_smoke_test() {
               podman run --rm \
@@ -112,35 +119,35 @@ jobs:
                 bash -c "
                   # Exit on any error, undefined variable, or pipe failure
                   set -euo pipefail
-                  
+
                   # Install dependencies
                   apt-get update && apt-get install -y curl git build-essential netcat-openbsd
-                  
+
                   # Install specific Node.js version
                   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
                   apt-get install -y nodejs
                   npm install -g n
                   n ${NODE_VERSION}
                   hash -r
-                  
+
                   # Install pnpm
                   npm install -g pnpm@9.0.5
-                  
+
                   # Install dependencies
                   cd /workspace
                   pnpm install --frozen-lockfile
-                  
+
                   # Install Playwright browsers and dependencies
                   cd apps/tlon-web
                   pnpm exec playwright install --with-deps chromium
-                  
+
                   pnpm e2e:prod:smoke:force
-                  
+
                   # Fix permissions on created files for host user
                   chmod -R 777 /workspace/apps/tlon-web/rube/dist || true
                 "
             }
-            
+
             # Try once, retry if failed
             run_smoke_test || (echo "::warning::Production smoke test failed, retrying..." && run_smoke_test)
           else
@@ -160,88 +167,76 @@ jobs:
             ./apps/tlon-web/playwright-report/
           retention-days: 7
 
-      # For some reason, caching is breaking with the new piers.
-      # TODO: fix this.
-      # - name: Cache E2E Piers
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ./apps/tlon-web/rube/dist/urbit_binary.tgz
-      #       ./apps/tlon-web/rube/dist/urbit_extracted/
-      #       ./apps/tlon-web/rube/dist/zod/
-      #       ./apps/tlon-web/rube/dist/bus/
-      #     key: e2e-piers-${{ hashFiles('apps/tlon-web/e2e/shipManifest.json') }}
-      #     restore-keys: |
-      #       e2e-piers-
-
-      - name: Run E2E Tests for Groups
-        # Use Ubuntu container to avoid Fedora/Urbit binary compatibility issues
+  # Parallel E2E Tests using Docker containers
+  e2e-parallel:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - product
+    name: E2E Tests (Parallel - 4 shards)
+    steps:
+      - name: Clean workspace (Fedora container fix)
+        if: runner.os == 'Linux'
         run: |
-          # Check if we're on Fedora and need container workaround
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora/RHEL - running tests in Ubuntu container for Urbit compatibility"
-            
-            # Read Node version from .nvmrc (two directories up from apps/tlon-web)
-            NODE_VERSION=$(cat ../../.nvmrc)
-            echo "Using Node.js version: $NODE_VERSION"
-            
-            podman run --rm \
-              -v "$PWD/../..:/workspace:Z" \
-              -w /workspace \
-              --network host \
-              --security-opt label=disable \
-              -e CI=true \
-              -e VITE_INVITE_PROVIDER="${VITE_INVITE_PROVIDER}" \
-              -e VITE_INVITE_SERVICE_ENDPOINT="${VITE_INVITE_SERVICE_ENDPOINT}" \
-              -e FORCE_EXTRACTION=true \
-              docker.io/ubuntu:22.04 \
-              bash -c "
-                # Exit on any error, undefined variable, or pipe failure
-                set -euo pipefail
-                
-                # Install dependencies
-                apt-get update && apt-get install -y curl git build-essential netcat-openbsd
-                
-                # Install specific Node.js version
-                curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                apt-get install -y nodejs
-                npm install -g n
-                n ${NODE_VERSION}
-                hash -r
-                
-                # Install pnpm
-                npm install -g pnpm@9
-                
-                # Verify versions
-                echo 'Node version:' && node --version
-                echo 'pnpm version:' && pnpm --version
-                
-                # Install dependencies
-                cd /workspace
-                pnpm install --frozen-lockfile
-                
-                # Install Playwright browsers and dependencies
-                cd apps/tlon-web
-                pnpm exec playwright install --with-deps chromium
-                
-                pnpm e2e:force
-                
-                # Fix permissions on all created files for host user
-                chmod -R 777 /workspace || true
-              "
-          else
-            echo "Not on Fedora/RHEL - running tests directly"
-            pnpm e2e:force
+            echo "Detected Fedora - cleaning up root-owned files from previous runs"
+            WORKSPACE_PATH="${{ github.workspace }}"
+            if [ -d "$WORKSPACE_PATH" ]; then
+              echo "Wiping entire workspace: $WORKSPACE_PATH"
+              # Use sudo podman to run as root and delete root-owned files
+              sudo podman run --rm \
+                -v "$WORKSPACE_PATH:/workspace:Z" \
+                --security-opt label=disable \
+                docker.io/alpine:latest \
+                sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null || true"
+              echo "Workspace wiped - checkout will recreate it"
+            fi
           fi
-        working-directory: ./apps/tlon-web
-        env:
-          VITE_INVITE_PROVIDER: http://localhost:39983
-          VITE_INVITE_SERVICE_ENDPOINT: https://serverless-infra.vercel.app/api/inviteLink
+        continue-on-error: true
 
-      - name: Upload Playwright Report
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: false # Our cleanup step handles root-owned files
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Build E2E Docker Image
+        run: |
+          cd apps/tlon-web
+          pnpm e2e:parallel:build
+
+      - name: Run E2E Tests (Parallel)
+        env:
+          TOTAL_SHARDS: 4
+          INCLUDE_OPTIONAL_SHIPS: false
+          E2E_S3_ENDPOINT: ${{ secrets.E2E_S3_ENDPOINT }}
+          E2E_S3_ACCESS_KEY_ID: ${{ secrets.E2E_S3_ACCESS_KEY_ID }}
+          E2E_S3_SECRET_ACCESS_KEY: ${{ secrets.E2E_S3_SECRET_ACCESS_KEY }}
+          E2E_S3_BUCKET_NAME: ${{ secrets.E2E_S3_BUCKET_NAME }}
+          E2E_S3_REGION: ${{ secrets.E2E_S3_REGION }}
+        run: |
+          cd apps/tlon-web
+          pnpm e2e:parallel
+
+      - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
-          path: ./apps/tlon-web/playwright-report/
+          name: e2e-test-results
+          path: |
+            apps/tlon-web/test-results/merged-report/
+            apps/tlon-web/test-results/junit-merged.xml
+            apps/tlon-web/test-results/logs/
           retention-days: 30

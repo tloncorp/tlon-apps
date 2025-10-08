@@ -233,6 +233,8 @@ PODS:
     - ExpoModulesCore
   - ExpoBackgroundFetch (13.0.6):
     - ExpoModulesCore
+  - ExpoBackgroundTask (0.1.4):
+    - ExpoModulesCore
   - ExpoBattery (9.0.2):
     - ExpoModulesCore
   - ExpoBlur (14.0.3):
@@ -470,6 +472,7 @@ PODS:
     - React
     - React-callinvoker
     - React-Core
+  - PostHog (3.31.0)
   - PromisesObjC (2.4.0)
   - PromisesSwift (2.4.0):
     - PromisesObjC (= 2.4.0)
@@ -2315,6 +2318,7 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../../../node_modules/expo-asset/ios`)
   - ExpoBackgroundFetch (from `../../../node_modules/expo-background-fetch/ios`)
+  - ExpoBackgroundTask (from `../../../node_modules/expo-background-task/ios`)
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
@@ -2345,6 +2349,7 @@ DEPENDENCIES:
   - glog (from `../../../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - "op-sqlite (from `../../../node_modules/@op-engineering/op-sqlite`)"
+  - PostHog (~> 3.0)
   - RCT-Folly (from `../../../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCT-Folly/Fabric (from `../../../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTDeprecation (from `../../../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2448,6 +2453,7 @@ SPEC REPOS:
     - libdav1d
     - libwebp
     - nanopb
+    - PostHog
     - PromisesObjC
     - PromisesSwift
     - ReachabilitySwift
@@ -2495,6 +2501,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-asset/ios"
   ExpoBackgroundFetch:
     :path: "../../../node_modules/expo-background-fetch/ios"
+  ExpoBackgroundTask:
+    :path: "../../../node_modules/expo-background-task/ios"
   ExpoBattery:
     :path: "../../../node_modules/expo-battery/ios"
   ExpoBlur:
@@ -2734,6 +2742,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 00dc42302a72722fdecec3fa048de84a9133bcc4
   ExpoAsset: 48386d40d53a8c1738929b3ed509bcad595b5516
   ExpoBackgroundFetch: 72d9978cf6addacc6fb5e211ef99f74146a52d76
+  ExpoBackgroundTask: b66774cecd216aad73c388a3c30fac07edca4a7f
   ExpoBattery: d2e508fb7a2a6214d97ff598274c8bd71b704ce6
   ExpoBlur: 392c1207f71d0ecf22371621c1fbd44ba84d9742
   ExpoClipboard: 44fd1c8959ee8f6175d059dc011b154c9709a969
@@ -2782,6 +2791,7 @@ SPEC CHECKSUMS:
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   op-sqlite: f800d2eeb9ca5c8931c612d4673f559fa23a5889
+  PostHog: fcb0bc4425a69a2b0ee0ff5782b298a23aedcc83
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: ea9d9256ba7f9322ef911169a9f696e5857b9e17
@@ -2873,6 +2883,6 @@ SPEC CHECKSUMS:
   UMAppLoader: 7e7e0eaa7854ffd652c00a68c443afb28c3bedba
   Yoga: 1259c7a8cbaccf7b4c3ddf8ee36ca11be9dee407
 
-PODFILE CHECKSUM: cfdeceec80bf2f186cb06f550d3ae13ae1ed4571
+PODFILE CHECKSUM: 4cfd531bbf838f01a722fb92e52782ff853e6616
 
 COCOAPODS: 1.16.2

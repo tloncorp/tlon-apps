@@ -12,12 +12,7 @@
 
 RCT_EXTERN_METHOD(setUrbit:(NSString *)shipName shipUrl:(NSString *)shipUrl authCookie:(NSString *)authCookie)
 RCT_EXTERN_METHOD(clearUrbit)
-RCT_EXPORT_METHOD(getDebugInfo:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-    NSArray *identifiers = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"BGTaskSchedulerPermittedIdentifiers"];
-    resolve(identifiers);
-}
+RCT_EXTERN_METHOD(setPostHogApiKey:(NSString *)apiKey)
 
 + (BOOL)requiresMainQueueSetup
 {

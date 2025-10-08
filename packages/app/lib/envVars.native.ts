@@ -6,7 +6,23 @@ const envVars = (Constants.expoConfig?.extra ?? {}) as Record<
   string | undefined
 >;
 
+function selectRecaptchaSiteKey(platform: string, isAutomatedTest: boolean) {
+  if (isAutomatedTest) {
+    return (
+      (platform === 'android'
+        ? envVars.recaptchaSiteKeyAndroidTest
+        : envVars.recaptchaSiteKeyIOSTest) ?? ''
+    );
+  }
+  return (
+    (platform === 'android'
+      ? envVars.recaptchaSiteKeyAndroid
+      : envVars.recaptchaSiteKeyIOS) ?? ''
+  );
+}
+
 export const DEV_SHIP_URL = '';
+export const AUTOMATED_TEST = envVars.automatedTest === 'true';
 export const INVITE_PROVIDER =
   envVars.inviteProvider ?? 'https://loshut-lonreg.tlon.network';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
@@ -15,10 +31,10 @@ export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
-export const RECAPTCHA_SITE_KEY =
-  (Platform.OS === 'android'
-    ? envVars.recaptchaSiteKeyAndroid
-    : envVars.recaptchaSiteKeyIOS) ?? '';
+export const RECAPTCHA_SITE_KEY = selectRecaptchaSiteKey(
+  Platform.OS,
+  AUTOMATED_TEST
+);
 export const SHIP_URL_PATTERN =
   envVars.shipUrlPattern ?? 'https://{shipId}.tlon.network';
 export const DEFAULT_LURE = envVars.defaultLure ?? '~nibset-napwyn/tlon';
@@ -79,4 +95,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_ENDPOINT,
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
+  AUTOMATED_TEST,
 };

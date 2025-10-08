@@ -3,7 +3,8 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { isMatch, pick } from 'lodash';
+import { useEffect, useMemo } from 'react';
 
 import * as api from '../api';
 import { getMessagesFilter } from '../api';
@@ -13,11 +14,7 @@ import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import {
-  syncChannelPreivews,
-  syncGroupPreviews,
-  syncPostReference,
-} from './sync';
+import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -381,16 +378,39 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
-  return useQuery({
+  const { data: group } = useGroup({ id: groupId });
+
+  const { data: groupPreview, ...rest } = useQuery({
     queryKey: [['groupPreview', groupId], deps],
     refetchOnReconnect: false,
     refetchOnMount: false,
-    enabled: !!groupId,
-    queryFn: async () => {
-      const [preview] = await syncGroupPreviews([groupId]);
-      return preview;
-    },
+    enabled: !!groupId && !group,
+    queryFn: async () => await api.getGroupPreview(groupId),
+    placeholderData: group ?? undefined,
   });
+
+  useEffect(() => {
+    const unknownGroup = groupId && !group && groupPreview;
+    const fields = [
+      'title',
+      'description',
+      'privacy',
+      'iconImage',
+      'coverImage',
+      'iconImageColor',
+      'coverImageColor',
+    ] as const;
+    const groupDiff =
+      group && groupPreview && !isMatch(group, pick(groupPreview, fields));
+    if (unknownGroup || groupDiff) {
+      db.insertUnjoinedGroups([groupPreview]);
+    }
+  }, [groupId, group, groupPreview]);
+
+  return {
+    data: group ?? groupPreview ?? undefined,
+    ...rest,
+  };
 };
 
 export const useSystemContacts = () => {
@@ -673,8 +693,6 @@ export const useTelemetrySettings = () => {
 };
 
 export const usePendingPostsInChannel = (channelId: string) => {
-  const [cacheKey, setCacheKey] = useState('');
-  const pendingPosts = useRef<db.Post[]>([]);
   const deps = useKeyFromQueryDeps(db.getPendingPosts);
   const { data } = useQuery({
     queryKey: [['pendingPosts', channelId], deps],
@@ -682,18 +700,6 @@ export const usePendingPostsInChannel = (channelId: string) => {
     enabled: Boolean(channelId),
   });
 
-  useEffect(() => {
-    const pending = data ?? [];
-    const sorted = pending.sort((a, b) => a.sentAt - b.sentAt);
-    const nextCacheKey = sorted.reduce(
-      (acc, post) => `${acc}:${post.sentAt}`,
-      ''
-    );
-    if (nextCacheKey !== cacheKey) {
-      setCacheKey(nextCacheKey);
-      pendingPosts.current = sorted.reverse();
-    }
-  }, [cacheKey, data]);
-
-  return pendingPosts.current;
+  const pendingPosts = logic.useOptimizedQueryResults(data);
+  return pendingPosts ?? [];
 };

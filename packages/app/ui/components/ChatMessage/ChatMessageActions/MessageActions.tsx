@@ -6,7 +6,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -85,6 +85,10 @@ const ConnectedAction = memo(function ConnectedAction({
   );
 
   const visible = useMemo(() => {
+    if (action.isNetworkDependent && connectionStatus !== 'Connected') {
+      return false;
+    }
+
     switch (actionId) {
       case 'startThread':
         // only show start thread if
@@ -121,6 +125,8 @@ const ConnectedAction = memo(function ConnectedAction({
     currentUserId,
     channel.type,
     currentUserIsAdmin,
+    action.isNetworkDependent,
+    connectionStatus,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
@@ -131,7 +137,6 @@ const ConnectedAction = memo(function ConnectedAction({
 
   return (
     <ActionList.Action
-      disabled={action.isNetworkDependent && connectionStatus !== 'Connected'}
       height="auto"
       onPress={() =>
         handleAction({
@@ -146,8 +151,6 @@ const ConnectedAction = memo(function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
-          isConnected: connectionStatus === 'Connected',
-          isNetworkDependent: action.isNetworkDependent,
         })
       }
       key={actionId}
@@ -183,8 +186,6 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
-  isConnected,
-  isNetworkDependent,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -197,23 +198,12 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
-  isConnected: boolean;
-  isNetworkDependent: boolean;
 }) {
-  if (isNetworkDependent && !isConnected) {
-    Alert.alert(
-      'App is disconnected',
-      'This action is unavailable while the app is in a disconnected state.'
-    );
-    return;
-  }
-
   const [path, reference] = logic.postToContentReference(post);
 
   switch (id) {
     case 'debugJson':
       db.debugMessageJson.setValue(!(await db.debugMessageJson.getValue()));
-      console.log(`toggling debug`, await db.debugMessageJson.getValue());
       break;
     case 'startThread':
       // give the actions time to fade out before navigating
@@ -258,8 +248,17 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'forward':
-      onForward?.(post);
-      break;
+      // On iOS, dismiss the current modal first, then open the forward sheet
+      // to avoid race condition between two modals
+      if (Platform.OS === 'ios') {
+        dismiss();
+        setTimeout(() => onForward?.(post), 300);
+      } else {
+        onForward?.(post);
+        dismiss();
+      }
+      triggerHaptic('success');
+      return; // Early return to avoid double dismiss
   }
 
   triggerHaptic('success');

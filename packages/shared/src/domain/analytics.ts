@@ -112,6 +112,8 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
+  ActionNotifPermsSettingsOpened = 'Opened Notification Settings from Nag',
+  ActionNotifPermsGrantedFromNag = 'Granted Notification Permission from Nag',
   ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
   ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
   ActionInitiatePhoneAttest = 'Initiated Phone Attestation',

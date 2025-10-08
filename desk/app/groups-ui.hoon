@@ -1,4 +1,4 @@
-/-  u=ui, gv=groups-ver, c=chat, d=channels, a=activity, oc=chat-3
+/-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, a=activity
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -132,8 +132,8 @@
     ``ships+!>(get-suggested-contacts)
   ::
       [%x %init ~]
-    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /v1/init/noun))
-    =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
+    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
+    =+  .^([=unreads:d channels=channels:v1:old:d] (scry %gx %channels /v1/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-0:u
@@ -147,8 +147,8 @@
       ==
     ``ui-init+!>(`init-0:u`init)
       [%x %v1 %init ~]
-    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /v1/init/noun))
-    =+  .^([=unreads:d =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
+    =+  .^([=unreads:d =channels:v1:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-1:u
@@ -163,18 +163,23 @@
     ``ui-init-1+!>(`init-1:u`init)
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
-    =+  .^(chan=channel-heads:v7:old:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
-    =+  .^(chat=chat-heads:oc (scry %gx %chat %heads (snoc since.pole %chat-heads)))
+    =+  .^(chan=channel-heads:v7:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
+    =+  .^(chat=chat-heads:v3:cv (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
-    =+  .^(chan=channel-heads:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
-    =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
+    =+  .^(chan=channel-heads:v8:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
+    =+  .^(chat=chat-heads:v5:cv (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
     ``ui-heads-2+!>(`mixed-heads-2:u`[chan chat])
   ::
+      [%x %v3 %heads since=?(~ [u=@ ~])]
+    =+  .^(chan=channel-heads:v9:d (scry %gx %channels %v4 %heads (snoc since.pole %channel-heads-3)))
+    =+  .^(chat=chat-heads:v6:cv (scry %gx %chat %v3 %heads (snoc since.pole %chat-heads-3)))
+    ``ui-heads-3+!>(`mixed-heads-3:u`[chan chat])
+  ::
       [%x %v2 %init ~]
-    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /v1/init/noun))
-    =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
+    =+  .^([* =channels:v1:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -191,7 +196,7 @@
   ::
       [%x %v3 %init ~]
     =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
-    =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
+    =+  .^([* =channels:v1:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -222,6 +227,7 @@
           profile
       ==
     ``ui-init-4+!>(init)
+  ::
       [%x %v5 %init ~]
     =+  .^([=groups-ui:v7:gv =foreigns:v7:gv] (scry %gx %groups /v2/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
@@ -238,6 +244,30 @@
           profile
       ==
     ``ui-init-5+!>(init)
+  ::
+      [%x %v5 %changes since=@ ~]
+    =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
+    =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v3/changes/[since.pole]/json))
+    =+  .^(groups=json (scry %gx %groups /v1/changes/[since.pole]/json))
+    =+  .^(contacts=json (scry %gx %contacts /v1/changes/[since.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'activity'^activity
+        'channels'^channels
+        'chat'^chat
+        'groups'^groups
+        'contacts'^contacts
+    ==
+  ::
+      [%x %v5 %init-posts channels=@ context=@ ~]
+    =+  .^(channels=json (scry %gx %channels /v5/init-posts/[channels.pole]/[context.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v3/init-posts/[channels.pole]/[context.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'channels'^channels
+        'chat'^chat
+    ==
   ==
 ::
 ++  poke

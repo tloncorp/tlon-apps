@@ -408,6 +408,25 @@ export interface GetChannelPostsResponse {
   totalPosts?: number;
 }
 
+export const getInitialPosts = async (config: {
+  channelCount: number;
+  postCount: number;
+}) => {
+  const response = await scry<ub.PostsInit>({
+    app: 'groups-ui',
+    path: `/v5/init-posts/${config.channelCount}/${config.postCount}`,
+  });
+
+  const channelPosts = Object.entries(response.channels).flatMap(
+    ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
+  );
+  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
+    posts ? toPostsData(chatId, posts).posts : []
+  );
+
+  return [...channelPosts, ...chatPosts];
+};
+
 export const getChannelPosts = async ({
   channelId,
   cursor,
@@ -445,12 +464,7 @@ export const getChannelPosts = async ({
   const postsResponse = toPagedPostsData(channelId, response);
   const { posts: finalPosts, numStubs } = fillSequenceGaps(
     postsResponse.posts,
-    {
-      lowerBound:
-        mode === 'newer' && sequenceBoundary ? sequenceBoundary : null,
-      upperBound:
-        mode === 'older' && sequenceBoundary ? sequenceBoundary : null,
-    }
+    { upperBound: null, lowerBound: null }
   );
 
   return {
@@ -484,12 +498,9 @@ export function fillSequenceGaps(
 
   const existingPostMap = new Map<number, db.Post>();
   for (const post of responsePosts) {
-    if (!post.sequenceNum) {
+    if (typeof post.sequenceNum !== 'number') {
       // this should never happen
-      logger.trackError('post missing sequence number', {
-        postId: post.id, // TODO: IMPORTANT avoid logging message data this after internal testing
-        channelId: post.channelId,
-      });
+      logger.trackError('post missing sequence number while filling gaps');
       continue;
     }
 
@@ -516,7 +527,7 @@ export function fillSequenceGaps(
     } else {
       const nextSentAt = previousSentAt + 1;
       mergedPosts.push(
-        buildSequenceStubPost({
+        toSequenceStubPost({
           channelId: examplePost.channelId,
           type: examplePost.type,
           sentAt: nextSentAt,
@@ -529,32 +540,6 @@ export function fillSequenceGaps(
   }
 
   return { posts: mergedPosts, numStubs };
-}
-
-function buildSequenceStubPost({
-  channelId,
-  type,
-  sequenceNum,
-  sentAt,
-}: {
-  channelId: string;
-  type: db.PostType;
-  sequenceNum: number;
-  sentAt?: number;
-}): db.Post {
-  const stubPost: db.Post = {
-    id: `sequence-stub-${channelId}-${sequenceNum}`,
-    type,
-    channelId,
-    authorId: '~zod',
-    sentAt: sentAt ?? Date.now(),
-    receivedAt: sentAt ?? Date.now(),
-    content: null,
-    hidden: false,
-    sequenceNum,
-    isSequenceStub: true,
-  };
-  return stubPost;
 }
 
 export type PostWithUpdateTime = {
@@ -592,7 +577,7 @@ export const getLatestPosts = async ({
       };
     });
   } catch (e) {
-    console.log('failed to sync heads');
+    logger.trackError('failed to sync heads');
     return [];
   }
 };
@@ -654,10 +639,10 @@ export async function addReaction({
       postId,
       emoji,
       context: 'addReaction_api',
-      stack: new Error().stack
+      stack: new Error().stack,
     });
   }
-  
+
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
 
@@ -1228,17 +1213,20 @@ export function toPostData(
       const reacts = post?.seal.reacts ?? {};
       // Check for shortcodes in initial post reactions
       if (Object.keys(reacts).length > 0) {
-        const shortcodeReactions = Object.entries(reacts).filter(([, v]) => 
-          typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+        const shortcodeReactions = Object.entries(reacts).filter(
+          ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
         );
-        
+
         if (shortcodeReactions.length > 0) {
           logger.trackError('Shortcode reactions in initial post load', {
             postId: id,
             channelId,
-            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
+            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+              user: k,
+              value: v,
+            })),
             allReacts: reacts,
-            context: 'initial_post_load'
+            context: 'initial_post_load',
           });
         }
       }
@@ -1319,6 +1307,32 @@ export function toPostReplyData(
     syncedAt: Date.now(),
     ...flags,
   };
+}
+
+export function toSequenceStubPost({
+  channelId,
+  type,
+  sequenceNum,
+  sentAt,
+}: {
+  channelId: string;
+  type: db.PostType;
+  sequenceNum: number;
+  sentAt?: number;
+}): db.Post {
+  const stubPost: db.Post = {
+    id: `sequence-stub-${channelId}-${sequenceNum}`,
+    type,
+    channelId,
+    authorId: '~zod',
+    sentAt: sentAt ?? Date.now(),
+    receivedAt: sentAt ?? Date.now(),
+    content: null,
+    hidden: false,
+    sequenceNum,
+    isSequenceStub: true,
+  };
+  return stubPost;
 }
 
 export function toPostContent(story?: ub.Story): PostContentAndFlags {
@@ -1475,26 +1489,29 @@ export function toReactionsData(
     .filter(([, r]) => {
       const isString = typeof r === 'string';
       if (!isString) {
-        logger.log('toReactionsData: filtering out non-string reaction', { 
-          postId, 
+        logger.log('toReactionsData: filtering out non-string reaction', {
+          postId,
           reaction: r,
-          type: typeof r 
+          type: typeof r,
         });
       }
       return isString;
     })
     .map(([name, reaction]) => {
       // Detect and log shortcode patterns
-      if (typeof reaction === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)) {
+      if (
+        typeof reaction === 'string' &&
+        /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)
+      ) {
         logger.trackError('Shortcode reaction detected in toReactionsData', {
           postId,
           contactId: name,
           reaction,
           context: 'channel_reactions',
-          stack: new Error().stack // To trace where this is called from
+          stack: new Error().stack, // To trace where this is called from
         });
       }
-      
+
       return {
         contactId: name,
         postId,

@@ -1,14 +1,17 @@
 import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
+import { setupDb } from './nativeDb';
 
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
+  await setupDb();
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
@@ -35,7 +38,7 @@ async function performSync() {
     return;
   }
 
-  logger.log('Configuring urbit client...');
+  logger.trackEvent('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
@@ -44,7 +47,7 @@ async function performSync() {
 
   try {
     const changesStart = Date.now();
-    await syncSince();
+    await syncSince({ callCtx: { cause: 'background-sync' } });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
   } catch (err) {
@@ -63,12 +66,7 @@ async function performSync() {
   }
 }
 
-const TASK_ID = 'tlon:backgroundSync:v1';
-
-export async function unregisterBackgroundSyncTask() {
-  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
-  await TaskManager.unregisterTaskAsync(TASK_ID);
-}
+const TASK_ID = 'tlon:backgroundSync:v2';
 
 export async function removeLegacyTasks() {
   try {
@@ -79,12 +77,13 @@ export async function removeLegacyTasks() {
         logger.trackEvent('Removing legacy background task', {
           taskId: task.taskName,
         });
-        await BackgroundFetch.unregisterTaskAsync(task.taskName);
         await TaskManager.unregisterTaskAsync(task.taskName);
+        await BackgroundFetch.unregisterTaskAsync(task.taskName);
+        await BackgroundTask.unregisterTaskAsync(task.taskName);
       })
     );
   } catch (e) {
-    logger.trackError('Failed to remove legacy background tasks', {
+    logger.trackEvent('Failed to remove legacy background tasks', {
       errorMessage: e instanceof Error ? e.message : e,
     });
   }
@@ -95,25 +94,25 @@ export async function registerBackgroundSyncTask() {
 
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
+    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
       logger.trackEvent(`Running background task`);
       if (error) {
         logger.trackError(`Failed background task`, {
           context: 'called with error',
           errorMessage: error.message,
         });
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
 
       try {
         await performSync();
-        return BackgroundFetch.BackgroundFetchResult.NewData;
+        return BackgroundTask.BackgroundTaskResult.Success;
       } catch (err) {
         logger.trackError('Failed background task', {
           context: 'catch',
           errorMessage: err instanceof Error ? err.message : err,
         });
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
     }
   );
@@ -123,8 +122,10 @@ export async function registerBackgroundSyncTask() {
       if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
         logger.trackEvent('Background sync task is registered');
       } else {
-        logger.log('Background sync task is not registered, registering now');
-        await BackgroundFetch.registerTaskAsync(TASK_ID, {
+        logger.trackEvent(
+          'Background sync task is not registered, registering now'
+        );
+        await BackgroundTask.registerTaskAsync(TASK_ID, {
           // Uses expo-notification default - at time of writing, 10 minutes on
           // Android, system minimum on iOS (10-15 minutes)
           // minimumInterval: 15 * 60,
@@ -136,7 +137,7 @@ export async function registerBackgroundSyncTask() {
         tasks: status,
       });
     } catch (err) {
-      logger.trackEvent('Failed to register background task', {
+      logger.trackError('Failed to register background task', {
         errorMessage: err instanceof Error ? err.message : err,
       });
     }

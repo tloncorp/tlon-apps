@@ -35,6 +35,7 @@ import {
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
+import SystemNotices from '../../ui/components/SystemNotices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -99,9 +100,12 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const handlePressInvite = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      navigation.navigate('InviteUsers', { groupId });
+    },
+    [navigation]
+  );
 
   const connStatus = store.useConnectionStatus();
   const isSyncing = store.useIsSyncing();
@@ -269,7 +273,7 @@ export function ChatListScreenView({
       useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
-      <ChatOptionsProvider 
+      <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
       >
@@ -336,6 +340,7 @@ export function ChatListScreenView({
             />
           </View>
         </NavigationProvider>
+        {displayData && <SystemNotices.NotificationsPrompt />}
         <NavBarView
           navigateToContacts={() => {
             navigation.navigate('Contacts');

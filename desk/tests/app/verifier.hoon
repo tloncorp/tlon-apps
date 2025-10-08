@@ -19,13 +19,6 @@
 ++  twitter-api-bearer  'someBearerToken'
 ++  attempt-timeout     ~h1
 ::
-++  ex-cards  ::NOTE  custom version that ignores logging-related cards
-  |=  [caz=(list card) exes=(list $-(card tang))]
-  =-  (^ex-cards - exes)
-  %+  skip  caz
-  |=  c=card
-  ?=([%pass [%logs ~] *] c)
-::
 ++  ex-verifier-update
   =/  initial=?  |
   |=  [for=@p upd=update:v]
@@ -156,7 +149,7 @@
   =/  m  (mare state:v)
   ;<  =vase  bind:m  get-save
   =+  !<([[%negotiate *] =^vase] vase)
-  =+  !<([%0 =state:v] vase)
+  =+  !<([%1 =state:v] vase)
   (pure:m state)
 ::
 ++  user-does
@@ -784,7 +777,7 @@
       twitter-api  [bearer=twitter-api-bearer]
       domain       `'http://sampel.net'
     ==
-  ;<  *  bind:m  (do-load agent `!>([%0 state]))
+  ;<  *  bind:m  (do-load agent `!>([%1 state]))
   (pure:m ~)
 ::
 ++  test-duplicate
@@ -967,7 +960,7 @@
       %+  ~(put by records)  this-id
       [this-ship wen config %done at]
     $(i +(i))
-  ;<  *  bind:m  (do-load agent `!>([%0 (state-from-records records)]))
+  ;<  *  bind:m  (do-load agent `!>([%1 (state-from-records records)]))
   (pure:m ~)
 ::
 ++  expect-query-response

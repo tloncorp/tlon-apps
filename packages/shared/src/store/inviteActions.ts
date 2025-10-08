@@ -131,13 +131,7 @@ export async function createGroupInviteLink(groupId: string) {
     await createInviteLink(
       groupId,
       groupsDescribe({
-        // legacy keys
-        title: group?.title ?? '',
-        description: group?.description ?? '',
-        cover: group?.coverImage ?? '',
-        image: group?.iconImage ?? '',
-
-        // new-style metadata keys
+        inviteType: 'group',
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? '',
         inviterAvatarImage: user?.avatarImage ?? '',

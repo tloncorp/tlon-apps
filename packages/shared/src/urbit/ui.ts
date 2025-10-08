@@ -38,3 +38,8 @@ export interface Changes {
   contacts: Record<string, ContactBookProfile>;
   activity: Activity;
 }
+
+export interface PostsInit {
+  channels: Record<string, Posts | null>;
+  chat: Record<string, Writs | null>;
+}

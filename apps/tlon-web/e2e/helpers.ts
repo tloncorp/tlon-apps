@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import * as path from 'path';
 
 export async function channelIsLoaded(page: Page) {
   await expect(
@@ -432,7 +433,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
   await waitForSessionStability(page);
 
   // Click the Forward button in group info
-  await page.getByText('Forward').click();
+  await page.getByText('Forward reference').click();
 
   // Verify forward sheet opened
   await expect(page.getByText('Forward group')).toBeVisible();
@@ -503,7 +504,7 @@ export async function editChannel(
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   if (newTitle) {
     await fillFormField(page, 'ChannelTitleInput', newTitle, true);
@@ -518,16 +519,20 @@ export async function editChannel(
 /**
  * Deletes a channel
  */
-export async function deleteChannel(page: Page, channelName: string) {
+export async function deleteChannel(
+  page: Page,
+  channelName: string,
+  channelIndex = 0
+) {
   // Ensure session is stable before deleting channel
   await waitForSessionStability(page);
 
   await page
-    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId(`ChannelItem-${channelName}-${channelIndex}`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   await page.getByText('Delete channel for everyone').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
@@ -542,23 +547,33 @@ export async function setChannelPermissions(
   readerRoles?: string[],
   writerRoles?: string[]
 ) {
-  // Change to custom permissions
-  await page.getByText('Custom', { exact: true }).click();
+  if (readerRoles && readerRoles.length > 0) {
+    const privateToggle = page.getByTestId('PrivateChannelToggle');
+    const isEnabled = await privateToggle.getAttribute('aria-checked');
 
-  if (readerRoles) {
-    await page.getByTestId('ReaderRoleSelector').click();
-    for (const role of readerRoles) {
-      await page.getByText(role).click();
+    if (isEnabled !== 'true') {
+      await privateToggle.click();
     }
-    await page.getByText('Readers').click();
+
+    await page.getByText('Add roles').click();
+    await expect(page.getByText('Search and add roles')).toBeVisible();
+
+    for (const role of readerRoles) {
+      if (role.toLowerCase() === 'admin') continue;
+      await page.getByTestId('RoleSearchInput').fill(role);
+      await page.getByText(role, { exact: true }).click();
+      await page.getByTestId('RoleSearchInput').fill('');
+    }
+    await page.getByTestId('RoleSelectionSaveButton').click();
   }
 
-  if (writerRoles) {
-    await page.getByTestId('WriterRoleSelector').click();
+  if (writerRoles && writerRoles.length > 0) {
     for (const role of writerRoles) {
-      await page.getByText(role).nth(1).click();
+      if (role.toLowerCase() === 'admin') continue;
+      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
+      await expect(writeToggle).toBeVisible();
+      await writeToggle.click();
     }
-    await page.getByText('Writers').click();
   }
 }
 
@@ -712,22 +727,31 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
+  // Click on "Change icon image" to open the attachment dialog
   await page.getByText('Change icon image').click();
 
-  const fileInput = page.locator('input[type="file"]');
-  if (await fileInput.isVisible()) {
-    if (imagePath) {
-      // Upload a specific image file
-      await fileInput.setInputFiles(imagePath);
-    } else {
-      // Just verify the interface is accessible and cancel
-      await expect(fileInput).toBeVisible();
-      const cancelButton = page.getByText('Cancel');
-      if (await cancelButton.isVisible()) {
-        await cancelButton.click();
-      }
-    }
-  }
+  // Wait for the attachment dialog to appear
+  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
+
+  // Use provided image path or default to test image
+  const imageToUpload =
+    imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
+
+  // Intercept the file chooser dialog
+  // This is Playwright's official way to handle file uploads
+  const [fileChooser] = await Promise.all([
+    // Wait for the file chooser to be triggered
+    page.waitForEvent('filechooser'),
+    // Click the button that triggers the file chooser
+    page.getByText('Upload an image', { exact: true }).click(),
+  ]);
+
+  // Set the files on the file chooser
+  await fileChooser.setFiles(imageToUpload);
+
+  // Wait for upload to complete and dialog to close
+  // The AttachmentSheet should close automatically after file selection
+  await page.waitForTimeout(3000);
 }
 
 // Notebook-related helper functions
@@ -937,6 +961,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
     .click();
+  await page.waitForTimeout(1000);
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
   await page.waitForTimeout(1000);
 }
@@ -1062,6 +1087,7 @@ export async function threadQuoteReply(
     .getByTestId('MessageInputSendButton')
     .click();
 
+  await page.waitForTimeout(1000);
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
 }
 
@@ -1528,12 +1554,12 @@ export async function getAllContacts(page: Page): Promise<string[]> {
       // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
       const shipId = ariaLabel.replace('ContactListItem-', '');
       if (shipId && shipId.startsWith('~')) {
-        // Skip own ship
-        const ownShip = page.url().includes('localhost:3000')
-          ? '~zod'
-          : page.url().includes('localhost:3002')
-            ? '~ten'
-            : '~bus';
+        // Skip own ship - determine by port pattern (works with sharding)
+        const urlMatch = page.url().match(/:(\d+)/);
+        const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+        const portMod = port % 10;
+        const ownShip =
+          portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
         if (shipId !== ownShip) {
           contacts.push(shipId);
         }
@@ -1617,8 +1643,11 @@ export async function removeAllContacts(page: Page) {
     if (contact.includes('You')) {
       continue;
     }
-    // Skip own ship (check if we're on zod or ten)
-    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    // Skip own ship - determine by port pattern (works with sharding)
+    const urlMatch = page.url().match(/:(\d+)/);
+    const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+    const portMod = port % 10;
+    const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
     if (contact === ownShip || contact.includes(ownShip.substring(1))) {
       continue;
     }

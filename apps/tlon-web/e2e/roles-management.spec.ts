@@ -3,6 +3,64 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+test('should prevent Admin role from being edited', async ({ zodPage }) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(page);
+
+  // Handle welcome message if present
+  if (await page.getByText('Welcome to your group!').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  }
+
+  // Navigate back to Home and verify group creation
+  if (await page.getByTestId('HeaderBackButton').first().isVisible()) {
+    await helpers.navigateBack(page);
+  } else {
+    await helpers.navigateBack(page, 1);
+  }
+
+  if (await page.getByText('Home').isVisible()) {
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await page.getByText('Untitled group').first().click();
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+  }
+
+  // Open group settings and navigate to Roles
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupRoles').click();
+
+  // Verify Admin role is visible
+  await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
+
+  // Try to click on Admin role - it should not open the edit sheet
+  await page.getByTestId('GroupRole-Admin').click();
+
+  // Verify the edit sheet did not open (Edit role text should not be visible)
+  await expect(page.getByText('Edit role')).not.toBeVisible();
+
+  // Verify that Admin role doesn't have a chevron icon (indicating it's not clickable)
+  const adminRoleElement = page.getByTestId('GroupRole-Admin');
+  const chevronIcon = adminRoleElement.locator('[data-icon="ChevronRight"]');
+  await expect(chevronIcon).not.toBeVisible();
+
+  // Create a regular role to verify that other roles still work
+  await helpers.createRole(page, 'Regular role', 'This role can be edited');
+
+  // Verify the regular role can be clicked and edited
+  await page.getByText('Regular role').click();
+  await expect(page.getByText('Edit role')).toBeVisible();
+
+  // Close the edit sheet by clicking Save button
+  await page.getByText('Save').click();
+  await page.waitForTimeout(1000);
+  await expect(page.getByText('Edit role')).not.toBeVisible();
+});
+
 test('should manage roles lifecycle: create, assign, modify permissions, rename, and delete', async ({
   zodPage,
 }) => {
@@ -63,31 +121,30 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Edit the first channel (General)
   await page.getByTestId('EditChannelButton').first().click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
 
-  // Verify "Testing role" appears under Readers
-  await expect(
-    page
-      .getByTestId('ReaderRoleSelector')
-      .locator('div')
-      .filter({ hasText: 'AdminTesting role' })
-      .first()
-  ).toBeVisible();
+  // Verify "Testing role" appears in the Roles section (as a chip)
+  await expect(page.getByText('Testing role').first()).toBeVisible();
 
-  // Verify "Testing role" appears under Writers
-  await expect(
-    page
-      .getByTestId('WriterRoleSelector')
-      .locator('div')
-      .filter({ hasText: 'AdminTesting role' })
-      .first()
-  ).toBeVisible();
+  // Verify "Testing role" has read permissions in the permission table
+  await expect(page.getByTestId('ReadToggle-Testing role')).toBeVisible();
+
+  // Verify "Testing role" has write permissions enabled
+  // The write toggle was clicked by setChannelPermissions helper
+  // We can verify the checkmark icon is visible inside the write toggle
+  const writeToggle = page.getByTestId('WriteToggle-Testing role');
+  await expect(writeToggle).toBeVisible();
+  await expect(writeToggle.getByRole('img')).toBeVisible(); // Checkmark icon
 
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
+
+  // Navigate back to group settings
+  await helpers.navigateBack(page);
+  await expect(page.getByText('Group Info')).toBeVisible();
 
   // Attempt to delete role that still has members/channels assigned
   await page.getByTestId('GroupRoles').click();
@@ -134,29 +191,20 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('GroupChannels').click();
   await page.getByTestId('EditChannelButton').first().click();
 
-  // Remove "Renamed role" from readers
-  await page.getByTestId('ReaderRoleSelector').click();
-  await page.getByRole('dialog').getByText('Renamed role').click(); // This should unselect it
+  // Remove "Renamed role" from readers by clicking the X on the role chip
+  await expect(page.getByText('Renamed role').first()).toBeVisible();
+  await page.getByTestId('RemoveRole-Renamed role').click();
   await page.waitForTimeout(500);
 
-  // Verify "Renamed role" is no longer under Readers or Writers
-  await expect(
-    page
-      .getByTestId('ReaderRoleSelector')
-      .locator('div')
-      .filter({ hasText: 'AdminRenamed role' })
-      .first()
-  ).not.toBeVisible();
-  await page.waitForTimeout(500);
-  await expect(
-    page
-      .getByTestId('WriterRoleSelector')
-      .locator('div')
-      .filter({ hasText: 'AdminRenamed role' })
-      .first()
-  ).not.toBeVisible();
+  // Verify "Renamed role" is no longer visible in the Roles section
+  await expect(page.getByText('Renamed role')).not.toBeVisible();
 
-  await page.getByText('Save').click();
+  // Verify it's also not in the permission table
+  await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
+
+  await page.getByTestId('ChannelSettingsSaveButton').click();
+  await page.waitForTimeout(2000);
 
   // Navigate back with complex fallback logic
   await helpers.navigateBack(page);

@@ -5,7 +5,7 @@ import * as Updates from 'expo-updates';
 
 import { triggerHaptic } from '../ui';
 
-const perfLogger = createDevLogger('perf', true);
+const perfLogger = createDevLogger('perf', false);
 
 interface DebugPlatformState {
   network: string;

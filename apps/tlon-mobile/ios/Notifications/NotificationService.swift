@@ -5,30 +5,65 @@ import JavaScriptCore
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
-  
+
     private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) async -> UNNotificationContent {
-        let context = JSContext()!
-        context.exceptionHandler = { context, exception in
-            NSLog(exception?.toString() ?? "No exception found")
-        }
-        
-        guard
-            let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js"),
-            let script = try? String(contentsOf: scriptURL)
-        else {
+        // Extract uid first - if we can't find it, we can't do proper error logging
+        guard let userInfo = notification.userInfo as? [String: Any],
+              let uid = userInfo["uid"] as? String else {
+            print("Cannot process notification: missing uid")
+            await NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
             return notification
         }
-        context.evaluateScript(script)
+
+        do {
+            return try await processRichNotification(rawActivityEvent, notification: notification, uid: uid)
+        } catch {
+            let err = if let notificationError = error as? NotificationError {
+                notificationError
+            } else {
+                NotificationError.unknown(uid: uid, underlyingError: error)
+            }
+            
+            await NotificationLogger.sendToPostHog(events: [
+                .error(err),
+                .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
+            ])
+            return notification
+        }
+    }
+
+    private func processRichNotification(_ rawActivityEvent: Any, notification: UNMutableNotificationContent, uid: String) async throws -> UNNotificationContent {
+
+        // Convert to JSON string first for error logging
+        let activityEventJsonString = (try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent)) ?? "Unknown"
         
+        let context = JSContext()!
+        context.exceptionHandler = { context, exception in
+            print(exception?.toString() ?? "No exception found")
+        }
+
+        // Store the JSON string in notification userInfo
+        notification.userInfo["activityEventJsonString"] = activityEventJsonString
+
+        guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else {
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
+        }
+
+        guard let script = try? String(contentsOf: scriptURL) else {
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
+        }
+
+        context.evaluateScript(script)
+
         let previewRaw = context.objectForKeyedSubscript("tlon")
             .invokeMethod("renderActivityEventPreview", withArguments: [
                 rawActivityEvent,
             ])
-        
+
         guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
-            return notification
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
         }
-        
+
         // If we have a preview, make sure to fully replace server-provided title / body.
         notification.title = ""
         notification.body = ""
@@ -43,14 +78,11 @@ class NotificationService: UNNotificationServiceExtension {
             notification.threadIdentifier = await renderer.render(groupingKey)
         }
         notification.sound = UNNotificationSound.default
-        if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
-            notification.userInfo = ["activityEventJsonString": activityEventJsonString]
-        }
 
         guard let message = preview.message else {
             return notification
         }
-        
+
         let sender = await INPerson.from(shipName: message.senderId, withImage: true)
         var speakableGroupName: INSpeakableString? = nil
         if let conversationTitle = message.conversationTitle {
@@ -73,15 +105,21 @@ class NotificationService: UNNotificationServiceExtension {
         if intent.speakableGroupName != nil, let image = sender.image {
             intent.setImage(image, forParameterNamed: \.speakableGroupName)
         }
-        
+
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
+
         do {
             try await interaction.donate()
-            return try notification.updating(from: intent)
+            let result = try notification.updating(from: intent)
+
+            // Log successful rich notification delivery
+            await NotificationLogger.logDelivery(properties: ["uid": .string(uid), "message": .string("Rich notification delivered successfully")])
+
+            return result
         } catch {
-            NSLog("Error: \(error)")
-            return notification
+            // Throw NotificationDisplayFailed instead of handling here
+            throw NotificationError.notificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
         }
     }
 
@@ -104,20 +142,32 @@ class NotificationService: UNNotificationServiceExtension {
                 notification: notifContent.mutableCopy() as! UNMutableNotificationContent
             )
           }
-          
+
           contentHandler(notifContent)
             
           return
-            
-          
         case let .failedFetchContents(err):
+          // Extract uid for logging
+          if let uid = request.content.userInfo["uid"] as? String {
+              await NotificationLogger.sendToPostHog(events: [
+                .error(NotificationError.activityEventFetchFailed(uid: uid, underlyingError: err)),
+                .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
+              ])
+              print("Both logs completed for uid: \(uid)")
+          } else {
+              print("No uid found in failed fetch contents case")
+          }
           packErrorOnNotification(err)
           contentHandler(bestAttemptContent!)
           return
-          
+
         case .invalid:
+          // Log invalid notification
+          if let uid = request.content.userInfo["uid"] as? String {
+              await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Invalid notification format"))
+          }
           fallthrough
-          
+
         case .dismiss:
           contentHandler(bestAttemptContent!)
           return
@@ -136,6 +186,15 @@ class NotificationService: UNNotificationServiceExtension {
     override func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
+
+        // Log timeout if we can extract uid from notification
+        if let bestAttemptContent = bestAttemptContent,
+           let uid = bestAttemptContent.userInfo["uid"] as? String {
+            Task {
+                await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Notification service extension timed out"))
+            }
+        }
+
         if let contentHandler, let bestAttemptContent {
             contentHandler(bestAttemptContent)
         }
