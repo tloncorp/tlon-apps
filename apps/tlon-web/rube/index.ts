@@ -845,7 +845,7 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
 
 const checkShipReadinessForTests = async (shipsNeedingUpdates: string[]) =>
   new Promise<void>((resolve, reject) => {
-    const maxAttempts = 10;
+    const maxAttempts = 30;
     let attempts = 0;
 
     const tryConnect = async () => {
