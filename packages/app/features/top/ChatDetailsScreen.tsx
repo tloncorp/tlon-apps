@@ -593,11 +593,11 @@ function GroupQuickActions({
           action: togglePinned,
         },
         {
-          title: 'Forward',
+          title: 'Forward reference',
           action: handleForwardGroup,
         },
         {
-          title: 'Copy shortcode',
+          title: 'Copy group ID',
           action: handleCopyShortcode,
         }
       ),
