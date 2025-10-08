@@ -1417,7 +1417,7 @@ export const toGroupUpdate = (
 export const extractChannelReaders = (groups: ub.Groups) => {
   const channelReaders: Record<string, string[]> = {};
 
-  Object.entries(groups).forEach(([groupId, group]) => {
+  Object.entries(groups).forEach(([_groupId, group]) => {
     Object.entries(group.channels).forEach(([channelId, channel]) => {
       channelReaders[channelId] = channel.readers ?? [];
     });
@@ -1461,6 +1461,18 @@ export function toClientGroups(
   }
   return Object.entries(groups).map(([id, group]) => {
     return toClientGroup(id, group, isJoined);
+  });
+}
+
+export function toClientGroupsV7(
+  groups: Record<string, ub.GroupV7>,
+  isJoined: boolean
+) {
+  if (!groups) {
+    return [];
+  }
+  return Object.entries(groups).map(([id, group]) => {
+    return toClientGroupV7(id, group, isJoined);
   });
 }
 
@@ -1594,6 +1606,144 @@ export function toClientGroup(
   };
 }
 
+export function toClientGroupV7(
+  id: string,
+  group: ub.GroupV7,
+  isJoined: boolean
+): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
+  const rolesById: Record<string, db.GroupRole> = {};
+  const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
+    id,
+    group['flagged-content']
+  );
+
+  logger.log('admissions', group.admissions);
+
+  // v7 uses admissions.banned instead of cordon.open
+  const bannedMembers: db.GroupMemberBan[] =
+    group.admissions?.banned?.ships?.map((ship) => ({
+      contactId: ship,
+      groupId: id,
+    })) ?? [];
+
+  logger.log('bannedMembers', bannedMembers);
+
+  // v7 uses admissions.requests instead of cordon.shut.ask
+  const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
+    ? Object.keys(group.admissions.requests).map((ship) => ({
+        contactId: ship,
+        groupId: id,
+      }))
+    : [];
+
+  // v7 uses admissions.invited instead of cordon.shut.pending
+  const invitedMembers: db.ChatMember[] = group.admissions?.invited
+    ? Object.entries(group.admissions.invited)
+        // filter out members who have already joined
+        .filter(([ship]) => !group.seats?.[ship])
+        .map(([ship]) => ({
+          membershipType: 'group' as const,
+          contactId: ship,
+          chatId: id,
+          roles: [],
+          status: 'invited' as const,
+          joinedAt: null,
+        }))
+    : [];
+
+  // v7 uses seats instead of fleet (and seats use 'roles' not 'sects')
+  const members: db.ChatMember[] = (
+    group.seats ? Object.entries(group.seats) : []
+  )
+    .map(([userId, seat]) => {
+      return toClientGroupMember({
+        groupId: id,
+        contactId: userId,
+        vessel: {
+          sects: seat.roles, // v7 uses 'roles', v6 used 'sects'
+          joined: seat.joined,
+        },
+        status: 'joined',
+      });
+    })
+    .concat(
+      invitedMembers.map((m) => {
+        return toClientGroupMember({
+          groupId: id,
+          contactId: m.contactId,
+          vessel: {
+            sects: [],
+            joined: 0,
+          },
+          status: 'invited',
+        });
+      })
+    );
+
+  logger.log('joinRequests', joinRequests);
+
+  // v7 uses roles instead of cabals (and role IS the meta, no nested .meta property)
+  const roles = (group.roles ? Object.entries(group.roles) : []).map(
+    ([roleId, role]) => {
+      const data: db.GroupRole = {
+        id: roleId,
+        groupId: id,
+        ...toClientMeta(role), // v7 role IS the meta object
+      };
+      rolesById[roleId] = data;
+      return data;
+    }
+  );
+
+  return {
+    id,
+    roles,
+    privacy: group.admissions.privacy,
+    ...toClientGroupMeta(group.meta),
+    haveInvite: isJoined ? false : undefined,
+    haveRequestedInvite: isJoined ? false : undefined,
+    currentUserIsMember: isJoined,
+    currentUserIsHost: hostUserId === currentUserId,
+    isPersonalGroup:
+      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
+    joinStatus: undefined, // v7 groups from init are already joined
+    hostUserId,
+    flaggedPosts,
+    navSections: (group['section-order'] ?? [])
+      .map((zoneId, i) => {
+        const zone = group.sections?.[zoneId];
+        if (!zone) {
+          return;
+        }
+        const data: db.GroupNavSection = {
+          id: `${id}-${zoneId}`,
+          sectionId: zoneId,
+          groupId: id,
+          ...toClientMeta(zone.meta),
+          sectionIndex: i,
+          channels: (zone.idx ?? []).map((channelId, ci) => {
+            const data: db.GroupNavSectionChannel = {
+              channelIndex: ci,
+              channelId: channelId,
+              groupNavSectionId: `${id}-${zoneId}`,
+            };
+            return data;
+          }),
+        };
+        return data;
+      })
+      .filter((s): s is db.GroupNavSection => !!s),
+    members,
+    bannedMembers,
+    joinRequests,
+    channels: group.channels
+      ? toClientChannels({ channels: group.channels, groupId: id })
+      : [],
+  };
+}
+
 export function groupIsSyncing(group: ub.Group) {
   // if group host is slow, there's a transitional state during group join
   // where the group exists on the user's ship, but has not yet synced
@@ -1683,6 +1833,14 @@ export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
   });
 }
 
+export function toClientGroupsFromForeigns(
+  foreigns: Record<string, ub.Foreign>
+) {
+  return Object.entries(foreigns).map(([id, foreign]) => {
+    return toClientGroupFromForeign(id, foreign);
+  });
+}
+
 const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
   const groups = toClientGroupsFromGangs(gangsEvent);
   return { type: 'setUnjoinedGroups', groups };
@@ -1704,6 +1862,45 @@ export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
     joinStatus,
     ...(gang.preview ? toClientGroupMeta(gang.preview.meta) : {}),
   };
+}
+
+export function toClientGroupFromForeign(
+  id: string,
+  foreign: ub.Foreign
+): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
+  const privacy = extractGroupPrivacy(foreign.preview);
+  const joinStatus = getJoinStatusFromForeign(foreign);
+  return {
+    id,
+    hostUserId,
+    privacy,
+    currentUserIsMember: false,
+    currentUserIsHost: hostUserId === currentUserId, // should always be false
+    haveInvite: (foreign.invites?.length ?? 0) > 0,
+    haveRequestedInvite: foreign.progress === 'ask',
+    joinStatus,
+    ...(foreign.preview ? toClientGroupMeta(foreign.preview.meta) : {}),
+  };
+}
+
+function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
+  if (!foreign.progress) {
+    return undefined;
+  }
+  switch (foreign.progress) {
+    case 'ask':
+    case 'join':
+    case 'watch':
+      return 'joining';
+    case 'done':
+      return undefined;
+    case 'error':
+      return 'errored';
+    default:
+      return undefined;
+  }
 }
 
 function toClientGroupMeta(meta: ub.GroupMeta) {
