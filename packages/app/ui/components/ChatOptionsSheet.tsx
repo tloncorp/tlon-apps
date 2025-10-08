@@ -27,6 +27,21 @@ import {
 } from './ActionSheet';
 import { ListItem } from './ListItem';
 
+function getNotificationTitle(
+  volumeSettings: { level: ub.NotificationLevel } | null | undefined,
+  baseVolumeLevel: ub.NotificationLevel
+): string {
+  const hasCustomSetting = !!volumeSettings?.level;
+
+  if (hasCustomSetting && volumeSettings) {
+    const levelName = ub.NotificationNamesShort[volumeSettings.level];
+    return `${levelName} (custom)`;
+  }
+
+  const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
+  return `${defaultLevelName} (app default)`;
+}
+
 type ChatOptionsSheetProps = {
   // Make open/onOpenChange optional since we can use context
   open?: boolean;
@@ -292,17 +307,10 @@ export function GroupOptionsSheetContent({
     store.leaveGroup(group.id);
   }, [group]);
 
-  const notificationTitle = useMemo(() => {
-    const hasCustomSetting = !!group.volumeSettings?.level;
-
-    if (hasCustomSetting && group.volumeSettings) {
-      const levelName = ub.NotificationNamesShort[group.volumeSettings.level];
-      return `${levelName} (custom)`;
-    }
-
-    const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
-    return `${defaultLevelName} (app default)`;
-  }, [group.volumeSettings, baseVolumeLevel]);
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(group.volumeSettings, baseVolumeLevel),
+    [group.volumeSettings, baseVolumeLevel]
+  );
 
   const actionGroups = useMemo(
     () =>
@@ -673,17 +681,10 @@ export function ChannelOptionsSheetContent({
     [onOpenChange]
   );
 
-  const notificationTitle = useMemo(() => {
-    const hasCustomSetting = !!channel.volumeSettings?.level;
-
-    if (hasCustomSetting && channel.volumeSettings) {
-      const levelName = ub.NotificationNamesShort[channel.volumeSettings.level];
-      return `${levelName} (custom)`;
-    }
-
-    const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
-    return `${defaultLevelName} (app default)`;
-  }, [channel.volumeSettings, baseVolumeLevel]);
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
+    [channel.volumeSettings, baseVolumeLevel]
+  );
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
