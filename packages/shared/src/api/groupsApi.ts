@@ -1104,6 +1104,17 @@ export const subscribeGroups = async (
     }
   );
 
+  // v8 foreigns subscription - filters revoked invites (PR #5138)
+  subscribe(
+    { app: 'groups', path: '/v1/foreigns' },
+    (rawEvent: ub.ForeignsV8) => {
+      logger.log('foreignsV8UpdateEvent', rawEvent);
+      eventHandler(toForeignsV8GroupsUpdate(rawEvent));
+    }
+  );
+
+  // Keep legacy gangs subscription for backward compatibility
+  // TODO: Remove this after PR #5138 settles in production
   subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
     logger.log('gangsUpdateEvent', rawEvent);
     eventHandler(toGangsGroupsUpdate(rawEvent));
@@ -1846,6 +1857,12 @@ const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
   return { type: 'setUnjoinedGroups', groups };
 };
 
+// v8 foreigns update handler - filters revoked invites (PR #5138)
+const toForeignsV8GroupsUpdate = (foreignsEvent: ub.ForeignsV8): GroupUpdate => {
+  const groups = toClientGroupsFromForeignsV8(foreignsEvent);
+  return { type: 'setUnjoinedGroups', groups };
+};
+
 export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
@@ -1885,7 +1902,62 @@ export function toClientGroupFromForeign(
   };
 }
 
+// v8 serializer - filters out revoked invites (PR #5138)
+export function toClientGroupFromForeignV8(
+  id: string,
+  foreign: ub.ForeignV8
+): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
+  const privacy = extractGroupPrivacy(foreign.preview);
+  const joinStatus = getJoinStatusFromForeignV8(foreign);
+
+  // Filter out invalid (revoked) invites
+  const validInvites = foreign.invites?.filter((inv) => inv.valid) ?? [];
+
+  return {
+    id,
+    hostUserId,
+    privacy,
+    currentUserIsMember: false,
+    currentUserIsHost: hostUserId === currentUserId, // should always be false
+    haveInvite: validInvites.length > 0, // Only count valid invites
+    haveRequestedInvite: foreign.progress === 'ask',
+    joinStatus,
+    ...(foreign.preview ? toClientGroupMeta(foreign.preview.meta) : {}),
+  };
+}
+
+export function toClientGroupsFromForeignsV8(
+  foreigns: Record<string, ub.ForeignV8>
+) {
+  if (!foreigns) return [];
+  return Object.entries(foreigns).map(([id, foreign]) =>
+    toClientGroupFromForeignV8(id, foreign)
+  );
+}
+
 function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
+  if (!foreign.progress) {
+    return undefined;
+  }
+  switch (foreign.progress) {
+    case 'ask':
+    case 'join':
+    case 'watch':
+      return 'joining';
+    case 'done':
+      return undefined;
+    case 'error':
+      return 'errored';
+    default:
+      return undefined;
+  }
+}
+
+function getJoinStatusFromForeignV8(
+  foreign: ub.ForeignV8
+): db.Group['joinStatus'] {
   if (!foreign.progress) {
     return undefined;
   }

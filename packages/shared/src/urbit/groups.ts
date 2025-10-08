@@ -451,6 +451,29 @@ export interface Foreigns {
   [flag: string]: Foreign;
 }
 
+// v8 types - invite revocation support (PR #5138)
+export interface InviteV8 {
+  flag: string;
+  time: number;
+  from: string;
+  token: string | null;
+  note: string | null; // story serialized as string
+  preview: GroupPreviewV7;
+  valid: boolean; // NEW in v8: tracks if invite has been revoked
+}
+
+export interface ForeignV8 {
+  invites: InviteV8[]; // v8 invites with valid field
+  lookup: Lookup | null;
+  preview: GroupPreviewV7 | null;
+  progress: Progress | null;
+  token: string | null;
+}
+
+export interface ForeignsV8 {
+  [flag: string]: ForeignV8;
+}
+
 export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'custom';
