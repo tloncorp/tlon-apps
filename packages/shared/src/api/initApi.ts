@@ -41,6 +41,26 @@ export const getInitData = async () => {
   return toInitData(response);
 };
 
+function isGroupsInit5(
+  response: ub.GroupsInit4 | ub.GroupsInit5
+): response is ub.GroupsInit5 {
+  return 'foreigns' in response && !('gangs' in response);
+}
+
+function extractChannelReadersFromV7Groups(
+  groups: Record<string, ub.GroupV7>
+): Record<string, string[]> {
+  const readers: Record<string, string[]> = {};
+  Object.entries(groups).forEach(([_groupId, group]) => {
+    if (group.channels) {
+      Object.entries(group.channels).forEach(([channelId, channel]) => {
+        readers[channelId] = channel.readers ?? [];
+      });
+    }
+  });
+  return readers;
+}
+
 export const toInitData = (
   response: ub.GroupsInit4 | ub.GroupsInit5
 ): InitData => {
@@ -49,23 +69,13 @@ export const toInitData = (
 
   const pins = toClientPinnedItems(response.pins);
 
-  const isV5 = 'foreigns' in response;
+  const isV5 = isGroupsInit5(response);
 
   const channelReaders: Record<string, string[]> = isV5
-    ? // v5: Extract from v7 groups
-      (() => {
-        const readers: Record<string, string[]> = {};
-        Object.entries(response.groups).forEach(([_groupId, group]) => {
-          if ('channels' in group && group.channels) {
-            Object.entries(group.channels).forEach(([channelId, channel]) => {
-              readers[channelId] = channel.readers ?? [];
-            });
-          }
-        });
-        return readers;
-      })()
-    : // v4: Extract from v2 groups
-      extractChannelReaders(response.groups);
+    ? extractChannelReadersFromV7Groups(
+        response.groups as Record<string, ub.GroupV7>
+      )
+    : extractChannelReaders(response.groups as ub.Groups);
 
   const channelsInit = toClientChannelsInit(
     response.channel.channels,
