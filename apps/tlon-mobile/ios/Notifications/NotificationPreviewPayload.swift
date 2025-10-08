@@ -8,6 +8,7 @@ struct NotificationPreviewPayload: Decodable {
         case userNickname(ship: String)
         case stringLiteral(content: String)
         case concatenateStrings(first: ContentNode, second: ContentNode)
+        case postSource(channelId: String, groupId: String)
         
         enum CodingKeys: String, CodingKey {
             case type
@@ -27,6 +28,7 @@ struct NotificationPreviewPayload: Decodable {
             case stringLiteral
             case concatenateStrings
             case userNickname
+            case postSource
         }
         
         init(from decoder: Decoder) throws {
@@ -58,6 +60,11 @@ struct NotificationPreviewPayload: Decodable {
             case .userNickname:
                 let ship = try container.decode(String.self, forKey: .ship)
                 self = .userNickname(ship: ship)
+
+            case .postSource:
+                let channelId = try container.decode(String.self, forKey: .channelId)
+                let groupId = try container.decode(String.self, forKey: .groupId)
+                self = .postSource(channelId: channelId, groupId: groupId)
             }
         }
     }
@@ -99,6 +106,23 @@ struct NotificationPreviewContentNodeRenderer {
             return [await render(first), await render(second)].joined()
         case let .userNickname(ship):
             return (try? await ContactStore.sharedInstance.getOrFetchItem(ship)?.displayName) ?? ship
+        case let .postSource(channelId, groupId):
+            // If the post source is a single-channel group, we want to omit the channel title.
+            if let isSingleChannelGroup = try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.channels.count == 1 {
+                if isSingleChannelGroup {
+                    return await render(.groupTitle(groupId: groupId))
+                }
+            }
+            
+            return await render(
+                .concatenateStrings(
+                    first: .groupTitle(groupId: groupId),
+                    second: .concatenateStrings(
+                        first: .stringLiteral(content: ": "),
+                        second: .channelTitle(channelId: channelId)
+                    )
+                )
+            )
         }
     }
 }

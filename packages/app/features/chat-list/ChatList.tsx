@@ -83,6 +83,11 @@ export const ChatList = React.memo(function ChatListComponent({
     []
   );
 
+  const listItemHoverStyle = useMemo(
+    () => ({ backgroundColor: '$secondaryBackground' }),
+    []
+  );
+
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
       if (isSectionHeader(item)) {
@@ -98,7 +103,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
-            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
@@ -109,7 +114,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
-            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.group.title !== '' ? item.group.title : 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
@@ -121,12 +126,18 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             disableOptions={item.isPending}
-            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            hoverStyle={listItemHoverStyle}
           />
         );
       }
     },
-    [handleHeaderLayout, onPressItem, handleLongPress, handleItemLayout]
+    [
+      handleHeaderLayout,
+      onPressItem,
+      handleLongPress,
+      handleItemLayout,
+      listItemHoverStyle,
+    ]
   );
 
   useRenderCount('ChatList');

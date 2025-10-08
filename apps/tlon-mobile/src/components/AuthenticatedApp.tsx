@@ -1,3 +1,4 @@
+import NetInfo from '@react-native-community/netinfo';
 import {
   AppStatus,
   useAppStatusChange,
@@ -39,8 +40,6 @@ function AuthenticatedApp() {
     (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
-        updateSession({ isSyncing: true });
-        syncSince();
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -49,16 +48,11 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
+        updateSession({ isSyncing: true });
+        syncSince({ callCtx: { cause: 'app-foregrounded' } });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
-      }
-
-      // app opened
-      if (status === 'opened') {
-        db.headsSyncedAt.resetValue().then(() => {
-          sync.syncLatestPosts({ priority: sync.SyncPriority.High });
-        });
       }
     },
     [checkNodeStopped, telemetry]
@@ -83,9 +77,27 @@ export default function ConnectedAuthenticatedApp() {
   const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
-    configureClient();
-    sync.syncStart();
-    setClientReady(true);
+    async function setup() {
+      configureClient();
+      // we store a flag to ensure this runs only once per login, not anytime
+      // the app is opened
+      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+      sync.syncStart().then(async () => {
+        if (!didSyncInitialPosts) {
+          const net = await NetInfo.fetch();
+          const syncSize =
+            net.isConnected &&
+            (net.type === 'wifi' ||
+              (net.type === 'cellular' &&
+                ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
+              ? 'heavy'
+              : 'light';
+          sync.syncInitialPosts({ syncSize });
+        }
+      });
+      setClientReady(true);
+    }
+    setup();
   }, [configureClient]);
 
   return (

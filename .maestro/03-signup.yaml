@@ -1,0 +1,110 @@
+appId: io.tlon.groups
+onFlowComplete:
+  - runScript: scripts/handleSignupSuccess.js
+---
+- runFlow: subflows/launch.yaml
+- assertVisible: 'Sign up'
+
+# enter signup flow
+- tapOn: 'Sign up'
+- assertVisible: 'join.tlon.io/0v4.pca0n.evapv...'
+
+# add invite link
+- tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
+- inputText: 'https://join.tlon.io/0v1.f8gid.4jcvs.56moq.0ij3u.tqamk' # ~pondus-watbel Bot Farm
+
+# select email signup
+- assertVisible: Or if you'd prefer, sign up with an email address
+- tapOn: Or if you'd prefer, sign up with an email address
+
+# get test email and use it
+- runScript: scripts/generateSignupEmail.js
+- inputText: ${output.signupEmail}
+- tapOn: Sign up
+
+# get OTP and submit it digit by digit. Attempting to insert
+# all at once causes flakiness. extendedWaitUntil calls are a
+# workaround to delay next digit insertion
+- assertVisible: Check your email for a confirmation code
+# add a short delay to allow the OTP email to arrive
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 3000
+- runScript: scripts/getEmailOtp.js
+
+- inputText: ${output.otpDigit1}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit2}
+- extendedWaitUntil:
+    visible: invalidTexts
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit3}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit4}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit5}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit6}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+# set a nickname
+- assertVisible: Sampel Palnet
+- evalScript: ${output.operationStart = Date.now()}
+- tapOn: Sampel Palnet
+- inputText: E2E Tester
+- assertVisible: Next
+- tapOn: Next
+
+# wait until setup is complete
+- extendedWaitUntil:
+    visible: Welcome to Tlon Messenger
+    timeout: 600000
+
+- evalScript: ${output.operationEnd = Date.now()}
+
+# click through welcome tour
+- assertVisible: Let's get started
+- tapOn: Let's get started
+
+- assertVisible: Got it
+- tapOn: Got it
+
+- assertVisible: One quick thing
+- tapOn: One quick thing
+
+- assertVisible: Invite friends
+- tapOn: Invite friends
+
+- assertVisible: Finish
+- tapOn: Finish
+
+# assert everything we expect to be there is
+- assertVisible: Tlon Support
+- assertVisible: E2E Tester's Group
+- assertVisible: Bot Farm
+- assertVisible: brian testing
+- assertVisible: Tlon Studio
+
+- evalScript: ${output.didComplete = true}

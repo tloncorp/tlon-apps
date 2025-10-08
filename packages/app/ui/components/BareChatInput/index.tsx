@@ -15,7 +15,13 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
-import { LoadingSpinner, RawText, Text, useGlobalSearch } from '@tloncorp/ui';
+import {
+  HEADER_HEIGHT,
+  LoadingSpinner,
+  RawText,
+  Text,
+  useGlobalSearch,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -219,10 +225,9 @@ export default function BareChatInput({
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const store = useStore();
-  const headerHeight = 48;
   const maxInputHeightBasic = useMemo(
-    () => height - headerHeight - bottom - top,
-    [height, bottom, top, headerHeight]
+    () => height - HEADER_HEIGHT - bottom - top,
+    [height, bottom, top]
   );
   const {
     attachments,

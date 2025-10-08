@@ -60,7 +60,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %11
+    $:  %13
         =v-channels:v9:c
         =hooks:h
         =pimp:imp
@@ -155,12 +155,16 @@
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  ?>  ?=(%11 -.old)
+  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
+  =?  old  ?=(%12 -.old)  (state-12-to-13 old)
+  ?>  ?=(%13 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-11
+    $%  state-13
+        state-12
+        state-11
         state-10
         state-9
         state-8
@@ -173,7 +177,9 @@
         state-1
         state-0
     ==
-  +$  state-11  current-state
+  +$  state-13  current-state
+  +$  state-12  _%*(. *state-13 - %12)
+  +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
         =v-channels:v9:c
@@ -203,6 +209,17 @@
       =v-channels:v7:c
       =pimp:imp
     ==
+  ::
+  ++  state-12-to-13
+    |=  s=state-12
+    ^-  state-13
+    s(- %13, v-channels (~(run by v-channels.s) channel:drop-bad-links:utils))
+  ::
+  ++  state-11-to-12
+    |=  s=state-11
+    ^-  state-12
+    s(- %12)
+  ::
   ++  state-10-to-11
     |=  s=state-10
     ^-  state-11
@@ -787,6 +804,7 @@
   =/  =cage  [%channel-request-join !>(request)]
   [%pass /request-join %agent [ship %channels] %poke cage]
 ::
+++  size-limit  256.000  :: 256KB
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   +*  ca-posts  ~(. not posts.channel)
@@ -914,6 +932,7 @@
     ::
         %meta
       ?>  (is-admin:ca-perms src.bowl)
+      ?>  (lte (met 3 (jam meta.c-channel)) size-limit)
       =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
       ?.  changed  ca-core
       (ca-update %meta meta.channel)
@@ -950,6 +969,7 @@
         %add
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind.essay.c-post)
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -970,6 +990,7 @@
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
@@ -1091,6 +1112,7 @@
     ?-    -.c-reply
         %add
       ?>  =(src.bowl author.memo.c-reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
@@ -1114,6 +1136,7 @@
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
       ?>  =(src.bowl author.u.reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
         (run-hooks event nest 'edit blocked')

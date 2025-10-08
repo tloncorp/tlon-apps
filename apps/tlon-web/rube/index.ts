@@ -15,11 +15,33 @@ import * as path from 'path';
 import * as tar from 'tar-fs';
 import * as zlib from 'zlib';
 
+// Load .env.test file if it exists
+const envTestPath = path.join(__dirname, '..', '..', '.env.test');
+if (fs.existsSync(envTestPath)) {
+  const envContent = fs.readFileSync(envTestPath, 'utf8');
+  envContent.split('\n').forEach((line) => {
+    // Skip comments and empty lines
+    if (line && !line.startsWith('#') && line.includes('=')) {
+      const [key, ...valueParts] = line.split('=');
+      const value = valueParts.join('=').trim();
+      // Only set if not already set (allow command-line overrides)
+      if (!process.env[key.trim()]) {
+        process.env[key.trim()] = value;
+      }
+    }
+  });
+  console.log('Loaded environment variables from .env.test');
+}
+
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 const rubeDir = __dirname;
 const pidFile = path.join(rubeDir, '.rube.pid');
 const childrenFile = path.join(rubeDir, '.rube-children.json');
+
+// Use RUBE_WORKSPACE if set (for container environments with limited disk space)
+const WORKSPACE_DIR = process.env.RUBE_WORKSPACE || __dirname;
+console.log(`Using workspace directory: ${WORKSPACE_DIR}`);
 
 const manifestPath = path.join(
   __dirname,
@@ -29,6 +51,19 @@ const manifestPath = path.join(
   'shipManifest.json'
 );
 const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+// Sharding configuration
+const SHARD = process.env.SHARD ? parseInt(process.env.SHARD, 10) : undefined;
+const TOTAL_SHARDS = process.env.TOTAL_SHARDS
+  ? parseInt(process.env.TOTAL_SHARDS, 10)
+  : undefined;
+
+// Container optimization flags
+const IN_CONTAINER = process.env.IN_CONTAINER === 'true';
+const SKIP_DOWNLOAD = process.env.SKIP_DOWNLOAD === 'true';
+const PRE_EXTRACTED_SHIPS = process.env.PRE_EXTRACTED_SHIPS;
+const URBIT_BINARY_PATH = process.env.URBIT_BINARY_PATH;
+const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
 
 export interface Ship {
   authFile: string;
@@ -43,6 +78,7 @@ export interface Ship {
   extractPath: string;
   skipCommit: boolean;
   skipSetup: boolean;
+  optional?: boolean;
 }
 
 function getShips(): Record<string, Ship> {
@@ -50,20 +86,40 @@ function getShips(): Record<string, Ship> {
     Object.entries(shipManifest)
       .filter(([, value]) => {
         const v = value as Ship;
-        return !v.skipSetup;
+        // Skip if marked as skipSetup
+        if (v.skipSetup) return false;
+        // Skip optional ships unless explicitly included
+        if (v.optional && !INCLUDE_OPTIONAL_SHIPS) return false;
+        return true;
       })
       .map(([, value]) => {
         const v = value as Ship;
         const ship = v.ship;
+
+        // Use standard ports - containers handle isolation
+        const httpPort = parseInt(v.httpPort, 10);
+        const webPort = parseInt(v.webUrl.match(/:(\d+)/)?.[1] || '3000', 10);
+
+        // In containers, extract directly to short paths to avoid socket path limit
+        // and to avoid disk space issues from copying large ships
+        const isContainer = process.env.CI === 'true' && process.env.SHARD;
+        // Use regular filesystem for ship piers (not tmpfs) to avoid space issues
+        // Ships are large with desk code and don't fit well in tmpfs
+        const extractPath = isContainer
+          ? path.join('/workspace/ships', `s${process.env.SHARD}`, ship)
+          : path.join(WORKSPACE_DIR, ship);
+
         return [
           ship,
           {
             ...v,
+            httpPort: httpPort.toString(),
+            webUrl: v.webUrl.replace(/:(\d+)/, `:${webPort}`),
             savePath: path.join(
-              __dirname,
+              WORKSPACE_DIR,
               v.downloadUrl.split('/').pop() || ''
             ),
-            extractPath: path.join(__dirname, ship),
+            extractPath,
           },
         ];
       })
@@ -139,7 +195,85 @@ const extractFile = async (filePath: string, extractPath: string) =>
       .on('error', reject);
   });
 
+const execPromise = (command: string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    childProcess.exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      if (stderr) {
+        console.warn('stderr:', stderr);
+      }
+      resolve(stdout);
+    });
+  });
+
 const getPiers = async () => {
+  // If running in container with pre-extracted ships, copy them to working location
+  if (IN_CONTAINER && PRE_EXTRACTED_SHIPS) {
+    console.log(
+      '🐳 Container mode: Using pre-extracted ships from',
+      PRE_EXTRACTED_SHIPS
+    );
+
+    for (const shipConfig of Object.values(ships) as Ship[]) {
+      if (targetShip && targetShip !== shipConfig.ship) {
+        continue;
+      }
+
+      const { ship, extractPath } = shipConfig;
+      // Pre-extracted ships are at: /opt/ships/zod/ (containing .urb/ directory)
+      const sourceShipPath = path.join(PRE_EXTRACTED_SHIPS, ship);
+
+      if (fs.existsSync(sourceShipPath)) {
+        // Copy pre-extracted ship to the expected location
+        const targetPath = extractPath;
+
+        // In container mode, check if pier is already set up correctly
+        // Look for the .urb directory to determine if it's valid
+        const pierExists = fs.existsSync(path.join(targetPath, '.urb'));
+
+        if (!pierExists) {
+          // Ensure parent directory exists
+          fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+
+          // If target exists but is not a valid pier, try to remove it
+          if (fs.existsSync(targetPath)) {
+            try {
+              console.log(`Removing incomplete pier at ${targetPath}`);
+              fs.rmSync(targetPath, { recursive: true, force: true });
+            } catch (e: any) {
+              if (e.code === 'EBUSY') {
+                console.warn(
+                  `Warning: Could not remove ${targetPath} (EBUSY), attempting to overwrite...`
+                );
+              } else {
+                throw e;
+              }
+            }
+          }
+
+          // Create target directory and copy contents (including .urb/)
+          fs.mkdirSync(targetPath, { recursive: true });
+          // Use cp -a to preserve all attributes and copy contents
+          await execPromise(`cp -a ${sourceShipPath}/. ${targetPath}/`);
+          console.log(`Copied pre-extracted ${ship} pier to ${targetPath}`);
+        } else {
+          console.log(
+            `${ship} pier already exists at ${targetPath}, skipping copy`
+          );
+        }
+      } else {
+        console.warn(
+          `Warning: Pre-extracted ship ${ship} not found at ${sourceShipPath}`
+        );
+      }
+    }
+    return; // Skip download/extract logic
+  }
+
+  // Original download and extract logic for non-container environments
   for (const shipConfig of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== shipConfig.ship) {
       continue;
@@ -148,7 +282,7 @@ const getPiers = async () => {
     const { downloadUrl, savePath, extractPath, ship } = shipConfig;
 
     // Download ship archive if it doesn't exist
-    if (!fs.existsSync(savePath)) {
+    if (!SKIP_DOWNLOAD && !fs.existsSync(savePath)) {
       await downloadFile(downloadUrl, savePath);
       console.log(`Downloaded ${ship} to ${savePath}`);
     } else {
@@ -168,7 +302,9 @@ const getPiers = async () => {
     }
 
     // Always clean up existing .http.ports file if it exists
-    const httpPortsFilePath = path.join(extractPath, ship, '.http.ports');
+    const httpPortsFilePath = IN_CONTAINER
+      ? path.join(extractPath, '.http.ports')
+      : path.join(extractPath, ship, '.http.ports');
     if (fs.existsSync(httpPortsFilePath)) {
       console.log('Remove existing .http-ports file');
       fs.rmSync(httpPortsFilePath);
@@ -177,9 +313,37 @@ const getPiers = async () => {
 };
 
 const getUrbitBinary = async () => {
+  // If running in container with pre-installed binary, skip download
+  if (IN_CONTAINER && URBIT_BINARY_PATH) {
+    if (fs.existsSync(URBIT_BINARY_PATH)) {
+      console.log(
+        '🐳 Container mode: Using pre-installed Urbit binary at',
+        URBIT_BINARY_PATH
+      );
+
+      // Create symlink to expected location for compatibility
+      const expectedPath = path.join(WORKSPACE_DIR, 'urbit_extracted', 'urbit');
+      if (!fs.existsSync(expectedPath)) {
+        fs.mkdirSync(path.dirname(expectedPath), { recursive: true });
+        fs.symlinkSync(URBIT_BINARY_PATH, expectedPath);
+        console.log(
+          `Created symlink from ${URBIT_BINARY_PATH} to ${expectedPath}`
+        );
+      }
+      return;
+    } else {
+      console.warn(
+        'Warning: Pre-installed Urbit binary not found at',
+        URBIT_BINARY_PATH
+      );
+      // Fall through to download if pre-installed binary is missing
+    }
+  }
+
+  // Original download logic for non-container environments
   const url = getUrbitBinaryUrlByPlatformAndArch();
   const savePath = path.join(__dirname, 'urbit_binary.tgz');
-  const extractPath = path.join(__dirname, 'urbit_extracted');
+  const extractPath = path.join(WORKSPACE_DIR, 'urbit_extracted');
   const finalName = path.join(extractPath, 'urbit');
 
   if (!fs.existsSync(finalName)) {
@@ -296,7 +460,9 @@ const copyDesks = async (): Promise<string[]> => {
     }
 
     if (needsDeskUpdate(ship)) {
-      const groupsDir = path.join(ship.extractPath, ship.ship, 'groups');
+      const groupsDir = IN_CONTAINER
+        ? path.join(ship.extractPath, 'groups')
+        : path.join(ship.extractPath, ship.ship, 'groups');
 
       try {
         console.log(`Copying desk changes to ${ship.ship}`);
@@ -316,19 +482,18 @@ const copyDesks = async (): Promise<string[]> => {
 };
 
 const bootAllShips = () => {
-  const binaryPath = path.join(__dirname, 'urbit_extracted', 'urbit');
+  const binaryPath = path.join(WORKSPACE_DIR, 'urbit_extracted', 'urbit');
 
   Object.values(ships).forEach(({ extractPath, ship, httpPort }) => {
     if (targetShip && targetShip !== ship) {
       return;
     }
 
-    bootShip(
-      binaryPath,
-      path.join(extractPath, ship),
-      httpPort,
-      ship as ShipName
-    );
+    // In container mode, extractPath IS the pier directory itself
+    // In non-container mode, the pier is in extractPath/ship
+    const shipPath = IN_CONTAINER ? extractPath : path.join(extractPath, ship);
+
+    bootShip(binaryPath, shipPath, httpPort, ship as ShipName);
   });
 };
 
@@ -375,7 +540,9 @@ const shipsAreReadyForCommands = () => {
       return true;
     }
 
-    const httpPortFile = path.join(extractPath, ship, '.http.ports');
+    const httpPortFile = IN_CONTAINER
+      ? path.join(extractPath, '.http.ports')
+      : path.join(extractPath, ship, '.http.ports');
     if (fs.existsSync(httpPortFile)) {
       console.log(`Found ${httpPortFile}, ${ship} is ready for commands`);
       return true;
@@ -391,7 +558,7 @@ const checkShipReadinessForCommands = async () =>
   new Promise<void>((resolve, reject) => {
     // We need to try more times if we're *not* forcing extraction because
     // the ships may need to run playback to get to a ready state
-    const maxAttempts = forceExtraction ? 10 : 30;
+    const maxAttempts = forceExtraction ? 120 : 30;
     let attempts = 0;
 
     const checkForHttpsPorts = async () => {
@@ -427,7 +594,9 @@ const getPortsFromFiles = async () =>
         return;
       }
 
-      const httpPortFile = path.join(extractPath, ship, '.http.ports');
+      const httpPortFile = IN_CONTAINER
+        ? path.join(extractPath, '.http.ports')
+        : path.join(extractPath, ship, '.http.ports');
       const contents = fs.readFileSync(httpPortFile, 'utf8');
       const lines = contents.split('\n');
 
@@ -721,7 +890,15 @@ const runPlaywrightTests = async (shipsNeedingUpdates: string[]) => {
   const runTests = () =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests`);
-      const playwrightArgs = ['playwright', 'test', '--workers=1', ''];
+      const playwrightArgs = ['playwright', 'test', '--workers=1'];
+
+      // Add sharding configuration if provided
+      if (SHARD && TOTAL_SHARDS) {
+        console.log(`Running shard ${SHARD}/${TOTAL_SHARDS}`);
+        playwrightArgs.push(`--shard=${SHARD}/${TOTAL_SHARDS}`);
+      }
+
+      playwrightArgs.push('');
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');
@@ -789,13 +966,18 @@ const cleanupSpawnedProcesses = () => {
     }
   });
 
-  // Give processes 1 second to terminate gracefully
-  const timeout = Date.now() + 1000;
+  // Give processes up to 2 seconds to terminate gracefully
+  // (In Docker containers we don't need long waits since state is ephemeral)
+  const timeout = Date.now() + 2000;
   while (Date.now() < timeout) {
-    if (spawnedProcesses.every((p) => p.killed)) break;
+    if (spawnedProcesses.every((p) => p.killed)) {
+      break;
+    }
+    childProcess.execSync('sleep 0.1', { stdio: 'ignore' });
   }
 
-  // Force kill any remaining direct children
+  // Force kill any remaining processes
+  console.log('Running aggressive cleanup...');
   spawnedProcesses.forEach((proc) => {
     if (!proc.killed && proc.pid) {
       try {
@@ -811,44 +993,41 @@ const cleanupSpawnedProcesses = () => {
   try {
     // Kill all Urbit processes matching our rube pattern
     const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
-    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore', timeout: 5000 });
 
     // Also use our existing commands as additional cleanup
-    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore' });
-    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore' });
-
-    // Kill any processes on our known ports
-    const ports = [
-      '35453',
-      '36963',
-      '38473',
-      '39983',
-      '3000',
-      '3001',
-      '3002',
-      '3003',
-    ];
-    ports.forEach((port) => {
-      try {
-        // First try lsof (most common)
-        try {
-          const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
-          childProcess.execSync(cmd, { stdio: 'ignore' });
-        } catch {
-          // If lsof doesn't exist, try fuser as fallback
-          try {
-            const cmd = `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`;
-            childProcess.execSync(cmd, { stdio: 'ignore' });
-          } catch {
-            // Neither tool available - skip port cleanup
-          }
-        }
-      } catch {
-        // Ignore errors for ports that may not be in use
-      }
-    });
+    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore', timeout: 5000 });
+    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore', timeout: 5000 });
   } catch {
     // Ignore command errors
+  }
+
+  // Skip port cleanup in containers (IN_CONTAINER env var set in Dockerfile)
+  // Containers are destroyed after tests, so port cleanup is unnecessary
+  if (!process.env.IN_CONTAINER) {
+    console.log('Cleaning up ports...');
+    try {
+      const ports = [
+        '35453',
+        '36963',
+        '38473',
+        '39983',
+        '3000',
+        '3001',
+        '3002',
+        '3003',
+      ];
+      ports.forEach((port) => {
+        try {
+          const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
+          childProcess.execSync(cmd, { stdio: 'ignore', timeout: 1000 });
+        } catch {
+          // Ignore errors
+        }
+      });
+    } catch {
+      // Ignore command errors
+    }
   }
 
   // Clean up PID files
@@ -989,7 +1168,9 @@ const compareSourceToTarget = (
 
 const needsDeskUpdate = (ship: Ship): boolean => {
   const sourceDeskPath = path.resolve(__dirname, '../../../../desk');
-  const targetGroupsPath = path.join(ship.extractPath, ship.ship, 'groups');
+  const targetGroupsPath = IN_CONTAINER
+    ? path.join(ship.extractPath, 'groups')
+    : path.join(ship.extractPath, ship.ship, 'groups');
 
   // If target doesn't exist, we need to update
   if (!fs.existsSync(targetGroupsPath)) {
@@ -1003,7 +1184,9 @@ const needsDeskUpdate = (ship: Ship): boolean => {
 };
 
 const shipNeedsExtraction = (ship: Ship): boolean => {
-  const shipPath = path.join(ship.extractPath, ship.ship);
+  const shipPath = IN_CONTAINER
+    ? ship.extractPath
+    : path.join(ship.extractPath, ship.ship);
 
   // If ship directory doesn't exist, we need to extract
   if (!fs.existsSync(shipPath)) {
@@ -1054,18 +1237,63 @@ const executeClickCommand = async (
   hoonCommand: string,
   options: { useKhan?: boolean } = {}
 ): Promise<string> => {
+  const decodeClickResult = (out: string): string | null => {
+    try {
+      // Extract after '%noun' up to the next ']'
+      const m = out.match(/%noun\s+([^\]]+)/);
+      if (!m) return null;
+      const payload = m[1].trim();
+
+      // Case 1: space-separated byte values (tape)
+      if (/^[0-9 ]+$/.test(payload)) {
+        const bytes = payload
+          .trim()
+          .split(/\s+/)
+          .map((n) => parseInt(n, 10))
+          .filter((n) => Number.isFinite(n) && n > 0 && n < 256);
+        if (bytes.length > 0) {
+          return String.fromCharCode(...bytes);
+        }
+      }
+
+      // Case 2: single atom (e.g., %ok -> 27503)
+      if (/^\d+$/.test(payload)) {
+        const n = parseInt(payload, 10);
+        if (n === 27503) return '%ok';
+        return String(payload);
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
   return new Promise((resolve, reject) => {
-    // Create a ship-specific wrapper script on the fly.
-    // This is the only method I've found that works reliably without
-    // running into formatting issues
+    // Create a ship-specific wrapper script and a temp input file to leverage
+    // click's -i mode, which safely escapes quotes/newlines for newt.
+    const tmpId = Date.now();
     const tempWrapperPath = path.join(
       path.dirname(__dirname),
-      `temp-click-${ship.ship}-${Date.now()}.sh`
+      `temp-click-${ship.ship}-${tmpId}.sh`
+    );
+    const tempInputPath = path.join(
+      path.dirname(__dirname),
+      `temp-click-input-${ship.ship}-${tmpId}.hoon`
     );
 
     const clickFlags = options.useKhan ? '-k' : '';
-    const urbitBinary = path.join(__dirname, 'urbit_extracted', 'urbit');
-    const wrapperContent = `#!/bin/bash\n./click -b ${urbitBinary} ${clickFlags} ./dist/${ship.ship}/${ship.ship} $'${hoonCommand}'\n`;
+    const urbitBinary = path.join(WORKSPACE_DIR, 'urbit_extracted', 'urbit');
+
+    // Write Hoon source exactly as-is; click -i will escape it correctly.
+    fs.writeFileSync(tempInputPath, hoonCommand, 'utf8');
+
+    // Get the ship's extract path which already handles container vs local paths
+    const shipObj = ships[ship.ship];
+    const shipPath = IN_CONTAINER
+      ? shipObj.extractPath
+      : path.join(shipObj.extractPath, ship.ship);
+
+    const wrapperContent = `#!/bin/bash\n./click -b ${urbitBinary} ${clickFlags} -i ${tempInputPath} ${shipPath}\n`;
 
     console.log(
       `Creating temporary wrapper for ${ship.ship}: ${tempWrapperPath}`
@@ -1083,11 +1311,24 @@ const executeClickCommand = async (
         stdout: string,
         stderr: string
       ) => {
-        // Clean up temp wrapper
+        // Clean up temp wrapper and input
         try {
-          fs.unlinkSync(tempWrapperPath);
+          if (fs.existsSync(tempWrapperPath)) {
+            fs.unlinkSync(tempWrapperPath);
+          } else {
+            console.log(`Wrapper already deleted: ${tempWrapperPath}`);
+          }
         } catch (e) {
           console.error(`Error deleting temp wrapper for ${ship.ship}:`, e);
+        }
+        try {
+          if (fs.existsSync(tempInputPath)) {
+            fs.unlinkSync(tempInputPath);
+          } else {
+            console.log(`Input file already deleted: ${tempInputPath}`);
+          }
+        } catch (e) {
+          console.error(`Error deleting temp input for ${ship.ship}:`, e);
         }
 
         if (error) {
@@ -1102,7 +1343,12 @@ const executeClickCommand = async (
           console.error(`Click stderr for ${ship.ship}:`, stderr);
         }
         console.log(`Successfully executed click command for ${ship.ship}`);
-        console.log(`Click stdout:`, stdout);
+        const decoded = decodeClickResult(stdout);
+        if (decoded !== null) {
+          console.log(`Click result:`, decoded);
+        } else {
+          console.log(`Click stdout:`, stdout);
+        }
         resolve(stdout);
       }
     );
@@ -1128,7 +1374,7 @@ const setReelServiceShip = async () => {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Execute the click command using the generalized function
-      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(\\\\\\\'success\\\\\\\'))`;
+      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(%ok))`;
       await executeClickCommand(ship, hoonCommand, { useKhan: true });
     } catch (e) {
       console.error(`Error setting service ship on ${ship.ship}:`, e);
@@ -1136,6 +1382,69 @@ const setReelServiceShip = async () => {
   }
 
   // Give the command time to complete
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+};
+
+const setStorageConfiguration = async () => {
+  // Check if storage configuration environment variables are set
+  const s3Endpoint = process.env.E2E_S3_ENDPOINT;
+  const s3AccessKeyId = process.env.E2E_S3_ACCESS_KEY_ID;
+  const s3SecretAccessKey = process.env.E2E_S3_SECRET_ACCESS_KEY;
+  const s3BucketName = process.env.E2E_S3_BUCKET_NAME;
+  const s3Region = process.env.E2E_S3_REGION || 'us-east-1';
+
+  if (!s3Endpoint || !s3AccessKeyId || !s3SecretAccessKey || !s3BucketName) {
+    console.log(
+      'Storage configuration environment variables not set, skipping S3 setup'
+    );
+    console.log('To enable image uploads in e2e tests, set:');
+    console.log(
+      '  E2E_S3_ENDPOINT, E2E_S3_ACCESS_KEY_ID, E2E_S3_SECRET_ACCESS_KEY, E2E_S3_BUCKET_NAME'
+    );
+    return;
+  }
+
+  console.log('Configuring S3 storage on all ships');
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
+    }
+
+    try {
+      console.log(`Configuring S3 storage on ${ship.ship}`);
+
+      // Use khan thread to issue pure Hoon pokes (dojo syntax like :storage is not valid here)
+      const toHoonTape = (s: string) =>
+        s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+      // Set endpoint (single-line to avoid parser indentation issues)
+      let hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-endpoint (crip "${toHoonTape(s3Endpoint)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set access key ID
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-access-key-id (crip "${toHoonTape(s3AccessKeyId)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set secret access key
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-secret-access-key (crip "${toHoonTape(s3SecretAccessKey)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set region
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-region (crip "${toHoonTape(s3Region)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set current bucket
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-current-bucket (crip "${toHoonTape(s3BucketName)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      console.log(`Successfully configured S3 storage on ${ship.ship}`);
+    } catch (e) {
+      console.error(`Error setting storage configuration on ${ship.ship}:`, e);
+    }
+  }
+
+  // Give the commands time to complete
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
@@ -1191,6 +1500,11 @@ const main = async () => {
     console.log('🚨 Force extraction enabled - all ships will be re-extracted');
   }
 
+  // Log sharding configuration
+  if (SHARD && TOTAL_SHARDS) {
+    console.log(`🔀 Sharding configuration: Shard ${SHARD}/${TOTAL_SHARDS}`);
+  }
+
   try {
     await getPiers();
     await getUrbitBinary();
@@ -1207,10 +1521,16 @@ const main = async () => {
 
     // Nuke state and set reel service ship before mount/commit operations,
     // this makes it more likely that the ships will be ready for click commands
-    if (!process.env.FORCE_EXTRACTION) {
-      await nukeStateOnShips();
+    await nukeStateOnShips();
+    // Only set reel service ship if ~mug is running (optional ships included)
+    if (INCLUDE_OPTIONAL_SHIPS) {
+      await setReelServiceShip();
+    } else {
+      console.log(
+        'Skipping reel service ship setup (optional ships not included)'
+      );
     }
-    await setReelServiceShip();
+    await setStorageConfiguration();
 
     // Mount desks first so Urbit writes its current state to filesystem
     await mountDesks();

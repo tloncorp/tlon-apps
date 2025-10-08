@@ -1,5 +1,5 @@
 import { useMutableCallback } from '@tloncorp/shared';
-import { isEqual } from 'lodash';
+import { isEqual, memoize } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
@@ -136,7 +136,12 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const [insideScrolledToBottomBoundary] = useScrollBoundary(
       scrollerRef.current,
-      { boundaryRatio: onScrolledToBottomThreshold, side: 'bottom' }
+      {
+        isNearBoundary: withinViewportRatioOfBoundary(
+          onScrolledToBottomThreshold
+        ),
+        side: 'bottom',
+      }
     );
     React.useEffect(() => {
       if (insideScrolledToBottomBoundary) {
@@ -152,15 +157,23 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const viewportHeight =
       useTrackContentRect(scrollerRef.current)?.height ?? 0;
-    const scrollerContentsKey = React.useMemo(
-      () =>
-        // HACK: Firefox triggers a mysterious scroll on the next keypress after
-        // the viewport height changes, which causes the scroll to unstick from
-        // bottom. If we just don't try to stick to bottom while viewport is
-        // resizing, we keep stuck to the bottom _after_ the send (although the
-        // chat gets hidden during drafting), which is better than unsticking.
-        IS_FIREFOX ? orderedData : [orderedData, viewportHeight],
-      [orderedData, viewportHeight]
+
+    const scrollerContentsKey = useIdentityHash(
+      scrollHeight,
+      orderedData,
+      // HACK: When the viewport shrinks in height, the browser prioritizes
+      // anchoring the content at the top of the viewport - so the content at
+      // the bottom of the viewport gets hidden "under the fold." To avoid
+      // this, we want to trigger "stick-to-scroll-start" when the viewport
+      // height changes. This works for Chrome and Safari.
+      //
+      // Firefox triggers a mysterious scroll on the next keypress after
+      // the viewport height changes, which causes the scroll to unstick from
+      // bottom - not great!
+      // On Firefox, if we just avoid sticking to bottom while viewport is
+      // resizing, we keep stuck to the bottom _after_ the send (although the
+      // chat gets hidden during drafting), which is better than unsticking.
+      IS_FIREFOX ? undefined : viewportHeight
     );
     const hasInFlightPost = React.useMemo(
       () =>
@@ -229,19 +242,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               minHeight: '100%',
               flexDirection: 'column',
               alignItems: 'stretch',
-              justifyContent: 'flex-end',
+              justifyContent: inverted ? 'flex-end' : 'flex-start',
             }}
           >
-            <View
-              style={[
-                {
-                  flex: 1,
-                  flexDirection: 'column',
-                  justifyContent: inverted ? 'flex-end' : 'flex-start',
-                },
-                contentContainerStyle,
-              ]}
-            >
+            <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}
@@ -286,21 +290,21 @@ function PostListItem({
 
 function isElementScrolledNearTop(
   element: HTMLElement,
-  boundaryRatio: number
+  isNearBoundary: (distance: number, viewportHeight: number) => boolean
 ): boolean {
   const distanceFromTop = element.scrollTop;
   const viewportHeight = element.clientHeight;
-  const isNearTop = distanceFromTop / viewportHeight <= boundaryRatio;
+  const isNearTop = isNearBoundary(distanceFromTop, viewportHeight);
   return isNearTop;
 }
 function isElementScrolledNearBottom(
   element: HTMLElement,
-  boundaryRatio: number
+  isNearBoundary: (distance: number, viewportHeight: number) => boolean
 ): boolean {
   const distanceFromBottom =
     element.scrollHeight - (element.scrollTop + element.clientHeight);
   const viewportHeight = element.clientHeight;
-  const isNearBottom = distanceFromBottom / viewportHeight <= boundaryRatio;
+  const isNearBottom = isNearBoundary(distanceFromBottom, viewportHeight);
   return isNearBottom;
 }
 
@@ -338,14 +342,10 @@ function isElementScrolledNearBottom(
 function useScrollBoundary(
   element: HTMLElement | null,
   {
-    boundaryRatio,
+    isNearBoundary,
     side,
   }: {
-    /**
-     * Max ratio of (distance to boundary) / (viewport height) that will be considered "near boundary".
-     * e.g. `boundaryRatio: 0.5` means that `isNearTop` will be true once we're a half screen from the top of the scroll.
-     */
-    boundaryRatio: number;
+    isNearBoundary: (distance: number, viewportHeight: number) => boolean;
     side: 'top' | 'bottom';
   }
 ) {
@@ -355,8 +355,8 @@ function useScrollBoundary(
     }
     const check =
       side === 'top' ? isElementScrolledNearTop : isElementScrolledNearBottom;
-    return check(element, boundaryRatio);
-  }, [element, side, boundaryRatio]);
+    return check(element, isNearBoundary);
+  }, [element, side, isNearBoundary]);
 
   const [insideBoundary, setInsideBoundary] = React.useState(
     () => checkInsideBoundary() ?? false
@@ -373,7 +373,7 @@ function useScrollBoundary(
     return () => {
       element.removeEventListener('scroll', handleScroll);
     };
-  }, [element, boundaryRatio, checkInsideBoundary]);
+  }, [element, checkInsideBoundary]);
   return [insideBoundary, checkInsideBoundary] as const;
 }
 
@@ -557,7 +557,8 @@ function useStickToScrollStart({
   const shouldStickToStartRef = React.useRef(false);
 
   const [isAtStart] = useScrollBoundary(scrollerRef.current, {
-    boundaryRatio: 0,
+    // Avoid subpixel issues by allowing distances <1px
+    isNearBoundary: React.useCallback((distance: number) => distance < 1, []),
     side: inverted ? 'bottom' : 'top',
   });
 
@@ -652,7 +653,7 @@ function useBoundaryCallbacks({
     onStartReached ?? null
   );
   const [reachedStart, getReachedStart] = useScrollBoundary(element, {
-    boundaryRatio: onStartReachedThreshold,
+    isNearBoundary: withinViewportRatioOfBoundary(onStartReachedThreshold),
     side: inverted ? 'bottom' : 'top',
   });
   React.useEffect(() => {
@@ -691,7 +692,7 @@ function useBoundaryCallbacks({
     onEndReached ?? null
   );
   const [reachedEnd, getReachedEnd] = useScrollBoundary(element, {
-    boundaryRatio: onEndReachedThreshold,
+    isNearBoundary: withinViewportRatioOfBoundary(onEndReachedThreshold),
     side: inverted ? 'top' : 'bottom',
   });
   React.useEffect(() => {
@@ -783,3 +784,37 @@ function useTrackContentRect(element: HTMLElement | null) {
   }, [resizeObserver, element]);
   return contentRect;
 }
+
+// returns a value with a new identity whenever any of the deps' identities change
+function useIdentityHash(...deps: unknown[]): unknown {
+  const [hash, newHash] = React.useReducer((x) => x + 1, 0);
+  const prevDepsRef = React.useRef(deps);
+  React.useEffect(() => {
+    if (prevDepsRef.current.length !== deps.length) {
+      prevDepsRef.current = deps;
+      newHash();
+      return;
+    }
+    for (let i = 0; i < deps.length; i++) {
+      if (prevDepsRef.current[i] !== deps[i]) {
+        prevDepsRef.current = deps;
+        newHash();
+        return;
+      }
+    }
+  }, [deps]);
+  return hash;
+}
+
+/**
+ * Returns a function for `useScrollBoundary`'s `isNearBoundary` that checks
+ * if the distance to the boundary is within `viewportRatio * viewportHeight`.
+ * Useful for matching the behavior of `VirtualizedList`'s
+ * `onStartReachedThreshold` and `onEndReachedThreshold`, which are expressed as
+ * ratios of the viewport height.
+ */
+const withinViewportRatioOfBoundary = memoize(
+  (viewportRatio: number) =>
+    (distance: number, viewportHeight: number): boolean =>
+      distance / viewportHeight <= viewportRatio
+);

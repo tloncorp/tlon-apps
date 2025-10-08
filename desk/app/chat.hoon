@@ -115,17 +115,17 @@
           [/epic %epic ~]
           [/unreads %chat-unread-update ~]
         ::
-          [/v1 %chat-club-action-1 %writ-response-1 ~]
+          [/v1 %chat-club-action-1 %writ-response-1 %ships ~]
           [/v1/club/$ %writ-response-1 ~]
           [/v1/clubs %chat-club-action-1 ~]
           [/v1/dm/$ %writ-response-1 ~]
         ::
-          [/v2 %chat-club-action-1 %writ-response-2 ~]
+          [/v2 %chat-club-action-1 %writ-response-2 %ships ~]
           [/v2/club/$ %writ-response-2 ~]
           [/v2/clubs %chat-club-action-1 ~]
           [/v2/dm/$ %writ-response-2 ~]
         ::
-          [/v3 %chat-club-action-1 %writ-response-3 ~]
+          [/v3 %chat-club-action-1 %writ-response-3 %ships ~]
           [/v3/club/$ %writ-response-3 ~]
           [/v3/clubs %chat-club-action-1 ~]
           [/v3/dm/$ %writ-response-3 ~]
@@ -180,6 +180,7 @@
         [/x/v3/dm/$/writs %chat-paged-writs-3]
         [/x/v3/dm/$/writs/writ %chat-writ-3]
         [/x/v3/heads %chat-heads-3]
+        [/x/v3/init-posts %chat-changed-writs]
     ==
 ::
 %-  %-  agent:neg
@@ -702,7 +703,9 @@
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
-    di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+    ::  use soft abed since user could be in a state where they need to accept/decline
+    ::  and the DM isn't actually in state
+    di-abet:(di-rsvp:(di-abed-soft:di-core ship.rsvp) ok.rsvp)
   ::
       %chat-blocked
     ?<  from-self
@@ -1127,6 +1130,50 @@
       |=  [[* w=writs:c] sum=@ud]
       (add sum (wyt:on:writs:c w))
     ==
+  ::
+    ::  /init-posts:
+    ::    .channels: amount of most-recently-active chats to include
+    ::    .context:  amount of latest msgs, or msgs %around unread marker
+    ::
+      [%x %v3 %init-posts channels=@ context=@ ~]
+    =+  channels=(slav %ud i.t.t.t.path)
+    =+  context=(slav %ud i.t.t.t.t.path)
+    =*  a  activity
+    =/  activity
+      %-  ~(gas by *activity:a)
+      .^  (list [source:a activity-summary:a])  %gx
+        (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
+      ==
+    :^  ~  ~  %chat-changed-writs
+    !>  %-  ~(gas by *(map whom:c writs:c))
+    =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
+    %+  turn
+      %+  scag  channels
+      %+  sort
+        (welp (turn ~(tap by dms) (lead %ship)) (turn ~(tap by clubs) (lead %club)))
+      |=  [a=type b=type]
+      %+  gth
+        ?-(-.a %ship recency.remark.dm.a, %club recency.remark.club.a)
+      ?-(-.b %ship recency.remark.dm.b, %club recency.remark.club.b)
+    |=  arg=type
+    ^-  [whom:c writs:c]
+    =/  [=whom:c =pact:c]
+      ?-  -.arg
+        %ship  [[%ship who.arg] pact.dm.arg]
+        %club  [[%club id.arg] pact.club.arg]
+      ==
+    :-  whom
+    %+  gas:on:writs:c  ~
+    =/  around=(unit time)
+      ?~  act=(~(get by activity) %dm whom)  ~
+      ?~(unread.u.act ~ `time.u.unread.u.act)
+    ?~  around
+      ::NOTE  equivalent of /newest scry
+      (top:mope:pac wit.pact context)
+    ::NOTE  analogous to /around scry
+    =/  older  (bat:mope:pac wit.pact `+(u.around) context)
+    =/  newer  (tab:on:writs:c wit.pact `u.around context)
+    (weld older newer)
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -1761,7 +1808,7 @@
     =/  =id:c             [ship now.bowl]
     =/  =delta:writs:c    (make-notice ship text)
     =/  w-d=diff:writs:c  [id delta]
-    =.  pact.club  (reduce:cu-pact now.bowl w-d)
+    =.  pact.club  (reduce:cu-pact now.bowl from-self w-d)
     (cu-give-writs-diff w-d)
   ::
   ++  cu-give-action
@@ -1868,7 +1915,7 @@
             ==
           (emit (tell:log %crit message metadata))
         cor
-      =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
+      =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
@@ -2148,12 +2195,8 @@
   (~(has in nets) net.dm)
 ::
 ++  give-invites
-  |=  =ship
-  =/  invites
-    ?:  (~(has by dms) ship)
-      ~(key by pending-dms)
-    (~(put in ~(key by pending-dms)) ship)
-  (give %fact ~[/ /dm/invited] ships+!>(invites))
+  =/  invites  ~(key by pending-dms)
+  (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -2319,9 +2362,10 @@
           ==
         (emit (tell:log %crit message metadata))
       cor
-    =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
-      (give-invites ship)
+      =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
+      give-invites
     ?-  -.q.diff
         ?(%add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -2417,6 +2461,10 @@
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
     ?.  ok
+      ::  When declining/leaving a DM, send updated invite list to subscribers
+      =.  cor
+        =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
+        give-invites
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
       ?:  =(src.bowl ship)
         di-core
@@ -2424,6 +2472,10 @@
     =.  cor
       (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed ~[ship]])])
     =.  net.dm  %done
+    ::  When accepting a DM, also send updated invite list to subscribers
+    =.  cor
+      =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
+      give-invites
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch

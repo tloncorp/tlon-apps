@@ -191,6 +191,7 @@
       ::
         ::TODO  other v5 scries
         [/x/v5/changes %channel-changed-posts]
+        [/x/v5/init-posts %channel-changed-posts]
     ==
 ::
 =/  verbose  |
@@ -209,7 +210,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
+    $:  %15
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -352,7 +353,9 @@
         (tell:plog %dbug ~[>[wire `@dr`duration %fires-at `@da`(add now.bowl duration)]<] ~)
     ==
   =.  cor  (emil caz-12)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -360,7 +363,9 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-15
+        state-14
+        state-13
         state-12
         state-11
         state-10
@@ -375,7 +380,9 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-15  current-state
+  +$  state-14  _%*(. *state-15 - %14)
+  +$  state-13  _%*(. *state-14 - %13)
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -443,6 +450,18 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-14-to-15
+    |=  s=state-14
+    ^-  state-15
+    %=  s  -  %15
+      v-channels  (~(run by v-channels.s) channel:drop-bad-links:utils)
+      voc         (~(run by voc.s) (curr bind said:drop-bad-links:utils))
+    ==
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    s(- %14)
   ::
   ++  state-12-to-13
     |=  s=state-12
@@ -1394,7 +1413,43 @@
       |=  [[* p=v-posts:c] sum=@ud]
       (add sum (wyt:on-v-posts:c p))
     ==
+  ::
+    ::  /init-posts:
+    ::    .channels: amount of most-recently-active channels to include
+    ::    .context:  amount of latest msgs, or msgs %around unread marker
     ::
+      [%x %v5 %init-posts channels=@ context=@ ~]
+    =+  channels=(slav %ud channels.pole)
+    =+  context=(slav %ud context.pole)
+    =*  a  activity
+    =/  activity
+      %-  ~(gas by *activity:a)
+      .^  (list [source:a activity-summary:a])  %gx
+        (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
+      ==
+    :^  ~  ~  %channel-changed-posts
+    !>  %-  ~(gas by *(map nest:c posts:c))
+    %+  turn
+      %+  scag  channels
+      %+  sort  ~(tap by v-channels)
+      |=  [[* a=v-channel:c] [* b=v-channel:c]]
+      (gth recency.remark.a recency.remark.b)
+    |=  [=nest:c chan=v-channel:c]
+    ^-  [_nest posts:c]
+    :-  nest
+    %-  uv-posts-3:utils
+    %+  gas:on-v-posts:c  ~
+    =/  around=(unit id-post:c)
+      ?~  act=(~(get by activity) [%channel nest group.perm.perm.chan])  ~
+      ?~(unread.u.act ~ `time.u.unread.u.act)
+    ?~  around
+      ::NOTE  equivalent of /newest scry
+      (top:mo-v-posts:c posts.chan context)
+    ::NOTE  analogous to /around scry
+    =/  older  (bat:mo-v-posts:c posts.chan `+(u.around) context)
+    =/  newer  (tab:on-v-posts:c posts.chan `u.around context)
+    (weld older newer)
+  ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ rest=*]
@@ -1543,6 +1598,7 @@
     %+  weld  base-path
     /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
+++  size-limit  256.000  :: 256KB
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -1824,6 +1880,7 @@
         ?+  -.rest  [pending ca-core]
             %add
           =/  essay  essay.rest
+          ?>  (lte (met 3 (jam essay)) size-limit)
           =/  client-id
             [(get-author-ship:utils author.essay) sent.essay]
           =/  new-posts  (~(put by posts.pending) client-id essay)
@@ -1834,6 +1891,7 @@
           ?+  -.c-reply.rest  [pending ca-core]
               %add
             =/  memo  memo.c-reply.rest
+            ?>  (lte (met 3 (jam memo)) size-limit)
             =/  post  (get:on-v-posts:c posts.channel id.rest)
             ?~  post  [pending ca-core]
             ?:  ?=(%| -.u.post)  [pending ca-core]

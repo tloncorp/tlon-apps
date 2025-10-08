@@ -408,6 +408,25 @@ export interface GetChannelPostsResponse {
   totalPosts?: number;
 }
 
+export const getInitialPosts = async (config: {
+  channelCount: number;
+  postCount: number;
+}) => {
+  const response = await scry<ub.PostsInit>({
+    app: 'groups-ui',
+    path: `/v5/init-posts/${config.channelCount}/${config.postCount}`,
+  });
+
+  const channelPosts = Object.entries(response.channels).flatMap(
+    ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
+  );
+  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
+    posts ? toPostsData(chatId, posts).posts : []
+  );
+
+  return [...channelPosts, ...chatPosts];
+};
+
 export const getChannelPosts = async ({
   channelId,
   cursor,

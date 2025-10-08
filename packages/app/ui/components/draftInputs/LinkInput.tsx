@@ -10,13 +10,20 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { Text } from '@tloncorp/ui';
+import {
+  DEFAULT_BOTTOM_PADDING,
+  HEADER_HEIGHT,
+  KEYBOARD_EXTRA_PADDING,
+  Text,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
 import { KeyboardAvoidingView, LoadingSpinner } from '../..';
+import { useKeyboardAwareScroll } from '../../hooks/useKeyboardAwareScroll';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   ControlledTextField,
@@ -40,6 +47,9 @@ interface LinkInputProps {
 const TITLE_MAX_LENGTH = 240;
 const DESCRIPTION_MAX_LENGTH = 580;
 
+const LABEL_HEIGHT = 40;
+const SCROLL_OFFSET_PADDING = 20;
+
 const PostRenderer = createContentRenderer({
   blockSettings: {
     link: {
@@ -53,6 +63,16 @@ const PostRenderer = createContentRenderer({
 export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  const {
+    scrollViewRef,
+    keyboardHeight,
+    handleInputFocus,
+    registerInputLayout,
+    getInputPosition,
+  } = useKeyboardAwareScroll({
+    scrollOffset: LABEL_HEIGHT + SCROLL_OFFSET_PADDING,
+  });
   const initialValues = useMemo(() => {
     if (!editingPost) {
       return null;
@@ -166,6 +186,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { url: retrievedUrl, type, ...meta } = data;
     return {
       ...meta,
@@ -175,7 +196,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   }, [data, hasIssue, isEmbed, url]);
 
   const handlePressDone = useCallback(() => {
-    if (isDirty && isValid) {
+    if ((editingPost || isDirty) && isValid) {
       handleSubmit((formData) => {
         const defaultMeta = {
           title: formData.title,
@@ -225,6 +246,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
           });
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { url, type, ...meta } = block;
         return onSave({
           content: {
@@ -240,7 +262,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         });
       })();
     }
-  }, [isDirty, isValid, handleSubmit, block, onSave]);
+  }, [editingPost, isDirty, isValid, handleSubmit, block, onSave]);
 
   useRegisterChannelHeaderItem(
     useMemo(
@@ -267,17 +289,31 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
   return (
     <View flex={1} backgroundColor={theme.background.val}>
-      <KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        // Account for status bar + header
+        keyboardVerticalOffset={
+          Platform.OS === 'ios' ? insets.top + HEADER_HEIGHT : 0
+        }
+      >
         <ScrollView
+          ref={scrollViewRef}
           keyboardDismissMode="on-drag"
           flex={1}
           contentContainerStyle={{
+            flexGrow: 1,
             width: '100%',
             maxWidth: 600,
             marginHorizontal: 'auto',
+            paddingBottom:
+              keyboardHeight > 0
+                ? keyboardHeight + KEYBOARD_EXTRA_PADDING
+                : insets.bottom + DEFAULT_BOTTOM_PADDING,
           }}
+          bounces={true}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
         >
-          <FormFrame paddingBottom={insets.bottom + 20}>
+          <FormFrame paddingBottom="$4xl">
             {block && <PostRenderer content={[block]} />}
             {hasIssue && !isEmbed && (
               <View
@@ -316,39 +352,55 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               )}
             </View>
 
-            <ControlledTextField
-              name="title"
-              label="Title"
-              control={control}
-              inputProps={{
-                placeholder: 'Link title',
-                testID: 'LinkTitleInput',
-              }}
-              rules={{
-                maxLength: {
-                  value: TITLE_MAX_LENGTH,
-                  message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
-                },
-              }}
-            />
+            <View onLayout={registerInputLayout('title')}>
+              <ControlledTextField
+                name="title"
+                label="Title"
+                control={control}
+                inputProps={{
+                  placeholder: 'Link title',
+                  testID: 'LinkTitleInput',
+                  onFocus: () => {
+                    const position = getInputPosition('title');
+                    if (position !== undefined) {
+                      handleInputFocus(position);
+                    }
+                  },
+                }}
+                rules={{
+                  maxLength: {
+                    value: TITLE_MAX_LENGTH,
+                    message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
+                  },
+                }}
+              />
+            </View>
 
-            <ControlledTextareaField
-              name="description"
-              label="Description"
-              control={control}
-              inputProps={{
-                placeholder: 'Describe this link...',
-                numberOfLines: 3,
-                multiline: true,
-                testID: 'LinkDescriptionInput',
-              }}
-              rules={{
-                maxLength: {
-                  value: DESCRIPTION_MAX_LENGTH,
-                  message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
-                },
-              }}
-            />
+            <View onLayout={registerInputLayout('description')}>
+              <ControlledTextareaField
+                name="description"
+                label="Description"
+                control={control}
+                inputProps={{
+                  placeholder: 'Describe this link...',
+                  numberOfLines: 3,
+                  multiline: true,
+                  testID: 'LinkDescriptionInput',
+                  onFocus: () => {
+                    const position = getInputPosition('description');
+                    if (position !== undefined) {
+                      handleInputFocus(position);
+                    }
+                  },
+                }}
+                rules={{
+                  maxLength: {
+                    value: DESCRIPTION_MAX_LENGTH,
+                    message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
+                  },
+                }}
+              />
+            </View>
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>

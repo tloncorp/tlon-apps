@@ -95,7 +95,7 @@ export const useLureState = create<LureState>((set, get) => ({
     let url = localUrl;
     if (!url || checkOldLureToken(url)) {
       // start the process of creating the lure
-      createGroupInviteLink(flag);
+      await createGroupInviteLink(flag);
       // listen for the result
       url = await asyncWithDefault<string | undefined>(async () => {
         lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
@@ -128,6 +128,7 @@ export const useLureState = create<LureState>((set, get) => ({
       const group = await db.getGroup({ id: flag });
       const user = await db.getContact({ id: currentUserId });
       const metadata: DeepLinkMetadata = {
+        inviteType: 'group',
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? undefined,
         inviterAvatarImage: user?.avatarImage ?? undefined,
