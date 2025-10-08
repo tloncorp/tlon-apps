@@ -2212,14 +2212,9 @@ export const updateChannel = createWriteQuery(
         );
       }
 
-      // Filter out undefined values to avoid clearing fields unintentionally
-      const filteredUpdate = Object.fromEntries(
-        Object.entries(update).filter(([_, value]) => value !== undefined)
-      );
-
       return txCtx.db
         .update($channels)
-        .set(filteredUpdate)
+        .set(update)
         .where(eq($channels.id, update.id));
     });
   },
