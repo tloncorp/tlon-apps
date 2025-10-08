@@ -166,11 +166,42 @@ jobs:
             ./apps/tlon-web/test-results/
             ./apps/tlon-web/playwright-report/
           retention-days: 7
+  # Backend unit tests
+  backend-test:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - product
+    name: Backend Tests
+    steps:
+      - name: Clean workspace (Fedora container fix)
+        if: runner.os == 'Linux'
+        run: |
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Detected Fedora - cleaning up root-owned files from previous runs"
+            WORKSPACE_PATH="${{ github.workspace }}"
+            if [ -d "$WORKSPACE_PATH" ]; then
+              echo "Wiping entire workspace: $WORKSPACE_PATH"
+              # Use sudo podman to run as root and delete root-owned files
+              sudo podman run --rm \
+                -v "$WORKSPACE_PATH:/workspace:Z" \
+                --security-opt label=disable \
+                docker.io/alpine:latest \
+                sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null || true"
+              echo "Workspace wiped - checkout will recreate it"
+            fi
+          fi
+        continue-on-error: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: false # Our cleanup step handles root-owned files
       - name: Run Backend Tests for Groups
         run: |
           sudo dnf install -y socat
           ./backend/run-tests.sh
-
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     runs-on:
