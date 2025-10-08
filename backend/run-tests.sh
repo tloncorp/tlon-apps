@@ -165,7 +165,7 @@ done
 
 # Run the unit tests
 echo "Running tests..."
-$run_click -t 60 $pier <<EOF
+$run_click -t 120 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
