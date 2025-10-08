@@ -775,6 +775,19 @@ const getStartHashes = async () => {
   }
 };
 
+const checkGroupsAppHealth = async (ship: Ship): Promise<boolean> => {
+  try {
+    const response = await makeRequestWithCookies(
+      ship.ship as ShipName,
+      `http://localhost:${ship.httpPort}/~/scry/groups/groups/light.json`
+    );
+    JSON.parse(response); // Verify it's valid JSON
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
   // If no ships needed updates, they're all ready
   if (shipsNeedingUpdates.length === 0) {
@@ -809,10 +822,14 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
         json.groups.hash !== startHashes[ship.ship].groups &&
         ship.skipCommit === false
       ) {
-        console.log(`~${ship.ship} is ready`, {
-          groups: json.groups.hash,
-        });
-        return true;
+        // Desk has been updated, now verify the app is responding
+        const appHealthy = await checkGroupsAppHealth(ship);
+        if (appHealthy) {
+          console.log(`~${ship.ship} is ready`, {
+            groups: json.groups.hash,
+          });
+          return true;
+        }
       }
 
       console.log(`~${ship.ship} is not ready`, {
@@ -828,7 +845,7 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
 
 const checkShipReadinessForTests = async (shipsNeedingUpdates: string[]) =>
   new Promise<void>((resolve, reject) => {
-    const maxAttempts = 10;
+    const maxAttempts = 30;
     let attempts = 0;
 
     const tryConnect = async () => {
@@ -996,8 +1013,14 @@ const cleanupSpawnedProcesses = () => {
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore', timeout: 5000 });
 
     // Also use our existing commands as additional cleanup
-    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore', timeout: 5000 });
-    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore', timeout: 5000 });
+    childProcess.execSync(killExistingUrbitCommand(), {
+      stdio: 'ignore',
+      timeout: 5000,
+    });
+    childProcess.execSync(killExistingViteCommand(), {
+      stdio: 'ignore',
+      timeout: 5000,
+    });
   } catch {
     // Ignore command errors
   }

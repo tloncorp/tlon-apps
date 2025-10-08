@@ -19,6 +19,5 @@ Object.entries(shipManifest).forEach(([_key, ship]: [string, any]) => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.waitForURL(`${ship.webUrl}/apps/landscape/`);
     await page.context().storageState({ path: ship.authFile });
-    await page.getByRole('link', { name: 'Tlon' }).waitFor();
   });
 });
