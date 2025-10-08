@@ -1104,21 +1104,28 @@ export const subscribeGroups = async (
     }
   );
 
-  // v8 foreigns subscription - filters revoked invites (PR #5138)
-  subscribe(
-    { app: 'groups', path: '/v1/foreigns' },
-    (rawEvent: ub.ForeignsV8) => {
-      logger.log('foreignsV8UpdateEvent', rawEvent);
-      eventHandler(toForeignsV8GroupsUpdate(rawEvent));
-    }
-  );
-
-  // Keep legacy gangs subscription for backward compatibility
-  // TODO: Remove this after PR #5138 settles in production
-  subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
-    logger.log('gangsUpdateEvent', rawEvent);
-    eventHandler(toGangsGroupsUpdate(rawEvent));
-  });
+  // Try v8 foreigns subscription first (PR #5138)
+  // Falls back to legacy gangs subscription if v8 path doesn't exist
+  try {
+    await subscribe(
+      { app: 'groups', path: '/v1/foreigns' },
+      (rawEvent: ub.ForeignsV8) => {
+        logger.log('foreignsV8UpdateEvent', rawEvent);
+        eventHandler(toForeignsV8GroupsUpdate(rawEvent));
+      }
+    );
+    logger.log('Successfully subscribed to /v1/foreigns (v8)');
+  } catch (error) {
+    logger.log('v8 foreigns subscription failed, falling back to gangs', error);
+    // Fall back to legacy subscription
+    subscribe(
+      { app: 'groups', path: '/gangs/updates' },
+      (rawEvent: ub.Gangs) => {
+        logger.log('gangsUpdateEvent (fallback)', rawEvent);
+        eventHandler(toGangsGroupsUpdate(rawEvent));
+      }
+    );
+  }
 };
 
 export const toGroupUpdate = (
@@ -1858,7 +1865,9 @@ const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
 };
 
 // v8 foreigns update handler - filters revoked invites (PR #5138)
-const toForeignsV8GroupsUpdate = (foreignsEvent: ub.ForeignsV8): GroupUpdate => {
+const toForeignsV8GroupsUpdate = (
+  foreignsEvent: ub.ForeignsV8
+): GroupUpdate => {
   const groups = toClientGroupsFromForeignsV8(foreignsEvent);
   return { type: 'setUnjoinedGroups', groups };
 };
