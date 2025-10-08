@@ -149,7 +149,7 @@ rm -f $pier/groups/tests/lib/diary-graph.hoon
 rsync -r desk/ $pier/groups
 
 echo "Updating groups desk"
-${run_click} -t 60 $pier <<EOF
+${run_click} $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%groups |]))  
@@ -165,7 +165,7 @@ done
 
 # Run the unit tests
 echo "Running tests..."
-$run_click -t 120 $pier <<EOF
+result=$( $run_click -t 120 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
@@ -177,12 +177,12 @@ $run_click -t 120 $pier <<EOF
   (pure:m !>(1))  
 (pure:m !>(0))  
 EOF
+)
 
-echo "Result: $result_code"
 result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 kill -TERM $vere_pid
 
-if [[ $result_code == 0 ]]
+if [[ $result_code == "0" ]]
 then
   echo "Tests passed ✅"
   exit 0
