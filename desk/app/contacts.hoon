@@ -745,15 +745,16 @@
       =+  since=(slav %da since.pat)
       :^  ~  ~
         %contact-changed-pages
-      !>  %-  ~(gas by *(map kip (unit page)))
+      !>  %-  ~(gas by *(map kip [(unit contact) (unit contact)]))
       %+  turn  (~(top ol last-updated) since)
       |=  [=kip @da]
-      ^-  [_kip (unit page)]
+      ^-  [_kip con=(unit contact) mod=(unit contact)]
       :-  kip
-      ?:  =(our.bowl kip)  `[con.rof *contact]
-      ?~  pag=(~(get by book) kip)
-        ~  ::  deletion case
-      `u.pag
+      ?:  =(our.bowl kip)  [`con.rof ~]
+      :_  (bind (~(get by book) kip) tail)
+      ?^  kip  ~
+      =+  per=(~(get by peers) kip)
+      ?:(?=([~ ^ *] per) `con.for.u.per ~)
       ::
         [%u %v1 %contact her=@p ~]
       ?~  who=(slaw %p her.pat)
