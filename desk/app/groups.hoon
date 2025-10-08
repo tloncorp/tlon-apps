@@ -16,6 +16,9 @@
 /+  neg=negotiate, discipline
 ::  performance, keep warm
 /+  groups-json
+/=  create-thread          /ted/group/create
+/%  m-group-create-thread  %group-create-thread
+/%  m-group-ui-1           %group-ui-1
 ::
 ::
 /%  m-noun               %noun
