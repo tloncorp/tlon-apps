@@ -10,7 +10,7 @@ appId: io.tlon.groups
     id: 'ContactsSettingsButton'
 - assertVisible: 'Settings'
 - tapOn: 'Notification settings'
-- assertVisible: 'Push Notifications'
+- assertVisible: 'Notifications'
 - tapOn: 'All group activity'
 - tapOn:
     id: 'HeaderBackButton'
