@@ -3,6 +3,7 @@ import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
 } from '../api/channelContentConfig';
+import { TimeoutError } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -513,8 +514,11 @@ export async function leaveGroupChannel(channelId: string) {
     await api.leaveChannel(channelId);
   } catch (e) {
     console.error('Failed to leave channel', e);
-    // rollback optimistic update
-    await db.updateChannel({ id: channelId, currentUserIsMember: true });
+    // Only rollback on actual errors (not TimeoutError)
+    // The backend will send a leaveChannelSuccess event if it did succeed
+    if (!(e instanceof TimeoutError)) {
+      await db.updateChannel({ id: channelId, currentUserIsMember: true });
+    }
   }
 }
 
