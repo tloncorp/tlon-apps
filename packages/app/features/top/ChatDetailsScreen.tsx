@@ -1,3 +1,4 @@
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
@@ -37,6 +38,7 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
+  useToast,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
@@ -542,15 +544,34 @@ function ChatMembersList({
 function GroupQuickActions({ group }: { group: db.Group }) {
   const { markGroupRead, togglePinned } = useChatOptions();
   const forwardGroupSheet = useForwardGroupSheet();
-
+  const canInvite = group?.privacy === 'public' || group?.currentUserIsHost;
+  const { onPressInvite } = useChatOptions();
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
+  const toast = useToast();
 
   const handleForwardGroup = useCallback(() => {
     forwardGroupSheet.open(group);
   }, [forwardGroupSheet, group]);
 
-  const actions = useMemo(
+  const handleCopyShortcode = useCallback(() => {
+    Clipboard.setString(group.id);
+    toast({ message: 'Copied!', duration: 1500 });
+  }, [group.id, toast]);
+
+  const heroActions = useMemo(
+    () =>
+      createActionGroup(
+        'neutral',
+        canInvite && {
+          title: 'Invite',
+          action: onPressInvite,
+        }
+      ),
+    [canInvite, onPressInvite]
+  );
+
+  const secondaryActions = useMemo(
     () =>
       createActionGroup(
         'neutral',
@@ -567,9 +588,20 @@ function GroupQuickActions({ group }: { group: db.Group }) {
         {
           title: 'Forward',
           action: handleForwardGroup,
+        },
+        {
+          title: 'Copy shortcode',
+          action: handleCopyShortcode,
         }
       ),
-    [canMarkRead, markGroupRead, isPinned, togglePinned, handleForwardGroup]
+    [
+      canMarkRead,
+      isPinned,
+      handleCopyShortcode,
+      handleForwardGroup,
+      markGroupRead,
+      togglePinned,
+    ]
   );
 
   return (
@@ -578,7 +610,16 @@ function GroupQuickActions({ group }: { group: db.Group }) {
       showsHorizontalScrollIndicator={false}
       width={'100%'}
     >
-      {actions.actions.map((action, i) => (
+      {heroActions.actions.map((action, i) => (
+        <ProfileButton
+          key={i}
+          title={action.title}
+          onPress={action.action}
+          disabled={action.disabled}
+          hero
+        />
+      ))}
+      {secondaryActions.actions.map((action, i) => (
         <ProfileButton
           key={i}
           title={action.title}
