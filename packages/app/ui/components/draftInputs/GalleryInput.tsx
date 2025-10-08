@@ -69,8 +69,9 @@ export function GalleryInput({
     try {
       const { blocks } = extractContentTypesFromPost(editingPost);
 
-      // Check if the first block is an image - if so, it's an image gallery post
-      if (blocks.length > 0) {
+      // Check if the first block is an image or link - if so, handle it specially
+      if (blocks.length > 0 && 'image' in blocks[0]) {
+        // This is an image gallery post
         setRoute('image');
 
         // Extract caption from the post if it exists (should be in the inline content)
@@ -95,47 +96,44 @@ export function GalleryInput({
         }
 
         // Set up image for editing by creating a mock attachment from the existing image
-        if ('image' in blocks[0]) {
-          const imageBlock = blocks[0].image;
-          // Create a mock attachment for the image
-          const mockAttachment = {
-            type: 'image' as const,
-            file: {
-              uri: imageBlock.src,
-              width: imageBlock.width,
-              height: imageBlock.height,
-            } as ImagePickerAsset,
-            uploadState: {
-              status: 'complete' as const,
-              remoteUri: imageBlock.src,
-            },
-          };
+        const imageBlock = blocks[0].image;
+        // Create a mock attachment for the image
+        const mockAttachment = {
+          type: 'image' as const,
+          file: {
+            uri: imageBlock.src,
+            width: imageBlock.width,
+            height: imageBlock.height,
+          } as ImagePickerAsset,
+          uploadState: {
+            status: 'complete' as const,
+            remoteUri: imageBlock.src,
+          },
+        };
 
-          // Set the attachment for editing
-          attachAssets([mockAttachment.file]);
-          setRoute('image');
-          setCanPost(true);
-        }
-
-        if ('link' in blocks[0]) {
-          const linkBlock = blocks[0].link as { url: string };
-          console.log('linkBlock', linkBlock);
-          const mockAttachment: domain.LinkAttachment = {
-            type: 'link' as const,
-            url: linkBlock.url,
-          };
-          addAttachment(mockAttachment);
-          setRoute('link');
-          setCanPost(true);
-        }
+        // Set the attachment for editing
+        attachAssets([mockAttachment.file]);
+        setCanPost(true);
+      } else if (blocks.length > 0 && 'link' in blocks[0]) {
+        // This is a link gallery post
+        const linkBlock = blocks[0].link as { url: string };
+        console.log('linkBlock', linkBlock);
+        const mockAttachment: domain.LinkAttachment = {
+          type: 'link' as const,
+          url: linkBlock.url,
+        };
+        addAttachment(mockAttachment);
+        setRoute('link');
+        setCanPost(true);
       } else {
-        // If not an image post, use the BigInput for editing text gallery posts
+        // This is a text gallery post (blocks with paragraphs, bullet points, etc.)
+        // Use the BigInput for editing text gallery posts
         setRoute('text');
       }
     } catch (error) {
       console.error('Error determining gallery post type:', error);
-      // Default to BigInput if we can't determine the type
-      setRoute('link');
+      // Default to text input if we can't determine the type
+      setRoute('text');
     }
   }, [editingPost, storeDraft, attachAssets, addAttachment]);
 
@@ -223,7 +221,8 @@ export function GalleryInput({
       }
 
       // Create a story with the caption and image blocks
-      const story = constructStory([caption || '']);
+      // Only include caption if it exists (avoid empty strings)
+      const story = caption ? constructStory([caption]) : constructStory([]);
 
       // Extract and add image blocks to the story
       const blocks = imageAttachments.map((attachment) => {

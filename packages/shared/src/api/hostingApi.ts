@@ -211,7 +211,7 @@ export const signUpHostingUser = async (params: {
   lure?: string;
   priorityToken?: string;
   recaptchaToken?: string;
-  platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+  platform?: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
 }) => {
   const response = await hostingFetchResponse('/v1/sign-up', {
     method: 'POST',
@@ -315,7 +315,7 @@ export const requestSignupOtp = async ({
   email?: string;
   phoneNumber?: string;
   recaptchaToken?: string;
-  platform?: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+  platform?: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
 }) => {
   try {
     await hostingFetch('/v1/request-otp', {
@@ -365,7 +365,7 @@ export const requestLoginOtp = async ({
   phoneNumber?: string;
   email?: string;
   recaptchaToken: string;
-  platform: 'ios' | 'android' | 'web' | 'macos' | 'windows';
+  platform: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
 }) => {
   if (!phoneNumber && !email) {
     throw new Error('Either phone number or email must be provided');
