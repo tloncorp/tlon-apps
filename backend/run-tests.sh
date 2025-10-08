@@ -172,6 +172,7 @@ EOF
 )
 
 result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+kill -TERM $vere_pid
 
 if [[ $result_code == 0 ]]
 then
@@ -179,6 +180,6 @@ then
   exit 0
 else
   echo "Tests failed ❌"
+  exit 1
 fi
 
-kill -TERM $vere_pid
