@@ -88,12 +88,16 @@
   |=  =c-group:g
   (ex-poke (weld go-area /command/[-.c-group]) [~zod my-agent] group-command+!>([%group my-flag c-group]))
 ::
-++  ex-foreign-response
+++  ex-gang-response
   |=  =foreign:g
   =/  =gang:v2:gv
     %-  gang:v2:foreign:v7:gc
     (v7:foreign:v8:gc foreign)
   (ex-fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my my-flag^gang ~)))
+::
+++  ex-foreign-response
+  |=  =foreign:g
+  (ex-fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my my-flag^foreign ~)))
 ::
 ++  do-a-groups
   |=  =a-groups:g
@@ -213,6 +217,7 @@
     %+  ex-cards  caz
     :~  (ex-poke (weld fi-area /join/public) [~zod my-agent] group-command+!>([%join my-flag ~]))
         (ex-foreign-response %*(. *foreign:g progress `%join))
+        (ex-gang-response %*(. *foreign:g progress `%join))
     ==
   ;<  caz=(list card)  bind:m
     %-  (do-as ~zod)
@@ -227,6 +232,7 @@
     %+  ex-cards  caz
     :~  (ex-task wire [~zod my-agent] %watch sub)
         (ex-foreign-response %*(. *foreign:g progress `%watch))
+        (ex-gang-response %*(. *foreign:g progress `%watch))
     ==
   ;<  =bowl  bind:m  get-bowl
   ;<  *  bind:m

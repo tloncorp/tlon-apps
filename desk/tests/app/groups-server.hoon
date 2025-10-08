@@ -147,6 +147,7 @@
           [~zod my-agent]
         group-command+!>(`c-groups:g`[%join my-flag ~])
       ::
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   (ex-fail (do-create-group %secret))
@@ -583,6 +584,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
@@ -670,6 +672,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
@@ -751,6 +754,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
@@ -817,6 +821,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
@@ -883,6 +888,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
@@ -959,6 +965,7 @@
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/v1/foreigns])
         (ex-fact-paths ~[/gangs/updates])
     ==
   ::TODO implement a +get-scry, +got-scry to return
