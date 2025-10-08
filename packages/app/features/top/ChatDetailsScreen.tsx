@@ -222,7 +222,9 @@ function ChatDetailsScreenContent({
       </ListItem>
 
       <YStack gap="$l">
-        {chatType === 'group' && <GroupQuickActions group={group} />}
+        {chatType === 'group' && (
+          <GroupQuickActions group={group} canInvite={canInviteToGroup} />
+        )}
         {chatType === 'group' && <GroupSettings group={group} />}
 
         {members?.length ? (
@@ -541,10 +543,15 @@ function ChatMembersList({
   );
 }
 
-function GroupQuickActions({ group }: { group: db.Group }) {
+function GroupQuickActions({
+  group,
+  canInvite,
+}: {
+  group: db.Group;
+  canInvite?: boolean;
+}) {
   const { markGroupRead, togglePinned } = useChatOptions();
   const forwardGroupSheet = useForwardGroupSheet();
-  const canInvite = group?.privacy === 'public' || group?.currentUserIsHost;
   const { onPressInvite } = useChatOptions();
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
