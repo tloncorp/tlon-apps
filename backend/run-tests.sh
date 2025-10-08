@@ -46,7 +46,7 @@ archive=`basename $download_url`
 if [ ! -f $archive ]
 then
   echo "Downloading ~zod archive $archive"
-  curl $download_url > $archive
+  curl -s $download_url > $archive
 fi
 
 # Unpack the pier
@@ -77,7 +77,7 @@ vere_archive=vere-latest.gz
 if [ ! -x $vere ]
 then
   echo "Downloading urbit runtime"
-  curl -L $urbit_bin_url -o $vere_archive
+  curl -s -L $urbit_bin_url -o $vere_archive
   tar -xf $vere_archive
 fi
 
@@ -95,19 +95,22 @@ echo "Booting ship"
 vere_pid=$!
 
 sleep 3
-while ! curl "http://localhost:$http_port"
+while ! curl -s "http://localhost:$http_port"
 do
   sleep 3
 done
 
 sleep 5
 
-run_click="$click -b $vere -i - -kp $pier"
+run_click="$click -b $vere -i - -kp"
 
 # Mount %base
-$run_click <<EOF
+echo "Mounting base..."
+$run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
+;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%base))  
+;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %base]))  
@@ -115,7 +118,8 @@ $run_click <<EOF
 EOF
 
 # Unmount and mount %groups
-$run_click <<EOF
+echo "Mounting groups..."
+$run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%groups))  
@@ -128,7 +132,10 @@ EOF
 
 # Patch the broken +await-thread in /lib/strandio.hoon
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-$run_click <<EOF
+rm -f $pier/base/lib/strandio.hoon.rej
+
+echo "Updating base desk..."
+$run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%base |]))  
@@ -136,12 +143,13 @@ $run_click <<EOF
 EOF
 
 # TODO: We should figure out the source ship for this file and delete it
-rm $pier/groups/tests/lib/diary-graph.hoon
+rm -f $pier/groups/tests/lib/diary-graph.hoon
 
 # Update the desk
 rsync -r desk/ $pier/groups
 
-$run_click <<EOF
+echo "Updating groups desk"
+${run_click} -t 60 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%groups |]))  
@@ -150,14 +158,14 @@ EOF
 
 echo "Awaiting desk update..."
 sleep 3
-while ! curl "http://localhost:$http_port"
+while ! curl -s "http://localhost:$http_port"
 do
   sleep 3
 done
 
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click <<EOF
+$run_click -t 60 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
@@ -169,8 +177,8 @@ result=$( $run_click <<EOF
   (pure:m !>(1))  
 (pure:m !>(0))  
 EOF
-)
 
+echo "Result: $result_code"
 result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 kill -TERM $vere_pid
 

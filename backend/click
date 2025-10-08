@@ -59,6 +59,8 @@ EVAL_CMD=''
 INPUT=''
 OUTPUT=''
 
+TIMEOUT=20
+
 # ==========================================================
 # FUNCTIONS
 # ==========================================================
@@ -83,13 +85,14 @@ Usage:
         -o <path-to-file>   Output to file
         -p                  Filter failure stack traces from result and pretty-print them to stderr
         -x                  Jam to hex
+        -t <seconds>        Socket timeout
 EOF
 }
 
 full() {
   $CLICK_CMD "$HOON" $DEPS |
   $EVAL_CMD eval --jam $JAM_OPTS |
-  socat -T20 -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
+  socat -T $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
   $EVAL_CMD eval --cue $CUE_OPTS
 }
 
@@ -119,7 +122,7 @@ execute() {
 OPTIND=1
 
 # parse options
-while getopts ":b:cehi:jko:px" OPT; do
+while getopts ":b:cehi:jko:pxt:" OPT; do
     case "$OPT" in
         b)
             EVAL_CMD=$OPTARG
@@ -147,6 +150,9 @@ while getopts ":b:cehi:jko:px" OPT; do
             ;;
         c)
             CARD=1
+            ;;
+        t)
+            TIMEOUT=$OPTARG
             ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
