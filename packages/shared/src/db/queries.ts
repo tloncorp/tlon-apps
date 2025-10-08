@@ -3046,6 +3046,7 @@ export const insertChanges = createWriteQuery(
         await insertChannelPosts({ posts: input.posts }, txCtx);
         await insertGroups({ groups: input.groups }, txCtx);
         await insertContacts(input.contacts, txCtx);
+        await deleteChannels(input.deletedChannelIds, txCtx);
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
         await insertThreadUnreads(input.unreads.threadActivity, ctx);

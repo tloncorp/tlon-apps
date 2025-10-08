@@ -108,7 +108,7 @@ export interface ContactBookProfileEdit {
 }
 
 // first element is the contact's profile, second is any user overrides
-export type ContactBookEntry = [ContactBookProfile, ContactBookProfile];
+export type ContactBookEntry = [ContactBookProfile, ContactBookProfile | null];
 
 export type ContactsAllScryResult1 = Record<string, ContactBookProfile>;
 export type ContactBookScryResult1 = Record<string, ContactBookEntry>;
