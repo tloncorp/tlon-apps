@@ -378,6 +378,17 @@ export interface GroupPreviewV7 {
   privacy: PrivacyType;
 }
 
+export type ClaimScheme =
+  | { forever: null }
+  | { limited: { count: number } }
+  | { personal: { ship: string } };
+
+export interface TokenMeta {
+  scheme: ClaimScheme;
+  expiry: number; // @da timestamp
+  label: string | null; // unit @t
+}
+
 export interface Admissions {
   privacy: PrivacyType;
   banned: {
@@ -385,8 +396,8 @@ export interface Admissions {
     ranks: string[];
   };
   pending: Record<string, string[]>; // ship -> role-ids (jug ship role-id)
-  requests: Record<string, any>; // ship -> story
-  tokens: Record<string, any>; // token -> token-meta
+  requests: Record<string, string | null>; // ship -> story (optional message with entry request)
+  tokens: Record<string, TokenMeta>; // token (@uv) -> token-meta
   referrals: Record<string, string[]>; // ship -> tokens (jug ship token)
   invited: Record<string, { at: number; token: string | null }>; // ship -> [at token]
 }

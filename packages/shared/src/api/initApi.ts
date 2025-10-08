@@ -15,7 +15,7 @@ import {
 import { toClientHiddenPosts } from './postsApi';
 import { scry } from './urbit';
 
-const logger = createDevLogger('initApi', true);
+const logger = createDevLogger('initApi', false);
 
 export interface InitData {
   pins: db.Pin[];
