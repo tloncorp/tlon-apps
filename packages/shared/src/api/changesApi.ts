@@ -35,7 +35,6 @@ export async function fetchChangesSince(
     },
     []
   );
-  console.log(`bl: found deleted channels`, deletedChannelIds);
 
   const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
     posts ? toPostsData(chatId, posts).posts : []
@@ -47,13 +46,9 @@ export async function fetchChangesSince(
     .filter(([_id, entry]) => entry)
     .map(([id, contactEntry]) => contactToClientProfile(id, contactEntry));
 
-  console.log(`bl: contact changes`, contacts);
-
   const unreads = toClientUnreads(response.activity);
 
   const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
-
-  console.log(`bl: found posts`, posts);
 
   return {
     groups,
