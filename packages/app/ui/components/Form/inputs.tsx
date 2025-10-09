@@ -430,7 +430,8 @@ const ControlFrame = styled(InputFrame, {
     },
     disabled: {
       true: {
-        backgroundColor: '$border',
+        backgroundColor: '$tertiaryText',
+        borderColor: '$tertiaryText',
       },
     },
     type: {
@@ -450,7 +451,9 @@ export const Control = ControlFrame.styleable<{
 }>((props, ref) => {
   return (
     <ControlFrame {...props} ref={ref}>
-      {props.checked ? <Icon color="$background" type="Checkmark" /> : null}
+      {props.checked ? (
+        <Icon color="$background" type="Checkmark" marginLeft={-4} />
+      ) : null}
     </ControlFrame>
   );
 });
@@ -538,7 +541,7 @@ export function RadioInputRow<T>({
         disabled={option.disabled}
         checked={checked}
       />
-      <YStack gap="$l">
+      <YStack gap="$l" flex={1}>
         <Text size="$label/xl" color="$primaryText">
           {option.title}
         </Text>
