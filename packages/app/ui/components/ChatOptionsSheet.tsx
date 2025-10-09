@@ -27,6 +27,21 @@ import {
 } from './ActionSheet';
 import { ListItem } from './ListItem';
 
+function getNotificationTitle(
+  volumeSettings: { level: ub.NotificationLevel } | null | undefined,
+  baseVolumeLevel: ub.NotificationLevel
+): string {
+  const hasCustomSetting = !!volumeSettings?.level;
+
+  if (hasCustomSetting && volumeSettings) {
+    const levelName = ub.NotificationNamesShort[volumeSettings.level];
+    return `${levelName} (custom)`;
+  }
+
+  const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
+  return `${defaultLevelName} (app default)`;
+}
+
 type ChatOptionsSheetProps = {
   // Make open/onOpenChange optional since we can use context
   open?: boolean;
@@ -266,6 +281,7 @@ export function GroupOptionsSheetContent({
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
   const isPinned = group?.pin;
   const isErrored = group?.joinStatus === 'errored';
+  const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
@@ -291,13 +307,19 @@ export function GroupOptionsSheetContent({
     store.leaveGroup(group.id);
   }, [group]);
 
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(group.volumeSettings, baseVolumeLevel),
+    [group.volumeSettings, baseVolumeLevel]
+  );
+
   const actionGroups = useMemo(
     () =>
       createActionGroups(
         [
           'neutral',
           {
-            title: 'Notifications',
+            title: 'Group notifications',
+            description: notificationTitle,
             action: onPressNotifications,
             endIcon: 'ChevronRight',
           },
@@ -346,6 +368,7 @@ export function GroupOptionsSheetContent({
         ]
       ),
     [
+      notificationTitle,
       canInvite,
       canMarkRead,
       canSortChannels,
@@ -641,6 +664,7 @@ export function ChannelOptionsSheetContent({
   const isSingleChannelGroup = group?.channels?.length === 1;
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
+  const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressChatDetails = useCallback(() => {
     if (!group) {
@@ -657,13 +681,19 @@ export function ChannelOptionsSheetContent({
     [onOpenChange]
   );
 
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
+    [channel.volumeSettings, baseVolumeLevel]
+  );
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
         [
           'neutral',
           {
-            title: 'Notifications',
+            title: group ? 'Channel notifications' : 'Chat notifications',
+            description: notificationTitle,
             endIcon: 'ChevronRight',
             action: onPressNotifications,
           },
@@ -739,6 +769,7 @@ export function ChannelOptionsSheetContent({
         ]
       ),
     [
+      notificationTitle,
       onPressNotifications,
       channel?.pin,
       channel.type,
