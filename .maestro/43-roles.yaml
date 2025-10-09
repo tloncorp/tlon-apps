@@ -74,7 +74,7 @@ appId: io.tlon.groups
 - tapOn: 'Channels'
 - tapOn:
     id: 'EditChannelButton'
-- assertVisible: 'Edit channel'
+- assertVisible: 'Channel settings'
 - tapOn: 'Custom'
 - tapOn:
     id: 'ReaderRoleSelector'
@@ -149,7 +149,7 @@ appId: io.tlon.groups
 - tapOn:
     id: 'EditChannelButton'
     index: 0
-- assertVisible: 'Edit channel'
+- assertVisible: 'Channel settings'
 - tapOn:
     id: 'ReaderRoleSelector'
 - tapOn: 'Renamed role'
