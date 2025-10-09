@@ -129,7 +129,7 @@ class NotificationService: UNNotificationServiceExtension {
 
       Task { [weak bestAttemptContent] in
         // this should probably come after the notif is resolved?
-        try await ChangesLoader.sync()
+         try await ChangesLoader.sync()
           
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {

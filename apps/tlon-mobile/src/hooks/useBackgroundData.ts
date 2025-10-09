@@ -39,6 +39,8 @@ export function useCachedChanges() {
     if (!ENABLED) return;
     const execStart = Date.now();
 
+    console.log(`bl: checking for cached changes...`);
+
     let cacheResult = null;
     try {
       cacheResult = await BackgroundCache.retrieveBackgroundData();
@@ -47,6 +49,8 @@ export function useCachedChanges() {
     }
     if (!cacheResult) return;
 
+    console.log(`bl: cached changes present`);
+
     let changes: db.ChangesResult | null = null;
     let begin, end;
     try {
@@ -54,6 +58,7 @@ export function useCachedChanges() {
       changes = api.parseChanges(deserialized.changes);
       begin = Number(deserialized.beginTimestamp);
       end = Number(deserialized.endTimestamp);
+      console.log(`bl: cached changes result`, { begin, end, changes });
     } catch (e) {
       logger.trackEvent('Failed to parse cached changes');
     }
