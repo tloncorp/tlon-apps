@@ -2,19 +2,10 @@ import Foundation
 import React
 
 @objc(BackgroundCache)
-class BackgroundCache: NSObject {
-  
-    private let appGroupIdentifier = "group.io.tlon.groups"
-    private let sharedFileName = "shared_data.json"
-        
+class BackgroundCache: NSObject {   
     @objc
     override init() {
         super.init()
-    }
-
-    @objc
-    static func constantsToExport() -> [AnyHashable : Any] {
-        return ["appGroupIdentifier": "group.io.tlon.groups"]
     }
 
     @objc(retrieveBackgroundData:rejecter:)
