@@ -138,9 +138,10 @@ class NotificationService: UNNotificationServiceExtension {
               return
               
           case .dismiss:
-              // should not be hit, but empty notification just in case
+              // Should not be hit, but set up fallback notification just in case.
+              // We can't prevent this alert from being shown, so at least make it truthful.
               if let bestAttemptContent = bestAttemptContent {
-                  bestAttemptContent.title = ""
+                  bestAttemptContent.title = "You marked some content as read."
                   bestAttemptContent.subtitle = ""
                   bestAttemptContent.body = ""
                   contentHandler(bestAttemptContent)
