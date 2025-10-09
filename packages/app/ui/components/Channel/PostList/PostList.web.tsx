@@ -547,18 +547,23 @@ function useStickToScrollStart({
   scrollerContentsKey,
   scrollerRef,
   disable,
+  maxDistanceForStickToStart = 100,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
   scrollerRef: React.RefObject<HTMLDivElement>;
   disable: boolean;
+  /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
+  maxDistanceForStickToStart?: number;
 }) {
   const shouldStickToStartRef = React.useRef(false);
 
   const [isAtStart] = useScrollBoundary(scrollerRef.current, {
-    // Avoid subpixel issues by allowing distances <1px
-    isNearBoundary: React.useCallback((distance: number) => distance < 1, []),
+    isNearBoundary: React.useCallback(
+      (distance: number) => distance < maxDistanceForStickToStart,
+      [maxDistanceForStickToStart]
+    ),
     side: inverted ? 'bottom' : 'top',
   });
 
