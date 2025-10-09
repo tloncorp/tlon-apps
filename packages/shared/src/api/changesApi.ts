@@ -20,7 +20,11 @@ export async function fetchChangesSince(
     path: `/v5/changes/${encodedTimestamp}`,
   });
 
-  return parseChanges(response);
+  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
+
+  const changes = parseChanges(response);
+
+  return { ...changes, nodeBusyStatus };
 }
 
 export function parseChanges(input: ub.Changes): db.ChangesResult {
@@ -40,9 +44,7 @@ export function parseChanges(input: ub.Changes): db.ChangesResult {
 
   const unreads = toClientUnreads(input.activity);
 
-  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
-
-  return { groups, posts, contacts, unreads, nodeBusyStatus };
+  return { groups, posts, contacts, unreads };
 }
 
 // We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
