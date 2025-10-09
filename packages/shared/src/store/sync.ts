@@ -192,7 +192,7 @@ export const syncSince = async ({
           });
         }));
   } catch (e) {
-    console.error('sync since failed', {
+    logger.trackError('sync since failed', {
       ...callCtx,
       errorMessage: e.message,
       stack: e.stack,
