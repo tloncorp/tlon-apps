@@ -1456,15 +1456,16 @@
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %channel-changed-posts
-    !>  %-  ~(gas by *(map nest:c posts:c))
+    !>  %-  ~(gas by *(map nest:c (unit posts:c)))
     %+  turn
       %+  scag  channels
       %+  sort  ~(tap by v-channels)
       |=  [[* a=v-channel:c] [* b=v-channel:c]]
       (gth recency.remark.a recency.remark.b)
     |=  [=nest:c chan=v-channel:c]
-    ^-  [_nest posts:c]
+    ^-  [_nest (unit posts:c)]
     :-  nest
+    %-  some
     %-  uv-posts-3:utils
     %+  gas:on-v-posts:c  ~
     =/  around=(unit id-post:c)
