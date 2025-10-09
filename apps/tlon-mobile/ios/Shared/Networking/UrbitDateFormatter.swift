@@ -18,11 +18,9 @@ class UrbitDateFormatter {
         }
         
         context.evaluateScript(script)
-        
-        let jsInput = Int64(round(inputDate.timeIntervalSince1970 * 1000.0))
-        let jsValueResult = context.objectForKeyedSubscript("tlon")
+                let jsValueResult = context.objectForKeyedSubscript("tlon")
                                    .invokeMethod("formatUrbitDateString", withArguments: [
-                                    jsInput
+                                    inputDate.javascriptTimestampFloor
                                    ])
         
         guard let resultString = jsValueResult?.toString(),

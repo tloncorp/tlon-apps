@@ -68,8 +68,8 @@ struct CachedChanges: Codable {
     
     func toJSON() throws -> Data {
         let dict: [String: Any] = [
-            "beginTimestamp": beginTimestamp.timeIntervalSince1970,
-            "endTimestamp": endTimestamp.timeIntervalSince1970,
+            "beginTimestamp": beginTimestamp.javascriptTimestampCeil,
+            "endTimestamp": endTimestamp.javascriptTimestampFloor,
             "changes": try JSONSerialization.jsonObject(with: changesData)
         ]
         return try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)

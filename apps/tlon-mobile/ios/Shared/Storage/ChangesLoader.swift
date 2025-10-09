@@ -5,6 +5,7 @@ class ChangesLoader {
     private static let appGroupIdentifier = "group.io.tlon.groups"
     private static let sharedFileName = "changes_cache.json"
     private static let lastSyncKey = "changesSyncedAt"
+    private static let coordinator = NSFileCoordinator()
     
     static func setLastSyncTimestamp(_ date: Date?) throws {
         guard let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
@@ -41,28 +42,82 @@ class ChangesLoader {
     
     private static func readCachedChanges() throws -> CachedChanges? {
         let fileURL = try getFileURL()
+        var readError: NSError?
+        var thrownError: Error?
+        var cachedChanges: CachedChanges?
         
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return nil
+        coordinator.coordinate(readingItemAt: fileURL, error: &readError) { url in
+            do {
+                let data = try Data(contentsOf: fileURL)
+                cachedChanges = try JSONDecoder().decode(CachedChanges.self, from: data)
+                print("[ChangesLoader] Successfully read cached changes from disk.")
+            } catch let error as NSError where error.code == NSFileReadNoSuchFileError {
+                cachedChanges = nil
+            } catch {
+                thrownError = error
+            }
         }
         
-        let data = try Data(contentsOf: fileURL)
-        return try JSONDecoder().decode(CachedChanges.self, from: data)
+        if let error = readError {
+            throw error
+        }
+        
+        if let error = thrownError {
+             throw error
+        }
+        
+        return cachedChanges
     }
     
     private static func writeCachedChanges(_ cached: CachedChanges) throws {
         let fileURL = try getFileURL()
+        var readError: NSError?
+        var writeError: Error?
         let encodedData = try JSONEncoder().encode(cached)
-        try encodedData.write(to: fileURL, options: [.atomic])
-        print("[ChangesLoader] Successfully wrote cached changes to disk.")
+        
+        coordinator.coordinate(writingItemAt: fileURL, error: &readError) { url in
+            do {
+                try encodedData.write(to: url, options: [.atomic])
+                print("[ChangesLoader] Successfully wrote cached changes to disk.")
+            } catch {
+                writeError = error
+            }
+        }
+        
+        if let error = readError {
+            throw error
+        }
+        
+        if  let error = writeError {
+            throw error
+        }
     }
     
     private static func deleteCachedChanges() throws {
         let fileURL = try getFileURL()
+        var readError: NSError?
+        var deleteError: Error?
         
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            try FileManager.default.removeItem(at: fileURL)
-            print("[ChangesLoader] Successfully deleted cached changes from disk.")
+        coordinator.coordinate(writingItemAt: fileURL, error: &readError) { url in
+            do {
+                let fm = FileManager.default
+                if fm.fileExists(atPath: url.absoluteString) {
+                    do {
+                        try fm.removeItem(at: url)
+                        print("[ChangesLoader] Successfully deleted changes from disk.")
+                    } catch {
+                        deleteError = error
+                    }
+                }
+            }
+        }
+        
+        if let error = readError {
+            throw error
+        }
+        
+        if let error = deleteError {
+            throw error
         }
     }
     
