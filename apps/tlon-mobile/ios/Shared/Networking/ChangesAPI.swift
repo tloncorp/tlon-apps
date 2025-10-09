@@ -6,12 +6,8 @@ extension PocketAPI {
         guard let encodedTime = UrbitDateFormatter.format(inputDate: since) else {
             throw APIError.invalidDateFormat
         }
-        do {
-            let data = try await fetchData("/~/scry/groups-ui/v5/changes/\(encodedTime)") as Data
-            let changes = try ChangesResult(from: data)
-            return changes
-        } catch {
-            throw error
-        }
+        let data = try await fetchData("/~/scry/groups-ui/v5/changes/\(encodedTime)") as Data
+        let changes = try ChangesResult(from: data)
+        return changes
     }
 }
