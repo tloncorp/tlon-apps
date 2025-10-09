@@ -154,7 +154,7 @@ appId: io.tlon.groups
     id: 'EditChannelButton'
     index: 1
 - assertVisible:
-    text: 'Edit channel'
+    text: 'Channel settings'
 - longPressOn: 'Second chat channel'
 - runFlow:
     when:
@@ -215,7 +215,7 @@ appId: io.tlon.groups
 - tapOn:
     id: 'EditChannelButton'
     index: 1
-- assertVisible: 'Edit channel'
+- assertVisible: 'Channel settings'
 - tapOn: 'Delete channel for everyone'
 - assertVisible: 'This action cannot be undone.'
 - tapOn: 'Delete channel'

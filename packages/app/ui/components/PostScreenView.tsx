@@ -833,6 +833,7 @@ export function PresentationalCarouselPostScreenContent({
           maxToRenderPerBatch: 3,
           windowSize: 3,
           keyboardShouldPersistTaps: 'handled',
+          scrollEnabled: !channelContext.editingPost,
         }}
       >
         {carouselChildren}

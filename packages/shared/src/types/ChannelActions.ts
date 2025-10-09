@@ -73,7 +73,6 @@ export function channelActionIdsFor({
       break;
     case 'chat':
       actions = [
-        'debugJson',
         'quote',
         'startThread',
         'muteThread',
@@ -86,6 +85,9 @@ export function channelActionIdsFor({
         'report',
         'delete',
       ];
+      if (__DEV__) {
+        actions.unshift('debugJson');
+      }
       break;
   }
 

@@ -729,37 +729,6 @@ export const getAllChannels = createReadQuery(
   ['channels']
 );
 
-export const getChannelsForPredictiveSync = createReadQuery(
-  'getChannelsWithUncachedGap',
-  async (
-    opts: { session: Session; limit?: number },
-    ctx: QueryCtx
-  ): Promise<Channel[]> => {
-    const { session } = opts;
-    return await ctx.db.query.channels.findMany({
-      // where channel can fetch newer posts (i.e. has not cached newest posts)
-      where: not(
-        // logic ported from `hasChannelCachedNewestPosts`
-        // https://github.com/tloncorp/tlon-apps/blob/b967030abb33522964b7ca925c4c599bee489ae7/packages/shared/src/store/sync.ts#L1400
-        and(
-          isNotNull($channels.syncedAt),
-          or(
-            gte($channels.syncedAt, session.startTime ?? 0),
-            and(
-              isNotNull($channels.lastPostAt),
-              gt($channels.syncedAt, $channels.lastPostAt)
-            )
-          )
-        )!
-      ),
-
-      orderBy: [desc($channels.lastViewedAt), desc($channels.lastPostAt)],
-      limit: opts.limit,
-    });
-  },
-  ['channels']
-);
-
 export const getMentionCandidates = createReadQuery(
   'getMentionCandidates',
   async (
@@ -897,7 +866,7 @@ export const getChats = createReadQuery(
       id: g.id,
       type: 'group',
       pin: g.pin,
-      timestamp: g.haveInvite 
+      timestamp: g.haveInvite
         ? g.unread?.updatedAt ?? 0
         : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
       volumeSettings: g.volumeSettings,
@@ -1951,12 +1920,11 @@ export const getChannelVolumeSetting = createReadQuery(
 export const getVolumeExceptions = createReadQuery(
   'getVolumeExceptions',
   async (ctx: QueryCtx) => {
-    const base = await ctx.db.query.volumeSettings.findFirst({
-      where: eq($volumeSettings.itemType, 'base'),
-    });
-
     const exceptions = await ctx.db.query.volumeSettings.findMany({
-      where: not(eq($volumeSettings.level, base?.level || 'default')),
+      where: or(
+        eq($volumeSettings.itemType, 'group'),
+        eq($volumeSettings.itemType, 'channel')
+      ),
     });
 
     const groupIds = [];
@@ -3605,7 +3573,8 @@ export const getPendingPosts = createReadQuery(
     return ctx.db.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
-        isNotNull($posts.deliveryStatus)
+        isNotNull($posts.deliveryStatus),
+        not(eq($posts.type, 'reply'))
       ),
     });
   },

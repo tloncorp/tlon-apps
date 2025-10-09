@@ -612,6 +612,9 @@ const LargeContentRenderer = createContentRenderer({
         aspectRatio: 1.5,
       },
     },
+    embed: {
+      ...noWrapperPadding,
+    },
   },
 });
 
