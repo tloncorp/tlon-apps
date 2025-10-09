@@ -1189,7 +1189,7 @@
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %chat-changed-writs
-    !>  %-  ~(gas by *(map whom:c writs:c))
+    !>  %-  ~(gas by *(map whom:c (unit writs:c)))
     =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
     %+  turn
       %+  scag  channels
@@ -1200,13 +1200,14 @@
         ?-(-.a %ship recency.remark.dm.a, %club recency.remark.club.a)
       ?-(-.b %ship recency.remark.dm.b, %club recency.remark.club.b)
     |=  arg=type
-    ^-  [whom:c writs:c]
+    ^-  [whom:c (unit writs:c)]
     =/  [=whom:c =pact:c]
       ?-  -.arg
         %ship  [[%ship who.arg] pact.dm.arg]
         %club  [[%club id.arg] pact.club.arg]
       ==
     :-  whom
+    %-  some
     %+  gas:on:writs:c  ~
     =/  around=(unit time)
       ?~  act=(~(get by activity) %dm whom)  ~
