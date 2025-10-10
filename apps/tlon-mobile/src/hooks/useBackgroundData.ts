@@ -6,10 +6,18 @@ import {
 } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect } from 'react';
-import { NativeModules, Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
 
-const BackgroundCache = NativeModules.BackgroundCache;
+export interface BackgroundCacheSpec {
+  setLastSyncTimestamp(timestamp: number): Promise<void>;
+  retrieveBackgroundData(): Promise<string | null>;
+}
+
+const BackgroundCache = TurboModuleRegistry.get(
+  'BackgroundCache'
+) as BackgroundCacheSpec | null;
 const ENABLED = Platform.OS === 'ios' && BackgroundCache;
 
 const logger = createDevLogger('cachedChanges', true);
@@ -68,6 +76,14 @@ export function useCachedChanges() {
         logger.log(`Retrieved cached changes ${begin} - ${end}, syncing...`);
         await store.syncCachedChanges({ changes, begin, end });
         logger.log(`Synced cache changes: ${Date.now() - execStart}ms`);
+        logger.trackEvent('Synced cached changes', {
+          begin,
+          end,
+          numPosts: changes.posts.length,
+          numGroups: changes.groups.length,
+          windowSize: utils.formattedDuration(begin, end),
+          duration: utils.formattedDuration(execStart, Date.now()),
+        });
       } catch (e) {
         logger.trackError(`Failed to sync cached changes`, e);
       }
