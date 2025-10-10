@@ -96,7 +96,10 @@ class TalkMessagingService : FirebaseMessagingService() {
                     try {
                         data["dismissSource"]?.let { source ->
                             data["id"]?.let { id ->
-                                dismissNotifications(this, source, id)
+                                dismissNotifications(this) { notification ->
+                                    val notifId = notification.notification.extras.getString("id", "0")
+                                    notification.notification.group == source && id >= notifId
+                                }
                             }
                         }
                     } catch (e: Error) {
@@ -108,14 +111,16 @@ class TalkMessagingService : FirebaseMessagingService() {
             }
     }
 
-    private fun dismissNotifications(context: Context, dismissSource: String, id: String) {
+    private fun dismissNotifications(
+        context: Context,
+        shouldDismiss: (StatusBarNotification) -> Boolean
+    ) {
         val notificationManager = NotificationManagerCompat.from(context)
         val activeNotifications: List<StatusBarNotification> =
             notificationManager.activeNotifications
 
         for (notification in activeNotifications) {
-            val notifId = notification.notification.extras.getString("id", "0")
-            if (notification.notification.group == dismissSource && id >= notifId) {
+            if (shouldDismiss(notification)) {
                 notificationManager.cancel(notification.id)
             }
         }
