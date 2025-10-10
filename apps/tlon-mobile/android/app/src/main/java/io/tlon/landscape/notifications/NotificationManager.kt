@@ -27,8 +27,47 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-const val MAX_CACHED_CONVERSATION_LENGTH = 15
-val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
+object NotificationMessagesCache {
+    private const val MAX_CACHED_CONVERSATION_LENGTH = 15
+    private val cache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>()
+
+    fun getCachedConversation(groupingKey: String): Array<NotificationCompat.MessagingStyle.Message> =
+        cache[groupingKey] ?: emptyArray()
+
+    fun appendMessage(
+        preview: ActivityEventPreview,
+        /** Bundle to merge into the `MessagingStyle.Message`'s `extras` */
+        extras: Bundle
+    ) {
+        if (preview.groupingKey == null) {
+            return
+        }
+        if (!extras.containsKey("id")) {
+            throw Error("Message extras must have an `id` field")
+        }
+
+        val person = preview.messagingMetadata?.sender?.person
+        val incomingMessage = MessagingStyle.Message(preview.body, Date().time, person)
+        incomingMessage.extras.putAll(extras)
+
+        val previousMessages = getCachedConversation(preview.groupingKey)
+        var nextCachedList = previousMessages.plus(incomingMessage)
+        nextCachedList = nextCachedList.takeLast(MAX_CACHED_CONVERSATION_LENGTH - 1).toTypedArray()
+        cache[preview.groupingKey] = nextCachedList
+    }
+
+    fun removeMessageWithId(id: String) {
+        cache.forEach { (groupingKey, messages) ->
+            val filteredMessages = messages.filter { message ->
+                message.extras.getString("id") != id
+            }.toTypedArray()
+
+            if (filteredMessages.size != messages.size) {
+                cache[groupingKey] = filteredMessages
+            }
+        }
+    }
+}
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
@@ -120,18 +159,18 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
             .setGroupConversation(isGroupConversation)
             .setConversationTitle(if (isGroupConversation) title else null)
 
-        val incomingMessage = MessagingStyle.Message(text, Date().time, person)
+        // If the message has a grouping key, attempt to construct a thread view on the notification
         if (preview.groupingKey != null) {
-            val previousMessages = notificationMessagesCache[preview.groupingKey] ?: emptyArray()
+            // Add new message to cached conversation
+            NotificationMessagesCache.appendMessage(preview, extras)
+
+            // Attach cached conversation to notification thread, including current message
+            val previousMessages = NotificationMessagesCache.getCachedConversation(preview.groupingKey)
             for (message in previousMessages) {
                 notifStyle.addMessage(message)
             }
-
-            var nextCachedList = previousMessages.plus(incomingMessage)
-            nextCachedList = nextCachedList.takeLast(MAX_CACHED_CONVERSATION_LENGTH - 1).toTypedArray()
-            notificationMessagesCache[preview.groupingKey] = nextCachedList
         }
-        notifStyle.addMessage(incomingMessage)
+
         builder.setStyle(notifStyle)
     }
 
