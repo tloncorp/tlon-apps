@@ -895,7 +895,7 @@ export const getChats = createReadQuery(
       ...groupChats,
     ].reduce(
       (acc, chat) => {
-        if (chat.pin) {
+        if (chat.pin && !chat.isPending) {
           acc.pinnedChats.push(chat);
         } else if (chat.isPending) {
           acc.pendingChats.push(chat);
