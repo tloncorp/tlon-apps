@@ -18,6 +18,7 @@ import expo.modules.constants.ConstantsService
 import io.tlon.landscape.notifications.NotificationException
 import io.tlon.landscape.notifications.NotificationLogger
 import io.tlon.landscape.notifications.TalkNotificationManager
+import io.tlon.landscape.notifications.NotificationMessagesCache
 import io.tlon.landscape.notifications.buildMessagingTappable
 import io.tlon.landscape.notifications.processNotificationBlocking
 import io.tlon.landscape.notifications.toBasicBundle
@@ -122,6 +123,9 @@ class TalkMessagingService : FirebaseMessagingService() {
         for (notification in activeNotifications) {
             if (shouldDismiss(notification)) {
                 notificationManager.cancel(notification.id)
+                notification.notification.extras.getString("id")?.let { id ->
+                  NotificationMessagesCache.removeMessageWithId(id)
+                }
             }
         }
     }
