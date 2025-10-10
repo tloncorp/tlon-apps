@@ -57,6 +57,7 @@ export function useCachedChanges() {
     }
     if (!cacheResult) return;
 
+    const readAt = Date.now();
     logger.log(`cached changes present`);
 
     let changes: db.ChangesResult | null = null;
@@ -70,11 +71,16 @@ export function useCachedChanges() {
     } catch (e) {
       logger.trackEvent('Failed to parse cached changes');
     }
+    const parsedAt = Date.now();
 
     if (changes && begin && end) {
       try {
         logger.log(`Retrieved cached changes ${begin} - ${end}, syncing...`);
-        await store.syncCachedChanges({ changes, begin, end });
+        const didInsert = await store.syncCachedChanges({
+          changes,
+          begin,
+          end,
+        });
         logger.log(`Synced cache changes: ${Date.now() - execStart}ms`);
         logger.trackEvent('Synced cached changes', {
           begin,
@@ -83,6 +89,10 @@ export function useCachedChanges() {
           numGroups: changes.groups.length,
           windowSize: utils.formattedDuration(begin, end),
           duration: utils.formattedDuration(execStart, Date.now()),
+          didInsert,
+          timeToRead: utils.formattedDuration(execStart, readAt),
+          timeToParse: utils.formattedDuration(readAt, parsedAt),
+          timeToInsert: utils.formattedDuration(parsedAt, Date.now()),
         });
       } catch (e) {
         logger.trackError(`Failed to sync cached changes`, e);
