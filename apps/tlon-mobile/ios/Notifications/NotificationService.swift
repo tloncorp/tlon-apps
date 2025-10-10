@@ -129,7 +129,12 @@ class NotificationService: UNNotificationServiceExtension {
     
         // use the provided timeslice as an opportunity to cache fresh /changes data
         Task {
-            try await ChangesLoader.sync()
+            do {
+                try await ChangesLoader.sync()
+            } catch {
+                // TODO: we should be logging this via telemetry
+                print("[NotificationService] Failed to sync changes: \(error)")
+            }
         }
 
         
