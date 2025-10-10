@@ -88,19 +88,31 @@ class NotificationService: UNNotificationServiceExtension {
             throw NotificationError.notificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
         }
     }
+    
+    /// Presents a `JSValue` (likely raised as an exception by a `JSContext`) as a `Swift.Error`.
+    private struct JSException: LocalizedError {
+        let exception: JSValue
+        weak var context: JSContext?
+        
+        var errorDescription: String? {
+            "JSContext raised exception: \(exception.toString() ?? "unable to stringify")"
+        }
+    }
 
     private func getPreview(rawActivityEvent: Any, uid: String, activityEventJsonString: String) throws -> NotificationPreviewPayload {
         let context = JSContext()!
+        var jsException: JSException? = nil
         context.exceptionHandler = { context, exception in
             print(exception?.toString() ?? "No exception found")
+            jsException = exception.map { JSException(exception: $0, context: context) }
         }
         
         guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else {
-            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: jsException)
         }
 
         guard let script = try? String(contentsOf: scriptURL) else {
-            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: jsException)
         }
 
         context.evaluateScript(script)
@@ -111,7 +123,7 @@ class NotificationService: UNNotificationServiceExtension {
             ])
 
         guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
-            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: jsException)
         }
 
         return preview
