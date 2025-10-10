@@ -1,16 +1,12 @@
 import Foundation
 
 class ChangesLoader {
-
-    private static let appGroupIdentifier = "group.io.tlon.groups"
     private static let sharedFileName = "changes_cache.json"
     private static let lastSyncKey = "changesSyncedAt"
     private static let coordinator = NSFileCoordinator()
     
     static func setLastSyncTimestamp(_ date: Date?) throws {
-        guard let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-            throw NSError(domain: "ChangesLoader", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not access shared UserDefaults"])
-        }
+        let sharedDefaults = UserDefaults.forDefaultAppGroup
         
         if let date = date {
             sharedDefaults.set(date, forKey: lastSyncKey)
@@ -22,9 +18,9 @@ class ChangesLoader {
     }
 
     private static func getLastSyncTimestamp() -> Date? {
-        let sharedDefaults = UserDefaults(suiteName: appGroupIdentifier)
+        let sharedDefaults = UserDefaults.forDefaultAppGroup
         
-        if let storedDate = sharedDefaults?.object(forKey: lastSyncKey) as? Date {
+        if let storedDate = sharedDefaults.object(forKey: lastSyncKey) as? Date {
             print("[ChangesLoader] Reading stored sync timestamp: \(storedDate)")
             return storedDate
         } else {
@@ -34,10 +30,18 @@ class ChangesLoader {
     }
 
     private static func getFileURL() throws -> URL {
-        guard let sharedContainerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
-            throw NSError(domain: "ChangesLoader", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not find shared App Group container."])
+        if let appGroupIdentifier = Bundle.main.object(forInfoDictionaryKey: "TlonDefaultAppGroup") as? String {
+            guard let sharedContainerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) else {
+                throw NSError(domain: "ChangesLoader", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not find shared App Group container."])
+            }
+            return sharedContainerURL.appendingPathComponent(sharedFileName)
+        } else {
+            throw NSError(
+                domain: "ChangesLoader",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Could not find appGroupIdentifier"]
+            )
         }
-        return sharedContainerURL.appendingPathComponent(sharedFileName)
     }
     
     private static func readCachedChanges() throws -> CachedChanges? {
@@ -101,7 +105,7 @@ class ChangesLoader {
         coordinator.coordinate(writingItemAt: fileURL, error: &readError) { url in
             do {
                 let fm = FileManager.default
-                if fm.fileExists(atPath: url.absoluteString) {
+                if fm.fileExists(atPath: url.path) {
                     do {
                         try fm.removeItem(at: url)
                         print("[ChangesLoader] Successfully deleted changes from disk.")
