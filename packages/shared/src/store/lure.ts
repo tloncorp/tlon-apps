@@ -128,6 +128,7 @@ export const useLureState = create<LureState>((set, get) => ({
       const group = await db.getGroup({ id: flag });
       const user = await db.getContact({ id: currentUserId });
       const metadata: DeepLinkMetadata = {
+        inviteType: 'group',
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? undefined,
         inviterAvatarImage: user?.avatarImage ?? undefined,

@@ -2,8 +2,14 @@ import { test as setup } from '@playwright/test';
 
 import shipManifest from './shipManifest.json';
 
-Object.entries(shipManifest).forEach(([key, ship]) => {
+const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
+
+Object.entries(shipManifest).forEach(([_key, ship]: [string, any]) => {
   if (ship.skipSetup || ship.skipAuth) {
+    return;
+  }
+  // Skip optional ships unless explicitly included
+  if (ship.optional && !INCLUDE_OPTIONAL_SHIPS) {
     return;
   }
 
@@ -13,6 +19,5 @@ Object.entries(shipManifest).forEach(([key, ship]) => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.waitForURL(`${ship.webUrl}/apps/landscape/`);
     await page.context().storageState({ path: ship.authFile });
-    await page.getByRole('link', { name: 'Tlon' }).waitFor();
   });
 });

@@ -9,6 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
+DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/rube/Dockerfile"
 
 # Security: Expected GCP configuration
 EXPECTED_PROJECT="tlon-groups-mobile"
@@ -345,19 +346,178 @@ prepare_ships() {
             echo "$pids" | xargs kill -TERM 2>/dev/null || true
         fi
     done
-    
-    # Give them time to shut down gracefully
-    sleep 5
-    
-    # Force kill any remaining processes
-    for port in 35453 36963 38473 39983; do
-        pids=$(lsof -ti:$port 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill -9 2>/dev/null || true
+
+    # Wait up to 60 seconds for graceful shutdown
+    print_info "Waiting for ships to shut down gracefully (up to 60 seconds)..."
+    local max_wait=60
+    local elapsed=0
+    local all_stopped=false
+
+    while [ $elapsed -lt $max_wait ]; do
+        local any_running=false
+        for port in 35453 36963 38473 39983; do
+            if lsof -ti:$port >/dev/null 2>&1; then
+                any_running=true
+                break
+            fi
+        done
+
+        if [ "$any_running" = "false" ]; then
+            print_status "All ships shut down cleanly after ${elapsed}s"
+            all_stopped=true
+            break
         fi
+
+        # Show progress every 10 seconds
+        if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+            print_info "  Still waiting... (${elapsed}s/${max_wait}s)"
+        fi
+
+        sleep 1
+        elapsed=$((elapsed + 1))
     done
-    
+
+    # Force kill any remaining processes if they didn't stop cleanly
+    if [ "$all_stopped" = "false" ]; then
+        print_warning "Ships did not stop cleanly within ${max_wait}s, forcing shutdown..."
+        for port in 35453 36963 38473 39983; do
+            pids=$(lsof -ti:$port 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                echo "$pids" | xargs kill -9 2>/dev/null || true
+            fi
+        done
+    fi
+
     print_status "Ships prepared and stopped"
+}
+
+# Re-boot ships briefly to sync snapshots after prepare_ships
+sync_ship_snapshots() {
+    print_info "Re-booting ships briefly to sync snapshots..."
+
+    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+
+    if [ ! -f "$urbit_binary" ]; then
+        print_error "Urbit binary not found at $urbit_binary"
+        exit 1
+    fi
+
+    chmod +x "$urbit_binary"
+
+    for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        local pier_path="$DIST_DIR/$ship/$ship"
+
+        if [ ! -d "$pier_path" ]; then
+            print_warning "Pier not found: $pier_path, skipping sync"
+            continue
+        fi
+
+        print_info "Syncing snapshot for ~$ship..."
+
+        # Boot ship in background with unique port
+        local temp_port=$((40000 + RANDOM % 1000))
+        timeout 20 "$urbit_binary" -t -p "$temp_port" "$pier_path" > /tmp/sync-$ship.log 2>&1 || true
+
+        # Give it a moment to finish writing
+        sleep 2
+
+        print_status "Synced ~$ship"
+    done
+
+    print_status "All ship snapshots synced"
+}
+
+# Roll and chop piers to reduce size
+roll_and_chop_piers() {
+    print_info "Rolling and chopping piers to reduce size..."
+
+    # Find urbit binary
+    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+
+    if [ ! -f "$urbit_binary" ]; then
+        print_error "Urbit binary not found at $urbit_binary"
+        print_info "The binary should have been downloaded during ship preparation"
+        exit 1
+    fi
+
+    # Make sure it's executable
+    chmod +x "$urbit_binary"
+
+    for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        local pier_path="$DIST_DIR/$ship/$ship"
+
+        # Skip if pier doesn't exist
+        if [ ! -d "$pier_path" ]; then
+            print_warning "Pier not found: $pier_path, skipping roll+chop"
+            continue
+        fi
+
+        print_info "Processing ~$ship..."
+
+        # Pack: Update snapshot to match event log (fixes "out of date" errors)
+        print_info "  Packing ~$ship (updating snapshot)..."
+        if "$urbit_binary" pack "$pier_path" 2>&1 | tee /tmp/pack-$ship.log | grep -qE "pier: packed|snapshot: updated"; then
+            print_status "  Packed ~$ship successfully"
+        else
+            # Pack might say "already up to date"
+            if grep -qE "up to date|nothing to do" /tmp/pack-$ship.log 2>/dev/null; then
+                print_info "  Snapshot already up to date for ~$ship"
+            else
+                print_warning "  Pack completed with warnings for ~$ship"
+                print_info "  Check /tmp/pack-$ship.log for details"
+            fi
+        fi
+
+        # Give a moment for pack to complete
+        sleep 1
+
+        # Roll: Create new epoch to establish a checkpoint before chopping
+        print_info "  Rolling ~$ship (creating new epoch)..."
+        if "$urbit_binary" roll "$pier_path" 2>&1 | tee /tmp/roll-$ship.log | grep -q "disk: created epoch"; then
+            print_status "  Rolled ~$ship successfully"
+        else
+            print_error "  Failed to roll ~$ship"
+            print_info "  Check /tmp/roll-$ship.log for details"
+            # Don't exit, still try to chop - there may be existing epochs to remove
+        fi
+
+        # Give a moment for the roll to complete
+        sleep 1
+
+        # Chop: Delete old epochs (keep only 2 most recent)
+        print_info "  Chopping ~$ship (deleting old epochs)..."
+        if "$urbit_binary" chop "$pier_path" 2>&1 | tee /tmp/chop-$ship.log | grep -q "event log truncation complete"; then
+            print_status "  Chopped ~$ship successfully"
+        else
+            # Chop may report "nothing to do" if there are only 2 or fewer epochs
+            if grep -q "nothing to do" /tmp/chop-$ship.log 2>/dev/null; then
+                print_info "  No old epochs to remove for ~$ship"
+            else
+                print_warning "  Chop completed with warnings for ~$ship"
+                print_info "  Check /tmp/chop-$ship.log for details"
+            fi
+        fi
+
+        # Quick verification that pier structure is still valid
+        if [ ! -d "$pier_path/.urb" ]; then
+            print_error "  Pier structure damaged for ~$ship after roll+chop!"
+            exit 1
+        fi
+
+        print_status "Completed roll+chop for ~$ship"
+        echo ""
+    done
+
+    print_status "All piers rolled and chopped"
+
+    # Only clean up log files if all operations were successful
+    # Check if any error logs exist
+    if ls /tmp/pack-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null | xargs grep -l "error\|failed\|Error\|Failed" >/dev/null 2>&1; then
+        print_info "Preserving logs due to errors - check /tmp/pack-*.log, /tmp/roll-*.log and /tmp/chop-*.log"
+    else
+        # Clean up log files only on success
+        rm -f /tmp/pack-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null || true
+    fi
 }
 
 # Quick local validation of archive
@@ -560,6 +720,32 @@ update_manifest() {
     print_status "Updated manifest for ~$ship"
 }
 
+# Update Dockerfile URLs to match manifest
+update_dockerfile() {
+    local ship=$1
+    local version=$2
+    local archive_name="rube-${ship}${version}.tgz"
+    local new_url="https://bootstrap.urbit.org/$archive_name"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "[DRY RUN] Would update Dockerfile for ~$ship with URL: $new_url"
+        return 0
+    fi
+
+    print_info "Updating Dockerfile for ~$ship..."
+
+    # Use sed to update the URL line for this ship
+    # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
+    # macOS sed requires empty string after -i, GNU sed works with or without
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+    else
+        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+    fi
+
+    print_status "Updated Dockerfile for ~$ship"
+}
+
 # Main execution
 main() {
     print_info "Starting pier archive and upload process"
@@ -585,7 +771,33 @@ main() {
     
     # Prepare ships with latest desk code
     prepare_ships
-    
+
+    # Re-boot ships briefly to sync snapshots
+    sync_ship_snapshots
+
+    # Show sizes before roll+chop
+    print_info "Pier sizes before roll+chop:"
+    for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        if [ -d "$DIST_DIR/$ship" ]; then
+            local size=$(du -sh "$DIST_DIR/$ship" | cut -f1)
+            echo "  ~$ship: $size"
+        fi
+    done
+    echo ""
+
+    # Roll and chop piers to reduce size
+    roll_and_chop_piers
+
+    # Show sizes after roll+chop
+    print_info "Pier sizes after roll+chop:"
+    for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        if [ -d "$DIST_DIR/$ship" ]; then
+            local size=$(du -sh "$DIST_DIR/$ship" | cut -f1)
+            echo "  ~$ship: $size"
+        fi
+    done
+    echo ""
+
     # Archive and upload each ship
     local archived_files=()
     local uploaded_ships=()  # Track successful uploads for potential rollback
@@ -633,9 +845,12 @@ main() {
                 print_info "Manual fix required:"
                 echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
                 echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/rube-${ship}${next_version}.tgz"
-                
+
                 # Optional: Could implement automatic rollback here
                 # gsutil rm "$GCS_BUCKET/rube-${ship}${next_version}.tgz" 2>/dev/null
+            else
+                # Also update Dockerfile URLs to match manifest
+                update_dockerfile "$ship" "$next_version"
             fi
         else
             print_error "Failed to upload $ship, skipping manifest update"
@@ -693,13 +908,13 @@ main() {
         if [ "$VERIFY_AFTER_UPLOAD" = "false" ]; then
             print_info "Next steps:"
             echo "  1. Verify the new archives work: ./verify-archives.sh"
-            echo "  2. Commit the updated shipManifest.json"
+            echo "  2. Commit the updated shipManifest.json and rube/Dockerfile"
             echo "  3. Create a PR with the changes"
             echo ""
             print_info "Tip: Use --verify flag to automatically verify after upload"
         else
             print_info "Next steps:"
-            echo "  1. Commit the updated shipManifest.json"
+            echo "  1. Commit the updated shipManifest.json and rube/Dockerfile"
             echo "  2. Create a PR with the changes"
         fi
     fi
