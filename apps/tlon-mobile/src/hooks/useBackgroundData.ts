@@ -23,7 +23,7 @@ export function useCachedChanges() {
         async (newStamp) => {
           try {
             logger.log('changes sync stamp updated, sending to native module');
-            await BackgroundCache.setLastSyncTimestamp(newStamp);
+            await BackgroundCache.setLastSyncTimestamp(newStamp ?? 0);
           } catch (e) {
             logger.trackError(
               `Failed to send last sync timetamp to native module`,
@@ -39,7 +39,7 @@ export function useCachedChanges() {
     if (!ENABLED) return;
     const execStart = Date.now();
 
-    console.log(`bl: checking for cached changes...`);
+    logger.log(`checking for cached changes...`);
 
     let cacheResult = null;
     try {
@@ -49,7 +49,7 @@ export function useCachedChanges() {
     }
     if (!cacheResult) return;
 
-    console.log(`bl: cached changes present`);
+    logger.log(`cached changes present`);
 
     let changes: db.ChangesResult | null = null;
     let begin, end;
@@ -58,7 +58,7 @@ export function useCachedChanges() {
       changes = api.parseChanges(deserialized.changes);
       begin = Number(deserialized.beginTimestamp);
       end = Number(deserialized.endTimestamp);
-      console.log(`bl: cached changes result`, { begin, end, changes });
+      logger.log(`cached changes result`, { begin, end, changes });
     } catch (e) {
       logger.trackEvent('Failed to parse cached changes');
     }

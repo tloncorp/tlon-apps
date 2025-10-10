@@ -13,6 +13,7 @@ class ChangesLoader {
             print("[ChangesLoader] Stored sync timestamp: \(date)")
         } else {
             sharedDefaults.removeObject(forKey: lastSyncKey)
+            try deleteCachedChanges()
             print("[ChangesLoader] Cleared sync timestamp")
         }
     }
