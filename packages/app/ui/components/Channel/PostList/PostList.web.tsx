@@ -547,7 +547,7 @@ function useStickToScrollStart({
   scrollerContentsKey,
   scrollerRef,
   disable,
-  maxDistanceForStickToStart = 100,
+  maxDistanceForStickToStart = 1,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
@@ -571,7 +571,7 @@ function useStickToScrollStart({
     shouldStickToStartRef.current = !disable && isAtStart;
   }, [isAtStart, disable]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!shouldStickToStartRef.current || scroller == null) {
       return;
