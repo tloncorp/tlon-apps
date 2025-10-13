@@ -68,7 +68,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 =>
 |%
 ::  |l: logs core
