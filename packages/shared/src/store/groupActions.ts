@@ -290,30 +290,21 @@ export async function cancelGroupJoin(group: db.Group) {
     AnalyticsEvent.ActionCancelGroupJoin,
     logic.getModelAnalytics({ group })
   );
-
-  const groupExists = await api.scry({
-    app: 'groups',
-    path: `/groups/${group.id}/exists`,
-  }).catch(() => false);
-
-  await db.deleteGroup(group.id);
-
-  if (!groupExists) {
-    logger.log('Group does not exist on backend, successfully removed from local database');
-    return;
-  }
+  // optimistic update
+  await db.updateGroup({
+    id: group.id,
+    joinStatus: null,
+  });
 
   try {
     await api.cancelGroupJoin(group.id);
-    logger.log('Successfully canceled group join on backend');
   } catch (e) {
     logger.error('Failed to cancel group join', e);
-
-    if (e instanceof api.BadResponseError) {
-      logger.log('Backend error encountered, keeping group deleted from local database');
-    } else {
-      await db.insertGroups({ groups: [group] });
-    }
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      joinStatus: 'joining',
+    });
   }
 }
 
@@ -1301,14 +1292,7 @@ export async function leaveGroup(groupId: string) {
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    logger.log('Group not found in local database, attempting to leave on backend anyway');
-    // Still try to leave on the backend even if not in local DB
-    try {
-      await api.leaveGroup(groupId);
-      logger.log('Successfully left group on backend');
-    } catch (e) {
-      logger.error('Failed to leave group on backend', e);
-    }
+    logger.error('Group not found', groupId);
     return;
   }
 
