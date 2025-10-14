@@ -17,7 +17,10 @@ export const ButtonContext = createStyledContext<{
   size: SizeTokens;
   color: ThemeTokens;
   minimal: boolean;
+  positive: boolean;
+  negative: boolean;
   hero: boolean;
+  heroPositive: boolean;
   heroDestructive: boolean;
   secondary: boolean;
   disabled: boolean;
@@ -26,7 +29,10 @@ export const ButtonContext = createStyledContext<{
   size: '$m',
   color: '$primaryText',
   minimal: false,
+  positive: false,
+  negative: false,
   hero: false,
+  heroPositive: false,
   heroDestructive: false,
   secondary: false,
   disabled: false,
@@ -75,12 +81,15 @@ export const ButtonFrame = styled(Stack, {
         pressStyle: {
           backgroundColor: 'transparent',
         },
+        disabledStyle: {
+          cursor: 'default',
+          backgroundColor: 'transparent',
+        },
       },
     } as const,
     hero: {
       true: {
         backgroundColor: '$primaryText',
-        // placeholder constant -- need to resolve ochre implementation
         height: 56,
         borderWidth: 0,
         pressStyle: {
@@ -88,7 +97,65 @@ export const ButtonFrame = styled(Stack, {
           opacity: 0.5,
         },
         disabledStyle: {
+          cursor: 'default',
           backgroundColor: '$tertiaryText',
+        },
+        $gtSm: {
+          height: 48,
+        },
+      },
+    } as const,
+
+    positive: {
+      true: {
+        backgroundColor: '$positiveBackground',
+        height: 56,
+        padding: '$xl',
+        borderWidth: 1,
+        borderColor: '$positiveBorder',
+        pressStyle: {
+          backgroundColor: '$positiveBorder',
+        },
+        disabledStyle: {
+          cursor: 'default',
+          backgroundColor: '$positiveBackground',
+        },
+        $gtSm: {
+          height: 48,
+        },
+      },
+    } as const,
+    negative: {
+      true: {
+        backgroundColor: '$negativeBackground',
+        height: 56,
+        padding: '$xl',
+        borderWidth: 1,
+        borderColor: '$negativeBorder',
+        pressStyle: {
+          backgroundColor: '$negativeBorder',
+        },
+        disabledStyle: {
+          cursor: 'default',
+          backgroundColor: '$negativeBackground',
+        },
+        $gtSm: {
+          height: 48,
+        },
+      },
+    } as const,
+    heroPositive: {
+      true: {
+        backgroundColor: '$positiveActionText',
+        height: 56,
+        padding: '$xl',
+        borderWidth: 1,
+        borderColor: '$positiveActionText',
+        pressStyle: {
+          backgroundColor: '$positiveBorder',
+        },
+        disabledStyle: {
+          backgroundColor: '$positiveBackground',
         },
         $gtSm: {
           height: 48,
@@ -97,16 +164,16 @@ export const ButtonFrame = styled(Stack, {
     } as const,
     heroDestructive: {
       true: {
-        backgroundColor: '$background',
-        // placeholder constant -- need to resolve ochre implementation
+        backgroundColor: '$negativeActionText',
         height: 56,
         padding: '$xl',
         borderWidth: 1,
+        borderColor: '$negativeActionText',
         pressStyle: {
-          backgroundColor: '$negativeBackground',
+          backgroundColor: '$negativeBorder',
         },
         disabledStyle: {
-          backgroundColor: '$secondaryText',
+          backgroundColor: '$negativeBackground',
         },
         $gtSm: {
           height: 48,
@@ -120,6 +187,9 @@ export const ButtonFrame = styled(Stack, {
         shadowOpacity: 0.35,
         shadowRadius: 35,
         elevation: 4,
+        disabledStyle: {
+          cursor: 'default',
+        },
       },
     },
     secondary: {
@@ -128,6 +198,9 @@ export const ButtonFrame = styled(Stack, {
         borderColor: '$shadow',
         pressStyle: {
           backgroundColor: '$secondaryBackground',
+        },
+        disabledStyle: {
+          cursor: 'default',
         },
         $gtSm: {
           height: 48,
@@ -175,9 +248,33 @@ export const ButtonText = styled(Text, {
           }
         : {};
     },
+    positive: {
+      true: {
+        color: '$positiveActionText',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+    negative: {
+      true: {
+        color: '$negativeActionText',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+    heroPositive: {
+      true: {
+        color: '$background',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
     heroDestructive: {
       true: {
-        color: '$tertiaryText',
+        color: '$background',
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',
