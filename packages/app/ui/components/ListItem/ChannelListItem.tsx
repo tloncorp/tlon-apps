@@ -1,14 +1,20 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, RawText } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
-import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import { ContactName } from '../ContactNameV2';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
@@ -107,27 +113,18 @@ export function ChannelListItem({
     onLongPress?.(model);
   });
 
-  const { subtitle, subtitleIcon } = useMemo(() => {
+  const subtitleIcon = useMemo(() => {
     if (model.type === 'dm' || model.type === 'groupDm') {
-      return {
-        subtitle: [
-          utils.formatUserId(firstMemberId)?.display,
-          memberCount > 2 && `and ${memberCount - 1} others`,
-        ]
-          .filter((v) => !!v)
-          .join(' '),
-        subtitleIcon: memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM',
-      } as const;
+      return memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM';
     } else {
-      return {
-        subtitle: capitalize(model.type),
-        subtitleIcon: utils.getChannelTypeIcon(model.type),
-      } as const;
+      return utils.getChannelTypeIcon(model.type);
     }
-  }, [model, firstMemberId, memberCount]);
+  }, [model, memberCount]);
 
   const isFocused = useNavigation().focusedChannelId === model.id;
   const groupTitle = utils.useGroupTitle(model.group);
+  const isDmType = model.type === 'dm' || model.type === 'groupDm';
+  const dmMembers = isDmType ? model.members : [];
 
   return (
     <View ref={containerRef}>
@@ -155,7 +152,20 @@ export function ChannelListItem({
             dimmed={dimmed}
           />
           <ListItem.MainContent>
-            <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
+            <ListItem.Title dimmed={dimmed}>
+              {isDmType && dmMembers && dmMembers.length > 0 ? (
+                <>
+                  {dmMembers.map((member, index) => (
+                    <React.Fragment key={member.contactId}>
+                      <ContactName contactId={member.contactId} mode="auto" />
+                      {index < dmMembers.length - 1 && ', '}
+                    </React.Fragment>
+                  ))}
+                </>
+              ) : (
+                title
+              )}
+            </ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
@@ -163,7 +173,12 @@ export function ChannelListItem({
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-                {subtitle}
+                <ContactName
+                  contactId={firstMemberId}
+                  mode="contactId"
+                  expandLongIds
+                />
+                {memberCount > 2 && ` and ${memberCount - 1} others`}
               </ListItem.SubtitleWithIcon>
             ) : null}
             {model.lastPost && !model.isDmInvite && (
