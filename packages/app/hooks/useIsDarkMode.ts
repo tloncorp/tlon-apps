@@ -29,7 +29,7 @@ export const useIsDarkMode = () => {
       }
     );
     return () => appStateSubscription.remove();
-  }, [colorScheme, isDarkMode]);
+  }, [colorScheme]);
 
   useEffect(() => {
     // Only apply changes if we're currently foregrounded
