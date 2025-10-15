@@ -1602,6 +1602,8 @@
     =?  cor  gone
       ::NB  this fires even if we are not self-subscribed
       go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
+    ::  make sure we clean up a possible leftover foreigns entry
+    =.  foreigns  (~(del by foreigns) flag)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
@@ -2936,6 +2938,7 @@
     ?.  gone  cor
     =.  go-core  (go-response [%delete ~])
     =.  go-core  go-leave-subs
+
     cor
   ::  +go-area: group base path
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
@@ -4461,7 +4464,8 @@
       fi-core
     ::
         %watch
-      =.  cor  go-abet:(go-leave:(go-abed:go-core flag) &)
+      =?  cor  (~(has by groups) flag)
+        go-abet:(go-leave:(go-abed:go-core flag) &)
       =.  progress  ~
       fi-core
     ::
