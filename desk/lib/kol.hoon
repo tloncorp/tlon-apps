@@ -8,11 +8,11 @@
   =+  c=|  ::  inserted b
   =+  d=|  ::  dropped old
   |-  ^+  a
-  ?:  &(d c)  a
-  ?~  a  ?:(c ~ [b]~)
-  ?:  =(p.i.a p.b)      $(a t.a, d &)
-  ?:  (comp q.i.a q.b)  [i.a $(a t.a)]
-  [b i.a $(a t.a, c &)]
+  ?:  &(d c)                 a               ::  done
+  ?~  a                      ?:(c ~ [b]~)    ::  end
+  ?:  =(p.i.a p.b)           $(a t.a, d &)   ::  drop old
+  ?:  |(c (comp q.i.a q.b))  [i.a $(a t.a)]  ::  next
+  [b i.a $(a t.a, c &)]                      ::  insert new
 ::
 ++  del
   |*  b=*
