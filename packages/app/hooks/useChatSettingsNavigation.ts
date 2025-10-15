@@ -158,6 +158,17 @@ export const useChatSettingsNavigation = () => {
     [navigationRef]
   );
 
+  const onPressEditChannel = useCallback(
+    (channelId: string, groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('EditChannel', {
+        channelId,
+        groupId,
+        fromChatDetails,
+      });
+    },
+    [navigateToGroupSettings]
+  );
+
   const onLeaveGroup = useCallback(() => {
     navigationRef.current.navigate('ChatList');
   }, [navigationRef]);
@@ -166,6 +177,7 @@ export const useChatSettingsNavigation = () => {
     onPressChannelMembers,
     onPressChannelMeta,
     onPressChannelTemplate,
+    onPressEditChannel,
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,

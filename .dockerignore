@@ -1,0 +1,105 @@
+# Docker ignore file for E2E test container builds
+# This significantly reduces build context size
+
+# Ignore ALL node_modules - they will be installed fresh in container
+**/node_modules
+**/.pnpm-store
+.pnpm-store
+
+# Ignore test outputs and reports
+**/test-results
+**/playwright-report
+**/coverage
+**/.nyc_output
+**/junit.xml
+**/playwright-results
+
+# Ignore build outputs (will be built in container)
+**/dist
+**/build
+**/.next
+**/.expo
+**/out
+**/.turbo
+
+# Ignore Urbit ship data (huge!)
+**/rube/dist/zod
+**/rube/dist/bus
+**/rube/dist/ten
+**/rube/dist/*.tgz
+**/rube/dist/*.tar.gz
+**/*.tgz
+**/.urb
+**/.http.ports
+**/.vere.ports
+**/urbit_extracted
+**/urbit_binary.tgz
+
+# Ignore Git
+.git
+.gitignore
+
+# Ignore development environment files
+**/.env
+**/.env.*
+!**/.env.test
+**/.DS_Store
+**/Thumbs.db
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.cursor
+
+# Ignore logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Ignore mobile build artifacts
+ios/Pods
+ios/build
+android/.gradle
+android/build
+android/app/build
+
+# Ignore desktop build artifacts
+**/desktop/out
+**/desktop/dist
+apps/tlon-desktop/out
+apps/tlon-desktop/dist
+
+# Ignore cache directories
+.cache
+.parcel-cache
+
+# Ignore temporary files
+tmp
+temp
+.tmp
+
+# Ignore large media files that might be in the repo
+**/*.mp4
+**/*.mov
+**/*.avi
+**/*.zip
+**/*.dmg
+**/*.pkg
+
+# Ignore e2e specific artifacts
+apps/tlon-web/e2e/test-results
+apps/tlon-web/e2e/playwright-report
+apps/tlon-web/e2e/artifacts
+apps/tlon-web/e2e/downloads
+apps/tlon-web/merge.config.js
+apps/tlon-web/merged-report
+
+# Ignore rube compiled output (will be compiled in container)
+apps/tlon-web/rube/dist/*.js
+apps/tlon-web/rube/dist/*.js.map

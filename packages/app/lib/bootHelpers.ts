@@ -15,41 +15,19 @@ export default {
 };
 
 export async function reserveNode(
-  hostingUserId: string,
-  skipShipIds: string[] = []
-): Promise<string> {
-  const user = await hostingApi.getHostingUser(hostingUserId);
+  hostingUserId: string
+): Promise<{ id: string; code?: string; isReady: boolean }> {
+  const { nodeId, code, isReady } =
+    await hostingApi.assignShipToUser(hostingUserId);
 
-  // if the hosting user already has a ship tied to their account, use that
-  if (user.ships?.length) {
-    await db.hostedUserNodeId.setValue(user.ships[0]);
-    return user.ships[0];
-  }
-
-  // otherwise reserve a new ship
-  const ships = await hostingApi.getReservableShips(hostingUserId);
-  const ship = ships.find(
-    ({ id, readyForDistribution }) =>
-      !skipShipIds.includes(id) && readyForDistribution
-  );
-  if (!ship) {
-    throw new Error('No available ships found.');
-  }
-
-  const { reservedBy } = await hostingApi.reserveShip(hostingUserId, ship.id);
-  if (reservedBy !== hostingUserId) {
-    return reserveNode(hostingUserId, [ship.id]);
-  }
-
-  await hostingApi.allocateReservedShip(hostingUserId);
   trackOnboardingAction({
     actionName: 'Urbit ID Selected',
-    ship: ship.id,
+    ship: nodeId,
   });
 
-  await db.hostedUserNodeId.setValue(ship.id);
+  await db.hostedUserNodeId.setValue(nodeId);
 
-  return ship.id;
+  return { id: nodeId, code, isReady };
 }
 
 export async function checkNodeBooted(): Promise<boolean> {

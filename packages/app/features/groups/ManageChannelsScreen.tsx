@@ -41,10 +41,9 @@ export function ManageChannelsScreen(props: Props) {
       navigation.navigate('EditChannel', {
         groupId,
         channelId,
-        fromChatDetails,
       });
     },
-    [navigation, groupId, fromChatDetails]
+    [navigation, groupId]
   );
 
   return (

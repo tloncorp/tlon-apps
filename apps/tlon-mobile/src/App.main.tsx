@@ -32,7 +32,7 @@ import { withRetry } from '@tloncorp/shared/logic';
 import { setBadgeCountAsync } from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
-import { NativeModules, StatusBar } from 'react-native';
+import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
