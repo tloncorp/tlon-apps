@@ -5,15 +5,9 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';
 
-export const useGroupContext = ({
-  groupId,
-  isFocused,
-}: {
-  groupId: string;
-  isFocused?: boolean;
-}) => {
+export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
-  
+
   const groupQuery = store.useGroup({
     id: groupId,
   });
@@ -61,6 +55,12 @@ export const useGroupContext = ({
         .filter((channel) =>
           section.channels.map((c) => c.channelId).includes(channel.id)
         )
+        .map((c) => ({
+          ...c,
+          index:
+            section.channels.find((ch) => ch.channelId === c.id)
+              ?.channelIndex ?? 0,
+        }))
         .sort((a, b) => {
           const aIndex =
             section.channels.find((c) => c.channelId === a.id)?.channelIndex ??
@@ -177,25 +177,13 @@ export const useGroupContext = ({
 
   const moveChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
-      if (!group) return;
-
-      // Find current section for the channel
-      const currentSection = group.navSections?.find((section) =>
-        section.channels?.some((channel) => channel.channelId === channelId)
-      );
-
-      if (!currentSection) {
-        console.error('Channel not found in any section');
-        return;
+      if (group) {
+        await store.moveChannelToNavSection({
+          groupId: group.id,
+          channelId,
+          navSectionId,
+        });
       }
-
-      // Use addChannelToNavSection which handles both adding to new section
-      // and removing from the previous section
-      await store.addChannelToNavSection({
-        groupId: group.id,
-        channelId,
-        navSectionId,
-      });
     },
     [group]
   );

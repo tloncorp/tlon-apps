@@ -17,7 +17,6 @@ export function ManageChannelsScreen(props: Props) {
   const {
     group,
     groupNavSectionsWithChannels,
-    moveNavSection,
     moveChannel,
     moveChannelToNavSection,
     createNavSection,
@@ -52,7 +51,6 @@ export function ManageChannelsScreen(props: Props) {
       goBack={handleGoBack}
       goToEditChannel={goToEditChannel}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-      moveNavSection={moveNavSection}
       moveChannelWithinNavSection={moveChannel}
       moveChannelToNavSection={moveChannelToNavSection}
       createNavSection={createNavSection}
