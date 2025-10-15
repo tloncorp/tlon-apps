@@ -187,7 +187,7 @@
   ++  on-init
     :_  this
     :*  (~(watch-our pass:io /activity) %activity /notifications)
-        (~(watch-our pass:io /unreads) %activity /v4/unreads)
+        (~(watch-our pass:io /reads) %activity /v4/reads)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
       ::
@@ -208,7 +208,7 @@
     ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
       caz
     :*  (~(watch-our pass:io /activity) %activity /notifications)
-        (~(watch-our pass:io /unreads) %activity /v4/unreads)
+        (~(watch-our pass:io /reads) %activity /v4/reads)
         ?.  =(~rivfur-livmet our.bowl)  caz
         [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
     ==
@@ -521,6 +521,7 @@
           `this
         =+  !<(=update:a q.cage.sign)
         ?.  ?=(%read -.update)
+          %-  (tell:l %crit (crip "unexpected fact {<-.update>}") ~)
           `this
         ?^  unread.activity-summary.update
           `this
@@ -541,9 +542,9 @@
         ~[(fact:io notify-update-1+!>(update) v1-paths)]
       ::
           %kick
-        %-  (tell:l %info 'notify unreads kick' ~)
+        %-  (tell:l %info 'notify reads kick' ~)
         :_  this
-        [%pass wire %agent [our.bowl %activity] %watch /v4/unreads]~
+        [%pass wire %agent [our.bowl %activity] %watch /v4/reads]~
       ==
     ::
     ::  subscription from provider to client
