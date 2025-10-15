@@ -514,7 +514,7 @@
         [%pass wire %agent [our.bowl %activity] %watch /notifications]~
       ==
     ::
-        [%unreads ~]
+        [%reads ~]
       ?+  -.sign  (on-agent:def wire sign)
           %fact
         ?.  ?=(%activity-update-4 p.cage.sign)
