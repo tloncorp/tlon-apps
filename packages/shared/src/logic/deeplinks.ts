@@ -2,6 +2,7 @@ import { createDevLogger } from '../debug';
 import { ContentReference, getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
@@ -121,7 +122,9 @@ export async function getMetadataFromInviteToken(token: string) {
     invitedGroupIconImageUrl: responseMeta.fields.invitedGroupIconImageUrl,
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
-    inviterColor: responseMeta.fields.inviterColor,
+    inviterColor: responseMeta.fields.inviterColor
+      ? normalizeUrbitColor(responseMeta.fields.inviterColor)
+      : undefined,
     inviteType: responseMeta.fields.inviteType,
   };
 
