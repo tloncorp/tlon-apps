@@ -1603,7 +1603,9 @@
       ::NB  this fires even if we are not self-subscribed
       go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
     ::  make sure we clean up a possible leftover foreigns entry
-    =.  foreigns  (~(del by foreigns) flag)
+    ::  when the group is deleted.
+    ::
+    =?  foreigns  gone  (~(del by foreigns) flag)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
