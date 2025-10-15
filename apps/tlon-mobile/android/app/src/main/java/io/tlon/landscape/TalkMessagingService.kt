@@ -97,7 +97,7 @@ class TalkMessagingService : FirebaseMessagingService() {
                     try {
                         data["dismissSource"]?.let { source ->
                             data["id"]?.let { id ->
-                                dismissNotifications(this) { notification ->
+                                dismissNotifications(this, source) { notification ->
                                     val notifId = notification.notification.extras.getString("id", "0")
                                     notification.notification.group == source && id >= notifId
                                 }
@@ -114,6 +114,7 @@ class TalkMessagingService : FirebaseMessagingService() {
 
     private fun dismissNotifications(
         context: Context,
+        source: String,
         shouldDismiss: (StatusBarNotification) -> Boolean
     ) {
         val notificationManager = NotificationManagerCompat.from(context)
@@ -124,7 +125,7 @@ class TalkMessagingService : FirebaseMessagingService() {
             if (shouldDismiss(notification)) {
                 notificationManager.cancel(notification.id)
                 notification.notification.extras.getString("id")?.let { id ->
-                  NotificationMessagesCache.removeMessageWithId(id)
+                  NotificationMessagesCache.removeMessagesOlderThan(source, id)
                 }
             }
         }

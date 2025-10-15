@@ -67,6 +67,21 @@ object NotificationMessagesCache {
             }
         }
     }
+
+    fun removeMessagesOlderThan(grouping: String, id: String) {
+        val messages = cache[grouping]
+        if (messages == null) {
+            return
+        }
+
+        val filteredMessages = messages.filter { message ->
+            id < (message.extras.getString("id") ?: "")
+        }.toTypedArray()
+
+        if (filteredMessages.size != messages.size) {
+            cache[grouping] = filteredMessages
+        }
+    }
 }
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
