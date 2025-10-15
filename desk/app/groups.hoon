@@ -2938,7 +2938,6 @@
     ?.  gone  cor
     =.  go-core  (go-response [%delete ~])
     =.  go-core  go-leave-subs
-
     cor
   ::  +go-area: group base path
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
