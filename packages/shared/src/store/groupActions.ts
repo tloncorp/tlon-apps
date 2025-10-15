@@ -68,36 +68,6 @@ export async function scaffoldPersonalGroup() {
 
     const createdGroup = await createGroup({ group: personalGroup });
 
-    // Final consistency check
-    const createdChat = createdGroup.channels?.find(
-      (chan) => chan.id === PersonalGroupKeys.chatChannelId
-    );
-    const createdCollection = createdGroup.channels?.find(
-      (chan) => chan.id === PersonalGroupKeys.collectionChannelId
-    );
-    const createdNotebook = createdGroup.channels?.find(
-      (chan) => chan.id === PersonalGroupKeys.notebookChannelId
-    );
-    if (
-      !createdGroup ||
-      !createdChat ||
-      !createdCollection ||
-      !createdNotebook
-    ) {
-      logger.trackEvent('Personal Group Scaffold', {
-        notes: 'Completed scaffold, but not all items are present',
-        hasGroup: !!createdGroup,
-        hasChatChannel: !!createdChat,
-        hasCollectionChannel: !!createdCollection,
-        hasNotesChannel: !!createdNotebook,
-      });
-      throw new Error('Something went wrong');
-    } else {
-      logger.trackEvent('Personal Group Scaffold', {
-        note: 'Passed final consistency check',
-      });
-    }
-
     // attempt to pin it
     pinGroup(createdGroup);
 
@@ -443,6 +413,10 @@ export async function deleteGroup(group: db.Group) {
     logic.getModelAnalytics({ group })
   );
 
+  if (group.pin) {
+    await db.deletePinnedItem(group.pin);
+  }
+
   // optimistic update
   await db.deleteGroup(group.id);
 
@@ -452,6 +426,10 @@ export async function deleteGroup(group: db.Group) {
     logger.error('Failed to delete group', e);
     // rollback optimistic update
     await db.insertGroups({ groups: [group] });
+    // restore pin if it was removed
+    if (group.pin) {
+      await db.insertPinnedItem(group.pin);
+    }
   }
 }
 

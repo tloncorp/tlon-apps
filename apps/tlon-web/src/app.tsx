@@ -461,9 +461,7 @@ function ConnectedWebApp() {
         await db.headsSyncedAt.resetValue();
         sync
           .syncStart(false)
-          .then(() =>
-            sync.syncRelevantChannelPosts({ priority: sync.SyncPriority.Low })
-          );
+          .then(() => sync.syncInitialPosts({ syncSize: 'light' }));
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');
       }

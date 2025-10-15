@@ -211,7 +211,9 @@ export async function checkHostingNodeStatus(
   }
 }
 
-export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
+export async function authenticateWithReadyNode(
+  preloadedCode?: string | null
+): Promise<db.ShipInfo | null> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -220,17 +222,19 @@ export async function authenticateWithReadyNode(): Promise<db.ShipInfo | null> {
     throw new Error('Cannot check node status, no node ID found');
   }
 
-  let accessCode = null;
-  try {
-    const result = await api.getShipAccessCode(nodeId);
-    accessCode = result.code;
-  } catch (e) {
-    logger.trackError(AnalyticsEvent.LoginDebug, {
-      context: 'Failed to get access code',
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
-    return null;
+  let accessCode = preloadedCode;
+  if (!accessCode) {
+    try {
+      const result = await api.getShipAccessCode(nodeId);
+      accessCode = result.code;
+    } catch (e) {
+      logger.trackError(AnalyticsEvent.LoginDebug, {
+        context: 'Failed to get access code',
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+      return null;
+    }
   }
 
   const nodeUrl = logic.getShipUrl(nodeId);

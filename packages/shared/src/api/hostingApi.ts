@@ -86,6 +86,7 @@ const hostingFetch = async <T extends object>(
   path: string,
   init?: RequestInit
 ): Promise<T> => {
+  const startTime = performance.now();
   let response = null;
   try {
     response = await hostingFetchResponse(path, init);
@@ -108,8 +109,8 @@ const hostingFetch = async <T extends object>(
     throw hostingErr;
   }
 
+  const stopTime = performance.now();
   const responseText = await response.text();
-  logger.log('Response:', response.status, responseText);
 
   let result: { message: string } | T = { message: 'Empty response' };
   try {
@@ -147,6 +148,19 @@ const hostingFetch = async <T extends object>(
       errorStack: err.stack,
     });
     throw err;
+  }
+
+  try {
+    const durationSeconds = Number(((stopTime - startTime) / 1000).toFixed(2));
+    logger.trackEvent('Hosting Request Analytics', {
+      path: path.split('?')[0],
+      method: init?.method ?? 'GET',
+      durationSeconds,
+    });
+  } catch (e) {
+    logger.trackError('Failed to Capture Hosting Request Analytics', {
+      errorMessage: e.toString(),
+    });
   }
 
   return result as T;
@@ -416,6 +430,29 @@ export const checkPhoneVerify = async (userId: string, code: string) =>
 
 export const verifyEmailDigits = async (email: string, digits: string) =>
   hostingFetch<object>(`/v1/verify-email-digits/${email}/${digits}`);
+
+export const assignShipToUser = async (userId: string) => {
+  const response = await hostingFetch<domain.AssignmentResponse>(
+    `/v1/users/${userId}/assign-ship`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({}), // indicates any available ship is fine
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  const nodeId = response.ship.ship.id;
+  const isReady = response.ship.status.phase === 'Ready';
+  const code = response.code;
+
+  if (!nodeId) {
+    throw new Error('Invalid ship assignment response');
+  }
+
+  return { nodeId, isReady, code };
+};
 
 export const getReservableShips = async (user: string) =>
   hostingFetch<ReservableShip[]>(`/v1/users/${user}/reservable-ships`);
