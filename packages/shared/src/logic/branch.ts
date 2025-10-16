@@ -111,7 +111,9 @@ export function extractLureMetadata(branchParams: any) {
     inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
-    inviterColor: normalizeUrbitColor(branchParams.inviterColor),
+    inviterColor: branchParams.inviteColor
+      ? normalizeUrbitColor(branchParams.inviterColor)
+      : undefined,
     invitedGroupId: branchParams.invitedGroupId ?? branchParams.group, // only fallback to key if invitedGroupId missing, not empty
     invitedGroupTitle: branchParams.invitedGroupTitle || branchParams.title,
     invitedGroupDescription: branchParams.invitedGroupDescription,
