@@ -24,7 +24,6 @@
  *
  * Note: For search highlighting, use the legacy ContactName component instead.
  */
-
 import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
@@ -111,6 +110,7 @@ const BaseContactName = RawText.styleable<{
       <RawText
         {...useContactNameProps({ contactId, expandLongIds, mode })}
         {...props}
+        style={props.style ?? { whiteSpace: 'nowrap' }}
       ></RawText>
     );
   },
