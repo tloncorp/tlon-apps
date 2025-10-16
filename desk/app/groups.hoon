@@ -1290,11 +1290,13 @@
   ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    ?:  ?&  ?=(%kick -.sign)
-            !(~(has by foreigns) ship name.pole)
+    ::  ignore the following for a deleted foreign group
+    ::
+    ?:  ?&  !(~(has by foreigns) ship name.pole)
+            ?|  ?=(%kick -.sign)            :: ignore kicks
+                ?=([%preview ~] rest.pole)  :: ignore preview signs
+            ==
         ==
-      ::  ignore kicks for non-existent foreigns
-      ::
       cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
