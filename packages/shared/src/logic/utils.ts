@@ -248,7 +248,11 @@ export function containsOnlyEmoji(input: string): boolean {
   });
 }
 
-export function normalizeUrbitColor(color: string): string {
+export function normalizeUrbitColor(color?: string | null): string | null {
+  if (!color) {
+    return null;
+  }
+
   if (color.startsWith('#')) {
     return color;
   }

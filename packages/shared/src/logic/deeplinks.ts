@@ -123,7 +123,7 @@ export async function getMetadataFromInviteToken(token: string) {
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
     inviterColor: responseMeta.fields.inviterColor
-      ? normalizeUrbitColor(responseMeta.fields.inviterColor)
+      ? normalizeUrbitColor(responseMeta.fields.inviterColor) ?? undefined
       : undefined,
     inviteType: responseMeta.fields.inviteType,
   };
