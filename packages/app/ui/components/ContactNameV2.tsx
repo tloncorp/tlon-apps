@@ -6,21 +6,17 @@
  * - Flexible display modes (nickname, contactId, both, or auto)
  * - Proper aria labels for accessibility
  * - Full or shortened userId display
- * - Monospace font for bare patps (contactIds)
  *
  * Usage:
  * ```tsx
- * // Auto mode (shows nickname if available, otherwise userId in monospace)
+ * // Auto mode (shows nickname if available, otherwise userId)
  * <ContactName contactId={userId} />
  *
- * // Force show nickname (uses regular font)
+ * // Force show nickname
  * <ContactName contactId={userId} mode="nickname" />
  *
- * // Show both nickname and userId (nickname in regular, userId in monospace)
+ * // Show both nickname and userId
  * <ContactName contactId={userId} mode="both" />
- *
- * // Force show only contactId (uses monospace font)
- * <ContactName contactId={userId} mode="contactId" />
  *
  * // Use as a hook for text-only contexts
  * const name = useContactName(userId);
@@ -28,6 +24,7 @@
  *
  * Note: For search highlighting, use the legacy ContactName component instead.
  */
+
 import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
@@ -110,21 +107,9 @@ const BaseContactName = RawText.styleable<{
       return null;
     }
 
-    const monoStyles =
-      showContactId && !showNickname
-        ? {
-            fontFamily: '$mono' as const,
-            style: {
-              fontSize: '0.9em',
-              whiteSpace: 'nowrap',
-            } as React.CSSProperties,
-          }
-        : {};
-
     return (
       <RawText
         {...useContactNameProps({ contactId, expandLongIds, mode })}
-        {...monoStyles}
         {...props}
       ></RawText>
     );
