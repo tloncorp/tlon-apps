@@ -259,6 +259,15 @@
         'groups'^groups
         'contacts'^contacts
     ==
+  ::
+      [%x %v5 %init-posts channels=@ context=@ ~]
+    =+  .^(channels=json (scry %gx %channels /v5/init-posts/[channels.pole]/[context.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v3/init-posts/[channels.pole]/[context.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'channels'^channels
+        'chat'^chat
+    ==
   ==
 ::
 ++  poke

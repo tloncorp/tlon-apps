@@ -833,6 +833,10 @@ export function PresentationalCarouselPostScreenContent({
           maxToRenderPerBatch: 3,
           windowSize: 3,
           keyboardShouldPersistTaps: 'handled',
+          scrollEnabled: !channelContext.editingPost,
+          // Fix for: TextInput loses focus in FlatList on Android
+          // see: https://github.com/facebook/react-native/issues/23916#issuecomment-472854627
+          removeClippedSubviews: false,
         }}
       >
         {carouselChildren}

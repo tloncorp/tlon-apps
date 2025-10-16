@@ -1,7 +1,7 @@
 ::  broadcaster: multi-target dms
 ::
-/-  c=chat, ch=channels
-/+  cj=channel-json, dm,
+/-  c=chat, c3=chat-3, c4=chat-4, ch=channels
+/+  sj=story-json, cc=chat-conv,
     dbug, verb
 ::
 |%
@@ -90,7 +90,7 @@
   ++  outward-0-to-1
     |=  outward=(list writ:c3)
     ^-  (list writ:c4)
-    (turn outward writ-7-to-8:dm)
+    (turn outward v4:writ:v3:cc)
   --
 ::
 ++  on-poke
@@ -207,7 +207,7 @@
     ?-  +<.r
       %add  a+(turn ~(tap in targets.r) |=(=@p s+(scot %p p)))
       %del  a+(turn ~(tap in targets.r) |=(=@p s+(scot %p p)))
-      %msg  (story:enjs:cj story.r)
+      %msg  (story:enjs:sj story.r)
       %err  s+err.r
     ==
   ?+  path  [~ ~]

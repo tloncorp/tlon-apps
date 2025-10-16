@@ -16,6 +16,9 @@
 /+  neg=negotiate, discipline
 ::  performance, keep warm
 /+  groups-json
+/=  create-thread          /ted/group/create
+/%  m-group-create-thread  %group-create-thread
+/%  m-group-ui-1           %group-ui-1
 ::
 ::
 /%  m-noun               %noun
@@ -1353,6 +1356,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
+        ?.  ?=(kind:d p.nest)  |
         .^(? %gu (channels-scry nest))
       ==
     cor
@@ -3494,6 +3498,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
+        ?.  ?=(kind:d p.nest)  |
         .^(? %gu (channels-scry nest))
       (go-response [%create group])
     ::  join the channels upon initial group log,
@@ -4017,9 +4022,10 @@
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section.u-channel)
         (go-restart-updates `'missing channel updated section')
-      =.  sections.group
-        %+  ~(jab by sections.group)  section.channel
-        |=(=section:g section(order (~(del of order.section) nest)))
+      =+  section=(~(get by sections.group) section.channel)
+      =?  sections.group  ?=(^ section)
+        %+  ~(put by sections.group)  section.channel
+        u.section(order (~(del of order.u.section) nest))
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group

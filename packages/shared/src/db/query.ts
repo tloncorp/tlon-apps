@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
-import { createDevLogger, escapeLog, listDebugLabel, runIfDev } from '../debug';
+import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { startTrace } from '../perf';
 import * as changeListener from './changeListener';
@@ -68,7 +68,7 @@ export const createReadQuery = <TOptions, TReturn>(
 export const createWriteQuery = <TOptions, TReturn>(
   label: string,
   queryFn: QueryFn<TOptions, TReturn>,
-  tableEffects: TableName[]
+  tableEffects: TableParam<TOptions>
 ): WrappedQuery<TOptions, TReturn> => {
   return createQuery(queryFn, {
     label,
@@ -300,13 +300,15 @@ export async function withTransactionCtx<T>(
           errorMessage: e.message,
           errorStack: e.stack,
         });
-        await ctx.db.run(sql`ROLLBACK`).catch((e) =>
+        try {
+          await ctx.db.run(sql`ROLLBACK`);
+        } catch (rollbackError) {
           txLogger.trackError('DB Transaction Rollback Error', {
             label: ctx.meta.label,
-            errorMessage: e.message,
-            errorStack: e.stack,
-          })
-        );
+            errorMessage: rollbackError.message,
+            errorStack: rollbackError.stack,
+          });
+        }
         ctx.meta.rootTransaction = null;
         reject(e);
       }

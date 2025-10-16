@@ -9,6 +9,7 @@
       state-3
       state-4
       state-5
+      state-6
   ==
 ::
 ::  vic: URL of bait service
@@ -66,13 +67,24 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-6
+  $:  %6
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:v1:reel)
+      open-link-requests=(set (pair ship cord))
+      open-describes=(set token:reel)
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
 ::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-5
+=|  state-6
 =*  state  -
 ::
 %-  agent:dbug
@@ -86,7 +98,7 @@
   ++  fail
     |=  [desc=term =tang]
     %-  link
-    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" desc tang]
     (~(fail logs our.bowl /logs) desc tang log-data)
   ::
   ++  tell
@@ -171,9 +183,17 @@
         stable-id
         ~  ::  subs
     ==
-  ?>  ?=(%5 -.old)
+  ::  v5 -> v6: trigger invites profile update
+  ::
+  =^  caz=(list card)  old
+    ?.  ?=(%5 -.old)  `old
+    :_  old(- %6)
+    =+  wait=(~(rad og eny.bowl) ~h1)
+    [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
+  ?>  ?=(%6 -.old)
   =.  state  old
   :_  this
+  %+  weld  caz
   %-  murn  :_  same
   ^-  (list (unit card))
   :~  ?:  (~(has by wex.bowl) /groups [our.bowl %groups])  ~
@@ -309,7 +329,7 @@
   ^-  (quip card _this)
   =/  =(pole knot)  wire
   ?+    pole  (on-agent:def wire sign)
-      [%update %contact ~]
+      [%update ?(%contact %profile) ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
     %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
@@ -373,18 +393,49 @@
             %'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
         ==
       ::  update our lure links with new nickname, avatar image
-      ::  and color.
+      ::  and color. also update open-graph metadata.
       ::
-      =.  our-metadata
-        %-  ~(run by our-metadata)
-        |=  meta=metadata:reel
-        meta(fields (~(uni by fields.meta) fields.update))
-      ::  request the bait provider to update our invite links
-      ::
-      =/  caz=(list card)
-        %+  turn  ~(tap by our-metadata)
-        |=  [=token:reel *]
-        [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token update])]
+      =^  caz=(list card)  our-metadata
+        %+  ~(rib by our-metadata)  *(list card)
+        |=  [[=token:reel meta=metadata:reel] caz=(list card)]
+        ^-  [(list card) [token:reel metadata:reel]]
+        =;  new-update=_update
+          :_  :-  token
+              meta(fields (~(uni by fields.meta) fields.new-update))
+          :_  caz
+          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token new-update])]
+        ::  insert open-graph metadata into update
+        ::
+        =+  type=(~(get by fields.meta) %'inviteType')
+        ?:  |(?=(~ type) =('group' u.type))
+          =/  group-title=@t
+            =+  til=(~(get by fields.meta) %'invitedGroupTitle')
+            ?:  |(?=(~ til) =('' u.til))
+              'a Groupchat'
+            u.til
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You're Invited to a Groupchat"
+            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+          =.  fields.update
+            (~(put by fields.update) %'$og_title' title)
+          =.  fields.update
+            (~(put by fields.update) %'$twitter_title' title)
+          update
+        ?:  =('user' u.type)
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You've Been Invited"
+            "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+          =.  fields.update
+            (~(put by fields.update) %'$og_title' title)
+          =.  fields.update
+            (~(put by fields.update) %'$twitter_title' title)
+          update
+        ::  unknown invite type, ignore
+        update
       [caz this]
     ==
   ::
@@ -411,10 +462,21 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
+          =+  nickname=(~(get cy:t our-profile) %nickname %text)
+          =/  group-title=@t
+            ?:  =('' title.meta)  'a Groupchat'
+            title.meta
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You're Invited to a Groupchat"
+            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta
               %'invitedGroupDescription'^description.meta
               %'invitedGroupIconImageUrl'^image.meta
+              %'$og_title'^title
+              %'$twitter_title'^title
           ==
         ::
             %delete
@@ -545,6 +607,13 @@
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) wire)
     [caz this]
+  ::
+      ::
+      ::  trigger invites profile update
+      [%load %profile ~]
+    =/  profile
+      .^(contact:t %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
+    (on-agent /contacts %fact contact-response-0+!>([%self profile]))
   ==
 ++  on-fail
   |=  [=term =tang]

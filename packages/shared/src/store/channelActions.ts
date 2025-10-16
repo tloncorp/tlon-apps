@@ -3,6 +3,7 @@ import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
 } from '../api/channelContentConfig';
+import { TimeoutError } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -21,6 +22,8 @@ export async function createChannel({
   channelType: rawChannelType,
   contentConfiguration,
   customSlug,
+  readers = [],
+  writers = [],
 }: {
   groupId: string;
   title: string;
@@ -28,6 +31,8 @@ export async function createChannel({
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
   customSlug?: string;
+  readers?: string[];
+  writers?: string[];
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
@@ -79,8 +84,8 @@ export async function createChannel({
       title,
       description: encodedDescription ?? '',
       meta: null,
-      readers: [],
-      writers: [],
+      readers,
+      writers,
     });
     return newChannel;
   } catch (e) {
@@ -509,8 +514,11 @@ export async function leaveGroupChannel(channelId: string) {
     await api.leaveChannel(channelId);
   } catch (e) {
     console.error('Failed to leave channel', e);
-    // rollback optimistic update
-    await db.updateChannel({ id: channelId, currentUserIsMember: true });
+    // Only rollback on actual errors (not TimeoutError)
+    // The backend will send a leaveChannelSuccess event if it did succeed
+    if (!(e instanceof TimeoutError)) {
+      await db.updateChannel({ id: channelId, currentUserIsMember: true });
+    }
   }
 }
 

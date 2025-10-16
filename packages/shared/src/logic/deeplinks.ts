@@ -2,6 +2,7 @@ import { createDevLogger } from '../debug';
 import { ContentReference, getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
@@ -35,16 +36,16 @@ export async function getReferenceFromDeeplink({
 
 interface ProviderMetadataResponse {
   fields: {
-    image?: string;
-    title?: string;
-    cover?: string;
-    description?: string;
-    group?: string;
-    inviter?: string;
+    inviteType?: 'user' | 'group';
+    inviterUserId?: string;
     inviterNickname?: string;
     inviterAvatarImage?: string;
     inviterColor?: string;
-    inviteType?: 'user' | 'group';
+    invitedGroupId?: string;
+    invitedGroupTitle?: string;
+    invitedGroupDescription?: string;
+    invitedGroupIconImageUrl?: string;
+    invitedGroupDeleted?: boolean;
   };
 }
 
@@ -105,8 +106,8 @@ export async function getMetadataFromInviteToken(token: string) {
 
   if (
     !responseMeta.fields ||
-    !responseMeta.fields.group ||
-    !responseMeta.fields.inviter
+    !responseMeta.fields.invitedGroupId ||
+    !responseMeta.fields.inviterUserId
   ) {
     return null;
   }
@@ -114,14 +115,16 @@ export async function getMetadataFromInviteToken(token: string) {
   const metadata: AppInvite = {
     id: token,
     shouldAutoJoin: true,
-    inviterUserId: responseMeta.fields.inviter,
-    invitedGroupId: responseMeta.fields.group,
-    invitedGroupTitle: responseMeta.fields.title,
-    invitedGroupDescription: responseMeta.fields.description,
-    invitedGroupIconImageUrl: responseMeta.fields.image,
+    inviterUserId: responseMeta.fields.inviterUserId,
+    invitedGroupId: responseMeta.fields.invitedGroupId,
+    invitedGroupTitle: responseMeta.fields.invitedGroupTitle,
+    invitedGroupDescription: responseMeta.fields.invitedGroupDescription,
+    invitedGroupIconImageUrl: responseMeta.fields.invitedGroupIconImageUrl,
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
-    inviterColor: responseMeta.fields.inviterColor,
+    inviterColor: responseMeta.fields.inviterColor
+      ? normalizeUrbitColor(responseMeta.fields.inviterColor)
+      : undefined,
     inviteType: responseMeta.fields.inviteType,
   };
 

@@ -34,6 +34,7 @@ import { Platform } from 'react-native';
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { useOnboardingContext } from '../../lib/OnboardingContext';
+import { selectRecaptchaPlatform } from '../../lib/hostingAuth';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
@@ -112,6 +113,7 @@ export const SignupScreen = ({ navigation }: Props) => {
     try {
       const { enabled } = await hostingApi.getHostingAvailability({
         priorityToken: signupParams.priorityToken,
+        lure: lureMeta?.id,
       });
       if (!enabled) {
         logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
@@ -134,7 +136,7 @@ export const SignupScreen = ({ navigation }: Props) => {
           await hostingApi.requestSignupOtp({
             phoneNumber,
             recaptchaToken,
-            platform: Platform.OS,
+            platform: selectRecaptchaPlatform(),
           });
         })();
       } else {
@@ -142,13 +144,14 @@ export const SignupScreen = ({ navigation }: Props) => {
           await hostingApi.requestSignupOtp({
             email,
             recaptchaToken,
-            platform: Platform.OS,
+            platform: selectRecaptchaPlatform(),
           });
         })();
       }
 
       handleSuccess();
     } catch (err) {
+      setRemoteError(`Something bad happened. Err: ${err.toString()}`);
       if (err instanceof HostingError) {
         if (err.details.status === 409) {
           setRemoteError(

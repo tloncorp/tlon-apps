@@ -11,6 +11,7 @@ import { useCallback, useMemo } from 'react';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
 
@@ -104,6 +105,10 @@ export const ActivityNavigator = () => {
       <ActivityDrawer.Screen
         name="ActivityEmpty"
         component={EmptyActivityScreen}
+      />
+      <ActivityDrawer.Screen
+        name="GroupSettings"
+        component={GroupSettingsStack}
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />

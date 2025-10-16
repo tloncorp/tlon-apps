@@ -31,6 +31,7 @@ interface Constants {
   INVITE_SERVICE_IS_DEV: boolean;
   GIT_HASH: string;
   DISABLE_SPLASH_MODAL: boolean;
+  AUTOMATED_TEST: boolean;
 }
 
 export function getConstants(): Constants {

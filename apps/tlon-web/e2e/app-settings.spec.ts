@@ -10,16 +10,28 @@ test('should test app settings', async ({ zodSetup }) => {
   await expect(page.getByText('Settings', { exact: true })).toBeVisible();
 
   await page.getByText('Notification settings').click();
-  await expect(page.getByText('Push Notifications')).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Notifications')
+  ).toBeVisible();
   await page.getByText('Blocked users').click();
-  await expect(page.getByText('Blocked users').first()).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Blocked users')
+  ).toBeVisible();
   await page.getByText('Privacy').click();
-  await expect(page.getByText('Privacy Settings')).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Privacy Settings')
+  ).toBeVisible();
   await page.getByText('Theme').click();
-  await expect(page.getByText('Theme').first()).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Theme')
+  ).toBeVisible();
   await page.getByText('App info').click();
   await page.getByText('Report a bug').click();
-  await expect(page.getByText('Report a bug').first()).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Report a bug')
+  ).toBeVisible();
   await page.getByText('Experimental features').click();
-  await expect(page.getByText('Feature Previews')).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Feature Previews')
+  ).toBeVisible();
 });

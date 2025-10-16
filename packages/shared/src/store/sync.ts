@@ -87,7 +87,9 @@ export const syncInitData = async (
     // This avoids the race condition where IDs arrive before posts exist
     if (initData.hiddenPostIds && initData.hiddenPostIds.length > 0) {
       (globalThis as any).__tempHiddenPostIds = initData.hiddenPostIds;
-      logger.crumb(`stored ${initData.hiddenPostIds.length} hidden post IDs for later`);
+      logger.crumb(
+        `stored ${initData.hiddenPostIds.length} hidden post IDs for later`
+      );
     }
     await db
       .insertBlockedContacts({ blockedIds: initData.blockedUsers }, queryCtx)
@@ -166,15 +168,32 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
-export const syncSince = async () => {
-  const syncCtx: SyncCtx = { priority: SyncPriority.High };
+export const syncSince = async ({
+  queryCtx,
+  syncCtx = { priority: SyncPriority.High },
+  callCtx = {},
+  since,
+}: {
+  queryCtx?: QueryCtx;
+  syncCtx?: SyncCtx;
+  callCtx?: { cause?: string };
+  since?: number;
+} = {}) => {
   logger.log(`syncing since...`);
   try {
-    await batchEffects('syncSince', async (queryCtx) => {
-      await syncLatestChanges({ syncCtx, queryCtx });
-    });
+    await (queryCtx
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      : batchEffects('syncSince', async (batchCtx) => {
+          await syncLatestChanges({
+            since,
+            syncCtx,
+            queryCtx: batchCtx,
+            callCtx,
+          });
+        }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      ...callCtx,
       errorMessage: e.message,
       stack: e.stack,
     });
@@ -186,11 +205,14 @@ export const syncSince = async () => {
 export const syncLatestChanges = async ({
   syncCtx,
   queryCtx,
+  callCtx = {},
   since,
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
+  callCtx?: { cause?: string };
   since?: number;
+  yieldWriter?: boolean;
 }): Promise<void> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
@@ -216,17 +238,30 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  logger.trackEvent('sync changes debug', {
+    context: 'fetched changes',
+    ...callCtx,
+  });
   const msToFetch = Date.now() - start;
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
+  logger.trackEvent('sync changes debug', {
+    context: 'inserted changes',
+    ...callCtx,
+  });
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
+  logger.trackEvent('sync changes debug', {
+    context: 'updated timestamp',
+    ...callCtx,
+  });
   logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
+    ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
     syncWindow: Date.now() - syncFrom,
@@ -235,6 +270,21 @@ export const syncLatestChanges = async ({
     msToFetch,
     msToWrite,
   });
+};
+
+export const syncCachedChanges = async (input: {
+  begin: number;
+  end: number;
+  changes: db.ChangesResult;
+}): Promise<boolean> => {
+  const syncedAt = await db.changesSyncedAt.getValue();
+  if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
+    // cached changes are valid, insert them
+    await db.insertChanges(input.changes);
+    await db.changesSyncedAt.setValue(input.end);
+    return true;
+  }
+  return false;
 };
 
 export const syncLatestPosts = async (
@@ -269,47 +319,7 @@ export const syncLatestPosts = async (
   }
 };
 
-/**
- * Syncs a subset of channels' latest posts; attempts to match the behavior of `useChannelPosts`.
- *
- * This is a best-effort attempt at preloading channels, and should only be
- * executed with a low priority `SyncCtx` to ensure that syncing a channel that
- * the user is looking at can interrupt this.
- * This function internally enqueues work on the sync queue; do not
- * explicitly enqueue this function, or else sync threads will get clogged up.
- */
-const syncRelevantChannelPosts = async (
-  ctx?: SyncCtx,
-  queryCtx?: QueryCtx
-): Promise<void> => {
-  const session = getSession();
-  if (session == null) {
-    throw new Error('Missing session');
-  }
-  const channelsToSync = await db.getChannelsForPredictiveSync(
-    { session, limit: 20 },
-    queryCtx
-  );
-
-  const errors: { [channelId: string]: unknown } = {};
-  for (const channel of channelsToSync) {
-    try {
-      await fillChannelGap({
-        channelId: channel.id,
-        getSession,
-        syncCtx: ctx,
-      });
-    } catch (err) {
-      logger.error('error syncing channel', channel.id, err);
-      errors[channel.id] = err;
-    }
-  }
-  if (Object.keys(errors).length === channelsToSync.length) {
-    throw new Error('Failed predictive sync', errors);
-  }
-};
-
-export const pullSettings = async (ctx?: SyncCtx) => {
+export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -442,7 +452,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
+export const syncContacts = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
@@ -450,7 +464,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
 
   const writer = async () => {
     try {
-      await db.insertContacts(contacts);
+      await db.insertContacts(contacts, queryCtx);
       LocalCache.cacheContacts(contacts);
     } catch (e) {
       logger.error('error inserting contacts', e);
@@ -742,6 +756,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
     case 'deleteGroup':
+      await db.deletePinnedItem({ itemId: update.groupId }, ctx);
       await db.deleteGroup(update.groupId, ctx);
       break;
     case 'inviteGroupMembers':
@@ -1354,14 +1369,64 @@ export const handleChatUpdate = async (
         ctx
       );
       break;
-    case 'addDmInvites':
-      db.insertChannels(update.channels, ctx);
+    case 'syncDmInvites':
+      // This event contains the complete list of pending DM invites
+      // We need to sync our local state with this list
+      await handleSyncDmInvites(update.channels, ctx);
       break;
     case 'groupDmsUpdate':
       syncDms();
       break;
   }
 };
+
+async function handleSyncDmInvites(invites: db.Channel[], ctx?: QueryCtx) {
+  const allChannels = await db.getAllChannels(ctx);
+
+  const currentDmInvites = allChannels.filter(
+    (ch) => ch.type === 'dm' && ch.isDmInvite === true
+  );
+  const currentRegularDms = allChannels.filter(
+    (ch) => ch.type === 'dm' && ch.isDmInvite === false
+  );
+
+  const newInviteIds = new Set(invites.map((ch) => ch.id));
+  const currentInviteIds = new Set(currentDmInvites.map((ch) => ch.id));
+
+  const missingInvites = currentDmInvites.filter(
+    (ch) => !newInviteIds.has(ch.id)
+  );
+
+  const backendDms = await api.getDms();
+  const backendDmIds = new Set(backendDms.map((dm) => dm.id));
+
+  for (const invite of missingInvites) {
+    if (backendDmIds.has(invite.id)) {
+      logger.log('dm invite was accepted, updating to regular dm', invite.id);
+      await db.updateChannel({ id: invite.id, isDmInvite: false }, ctx);
+    } else {
+      logger.log('dm invite was declined, deleting', invite.id);
+      await db.deleteChannels([invite.id], ctx);
+    }
+  }
+
+  for (const regularDm of currentRegularDms) {
+    if (!backendDmIds.has(regularDm.id)) {
+      logger.log('regular dm was removed on backend, deleting', regularDm.id);
+      await db.deleteChannels([regularDm.id], ctx);
+    }
+  }
+
+  const toAdd = invites.filter((ch) => !currentInviteIds.has(ch.id));
+
+  if (toAdd.length > 0) {
+    logger.log(
+      'adding new dm invites',
+      toAdd.map((ch) => ch.id)
+    );
+    await db.insertChannels(toAdd, ctx);
+  }
+}
 
 let lastAdded: string;
 
@@ -1455,6 +1520,38 @@ export async function syncSequencedPosts(
   });
 
   return result;
+}
+
+export async function syncInitialPosts(config: {
+  syncSize: 'heavy' | 'light';
+}) {
+  try {
+    const params = {
+      // TODO: set defaults once we have perf data that's not
+      // tainted with base64
+      channelCount: config.syncSize === 'heavy' ? 30 : 10,
+      postCount: config.syncSize === 'heavy' ? 50 : 30,
+    };
+    const posts = await syncQueue.add(
+      'initialPosts',
+      { priority: SyncPriority.Medium },
+      () => api.getInitialPosts(params)
+    );
+    if (posts.length) {
+      await db.insertChannelPosts({ posts });
+    }
+
+    await db.didSyncInitialPosts.setValue(true);
+
+    logger.trackEvent('Synced Initial Posts', {
+      syncSize: config.syncSize,
+      numPostsSynced: posts.length,
+    });
+  } catch (err) {
+    logger.trackError('Failed to sync initial posts', {
+      errorMessage: err.toString(),
+    });
+  }
 }
 
 export async function syncPosts(
@@ -1617,7 +1714,6 @@ export const handleDiscontinuity = async () => {
     return;
   }
   updateSession(null);
-  syncSince();
 
   // drop potentially outdated newest post markers
   channelCursors.clear();
@@ -1688,27 +1784,34 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
+  if (!alreadySubscribed) {
+    await db.headsSyncedAt.resetValue();
+  }
+
   try {
     let didLoadCachedContacts = false;
 
     try {
-      await batchEffects('sync start (high)', async (ctx) => {
+      await batchEffects('sync start (high)', async (queryCtx) => {
+        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
+
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
+        const highPrioritySyncCtx = {
+          priority: SyncPriority.High,
+          retry: true,
+        };
 
         // first kickoff the fetching
         const syncInitPromise = syncInitData(
-          { priority: SyncPriority.High, retry: true },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const syncLatestPostsPromise = syncLatestPosts(
-          {
-            priority: SyncPriority.High,
-            retry: true,
-          },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const subsPromise = alreadySubscribed
@@ -1721,10 +1824,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         // if we don't have cached contacts, we need to load them with high priority
         const syncContactsPromise = didLoadCachedContacts
           ? () => Promise.resolve()
-          : syncContacts(
-              { priority: SyncPriority.High, retry: true },
-              yieldWriter
-            );
+          : syncContacts(highPrioritySyncCtx, queryCtx, yieldWriter);
 
         const trackStep = (function () {
           let last = Date.now();
@@ -1752,8 +1852,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         const hiddenPostIds = (globalThis as any).__tempHiddenPostIds;
         if (hiddenPostIds && hiddenPostIds.length > 0) {
           try {
-            await db.resetHiddenPosts(hiddenPostIds, ctx);
-            logger.crumb(`applied ${hiddenPostIds.length} hidden post IDs after sync`);
+            await db.resetHiddenPosts(hiddenPostIds, queryCtx);
+            logger.crumb(
+              `applied ${hiddenPostIds.length} hidden post IDs after sync`
+            );
           } catch (e) {
             logger.error('Failed to apply hidden posts after sync:', e);
             // Don't fail the entire sync if this fails
@@ -1797,7 +1899,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      pullSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
@@ -1835,14 +1937,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     await failEnqueuedPosts();
 
-    // fire off relevant channel posts sync, but don't wait for it
-    // TODO: maybe re-enable. My hunch is it's quick to layer this in as a new scry
-    // that can do what we want in one round trip. Pairing that with changes might be
-    // a better path forward compared to reviving the functionality as it was.
-    // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-    //   logger.crumb(`finished channel predictive sync`);
-    // });
-
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
@@ -1873,180 +1967,3 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
     ]);
   });
 };
-
-/**
- * Requires `channel` to be up-to-date from DB.
- */
-export function hasChannelCachedNewestPosts({
-  session,
-  channel,
-}: {
-  session: Session | null;
-  channel: db.Channel;
-}) {
-  if (session == null) {
-    return false;
-  }
-  const { syncedAt, lastPostAt } = channel;
-
-  if (syncedAt == null) {
-    return false;
-  }
-
-  // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
-  // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
-  // We are guaranteed to have the most recent post before `syncedAt`; and
-  // we are guaranteed to have the most recent post after `session.startTime`.
-
-  // This case checks that we have overlap between sync backfill and session subscription.
-  //
-  //   ------------------------| syncedAt
-  //     session.startTime |---------------
-  if (syncedAt >= (session.startTime ?? 0)) {
-    return true;
-  }
-
-  // `lastPostAt` is set with the channel's latest post during session init:
-  // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
-  //
-  // Since we already checked that a session is active, this case checks
-  // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
-  // channel's most recent post's timestamp.
-  //
-  //          lastPostAt
-  //              v
-  //   ------------------------| syncedAt
-  //
-  // This check would fail if we first caught up via sync, and then later
-  // started a session: in that case, there could be missing posts between
-  // `syncedAt`'s "no newer posts" and the start of the session:
-  //
-  //                lastPostAt (post not received)
-  //                    v
-  //   ----| syncedAt
-  //         session.startTime |---------
-  //
-  // NB: In that case, we *do* have the single latest post for the channel,
-  // but we'd likely be missing all other posts in the gap. Wait until we
-  // filled in the gap to show posts.
-  if (lastPostAt && syncedAt > lastPostAt) {
-    return true;
-  }
-  return false;
-}
-
-/**
- * In the specified channel, fetch posts until we have cached all messages
- * between the channel's unread marker and "now". If we have no unread marker,
- * do nothing. This function does not fetch anything older than unread marker
- * (i.e. this should not fetch posts spanning to the start of the channel
- * timeline).
- */
-async function fillChannelGap(opts: {
-  channelId: db.Channel['id'];
-  getSession: () => Session | null;
-  syncCtx: SyncCtx | undefined;
-}) {
-  // How many syncs do we want to do before moving on to the next channel?
-  // This will be hit on any channel for which the user has an unread marker,
-  // and which has many unfetched newer posts in the corresponding post window
-  // for the unread.
-  // (example: If someone has visited a bunch of active channels in the past,
-  // left the network for a while, then installs this app fresh, they'll
-  // probably hit this max for every channel in the predictive sync set, since
-  // there are a lot of posts to fetch between their unread marker and the most
-  // recent post in each channel.)
-  let maxLoops = 2;
-
-  while (maxLoops > 0) {
-    const fillResult = await stepFillChannelGap(opts);
-    if (fillResult == null || fillResult.fetchedPosts.length === 0) {
-      break;
-    }
-    maxLoops--;
-  }
-  if (maxLoops <= 0) {
-    logger.info('Max fetches reached', opts.channelId);
-  }
-}
-
-/**
- * Performs one "step" of channel backfill. Run repeatedly to fully backfill.
- * Returns `true` if there may be more to fetch.
- */
-async function stepFillChannelGap({
-  channelId,
-  getSession,
-  syncCtx,
-}: {
-  channelId: db.Channel['id'];
-  getSession: () => Session | null;
-  syncCtx: SyncCtx | undefined;
-}): Promise<{
-  /** ordered by sent-at, desc */
-  fetchedPosts: db.Post[];
-} | null> {
-  const latestChannel = await db.getChannel({ id: channelId });
-  if (latestChannel == null) {
-    throw new Error('Missing channel');
-  }
-  const hasCachedNewestPosts = hasChannelCachedNewestPosts({
-    session: getSession(),
-    channel: latestChannel,
-  });
-  if (hasCachedNewestPosts) {
-    // nothing left to fetch
-    return null;
-  }
-
-  const baseSyncParams = {
-    channelId,
-    includeReplies: false,
-    count: 30,
-  } as const;
-
-  const syncParams: api.GetChannelPostsOptions | null = await (async () => {
-    const unread = await db.getChannelUnread({ channelId });
-    const unreadPostId = unread?.firstUnreadPostId;
-    if (unreadPostId == null) {
-      // no unread - we want to bring user to newest posts
-      return {
-        ...baseSyncParams,
-        mode: 'newest',
-      };
-    }
-
-    const backfillInfo = await db.checkUnreadChannelBackfill({
-      channelId,
-      postId: unreadPostId,
-    });
-    if (backfillInfo == null) {
-      // unread is outside a window - we want to show the unread to the user,
-      // so start fetching around the unread.
-      return {
-        ...baseSyncParams,
-        mode: 'around',
-        cursor: unreadPostId,
-      };
-    }
-
-    // if we already have a large set of posts after the unread, don't backfill more
-    if (backfillInfo.numberContiguous > 100) {
-      return null;
-    }
-
-    // we know what window we want to grow - fetch newer posts
-    return {
-      ...baseSyncParams,
-      mode: 'newer' as const,
-      cursor: backfillInfo.newestContiguousPostId,
-    };
-  })();
-
-  if (syncParams == null) {
-    return null;
-  }
-
-  const resp = await syncPosts(syncParams, syncCtx);
-  return { fetchedPosts: resp.posts };
-}

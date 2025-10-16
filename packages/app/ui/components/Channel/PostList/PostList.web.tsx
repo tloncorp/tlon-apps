@@ -1,5 +1,5 @@
 import { useMutableCallback } from '@tloncorp/shared';
-import { isEqual } from 'lodash';
+import { isEqual, memoize } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
@@ -136,7 +136,12 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const [insideScrolledToBottomBoundary] = useScrollBoundary(
       scrollerRef.current,
-      { boundaryRatio: onScrolledToBottomThreshold, side: 'bottom' }
+      {
+        isNearBoundary: withinViewportRatioOfBoundary(
+          onScrolledToBottomThreshold
+        ),
+        side: 'bottom',
+      }
     );
     React.useEffect(() => {
       if (insideScrolledToBottomBoundary) {
@@ -237,19 +242,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               minHeight: '100%',
               flexDirection: 'column',
               alignItems: 'stretch',
-              justifyContent: 'flex-end',
+              justifyContent: inverted ? 'flex-end' : 'flex-start',
             }}
           >
-            <View
-              style={[
-                {
-                  flex: 1,
-                  flexDirection: 'column',
-                  justifyContent: inverted ? 'flex-end' : 'flex-start',
-                },
-                contentContainerStyle,
-              ]}
-            >
+            <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}
@@ -294,21 +290,21 @@ function PostListItem({
 
 function isElementScrolledNearTop(
   element: HTMLElement,
-  boundaryRatio: number
+  isNearBoundary: (distance: number, viewportHeight: number) => boolean
 ): boolean {
   const distanceFromTop = element.scrollTop;
   const viewportHeight = element.clientHeight;
-  const isNearTop = distanceFromTop / viewportHeight <= boundaryRatio;
+  const isNearTop = isNearBoundary(distanceFromTop, viewportHeight);
   return isNearTop;
 }
 function isElementScrolledNearBottom(
   element: HTMLElement,
-  boundaryRatio: number
+  isNearBoundary: (distance: number, viewportHeight: number) => boolean
 ): boolean {
   const distanceFromBottom =
     element.scrollHeight - (element.scrollTop + element.clientHeight);
   const viewportHeight = element.clientHeight;
-  const isNearBottom = distanceFromBottom / viewportHeight <= boundaryRatio;
+  const isNearBottom = isNearBoundary(distanceFromBottom, viewportHeight);
   return isNearBottom;
 }
 
@@ -346,14 +342,10 @@ function isElementScrolledNearBottom(
 function useScrollBoundary(
   element: HTMLElement | null,
   {
-    boundaryRatio,
+    isNearBoundary,
     side,
   }: {
-    /**
-     * Max ratio of (distance to boundary) / (viewport height) that will be considered "near boundary".
-     * e.g. `boundaryRatio: 0.5` means that `isNearTop` will be true once we're a half screen from the top of the scroll.
-     */
-    boundaryRatio: number;
+    isNearBoundary: (distance: number, viewportHeight: number) => boolean;
     side: 'top' | 'bottom';
   }
 ) {
@@ -363,8 +355,8 @@ function useScrollBoundary(
     }
     const check =
       side === 'top' ? isElementScrolledNearTop : isElementScrolledNearBottom;
-    return check(element, boundaryRatio);
-  }, [element, side, boundaryRatio]);
+    return check(element, isNearBoundary);
+  }, [element, side, isNearBoundary]);
 
   const [insideBoundary, setInsideBoundary] = React.useState(
     () => checkInsideBoundary() ?? false
@@ -381,7 +373,7 @@ function useScrollBoundary(
     return () => {
       element.removeEventListener('scroll', handleScroll);
     };
-  }, [element, boundaryRatio, checkInsideBoundary]);
+  }, [element, checkInsideBoundary]);
   return [insideBoundary, checkInsideBoundary] as const;
 }
 
@@ -555,17 +547,23 @@ function useStickToScrollStart({
   scrollerContentsKey,
   scrollerRef,
   disable,
+  maxDistanceForStickToStart = 1,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
   scrollerRef: React.RefObject<HTMLDivElement>;
   disable: boolean;
+  /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
+  maxDistanceForStickToStart?: number;
 }) {
   const shouldStickToStartRef = React.useRef(false);
 
   const [isAtStart] = useScrollBoundary(scrollerRef.current, {
-    boundaryRatio: 0,
+    isNearBoundary: React.useCallback(
+      (distance: number) => distance < maxDistanceForStickToStart,
+      [maxDistanceForStickToStart]
+    ),
     side: inverted ? 'bottom' : 'top',
   });
 
@@ -573,7 +571,7 @@ function useStickToScrollStart({
     shouldStickToStartRef.current = !disable && isAtStart;
   }, [isAtStart, disable]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!shouldStickToStartRef.current || scroller == null) {
       return;
@@ -660,7 +658,7 @@ function useBoundaryCallbacks({
     onStartReached ?? null
   );
   const [reachedStart, getReachedStart] = useScrollBoundary(element, {
-    boundaryRatio: onStartReachedThreshold,
+    isNearBoundary: withinViewportRatioOfBoundary(onStartReachedThreshold),
     side: inverted ? 'bottom' : 'top',
   });
   React.useEffect(() => {
@@ -699,7 +697,7 @@ function useBoundaryCallbacks({
     onEndReached ?? null
   );
   const [reachedEnd, getReachedEnd] = useScrollBoundary(element, {
-    boundaryRatio: onEndReachedThreshold,
+    isNearBoundary: withinViewportRatioOfBoundary(onEndReachedThreshold),
     side: inverted ? 'top' : 'bottom',
   });
   React.useEffect(() => {
@@ -812,3 +810,16 @@ function useIdentityHash(...deps: unknown[]): unknown {
   }, [deps]);
   return hash;
 }
+
+/**
+ * Returns a function for `useScrollBoundary`'s `isNearBoundary` that checks
+ * if the distance to the boundary is within `viewportRatio * viewportHeight`.
+ * Useful for matching the behavior of `VirtualizedList`'s
+ * `onStartReachedThreshold` and `onEndReachedThreshold`, which are expressed as
+ * ratios of the viewport height.
+ */
+const withinViewportRatioOfBoundary = memoize(
+  (viewportRatio: number) =>
+    (distance: number, viewportHeight: number): boolean =>
+      distance / viewportHeight <= viewportRatio
+);

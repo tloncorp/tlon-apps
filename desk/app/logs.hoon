@@ -13,7 +13,7 @@
         posthog=(unit volume:l)
     ==
   ::
-  ++  commit  ?~(^commit 'unknown' i.^commit)
+  ++  commit  ?~(^commit 'unknown' -.^commit)
   --
 =|  current-state
 =*  state  -
@@ -24,7 +24,9 @@
       def  ~(. (default-agent this %|) bowl)
       cor  ~(. +> [bowl ~])
   ::
-  ++  on-init  on-init:def
+  ++  on-init
+    ^-  (quip card _this)
+    `this(posthog `%info)
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
