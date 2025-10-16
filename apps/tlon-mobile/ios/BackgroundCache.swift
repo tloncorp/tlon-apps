@@ -1,0 +1,48 @@
+import Foundation
+import React
+
+@objc(BackgroundCache)
+class BackgroundCache: NSObject {   
+    @objc
+    override init() {
+        super.init()
+    }
+
+    @objc(retrieveBackgroundData:rejecter:)
+    func retrieveBackgroundData(resolver resolve: @escaping RCTPromiseResolveBlock,
+                                rejecter reject: @escaping RCTPromiseRejectBlock) {
+        
+        Task {
+            do {
+                let changes = try ChangesLoader.retrieve()
+                
+                if let changesData = changes, let jsonString = String(data: changesData, encoding: .utf8) {
+                    resolve(jsonString)
+                } else {
+                    resolve(nil)
+                }
+            } catch {
+                reject("retreive_error", error.localizedDescription, error)            }
+        }
+    }
+    
+    @objc(setLastSyncTimestamp:resolver:rejecter:)
+        func setLastSyncTimestamp(timestamp: NSNumber,
+                                 resolver resolve: @escaping RCTPromiseResolveBlock,
+                                 rejecter reject: @escaping RCTPromiseRejectBlock) {
+            do {
+                let date: Date?
+                if timestamp.doubleValue == 0.0 {
+                    date = nil // Interpret 0 as a command to reset the timestamp
+                } else {
+                    date = Date(timeIntervalSince1970: timestamp.doubleValue / 1000.0)
+                }
+
+                try ChangesLoader.setLastSyncTimestamp(date)
+                resolve(true)
+            } catch {
+                reject("storage_error", error.localizedDescription, error)
+            }
+        }
+}
+

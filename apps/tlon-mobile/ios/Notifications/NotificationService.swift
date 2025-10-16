@@ -88,12 +88,12 @@ class NotificationService: UNNotificationServiceExtension {
             throw NotificationError.notificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
         }
     }
-    
+
     /// Presents a `JSValue` (likely raised as an exception by a `JSContext`) as a `Swift.Error`.
     private struct JSException: LocalizedError {
         let exception: JSValue
         weak var context: JSContext?
-        
+
         var errorDescription: String? {
             "JSContext raised exception: \(exception.toString() ?? "unable to stringify")"
         }
@@ -106,7 +106,7 @@ class NotificationService: UNNotificationServiceExtension {
             print(exception?.toString() ?? "No exception found")
             jsException = exception.map { JSException(exception: $0, context: context) }
         }
-        
+
         guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else {
             throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: jsException)
         }
@@ -132,6 +132,16 @@ class NotificationService: UNNotificationServiceExtension {
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
+      // use the provided timeslice as an opportunity to cache fresh /changes data
+      Task {
+          do {
+              try await ChangesLoader.sync()
+          } catch {
+              // TODO: we should be logging this via telemetry
+              print("[NotificationService] Failed to sync changes: \(error)")
+          }
+      }
+
 
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
@@ -145,10 +155,10 @@ class NotificationService: UNNotificationServiceExtension {
                 uid: uid,
                 notification: notification
               )
-              
+
               contentHandler(notifContent)
               return
-              
+
           case .dismiss:
               // Should not be hit, but set up fallback notification just in case.
               // We can't prevent this alert from being shown, so at least make it truthful.
@@ -172,17 +182,22 @@ class NotificationService: UNNotificationServiceExtension {
               packErrorOnNotification(err)
               contentHandler(bestAttemptContent!)
               return
-              
+
           case .invalid:
               // Log invalid notification
               if let uid = request.content.userInfo["uid"] as? String {
                   await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Invalid notification format"))
               }
+
               await NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
               contentHandler(bestAttemptContent!)
               return
-          }
-      }
+
+            case .dismiss:
+              contentHandler(bestAttemptContent!)
+              return
+            }
+        }
     }
 
     /** Appends an error onto the `bestAttemptContent` payload; does *not* attempt to complete the notification request. */

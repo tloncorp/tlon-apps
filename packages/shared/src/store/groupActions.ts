@@ -413,6 +413,10 @@ export async function deleteGroup(group: db.Group) {
     logic.getModelAnalytics({ group })
   );
 
+  if (group.pin) {
+    await db.deletePinnedItem(group.pin);
+  }
+
   // optimistic update
   await db.deleteGroup(group.id);
 
@@ -422,6 +426,10 @@ export async function deleteGroup(group: db.Group) {
     logger.error('Failed to delete group', e);
     // rollback optimistic update
     await db.insertGroups({ groups: [group] });
+    // restore pin if it was removed
+    if (group.pin) {
+      await db.insertPinnedItem(group.pin);
+    }
   }
 }
 
