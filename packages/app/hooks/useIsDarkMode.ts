@@ -1,18 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, useColorScheme } from 'react-native';
+import {
+  AppState,
+  AppStateStatus,
+  Appearance,
+  useColorScheme,
+} from 'react-native';
 
 export const useIsDarkMode = () => {
   const colorScheme = useColorScheme();
-  // On iOS, the color scheme will temporarily change to 'light' when the app is
-  // backgrounded, regardless of actual system appearance settings, so we ignore
-  // scheme changes that occur while the app is backgrounded. We do still need
-  // to capture intentional changes to the system theme, so we apply the most
-  // recent pending change when the app returns to the foreground. The most
-  // recent scheme value will be correct, we just want to skip applying the
-  // erroneous 'light' values to avoid flickering.
+  // Platform-specific workarounds for color scheme detection:
+  //
+  // iOS: The color scheme will temporarily change to 'light' when the app is
+  // backgrounded, regardless of actual system appearance settings. We ignore
+  // scheme changes that occur while backgrounded to avoid flickering.
+  //
+  // Android: useColorScheme() doesn't reliably update when the system theme
+  // changes while the app is backgrounded for extended periods. We query
+  // Appearance.getColorScheme() directly when returning to foreground to get
+  // a fresh (non-cached) value and ensure theme sync after long background periods.
   const isInForeground = useRef<boolean>(AppState.currentState === 'active');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(colorScheme === 'dark');
 
+  // Listen for AppState changes to detect foreground/background transitions
   useEffect(() => {
     const appStateSubscription = AppState.addEventListener(
       'change',
@@ -22,21 +31,40 @@ export const useIsDarkMode = () => {
 
         isInForeground.current = isNowInForeground;
 
-        // If app is returning to foreground, apply any pending color scheme change
+        // When returning to foreground, query the color scheme directly to get
+        // a fresh value. This works around Android's issue where useColorScheme()
+        // may have a stale value after long background periods.
         if (wasInBackground && isNowInForeground) {
-          setIsDarkMode(colorScheme === 'dark');
+          const freshColorScheme = Appearance.getColorScheme();
+          setIsDarkMode(freshColorScheme === 'dark');
         }
       }
     );
     return () => appStateSubscription.remove();
-  }, [colorScheme]);
+  }, []);
 
+  // Listen for color scheme changes while app is in foreground
+  // (from useColorScheme hook dependency)
   useEffect(() => {
-    // Only apply changes if we're currently foregrounded
+    // Only apply changes if we're currently foregrounded (iOS workaround)
     if (isInForeground.current) {
       setIsDarkMode(colorScheme === 'dark');
     }
   }, [colorScheme]);
+
+  // Add Appearance change listener as backup to catch theme changes
+  // while app is active (supplements useColorScheme hook on Android)
+  useEffect(() => {
+    const appearanceSubscription = Appearance.addChangeListener(
+      ({ colorScheme: newColorScheme }) => {
+        // Only apply if foregrounded (iOS workaround)
+        if (isInForeground.current) {
+          setIsDarkMode(newColorScheme === 'dark');
+        }
+      }
+    );
+    return () => appearanceSubscription.remove();
+  }, []);
 
   return isDarkMode;
 };
