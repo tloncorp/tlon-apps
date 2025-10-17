@@ -1,6 +1,6 @@
 ::
-/-  *notify, resource, a=activity, c=channels, h=hark, meta
-/+  cu=channel-utils, n=notify, logs, aj=activity-json,
+/-  *notify, resource, a=activity, c=channels, meta
+/+  cu=channel-utils, logs, aj=activity-json,
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
 /$  hark-yarn-to-json       %hark-yarn       %json
@@ -172,7 +172,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<
@@ -379,15 +379,7 @@
         (activity-event-to-json time-id event.u.event)
       ::
           %hark-yarn
-        =/  yarn=(unit yarn:h)
-          (event-to-yarn:n our.bowl now.bowl time-id event.u.event)
-        ?~  yarn
-          [[404 ~] ~]
-        :-  [200 ['content-type' 'application-json'] ~]
-        %-  some
-        %-  as-octs:mimes:html
-        %-  en:json:html
-        (hark-yarn-to-json u.yarn)
+        [[410 ~] ~]
       ==
     ::
     ++  provider-state-message
@@ -488,25 +480,14 @@
           ?:  ?=(%notify -.path)  [[path v0] v1]
           [v0 [path v1]]
         :_  this(notifications (~(put by notifications) time-id [event ~]))
-        =-  (zing (turn - drop))
-        ^-  (list (unit card))
         =/  update-0=update:v0  [`@`time-id %notify]
         =/  =update:v1
           [notify-count `@`time-id %notify ~]
-        :_  :~  `(fact:io notify-update-1+!>(update) v1-paths)
-                `(fact:io notify-update+!>(update-0) v0-paths)
-            ==
-        ::  if supported, convert the event to a hark notification (yarn) and
-        ::  inject it into hark, so that old clients may continue retrieving
-        ::  notifications from hark, using the id this agent gives them in the
-        ::  %notify-update above
-        ::
-        ^-  (unit card)
-        =/  yarn=(unit yarn:h)
-          (event-to-yarn:n our.bowl now.bowl time-id event)
-        ?~  yarn  ~
-        =/  =action:h  [%add-yarn & | u.yarn]
-        `[%pass /hark/copy %agent [our.bowl %hark] %poke %hark-action !>(action)]
+        ::NOTE  this used to try to inject the notification into %hark too,
+        ::      but we now no longer do so.
+        :~  (fact:io notify-update-1+!>(update) v1-paths)
+            (fact:io notify-update+!>(update-0) v0-paths)
+        ==
       ::
           %kick
         %-  (tell:l %info 'notify activity kick' ~)
