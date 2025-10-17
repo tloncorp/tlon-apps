@@ -1104,28 +1104,13 @@ export const subscribeGroups = async (
     }
   );
 
-  // Try foreigns subscription first (PR #5138)
-  // Falls back to legacy gangs subscription if foreigns path doesn't exist
-  try {
-    await subscribe(
-      { app: 'groups', path: '/v1/foreigns' },
-      (rawEvent: ub.Foreigns) => {
-        logger.log('foreignsUpdateEvent', rawEvent);
-        eventHandler(toForeignsGroupsUpdate(rawEvent));
-      }
-    );
-    logger.log('Successfully subscribed to /v1/foreigns');
-  } catch (error) {
-    logger.log('foreigns subscription failed, falling back to gangs', error);
-    // Fall back to legacy subscription
-    subscribe(
-      { app: 'groups', path: '/gangs/updates' },
-      (rawEvent: ub.Gangs) => {
-        logger.log('gangsUpdateEvent (fallback)', rawEvent);
-        eventHandler(toGangsGroupsUpdate(rawEvent));
-      }
-    );
-  }
+  subscribe(
+    { app: 'groups', path: '/v1/foreigns' },
+    (rawEvent: ub.Foreigns) => {
+      logger.log('foreignsUpdateEvent', rawEvent);
+      eventHandler(toForeignsGroupsUpdate(rawEvent));
+    }
+  );
 };
 
 export const toGroupUpdate = (
@@ -1850,11 +1835,6 @@ export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
     return toClientGroupFromGang(id, gang);
   });
 }
-
-const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
-  const groups = toClientGroupsFromGangs(gangsEvent);
-  return { type: 'setUnjoinedGroups', groups };
-};
 
 const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
   const groups = toClientGroupsFromForeigns(foreignsEvent);
