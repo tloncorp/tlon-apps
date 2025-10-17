@@ -14,6 +14,7 @@ enum APIError: Error {
     case notFound
     case invalidURL
     case invalidParams
+    case invalidDateFormat
 }
 
 extension APIError: LocalizedError {
@@ -29,6 +30,8 @@ extension APIError: LocalizedError {
             return "Invalid URL provided"
         case .invalidParams:
             return "Invalid parameters provided"
+        case .invalidDateFormat:
+            return "Invalid @da received from JS"
         }
     }
 }

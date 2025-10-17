@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, gv=groups-ver, ha=hark, activity, story
+/-  c=channels, g=groups, gv=groups-ver, activity, story
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -136,7 +136,7 @@
           [/v3 %channel-response-4 ~]
           [/v3/said %channel-said-1 %channel-denied ~]
         ::
-          [/v4/said %channel-said-2 ~]
+          [/v4/said %channel-said-2 %channel-denied ~]
       ==
     ::  scries
     ::
@@ -203,7 +203,7 @@
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>
@@ -266,7 +266,6 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::
@@ -1251,12 +1250,6 @@
       (~(rad og (sham our.bowl pole)) ~m15)
     (emit [%pass pole %arvo %b %wait :(add now.bowl ~h1 stagger)])
   ::
-      [%hark ~]
-    ?>  ?=(%poke-ack -.sign)
-    ?~  p.sign  cor
-    %-  (slog leaf+"Failed to hark" u.p.sign)
-    cor
-  ::
       [%activity %submit ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -1323,7 +1316,7 @@
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(flag group.perm.perm.channel)  ~
+    ?.  =(flag group.perm.channel)  ~
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
@@ -1469,7 +1462,7 @@
     %-  uv-posts-3:utils
     %+  gas:on-v-posts:c  ~
     =/  around=(unit id-post:c)
-      ?~  act=(~(get by activity) [%channel nest group.perm.perm.chan])  ~
+      ?~  act=(~(get by activity) [%channel nest group.perm.chan])  ~
       ?~(unread.u.act ~ `time.u.unread.u.act)
     ?~  around
       ::NOTE  equivalent of /newest scry
@@ -1594,17 +1587,6 @@
   |=  =nest:c
   [nest ca-unread:(ca-abed:ca-core nest)]
 ::
-++  pass-hark
-  |=  =cage
-  ^-  card
-  =/  =wire  /hark
-  =/  =dock  [our.bowl %hark]
-  [%pass wire %agent dock %poke cage]
-++  pass-yarn
-  |=  =new-yarn:ha
-  ^-  card
-  (pass-hark hark-action-1+!>([%new-yarn new-yarn]))
-::
 ++  from-self  =(our src):bowl
 ::
 ++  scry-path
@@ -1634,7 +1616,7 @@
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
-  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
+  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  safe-watch
     |=  [=wire =dock =path]
     |=  delay=?
@@ -1668,12 +1650,12 @@
       ?.  .^(? %gu (scry-path %activity /$))
         ca-core
       ?:  =(author-ship our.bowl)
-        =/  =source  [%channel nest group.perm.perm.channel]
+        =/  =source  [%channel nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
-        [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
+        [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
     ::
     ++  on-post-delete
@@ -1681,12 +1663,12 @@
       ^+  ca-core
       ::  remove any activity that might've happened under this post
       ::
-      =*  group  group.perm.perm.channel
+      =*  group  group.perm.channel
       =/  chan=source  [%channel nest group]
       =/  key=message-key
         [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention  (was-mentioned:utils content our.bowl seat)
       =/  =incoming-event  [%post key nest group content mention]
       (send [%del thread] [%del-event chan incoming-event] ~)
@@ -1701,9 +1683,9 @@
       =/  parent-key=message-key
         [[parent-author id.parent] id.parent]
       ?:  =(reply-author our.bowl)
-        =/  =source  [%thread parent-key nest group.perm.perm.channel]
+        =/  =source  [%thread parent-key nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
@@ -1717,13 +1699,13 @@
             [[reply-author id] id]
             parent-key
             nest
-            group.perm.perm.channel
+            group.perm.channel
             content
             mention
         ==
       ::  only follow thread if we haven't adjusted settings already
       ::  and if we're the author of the post, mentioned, or in the replies
-      =/  thread=source  [%thread parent-key nest group.perm.perm.channel]
+      =/  thread=source  [%thread parent-key nest group.perm.channel]
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
@@ -1740,13 +1722,13 @@
       =*  reply-author   (get-author-ship:utils author.reply)
       ::  remove any activity that might've happened under this post
       ::
-      =*  group  group.perm.perm.channel
+      =*  group  group.perm.channel
       =/  key=message-key
         [[reply-author id.reply] id.reply]
       =/  top=message-key
         [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention  (was-mentioned:utils content.reply our.bowl seat)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
       (send [%del-event thread incoming-event] ~)
@@ -1771,7 +1753,7 @@
     =.  nest  [kind.create our.bowl name.create]
     ?<  (~(has by v-channels) nest)
     =.  channel  *v-channel:c
-    =.  group.perm.perm.channel  group.create
+    =.  group.perm.channel  group.create
     =.  meta.channel  [0 meta.create]
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  (send:ca-activity [%add %chan-init nest group.create] ~)
@@ -1798,7 +1780,7 @@
       =.  channel  (~(got by v-channels) nest)
       (ca-safe-sub |)
     =.  channel  *v-channel:c
-    =.  group.perm.perm.channel  group
+    =.  group.perm.channel  group
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  ca-give-unread
     =.  ca-core  (ca-response %join group)
@@ -1832,13 +1814,13 @@
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
       =/  source=(unit source:activity)
         ?.  ?=(%reply -.c-post.a-channel)
-          `[%channel nest group.perm.perm.channel]
+          `[%channel nest group.perm.channel]
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
         ?:  ?=(%| -.post)  ~
         =/  =message-key:activity
           [[(get-author-ship:utils author.post) id] id]
-        `[%thread [message-key nest group.perm.perm.channel]]
+        `[%thread [message-key nest group.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
     ==
@@ -1846,28 +1828,6 @@
   ++  ca-a-remark
     |=  =a-remark:c
     ^+  ca-core
-    =?  ca-core  =(%read -.a-remark)
-      %-  emil
-      =/  last-read  last-read.remark.channel
-      =+  .^(=carpet:ha %gx (scry-path %hark /desk/groups/latest/noun))
-      %+  murn
-        ~(tap by cable.carpet)
-      |=  [=rope:ha =thread:ha]
-      ^-  (unit card)
-      ?~  can.rope  ~
-      ?.  =(nest u.can.rope)  ~
-      =/  thread=(pole knot)  ted.rope
-      =/  top-id=(unit id-post:c)
-        ?+  thread  ~
-          [* * * * id=@ rest=*]  (slaw %ui (cat 3 '0i' id.thread))
-        ==
-      ::  look at what post id the notification is coming from, and
-      ::  if it's newer than the last read, mark the notification
-      ::  read as well
-      ?~  top-id  ~
-      ?:  (lth u.top-id last-read.remark.channel)  ~
-      =/  =cage  hark-action-1+!>([%saw-rope rope])
-      `(pass-hark cage)
     =.  remark.channel
       ?-    -.a-remark
           %watch    remark.channel(watching &)
@@ -2157,15 +2117,15 @@
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
     =^  changed  order.channel  (apply-rev:c order.channel order.chk)
-    =?  ca-core  &(changed send)  (ca-response %order order.order.channel)
+    =?  ca-core  &(changed send)  (ca-response %order +.order.channel)
     =^  changed  view.channel  (apply-rev:c view.channel view.chk)
-    =?  ca-core  &(changed send)  (ca-response %view view.view.channel)
+    =?  ca-core  &(changed send)  (ca-response %view +.view.channel)
     =^  changed  sort.channel  (apply-rev:c sort.channel sort.chk)
-    =?  ca-core  &(changed send)  (ca-response %sort sort.sort.channel)
+    =?  ca-core  &(changed send)  (ca-response %sort +.sort.channel)
     =^  changed  perm.channel  (apply-rev:c perm.channel perm.chk)
-    =?  ca-core  &(changed send)  (ca-response %perm perm.perm.channel)
+    =?  ca-core  &(changed send)  (ca-response %perm +.perm.channel)
     =^  changed  meta.channel  (apply-rev:c meta.channel meta.chk)
-    =?  ca-core  &(changed send)  (ca-response %meta meta.meta.channel)
+    =?  ca-core  &(changed send)  (ca-response %meta +.meta.channel)
     =/  old  posts.channel
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-may-post)
@@ -2211,8 +2171,7 @@
   ::  +ca-u-* functions ingest updates and execute them
   ::
   ::    often this will modify the state and emit a "response" to our
-  ::    own subscribers.  it may also emit unreads and/or trigger hark
-  ::    events.
+  ::    own subscribers.  it may also emit unreads.
   ::
   ++  ca-u-channels
     |=  [=time =u-channel:c]
@@ -2231,33 +2190,33 @@
     ?-    -.u-channel
         %create
       ?.  =(0 rev.perm.channel)  ca-core
-      =.  perm.perm.channel  perm.u-channel
+      =.  +.perm.channel  perm.u-channel
       (ca-response %create perm.u-channel)
     ::
         %order
       =^  changed  order.channel  (apply-rev:c order.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %order order.order.channel)
+      (ca-response %order +.order.channel)
     ::
         %view
       =^  changed  view.channel  (apply-rev:c view.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %view view.view.channel)
+      (ca-response %view +.view.channel)
     ::
         %sort
       =^  changed  sort.channel  (apply-rev:c sort.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %sort sort.sort.channel)
+      (ca-response %sort +.sort.channel)
     ::
         %perm
       =^  changed  perm.channel  (apply-rev:c perm.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %perm perm.perm.channel)
+      (ca-response %perm +.perm.channel)
     ::
         %meta
       =^  changed  meta.channel  (apply-rev:c meta.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %meta meta.meta.channel)
+      (ca-response %meta +.meta.channel)
     ::
         %post
       =/  old  posts.channel
@@ -2289,9 +2248,6 @@
           ==
         =?  ca-core  ?=(%& -.post.u-post)
           (ca-heed ~[author.post.u-post])
-        =?  ca-core  ?=(%& -.post.u-post)
-          ::TODO  what about the "mention was added during edit" case?
-          (on-post:ca-hark id-post +.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
         =.  count.channel
           %+  max  count.channel
@@ -2372,8 +2328,6 @@
         =/  reply=(may:c reply:c)
           ?:  ?=(%| -.reply.u-reply)  reply.u-reply
           &+(uv-reply-2:utils id-post +.reply.u-reply)
-        =?  ca-core  ?=(%& -.reply.u-reply)
-          (on-reply:ca-hark id-post post +.reply.u-reply)
         =?  ca-core  ?=(%& -.reply.u-reply)
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
@@ -2463,165 +2417,6 @@
       reacts  (ca-apply-reacts reacts.old reacts.new)
       +>      +>.new
     ==
-  ::
-  ::  +ca-hark: notification dispatch
-  ::
-  ::    entry-points are +on-post and +on-reply, which may implement distinct
-  ::    notification behavior
-  ::
-  ++  ca-hark
-    |%
-    ++  on-post
-      |=  [=id-post:c post=v-post:c]
-      ^+  ca-core
-      =*  post-author  (get-author-ship:utils author.post)
-      ?:  =(post-author our.bowl)
-        ca-core
-      ::  we want to be notified if we were mentioned in the post
-      ::
-      ?.  ?=(kind:c -.kind.post)  ca-core
-      =/  =rope:ha  (ca-rope -.kind.post id-post ~)
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.post our.bowl seat)
-        ?.  (want-hark %mention)
-          ca-core
-        =/  cs=(list content:ha)
-          ~[[%ship post-author] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-yarn (ca-spin rope cs ~)))
-      ::
-      ?:  (want-hark %any)
-        =/  cs=(list content:ha)
-          ~[[%ship post-author] ' sent a message: ' (flatten:utils content.post)]
-        (emit (pass-yarn (ca-spin rope cs ~)))
-      ca-core
-    ::
-    ++  on-reply
-      |=  [=id-post:c post=v-post:c reply=v-reply:c]
-      ^+  ca-core
-      =*  reply-author  (get-author-ship:utils author.reply)
-      ?:  =(reply-author our.bowl)
-        ca-core
-      ::  preparation of common cases
-      ::
-      =*  diary-notification
-        =*  post-title  ?~(meta.post 'unknown' title.u.meta.post)
-        :~  [%ship reply-author]  ' commented on '
-            [%emph post-title]   ': '
-            [%ship reply-author]  ': '
-            (flatten:utils content.reply)
-        ==
-      =*  heap-notification
-        =/  content  (flatten:utils content.reply)
-        =*  post-title  ?~(meta.post '' title.u.meta.post)
-        =/  title=@t
-          ?.  =(0 (met 3 post-title))  post-title
-          ?:  (lte (met 3 content) 80)  content
-          (cat 3 (end [3 77] content) '...')
-        :~  [%ship reply-author]  ' commented on '
-            [%emph title]   ': '
-            [%ship reply-author]  ': '
-            content
-        ==
-      ::  construct a notification message based on the reason to notify,
-      ::  if we even need to notify at all
-      ::
-      =;  cs=(unit (list content:ha))
-        ?~  cs  ca-core
-        ?.  ?=(kind:c -.kind.post)  ca-core
-        =/  =rope:ha  (ca-rope -.kind.post id-post `id.reply)
-        (emit (pass-yarn (ca-spin rope u.cs ~)))
-      ::  notify because we wrote the post the reply responds to
-      ::
-      ?:  =(author.post our.bowl)
-        ?.  (want-hark %ours)  ~
-        ?+    -.kind.post  ~
-            %diary  `diary-notification
-            %heap   `heap-notification
-            %chat
-          :-  ~
-          :~  [%ship reply-author]
-              ' replied to you: '
-              (flatten:utils content.reply)
-          ==
-        ==
-      ::  notify because we were mentioned in the reply
-      ::
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.reply our.bowl seat)
-        ?.  (want-hark %mention)  ~
-        `~[[%ship reply-author] ' mentioned you: ' (flatten:utils content.reply)]
-      ::  notify because we ourselves responded to this post previously
-      ::
-      ?:  %+  lien  (tap:on-v-replies:c replies.post)
-          |=  [=time reply=(may:c v-reply:c)]
-          ?:  ?=(%| -.reply)  |
-          =((get-author-ship:utils author.reply) our.bowl)
-        ?.  (want-hark %ours)  ~
-        ?+    -.kind.post  ~
-            %diary  `diary-notification
-            %heap   `heap-notification
-            %chat
-          :-  ~
-          :~  [%ship reply-author]
-              ' replied to your message “'
-              (flatten:utils content.post)
-              '”: '
-              [%ship reply-author]
-              ': '
-              (flatten:utils content.reply)
-          ==
-        ==
-      ::  only notify if we want to be notified about everything
-      ::
-      ?.  (want-hark %any)
-        ~
-      ?+    -.kind.post  ~
-          %diary  ~
-          %heap   ~
-          %chat
-        :-  ~
-        :~  [%ship reply-author]
-            ' sent a message: '
-            (flatten:utils content.reply)
-        ==
-      ==
-    ::
-    ++  want-hark
-      |=  kind=?(%mention %ours %any)
-      %+  (fit-level:volume [our now]:bowl)
-        [%channel nest]
-      ?-  kind
-        %mention  %soft  ::  mentioned us
-        %ours     %soft  ::  replied to us or our context
-        %any      %loud  ::  any message
-      ==
-    --
-  ::
-  ++  ca-rope
-    |=  [=kind:c =id-post:c id-reply=(unit id-reply:c)]
-    ^-  rope:ha
-    =/  =path
-      ?-    kind
-        %diary  /note/(rsh 4 (scot %ui id-post))
-        %heap   /curio/(rsh 4 (scot %ui id-post))
-        %chat   /message/(rsh 4 (scot %ui id-post))
-      ==
-    =/  rest
-      ?~  id-reply  path
-      (snoc path (rsh 4 (scot %ui u.id-reply)))
-    =*  group  group.perm.perm.channel
-    =/  gn=nest:g  nest
-    =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
-    [`group `gn q.byk.bowl thread]
-  ::
-  ::  convert content into a full yarn suitable for hark
-  ::
-  ++  ca-spin
-    |=  [=rope:ha con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
-    =*  group  group.perm.perm.channel
-    =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels ted.rope)
-    [& & rope con link but]
   ::
   ::  give a "response" to our subscribers
   ::
@@ -2758,23 +2553,7 @@
       ?:  ?=(%v0 ver)  (ca-peek-posts-0 rest.pole)
       (ca-peek-posts rest.pole ver)
     ::
-        [%perm ~]        ``channel-perm+!>(perm.perm.channel)
-    ::
-        [%hark %rope post=@ ~]
-      =/  id  (slav %ud post.pole)
-      :^  ~  ~  %noun  !>
-      ?.  (has:on-v-posts:c posts.channel id)  ~
-      `(ca-rope kind.nest id ~)
-    ::
-        [%hark %rope post=@ reply=@ ~]
-      =/  post-id  (slav %ud post.pole)
-      =/  reply-id  (slav %ud reply.pole)
-      :^  ~  ~  %noun  !>
-      =/  post  (get:on-v-posts:c posts.channel post-id)
-      ?~  post  ~
-      ?:  ?=(%| -.u.post)  ~
-      ?.  (has:on-v-replies:c replies.u.post reply-id)  ~
-      `(ca-rope kind.nest post-id `reply-id)
+        [%perm ~]        ``channel-perm+!>(+.perm.channel)
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
@@ -3422,7 +3201,7 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:v0:gv)
-    =/  =flag:g  group.perm.perm.channel
+    =/  =flag:g  group.perm.channel
     =/  exists-path
       (scry-path %groups /groups/(scot %p p.flag)/[q.flag])
     =+  .^(exists=? %gu exists-path)
@@ -3449,7 +3228,7 @@
   ::
   ::  assorted helpers
   ::
-  ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.channel src.bowl))
+  ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.channel src.bowl))
   ::
   ::  leave the subscription only
   ::
@@ -3462,7 +3241,7 @@
   ++  ca-leave
     =.  ca-core  ca-simple-leave
     =.  ca-core  (ca-response %leave ~)
-    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
+    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.channel] ~)
     =.  gone  &
     ca-core
   --
