@@ -1298,7 +1298,7 @@
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(flag group.perm.perm.channel)  ~
+    ?.  =(flag group.perm.channel)  ~
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
@@ -1434,7 +1434,7 @@
     %-  uv-posts-3:utils
     %+  gas:on-v-posts:c  ~
     =/  around=(unit id-post:c)
-      ?~  act=(~(get by activity) [%channel nest group.perm.perm.chan])  ~
+      ?~  act=(~(get by activity) [%channel nest group.perm.chan])  ~
       ?~(unread.u.act ~ `time.u.unread.u.act)
     ?~  around
       ::NOTE  equivalent of /newest scry
@@ -1588,7 +1588,7 @@
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
-  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
+  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  safe-watch
     |=  [=wire =dock =path]
     |=  delay=?
@@ -1620,12 +1620,12 @@
       ?.  .^(? %gu (scry-path %activity /$))
         ca-core
       ?:  =(author-ship our.bowl)
-        =/  =source  [%channel nest group.perm.perm.channel]
+        =/  =source  [%channel nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
-        [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
+        [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
     ::
     ++  on-post-delete
@@ -1633,12 +1633,12 @@
       ^+  ca-core
       ::  remove any activity that might've happened under this post
       ::
-      =*  group  group.perm.perm.channel
+      =*  group  group.perm.channel
       =/  chan=source  [%channel nest group]
       =/  key=message-key
         [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention  (was-mentioned:utils content our.bowl seat)
       =/  =incoming-event  [%post key nest group content mention]
       (send [%del thread] [%del-event chan incoming-event] ~)
@@ -1653,9 +1653,9 @@
       =/  parent-key=message-key
         [[parent-author id.parent] id.parent]
       ?:  =(reply-author our.bowl)
-        =/  =source  [%thread parent-key nest group.perm.perm.channel]
+        =/  =source  [%thread parent-key nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
@@ -1669,13 +1669,13 @@
             [[reply-author id] id]
             parent-key
             nest
-            group.perm.perm.channel
+            group.perm.channel
             content
             mention
         ==
       ::  only follow thread if we haven't adjusted settings already
       ::  and if we're the author of the post, mentioned, or in the replies
-      =/  thread=source  [%thread parent-key nest group.perm.perm.channel]
+      =/  thread=source  [%thread parent-key nest group.perm.channel]
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
@@ -1692,13 +1692,13 @@
       =*  reply-author   (get-author-ship:utils author.reply)
       ::  remove any activity that might've happened under this post
       ::
-      =*  group  group.perm.perm.channel
+      =*  group  group.perm.channel
       =/  key=message-key
         [[reply-author id.reply] id.reply]
       =/  top=message-key
         [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
-      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention  (was-mentioned:utils content.reply our.bowl seat)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
       (send [%del-event thread incoming-event] ~)
@@ -1723,7 +1723,7 @@
     =.  nest  [kind.create our.bowl name.create]
     ?<  (~(has by v-channels) nest)
     =.  channel  *v-channel:c
-    =.  group.perm.perm.channel  group.create
+    =.  group.perm.channel  group.create
     =.  meta.channel  [0 meta.create]
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  (send:ca-activity [%add %chan-init nest group.create] ~)
@@ -1750,7 +1750,7 @@
       =.  channel  (~(got by v-channels) nest)
       (ca-safe-sub |)
     =.  channel  *v-channel:c
-    =.  group.perm.perm.channel  group
+    =.  group.perm.channel  group
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  ca-give-unread
     =.  ca-core  (ca-response %join group)
@@ -1784,13 +1784,13 @@
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
       =/  source=(unit source:activity)
         ?.  ?=(%reply -.c-post.a-channel)
-          `[%channel nest group.perm.perm.channel]
+          `[%channel nest group.perm.channel]
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
         ?:  ?=(%| -.post)  ~
         =/  =message-key:activity
           [[(get-author-ship:utils author.post) id] id]
-        `[%thread [message-key nest group.perm.perm.channel]]
+        `[%thread [message-key nest group.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
     ==
@@ -2085,15 +2085,15 @@
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
     =^  changed  order.channel  (apply-rev:c order.channel order.chk)
-    =?  ca-core  &(changed send)  (ca-response %order order.order.channel)
+    =?  ca-core  &(changed send)  (ca-response %order +.order.channel)
     =^  changed  view.channel  (apply-rev:c view.channel view.chk)
-    =?  ca-core  &(changed send)  (ca-response %view view.view.channel)
+    =?  ca-core  &(changed send)  (ca-response %view +.view.channel)
     =^  changed  sort.channel  (apply-rev:c sort.channel sort.chk)
-    =?  ca-core  &(changed send)  (ca-response %sort sort.sort.channel)
+    =?  ca-core  &(changed send)  (ca-response %sort +.sort.channel)
     =^  changed  perm.channel  (apply-rev:c perm.channel perm.chk)
-    =?  ca-core  &(changed send)  (ca-response %perm perm.perm.channel)
+    =?  ca-core  &(changed send)  (ca-response %perm +.perm.channel)
     =^  changed  meta.channel  (apply-rev:c meta.channel meta.chk)
-    =?  ca-core  &(changed send)  (ca-response %meta meta.meta.channel)
+    =?  ca-core  &(changed send)  (ca-response %meta +.meta.channel)
     =/  old  posts.channel
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-may-post)
@@ -2158,33 +2158,33 @@
     ?-    -.u-channel
         %create
       ?.  =(0 rev.perm.channel)  ca-core
-      =.  perm.perm.channel  perm.u-channel
+      =.  +.perm.channel  perm.u-channel
       (ca-response %create perm.u-channel)
     ::
         %order
       =^  changed  order.channel  (apply-rev:c order.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %order order.order.channel)
+      (ca-response %order +.order.channel)
     ::
         %view
       =^  changed  view.channel  (apply-rev:c view.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %view view.view.channel)
+      (ca-response %view +.view.channel)
     ::
         %sort
       =^  changed  sort.channel  (apply-rev:c sort.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %sort sort.sort.channel)
+      (ca-response %sort +.sort.channel)
     ::
         %perm
       =^  changed  perm.channel  (apply-rev:c perm.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %perm perm.perm.channel)
+      (ca-response %perm +.perm.channel)
     ::
         %meta
       =^  changed  meta.channel  (apply-rev:c meta.channel +.u-channel)
       ?.  changed  ca-core
-      (ca-response %meta meta.meta.channel)
+      (ca-response %meta +.meta.channel)
     ::
         %post
       =/  old  posts.channel
@@ -2521,7 +2521,7 @@
       ?:  ?=(%v0 ver)  (ca-peek-posts-0 rest.pole)
       (ca-peek-posts rest.pole ver)
     ::
-        [%perm ~]        ``channel-perm+!>(perm.perm.channel)
+        [%perm ~]        ``channel-perm+!>(+.perm.channel)
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
@@ -3169,7 +3169,7 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:v0:gv)
-    =/  =flag:g  group.perm.perm.channel
+    =/  =flag:g  group.perm.channel
     =/  exists-path
       (scry-path %groups /groups/(scot %p p.flag)/[q.flag])
     =+  .^(exists=? %gu exists-path)
@@ -3196,7 +3196,7 @@
   ::
   ::  assorted helpers
   ::
-  ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.channel src.bowl))
+  ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.channel src.bowl))
   ::
   ::  leave the subscription only
   ::
@@ -3209,7 +3209,7 @@
   ++  ca-leave
     =.  ca-core  ca-simple-leave
     =.  ca-core  (ca-response %leave ~)
-    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
+    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.channel] ~)
     =.  gone  &
     ca-core
   --
