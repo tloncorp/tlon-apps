@@ -1,3 +1,4 @@
+import NetInfo from '@react-native-community/netinfo';
 import {
   AppStatus,
   useAppStatusChange,
@@ -19,6 +20,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
+import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
@@ -34,11 +36,13 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
+  const checkForCachedChanges = useCachedChanges();
 
   const handleAppStatusChange = useCallback(
-    (status: AppStatus) => {
+    async (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        await checkForCachedChanges();
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -54,7 +58,7 @@ function AuthenticatedApp() {
         }, 100);
       }
     },
-    [checkNodeStopped, telemetry]
+    [checkForCachedChanges, checkNodeStopped, telemetry]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -76,9 +80,27 @@ export default function ConnectedAuthenticatedApp() {
   const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
-    configureClient();
-    sync.syncStart();
-    setClientReady(true);
+    async function setup() {
+      configureClient();
+      // we store a flag to ensure this runs only once per login, not anytime
+      // the app is opened
+      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+      sync.syncStart().then(async () => {
+        if (!didSyncInitialPosts) {
+          const net = await NetInfo.fetch();
+          const syncSize =
+            net.isConnected &&
+            (net.type === 'wifi' ||
+              (net.type === 'cellular' &&
+                ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
+              ? 'heavy'
+              : 'light';
+          sync.syncInitialPosts({ syncSize });
+        }
+      });
+      setClientReady(true);
+    }
+    setup();
   }, [configureClient]);
 
   return (

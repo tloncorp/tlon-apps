@@ -126,50 +126,62 @@ class NotificationService: UNNotificationServiceExtension {
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
-
-      Task { [weak bestAttemptContent] in
-        let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
-        switch parsedNotification {
-        case let .activityEventJson(activityEventRaw):
-            var notifContent = bestAttemptContent ?? UNNotificationContent()
-
-          if let activityEventRaw {
-            notifContent = await applyNotif(
-                activityEventRaw,
-                notification: notifContent.mutableCopy() as! UNMutableNotificationContent
-            )
-          }
-
-          contentHandler(notifContent)
-          return
-
-        case let .failedFetchContents(err):
-          // Extract uid for logging
-          if let uid = request.content.userInfo["uid"] as? String {
-              await NotificationLogger.sendToPostHog(events: [
-                .error(NotificationError.activityEventFetchFailed(uid: uid, underlyingError: err)),
-                .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
-              ])
-              print("Both logs completed for uid: \(uid)")
-          } else {
-              print("No uid found in failed fetch contents case")
-          }
-          packErrorOnNotification(err)
-          contentHandler(bestAttemptContent!)
-          return
-
-        case .invalid:
-          // Log invalid notification
-          if let uid = request.content.userInfo["uid"] as? String {
-              await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Invalid notification format"))
-          }
-          fallthrough
-
-        case .dismiss:
-          contentHandler(bestAttemptContent!)
-          return
+    
+        // use the provided timeslice as an opportunity to cache fresh /changes data
+        Task {
+            do {
+                try await ChangesLoader.sync()
+            } catch {
+                // TODO: we should be logging this via telemetry
+                print("[NotificationService] Failed to sync changes: \(error)")
+            }
         }
-      }
+
+        
+        Task { [weak bestAttemptContent] in
+          
+            let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
+            switch parsedNotification {
+            case let .activityEventJson(activityEventRaw):
+                var notifContent = bestAttemptContent ?? UNNotificationContent()
+                
+              if let activityEventRaw {
+                notifContent = await applyNotif(
+                    activityEventRaw,
+                    notification: notifContent.mutableCopy() as! UNMutableNotificationContent
+                )
+              }
+
+              contentHandler(notifContent)
+                
+              return
+            case let .failedFetchContents(err):
+              // Extract uid for logging
+              if let uid = request.content.userInfo["uid"] as? String {
+                  await NotificationLogger.sendToPostHog(events: [
+                    .error(NotificationError.activityEventFetchFailed(uid: uid, underlyingError: err)),
+                    .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
+                  ])
+                  print("Both logs completed for uid: \(uid)")
+              } else {
+                  print("No uid found in failed fetch contents case")
+              }
+              packErrorOnNotification(err)
+              contentHandler(bestAttemptContent!)
+              return
+
+            case .invalid:
+              // Log invalid notification
+              if let uid = request.content.userInfo["uid"] as? String {
+                  await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Invalid notification format"))
+              }
+              fallthrough
+
+            case .dismiss:
+              contentHandler(bestAttemptContent!)
+              return
+            }
+        }
     }
 
     /** Appends an error onto the `bestAttemptContent` payload; does *not* attempt to complete the notification request. */

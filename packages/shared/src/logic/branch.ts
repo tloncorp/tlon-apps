@@ -3,6 +3,7 @@ import { isValidPatp } from '@urbit/aura';
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('branch', false);
 
@@ -110,7 +111,9 @@ export function extractLureMetadata(branchParams: any) {
     inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
-    inviterColor: branchParams.inviterColor,
+    inviterColor: branchParams.inviteColor
+      ? normalizeUrbitColor(branchParams.inviterColor)
+      : undefined,
     invitedGroupId: branchParams.invitedGroupId ?? branchParams.group, // only fallback to key if invitedGroupId missing, not empty
     invitedGroupTitle: branchParams.invitedGroupTitle || branchParams.title,
     invitedGroupDescription: branchParams.invitedGroupDescription,
