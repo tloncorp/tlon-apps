@@ -3141,7 +3141,7 @@
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        =.  cor  (fail:log %crit 'group watch failed' u.p.sign)
+        =.  cor  (fail:log 'group watch failed' u.p.sign)
         ::  set foreign error and leave the group if
         ::  it has not been initialized to allow re-joining.
         ::
