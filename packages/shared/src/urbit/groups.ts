@@ -450,8 +450,18 @@ export type Lookup = 'preview' | 'done' | 'error';
 
 export type Progress = 'ask' | 'join' | 'watch' | 'done' | 'error';
 
+export interface ForeignInvite {
+  flag: string;
+  time: number;
+  from: string;
+  token: string | null;
+  note: string | null; // story serialized as string
+  preview: GroupPreviewV7;
+  valid: boolean; // tracks if invite has been revoked
+}
+
 export interface Foreign {
-  invites: Invite[];
+  invites: ForeignInvite[];
   lookup: Lookup | null;
   preview: GroupPreviewV7 | null;
   progress: Progress | null;
@@ -460,29 +470,6 @@ export interface Foreign {
 
 export interface Foreigns {
   [flag: string]: Foreign;
-}
-
-// v8 types - invite revocation support (PR #5138)
-export interface InviteV8 {
-  flag: string;
-  time: number;
-  from: string;
-  token: string | null;
-  note: string | null; // story serialized as string
-  preview: GroupPreviewV7;
-  valid: boolean; // NEW in v8: tracks if invite has been revoked
-}
-
-export interface ForeignV8 {
-  invites: InviteV8[]; // v8 invites with valid field
-  lookup: Lookup | null;
-  preview: GroupPreviewV7 | null;
-  progress: Progress | null;
-  token: string | null;
-}
-
-export interface ForeignsV8 {
-  [flag: string]: ForeignV8;
 }
 
 export type PrivacyType = 'public' | 'private' | 'secret';

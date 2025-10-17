@@ -1104,19 +1104,19 @@ export const subscribeGroups = async (
     }
   );
 
-  // Try v8 foreigns subscription first (PR #5138)
-  // Falls back to legacy gangs subscription if v8 path doesn't exist
+  // Try foreigns subscription first (PR #5138)
+  // Falls back to legacy gangs subscription if foreigns path doesn't exist
   try {
     await subscribe(
       { app: 'groups', path: '/v1/foreigns' },
-      (rawEvent: ub.ForeignsV8) => {
-        logger.log('foreignsV8UpdateEvent', rawEvent);
-        eventHandler(toForeignsV8GroupsUpdate(rawEvent));
+      (rawEvent: ub.Foreigns) => {
+        logger.log('foreignsUpdateEvent', rawEvent);
+        eventHandler(toForeignsGroupsUpdate(rawEvent));
       }
     );
-    logger.log('Successfully subscribed to /v1/foreigns (v8)');
+    logger.log('Successfully subscribed to /v1/foreigns');
   } catch (error) {
-    logger.log('v8 foreigns subscription failed, falling back to gangs', error);
+    logger.log('foreigns subscription failed, falling back to gangs', error);
     // Fall back to legacy subscription
     subscribe(
       { app: 'groups', path: '/gangs/updates' },
@@ -1851,24 +1851,13 @@ export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
   });
 }
 
-export function toClientGroupsFromForeigns(
-  foreigns: Record<string, ub.Foreign>
-) {
-  return Object.entries(foreigns).map(([id, foreign]) => {
-    return toClientGroupFromForeign(id, foreign);
-  });
-}
-
 const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
   const groups = toClientGroupsFromGangs(gangsEvent);
   return { type: 'setUnjoinedGroups', groups };
 };
 
-// v8 foreigns update handler - filters revoked invites (PR #5138)
-const toForeignsV8GroupsUpdate = (
-  foreignsEvent: ub.ForeignsV8
-): GroupUpdate => {
-  const groups = toClientGroupsFromForeignsV8(foreignsEvent);
+const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
+  const groups = toClientGroupsFromForeigns(foreignsEvent);
   return { type: 'setUnjoinedGroups', groups };
 };
 
@@ -1898,28 +1887,6 @@ export function toClientGroupFromForeign(
   const { host: hostUserId } = parseGroupId(id);
   const privacy = extractGroupPrivacy(foreign.preview);
   const joinStatus = getJoinStatusFromForeign(foreign);
-  return {
-    id,
-    hostUserId,
-    privacy,
-    currentUserIsMember: false,
-    currentUserIsHost: hostUserId === currentUserId, // should always be false
-    haveInvite: (foreign.invites?.length ?? 0) > 0,
-    haveRequestedInvite: foreign.progress === 'ask',
-    joinStatus,
-    ...(foreign.preview ? toClientGroupMeta(foreign.preview.meta) : {}),
-  };
-}
-
-// v8 serializer - filters out revoked invites (PR #5138)
-export function toClientGroupFromForeignV8(
-  id: string,
-  foreign: ub.ForeignV8
-): db.Group {
-  const currentUserId = getCurrentUserId();
-  const { host: hostUserId } = parseGroupId(id);
-  const privacy = extractGroupPrivacy(foreign.preview);
-  const joinStatus = getJoinStatusFromForeignV8(foreign);
 
   // Filter out invalid (revoked) invites
   const validInvites = foreign.invites?.filter((inv) => inv.valid) ?? [];
@@ -1937,36 +1904,16 @@ export function toClientGroupFromForeignV8(
   };
 }
 
-export function toClientGroupsFromForeignsV8(
-  foreigns: Record<string, ub.ForeignV8>
+export function toClientGroupsFromForeigns(
+  foreigns: Record<string, ub.Foreign>
 ) {
   if (!foreigns) return [];
   return Object.entries(foreigns).map(([id, foreign]) =>
-    toClientGroupFromForeignV8(id, foreign)
+    toClientGroupFromForeign(id, foreign)
   );
 }
 
 function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
-  if (!foreign.progress) {
-    return undefined;
-  }
-  switch (foreign.progress) {
-    case 'ask':
-    case 'join':
-    case 'watch':
-      return 'joining';
-    case 'done':
-      return undefined;
-    case 'error':
-      return 'errored';
-    default:
-      return undefined;
-  }
-}
-
-function getJoinStatusFromForeignV8(
-  foreign: ub.ForeignV8
-): db.Group['joinStatus'] {
   if (!foreign.progress) {
     return undefined;
   }
