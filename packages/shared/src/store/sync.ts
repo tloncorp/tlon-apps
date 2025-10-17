@@ -338,13 +338,19 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
 
+  // Filter out any volumes that are currently being changed to prevent
+  // overwriting optimistic updates with stale backend data
+  const volumesToSync = clientVolumes.filter(
+    (v) => !api.isVolumePending(v.itemId)
+  );
+
   // Only delete other volume settings on the initial sync to avoid race conditions
   // with user-initiated volume changes. After initial sync, rely on subscription
   // updates to handle deletions.
   const lastSyncedAt = await db.volumeSettingsSyncedAt.getValue();
   const isInitialSync = lastSyncedAt === 0;
 
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: isInitialSync });
+  await db.setVolumes({ volumes: volumesToSync, deleteOthers: isInitialSync });
 
   if (isInitialSync) {
     await db.volumeSettingsSyncedAt.setValue(Date.now());
@@ -1121,7 +1127,10 @@ const handleActivityUpdate = async (
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
 
   if (activitySnapshot.volumeRemovals.length > 0) {
-    await db.removeVolumeLevels({ itemIds: activitySnapshot.volumeRemovals }, ctx);
+    await db.removeVolumeLevels(
+      { itemIds: activitySnapshot.volumeRemovals },
+      ctx
+    );
   }
 
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
