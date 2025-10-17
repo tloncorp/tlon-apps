@@ -939,11 +939,46 @@ function getPostIdFromSource(source: ub.Source): string {
   considered "meaningful". These are what's manipulated when you mute a resource for example.
 */
 
+type VolumeItemType = db.VolumeSettings['itemType'];
+
+function getPendingVolumeKey(itemId: string, itemType: VolumeItemType): string {
+  return `${itemType}:${itemId}`;
+}
+
+function getPendingVolumeKeyFromSource(source: ub.Source): string {
+  if ('base' in source) {
+    return getPendingVolumeKey('base', 'base');
+  }
+
+  if ('group' in source) {
+    return getPendingVolumeKey(source.group, 'group');
+  }
+
+  if ('channel' in source) {
+    return getPendingVolumeKey(source.channel.nest, 'channel');
+  }
+
+  if ('dm' in source) {
+    const itemId = 'ship' in source.dm ? source.dm.ship : source.dm.club;
+    return getPendingVolumeKey(itemId, 'channel');
+  }
+
+  if ('thread' in source || 'dm-thread' in source) {
+    const itemId = getPostIdFromSource(source);
+    return getPendingVolumeKey(itemId, 'thread');
+  }
+
+  throw new Error('Unsupported volume source');
+}
+
 // Track volume changes in progress to prevent sync from overwriting optimistic updates
 const pendingVolumeChanges = new Set<string>();
 
-export function isVolumePending(sourceId: string): boolean {
-  return pendingVolumeChanges.has(sourceId);
+export function isVolumePending(
+  itemId: string,
+  itemType: VolumeItemType
+): boolean {
+  return pendingVolumeChanges.has(getPendingVolumeKey(itemId, itemType));
 }
 
 export async function adjustVolumeSetting(
@@ -951,21 +986,20 @@ export async function adjustVolumeSetting(
   volume: ub.VolumeMap | null
 ) {
   const action = activityAction({ adjust: { source, volume } });
-  const sourceId = ub.sourceToString(source);
+  const pendingKey = getPendingVolumeKeyFromSource(source);
+  const sourceString = ub.sourceToString(source);
 
   // Mark this volume as pending to prevent sync from overwriting it
-  pendingVolumeChanges.add(sourceId);
+  pendingVolumeChanges.add(pendingKey);
 
   try {
-    // Use trackedPoke to wait for subscription confirmation
-    // This ensures backend has persisted the change before returning
     return await trackedPoke<ub.ActivityAction, ub.ActivityUpdate>(
       action,
       { app: 'activity', path: '/v4' },
       (update: ub.ActivityUpdate) => {
         if ('adjust' in update) {
           const updateSourceId = ub.sourceToString(update.adjust.source);
-          return sourceId === updateSourceId;
+          return sourceString === updateSourceId;
         }
         return false;
       },
@@ -973,7 +1007,7 @@ export async function adjustVolumeSetting(
     );
   } finally {
     // Always remove from pending set, even on error
-    pendingVolumeChanges.delete(sourceId);
+    pendingVolumeChanges.delete(pendingKey);
   }
 }
 

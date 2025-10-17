@@ -341,7 +341,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   // Filter out any volumes that are currently being changed to prevent
   // overwriting optimistic updates with stale backend data
   const volumesToSync = clientVolumes.filter(
-    (v) => !api.isVolumePending(v.itemId)
+    (v) => !api.isVolumePending(v.itemId, v.itemType)
   );
 
   // Only delete other volume settings on the initial sync to avoid race conditions
