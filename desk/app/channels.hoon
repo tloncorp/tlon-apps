@@ -203,7 +203,7 @@
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>
@@ -265,7 +265,6 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::

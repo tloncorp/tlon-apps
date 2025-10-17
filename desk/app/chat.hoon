@@ -1,7 +1,7 @@
 /-  c=chat, cv=chat-ver, d=channels, g=groups
 /-  u=ui, e=epic, activity, s=story, meta
 /-  contacts-0
-/+  default-agent, verb-lib=verb, dbug,
+/+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
     em=emojimart
 /+  pac=dm
@@ -187,7 +187,7 @@
       [~.chat-dms^%1 ~ ~]
     [%chat^[~.chat-dms^%1 ~ ~] ~ ~]
 %-  agent:dbug
-%+  verb-lib  |
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>

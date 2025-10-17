@@ -55,7 +55,7 @@
       [~.channels^%3 ~ ~]
     (my %groups^[~.groups^%1 ~ ~] ~)
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>

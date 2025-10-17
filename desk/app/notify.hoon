@@ -172,7 +172,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<

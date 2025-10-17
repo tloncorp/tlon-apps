@@ -67,7 +67,7 @@
 =/  importing=?  |
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<

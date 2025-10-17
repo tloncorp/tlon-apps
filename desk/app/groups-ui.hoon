@@ -17,7 +17,7 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
+  %^  verb  |  %warn
   %-  agent:dbug
   %-  (agent:vita-client [| ~sogryp-dister-dozzod-dozzod])
   |_  =bowl:gall
