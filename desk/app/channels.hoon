@@ -136,7 +136,7 @@
           [/v3 %channel-response-4 ~]
           [/v3/said %channel-said-1 %channel-denied ~]
         ::
-          [/v4/said %channel-said-2 ~]
+          [/v4/said %channel-said-2 %channel-denied ~]
       ==
     ::  scries
     ::

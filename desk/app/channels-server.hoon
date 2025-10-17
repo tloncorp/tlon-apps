@@ -12,6 +12,7 @@
 /%  m-channel-denied        %channel-denied
 /%  m-channel-logs          %channel-logs
 /%  m-channel-said-1        %channel-said-1
+/%  m-channel-said-2        %channel-said-2
 /%  m-channel-update        %channel-update
 /%  m-hook-channel-preview  %hook-channel-preview
 /%  m-hook-full             %hook-full
@@ -25,6 +26,7 @@
             :+  %channel-denied        |  -:!>(*vale:m-channel-denied)
             :+  %channel-logs          |  -:!>(*vale:m-channel-logs)
             :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
+            :+  %channel-said-2        |  -:!>(*vale:m-channel-said-2)
             :+  %channel-update        |  -:!>(*vale:m-channel-update)
             :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
             :+  %hook-full             |  -:!>(*vale:m-hook-full)
@@ -36,7 +38,7 @@
       :~  [/$/$/checkpoint %channel-checkpoint ~]
           [/$/$/create %channel-update ~]
           [/$/$/updates %channel-update %channel-logs ~]
-          [/said %channel-said-1 %channel-denied ~]
+          [/said %channel-said-2 %channel-said-1 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
           [/v0/hooks/full %hook-full ~]
