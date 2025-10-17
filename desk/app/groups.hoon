@@ -48,6 +48,8 @@
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
 ::
+/*  commit  %txt  /commit/txt
+::
 %-  %-  discipline
   :+  ::  marks
       ::
@@ -173,6 +175,10 @@
         =^subs:s
         =pimp:imp
     ==
+  ++  commit
+    ^~
+    =+  ?~(^commit 'unknown' -.^commit)
+    `@t`(rap 3 'commit ' - ~)
   --
 =|  current-state
 =*  state  -
@@ -275,6 +281,7 @@
 ++  poke
   |=  [=mark =vase]
   ^+  cor
+  ~|  commit
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
     ?+    q.vase  !!
@@ -904,6 +911,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
+  ~|  commit
   ~|  watch-path=`path`pole
   ?+  pole  ~|(bad-watch-path+pole !!)
   ::
@@ -1489,7 +1497,9 @@
     ^+  se-core
     ?>  =(p.flag our.bowl)
     ~|  flag=flag
-    =/  [=net:g =group:g]  (~(got by groups) flag)
+    =+  gru=(~(get by groups) flag)
+    ?~  gru  ~|(%se-abed-group-not-found !!)
+    =/  [=net:g =group:g]  u.gru
     ?>  ?=(%pub -.net)
     se-core(flag flag, log log.net, group group)
   ::  +se-abet: final
@@ -2678,11 +2688,13 @@
   ::  +go-abed: init
   ::
   ++  go-abed
-    |=  f=flag:g
+    |=  =flag:g
     ^+  go-core
-    ~|  flag=f
-    =/  [=net:g =group:g]  (~(got by groups) f)
-    go-core(flag f, group group, net net)
+    ~|  flag=flag
+    =+  gru=(~(get by groups) flag)
+    ?~  gru  ~|(%go-abed-group-not-found !!)
+    =/  [=net:g =group:g]  u.gru
+    go-core(flag flag, group group, net net)
   ::  +go-abet: final
   ::
   ++  go-abet
@@ -3129,27 +3141,14 @@
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        =.  cor  (fail:log %watch-ack 'group watch failed' u.p.sign)
-        ?.  (~(has by foreigns) flag)
-          ::TODO  this should not be possible, but if it happens
-          ::      we don't have an invitation, and thus no way to rejoin.
-          ::      the user will still see the group, but it is going
-          ::      to be stale. it would be best to somehow surface
-          ::      it at the client.
-          ::
-          =.  cor  (tell:log %crit 'misguided group watch-nack' ~)
-          go-core
-        ::  join in progress, set error and leave the group
-        ::  to allow re-joining.
+        =.  cor  (fail:log 'group watch failed' u.p.sign)
+        ::  set foreign error and leave the group if
+        ::  it has not been initialized to allow re-joining.
         ::
-        ::  however, do not leave the group if it was already initialized
-        ::  to avoid data loss.
-        ::
-        ?:  &(?=(%sub -.net) init.net)
-          =.  cor  (tell:log %crit 'watch-nack for initialized group' ~)
-          go-core
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
-        (go-leave &)
+        ?.  &(?=(%sub -.net) init.net)
+          (go-leave &)
+        go-core
       go-core
     ::
         %fact
@@ -4098,7 +4097,7 @@
       ::      updates.
       fi-core
     ?^  p
-      =.  cor  (fail:log %watch-ack leaf+"failed to join the group {<flag>}" ~)
+      =.  cor  (fail:log 'group join failed' u.p)
       =.  progress  `%error
       fi-core
     =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
@@ -4263,7 +4262,7 @@
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          =.  cor  (tell:log %warn 'group ask failed' u.p.sign)
+          =.  cor  (fail:log 'group ask failed' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -4275,7 +4274,7 @@
       ::
           %watch-ack
         ?^  p.sign
-          =.  cor  (fail:log %watch-ack 'group ask watch' u.p.sign)
+          =.  cor  (fail:log 'group ask watch' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -4305,7 +4304,7 @@
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
-        =.  cor  (fail:log 'watch-ack' 'group preview watch' u.p.sign)
+        =.  cor  (fail:log 'group preview watch' u.p.sign)
         fi-core
       ::
           %fact
@@ -4341,7 +4340,7 @@
       =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
-      =.  cor  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
+      =.  cor  (fail:log 'foreign group command' u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index
