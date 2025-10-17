@@ -1,7 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { ShipInfo, storage } from '@tloncorp/shared/db';
-import { preSig } from '@urbit/aura';
+import { preSig } from '@tloncorp/shared/urbit';
 import type { ReactNode } from 'react';
 import {
   createContext,

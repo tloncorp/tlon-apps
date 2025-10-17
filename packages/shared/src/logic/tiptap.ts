@@ -5,13 +5,13 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
-import { deSig, isValidPatp } from '@urbit/aura';
+import { valid } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
 import { Story } from '../urbit/channel';
 import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
 import { Inline, InlineKey, Link, Task } from '../urbit/content';
-import { citeToPath, pathToCite, preSig } from '../urbit/utils';
+import { citeToPath, pathToCite, preSig, desig } from '../urbit/utils';
 
 export const ALL_MENTION_ID = '-all-';
 
@@ -385,7 +385,7 @@ export function JSONToInlines(
     case 'at-mention': {
       const id = json.attrs?.id;
       const ship = preSig(id);
-      if (isValidPatp(ship)) {
+      if (valid('p', ship)) {
         return [{ ship }];
       }
 
@@ -557,7 +557,7 @@ export const inlineToContent = (
   }
 
   if ('ship' in inline) {
-    return makeMention(deSig(inline.ship));
+    return makeMention(desig(inline.ship));
   }
 
   if ('sect' in inline) {

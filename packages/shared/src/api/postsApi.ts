@@ -1,4 +1,4 @@
-import { formatDa, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
@@ -168,7 +168,7 @@ export const sendPost = async ({
 
     const action = chatAction(
       channelId,
-      `${delta.add.essay.author}/${formatUd(unixToDa(delta.add.essay.sent).toString())}`,
+      `${delta.add.essay.author}/${formatUd(da.fromUnix(delta.add.essay.sent).toString())}`,
       delta
     );
     await poke(action);
@@ -297,7 +297,7 @@ export const sendReply = async ({
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: ub.ReplyDelta = {
       reply: {
-        id: `${authorId}/${formatUd(unixToDa(sentAt).toString())}`,
+        id: `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`,
         meta: null,
         delta: {
           add: {
@@ -609,7 +609,7 @@ export const getChangedPosts = async ({
       `v1/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
-      formatDa(unixToDa(afterTime.valueOf()).toString())
+      render('da', da.fromUnix(afterTime.valueOf()))
     ),
   });
   return toPagedPostsData(channelId, response);

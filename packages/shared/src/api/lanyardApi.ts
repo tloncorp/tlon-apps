@@ -1,4 +1,4 @@
-import { formatUv, parseUw } from '@urbit/aura';
+import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
@@ -6,7 +6,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { Json, getFrondValue, getPatp, simpleHash } from '../logic';
 import * as ub from '../urbit';
-import { stringToTa } from '../urbit';
+import { encodeString } from '../urbit';
 import * as NounParsers from './nounParsers';
 import {
   getCurrentUserId,
@@ -31,12 +31,12 @@ export function subscribeToLanyardUpdates(
 
 export async function checkAttestedSignature(signData: string) {
   const nonce = Math.floor(Math.random() * 1000000);
-  const encodedNonce = formatUv(BigInt(nonce));
+  const encodedNonce = render('uv', BigInt(nonce));
 
   const query = [
     null,
     [null, nonce],
-    ['valid-jam', new Atom(parseUw(signData))],
+    ['valid-jam', new Atom(parse('uw', signData))],
   ];
   const noun = dwim(query);
 
@@ -71,7 +71,7 @@ export async function discoverContacts(
     const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
     const lastSalt = BigInt(parsedLastSalt);
     const nonce = Math.floor(Math.random() * 1000000);
-    const encodedNonce = formatUv(BigInt(nonce));
+    const encodedNonce = render('uv', BigInt(nonce));
     const payload = [
       null,
       [null, nonce],
@@ -303,7 +303,7 @@ function parseTwitterBundle(noun: Noun) {
 export async function fetchTwitterConfirmPayload(handle: string) {
   const result = await scryNoun({
     app: 'lanyard',
-    path: `/v1/proof/twitter/bundle/${stringToTa(handle)}`,
+    path: `/v1/proof/twitter/bundle/${encodeString(handle)}`,
   });
 
   try {

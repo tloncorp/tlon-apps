@@ -7,7 +7,7 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/shared/urbit/activity';
-import { formatDa, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -278,5 +278,5 @@ export function renderActivityEventPreview({
 }
 
 export function formatUrbitDateString(timestamp: number): string {
-  return formatDa(unixToDa(timestamp));
+  return render('da', da.fromUnix(timestamp));
 }

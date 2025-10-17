@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as urbit from '@tloncorp/shared/urbit';
-import { cite as shorten } from '@urbit/aura';
+import { p } from '@urbit/aura';
 
 const USER_ID_SEPARATORS = /([_^-])/;
 
@@ -8,7 +8,7 @@ export function formatUserId(
   userId: string,
   full = false
 ): { display: string; ariaLabel: string } | null {
-  const shortenedName = full ? userId : shorten(userId);
+  const shortenedName = full ? userId : p.cite(userId);
   if (!shortenedName) return null;
 
   const ariaLabel = urbit

@@ -1,4 +1,4 @@
-import { formatDa, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
@@ -14,7 +14,7 @@ export async function fetchChangesSince(
   db.ChangesResult & { nodeBusyStatus: 'available' | 'busy' | 'unknown' }
 > {
   const nodeIsBusy = checkIsNodeBusy();
-  const encodedTimestamp = formatDa(unixToDa(timestamp));
+  const encodedTimestamp = render('da', da.fromUnix(timestamp));
   const response = await scry<ub.Changes>({
     app: 'groups-ui',
     path: `/v5/changes/${encodedTimestamp}`,
