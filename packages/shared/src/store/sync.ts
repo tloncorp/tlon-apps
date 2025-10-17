@@ -337,7 +337,18 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
     api.getVolumeSettings()
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
+
+  // Only delete other volume settings on the initial sync to avoid race conditions
+  // with user-initiated volume changes. After initial sync, rely on subscription
+  // updates to handle deletions.
+  const lastSyncedAt = await db.volumeSettingsSyncedAt.getValue();
+  const isInitialSync = lastSyncedAt === 0;
+
+  await db.setVolumes({ volumes: clientVolumes, deleteOthers: isInitialSync });
+
+  if (isInitialSync) {
+    await db.volumeSettingsSyncedAt.setValue(Date.now());
+  }
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
@@ -1104,6 +1115,7 @@ const handleActivityUpdate = async (
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
 
   // if we inserted new activity, invalidate the activity page

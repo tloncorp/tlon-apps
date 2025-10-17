@@ -14,7 +14,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe, trackedPoke } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -944,7 +944,22 @@ export async function adjustVolumeSetting(
   volume: ub.VolumeMap | null
 ) {
   const action = activityAction({ adjust: { source, volume } });
-  return poke(action);
+  const sourceId = ub.sourceToString(source);
+
+  // Use trackedPoke to wait for subscription confirmation
+  // This prevents sync from overwriting optimistic updates
+  return trackedPoke<ub.ActivityAction, ub.ActivityUpdate>(
+    action,
+    { app: 'activity', path: '/v4' },
+    (update: ub.ActivityUpdate) => {
+      if ('adjust' in update) {
+        const updateSourceId = ub.sourceToString(update.adjust.source);
+        return sourceId === updateSourceId;
+      }
+      return false;
+    },
+    { timeout: 10000 }
+  );
 }
 
 // This is a global, top level filter for which kinds of activity events are allowed to send
