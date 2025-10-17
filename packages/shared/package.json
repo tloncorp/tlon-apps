@@ -50,7 +50,7 @@
     ]
   },
   "dependencies": {
-    "@urbit/aura": "^2.0.1",
+    "@urbit/aura": "github:urbit/aura-js#m/re",
     "@urbit/nockjs": "^1.6.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",

@@ -66,7 +66,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
-    "@urbit/aura": "^2.0.1",
+    "@urbit/aura": "github:urbit/aura-js#m/re",
     "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
