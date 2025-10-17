@@ -19,6 +19,14 @@ export type ReservedShip = {
   reservedBy: string;
 };
 
+export type AssignmentResponse = {
+  ship: {
+    ship: ReservedShip;
+    status: HostedShipStatus;
+  };
+  code?: string;
+};
+
 export type BootPhase =
   | 'Pending'
   | 'Ready'

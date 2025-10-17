@@ -30,7 +30,7 @@
       [~.contacts^%1 ~ ~]
     [~.contacts^[~.contacts^%1 ~ ~] ~ ~]
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 =|  state-3
 =*  state  -

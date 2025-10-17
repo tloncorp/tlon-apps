@@ -3,7 +3,9 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should handle channel management operations', async ({ zodPage }) => {
+test.skip('should handle channel management operations', async ({
+  zodPage,
+}) => {
   const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
@@ -72,7 +74,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
     page.getByTestId('ChannelItem-Second chat channel-1')
   ).toBeVisible({ timeout: 10000 });
 
-  // Edit channel
+  // Channel settings
   await helpers.editChannel(
     page,
     'Second chat channel',

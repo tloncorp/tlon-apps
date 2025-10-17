@@ -187,6 +187,35 @@
 		C83014822C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		C83014832C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */; };
+		D314799D2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */; };
+		D314799E2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */; };
+		D314799F2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */; };
+		D31479A02E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */; };
+		D31479A12E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */; };
+		D32B358A2E5A530A002707E2 /* BackgroundCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundCache.swift */; };
+		D32B358C2E5A530A002707E2 /* BackgroundCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundCache.swift */; };
+		D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundCache.m */; };
+		D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundCache.m */; };
+		D35BB44A2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */; };
+		D35BB44B2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */; };
+		D35BB44C2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */; };
+		D35BB44D2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */; };
+		D35BB44E2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */; };
+		D3715FE82E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
+		D3715FE92E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
+		D3715FEA2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
+		D3715FEB2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
+		D3715FEC2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
+		D3715FEE2E5B6E1D00570A4C /* Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FED2E5B6E1800570A4C /* Changes.swift */; };
+		D3715FEF2E5B6E1D00570A4C /* Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FED2E5B6E1800570A4C /* Changes.swift */; };
+		D3715FF02E5B6E1D00570A4C /* Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FED2E5B6E1800570A4C /* Changes.swift */; };
+		D3715FF12E5B6E1D00570A4C /* Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FED2E5B6E1800570A4C /* Changes.swift */; };
+		D3715FF22E5B6E1D00570A4C /* Changes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FED2E5B6E1800570A4C /* Changes.swift */; };
+		D3715FF42E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
+		D3715FF52E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
+		D3715FF62E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
+		D3715FF72E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
+		D3715FF82E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
 		E757508CA162BD3456643B33 /* Pods_Landscape.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 79BDD5DCE15A385BB361AED1 /* Pods_Landscape.framework */; };
 		F901307AF87F28F061D5E649 /* Pods_Landscape_preview.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C87F249B7EFCDBC3E54B1447 /* Pods_Landscape_preview.framework */; };
 /* End PBXBuildFile section */
@@ -314,6 +343,13 @@
 		C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIFont+SystemDesign.m"; path = "Landscape/UIFont+SystemDesign.m"; sourceTree = "<group>"; };
 		C83014842C7BA7A800D9A5CA /* UIFont+SystemDesign.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIFont+SystemDesign.h"; sourceTree = "<group>"; };
 		C87F249B7EFCDBC3E54B1447 /* Pods_Landscape_preview.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Landscape_preview.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+javascriptTimestamp.swift"; sourceTree = "<group>"; };
+		D32B35882E5A5301002707E2 /* BackgroundCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCache.swift; sourceTree = "<group>"; };
+		D32B358F2E5B5A29002707E2 /* BackgroundCache.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BackgroundCache.m; sourceTree = "<group>"; };
+		D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UrbitDateFormatter.swift; sourceTree = "<group>"; };
+		D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesLoader.swift; sourceTree = "<group>"; };
+		D3715FED2E5B6E1800570A4C /* Changes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Changes.swift; sourceTree = "<group>"; };
+		D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesAPI.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		EE042EA448A634B1DCCA2092 /* Pods-Landscape-preview.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.debug.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.debug.xcconfig"; sourceTree = "<group>"; };
 		F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Landscape/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
@@ -392,6 +428,8 @@
 				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
 				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
 				63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */,
+				D32B358F2E5B5A29002707E2 /* BackgroundCache.m */,
+				D32B35882E5A5301002707E2 /* BackgroundCache.swift */,
 				70D386652A60A37000AFB46E /* Extensions */,
 				74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */,
 			);
@@ -455,6 +493,7 @@
 		63E7040C2C540F96006CF214 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				D314799C2E978C470071CA7E /* Date+javascriptTimestamp.swift */,
 				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
 				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
 				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
@@ -467,6 +506,7 @@
 		63E7040D2C540FD6006CF214 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				D3715FED2E5B6E1800570A4C /* Changes.swift */,
 				5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */,
 				709FC0EC2AC1E25D00B0644D /* Club.swift */,
 				700B635C2A71DFE90017F40F /* Contact.swift */,
@@ -480,6 +520,7 @@
 		700B635E2A71E06E0017F40F /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */,
 				7036E3552ACD17600020A9FB /* ClubStore.swift */,
 				700B63612A71E0D70017F40F /* ContactStore.swift */,
 				7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */,
@@ -503,6 +544,8 @@
 		70D386542A609BFC00AFB46E /* Networking */ = {
 			isa = PBXGroup;
 			children = (
+				D35BB4492E973E6A00E12E42 /* UrbitDateFormatter.swift */,
+				D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */,
 				70D386572A609BFC00AFB46E /* PocketAPI.swift */,
 				70D386612A609CE100AFB46E /* PocketChatAPI.swift */,
 				70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */,
@@ -750,11 +793,16 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
 					};
+					630DE0BD2C51A8780053603B = {
+						LastSwiftMigration = 1620;
+					};
 					6374ACDE2C49DA9600E637C0 = {
 						CreatedOnToolsVersion = 15.0;
+						LastSwiftMigration = 1620;
 					};
 					70F99A8D2B2D2B5700D77256 = {
 						CreatedOnToolsVersion = 15.0.1;
+						LastSwiftMigration = 1620;
 						TestTargetID = 13B07F861A680F5B00A75B9A;
 					};
 				};
@@ -1307,6 +1355,8 @@
 			files = (
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
+				D314799D2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */,
+				D32B358A2E5A530A002707E2 /* BackgroundCache.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
 				632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
@@ -1318,6 +1368,7 @@
 				63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
+				D3715FEA2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
 				701A09B02B03081300D8F710 /* Error+logWithDomain.swift in Sources */,
 				70D3866C2A60A38400AFB46E /* Group.swift in Sources */,
@@ -1325,6 +1376,7 @@
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
+				D35BB44A2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
 				5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
 				700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */,
@@ -1336,11 +1388,14 @@
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				638753082CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */,
+				D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */,
+				D3715FEE2E5B6E1D00570A4C /* Changes.swift in Sources */,
 				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
 				63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
 				6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
+				D3715FF82E5B6FCB00570A4C /* ChangesAPI.swift in Sources */,
 				5AA9810E2E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
 			);
@@ -1354,12 +1409,16 @@
 				630DE0C62C51A8780053603B /* Contact.swift in Sources */,
 				630DE0C72C51A8780053603B /* Club.swift in Sources */,
 				6303C7812DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
+				D3715FEB2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */,
 				630DE0C82C51A8780053603B /* UrbitAPI.swift in Sources */,
+				D31479A12E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */,
 				630DE0C92C51A8780053603B /* Group.swift in Sources */,
 				630DE0CA2C51A8780053603B /* TlonError.swift in Sources */,
 				630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */,
 				630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */,
+				D3715FF52E5B6FCB00570A4C /* ChangesAPI.swift in Sources */,
 				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
+				D3715FF12E5B6E1D00570A4C /* Changes.swift in Sources */,
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
 				5A5579332E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
@@ -1372,6 +1431,7 @@
 				63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				630DE0D42C51A8780053603B /* PocketChatAPI.swift in Sources */,
 				630DE0D52C51A8780053603B /* LoginStore.swift in Sources */,
+				D35BB44C2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				630DE0EF2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				630DE0D62C51A8780053603B /* SettingsStore.swift in Sources */,
 				630DE0D72C51A8780053603B /* Login.swift in Sources */,
@@ -1388,12 +1448,16 @@
 				632793C52C4AE56500F942B1 /* Contact.swift in Sources */,
 				632793CC2C4AE7E500F942B1 /* Club.swift in Sources */,
 				6303C7802DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
+				D3715FE82E5B6CAD00570A4C /* ChangesLoader.swift in Sources */,
 				632793BB2C4AE49600F942B1 /* UrbitAPI.swift in Sources */,
+				D314799E2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */,
 				632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */,
 				632793C82C4AE78400F942B1 /* TlonError.swift in Sources */,
 				630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */,
 				632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */,
+				D3715FF72E5B6FCB00570A4C /* ChangesAPI.swift in Sources */,
 				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
+				D3715FF22E5B6E1D00570A4C /* Changes.swift in Sources */,
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
 				5A5579322E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
@@ -1406,6 +1470,7 @@
 				63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				632793CA2C4AE7CD00F942B1 /* PocketChatAPI.swift in Sources */,
 				632793B92C4ADEF100F942B1 /* LoginStore.swift in Sources */,
+				D35BB44B2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				630DE0EE2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				632793C72C4AE69A00F942B1 /* SettingsStore.swift in Sources */,
 				632793BA2C4AE01B00F942B1 /* Login.swift in Sources */,
@@ -1420,6 +1485,8 @@
 			files = (
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
+				D31479A02E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */,
+				D32B358C2E5A530A002707E2 /* BackgroundCache.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
 				632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
@@ -1431,6 +1498,7 @@
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
+				D3715FE92E5B6CAD00570A4C /* ChangesLoader.swift in Sources */,
 				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
 				70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */,
 				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
@@ -1438,6 +1506,7 @@
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
 				5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
+				D35BB44E2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
 				5A829AB12E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
 				C83014832C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */,
@@ -1449,11 +1518,14 @@
 				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */,
+				D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */,
+				D3715FF02E5B6E1D00570A4C /* Changes.swift in Sources */,
 				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
 				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,
 				63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
 				6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
+				D3715FF42E5B6FCB00570A4C /* ChangesAPI.swift in Sources */,
 				5AA9810F2E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */,
 			);
@@ -1468,6 +1540,7 @@
 				70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */,
 				6374ACFB2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				70F99AA42B2D336E00D77256 /* PocketNotificationsAPI.swift in Sources */,
+				D3715FF62E5B6FCB00570A4C /* ChangesAPI.swift in Sources */,
 				70F99AA02B2D336800D77256 /* Club.swift in Sources */,
 				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
 				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
@@ -1481,9 +1554,13 @@
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
 				70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */,
+				D314799F2E978C620071CA7E /* Date+javascriptTimestamp.swift in Sources */,
 				5AA981102E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */,
+				D3715FEF2E5B6E1D00570A4C /* Changes.swift in Sources */,
+				D3715FEC2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */,
 				70F99AA12B2D336800D77256 /* TlonError.swift in Sources */,
+				D35BB44D2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */,
 				70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */,
 				70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */,
@@ -1535,7 +1612,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0.3;
+				MARKETING_VERSION = 7.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1573,7 +1650,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0.3;
+				MARKETING_VERSION = 7.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1600,6 +1677,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1635,6 +1713,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/Notifications-preview-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1648,6 +1727,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1679,6 +1759,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/Notifications-preview-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1691,6 +1772,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1726,6 +1808,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/Notifications-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1739,6 +1822,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1770,6 +1854,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/Notifications-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1797,7 +1882,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0.3;
+				MARKETING_VERSION = 7.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1840,7 +1925,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0.3;
+				MARKETING_VERSION = 7.0.5;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1865,6 +1950,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1890,6 +1976,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/LandscapeTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1905,6 +1992,7 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
@@ -1926,6 +2014,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "Shared/Storage/LandscapeTests-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Landscape.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Landscape";
