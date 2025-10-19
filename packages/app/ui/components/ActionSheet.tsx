@@ -267,49 +267,41 @@ const ActionSheetComponent = ({
     );
   }
 
-  // On Android with new architecture (bridgeless mode), wrapping Sheet in Modal
-  // causes the Modal to receive ThemedReactContext instead of BridgelessReactContext,
-  // preventing access to native/JS modules and causing the app to freeze.
-  // See: https://github.com/reactwg/react-native-new-architecture/discussions/186
-  const sheetContent = (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      dismissOnSnapToBottom
-      snapPointsMode="fit"
-      animation="quick"
-      handleDisableScroll
-      {...props}
-    >
-      <Sheet.Overlay animation="quick" />
-      <Sheet.Frame pressStyle={{}}>
-        <Sheet.Handle />
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
-      </Sheet.Frame>
-    </Sheet>
-  );
-
   return (
     <>
       {trigger}
-      {Platform.OS === 'android' ? (
-        sheetContent
-      ) : (
-        <Modal
-          visible={open}
-          onRequestClose={() => onOpenChange(false)}
-          transparent
-          animationType="none"
+      <Modal
+        visible={open}
+        onRequestClose={() => onOpenChange(false)}
+        transparent
+        animationType="none"
+      >
+        <Sheet
+          open={open}
+          onOpenChange={onOpenChange}
+          dismissOnSnapToBottom
+          snapPointsMode="fit"
+          animation="quick"
+          handleDisableScroll
+          {...props}
         >
-          {sheetContent}
-        </Modal>
-      )}
+          <Sheet.Overlay animation="quick" />
+          {/*
+          press style is set here to ensure touch responders are added and drag gestures
+          bubble up accordingly (unclear why needed after adding modal wrapper)
+        */}
+          <Sheet.Frame pressStyle={{}}>
+            <Sheet.Handle />
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </Sheet.Frame>
+        </Sheet>
+      </Modal>
     </>
   );
 };
