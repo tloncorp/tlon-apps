@@ -1,7 +1,10 @@
 import {
   Attachment,
+  FileAsset,
+  FileAttachment,
   FinalizedAttachment,
   ImageAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '@tloncorp/shared';
 import {
@@ -29,9 +32,11 @@ export type AttachmentState = {
   resetAttachments: (attachments: Attachment[]) => void;
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
   attachAssets: (assets: ImagePickerAsset[]) => void;
+  attachFiles: (files: FileAsset[]) => void;
   uploadAssets: (
     assets: ImagePickerAsset[]
   ) => Promise<UploadedImageAttachment[]>;
+  uploadFiles: (files: FileAsset[]) => Promise<UploadedFileAttachment[]>;
   canUpload: boolean;
 };
 
@@ -42,7 +47,9 @@ const defaultState: AttachmentState = {
   clearAttachments: () => {},
   resetAttachments: () => {},
   uploadAssets: async () => [],
+  uploadFiles: async () => [],
   attachAssets: () => {},
+  attachFiles: () => {},
   waitForAttachmentUploads: async () => [],
   canUpload: true,
 };
@@ -64,11 +71,13 @@ export const useAttachmentContext = () => {
 export const AttachmentProvider = ({
   initialAttachments,
   uploadAsset,
+  uploadFile,
   canUpload,
   children,
 }: PropsWithChildren<{
   canUpload: boolean;
   uploadAsset: (asset: ImagePickerAsset, isWeb?: boolean) => Promise<void>;
+  uploadFile?: (file: FileAsset, isWeb?: boolean) => Promise<void>;
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
@@ -76,6 +85,12 @@ export const AttachmentProvider = ({
   const assetUploadStates = useUploadStates(
     state
       .filter((a): a is ImageAttachment => a.type === 'image')
+      .map((a) => a.file.uri)
+  );
+
+  const fileUploadStates = useUploadStates(
+    state
+      .filter((a): a is FileAttachment => a.type === 'file')
       .map((a) => a.file.uri)
   );
 
@@ -88,17 +103,27 @@ export const AttachmentProvider = ({
         };
       }
 
+      if (a.type === 'file') {
+        return {
+          ...a,
+          uploadState: fileUploadStates[a.file.uri],
+        };
+      }
+
       return a;
     });
-  }, [assetUploadStates, state]);
+  }, [assetUploadStates, fileUploadStates, state]);
 
   useEffect(() => {
     attachments.forEach((a) => {
       if (a.type === 'image' && !a.uploadState) {
         uploadAsset(a.file, isWeb);
       }
+      if (a.type === 'file' && !a.uploadState && uploadFile) {
+        uploadFile(a.file, isWeb);
+      }
     });
-  }, [attachments, uploadAsset]);
+  }, [attachments, uploadAsset, uploadFile]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
     setState((prev) => [...prev, attachment]);
@@ -108,6 +133,15 @@ export const AttachmentProvider = ({
     (assets: ImagePickerAsset[]) => {
       assets.forEach((asset) =>
         handleAddAttachment({ type: 'image', file: asset })
+      );
+    },
+    [handleAddAttachment]
+  );
+
+  const handleAttachFiles = useCallback(
+    (files: FileAsset[]) => {
+      files.forEach((file) =>
+        handleAddAttachment({ type: 'file', file: file })
       );
     },
     [handleAddAttachment]
@@ -177,17 +211,59 @@ export const AttachmentProvider = ({
     [uploadAsset]
   );
 
+  const handleUploadFiles = useCallback(
+    async (files: FileAsset[]): Promise<UploadedFileAttachment[]> => {
+      if (!uploadFile) {
+        return [];
+      }
+
+      const fileUris: string[] = [];
+
+      const uploadPromises = files.map(async (file) => {
+        await uploadFile(file, isWeb);
+        fileUris.push(file.uri);
+        return file;
+      });
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+
+      setState((prev) => [
+        ...prev,
+        ...uploadedFiles.map((file) => ({
+          type: 'file' as const,
+          file: file,
+        })),
+      ]);
+
+      const uploadStates = await waitForUploads(fileUris);
+
+      return uploadedFiles
+        .map((file) => ({
+          type: 'file' as const,
+          file: file,
+          uploadState: uploadStates[file.uri],
+        }))
+        .filter(
+          (attachment): attachment is UploadedFileAttachment =>
+            attachment.uploadState?.status === 'success'
+        );
+    },
+    [uploadFile]
+  );
+
   return (
     <Context.Provider
       value={{
         attachments,
         attachAssets: handleAttachAssets,
+        attachFiles: handleAttachFiles,
         addAttachment: handleAddAttachment,
         removeAttachment: handleRemoveAttachment,
         clearAttachments: handleClearAttachments,
         resetAttachments: handleResetAttachments,
         waitForAttachmentUploads: handleWaitForUploads,
         uploadAssets: handleUploadAssets,
+        uploadFiles: handleUploadFiles,
         canUpload,
       }}
     >

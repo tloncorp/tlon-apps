@@ -14,6 +14,7 @@ import { desig } from '../../urbit';
 const logger = createDevLogger('storage utils', false);
 
 const mimeToExt: Record<string, string> = {
+  // Images
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
   'image/png': '.png',
@@ -21,6 +22,39 @@ const mimeToExt: Record<string, string> = {
   'image/webp': '.webp',
   'image/heic': '.heic',
   'image/heif': '.heif',
+  // Documents
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    '.pptx',
+  'text/plain': '.txt',
+  'text/csv': '.csv',
+  // Archives
+  'application/zip': '.zip',
+  'application/x-zip-compressed': '.zip',
+  'application/x-rar-compressed': '.rar',
+  'application/x-7z-compressed': '.7z',
+  'application/gzip': '.gz',
+  'application/x-tar': '.tar',
+  // Media
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/x-msvideo': '.avi',
+  'audio/mpeg': '.mp3',
+  'audio/wav': '.wav',
+  'audio/x-m4a': '.m4a',
+  // Code
+  'application/json': '.json',
+  'application/xml': '.xml',
+  'text/html': '.html',
+  'text/css': '.css',
+  'text/javascript': '.js',
+  'application/javascript': '.js',
 };
 
 export function ensureFileExtension(
@@ -43,10 +77,18 @@ export function ensureFileExtension(
 
 export function getExtensionFromMimeType(mimeType?: string): string {
   if (!mimeType) {
-    return '.jpg';
+    return '';
   }
 
-  return mimeToExt[mimeType.toLowerCase()] || '.jpg';
+  return mimeToExt[mimeType.toLowerCase()] || '';
+}
+
+export function isImageMimeType(mimeType?: string): boolean {
+  if (!mimeType) {
+    return false;
+  }
+
+  return mimeType.toLowerCase().startsWith('image/');
 }
 
 export const fetchFileFromUri = async (

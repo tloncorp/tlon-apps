@@ -179,6 +179,15 @@ export interface Image {
   };
 }
 
+export interface File {
+  file: {
+    src: string;
+    name: string;
+    size?: number;
+    type?: string;
+  };
+}
+
 export interface LinkBlock {
   link: {
     url: string;
@@ -237,6 +246,7 @@ export interface Code {
 
 export type Block =
   | Image
+  | File
   | { cite: Cite }
   | ListingBlock
   | Header

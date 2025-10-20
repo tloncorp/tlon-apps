@@ -57,6 +57,7 @@
     "@urbit/sigil-js": "^2.2.0",
     "expo-av": "*",
     "expo-blur": "*",
+    "expo-document-picker": "*",
     "expo-haptics": "*",
     "expo-image": "*",
     "expo-image-picker": "*",

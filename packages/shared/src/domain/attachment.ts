@@ -44,6 +44,13 @@ export type ReferenceAttachment = {
   path: string;
 };
 
+export type FileAsset = {
+  uri: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+};
+
 export type ImageAttachment = {
   type: 'image';
   file: ImagePickerAsset;
@@ -56,9 +63,33 @@ export type UploadedImageAttachment = {
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
+export type FileAttachment = {
+  type: 'file';
+  file: FileAsset;
+  uploadState?: UploadState;
+};
+
+export type UploadedFileAttachment = {
+  type: 'file';
+  file: FileAsset;
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UploadedImageAttachment {
   export function uri(attachment: UploadedImageAttachment): string {
+    switch (attachment.uploadState.status) {
+      case 'success':
+        return attachment.uploadState.remoteUri;
+      case 'uploading':
+        return attachment.uploadState.localUri;
+    }
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace UploadedFileAttachment {
+  export function uri(attachment: UploadedFileAttachment): string {
     switch (attachment.uploadState.status) {
       case 'success':
         return attachment.uploadState.remoteUri;
@@ -76,11 +107,13 @@ export type TextAttachment = {
 export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
+  | FileAttachment
   | TextAttachment
   | LinkAttachment;
 
 export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
+  | UploadedFileAttachment
   | TextAttachment
   | LinkAttachment;

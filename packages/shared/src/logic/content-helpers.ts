@@ -5,6 +5,7 @@ import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '../domain';
 import {
@@ -567,6 +568,9 @@ export function toPostData({
       ) {
         return [createImageBlock(attachment)];
       }
+      if (attachment.type === 'file') {
+        return [createFileBlock(attachment)];
+      }
       if (attachment.type === 'link') {
         return [createLinkBlock(attachment)];
       }
@@ -614,6 +618,20 @@ function createImageBlock(attachment: UploadedImageAttachment): Block {
       height: attachment.file.height,
       width: attachment.file.width,
       alt: 'image',
+    },
+  };
+}
+
+function createFileBlock(attachment: UploadedFileAttachment): Block {
+  return {
+    file: {
+      src:
+        attachment.uploadState.status === 'success'
+          ? attachment.uploadState.remoteUri
+          : attachment.uploadState.localUri,
+      name: attachment.file.fileName || 'file',
+      size: attachment.file.fileSize,
+      type: attachment.file.mimeType,
     },
   };
 }

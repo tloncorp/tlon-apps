@@ -16,6 +16,7 @@ import {
   getMemexUpload,
   hasCustomS3Creds,
   hasHostingUploadCreds,
+  isImageMimeType,
 } from './storageUtils';
 
 const logger = createDevLogger('storageActions', false);
@@ -84,6 +85,29 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
     logger.crumb('upload failed');
     console.error(e);
     setUploadState(asset.uri, { status: 'error', errorMessage: e.message });
+  }
+};
+
+export const uploadGenericFile = async (
+  file: { uri: string; fileName?: string; mimeType?: string },
+  isWeb = false
+) => {
+  logger.crumb('uploading file', file.mimeType, 'isWeb', isWeb);
+  logger.log('full file', file);
+  setUploadState(file.uri, { status: 'uploading', localUri: file.uri });
+  try {
+    // No image processing for generic files - upload directly
+    const remoteUri = await performUpload(
+      { uri: file.uri, mimeType: file.mimeType },
+      isWeb
+    );
+    logger.crumb('upload succeeded');
+    logger.log('final uri', remoteUri);
+    setUploadState(file.uri, { status: 'success', remoteUri });
+  } catch (e) {
+    logger.crumb('upload failed');
+    console.error(e);
+    setUploadState(file.uri, { status: 'error', errorMessage: e.message });
   }
 };
 

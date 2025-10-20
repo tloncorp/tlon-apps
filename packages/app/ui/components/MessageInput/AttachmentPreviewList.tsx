@@ -86,6 +86,10 @@ export function AttachmentPreview({
     return <LinkPreview attachment={attachment} />;
   }
 
+  if (attachment.type === 'file') {
+    return <FilePreview attachment={attachment} uploading={uploading} />;
+  }
+
   return (
     <View height={128} borderRadius="$m" overflow="hidden" aspectRatio={aspect}>
       {attachment.type === 'image' ? (
@@ -214,6 +218,60 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
           <RemoveAttachmentButton attachment={attachment} />
         </View>
       </ZStack>
+    </View>
+  );
+};
+
+const FilePreview = ({
+  attachment,
+  uploading,
+}: {
+  attachment: domain.FileAttachment;
+  uploading?: boolean;
+}) => {
+  const fileName = attachment.file.fileName || 'Unknown file';
+
+  return (
+    <View
+      height={128}
+      width={200}
+      borderRadius="$m"
+      overflow="hidden"
+      backgroundColor="$secondaryBackground"
+    >
+      <YStack
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        padding="$m"
+        gap="$m"
+      >
+        <Icon type="Document" size="$2xl" color="$primaryText" />
+        <Text
+          size="$label/m"
+          numberOfLines={2}
+          textAlign="center"
+          color="$primaryText"
+        >
+          {fileName}
+        </Text>
+      </YStack>
+
+      <RemoveAttachmentButton attachment={attachment} />
+
+      {uploading && (
+        <View
+          position="absolute"
+          top={0}
+          justifyContent="center"
+          width="100%"
+          height="100%"
+          alignItems="center"
+          backgroundColor="$translucentBlack"
+        >
+          <Spinner size="large" color="$primaryText" />
+        </View>
+      )}
     </View>
   );
 };

@@ -85,6 +85,14 @@ export type ImageBlockData = {
   alt: string;
 };
 
+export type FileBlockData = {
+  type: 'file';
+  src: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+};
+
 export type VideoBlockData = {
   type: 'video';
   src: string;
@@ -144,6 +152,7 @@ export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
   | ImageBlockData
+  | FileBlockData
   | VideoBlockData
   | LinkBlockData
   | EmbedBlockData
@@ -538,6 +547,13 @@ function convertBlock(block: ub.Block): BlockData {
           ...block.image,
         };
       }
+    }
+
+    case is(block, 'file'): {
+      return {
+        type: 'file',
+        ...block.file,
+      };
     }
 
     case is(block, 'listing'): {

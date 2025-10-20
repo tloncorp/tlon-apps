@@ -1,5 +1,6 @@
 import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -33,7 +34,7 @@ export default function AttachmentSheet({
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const { attachAssets, clearAttachments, removeAttachment } =
+  const { attachAssets, attachFiles, clearAttachments, removeAttachment } =
     useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
@@ -224,6 +225,37 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const pickFile = useCallback(() => {
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    // Then initiate the actual file picking process after a small delay to ensure sheet is closed
+    setTimeout(async () => {
+      try {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: '*/*',
+          copyToCacheDirectory: true,
+        });
+
+        if (result.canceled === false && result.assets && result.assets.length > 0) {
+          const pickedFile = result.assets[0];
+
+          attachFiles([
+            {
+              uri: pickedFile.uri,
+              fileName: pickedFile.name,
+              fileSize: pickedFile.size ?? undefined,
+              mimeType: pickedFile.mimeType ?? undefined,
+            },
+          ]);
+        }
+      } catch (e) {
+        console.error('Error picking file', e);
+        logger.trackError('Error picking file', { error: e });
+      }
+    }, 50); // Small delay to ensure the sheet closes first
+  }, [attachFiles, onOpenChange]);
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -235,6 +267,13 @@ export default function AttachmentSheet({
               ? 'Upload an image from your computer'
               : 'Choose a photo from your library',
             action: pickImage,
+          },
+          {
+            title: isWeb ? 'Upload a file' : 'Choose a file',
+            description: isWeb
+              ? 'Upload any file from your computer'
+              : 'Choose any file from your device',
+            action: pickFile,
           },
           !isWeb && {
             title: 'Take a Photo',
@@ -260,6 +299,7 @@ export default function AttachmentSheet({
     [
       onClearAttachments,
       pickImage,
+      pickFile,
       showClearOption,
       takePicture,
       hasClipboardImage,

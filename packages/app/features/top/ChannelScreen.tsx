@@ -377,7 +377,11 @@ export default function ChannelScreen(props: Props) {
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider
+        canUpload={canUpload}
+        uploadAsset={store.uploadAsset}
+        uploadFile={store.uploadGenericFile}
+      >
         <Channel
           key={currentChannelId}
           ref={channelRef}

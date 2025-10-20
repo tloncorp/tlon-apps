@@ -423,6 +423,48 @@ const ContentImage = styled(Image, {
   backgroundColor: '$secondaryBackground',
 });
 
+export function FileBlock({
+  block,
+  ...props
+}: {
+  block: cn.FileBlockData;
+} & ComponentProps<typeof View>) {
+  const handlePress = useCallback(() => {
+    if (Platform.OS === 'web') {
+      // On web, open the file in a new tab
+      window.open(block.src, '_blank');
+    } else {
+      // On mobile, use Linking to open the file
+      Linking.openURL(block.src);
+    }
+  }, [block.src]);
+
+  return (
+    <Pressable onPress={handlePress} {...props}>
+      <XStack
+        padding="$m"
+        backgroundColor="$secondaryBackground"
+        borderRadius="$s"
+        borderWidth={1}
+        borderColor="$border"
+        gap="$m"
+        alignItems="center"
+      >
+        <Icon type="Document" size="$l" color="$primaryText" />
+        <YStack flex={1} gap="$xs">
+          <Text size="$label/m" numberOfLines={1} color="$primaryText">
+            {block.name}
+          </Text>
+          <Text size="$label/s" color="$secondaryText">
+            Click to download
+          </Text>
+        </YStack>
+        <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
+      </XStack>
+    </Pressable>
+  );
+}
+
 export function RuleBlock({
   block: _block,
   ...props
@@ -553,6 +595,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   paragraph: ParagraphBlock,
   link: LinkBlock,
   image: ImageBlock,
+  file: FileBlock,
   video: VideoBlock,
   reference: ReferenceBlock,
   code: CodeBlock,
@@ -574,6 +617,7 @@ export type DefaultRendererProps = {
   paragraph: BlockSettings<typeof ParagraphBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
+  file: BlockSettings<typeof FileBlock>;
   video: BlockSettings<typeof VideoBlock>;
   reference: BlockSettings<typeof ReferenceBlock>;
   code: BlockSettings<typeof CodeBlock>;
