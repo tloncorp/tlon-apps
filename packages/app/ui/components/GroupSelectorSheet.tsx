@@ -34,6 +34,7 @@ export function GroupSelectorSheet(props: SheetProps) {
       snapPointsMode="percent"
       disableDrag={contentScrolling}
       dismissOnSnapToBottom
+      modal
     >
       <ActionSheet.Content paddingBottom="$s">
         <SheetHeader paddingHorizontal="$2xl">
