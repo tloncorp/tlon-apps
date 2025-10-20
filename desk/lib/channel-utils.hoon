@@ -1112,6 +1112,16 @@
         (inline %link url.block url.block)
         ;br;
       ==
+    ::
+        %file
+      ;+
+      =/  src=tape  (trip src.block)
+      =/  name=tape  (trip name.block)
+      ;div.file
+        ;a/"{src}"(target "_blank", rel "noreferrer", download "")
+          ;span:"{name}"
+        ==
+      ==
     ==
   ::
   ++  inline

@@ -28,6 +28,7 @@
 +$  block
   $+  style-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%file src=cord name=cord size=(unit @ud) type=(unit cord)]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
       [%listing p=listing]

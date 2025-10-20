@@ -37,6 +37,13 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
+        %file
+      %-  pairs
+      :~  src+s+src.b
+          name+s+name.b
+          size+?~(size.b ~ (numb u.size.b))
+          type+?~(type.b ~ s+u.type.b)
+      ==
         %code
       %-  pairs
       :~  code+s+code.b
@@ -142,6 +149,14 @@
           height/ni
           width/ni
           alt/so
+      ==
+    ::
+      :-  %file
+      %-  ot
+      :~  src/so
+          name/so
+          size/(mu ni)
+          type/(mu so)
       ==
     ::
       :-  %link
