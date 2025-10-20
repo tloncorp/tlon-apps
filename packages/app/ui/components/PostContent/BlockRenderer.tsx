@@ -450,7 +450,7 @@ export function FileBlock({
         gap="$m"
         alignItems="center"
       >
-        <Icon type="Document" size="$l" color="$primaryText" />
+        <Icon type="Gift" size="$xl" color="$primaryText" />
         <YStack flex={1} gap="$xs">
           <Text size="$label/m" numberOfLines={1} color="$primaryText">
             {block.name}

@@ -246,7 +246,7 @@ const FilePreview = ({
         padding="$m"
         gap="$m"
       >
-        <Icon type="Document" size="$2xl" color="$primaryText" />
+        <Icon type="Gift" size="$xl" color="$primaryText" />
         <Text
           size="$label/m"
           numberOfLines={2}
