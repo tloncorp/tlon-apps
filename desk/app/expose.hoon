@@ -129,7 +129,7 @@
 --
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =|  state-2

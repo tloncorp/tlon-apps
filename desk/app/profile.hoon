@@ -253,7 +253,7 @@
 --
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ::
 =|  state-1
 =*  state  -

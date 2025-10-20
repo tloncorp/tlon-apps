@@ -67,7 +67,7 @@
 =/  importing=?  |
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<
@@ -938,7 +938,9 @@
       ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
-    =/  children  (get-children:src indices source)
+    =/  children
+      ?.  deep.action  ~
+      (get-children:src indices source)
     =?  cor  deep.action
       |-
       ?~  children  cor

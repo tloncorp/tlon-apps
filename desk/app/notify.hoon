@@ -1,6 +1,6 @@
 ::
-/-  *notify, resource, a=activity, c=channels, h=hark, meta
-/+  cu=channel-utils, n=notify, logs,
+/-  *notify, resource, a=activity, c=channels, meta
+/+  cu=channel-utils, logs,
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
 /$  hark-yarn-to-json       %hark-yarn       %json
@@ -172,7 +172,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<
@@ -376,15 +376,7 @@
         (activity-event-to-json time-id event.u.event)
       ::
           %hark-yarn
-        =/  yarn=(unit yarn:h)
-          (event-to-yarn:n our.bowl now.bowl time-id event.u.event)
-        ?~  yarn
-          [[404 ~] ~]
-        :-  [200 ['content-type' 'application-json'] ~]
-        %-  some
-        %-  as-octs:mimes:html
-        %-  en:json:html
-        (hark-yarn-to-json u.yarn)
+        [[410 ~] ~]
       ==
     ::
     ++  provider-state-message
@@ -471,20 +463,9 @@
           `this
         =+  !<([=time-id:a =event:a] q.cage.sign)
         :_  this(notifications (~(put by notifications) time-id [event ~]))
-        =-  (zing (turn - drop))
-        ^-  (list (unit card))
-        :_  [(fact-all:io %notify-update !>(`update`[`@`time-id %notify]))]~
-        ::  if supported, convert the event to a hark notification (yarn) and
-        ::  inject it into hark, so that old clients may continue retrieving
-        ::  notifications from hark, using the id this agent gives them in the
-        ::  %notify-update above
-        ::
-        ^-  (unit card)
-        =/  yarn=(unit yarn:h)
-          (event-to-yarn:n our.bowl now.bowl time-id event)
-        ?~  yarn  ~
-        =/  =action:h  [%add-yarn & | u.yarn]
-        `[%pass /hark/copy %agent [our.bowl %hark] %poke %hark-action !>(action)]
+        ::NOTE  this used to try to inject the notification into %hark too,
+        ::      but we now no longer do so.
+        (drop (fact-all:io %notify-update !>(`update`[`@`time-id %notify])))
       ::
           %kick
         %-  (tell:l %info 'notify activity kick' ~)
@@ -591,12 +572,6 @@
     ((fail:l term tang) `this)
   --
 |_  bowl=bowl:gall
-::
-++  filter-notifications
-  |=  =action:h
-  ^-  (unit update)
-  ?.  ?=(%add-yarn -.action)  ~
-  `[id.yarn.action %notify]
 ::
 ++  is-whitelisted
   |=  [who=@p entry=provider-entry]

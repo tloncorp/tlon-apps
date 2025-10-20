@@ -1,6 +1,6 @@
 /-  h=heap, c=channels, gv=groups-ver, ha=hark, e=epic, c2=chat-2, s=story
 /-  meta
-/+  default-agent, verb, dbug
+/+  default-agent, dbug
 /+  cur=curios
 /+  volume, cutils=channel-utils, em=emojimart
 /+  epos-lib=saga
@@ -23,7 +23,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .

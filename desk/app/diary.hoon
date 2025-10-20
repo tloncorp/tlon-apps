@@ -1,7 +1,7 @@
 /-  d=diary, gv=groups-ver, ha=hark, channels, c2=chat-2, s=story
 /-  meta
 /-  e=epic
-/+  default-agent, verb, dbug
+/+  default-agent, dbug
 /+  not=notes
 /+  qup=quips
 /+  volume, cutils=channel-utils, em=emojimart
@@ -24,7 +24,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .

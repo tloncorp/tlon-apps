@@ -35,6 +35,7 @@
         =.  fields  (migrate fields 'title' %'invitedGroupTitle')
         =.  fields  (migrate fields 'description' %'invitedGroupDescription')
         =.  fields  (migrate fields 'image' %'invitedGroupIconImageUrl')
+        =.  fields  (migrate fields 'inviter' %'inviterUserId')
         ::  enforce type on metadata fields
         ::
         :-  %groups-0
