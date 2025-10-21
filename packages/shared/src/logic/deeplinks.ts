@@ -245,8 +245,14 @@ export async function checkInputForInvite(
     const appInvite = await getInviteLinkMeta({ inviteLink: extractedLink });
     if (appInvite) {
       return appInvite;
+    } else {
+      logger.trackError('Failed to find invite for invite link regex match', {
+        input,
+        inviteLink: extractedLink,
+      });
     }
   } else if (input.length >= 4) {
+    logger.trackEvent('Checking user input for invite', { input });
     // if not, check for valid shortcode
     const normalizedShortcode = input.toLowerCase().trim();
     const shortcodeInvite = await getInviteShortcode(
@@ -259,6 +265,11 @@ export async function checkInputForInvite(
       );
       if (appInvite) {
         return appInvite;
+      } else {
+        logger.trackError('Failed to find invite meta for shortcode', {
+          shortcode: normalizedShortcode,
+          inviteId: shortcodeInvite.inviteId,
+        });
       }
     }
   }

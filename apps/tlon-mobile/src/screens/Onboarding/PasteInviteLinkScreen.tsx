@@ -7,6 +7,7 @@ import {
   Button,
   Field,
   Image,
+  LoadingSpinner,
   Pressable,
   ScreenHeader,
   TextInput,
@@ -16,7 +17,8 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { checkInputForInvite, createDevLogger } from '@tloncorp/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { debounce } from 'lodash';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,13 +40,13 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const telemetryId = useTelemetryId();
   const lureMeta = useLureMetadata();
   const { setLure } = useBranch();
+  const [checkingInput, setCheckingInput] = useState(false);
 
   const {
     control,
     formState: { errors },
     setValue,
     watch,
-    trigger,
   } = useForm<FormData>({
     defaultValues: {
       inviteLink: DEFAULT_INVITE_LINK_URL,
@@ -53,26 +55,39 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
 
   const [metadataError, setMetadataError] = useState<string | null>(null);
 
-  // watch for changes to the input & check for valid invite links
-  const inviteLinkValue = watch('inviteLink');
-  useEffect(() => {
-    async function handleInviteLinkChange() {
+  const handleInputChange = useCallback(
+    async (input: string) => {
       setMetadataError(null);
       try {
-        const appInvite = await checkInputForInvite(inviteLinkValue, {
+        if (input.length > 3) {
+          setCheckingInput(true);
+        }
+        const appInvite = await checkInputForInvite(input, {
           telemetryId: telemetryId(),
         });
         if (appInvite) {
           setLure(appInvite);
           return;
         }
-        trigger('inviteLink');
       } catch (e) {
         setMetadataError('Unable to check invite');
+      } finally {
+        setCheckingInput(false);
       }
-    }
-    handleInviteLinkChange();
-  }, [inviteLinkValue, setLure, telemetryId, trigger]);
+    },
+    [setLure, telemetryId]
+  );
+
+  const debouncedInputHandler = useMemo(
+    () => debounce(handleInputChange, 300),
+    [handleInputChange]
+  );
+
+  // watch for changes to the input & check for valid invite links
+  const inviteLinkValue = watch('inviteLink');
+  useEffect(() => {
+    debouncedInputHandler(inviteLinkValue);
+  }, [inviteLinkValue, debouncedInputHandler]);
 
   // if at any point we have invite metadata, notify & allow them to proceed
   // to signup
@@ -103,7 +118,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Claim Invite"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={
@@ -121,7 +135,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           pressStyle={{ opacity: 1 }}
           onPress={() => Keyboard.dismiss()}
         >
-          <YStack paddingHorizontal="$2xl" flex={1}>
+          <YStack marginTop="$4xl" paddingHorizontal="$2xl" flex={1}>
             <XStack justifyContent="center">
               <Image
                 width={80}
@@ -129,53 +143,43 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 source={require('../../../assets/images/welcome-icon.png')}
               />
             </XStack>
-            <View padding="$4xl" gap="$xl">
-              {/* <TlonText.Text size="$body" color="$primaryText">
-                We&apos;re growing slowly. Invites let you skip the waitlist
-                because we know someone wants to talk to you here.
-                {'\n\n'}
-              If you used an{' '}
-              <TlonText.Text fontWeight="500">Invite Link</TlonText.Text> to
-              download the app, tap it again now or paste it below.
-              </TlonText.Text> */}
-            </View>
-            <YStack flex={1} justifyContent="space-between">
-              <Controller
-                control={control}
-                name="inviteLink"
-                // rules={{
-                //   pattern: {
-                //     value: INVITE_LINK_REGEX,
-                //     message: 'Invite link not recognized.',
-                //   },
-                // }}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Field
-                    label="Invite code or link"
-                    error={metadataError ?? errors.inviteLink?.message}
-                    paddingTop="$l"
-                  >
-                    <TextInput
-                      placeholder="TLON  or  join.tlon.io/0v4.pca..."
-                      // fontSize="$3xl"
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      rightControls={
-                        <TextInput.InnerButton
-                          label="Paste"
-                          onPress={onHandlePasteClick}
-                        />
-                      }
-                    />
-                  </Field>
-                )}
-              />
+            <YStack marginTop="$6xl" flex={1} justifyContent="space-between">
+              <YStack>
+                <Controller
+                  control={control}
+                  name="inviteLink"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Field
+                      label="Invite code or link"
+                      error={metadataError ?? errors.inviteLink?.message}
+                      paddingTop="$l"
+                    >
+                      <TextInput
+                        placeholder="TLON  or  join.tlon.io/0v4.pca..."
+                        // fontSize="$3xl"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        rightControls={
+                          <TextInput.InnerButton
+                            label="Paste"
+                            onPress={onHandlePasteClick}
+                          />
+                        }
+                      />
+                    </Field>
+                  )}
+                />
+                <XStack marginTop="$2xl" justifyContent="center">
+                  {checkingInput && <LoadingSpinner />}
+                </XStack>
+              </YStack>
               <Button
                 secondary
+                pressStyle={{ backgroundColor: '$secondaryBorder' }}
                 backgroundColor="unset"
                 marginBottom="$l"
                 onPress={() => navigation.navigate('JoinWaitList', {})}
