@@ -241,8 +241,16 @@ export function GroupPreviewPane({
   const isNarrow = useIsWindowNarrow();
 
   const hostConnectionStatus = useMemo(() => {
-    if (!hostStatus?.complete) {
-      switch (hostStatus?.status) {
+    if (!group.hostUserId) {
+      return null;
+    }
+
+    if (!hostStatus) {
+      return { label: 'Checking host status...', type: 'tertiary' };
+    }
+
+    if (!hostStatus.complete) {
+      switch (hostStatus.status) {
         case 'setting-up':
           return { label: 'Setting up...', type: 'tertiary' };
         case 'trying-dns':
@@ -259,7 +267,7 @@ export function GroupPreviewPane({
           return { label: 'Offline', type: 'warning' };
       }
     }
-  }, [hostStatus]);
+  }, [hostStatus, group.hostUserId]);
 
   return (
     <ActionSheet.Content>
@@ -293,10 +301,12 @@ export function GroupPreviewPane({
                 <Badge text={privacyLabel} type="neutral" />
               </XStack>
             ) : null}
-            <Badge
-              text={hostConnectionStatus.label}
-              type={hostConnectionStatus.type as BadgeType}
-            />
+            {hostConnectionStatus ? (
+              <Badge
+                text={hostConnectionStatus.label}
+                type={hostConnectionStatus.type as BadgeType}
+              />
+            ) : null}
           </XStack>
         </YStack>
 
