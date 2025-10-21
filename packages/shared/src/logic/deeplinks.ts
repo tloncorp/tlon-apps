@@ -203,23 +203,21 @@ export async function getInviteShortcode(
   context: { telemetryId?: string } = {}
 ): Promise<ShortcodeInvite | null> {
   const env = getConstants();
-  // hack to avoid shuffling env vars around
-  const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
-    0,
-    env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
-  );
 
   const normalizedInput = input.toLowerCase().trim();
-  const response = await fetch(`${serverlessInfraUrl}/checkInviteShortcode`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      shortcode: normalizedInput,
-      telemetryId: context.telemetryId,
-    }),
-  });
+  const response = await fetch(
+    `${env.INVITE_SERVICE_ENDPOINT}/checkInviteShortcode`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        shortcode: normalizedInput,
+        telemetryId: context.telemetryId,
+      }),
+    }
+  );
 
   if (response.ok) {
     const payload = (await response.json()) as ShortcodeInvite;
