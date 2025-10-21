@@ -205,7 +205,9 @@
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
     :_  this(state migrated)
-    ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
+    ?:  ?&  (~(has by wex.bowl) [/activity our.bowl %activity])
+            (~(has by wex.bowl) [/reads our.bowl %activity])
+        ==
       caz
     :*  (~(watch-our pass:io /activity) %activity /notifications)
         (~(watch-our pass:io /reads) %activity /v4/reads)
