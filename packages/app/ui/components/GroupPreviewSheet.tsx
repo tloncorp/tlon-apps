@@ -1,4 +1,5 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { ConnectionStatus } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -8,7 +9,7 @@ import { XStack, YStack } from 'tamagui';
 
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
-import { Badge } from './Badge';
+import { Badge, BadgeType } from './Badge';
 import { ContactName as ContactNameV2 } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
@@ -19,6 +20,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
+  hostStatus?: ConnectionStatus | null;
 }
 
 interface JoinStatus {
@@ -53,6 +55,7 @@ function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
+  hostStatus,
   onActionComplete,
 }: Props) {
   useEffect(() => {
@@ -76,7 +79,11 @@ function GroupPreviewSheetComponent({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <GroupPreviewPane group={group} onActionComplete={actionHandler} />
+        <GroupPreviewPane
+          group={group}
+          hostStatus={hostStatus}
+          onActionComplete={actionHandler}
+        />
       ) : (
         <LoadingSpinner />
       )}
@@ -86,9 +93,11 @@ function GroupPreviewSheetComponent({
 
 export function GroupPreviewPane({
   group,
+  hostStatus,
   onActionComplete,
 }: {
   group: db.Group;
+  hostStatus?: ConnectionStatus | null;
   onActionComplete: (
     action: GroupPreviewAction,
     updatedGroup: db.Group
@@ -231,6 +240,27 @@ export function GroupPreviewPane({
 
   const isNarrow = useIsWindowNarrow();
 
+  const hostConnectionStatus = useMemo(() => {
+    if (!hostStatus?.complete) {
+      switch (hostStatus?.status) {
+        case 'setting-up':
+          return { label: 'Setting up...', type: 'tertiary' };
+        case 'trying-dns':
+        case 'trying-sponsor':
+          return { label: 'Checking network...', type: 'tertiary' };
+        default:
+          return { label: 'Checking host status...', type: 'tertiary' };
+      }
+    } else {
+      switch (hostStatus.status) {
+        case 'yes':
+          return { label: 'Online', type: 'positive' };
+        default:
+          return { label: 'Offline', type: 'warning' };
+      }
+    }
+  }, [hostStatus]);
+
   return (
     <ActionSheet.Content>
       <YStack
@@ -257,11 +287,17 @@ export function GroupPreviewPane({
               <ContactNameV2 contactId={group.hostUserId} mode="contactId" />
             </Text>
           ) : null}
-          {privacyLabel ? (
-            <XStack gap="$s">
-              <Badge text={privacyLabel} type="neutral" />
-            </XStack>
-          ) : null}
+          <XStack gap="$s" alignItems="center">
+            {privacyLabel ? (
+              <XStack gap="$s">
+                <Badge text={privacyLabel} type="neutral" />
+              </XStack>
+            ) : null}
+            <Badge
+              text={hostConnectionStatus.label}
+              type={hostConnectionStatus.type as BadgeType}
+            />
+          </XStack>
         </YStack>
 
         {truncatedDescription ? (

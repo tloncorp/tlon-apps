@@ -10,6 +10,7 @@ import {
   CreateChatSheet,
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
+import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -49,6 +50,9 @@ export const HomeSidebar = memo(
     const { data: selectedGroup } = store.useGroup({
       id: selectedGroupId ?? '',
     });
+    const hostConnectionStatus = useConnectionStatus(
+      selectedGroup?.hostUserId ?? ''
+    );
     const { setIsOpen } = useGlobalSearch();
     const showSplash = store.useShowWebSplashModal();
 
@@ -248,6 +252,7 @@ export const HomeSidebar = memo(
                 open={!!selectedGroup}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
+                hostStatus={hostConnectionStatus}
                 onActionComplete={handleGroupAction}
               />
               <InviteUsersSheet
