@@ -2,7 +2,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
@@ -229,9 +229,16 @@ export function GroupPreviewPane({
     ]
   );
 
+  const isNarrow = useIsWindowNarrow();
+
   return (
     <ActionSheet.Content>
-      <YStack paddingHorizontal="$xl" paddingTop="$xl" gap="$xl">
+      <YStack
+        paddingHorizontal="$xl"
+        paddingTop="$xl"
+        gap="$xl"
+        paddingBottom={!isNarrow ? '$xl' : null}
+      >
         <YStack
           alignItems="center"
           padding="$xl"
@@ -246,12 +253,9 @@ export function GroupPreviewPane({
             {title ?? 'Untitled group'}
           </Text>
           {group.hostUserId ? (
-            <ContactNameV2
-              contactId={group.hostUserId}
-              mode="contactId"
-              color="$tertiaryText"
-              textAlign="center"
-            />
+            <Text size="$label/m" color="$tertiaryText">
+              <ContactNameV2 contactId={group.hostUserId} mode="contactId" />
+            </Text>
           ) : null}
           {privacyLabel ? (
             <XStack gap="$s">
@@ -267,7 +271,7 @@ export function GroupPreviewPane({
             borderWidth={1}
             borderColor="$border"
             backgroundColor="$background"
-            gap="$s"
+            gap="$xl"
           >
             <Text size="$label/m" color="$tertiaryText">
               Description
