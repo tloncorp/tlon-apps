@@ -97,6 +97,7 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.BOOTING) {
       if (reservedNode.isReady) {
         // if we've cached that it's ready during the reservation step, skip this check
+        await db.hostedNodeIsRunning.setValue(true);
         return NodeBootPhase.AUTHENTICATING;
       }
 

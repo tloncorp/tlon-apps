@@ -43,20 +43,20 @@ export const Image = StyledBaseImage.styleable<{
       [onError]
     );
 
-    const showFallback = useMemo(() => {
-      if (isPlaceholderAsset(props.source)) {
-        return false;
-      }
-      const isValid = isValidImageSource(props.source);
-      return !isValid || hasErrored;
-    }, [props.source, hasErrored]);
+    const parsedSource = useMemo(
+      () => ({
+        isPlaceholder: isPlaceholderAsset(props.source),
+        isInvalid: !isValidImageSource(props.source),
+      }),
+      [props.source]
+    );
 
-    if (showFallback && fallback !== undefined) {
-      return fallback;
+    if (parsedSource.isPlaceholder) {
+      return null;
     }
 
-    if (showFallback) {
-      return <DefaultImageFallback />;
+    if (parsedSource.isInvalid || hasErrored) {
+      return fallback ?? <DefaultImageFallback />;
     }
 
     return (
