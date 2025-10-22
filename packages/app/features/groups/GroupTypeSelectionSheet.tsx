@@ -28,8 +28,6 @@ const GroupTypeCard = ({
   subtitle,
   onPress,
 }: GroupTypeCardProps) => {
-  const iconSize = icons.length === 1 ? 32 : 24;
-
   return (
     <Pressable onPress={onPress} style={{ cursor: 'pointer' }}>
       {({ pressed }) => (
@@ -47,7 +45,7 @@ const GroupTypeCard = ({
               {icons.map((icon, index) => {
                 const isEmoji = typeof icon === 'string' && icon.length <= 4;
                 return isEmoji ? (
-                  <Text key={index} fontSize={iconSize}>
+                  <Text key={index} fontSize={32}>
                     {icon}
                   </Text>
                 ) : (
@@ -250,7 +248,7 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
     }, 0);
   }, [templateIndex, containerWidth, canScrollPrev]);
 
-  const handleScrollEnd = useCallback(
+  const handleScroll = useCallback(
     (event: { nativeEvent: { contentOffset: { x: number } } }) => {
       if (!containerWidth) return;
       const offsetX = event.nativeEvent.contentOffset.x;
@@ -289,7 +287,8 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
               : undefined
           }
           decelerationRate={'fast'}
-          onMomentumScrollEnd={isWindowNarrow ? handleScrollEnd : undefined}
+          onScroll={isWindowNarrow ? handleScroll : undefined}
+          scrollEventThrottle={16}
           contentContainerStyle={
             isWindowNarrow ? { paddingRight: '$xl', gap: '$l' } : {}
           }

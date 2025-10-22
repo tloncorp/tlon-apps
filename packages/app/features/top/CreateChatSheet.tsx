@@ -220,29 +220,31 @@ const CreateChatFormContent = ({
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-      <ContactBook
-        searchable
-        multiSelect={chatType === 'group'}
-        searchPlaceholder="Filter by nickname or id"
-        autoFocus={!isWindowNarrow}
-        onSelect={onSelectDmContact}
-        onSelectedChange={onSelectedChange}
-        onScrollChange={(scrolling) => {
-          onScrollChange?.(scrolling);
-        }}
-        height={400}
-      />
-      {chatType === 'group' && (
-        <Button marginTop="$l" hero onPress={onCreateGroup}>
-          {!isCreating ? (
-            <Button.Text>Create group</Button.Text>
-          ) : (
-            <View width={30} paddingHorizontal="$2xl">
-              <LoadingSpinner color="$background" />
-            </View>
-          )}
-        </Button>
-      )}
+      <YStack gap="$l" flex={1} $sm={{ paddingHorizontal: '$xl' }}>
+        <ContactBook
+          searchable
+          multiSelect={chatType === 'group'}
+          searchPlaceholder="Filter by nickname or id"
+          autoFocus={!isWindowNarrow}
+          onSelect={onSelectDmContact}
+          onSelectedChange={onSelectedChange}
+          onScrollChange={(scrolling) => {
+            onScrollChange?.(scrolling);
+          }}
+          height={400}
+        />
+        {chatType === 'group' && (
+          <Button marginTop="$l" hero onPress={onCreateGroup}>
+            {!isCreating ? (
+              <Button.Text>Create group</Button.Text>
+            ) : (
+              <View width={30} paddingHorizontal="$2xl">
+                <LoadingSpinner color="$background" />
+              </View>
+            )}
+          </Button>
+        )}
+      </YStack>
     </YStack>
   );
 };
@@ -460,6 +462,7 @@ function TypeSelectionContent({
 }: {
   onSelectType: (type: ChatType) => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const actions = useMemo(
     () => createTypeActions(onSelectType),
     [onSelectType]
@@ -472,10 +475,16 @@ function TypeSelectionContent({
             key={index}
             action={action}
             testID={action.testID}
+            paddingHorizontal={'$xl'}
           />
         ))}
       </ActionSheet.ActionGroup>
-      <View paddingHorizontal="$2xl" paddingTop="$l" alignItems="center">
+      <View
+        paddingHorizontal="$2xl"
+        paddingTop="$l"
+        paddingBottom={isWindowNarrow ? undefined : '$l'}
+        alignItems="center"
+      >
         <Button
           onPress={() => onSelectType('joinGroup')}
           backgroundColor="transparent"
@@ -550,16 +559,14 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
     >
-      <YStack flex={1} paddingHorizontal="$2xl">
-        <CreateChatFormContent
-          chatType={chatType}
-          isCreating={isCreating}
-          onSelectDmContact={handleSelectDmContact}
-          onSelectedChange={setSelectedContactIds}
-          onCreateGroup={handlePressCreateGroup}
-          onScrollChange={setScreenScrolling}
-        />
-      </YStack>
+      <CreateChatFormContent
+        chatType={chatType}
+        isCreating={isCreating}
+        onSelectDmContact={handleSelectDmContact}
+        onSelectedChange={setSelectedContactIds}
+        onCreateGroup={handlePressCreateGroup}
+        onScrollChange={setScreenScrolling}
+      />
     </ActionSheet>
   );
 }

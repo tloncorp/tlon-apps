@@ -615,14 +615,10 @@ const ActionSheetActionContent = styled(YStack, {
   height: '$4xl',
 });
 
-function ActionSheetAction({
-  action,
-  testID,
-}: {
+const ActionSheetAction = ActionSheetActionFrame.styleable<{
   action: Action;
   testID?: string;
-}) {
-  const isWindowNarrow = useIsWindowNarrow();
+}>(({ action, testID, ...props }, ref) => {
   const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
 
   const handlePress = useCallback(() => {
@@ -647,6 +643,8 @@ function ActionSheetAction({
       onPress={handlePress}
       // height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
+      ref={ref}
+      {...props}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
@@ -667,7 +665,7 @@ function ActionSheetAction({
       )}
     </ActionSheetActionFrame>
   );
-}
+});
 
 function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
   if (typeof icon === 'string') {
