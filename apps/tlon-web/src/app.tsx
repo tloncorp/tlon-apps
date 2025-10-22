@@ -12,7 +12,6 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
-import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -476,8 +475,9 @@ function ConnectedWebApp() {
         const personalGroup = await db.getPersonalGroup();
         const personalGroupReady = !!personalGroup;
         const allGroups = await db.getGroups({ includeUnjoined: false });
-        const hasFewGroups = allGroups.length < 4; // arbitrary "new user" threshold
-        if (isNewSignup || hasFewGroups) {
+        const allDms = await db.getAllSingleDms();
+        const hasFewChats = allGroups.length + allDms.length < 4; // arbitrary "new user" threshold
+        if (isNewSignup || hasFewChats) {
           try {
             if (!personalGroupReady) {
               await logic.withRetry(() => store.scaffoldPersonalGroup(), {
