@@ -2,8 +2,9 @@ import * as store from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
-  ComponentProps,
+  cloneElement,
   forwardRef,
+  isValidElement,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -12,7 +13,7 @@ import {
 } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Popover, View, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
 import { useRootNavigation } from '../../navigation/utils';
@@ -23,16 +24,20 @@ import {
   ContactBook,
   GroupPreviewAction,
   GroupPreviewPane,
+  ListItem,
   LoadingSpinner,
-  SimpleActionSheet,
   Text,
   TextInput,
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
+import {
+  GroupType,
+  GroupTypeSelectionSheet,
+} from '../groups/GroupTypeSelectionSheet';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
-type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
+type Step = 'initial' | 'selectType' | 'selectGroupType' | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
@@ -51,16 +56,13 @@ function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
       title: CHAT_TYPE_CONFIG.dm.actionTitle,
       description: CHAT_TYPE_CONFIG.dm.actionDescription,
       action: () => onSelectType('dm'),
+      startIcon: <ListItem.SystemIcon icon="Send" />,
     },
     {
       title: CHAT_TYPE_CONFIG.group.actionTitle,
       description: CHAT_TYPE_CONFIG.group.actionDescription,
       action: () => onSelectType('group'),
-    },
-    {
-      title: CHAT_TYPE_CONFIG.joinGroup.actionTitle,
-      description: CHAT_TYPE_CONFIG.joinGroup.actionDescription,
-      action: () => onSelectType('joinGroup'),
+      startIcon: <ListItem.SystemIcon icon="Channel" />,
     },
   ];
 }
@@ -81,16 +83,10 @@ const CHAT_TYPE_CONFIG = {
   joinGroup: {
     title: 'Join a group',
     subtitle: 'Join a group chat with a code (reference)',
-    actionTitle: 'Join a group',
+    actionTitle: 'Join a group with a code (reference)',
     actionDescription: 'Join with a code (reference)',
   },
 } as const;
-
-interface ActionButtonsProps {
-  actions: Action[];
-  buttonProps?: ComponentProps<typeof Button>;
-  containerProps?: ComponentProps<typeof YStack>;
-}
 
 interface CreateChatFormContentProps {
   chatType: ChatType;
@@ -100,33 +96,6 @@ interface CreateChatFormContentProps {
   onCreateGroup: () => void;
   onScrollChange?: (scrolling: boolean) => void;
 }
-
-const ActionButtons = ({
-  actions,
-  containerProps,
-  buttonProps,
-}: ActionButtonsProps) => (
-  <YStack gap="$s" {...containerProps}>
-    {actions.map((action, i) => (
-      <Button
-        key={i}
-        onPress={action.action}
-        width="100%"
-        justifyContent="flex-start"
-        {...buttonProps}
-      >
-        <YStack>
-          <Button.Text size="$s">{action.title}</Button.Text>
-          {action.description && (
-            <Button.Text color="$secondaryText" size="$s">
-              {action.description}
-            </Button.Text>
-          )}
-        </YStack>
-      </Button>
-    ))}
-  </YStack>
-);
 
 interface JoinGroupByIdPaneProps {
   close: () => void;
@@ -220,10 +189,10 @@ const JoinGroupFormContent = ({
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const isWindowNarrow = useIsWindowNarrow();
+  const { bottom } = useSafeAreaInsets();
 
   return (
-    <YStack flex={1} width={isWindowNarrow ? '100%' : 400} gap="$l">
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ActionSheet.ContentBlock>
         <JoinGroupByIdPane close={close} />
@@ -309,10 +278,35 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   );
 
   const handleTypeSelected = useCallback((type: ChatType) => {
-    setStep('initial');
-    setTimeout(() => {
-      setStep(`create${capitalize(type)}` as Step);
-    }, 300);
+    if (type === 'group') {
+      // Navigate to group type selection instead of directly to member selection
+      setStep('initial');
+      setTimeout(() => {
+        setStep('selectGroupType');
+      }, 300);
+    } else {
+      setStep('initial');
+      setTimeout(() => {
+        setStep(`create${capitalize(type)}` as Step);
+      }, 300);
+    }
+  }, []);
+
+  const handleGroupTypeSelected = useCallback((groupType: GroupType) => {
+    if (groupType === 'quick') {
+      // Quick group goes to member selection
+      setStep('initial');
+      setTimeout(() => {
+        setStep('createGroup');
+      }, 300);
+    } else {
+      // Custom and template are stubbed for now
+      setStep('initial');
+      Alert.alert(
+        'Coming Soon',
+        `${groupType === 'custom' ? 'Custom group' : 'Template'} creation is not yet implemented.`
+      );
+    }
   }, []);
 
   const handleSubmit = useCallback(
@@ -351,8 +345,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     handleSubmit({ type: 'group', contactIds: selectedContactIds });
   }, [handleSubmit, selectedContactIds]);
 
-  const insets = useSafeAreaInsets();
-
   const chatType =
     step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
   const actions = useMemo(
@@ -360,72 +352,100 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [handleTypeSelected]
   );
 
+  const triggerWithOnPress = useMemo(() => {
+    if (!trigger || !isValidElement(trigger)) return null;
+    return cloneElement(trigger, {
+      onPress: () => setStep(step === 'initial' ? 'selectType' : step),
+      'data-testid': 'CreateChatSheetTrigger',
+    } as Partial<{ onPress: () => void; 'data-testid': string }>);
+  }, [trigger, step]);
+
   return !isWindowNarrow ? (
-    <Popover
-      open={step !== 'initial'}
-      onOpenChange={handleOpenChange}
-      placement="top-end"
-      allowFlip
-      offset={-12}
-    >
-      <Popover.Trigger
-        role="button"
-        data-testid="CreateChatSheetTrigger"
-        asChild
+    <>
+      {triggerWithOnPress}
+      <ActionSheet
+        open={step === 'selectType'}
+        onOpenChange={() => setStep('initial')}
+        mode="dialog"
+        closeButton
+        dialogContentProps={{ width: 380 }}
       >
-        {trigger}
-      </Popover.Trigger>
-      <Popover.Content
-        elevate
-        zIndex="$xl"
-        position="relative"
-        borderColor="$border"
-        borderWidth={1}
-        padding="$m"
+        <ActionSheet.SimpleHeader title="Start a conversation" />
+        <ActionSheet.Content>
+          <ActionSheet.ActionGroup accent="neutral">
+            {actions.map((action, index) => (
+              <ActionSheet.Action
+                key={index}
+                action={action}
+                testID={action.testID}
+              />
+            ))}
+          </ActionSheet.ActionGroup>
+          <XStack
+            justifyContent="center"
+            paddingTop="$s"
+            paddingBottom={'$2xl'}
+          >
+            <Button
+              onPress={() => handleTypeSelected('joinGroup')}
+              backgroundColor="transparent"
+              minimal
+            >
+              <Button.Text color="$tertiaryText" size="$label/m">
+                {CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+              </Button.Text>
+            </Button>
+          </XStack>
+        </ActionSheet.Content>
+      </ActionSheet>
+      <GroupTypeSelectionSheet
+        open={step === 'selectGroupType'}
+        onOpenChange={() => setStep('initial')}
+        onSelectGroupType={handleGroupTypeSelected}
+      />
+      <ActionSheet
+        open={step === 'createJoinGroup'}
+        onOpenChange={() => setStep('initial')}
+        mode="dialog"
+        closeButton
+        dialogContentProps={{ width: 600 }}
       >
-        {step === 'selectType' ? (
-          <ActionButtons
-            actions={actions}
-            buttonProps={{ paddingBottom: insets.bottom }}
-          />
-        ) : step === 'createJoinGroup' ? (
+        <View flex={1}>
           <JoinGroupFormContent
             chatType={chatType}
             close={() => setStep('initial')}
           />
-        ) : (
-          <ActionSheet
-            open={step === 'createDm' || step === 'createGroup'}
-            onOpenChange={() => setStep('initial')}
-            mode="dialog"
-            closeButton
-            dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
-          >
-            <ActionSheet.MainContent
-              paddingHorizontal="$3xl"
-              paddingBottom="$3xl"
-              flex={1}
-            >
-              <View flex={1}>
-                <CreateChatFormContent
-                  chatType={chatType}
-                  isCreating={isCreatingChat}
-                  onSelectDmContact={handleSelectDmContact}
-                  onSelectedChange={setSelectedContactIds}
-                  onCreateGroup={handlePressCreateGroup}
-                />
-              </View>
-            </ActionSheet.MainContent>
-          </ActionSheet>
-        )}
-      </Popover.Content>
-    </Popover>
+        </View>
+      </ActionSheet>
+      <ActionSheet
+        open={step === 'createDm' || step === 'createGroup'}
+        onOpenChange={() => setStep('initial')}
+        mode="dialog"
+        closeButton
+        dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
+      >
+        <View flex={1} padding="$m">
+          <CreateChatFormContent
+            chatType={chatType}
+            isCreating={isCreatingChat}
+            onSelectDmContact={handleSelectDmContact}
+            onSelectedChange={setSelectedContactIds}
+            onCreateGroup={handlePressCreateGroup}
+          />
+        </View>
+      </ActionSheet>
+    </>
   ) : (
     <>
       <CreateChatTypeSheet
         open={step === 'selectType'}
         onOpenChange={handleOpenChange}
         onSelectType={handleTypeSelected}
+      />
+      <GroupTypeSelectionSheet
+        open={step === 'selectGroupType'}
+        onOpenChange={handleOpenChange}
+        onSelectGroupType={handleGroupTypeSelected}
       />
       <CreateChatInviteSheet
         open={step === 'createDm' || step === 'createGroup'}
@@ -449,18 +469,38 @@ export function CreateChatTypeSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectType: (type: 'dm' | 'group') => void;
+  onSelectType: (type: ChatType) => void;
 }) {
   const actions = useMemo(
     () => createTypeActions(onSelectType),
     [onSelectType]
   );
   return (
-    <SimpleActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      actions={actions}
-    />
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ActionSheet.Content>
+        <ActionSheet.ActionGroup accent="neutral">
+          {actions.map((action, index) => (
+            <ActionSheet.Action
+              key={index}
+              action={action}
+              testID={action.testID}
+            />
+          ))}
+        </ActionSheet.ActionGroup>
+        <View paddingHorizontal="$2xl" paddingTop="$l" alignItems="center">
+          <Button
+            onPress={() => onSelectType('joinGroup')}
+            backgroundColor="transparent"
+            paddingVertical="$m"
+            paddingHorizontal="$l"
+          >
+            <Button.Text color="$tertiaryText" size="$label/m">
+              {CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+            </Button.Text>
+          </Button>
+        </View>
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }
 
