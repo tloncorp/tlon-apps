@@ -15,6 +15,7 @@ import {
   Text,
   View,
   useIsWindowNarrow,
+  useToast,
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -74,6 +75,7 @@ export function BigInput({
   const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const { attachments, clearAttachments, waitForAttachmentUploads } =
     useAttachmentContext();
@@ -311,10 +313,18 @@ export function BigInput({
             (editorRef.current.editor as any).setImage(s3Url);
           } else if (isMountedRef.current) {
             logger.error('Failed to upload image, upload state:', uploadState);
+            showToast({
+              message: 'Failed to upload image. Please try again.',
+              duration: 3000,
+            });
           }
         } catch (error) {
           if (isMountedRef.current) {
             logger.error('Error uploading inline image:', error);
+            showToast({
+              message: 'Error uploading image. Please check your connection and try again.',
+              duration: 3000,
+            });
           }
         }
       }
@@ -324,7 +334,7 @@ export function BigInput({
         setShowInlineImageSheet(false);
       }
     },
-    []
+    [showToast]
   );
 
   // Update image URI when editing post changes
