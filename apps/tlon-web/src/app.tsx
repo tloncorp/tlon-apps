@@ -476,7 +476,8 @@ function ConnectedWebApp() {
         const personalGroupReady = !!personalGroup;
         const allGroups = await db.getGroups({ includeUnjoined: false });
         const allDms = await db.getAllSingleDms();
-        const hasFewChats = allGroups.length + allDms.length < 4; // arbitrary "new user" threshold
+        // "new user" threshold, targets nodes that didn't sign up via Tlon Hosting
+        const hasFewChats = allGroups.length + allDms.length < 3;
         if (isNewSignup || hasFewChats) {
           try {
             if (!personalGroupReady) {
