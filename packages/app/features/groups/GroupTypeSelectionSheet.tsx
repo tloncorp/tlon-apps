@@ -1,3 +1,4 @@
+import { GroupTemplateId, groupTemplates } from '@tloncorp/shared';
 import { IconType, Text } from '@tloncorp/ui';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView as RNScrollView } from 'react-native';
@@ -13,32 +14,6 @@ import { ScrollView, View, XStack, YStack } from 'tamagui';
 import { ActionSheet, ListItem, useIsWindowNarrow } from '../../ui';
 
 export type GroupType = 'quick' | 'custom' | 'template';
-
-const groupTemplates: Array<{
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: string;
-}> = [
-  {
-    id: 'book-club',
-    title: 'Book Club',
-    subtitle: 'Discuss your latest reads',
-    icon: '📚',
-  },
-  {
-    id: 'hat-club',
-    title: 'Hat Club',
-    subtitle: 'Share your favorite hats',
-    icon: '🎩',
-  },
-  {
-    id: 'lobster-club',
-    title: 'Lobster Club',
-    subtitle: 'For lobster enthusiasts',
-    icon: '🦞',
-  },
-];
 
 interface GroupTypeCardProps {
   icon: IconType | string;
@@ -223,7 +198,7 @@ const PaginationDot = ({
 };
 
 interface TemplateCarouselProps {
-  onPress: () => void;
+  onPress: (templateId: GroupTemplateId) => void;
 }
 
 const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
@@ -304,7 +279,7 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
                 icon={template.icon}
                 title={template.title}
                 subtitle={template.subtitle}
-                onPress={onPress}
+                onPress={() => onPress(template.id)}
               />
             </View>
           ))}
@@ -331,7 +306,7 @@ export function GroupTypeSelectionSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectGroupType: (type: GroupType) => void;
+  onSelectGroupType: (type: GroupType, templateId?: GroupTemplateId) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
@@ -355,7 +330,9 @@ export function GroupTypeSelectionSheet({
           subtitle="Customize channels, roles, and privacy settings"
           onPress={() => onSelectGroupType('custom')}
         />
-        <TemplateCarousel onPress={() => onSelectGroupType('template')} />
+        <TemplateCarousel
+          onPress={(templateId) => onSelectGroupType('template', templateId)}
+        />
       </YStack>
     </YStack>
   );

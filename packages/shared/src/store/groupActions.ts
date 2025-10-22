@@ -5,9 +5,10 @@ import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import { GroupTemplateId, groupTemplatesById } from '../domain/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { createSectionId } from '../urbit';
+import { createSectionId, getChannelKindFromType } from '../urbit';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
@@ -113,6 +114,50 @@ export async function createDefaultGroup(
     lastPostSequenceNum: 0,
   };
   newGroup.channels = [defaultChannel];
+
+  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+}
+
+interface CreateGroupFromTemplateParams {
+  templateId: GroupTemplateId;
+  memberIds?: string[];
+}
+
+export async function createGroupFromTemplate(
+  params: CreateGroupFromTemplateParams
+): Promise<db.Group> {
+  const template = groupTemplatesById[params.templateId];
+  const currentUserId = api.getCurrentUserId();
+  const groupSlug = getRandomId();
+  const groupId = `${currentUserId}/${groupSlug}`;
+  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
+
+  const newGroup: db.Group = {
+    id: groupId,
+    title: template.title,
+    iconImage: groupIconUrl,
+    currentUserIsMember: true,
+    isPersonalGroup: false,
+    hostUserId: currentUserId,
+    currentUserIsHost: true,
+    privacy: 'secret',
+  };
+
+  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
+    const channelSlug = getRandomId();
+    const channelKind = getChannelKindFromType(channelTemplate.type);
+    const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
+    return {
+      id: channelId,
+      groupId,
+      type: channelTemplate.type,
+      title: channelTemplate.title,
+      description: channelTemplate.description,
+      lastPostSequenceNum: 0,
+    };
+  });
+
+  newGroup.channels = channels;
 
   return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
 }
