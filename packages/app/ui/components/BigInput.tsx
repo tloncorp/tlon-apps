@@ -322,7 +322,8 @@ export function BigInput({
           if (isMountedRef.current) {
             logger.error('Error uploading inline image:', error);
             showToast({
-              message: 'Error uploading image. Please check your connection and try again.',
+              message:
+                'Error uploading image. Please check your connection and try again.',
               duration: 3000,
             });
           }
@@ -356,20 +357,7 @@ export function BigInput({
       icon: 'Camera',
     };
 
-    const blockquoteIndex = DEFAULT_TOOLBAR_ITEMS.findIndex(
-      (item) => item.icon === 'BlockQuote'
-    );
-
-    if (blockquoteIndex >= 0) {
-      return [
-        ...DEFAULT_TOOLBAR_ITEMS.slice(0, blockquoteIndex + 1),
-        imageButton,
-        ...DEFAULT_TOOLBAR_ITEMS.slice(blockquoteIndex + 1),
-      ];
-    }
-
-    // If blockquote not found, just add at the end
-    return [...DEFAULT_TOOLBAR_ITEMS, imageButton];
+    return [imageButton, ...DEFAULT_TOOLBAR_ITEMS];
   }, []);
 
   return (
