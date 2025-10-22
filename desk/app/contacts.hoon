@@ -164,7 +164,7 @@
         (do-edit old con)
       ?:  =(old new)
         cor
-      ?>  (sane-contact new)
+      ?>  (sane-contact `our.bowl new)
       (p-commit-self new)
     ::  +p-page-spot: add ship as a contact
     ::
@@ -178,7 +178,15 @@
           (~(got by peers) who)
         ?~  for.far  *contact
         con.for.far
-      ?>  (sane-contact mod)
+      ?>  (sane-contact ~ mod)
+      ::  .mod might carry an invalid nickname now that
+      ::  it becomes a contact overlay for a known ship .who.
+      ::  if this the case, we delete the invalid nickname to allow
+      ::  the operation to proceed.
+      ::
+      =+  nickname=(~(get cy con) %nickname %text)
+      =?  mod  ?&(?=(^ nickname) !(sane-nickname `who u.nickname))
+        (~(del by mod) %nickname)
       (p-commit-page who con mod)
     ::  +p-page: create new contact page
     ::
@@ -188,7 +196,7 @@
         (p-page-spot kip mod)
       ?:  (~(has by book) kip)
         ~|  "contact page {<cid>} already exists"  !!
-      ?>  (sane-contact mod)
+      ?>  (sane-contact ~ mod)
       (p-commit-page kip ~ mod)
     ::  +p-edit: edit contact page overlay
     ::
@@ -203,7 +211,7 @@
         (do-edit old mod)
       ?:  =(old new)
         cor
-      ?>  (sane-contact new)
+      ?>  (sane-contact ?@(kip `kip ~) new)
       (p-commit-edit kip con.page new)
     ::  +p-wipe: delete a contact page
     ::
@@ -342,7 +350,7 @@
       ++  si-hear
         |=  u=update
         ^+  si-cor
-        ?.  (sane-contact con.u)
+        ?.  (sane-contact `src.bowl con.u)
           si-cor
         ?:  &(?=(^ for) (lte wen.u wen.for))
           si-cor

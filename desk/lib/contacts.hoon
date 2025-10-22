@@ -1,4 +1,5 @@
 /-  *contacts, c0=contacts-0
+/+  unicode
 |%
 ::
 +|  %contact
@@ -177,7 +178,7 @@
 ::  - groups must be a %set of %flags
 ::
 ++  sane-contact
-  |=  con=contact
+  |=  [src=(unit @p) con=contact]
   ^-  ?
   ?~  ((soft contact) con)
     |
@@ -195,7 +196,9 @@
   ?.  (~(typ cy con) %nickname %text)  |
   =+  nickname=(~(get cy con) %nickname %text)
   ?:  ?&  ?=(^ nickname)
-          (gth (met 3 u.nickname) 64)
+          ?|  (gth (met 3 u.nickname) 64)
+              !(sane-nickname src u.nickname)
+          ==
       ==
     |
   ?.  (~(typ cy con) %bio %text)  |
@@ -227,6 +230,21 @@
       ==
     |
   &
+::  +sane-nickname: validate a nickname against network id
+::
+++  sane-nickname
+  |=  [src=(unit @p) txt=@t]
+  ^-  ?
+  ::  extract initial codepoint
+  =+  c=(end [3 (teff txt)] txt)
+  ?.  (~(has in con-sig:confusable:unicode) c)  &
+  ::  disallow spoofing sig
+  ?.  =('~' c)  |
+  ::  ~nickname, enforce urbit id
+  ::TODO allow extended nicknames, eg. '~zod🤴'?
+  ?~  ship=(rush txt ;~(pfix sig fed:ag))  |
+  ?~  src  &
+  =(u.src u.ship)
 ::  +do-edit: edit contact
 ::
 ::  edit .con with .mod contact map.
