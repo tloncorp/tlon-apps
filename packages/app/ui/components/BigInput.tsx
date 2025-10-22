@@ -172,8 +172,9 @@ export function BigInput({
       setShowBigInput?.(false);
       clearAttachments();
 
-      // Clear the editor content before clearing drafts to prevent race conditions
-      if (editorRef.current?.editor) {
+      // For notebook posts, don't clear editor content since the component unmounts anyway
+      // This prevents triggering _onContentUpdate which could save a draft after publish
+      if (currentChannelType !== 'notebook' && editorRef.current?.editor) {
         logger.log('Clearing editor content after save');
         editorRef.current.editor.setContent('');
       }
