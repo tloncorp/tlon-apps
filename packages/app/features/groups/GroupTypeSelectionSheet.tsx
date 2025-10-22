@@ -9,26 +9,26 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { ScrollView, View, XStack, YStack, getTokens, useTheme } from 'tamagui';
 
 import { ActionSheet, ListItem, useIsWindowNarrow } from '../../ui';
 
 export type GroupType = 'quick' | 'custom' | 'template';
 
 interface GroupTypeCardProps {
-  icon: IconType | string;
+  icons: (IconType | string)[];
   title: string;
   subtitle: string;
   onPress: () => void;
 }
 
 const GroupTypeCard = ({
-  icon,
+  icons,
   title,
   subtitle,
   onPress,
 }: GroupTypeCardProps) => {
-  const isEmoji = typeof icon === 'string' && icon.length <= 4;
+  const iconSize = icons.length === 1 ? 32 : 24;
 
   return (
     <Pressable onPress={onPress} style={{ cursor: 'pointer' }}>
@@ -37,17 +37,29 @@ const GroupTypeCard = ({
           borderWidth={1}
           borderColor="$border"
           borderRadius="$l"
-          padding="$l"
-          height={134}
+          padding="$2xl"
+          height={180}
           backgroundColor={pressed ? '$secondaryBackground' : '$background'}
           justifyContent="space-between"
         >
           <YStack flex={1} justifyContent="flex-start">
-            {isEmoji ? (
-              <Text fontSize={32}>{icon}</Text>
-            ) : (
-              <ListItem.SystemIcon icon={icon as IconType} />
-            )}
+            <XStack gap="$xs">
+              {icons.map((icon, index) => {
+                const isEmoji = typeof icon === 'string' && icon.length <= 4;
+                return isEmoji ? (
+                  <Text key={index} fontSize={iconSize}>
+                    {icon}
+                  </Text>
+                ) : (
+                  <ListItem.SystemIcon
+                    key={index}
+                    width={'$3.5xl'}
+                    height={'$3.5xl'}
+                    icon={icon as IconType}
+                  />
+                );
+              })}
+            </XStack>
           </YStack>
           <ListItem.MainContent flex={0}>
             <ListItem.Title>{title}</ListItem.Title>
@@ -148,8 +160,12 @@ const PaginationDot = ({
   inactiveSize,
   activeWidth,
 }: PaginationDotProps) => {
+  const theme = useTheme();
   const width = useSharedValue(inactiveSize);
   const colorProgress = useSharedValue(0);
+
+  const inactiveColor = theme.tertiaryText.val;
+  const activeColor = theme.primaryText.val;
 
   if (isActive) {
     width.value = withSpring(activeWidth, {
@@ -175,7 +191,7 @@ const PaginationDot = ({
     const bgColor = interpolateColor(
       colorProgress.value,
       [0, 1],
-      ['rgba(153, 153, 153, 1)', '#000000']
+      [inactiveColor, activeColor]
     );
 
     return {
@@ -248,11 +264,6 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
       if (clampedIndex !== templateIndex) {
         setTemplateIndex(clampedIndex);
       }
-
-      scrollViewRef.current?.scrollTo({
-        x: clampedIndex * containerWidth,
-        animated: true,
-      });
     },
     [containerWidth, templateIndex]
   );
@@ -263,20 +274,31 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
         setContainerWidth(event.nativeEvent.layout.width);
       }}
     >
-      <XStack position="relative">
+      <XStack
+        position="relative"
+        marginRight={isWindowNarrow ? '$-xl' : undefined}
+      >
         <ScrollView
           ref={scrollViewRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEnabled={isWindowNarrow}
-          pagingEnabled={isWindowNarrow}
+          snapToInterval={
+            isWindowNarrow
+              ? containerWidth + getTokens().space.l.val
+              : undefined
+          }
+          decelerationRate={'fast'}
           onMomentumScrollEnd={isWindowNarrow ? handleScrollEnd : undefined}
+          contentContainerStyle={
+            isWindowNarrow ? { paddingRight: '$xl', gap: '$l' } : {}
+          }
           flex={1}
         >
           {groupTemplates.map((template) => (
             <View key={template.id} width={containerWidth || '100%'}>
               <GroupTypeCard
-                icon={template.icon}
+                icons={[template.icon]}
                 title={template.title}
                 subtitle={template.subtitle}
                 onPress={() => onPress(template.id)}
@@ -319,16 +341,16 @@ export function GroupTypeSelectionSheet({
       />
       <YStack gap="$m" paddingHorizontal="$xl">
         <GroupTypeCard
-          icon="Channel"
+          icons={['ChannelTalk']}
           title="Quick group"
           subtitle="Start chatting right away with default settings"
           onPress={() => onSelectGroupType('quick')}
         />
         <GroupTypeCard
-          icon="Discover"
-          title="Custom group"
-          subtitle="Customize channels, roles, and privacy settings"
-          onPress={() => onSelectGroupType('custom')}
+          icons={['ChannelTalk', 'ChannelGalleries', 'ChannelNotebooks']}
+          title="Basic group"
+          subtitle="Group with chat, gallery, and notebook channels"
+          onPress={() => onSelectGroupType('template', 'basic-group')}
         />
         <TemplateCarousel
           onPress={(templateId) => onSelectGroupType('template', templateId)}

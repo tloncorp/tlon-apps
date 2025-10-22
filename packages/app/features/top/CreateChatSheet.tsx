@@ -303,26 +303,19 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
       if (groupType === 'quick') {
-        // Quick group goes to member selection
+        // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
         setStep('initial');
         setTimeout(() => {
           setStep('createGroup');
         }, 300);
       } else if (groupType === 'template' && templateId) {
-        // Template goes to member selection with template info
+        // Template (including basic/custom) goes to member selection with template
         setSelectedTemplateId(templateId);
         setStep('initial');
         setTimeout(() => {
           setStep('createGroup');
         }, 300);
-      } else {
-        // Custom is stubbed for now
-        setStep('initial');
-        Alert.alert(
-          'Coming Soon',
-          'Custom group creation is not yet implemented.'
-        );
       }
     },
     []
