@@ -362,7 +362,10 @@ export function BigInput({
       icon: 'Camera',
     };
 
-    return [imageButton, ...DEFAULT_TOOLBAR_ITEMS];
+    const items = [...DEFAULT_TOOLBAR_ITEMS];
+    // Between the Heading and Code buttons
+    items.splice(5, 0, imageButton);
+    return items;
   }, []);
 
   return (
