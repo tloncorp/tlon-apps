@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, g=groups
-/-  u=ui, e=epic, activity, s=story, meta
+/-  u=ui, e=epic, a=activity, s=story, meta
 /-  contacts-0
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -301,7 +301,8 @@
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   ?>  ?=(%10 -.old)
-  cor(state old)
+  =.  state  old
+  rectify-activity
   ::
   +$  versioned-state
     $%  state-10
@@ -1137,7 +1138,6 @@
       [%x %v3 %init-posts channels=@ context=@ ~]
     =+  channels=(slav %ud i.t.t.t.path)
     =+  context=(slav %ud i.t.t.t.t.path)
-    =*  a  activity
     =/  activity
       %-  ~(gas by *activity:a)
       .^  (list [source:a activity-summary:a])  %gx
@@ -1262,7 +1262,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  activity
+  =,  a
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1294,8 +1294,8 @@
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:activity  [%dm-thread top.concern whom]
-    =/  =incoming-event:activity
+    =/  =source:a  [%dm-thread top.concern whom]
+    =/  =incoming-event:a
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)
@@ -1696,11 +1696,14 @@
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
     =.  cu-core  cu-clean
-    =.  clubs
-      ?:  gone
-        (~(del by clubs) id)
-      (~(put by clubs) id club)
-    cor
+    ?.  gone
+      =.  clubs  (~(put by clubs) id club)
+      cor
+    =.  clubs  (~(del by clubs) id)
+    ::  if we're leaving a DM we're in, make sure we delete the activity
+    =/  =action:a  [%del %dm %club id]
+    =/  =cage  activity-action+!>(action)
+    (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
@@ -1724,7 +1727,7 @@
     [uid cu-core(counter +(counter))]
   ::
   ++  cu-activity
-    =,  activity
+    =,  a
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key]
@@ -2212,10 +2215,14 @@
       log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
-    =.  dms
-      ?:  gone  (~(del by dms) ship)
-      (~(put by dms) ship dm)
-    cor
+    ?.  gone
+      =.  dms  (~(put by dms) ship dm)
+      cor
+    =.  dms  (~(del by dms) ship)
+    ::  if we're leaving a DM we're in, make sure we delete the activity
+    =/  =action:a  [%del %dm %ship ship]
+    =/  =cage  activity-action+!>(action)
+    (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  di-abed
     |=  s=@p
     di-core(ship s, dm (~(got by dms) s))
@@ -2242,10 +2249,10 @@
   ++  di-activity
     |=  $:  $=  concern
             $%  [%invite ~]
-                [%post key=message-key:activity]
-                [%delete-post key=message-key:activity]
-                [%reply key=message-key:activity top=message-key:activity]
-                [%delete-reply key=message-key:activity top=message-key:activity]
+                [%post key=message-key:a]
+                [%delete-post key=message-key:a]
+                [%reply key=message-key:a top=message-key:a]
+                [%delete-reply key=message-key:a top=message-key:a]
             ==
             content=story:d
             mention=?
@@ -2664,4 +2671,37 @@
       (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
     --
   --
+++  rectify-activity
+  ?.  .^(? %gu (scry-path %activity /$))
+    cor
+  =+  .^(full-info:a %gx (scry-path %activity /v4/noun))
+  =/  [dm-sources=(list ship) club-sources=(list id:club:c)]
+    %+  roll
+      ~(tap by indices)
+    |=  [[=source:a *] ds=(list ship) cs=(list id:club:c)]
+    ?.  ?=(%dm -.source)
+      [ds cs]
+    ?-  -.whom.source
+      %club   [ds [p.whom.source cs]]
+      %ship   [[p.whom.source ds] cs]
+    ==
+  =.  cor
+    %-  emil
+    %+  murn
+      club-sources
+    |=  =id:club:c
+    ::  only remove activity if club is gone
+    ?:  (~(has by clubs) id)  ~
+    =/  =action:a  [%del %dm %club id]
+    =/  =cage  activity-action+!>(action)
+    `[%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  %-  emil
+  %+  murn
+    dm-sources
+  |=  =ship
+  ::  only remove activity if dm is gone
+  ?:  (~(has by dms) ship)  ~
+  =/  =action:a  [%del %dm %ship ship]
+  =/  =cage  activity-action+!>(action)
+  `[%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 --
