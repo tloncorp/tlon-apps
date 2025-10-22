@@ -132,6 +132,12 @@ export async function findContactSuggestions() {
       return;
     }
 
+    const numExistingSuggestions = await db.getSuggestedContacts();
+    if (numExistingSuggestions.length >= 6) {
+      logger.log('Sufficient suggestions already exist, skipping');
+      return;
+    }
+
     // first see if we have any joined groups and seem to be a somewhat
     // new user
     const groups = await db.getGroups({ includeUnjoined: false });
