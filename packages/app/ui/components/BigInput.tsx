@@ -71,6 +71,7 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
+  const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [isEmpty, setIsEmpty] = useState(true);
@@ -294,22 +295,34 @@ export function BigInput({
           // Upload the image directly without adding to attachments
           await uploadAssetToStorage(asset, true);
 
+          if (!isMountedRef.current) return;
+
           // Wait for the upload to complete and get the S3 URL
           const uploadStates = await waitForUploads([asset.uri]);
+
+          // Check again after await
+          if (!isMountedRef.current) return;
+
           const uploadState = uploadStates[asset.uri];
 
-          if (uploadState?.status === 'success') {
+          if (uploadState?.status === 'success' && editorRef.current?.editor) {
             // Insert the S3 URL into the editor
             const s3Url = uploadState.remoteUri;
             (editorRef.current.editor as any).setImage(s3Url);
-          } else {
+          } else if (isMountedRef.current) {
             logger.error('Failed to upload image, upload state:', uploadState);
           }
         } catch (error) {
-          logger.error('Error uploading inline image:', error);
+          if (isMountedRef.current) {
+            logger.error('Error uploading inline image:', error);
+          }
         }
       }
-      setShowInlineImageSheet(false);
+
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setShowInlineImageSheet(false);
+      }
     },
     []
   );
@@ -318,6 +331,12 @@ export function BigInput({
   useEffect(() => {
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
