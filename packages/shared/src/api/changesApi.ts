@@ -19,12 +19,10 @@ export async function fetchChangesSince(
     app: 'groups-ui',
     path: `/v6/changes/${encodedTimestamp}`,
   });
-  console.log(`bl: response?`, response);
 
   const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
 
   const changes = parseChanges(response);
-  console.log(`bl: parsed changes`, changes);
 
   return { ...changes, nodeBusyStatus };
 }
