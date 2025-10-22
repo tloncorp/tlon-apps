@@ -3,6 +3,8 @@ import {
   createDevLogger,
   tiptap,
   toPostData,
+  uploadAsset as uploadAssetToStorage,
+  waitForUploads,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { constructStory } from '@tloncorp/shared/urbit';
@@ -26,7 +28,11 @@ import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
-import { TlonEditorBridge } from './MessageInput/toolbarActions';
+import {
+  DEFAULT_TOOLBAR_ITEMS,
+  TlonEditorBridge,
+  ToolbarItem,
+} from './MessageInput/toolbarActions';
 import { ScreenHeader } from './ScreenHeader';
 
 const logger = createDevLogger('BigInput', false);
@@ -57,6 +63,7 @@ export function BigInput({
     editingPost?.image || null
   );
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -129,6 +136,7 @@ export function BigInput({
 
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
+
     let finalizedAttachments: FinalizedAttachment[];
     try {
       finalizedAttachments = await waitForAttachmentUploads();
@@ -137,11 +145,22 @@ export function BigInput({
       return;
     }
 
+    // For notebooks, filter out image attachments that are inline (not header images)
+    // Inline images are already in the content from the editor
+    const attachmentsToPass =
+      channelType === 'notebook'
+        ? finalizedAttachments.filter(
+            (att) =>
+              att.type !== 'image' ||
+              (att.type === 'image' && att.file.uri === imageUri)
+          )
+        : finalizedAttachments;
+
     const { story, metadata } = toPostData({
       content: inlines,
       title,
       image: imageUri ?? undefined,
-      attachments: finalizedAttachments,
+      attachments: attachmentsToPass,
       channelType,
       isEdit: !!editingPost,
     });
@@ -228,6 +247,7 @@ export function BigInput({
     clearAttachments,
     attachments,
     isSending,
+    waitForAttachmentUploads,
   ]);
 
   // Register the "Post" button in the header
@@ -261,10 +281,67 @@ export function BigInput({
     setShowAttachmentSheet(false);
   }, []);
 
+  const handleInlineImageSelect = useCallback(
+    async (assets: ImagePickerAsset[]) => {
+      if (assets.length > 0 && editorRef.current?.editor) {
+        const asset = assets[0];
+
+        // For inline images in notebooks, we need to upload the image first
+        // then insert the uploaded URL into the editor
+        // IMPORTANT: We do NOT use uploadAssets because that adds to attachments
+        // Instead, we upload directly and wait for the URL
+        try {
+          // Upload the image directly without adding to attachments
+          await uploadAssetToStorage(asset, true);
+
+          // Wait for the upload to complete and get the S3 URL
+          const uploadStates = await waitForUploads([asset.uri]);
+          const uploadState = uploadStates[asset.uri];
+
+          if (uploadState?.status === 'success') {
+            // Insert the S3 URL into the editor
+            const s3Url = uploadState.remoteUri;
+            (editorRef.current.editor as any).setImage(s3Url);
+          } else {
+            logger.error('Failed to upload image, upload state:', uploadState);
+          }
+        } catch (error) {
+          logger.error('Error uploading inline image:', error);
+        }
+      }
+      setShowInlineImageSheet(false);
+    },
+    []
+  );
+
   // Update image URI when editing post changes
   useEffect(() => {
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
+
+  const toolbarItems = useMemo((): ToolbarItem[] => {
+    const imageButton: ToolbarItem = {
+      onPress: () => () => setShowInlineImageSheet(true),
+      active: () => false,
+      disabled: () => false,
+      icon: 'Camera',
+    };
+
+    const blockquoteIndex = DEFAULT_TOOLBAR_ITEMS.findIndex(
+      (item) => item.icon === 'BlockQuote'
+    );
+
+    if (blockquoteIndex >= 0) {
+      return [
+        ...DEFAULT_TOOLBAR_ITEMS.slice(0, blockquoteIndex + 1),
+        imageButton,
+        ...DEFAULT_TOOLBAR_ITEMS.slice(blockquoteIndex + 1),
+      ];
+    }
+
+    // If blockquote not found, just add at the end
+    return [...DEFAULT_TOOLBAR_ITEMS, imageButton];
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -337,6 +414,7 @@ export function BigInput({
               <InputToolbar
                 editor={editorRef.current?.editor}
                 hidden={false}
+                items={toolbarItems}
                 style={{
                   borderWidth: 0,
                   borderTopWidth: 0,
@@ -389,6 +467,7 @@ export function BigInput({
               <InputToolbar
                 editor={editorRef.current?.editor}
                 hidden={false}
+                items={toolbarItems}
                 style={{
                   borderWidth: 0,
                   borderTopWidth: 0,
@@ -429,6 +508,15 @@ export function BigInput({
           onAttach={handleImageSelect}
           showClearOption={!!imageUri}
           onClearAttachments={handleClearImage}
+        />
+      )}
+
+      {channelType === 'notebook' && showInlineImageSheet && (
+        <AttachmentSheet
+          isOpen={showInlineImageSheet}
+          onOpenChange={setShowInlineImageSheet}
+          onAttach={handleInlineImageSelect}
+          showClearOption={false}
         />
       )}
     </KeyboardAvoidingView>
