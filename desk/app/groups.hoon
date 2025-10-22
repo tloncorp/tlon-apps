@@ -2751,20 +2751,19 @@
         %set
       ?~  sec=(~(get by sections.group) section-id)  se-core
       =*  section  u.sec
-      :: to achieve desired order, we perform the following steps
-      ::
+      :: to achieve desired order, we perform the following steps:
       :: 1. prune non-existent nests
       :: 2. for those channels which exists in the target order, but
-      ::    not in the source, assign them to the section. 
+      ::    not in the source, assign them to the section.
       :: 3. for those channels which exists in the source order, but
       ::    not in the target, assign them to the %default section
       :: 4. move nests one by one to achieve the desired order
       ::
-      :: this algorithm is sure to achieve the target ordering: to see this, 
-      :: consider that after step (2) all channels of the target order 
-      :: are in the source order. after step (3), all channels of the 
-      :: source order are in the target order, and thus these two sets 
-      :: of channels are equal. after moving each channel to its 
+      :: this algorithm is sure to achieve the target ordering: to see this,
+      :: consider that after step (2) all channels of the target order
+      :: are present in the source order. after step (3), all channels of the
+      :: source order are present in the target order, and thus these two sets
+      :: of channels are equal. after moving each channel to its
       :: position in step (4), we are sure that the section is in the target order.
       ::
       ::
@@ -2779,7 +2778,7 @@
         =+  chan=(~(got by channels.group) nest)
         ?:  =(section.chan section-id)  se-core
         (se-c-channel:se-core nest [%section section-id])
-      ::  assign all channels not found in the target order 
+      ::  assign all channels not found in the target order
       ::  to the default section.
       ::
       =.  se-core
