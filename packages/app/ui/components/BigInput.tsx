@@ -346,8 +346,13 @@ export function BigInput({
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      // Clear attachments when component unmounts to prevent stale attachments
+      // from appearing in other inputs that share the same attachment context
+      if (editingPost) {
+        clearAttachments();
+      }
     };
-  }, []);
+  }, [editingPost, clearAttachments]);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
