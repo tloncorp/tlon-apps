@@ -267,42 +267,83 @@ const ActionSheetComponent = ({
     );
   }
 
+  // On Android with new architecture (bridgeless mode), wrapping Sheet in Modal
+  // causes the Modal to receive ThemedReactContext instead of BridgelessReactContext,
+  // preventing access to native/JS modules and causing the app to freeze.
+  // See: https://github.com/reactwg/react-native-new-architecture/discussions/186
+  //
+  // Tamagui Sheet has a built in `modal` prop that uses a custom portal implementation
+  // distinct from the native RN Modal. On Android, you can pass this ActionSheet to force
+  // modal-like display. This approach cannot be used everywhere since context isn't passed
+  // through the portal. In cases where context is required, we attempt to break out of the
+  // view hierarchy using an absolutely positioned wrapper View.
+
+  const sheetContent = (
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      dismissOnSnapToBottom
+      snapPointsMode="fit"
+      animation="quick"
+      handleDisableScroll
+      {...props}
+      modal={Platform.OS === 'ios' ? false : props.modal}
+    >
+      <Sheet.Overlay animation="quick" />
+      <Sheet.Frame pressStyle={{}}>
+        <Sheet.Handle />
+        {forcedMode === 'popover' ? (
+          <ActionSheet.ScrollableContent>
+            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+          </ActionSheet.ScrollableContent>
+        ) : (
+          children
+        )}
+      </Sheet.Frame>
+    </Sheet>
+  );
+
   return (
     <>
       {trigger}
-      <Modal
-        visible={open}
-        onRequestClose={() => onOpenChange(false)}
-        transparent
-        animationType="none"
-      >
-        <Sheet
-          open={open}
-          onOpenChange={onOpenChange}
-          dismissOnSnapToBottom
-          snapPointsMode="fit"
-          animation="quick"
-          handleDisableScroll
-          {...props}
+      {Platform.OS === 'android' ? (
+        props.modal ? (
+          sheetContent
+        ) : (
+          <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
+        )
+      ) : (
+        <Modal
+          visible={open}
+          onRequestClose={() => onOpenChange(false)}
+          transparent
+          animationType="none"
         >
-          <Sheet.Overlay animation="quick" />
-          {/*
-          press style is set here to ensure touch responders are added and drag gestures
-          bubble up accordingly (unclear why needed after adding modal wrapper)
-        */}
-          <Sheet.Frame pressStyle={{}}>
-            <Sheet.Handle />
-            {forcedMode === 'popover' ? (
-              <ActionSheet.ScrollableContent>
-                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-              </ActionSheet.ScrollableContent>
-            ) : (
-              children
-            )}
-          </Sheet.Frame>
-        </Sheet>
-      </Modal>
+          {sheetContent}
+        </Modal>
+      )}
     </>
+  );
+};
+
+const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
+  const { width, height } = useWindowDimensions();
+
+  if (!props.visible) {
+    return props.children;
+  }
+
+  return (
+    <View
+      position="absolute"
+      zIndex={1000}
+      top={0}
+      left={0}
+      width={width}
+      height={height}
+    >
+      {props.children}
+    </View>
   );
 };
 

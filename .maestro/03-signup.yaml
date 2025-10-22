@@ -11,7 +11,7 @@ onFlowComplete:
 
 # add invite link
 - tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
-- inputText: 'https://join.tlon.io/0v1.f8gid.4jcvs.56moq.0ij3u.tqamk' # ~pondus-watbel Bot Farm
+- inputText: 'https://join.tlon.io/0v7.mmmlk.5bold.rac1l.79r0m.93vef' # ~dozped-mogtec Bot Farm 2
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
@@ -103,8 +103,8 @@ onFlowComplete:
 # assert everything we expect to be there is
 - assertVisible: Tlon Support
 - assertVisible: E2E Tester's Group
-- assertVisible: Bot Farm
-- assertVisible: brian testing
+- assertVisible: Bot Farm 2
+- assertVisible: shadow brian :)
 - assertVisible: Tlon Studio
 
 - evalScript: ${output.didComplete = true}

@@ -68,7 +68,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 =>
 |%
 ::  |l: logs core
@@ -380,6 +380,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+    path  (on-peek:def path)
+      [%x %metadata ~]
+    ``noun+!>(token-metadata)
+  ::
       [%x token=@ %metadata ~]
     ?~  meta=(~(get by token-metadata) i.t.path)
       [~ ~]

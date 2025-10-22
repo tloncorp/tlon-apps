@@ -272,6 +272,21 @@ export const syncLatestChanges = async ({
   });
 };
 
+export const syncCachedChanges = async (input: {
+  begin: number;
+  end: number;
+  changes: db.ChangesResult;
+}): Promise<boolean> => {
+  const syncedAt = await db.changesSyncedAt.getValue();
+  if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
+    // cached changes are valid, insert them
+    await db.insertChanges(input.changes);
+    await db.changesSyncedAt.setValue(input.end);
+    return true;
+  }
+  return false;
+};
+
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
@@ -741,6 +756,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
     case 'deleteGroup':
+      await db.deletePinnedItem({ itemId: update.groupId }, ctx);
       await db.deleteGroup(update.groupId, ctx);
       break;
     case 'inviteGroupMembers':

@@ -19,14 +19,24 @@ export async function fetchChangesSince(
     app: 'groups-ui',
     path: `/v6/changes/${encodedTimestamp}`,
   });
+  console.log(`bl: response?`, response);
 
-  const groups = toClientGroups(response.groups, true);
+  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
 
-  const channelPosts = Object.entries(response.channels).flatMap(
+  const changes = parseChanges(response);
+  console.log(`bl: parsed changes`, changes);
+
+  return { ...changes, nodeBusyStatus };
+}
+
+export function parseChanges(input: ub.Changes): db.ChangesResult {
+  const groups = toClientGroups(input.groups, true);
+
+  const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
   );
 
-  const deletedChannelIds = Object.entries(response.channels).reduce<string[]>(
+  const deletedChannelIds = Object.entries(input.channels).reduce<string[]>(
     (accum, [channelId, data]) => {
       if (data === null) {
         accum.push(channelId);
@@ -36,28 +46,19 @@ export async function fetchChangesSince(
     []
   );
 
-  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
+  const chatPosts = Object.entries(input.chat).flatMap(([chatId, posts]) =>
     posts ? toPostsData(chatId, posts).posts : []
   );
 
   const posts = [...channelPosts, ...chatPosts];
 
-  const contacts = Object.entries(response.contacts)
+  const contacts = Object.entries(input.contacts)
     .filter(([_id, entry]) => entry)
     .map(([id, contactEntry]) => contactToClientProfile(id, contactEntry));
 
-  const unreads = toClientUnreads(response.activity);
+  const unreads = toClientUnreads(input.activity);
 
-  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
-
-  return {
-    groups,
-    posts,
-    contacts,
-    unreads,
-    nodeBusyStatus,
-    deletedChannelIds,
-  };
+  return { groups, posts, contacts, unreads, deletedChannelIds };
 }
 
 // We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
