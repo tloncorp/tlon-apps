@@ -4402,6 +4402,9 @@
     =.  token  tok
     =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-ask: ask to join the group
   ::
@@ -4519,6 +4522,9 @@
     =.  invites
       %+  skip  invites
       |=(=invite:g =(token.invite tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-watch: handle watch request
   ::
