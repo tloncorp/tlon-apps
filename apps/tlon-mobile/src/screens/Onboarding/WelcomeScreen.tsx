@@ -152,7 +152,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </ActionSheet.ActionGroup>
           <ActionSheet.ContentBlock alignItems="center">
             <Pressable
-              onPress={() => {
+              onPressIn={() => {
                 setOpen(false);
                 navigation.navigate('ShipLogin');
               }}
