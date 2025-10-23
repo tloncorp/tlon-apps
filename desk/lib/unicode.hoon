@@ -19,7 +19,6 @@
 ::  https://www.unicode.org/Public/security/revision-03/confusablesSummary.txt,
 ::  which can be queried at
 ::  https://util.unicode.org/UnicodeJsps/confusables.jsp.
-
 ::
 ::  utility arms are provided that aid in normalizing an utf-8 string,
 ::  using latin letters and ascii characters as representatives.
