@@ -80,7 +80,13 @@ export async function createGroupWithTemplate(
   } else if (groupType === 'basic') {
     await expect(page.getByText('Basic group')).toBeVisible({ timeout: 5000 });
     await page.getByText('Basic group').click();
-    expectedGroupTitle = 'Basic Group'; // From basicGroupTemplate.title
+
+    // Basic group requires title input
+    await expect(page.getByText('Name your group')).toBeVisible({ timeout: 5000 });
+    await page.getByPlaceholder('Group name').fill('Basic Group');
+    await page.getByText('Next', { exact: true }).click();
+
+    expectedGroupTitle = 'Basic Group';
   } else {
     // For template groups, find and click by title
     await expect(page.getByText(groupType)).toBeVisible({ timeout: 5000 });

@@ -35,17 +35,24 @@ import {
   GroupType,
   GroupTypeSelectionSheet,
 } from '../groups/GroupTypeSelectionSheet';
+import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step =
   | 'initial'
   | 'selectType'
   | 'selectGroupType'
+  | 'setGroupTitle'
   | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
-  | { type: 'group'; contactIds: string[]; templateId?: store.GroupTemplateId };
+  | {
+      type: 'group';
+      contactIds: string[];
+      templateId?: store.GroupTemplateId;
+      title?: string;
+    };
 
 export type CreateChatSheetMethods = {
   open: () => void;
@@ -274,12 +281,14 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const [selectedTemplateId, setSelectedTemplateId] = useState<
     store.GroupTemplateId | undefined
   >(undefined);
+  const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
         setStep('initial');
         setSelectedTemplateId(undefined);
+        setGroupTitle(undefined);
       } else if (step === 'initial') {
         setStep('selectType');
       }
@@ -290,15 +299,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const handleTypeSelected = useCallback((type: ChatType) => {
     if (type === 'group') {
       // Navigate to group type selection instead of directly to member selection
-      setStep('initial');
-      setTimeout(() => {
-        setStep('selectGroupType');
-      }, 300);
+      setStep('selectGroupType');
     } else {
-      setStep('initial');
-      setTimeout(() => {
-        setStep(`create${capitalize(type)}` as Step);
-      }, 300);
+      setStep(`create${capitalize(type)}` as Step);
     }
   }, []);
 
@@ -307,21 +310,24 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
-        setStep('initial');
-        setTimeout(() => {
-          setStep('createGroup');
-        }, 300);
+        setStep('createGroup');
       } else if (groupType === 'template' && templateId) {
-        // Template (including basic/custom) goes to member selection with template
         setSelectedTemplateId(templateId);
-        setStep('initial');
-        setTimeout(() => {
+        // Only basic-group template goes to title input, others skip to member selection
+        if (templateId === 'basic-group') {
+          setStep('setGroupTitle');
+        } else {
           setStep('createGroup');
-        }, 300);
+        }
       }
     },
     []
   );
+
+  const handleTitleSubmitted = useCallback((title: string) => {
+    setGroupTitle(title);
+    setStep('createGroup');
+  }, []);
 
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
@@ -343,6 +349,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       close: () => {
         setStep('initial');
         setSelectedTemplateId(undefined);
+        setGroupTitle(undefined);
       },
     }),
     []
@@ -363,8 +370,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       type: 'group',
       contactIds: selectedContactIds,
       templateId: selectedTemplateId,
+      title: groupTitle,
     });
-  }, [handleSubmit, selectedContactIds, selectedTemplateId]);
+  }, [handleSubmit, selectedContactIds, selectedTemplateId, groupTitle]);
 
   const chatType =
     step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
@@ -396,6 +404,11 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         open={step === 'selectGroupType'}
         onOpenChange={() => setStep('initial')}
         onSelectGroupType={handleGroupTypeSelected}
+      />
+      <GroupTitleInputSheet
+        open={step === 'setGroupTitle'}
+        onOpenChange={() => setStep('initial')}
+        onSubmitTitle={handleTitleSubmitted}
       />
       <ActionSheet
         open={step === 'createJoinGroup'}
@@ -441,6 +454,11 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onOpenChange={handleOpenChange}
         onSelectGroupType={handleGroupTypeSelected}
       />
+      <GroupTitleInputSheet
+        open={step === 'setGroupTitle'}
+        onOpenChange={handleOpenChange}
+        onSubmitTitle={handleTitleSubmitted}
+      />
       <CreateChatInviteSheet
         open={step === 'createDm' || step === 'createGroup'}
         onOpenChange={handleOpenChange}
@@ -448,6 +466,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         chatType={step === 'createDm' ? 'dm' : 'group'}
         isCreating={isCreatingChat}
         templateId={selectedTemplateId}
+        title={groupTitle}
       />
       <JoinGroupSheet
         open={step === 'createJoinGroup'}
@@ -527,6 +546,7 @@ export function CreateChatInviteSheet({
   chatType,
   isCreating,
   templateId,
+  title,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -534,6 +554,7 @@ export function CreateChatInviteSheet({
   chatType: 'dm' | 'group';
   isCreating: boolean;
   templateId?: store.GroupTemplateId;
+  title?: string;
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
@@ -546,9 +567,9 @@ export function CreateChatInviteSheet({
   );
 
   const handlePressCreateGroup = useCallback(async () => {
-    onSubmit({ type: 'group', contactIds: selectedContactIds, templateId });
+    onSubmit({ type: 'group', contactIds: selectedContactIds, templateId, title });
     setSelectedContactIds([]);
-  }, [onSubmit, selectedContactIds, templateId]);
+  }, [onSubmit, selectedContactIds, templateId, title]);
 
   return (
     <ActionSheet
@@ -612,11 +633,13 @@ function useCreateChat() {
             group = await store.createGroupFromTemplate({
               memberIds: params.contactIds,
               templateId: params.templateId,
+              title: params.title,
             });
           } else {
             // No template, use default group
             group = await store.createDefaultGroup({
               memberIds: params.contactIds,
+              title: params.title,
             });
           }
           navigateToGroup(group.id);
