@@ -413,9 +413,6 @@ const useContentStyle = () => {
 const ActionSheetContentBlock = styled(View, {
   name: 'ActionSheetContentBlock',
   padding: '$xl',
-  // $gtSm: {
-  //   padding: '$l',
-  // },
   variants: {
     form: {
       true: { paddingHorizontal: '$2xl' },
@@ -537,10 +534,6 @@ const ActionSheetActionFrame = styled(ListItem, {
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
   alignItems: 'center',
-  // $gtSm: {
-  //   paddingHorizontal: '$l',
-  //   paddingVertical: '$m',
-  // },
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
@@ -641,7 +634,6 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
             : action.accent ?? accent
       }
       onPress={handlePress}
-      // height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
       ref={ref}
       {...props}
