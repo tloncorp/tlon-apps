@@ -141,6 +141,7 @@ const ActionSheetComponent = ({
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -287,6 +288,10 @@ const ActionSheetComponent = ({
   // through the portal. In cases where context is required, we attempt to break out of the
   // view hierarchy using an absolutely positioned wrapper View.
 
+  // On Android, force modal mode for nested sheets to ensure proper portaling
+  const shouldUseModal =
+    Platform.OS === 'android' && (isInsideSheet || props.modal);
+
   const sheetContent = (
     <Sheet
       open={open}
@@ -296,7 +301,7 @@ const ActionSheetComponent = ({
       animation="quick"
       handleDisableScroll
       {...props}
-      modal={Platform.OS === 'ios' ? false : props.modal}
+      modal={Platform.OS === 'ios' ? false : shouldUseModal}
     >
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
@@ -318,7 +323,7 @@ const ActionSheetComponent = ({
     <>
       {trigger}
       {Platform.OS === 'android' ? (
-        props.modal ? (
+        shouldUseModal ? (
           sheetContent
         ) : (
           <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
