@@ -1,7 +1,7 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
 import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
 import { useContext } from 'react';
-import { GestureResponderEvent, Platform } from 'react-native';
+import { GestureResponderEvent, LayoutChangeEvent, Platform } from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
 
 import { ActionSheetContext } from '../contexts/ActionSheetContext';
@@ -16,9 +16,10 @@ type PressableProps = Omit<
   onPress?: PressHandler;
   onPressIn?: PressHandler;
   onPressOut?: PressHandler;
+  onLayout?: (event: LayoutChangeEvent) => void;
   to?: To;
   action?: NavigationAction;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 };
 
 const StackComponent = ({
