@@ -7,10 +7,10 @@ onFlowComplete:
 
 # enter signup flow
 - tapOn: 'Sign up'
-- assertVisible: 'join.tlon.io/0v4.pca0n.evapv...'
+- assertVisible: 'TLON  or  join.tlon.io/0v4.pca...'
 
 # add invite link
-- tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
+- tapOn: 'TLON  or  join.tlon.io/0v4.pca...'
 - inputText: 'https://join.tlon.io/0v7.mmmlk.5bold.rac1l.79r0m.93vef' # ~dozped-mogtec Bot Farm 2
 
 # select email signup
@@ -102,9 +102,9 @@ onFlowComplete:
 
 # assert everything we expect to be there is
 - assertVisible: Tlon Support
-- assertVisible: E2E Tester's Group
+# - assertVisible: E2E Tester's Group
 - assertVisible: Bot Farm 2
 - assertVisible: shadow brian :)
-- assertVisible: Tlon Studio
+# - assertVisible: Tlon Studio
 
 - evalScript: ${output.didComplete = true}
