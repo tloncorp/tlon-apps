@@ -1,4 +1,6 @@
+import { useIsFocused } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
+import { markInvitesRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -129,6 +131,13 @@ export const HomeSidebar = memo(
       },
       [navigateToGroup, navigateToChannel]
     );
+
+    const isFocused = useIsFocused();
+    useEffect(() => {
+      if (isFocused) {
+        markInvitesRead();
+      }
+    }, [isFocused]);
 
     useEffect(() => {
       if (previewGroupId) {
