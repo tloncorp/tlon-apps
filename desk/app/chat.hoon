@@ -305,8 +305,9 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   ?>  ?=(%11 -.old)
   =.  state  old
-  =.  cor  rectify-club-state
-  rectify-activity
+  =.  cor
+    (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
+  rectify-club-state
   ::
   +$  versioned-state
     $%  state-11
@@ -1067,7 +1068,7 @@
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
+    cu-abet:(cu-agent:(cu-abed-hard:cu-core id) rest.pole sign)
   ==
 ++  give-kick
   |=  [pas=(list path) =cage]
@@ -1075,10 +1076,11 @@
   (give %kick ~ ~)
 ::
 ++  arvo
-  |=  [=wire sign=sign-arvo]
+  |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
-  ~&  arvo/wire
-  cor
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+    [%load %rectify-activity ~]  rectify-activity
+  ==
 ++  peek
   |=  =path
   ^-  (unit (unit cage))
@@ -1744,9 +1746,7 @@
       (~(put ol last-updated) [%club id] now.bowl)
     ::  shouldn't need cleaning, but just in case
     =.  cu-core  cu-clean
-    ::  whenever leaving a club, we remove it from our state, but the
-    ::  poke-ack comes later and tries to insert an empty club
-    ?.  |(gone =(club *club:c))
+    ?.  gone
       =.  clubs  (~(put by clubs) id club)
       cor
     =.  clubs  (~(del by clubs) id)
@@ -1758,6 +1758,10 @@
     |=  i=id:club:c
     ~|  no-club/i
     cu-core(id i, club (~(gut by clubs) i *club:c))
+  ++  cu-abed-hard
+    |=  i=id:club:c
+    ~|  no-club/i
+    cu-core(id i, club (~(got by clubs) i))
   ++  cu-clean
     =.  hive.crew.club
       %-  ~(rep in hive.crew.club)
@@ -1912,9 +1916,11 @@
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
     =?  cu-core  !?=(%writ -.delta)  (cu-give-action [id diff])
-    =-
+    :: we only gossip after processing the diff because we may have changed
+    :: the team, so we don't want to send gossip to people who have left
+    =;  nu-core
       =.  cor  (emil (gossip:cu-pass diff))
-      -
+      nu-core
     ?-    -.delta
     ::
         %meta
@@ -2733,42 +2739,33 @@
 ++  rectify-club-state
   =;  clubs=(list [id:club:c club:c])
     cor(clubs (malt clubs))
-  %+  murn
+  %+  skim
     ~(tap by clubs)
   |=  [=id:club:c =club:c]
-  ^-  (unit [id:club:c club:c])
-  ?:((~(has in team.crew.club) our.bowl) `[id club] ~)
+  (~(has in team.crew.club) our.bowl)
 ++  rectify-activity
   ?.  .^(? %gu (scry-path %activity /$))
     cor
   =+  .^(full-info:a %gx (scry-path %activity /v4/noun))
-  =/  [dm-sources=(list ship) club-sources=(list id:club:c)]
-    %+  roll
-      ~(tap by indices)
-    |=  [[=source:a *] ds=(list ship) cs=(list id:club:c)]
-    ?.  ?=(%dm -.source)
-      [ds cs]
-    ?-  -.whom.source
-      %club   [ds [p.whom.source cs]]
-      %ship   [[p.whom.source ds] cs]
-    ==
-  =.  cor
-    %-  emil
-    %+  murn
-      club-sources
-    |=  =id:club:c
+  %-  emil
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a *] caz=(list card)]
+  ?.  ?=(%dm -.source)
+    caz
+  ?:  ?=(%club -.whom.source)
+    =*  id  p.whom.source
     ::  only remove activity if club is gone
-    ?:  (~(has by clubs) id)  ~
+    ?:  (~(has by clubs) id)  caz
     =/  =action:a  [%del %dm %club id]
     =/  =cage  activity-action+!>(action)
-    `[%pass /activity/submit %agent [our.bowl %activity] %poke cage]
-  %-  emil
-  %+  murn
-    dm-sources
-  |=  =ship
+    :_  caz
+    [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  =*  ship  p.whom.source
   ::  only remove activity if dm is gone
-  ?:  (~(has by dms) ship)  ~
+  ?:  (~(has by dms) ship)  caz
   =/  =action:a  [%del %dm %ship ship]
   =/  =cage  activity-action+!>(action)
-  `[%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  :_  caz
+  [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 --
