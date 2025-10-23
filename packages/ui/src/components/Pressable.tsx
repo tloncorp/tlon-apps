@@ -10,11 +10,12 @@ type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
 type PressableProps = Omit<
   StackProps,
-  'onPress' | 'onLongPress' | 'onPressIn'
+  'onPress' | 'onLongPress' | 'onPressIn' | 'onPressOut'
 > & {
   onLongPress?: PressHandler;
   onPress?: PressHandler;
   onPressIn?: PressHandler;
+  onPressOut?: PressHandler;
   to?: To;
   action?: NavigationAction;
   children: React.ReactNode;
@@ -24,14 +25,15 @@ const StackComponent = ({
   onLongPress,
   onPress,
   onPressIn,
+  onPressOut,
   children,
   ...stackProps
 }: PressableProps) => {
   const longPressHandler = isWeb ? undefined : onLongPress;
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
 
-  // On Android inside ActionSheets, automatically use onPress for onPressIn
-  const shouldUseOnPressIn =
+  // On Android inside ActionSheets, automatically use onPress for onPressOut
+  const shouldUseOnPressOut =
     Platform.OS === 'android' && isInsideSheet && onPress;
 
   return (
@@ -39,9 +41,11 @@ const StackComponent = ({
       pressStyle={{ opacity: 0.5 }}
       {...stackProps}
       // eslint-disable-next-line no-restricted-syntax
-      onPress={shouldUseOnPressIn ? undefined : onPress}
+      onPress={shouldUseOnPressOut ? undefined : onPress}
       // eslint-disable-next-line no-restricted-syntax
-      onPressIn={shouldUseOnPressIn ? onPress : onPressIn}
+      onPressIn={onPressIn}
+      // eslint-disable-next-line no-restricted-syntax
+      onPressOut={shouldUseOnPressOut ? onPress : onPressOut}
       // eslint-disable-next-line no-restricted-syntax
       onLongPress={longPressHandler}
     >
@@ -59,6 +63,7 @@ const StackComponent = ({
  *
  * @param props.onPress Function to call when the press is released.
  * @param props.onPressIn Function to call when the press starts.
+ * @param props.onPressOut Function to call when the touch moves outside the element bounds.
  * @param props.onLongPress Function to call when the press is held. Disabled on web.
  * @param props.to Absolute path to screen (e.g. `/feeds/hot`).
  * @param props.action Optional action to use for in-page navigation. By default, the path is parsed to an action based on linking config.
@@ -67,6 +72,7 @@ const StackComponent = ({
 export default function Pressable({
   onPress,
   onPressIn,
+  onPressOut,
   onLongPress,
   to,
   action,
@@ -96,6 +102,7 @@ export default function Pressable({
         group
         onPress={onPressLink ?? onPress}
         onPressIn={onPressIn}
+        onPressOut={onPressOut}
         onLongPress={longPressHandler}
         cursor={stackProps.cursor || 'pointer'}
         // Pressable always blocks touches from bubbling to ancestors, even if
@@ -114,6 +121,7 @@ export default function Pressable({
       {...stackProps}
       onPress={onPress}
       onPressIn={onPressIn}
+      onPressOut={onPressOut}
       onLongPress={longPressHandler}
       disabled={!hasInteractionHandler}
       cursor={stackProps.cursor || 'pointer'}
