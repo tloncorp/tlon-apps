@@ -33,6 +33,9 @@ const StackComponent = ({
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
 
   // On Android inside ActionSheets, automatically use onPress for onPressOut
+  // see:
+  // - https://github.com/tamagui/tamagui/issues/3288
+  // - https://github.com/react-navigation/react-navigation/issues/12039
   const shouldUseOnPressOut =
     Platform.OS === 'android' && isInsideSheet && onPress;
 
