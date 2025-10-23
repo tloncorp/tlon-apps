@@ -16,6 +16,9 @@ export function usePosthog() {
         posthog?.capture(eventName, properties),
       flush: async () => posthog?.flush(),
       reset: () => posthog?.reset(),
+      distinctId: () => {
+        return posthog?.getDistinctId();
+      },
     };
   }, [posthog]);
 }
