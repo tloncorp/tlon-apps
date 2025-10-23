@@ -1,7 +1,10 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
 import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
-import { GestureResponderEvent } from 'react-native';
+import { useContext } from 'react';
+import { GestureResponderEvent, Platform } from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
+
+import { ActionSheetContext } from '../contexts/ActionSheetContext';
 
 type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
@@ -25,15 +28,20 @@ const StackComponent = ({
   ...stackProps
 }: PressableProps) => {
   const longPressHandler = isWeb ? undefined : onLongPress;
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
+
+  // On Android inside ActionSheets, automatically use onPress for onPressIn
+  const shouldUseOnPressIn =
+    Platform.OS === 'android' && isInsideSheet && onPress;
 
   return (
     <Stack
       pressStyle={{ opacity: 0.5 }}
       {...stackProps}
       // eslint-disable-next-line no-restricted-syntax
-      onPress={onPress}
+      onPress={shouldUseOnPressIn ? undefined : onPress}
       // eslint-disable-next-line no-restricted-syntax
-      onPressIn={onPressIn}
+      onPressIn={shouldUseOnPressIn ? onPress : onPressIn}
       // eslint-disable-next-line no-restricted-syntax
       onLongPress={longPressHandler}
     >

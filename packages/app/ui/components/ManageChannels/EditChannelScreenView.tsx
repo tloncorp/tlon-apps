@@ -666,7 +666,7 @@ function SelectableRoleListItem({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPressIn={onPress}>
+    <Pressable onPress={onPress}>
       <ListItem
         {...(isSelected
           ? { backgroundColor: '$secondaryBackground' }

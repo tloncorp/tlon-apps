@@ -168,10 +168,7 @@ function GroupRolesScreenView({
                 </ActionSheet.MainContent>
               </ListItem>
             ) : (
-              <Pressable
-                key={role.id}
-                onPressIn={() => handleSetEditRole(role)}
-              >
+              <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
                 <ListItem
                   key={role.id}
                   paddingHorizontal="$2xl"
@@ -202,7 +199,7 @@ function GroupRolesScreenView({
               </Pressable>
             )
           )}
-          <Pressable onPressIn={() => setShowAddRole(true)}>
+          <Pressable onPress={() => setShowAddRole(true)}>
             <ListItem
               paddingHorizontal="$2xl"
               backgroundColor={'$background'}

@@ -72,7 +72,7 @@ const PersonalInviteSheetContent = ({
       <YStack paddingBottom="$l" gap="$m">
         <PersonalInviteButton />
         {hasSystemContacts && (
-          <Pressable onPressIn={() => onPressInviteFriends()}>
+          <Pressable onPress={() => onPressInviteFriends()}>
             <ListItem backgroundColor="$secondaryBackground">
               <ListItem.SystemIcon icon="AddPerson" />
               <ListItem.MainContent>
