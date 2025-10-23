@@ -488,91 +488,20 @@
   ++  load
     |=  old-vase=vase
     ^+  cor
-    |^  =+  !<([old=versioned-state cool=epic] old-vase)
-        =?  cor  !=(okay cool)  l-epic
-        ?-  -.old
-        ::
-            %3
-          =.  state  old
-          inflate-io
-        ::
-            %2
-          =.  state  old(- %3)
-          ::  sanitize our nickname
-          ::
-          =+  nick=(~(get cy con.rof) %nickname %text)
-          =?  con.rof  &(?=(^ nick) !(sane-nickname `our.bowl u.nick))
-            %+  ~(put by con.rof)  %nickname
-            text+(sani-nickname u.nick)
-          ::  sanitize peer nicknames
-          ::
-          =.  state
-            %+  roll  ~(tap in ~(key by peers))
-            |=  [her=ship =_state]
-            =+  far=(~(got by peers) her)
-            ::  examine peer nickname and sanitize it if needed
-            ::
-            ?~  for.far  state
-            =+  nick=(~(get cy con.for.far) %nickname %text)
-            ?~  nick  state
-            ?:  (sane-nickname `her u.nick)  state
-            =.  u.nick  (sani-nickname u.nick)
-            =.  con.for.far
-              %+  ~(put by con.for.far)  %nickname
-              text+u.nick
-            =.  peers.state
-              (~(put by peers.state) her far)
-            ::  update the entry in the contact book, if any
-            ::
-            ?~  page=(~(get by book) her)  state
-            =.  con.u.page
-              %+  ~(put by con.u.page)  %nickname
-              text+u.nick
-            =.  book.state
-              (~(put by book.state) her u.page)
-            state
-          inflate-io
-        ::
-            %1
-          =.  state  old(- %3)
-          ::  fix incorrectly bunted timestamp for
-          ::  an empty profile migrated from %0
-          ::
-          =?  cor  &(=(*@da wen.rof) ?=(~ con.rof))
+    |^  =+  !<([old=versioned-state *] old-vase)
+        =^  caz-0=(list card)  old
+          ?.  ?=(%0 -.old)  [~ old]
+          (state-0-to-1 old)
+        =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+        =?  cor  ?=(%2 -.old)
+          ?:  &(=(*@da wen.rof) ?=(~ con.rof))
             (p-commit-self:pub ~)
-          inflate-io
-        ::
-            %0
-          =.  rof  ?~(rof.old *profile (profile:from-0 rof.old))
-          ::  migrate peers. for each peer
-          ::  1. leave /epic, if any
-          ::  2. subscribe if desired
-          ::  3. put into peers
-          ::
-          =^  caz=(list card)  peers
-            %+  roll  ~(tap by rol.old)
-            |=  [[who=ship foreign-0:c0] caz=(list card) =_peers]
-            ::  leave /epic if any
-            ::
-            =?  caz  (~(has by wex.bowl) [/epic who dap.bowl])
-              :_  caz
-              [%pass /epic %agent [who dap.bowl] %leave ~]
-            =/  fir=$@(~ profile)
-              ?~  for  ~
-              (profile:from-0 for)
-            ::  no intent to connect
-            ::
-            ?:  =(~ sag)
-              :-  caz
-              (~(put by peers) who fir ~)
-            :_  (~(put by peers) who fir %want)
-            ?:  (~(has by wex.bowl) [/contact who dap.bowl])
-              caz
-            =/  =path  [%v1 %contact ?~(fir / /at/(scot %da wen.fir))]
-            :_  caz
-            [%pass /contact %agent [who dap.bowl] %watch path]
-          (emil caz)
-        ==
+          cor
+        =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+        ?>  ?=(%3 -.old)
+        =.  state  old
+        inflate-io
+    ::
     +$  state-0  [%0 rof=$@(~ profile-0:c0) rol=rolodex:c0]
     +$  state-1
       $:  %1
@@ -595,7 +524,84 @@
           state-0
       ==
     ::
-    ++  l-epic  (give %fact [/epic ~] epic+!>(okay))
+    ++  state-2-to-3
+      |=  state-2
+      ^-  state-3
+      =*  state  +<
+      ::  sanitize our nickname
+      ::
+      =+  nick=(~(get cy con.rof) %nickname %text)
+      =?  con.rof  &(?=(^ nick) !(sane-nickname `our.bowl u.nick))
+        %+  ~(put by con.rof)  %nickname
+        text+(sani-nickname u.nick)
+      ::  sanitize peer nicknames
+      ::
+      =.  state
+        %+  roll  ~(tap in ~(key by peers))
+        |=  [her=ship =_state]
+        =+  far=(~(got by peers) her)
+        ::  examine peer nickname and sanitize it if needed
+        ::
+        ?~  for.far  state
+        =+  nick=(~(get cy con.for.far) %nickname %text)
+        ?~  nick  state
+        ?:  (sane-nickname `her u.nick)  state
+        =.  u.nick  (sani-nickname u.nick)
+        =.  con.for.far
+          %+  ~(put by con.for.far)  %nickname
+          text+u.nick
+        =.  peers.state
+          (~(put by peers.state) her far)
+        ::  update the entry in the contact book, if any
+        ::
+        ?~  page=(~(get by book) her)  state
+        =.  con.u.page
+          %+  ~(put by con.u.page)  %nickname
+          text+u.nick
+        =.  book.state
+          (~(put by book.state) her u.page)
+        state
+      state(- %3)
+    ::
+    ++  state-1-to-2
+      |=  state-1
+      ^-  state-2
+      +<(- %2)
+    ::
+    ++  state-0-to-1
+      |=  state-0
+      ^-  [(list card) state-1]
+      =|  =state-1
+      =.  rof.state-1
+        ?~(rof *profile (profile:from-0 rof))
+      ::  migrate peers. for each peer
+      ::  1. leave /epic, if any
+      ::  2. subscribe if desired
+      ::  3. put into peers
+      ::
+      =^  caz=(list card)  peers.state-1
+        %+  roll  ~(tap by rol)
+        |=  [[who=ship foreign-0:c0] caz=(list card) =_peers.state-1]
+        ::  leave /epic if any
+        ::
+        =?  caz  (~(has by wex.bowl) [/epic who dap.bowl])
+          :_  caz
+          [%pass /epic %agent [who dap.bowl] %leave ~]
+        =/  fir=$@(~ profile)
+          ?~  for  ~
+          (profile:from-0 for)
+        ::  no intent to connect
+        ::
+        ?:  =(~ sag)
+          :-  caz
+          (~(put by peers) who fir ~)
+        :_  (~(put by peers) who fir %want)
+        ?:  (~(has by wex.bowl) [/contact who dap.bowl])
+          caz
+        =/  =path  [%v1 %contact ?~(fir / /at/(scot %da wen.fir))]
+        :_  caz
+        [%pass /contact %agent [who dap.bowl] %watch path]
+      [caz state-1]
     ::
     ++  inflate-io
       ^+  cor
