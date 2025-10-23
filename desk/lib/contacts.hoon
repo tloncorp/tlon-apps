@@ -235,16 +235,21 @@
 ++  sane-nickname
   |=  [src=(unit @p) txt=@t]
   ^-  ?
-  ::  extract initial codepoint
-  =+  c=(end [3 (teff txt)] txt)
-  ?.  (~(has in con-sig:confusable:unicode) c)  &
-  ::  disallow spoofing sig
-  ?.  =('~' c)  |
-  ::  ~nickname, enforce urbit id
-  ::TODO allow extended nicknames, eg. '~zod🤴'?
-  ?~  ship=(rush txt ;~(pfix sig fed:ag))  |
   ?~  src  &
+  =+  nom=(norm-p:confusable:unicode txt)
+  =/  ship=(unit @p)
+    %+  rush  nom
+    ;~  sfix  ;~(pfix sig fed:ag)
+      (star next)
+    ==
+  ?:  ?=(~ ship)  &
   =(u.src u.ship)
+::  +sani-nickname: sanitize a nickname
+::
+++  sani-nickname
+  |=  txt=@t
+  ^-  @t
+  (cat 3 '.' txt)
 ::  +do-edit: edit contact
 ::
 ::  edit .con with .mod contact map.

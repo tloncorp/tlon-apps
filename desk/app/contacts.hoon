@@ -17,12 +17,13 @@
 ::
 +|  %types
 +$  card  card:agent:gall
-+$  state-2  $:  %2
-                 rof=profile
-                 =book
-                 =peers
-                 retry=(map ship @da)  ::  retry sub at time
-             ==
++$  state-3
+  $:  %3
+      rof=profile
+      =book
+      =peers
+      retry=(map ship @da)  ::  retry sub at time
+  ==
 --
 %-  %^  agent:neg
         notify=|
@@ -31,7 +32,7 @@
 %-  agent:dbug
 %^  verb  |  %warn
 ^-  agent:gall
-=|  state-2
+=|  state-3
 =*  state  -
 =<  |_  =bowl:gall
     +*  this  .
@@ -179,14 +180,6 @@
         ?~  for.far  *contact
         con.for.far
       ?>  (sane-contact ~ mod)
-      ::  .mod might carry an invalid nickname now that
-      ::  it becomes a contact overlay for a known ship .who.
-      ::  if this the case, we delete the invalid nickname to allow
-      ::  the operation to proceed.
-      ::
-      =+  nickname=(~(get cy con) %nickname %text)
-      =?  mod  ?&(?=(^ nickname) !(sane-nickname `who u.nickname))
-        (~(del by mod) %nickname)
       (p-commit-page who con mod)
     ::  +p-page: create new contact page
     ::
@@ -499,12 +492,49 @@
         =?  cor  !=(okay cool)  l-epic
         ?-  -.old
         ::
-            %2
+            %3
           =.  state  old
           inflate-io
         ::
+            %2
+          =.  state  old(- %3)
+          ::  sanitize our nickname
+          ::
+          =+  nick=(~(get cy con.rof) %nickname %text)
+          =?  con.rof  &(?=(^ nick) !(sane-nickname `our.bowl u.nick))
+            %+  ~(put by con.rof)  %nickname
+            text+(sani-nickname u.nick)
+          ::  sanitize peer nicknames
+          ::
+          =.  state
+            %+  roll  ~(tap in ~(key by peers))
+            |=  [her=ship =_state]
+            =+  far=(~(got by peers) her)
+            ::  examine peer nickname and sanitize it if needed
+            ::
+            ?~  for.far  state
+            =+  nick=(~(get cy con.for.far) %nickname %text)
+            ?~  nick  state
+            ?:  (sane-nickname `her u.nick)  state
+            =.  u.nick  (sani-nickname u.nick)
+            =.  con.for.far
+              %+  ~(put by con.for.far)  %nickname
+              text+u.nick
+            =.  peers.state
+              (~(put by peers.state) her far)
+            ::  update the entry in the contact book, if any
+            ::
+            ?~  page=(~(get by book) her)  state
+            =.  con.u.page
+              %+  ~(put by con.u.page)  %nickname
+              text+u.nick
+            =.  book.state
+              (~(put by book.state) her u.page)
+            state
+          inflate-io
+        ::
             %1
-          =.  state  old(- %2)
+          =.  state  old(- %3)
           ::  fix incorrectly bunted timestamp for
           ::  an empty profile migrated from %0
           ::
@@ -544,14 +574,23 @@
           (emil caz)
         ==
     +$  state-0  [%0 rof=$@(~ profile-0:c0) rol=rolodex:c0]
-    +$  state-1  $:  %1
-                     rof=profile
-                     =^book
-                     =^peers
-                     retry=(map ship @da)  ::  retry sub at time
-                 ==
+    +$  state-1
+      $:  %1
+          rof=profile
+          =^book
+          =^peers
+          retry=(map ship @da)  ::  retry sub at time
+      ==
+    +$  state-2
+      $:  %2
+          rof=profile
+          =^book
+          =^peers
+          retry=(map ship @da)  ::  retry sub at time
+      ==
     +$  versioned-state
-      $%  state-2
+      $%  state-3
+          state-2
           state-1
           state-0
       ==

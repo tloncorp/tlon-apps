@@ -1,6 +1,29 @@
 ::  unicode utilities
 ::
 |%
+::  |confusables: unicode confusables characters
+::
+::  unicode is a standard that encompasses all world scripts. some
+::  of these scripts share characters, which thus gives rise to the
+::  problem of semantically distinct characters appearing the same.
+::  this is important if the program relies on these semantic
+::  differences for operation.
+::
+::  this library currently supports the following classes of
+::  confusables, following which can be queried through
+::  - latin alphabet confusables
+::  - ascii confusables
+::  - latin full-width confusables
+::
+::  the lists are based on
+::  https://www.unicode.org/Public/security/revision-03/confusablesSummary.txt,
+::  which can be queried at
+::  https://util.unicode.org/UnicodeJsps/confusables.jsp.
+
+::
+::  utility arms are provided that aid in normalizing an utf-8 string,
+::  using latin letters and ascii characters as representatives.
+::
 ++  confusable
   |%
   ::  +con-sig: confusable with '~'
@@ -911,16 +934,16 @@
     ?:  (~(has in q.i.conf) c)
       p.i.conf
     $(conf t.conf)
-  ::  +norm-p: normalize a @p string
+  ::  +norm-p: normalize a possible @p string
   ::
   ++  norm-p
     |=  txt=@t
     ^-  @t
     =|  norm=@t
     |-
+    ?:  =('' txt)  norm
     =+  len=(teff txt)
     =+  c=(end [3 len] txt)
-    ?:  =('' c)  norm
     =/  n=@t
       ?:  (~(has in con-sig) c)  '~'
       ?:  (~(has in con-hep) c)  '-'
