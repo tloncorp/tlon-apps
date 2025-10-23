@@ -341,7 +341,7 @@ function GroupSettings({ group }: { group: db.Group }) {
       }}
     >
       {currentUserIsAdmin ? (
-        <Pressable onPressIn={handlePressGroupPrivacy}>
+        <Pressable onPress={handlePressGroupPrivacy}>
           <ListItem
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
@@ -368,7 +368,7 @@ function GroupSettings({ group }: { group: db.Group }) {
         </Pressable>
       ) : null}
       {currentUserIsAdmin ? (
-        <Pressable onPressIn={handlePressRoles}>
+        <Pressable onPress={handlePressRoles}>
           <ListItem
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
@@ -395,7 +395,7 @@ function GroupSettings({ group }: { group: db.Group }) {
         </Pressable>
       ) : null}
       {currentUserIsAdmin ? (
-        <Pressable onPressIn={handlePressManageChannels}>
+        <Pressable onPress={handlePressManageChannels}>
           <ListItem
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
@@ -421,7 +421,7 @@ function GroupSettings({ group }: { group: db.Group }) {
           </ListItem>
         </Pressable>
       ) : null}
-      <Pressable onPressIn={handlePressNotificationSettings}>
+      <Pressable onPress={handlePressNotificationSettings}>
         <ListItem
           paddingHorizontal="$2xl"
           backgroundColor={'$background'}

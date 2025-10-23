@@ -1,7 +1,12 @@
-import { IconButton, useCopy } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  Icon,
+  IconButton,
+  IconType,
+  Sheet,
+  useCopy,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   Children,
   ComponentProps,
@@ -193,7 +198,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -248,7 +255,9 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -292,13 +301,15 @@ const ActionSheetComponent = ({
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </ActionSheetContext.Provider>
       </Sheet.Frame>
     </Sheet>
   );
