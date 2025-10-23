@@ -112,7 +112,7 @@ export function renderActivityEventPreview({
     return {
       notification: {
         body: lit(contentSummary),
-        groupingKey: lit(sourceToString(source)),
+        groupingKey: lit(sourceToString(source, true)),
       },
       message: {
         timestamp: sent,

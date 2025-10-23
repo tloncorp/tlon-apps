@@ -1,7 +1,7 @@
 import Foundation
 
-public struct NotificationPreviewPayload: Decodable {
-    public indirect enum ContentNode: Decodable {
+struct NotificationPreviewPayload: Decodable {
+    indirect enum ContentNode: Decodable {
         case channelTitle(channelId: String)
         case gangTitle(gangId: String)
         case groupTitle(groupId: String)
@@ -31,7 +31,7 @@ public struct NotificationPreviewPayload: Decodable {
             case postSource
         }
         
-        public init(from decoder: Decoder) throws {
+        init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             let type = try container.decode(NodeType.self, forKey: .type)
             
@@ -91,10 +91,8 @@ public struct NotificationPreviewPayload: Decodable {
     let message: Message?
 }
 
-public struct NotificationPreviewContentNodeRenderer {
-    public init() {}
-
-    public func render(_ node: NotificationPreviewPayload.ContentNode) async -> String {
+struct NotificationPreviewContentNodeRenderer {
+    func render(_ node: NotificationPreviewPayload.ContentNode) async -> String {
         switch node {
         case let .stringLiteral(content):
             return content

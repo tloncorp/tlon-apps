@@ -47,11 +47,6 @@ export interface Vessel {
   joined: number;
 }
 
-export interface Seat {
-  roles: string[];
-  joined: number;
-}
-
 export interface OpenCordon {
   open: {
     ships: string[];
@@ -370,51 +365,6 @@ export interface GroupPreview {
   secret: boolean;
 }
 
-export interface GroupPreviewV7 {
-  flag: string;
-  meta: GroupMeta;
-  time: number;
-  'member-count': number;
-  privacy: PrivacyType;
-}
-
-export type ClaimScheme =
-  | { forever: null }
-  | { limited: { count: number } }
-  | { personal: { ship: string } };
-
-export interface TokenMeta {
-  scheme: ClaimScheme;
-  expiry: number; // @da timestamp
-  label: string | null; // unit @t
-}
-
-export interface Admissions {
-  privacy: PrivacyType;
-  banned: {
-    ships: string[];
-    ranks: string[];
-  };
-  pending: Record<string, string[]>; // ship -> role-ids (jug ship role-id)
-  requests: Record<string, string | null>; // ship -> story (optional message with entry request)
-  tokens: Record<string, TokenMeta>; // token (@uv) -> token-meta
-  referrals: Record<string, string[]>; // ship -> tokens (jug ship token)
-  invited: Record<string, { at: number; token: string | null }>; // ship -> [at token]
-}
-
-export interface GroupV7 {
-  meta: GroupMeta;
-  admissions: Admissions;
-  seats: Record<string, Seat>; // fleet in v6 is now seats in v7, uses 'roles' not 'sects'
-  roles: Record<string, GroupMeta>; // v7 roles ARE the metadata, not Cabals with nested meta
-  admins: string[]; // just an array of role-ids
-  channels: Channels;
-  'active-channels': string[];
-  sections: Zones;
-  'section-order': Zone[];
-  'flagged-content': FlaggedContent;
-}
-
 export interface GroupIndex {
   [flag: string]: GroupPreview;
 }
@@ -444,32 +394,6 @@ export interface Gang {
 
 export interface Gangs {
   [flag: string]: Gang;
-}
-
-export type Lookup = 'preview' | 'done' | 'error';
-
-export type Progress = 'ask' | 'join' | 'watch' | 'done' | 'error';
-
-export interface ForeignInvite {
-  flag: string;
-  time: number;
-  from: string;
-  token: string | null;
-  note: string | null; // story serialized as string
-  preview: GroupPreviewV7;
-  valid: boolean; // tracks if invite has been revoked
-}
-
-export interface Foreign {
-  invites: ForeignInvite[];
-  lookup: Lookup | null;
-  preview: GroupPreviewV7 | null;
-  progress: Progress | null;
-  token: string | null;
-}
-
-export interface Foreigns {
-  [flag: string]: Foreign;
 }
 
 export type PrivacyType = 'public' | 'private' | 'secret';

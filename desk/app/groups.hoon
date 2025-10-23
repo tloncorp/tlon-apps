@@ -48,8 +48,6 @@
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
 ::
-/*  commit  %txt  /commit/txt
-::
 %-  %-  discipline
   :+  ::  marks
       ::
@@ -89,8 +87,8 @@
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
-          :+  %foreign-1          |  -:!>(*vale:m-foreign-1)
-          :+  %foreigns-1         |  -:!>(*vale:m-foreigns-1)
+          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
+          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
     ::
@@ -110,7 +108,6 @@
         [/gangs/updates %gangs ~]
         [/gangs/$/$/preview %group-preview ~]
       ::
-        [/v1/foreigns %foreigns-1 ~]
         [/v1/foreigns/$/$/preview %group-preview-3 ~]
         [/v1/foreigns/index/$ %group-previews-1 ~]
     ==
@@ -130,7 +127,6 @@
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
       [/x/groups/$/$/seats/$ %noun]
     ::
-      [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
       [/x/v1/light/groups %groups-1]
       [/x/v2/light/groups %groups-2]
@@ -151,8 +147,6 @@
       [/x/v1/foreigns/$/$ %foreign-1]
     ::
       [/x/groups/$/$/v1 %group-ui]  ::  deprecated
-    ::
-      [/x/groups/$/$/preview %noun]
   ==
 =/  verbose  |
 ::
@@ -165,24 +159,20 @@
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
-%^  verb  |  %warn
+%+  verb  |
 ::
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %7
         groups=net-groups:v7:gv
         =channels-index:v7:gv
-        =foreigns:v8:gv
+        =foreigns:v7:gv
         =^subs:s
         =pimp:imp
     ==
-  ++  commit
-    ^~
-    =+  ?~(^commit 'unknown' -.^commit)
-    `@t`(rap 3 'commit ' - ~)
   --
 =|  current-state
 =*  state  -
@@ -266,12 +256,21 @@
     |=  [desc=term =tang]
     =/  =card
       (~(fail logs our.bowl /logs) desc tang deez)
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
     (emit card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs]
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  %-  %*(. slog pri pri)  echo
     (emit card)
   ::  +deez: log message details
   ::
@@ -285,7 +284,6 @@
 ++  poke
   |=  [=mark =vase]
   ^+  cor
-  ~|  commit
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
     ?+    q.vase  !!
@@ -314,28 +312,20 @@
         fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
       ::
           %group
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
-        se-abet:(se-c-group:se-core c-group.c-groups)
+        =/  server-core  (se-abed:se-core flag.c-groups)
+        se-abet:(se-c-group:server-core c-group.c-groups)
       ::
           %join
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
-        se-abet:(se-c-join:se-core token.c-groups)
+        =*  server-core  (se-abed:se-core flag.c-groups)
+        se-abet:(se-c-join:server-core token.c-groups)
       ::
           %ask
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
-        se-abet:(se-c-ask:se-core story.c-groups)
+        =*  server-core  (se-abed:se-core flag.c-groups)
+        se-abet:(se-c-ask:server-core story.c-groups)
       ::
           %leave
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
-        se-abet:se-c-leave:se-core
+        =*  server-core  (se-abed:se-core flag.c-groups)
+        se-abet:se-c-leave:server-core
       ==
     ::
         %group-action-4
@@ -439,10 +429,10 @@
       ?<  =(our.bowl p.flag)
       go-abet:(go-leave:(go-abed:go-core flag) &)
     ::
-    ::  foreign group interface  v2
+    ::  foreign groups interface
     ::
-        %group-foreign-2
-    =+  !<(=a-foreigns:v8:gv vase)
+        %group-foreign-1
+      =+  !<(=a-foreigns:v7:gv vase)
       ?-    -.a-foreigns
           %foreign
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
@@ -451,33 +441,17 @@
           %invite
         =/  foreign-core  (fi-abed:fi-core flag.invite.a-foreigns)
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
-      ::
-          %revoke
-        =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
-        fi-abet:(fi-revoke:foreign-core token.a-foreigns)
       ==
-    ::
-    ::  foreign groups interface v1
-    ::
-        %group-foreign-1
-      =+  !<(a-foreigns-7=a-foreigns:v7:gv vase)
-      =/  =a-foreigns:v8:gv
-        ?.  ?=(%invite -.a-foreigns-7)  a-foreigns-7
-        [%invite (v8:invite:v7:gc invite.a-foreigns-7)]
-      $(+< group-foreign-2+!>(a-foreigns))
     ::
     ::  deprecated gang interface
     ::
         %group-join
       ?>  from-self
       =+  !<(=join:v0:gv vase)
-      =/  far=(unit foreign:v8:gv)  (~(get by foreigns) flag.join)
+      =/  far=(unit foreign:v7:gv)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
         ?~  far  ~
-        =*  invites  invites.u.far
-        |-
-        ?~  invites  ~
-        ?.  valid.i.invites  $(invites t.invites)
+        ?~  invites.u.far  ~
         token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
@@ -517,7 +491,7 @@
       =+  !<(=flag:g vase)
       ?>  from-self
       ~|  f=flag
-      =/  =foreign:v8:gv  (~(got by foreigns) flag)
+      =/  =foreign:v7:gv  (~(got by foreigns) flag)
       ::  backward compatibility: decline all invites
       ::
       %+  roll  invites.foreign
@@ -677,8 +651,7 @@
     ?.  ?=(%6 -.old)  [~ old]
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
-  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  ?>  ?=(%7 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
@@ -706,33 +679,23 @@
     ::  strip out raw image data
     ::
     foreign(image.meta.u.preview '')
-  =.  cor
-    %+  roll  ~(tap by groups)
-    |=  [[=flag:g =net:g =group:g] =_cor]
-    ?:  ?|  =('' image.meta.group)
-            =('http' (end 3^4 image.meta.group))
-            =('#' (end 3 image.meta.group))
-        ==
-      cor
-    ?:  =(p.flag our.bowl)
-      ::  if it's our group, edit the metadata and send out updates about it
-      ::
-      se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
-    ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
+  %+  roll  ~(tap by groups)
+  |=  [[=flag:g =net:g =group:g] =_cor]
+  ?:  ?|  =('' image.meta.group)
+          =('http' (end 3^4 image.meta.group))
+          =('#' (end 3 image.meta.group))
+      ==
+    cor
+  ?:  =(p.flag our.bowl)
+    ::  if it's our group, edit the metadata and send out updates about it
     ::
-    cor(groups (~(put by groups) flag net group(image.meta '')))
-  ::  prune expired tokens and revoke associated invites
+    se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
+  ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
   ::
-  =.  cor
-    %+  roll  ~(tap by groups)
-    |=  [[=flag:g *] =_cor]
-    ?.  =(p.flag our.bowl)  cor
-    se-abet:se-prune-tokens:(se-abed:se-core:cor flag)
-  cor
+  cor(groups (~(put by groups) flag net group(image.meta '')))
   ::
   +$  any-state
-    $%  state-8
-        state-7
+    $%  state-7
         state-6
         state-5
         state-4
@@ -818,16 +781,8 @@
         =^subs:s
         =pimp:imp
     ==
-  +$  state-7
-    $:  %7
-        groups=net-groups:v7:gv
-        =channels-index:v7:gv
-        =foreigns:v7:gv
-        =^subs:s
-        =pimp:imp
-    ==
   ::
-  +$   state-8  current-state
+  +$   state-7  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -940,14 +895,6 @@
         subs
         ~  ::  pimp
     ==
-  ::
-  ++  state-7-to-8
-    |=  =state-7
-    ^-  state-8
-    %=  state-7
-      -  %8
-      foreigns  (~(run by foreigns.state-7) v8:foreign:v7:gc)
-    ==
   --
 ::
 ++  inflate-io
@@ -966,7 +913,6 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ~|  commit
   ~|  watch-path=`path`pole
   ?+  pole  ~|(bad-watch-path+pole !!)
   ::
@@ -977,18 +923,12 @@
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
-    =/  se-core  (se-abed:se-core [our.bowl name.pole])
-    ~|  %se-is-banned
-    ?<  (se-is-banned:se-core src.bowl)
-    se-abet:(se-watch:se-core rest.pole)
+    se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) rest.pole)
   ::
       [%server %groups ship=@ name=@ %preview ~]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
     ?:  (~(has by groups) our.bowl name.pole)
-      =/  se-core  (se-abed:se-core [our.bowl name.pole])
-      ~|  %se-is-banned
-      ?<  (se-is-banned:se-core src.bowl)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:v7:gv  ~
     =.  cor
@@ -1026,8 +966,6 @@
     =+  ship=(slav %p ship.pole)
     fi-abet:(fi-watch:(fi-abed:fi-core ship name.pole) %v1 rest.pole)
   ::
-      [%v1 %foreigns ~]  ?>(from-self cor)
-  ::
       ::  deprecated
       [%gangs ship=@ name=@ %preview ~]
     ?>  from-self
@@ -1059,9 +997,9 @@
   ^-  (unit [flag:g preview:v7:gv])
   ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
     ~
-  =/  se-core  (se-abed:se-core flag)
-  ?:  (se-is-banned:se-core src.bowl)  ~
-  `[flag se-preview:se-core]
+  =/  sc  (se-abed:se-core flag)
+  ?:  (se-is-banned:sc src.bowl)  ~
+  `[flag se-preview:sc]
 ::
 ++  peek
   |=  =(pole knot)
@@ -1100,8 +1038,7 @@
         ~
       %-  some
       :-  flag
-      %-  gang:v2:foreign:v7:gc
-      (v7:foreign:v8:gc foreign)
+      (gang:v2:foreign:v7:gc foreign)
     ``noun+!>([groups-light-ui-2 gangs-2])
   ::
       [%x %v2 %init ~]
@@ -1110,11 +1047,11 @@
       |=  [=flag:g =net:v7:gv =group:v7:gv]
       =*  light-group  (drop-seats:group:v7:gc group our.bowl)
       =+  (group-ui:group:v7:gc net light-group)
-      ::  restore member count after dropping seats
+      ::  recompute member count after dropping seats
       ::TODO is this correct in other scries?
       ::
       -(member-count ~(wyt by seats.group))
-    ``noun+!>([groups-light-ui-7 `foreigns:v8:gv`foreigns])
+    ``noun+!>([groups-light-ui-7 `foreigns:v7:gv`foreigns])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-7=groups:v7:gv  (~(run by groups) tail)
@@ -1217,19 +1154,13 @@
     ``loob+!>((~(has by groups) [ship name.pole]))
   ::
       [%x ver=?(%v1) %foreigns ~]
-    ?-    ver.pole
-        %v1
-      ``foreigns-1+!>(`foreigns:v8:gv`foreigns)
-    ==
+    ``foreigns-1+!>(`foreigns:v7:gv`foreigns)
   ::
       [%x ver=?(%v1) %foreigns ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     ?~  far=(~(get by foreigns) flag)  [~ ~]
-    ?-    ver.pole
-        %v1
-      ``foreign-1+!>(`foreign:v8:gv`u.far)
-    ==
+    ``foreign-1+!>(`foreign:v7:gv`u.far)
   ==
   ++  changes
     |=  since=time
@@ -1263,12 +1194,6 @@
   ::
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
-    ::  ignore responses after group has been deleted
-    ::
-    ?:  ?&  !(~(has by groups) ship name.pole)
-            &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
-        ==
-      cor
     se-abet:(se-agent:(se-abed:se-core ship name.pole) rest.pole sign)
   ::
       [%groups ship=@ name=@ rest=*]
@@ -1281,6 +1206,7 @@
                 ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
+
         ==
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
@@ -1291,13 +1217,11 @@
   ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    ::  ignore the following for a deleted foreign group
-    ::
-    ?:  ?&  !(~(has by foreigns) ship name.pole)
-            ?|  ?=(%kick -.sign)            :: ignore kicks
-                ?=([%preview ~] rest.pole)  :: ignore preview signs
-            ==
+    ?:  ?&  ?=(%kick -.sign)
+            !(~(has by foreigns) ship name.pole)
         ==
+      ::  ignore kicks for non-existent foreigns
+      ::
       cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
@@ -1448,15 +1372,6 @@
       ::
       [%load %v7 %subscriptions ~]
     inflate-io
-  ::
-      ::  delete expired token
-      ::
-      [%server %groups ship=@ name=@ %tokens token=@uv %expire ~]
-    ?>  ?=([%behn %wake ~] sign)
-    =+  ship=(slav %p ship.pole)
-    =/  =flag:g  [ship name.pole]
-    =/  =token:g  (slav %uv token.pole)
-    se-abet:(se-expire-token:(se-abed:se-core flag) token)
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -1563,13 +1478,6 @@
     ?>  ?=(%flag -.val)
     fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) %v1 /preview)
   ==
-::  +server-invites-timer: periodically prune expired tokens
-++  server-tokens-timer  ~d1
-::
-++  set-timer
-  |=  [=wire when=@da]
-  ^-  card
-  [%pass wire %arvo %b %wait when]
 ::
 ++  from-self  =(our src):bowl
 ::  +se-core: group server core
@@ -1590,9 +1498,7 @@
     ^+  se-core
     ?>  =(p.flag our.bowl)
     ~|  flag=flag
-    =+  gru=(~(get by groups) flag)
-    ?~  gru  ~|(%se-abed-group-not-found !!)
-    =/  [=net:g =group:g]  u.gru
+    =/  [=net:g =group:g]  (~(got by groups) flag)
     ?>  ?=(%pub -.net)
     se-core(flag flag, log log.net, group group)
   ::  +se-abet: final
@@ -1606,12 +1512,7 @@
     ::  chance to trigger +go-core update.
     ::
     =?  cor  gone
-      ::NB  this fires even if we are not self-subscribed
       go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
-    ::  make sure we clean up a possible leftover foreigns entry
-    ::  when the group is deleted.
-    ::
-    =?  foreigns  gone  (~(del by foreigns) flag)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
@@ -1657,24 +1558,6 @@
   ::
   ++  se-pass
     |%
-    ++  send-invite
-      |=  [=ship =invite:v8:gv]
-      =/  =wire  (weld se-area /invite/send/(scot %p ship))
-      =/  =a-foreigns:v8:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
-    ++  revoke-invite
-      |=  [=ship tok=(unit token:g)]
-      =/  =wire  (weld se-area /invite/revoke/(scot %p ship))
-      =/  =a-foreigns:v8:gv
-        [%revoke flag tok]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -1777,10 +1660,6 @@
         ~
       `nest
     =.  section-order.group  (~(push of section-order.group) %default)
-    ::TODO now that we have pending ships, we should add members
-    ::     to the pending list rather than artificially creating their
-    ::     seats.
-    ::
     ::  populate group members and their roles
     ::
     ::  TODO  this should use +se-c-seat to create new seats
@@ -1821,12 +1700,6 @@
       %+  roll  ~(tap in ~(key by channels.group))
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
-    ::  revoke all invitations
-    ::
-    =.  se-core
-      %+  roll  ~(tap by invited.ad)
-      |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
-      (emit:se-core (revoke-invite:se-pass ship tok))
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -1842,6 +1715,8 @@
   ++  se-c-join
     |=  tok=(unit token:g)
     ^+  se-core
+    ::XX  se-is-banned should be at top level.
+    ?<  (se-is-banned src.bowl)
     =^  access=?  ad
       (se-admit src.bowl tok)
     ~|  %se-c-join-access-denied
@@ -1860,6 +1735,7 @@
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
     ?>  (lte (met 3 (jam story)) size-limit)
     ?:  (se-is-joined src.bowl)  se-core
@@ -1891,6 +1767,7 @@
   ::
   ++  se-c-leave
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     ::  delete the seat of the leaving member, unless he is the host
     ::
     ?:  &((~(has by seats.group) src.bowl) !=(p.flag src.bowl))
@@ -1961,6 +1838,7 @@
     ::      subscriptions, and kick subscriptions from people that are
     ::      no longer allowed.
     ::
+    ?<  (se-is-banned src.bowl)
     =*  se-src-is-admin   (se-is-admin src.bowl)
     =*  se-src-is-member  (se-is-member src.bowl)
     ::
@@ -2085,15 +1963,7 @@
         (~(dif in ranks.banned) ranks.c-ban)
       (se-update [%entry %ban %del-ranks ranks.c-ban])
     ==
-  ::  +se-enforce-banned: enforce bans
-  ::
-  ::  when the banned list has been updated, we must make sure
-  ::  it comes into effect. in particular, we must:
-  ::  1. delete and kick banned group members
-  ::  2. deny outstanding ask requests
-  ::  3. deny pending requests
-  ::  4. prune the invited list and revoke invites
-  ::  5. delete any personal tokens issued for banned ships
+  ::  +se-enforce-banned: enforce bans in group seats and requests
   ::
   ++  se-enforce-banned
     ^+  se-core
@@ -2106,41 +1976,17 @@
       (~(put in ships) ship)
     =?  se-core  !=(~ del-ships)
       (se-c-seat del-ships [%del ~])
-    ::  deny ask requests
+    ::  deny banned ships
     ::
-    =/  ask-ships=(set ship)
+    =/  deny-ships=(set ship)
       %+  roll  ~(tap in ~(key by requests.ad))
       |=  [=ship ships=(set ship)]
       ?.  (se-is-banned ship)  ships
       (~(put in ships) ship)
-    =?  se-core  !=(~ ask-ships)
-      (se-c-entry-ask ask-ships %deny)
-    ::  prune pending requests
+    =?  se-core  !=(~ deny-ships)
+      (se-c-entry-ask deny-ships %deny)
+    ::TODO purge banned ships from the pending set
     ::
-    =/  pending-ships=(set ship)
-      %+  roll  ~(tap in ~(key by pending.ad))
-      |=  [=ship ships=(set ship)]
-      ?.  (se-is-banned ship)  ships
-      (~(put in ships) ship)
-    =?  se-core  !=(~ pending-ships)
-      (se-c-entry-pending pending-ships %del ~)
-    ::  prune the invited list and revoke invites
-    ::
-    =.  se-core
-      %+  roll  ~(tap by invited.ad)
-      |=  [[=ship *] =_se-core]
-      ?.  (se-is-banned:se-core ship)  se-core
-      (se-revoke-invite:se-core ship)
-    ::  delete any personal tokens issued for banned ships
-    ::
-    =.  se-core
-      %+  roll  ~(tap by tokens.ad)
-      |=  [[=token:g meta=token-meta:g] =_se-core]
-      ?.  ?&  ?=(%personal -.scheme.meta)
-              (se-is-banned:se-core ship.scheme.meta)
-          ==
-        se-core
-      +:(se-c-entry-token:se-core %del token)
     se-core
   ::  +se-c-entry-token: execute an entry token command
   ::
@@ -2160,54 +2006,24 @@
             (add now.bowl (fall expiry ~d365))
             label
         ==
-      =.  se-core
-        =/  =wire  (weld se-area /tokens/(scot %uv token)/expire)
-        (emit (set-timer wire expiry.token-meta))
       ::TODO implement referrals
       :: =?  referrals.ad  referral.c-token-add
       ::   (~(put ju referrals.ad) src.bowl)
-      ::
       =.  tokens.ad
         (~(put by tokens.ad) token token-meta)
       :-  `token
       (se-update [%entry %token %add token token-meta])
     ::
         %del
+      ::TODO if a token we had used for inviting someone to the group
+      ::     has been revoked, we should signal to the invitee.
+      ::
       ?>  (~(has by tokens.ad) token.c-token)
       =.  tokens.ad
         (~(del by tokens.ad) token.c-token)
-      =.  se-core  (se-revoke-token-invites token.c-token)
       :-  ~
       (se-update [%entry %token %del token.c-token])
     ==
-  ::  +se-expire-token: delete an expired token
-  ::
-  ++  se-expire-token
-    |=  =token:g
-    ^+  se-core
-    ?.  (~(has by tokens.ad) token)  se-core
-    +:(se-c-entry-token %del token)
-  ::  +se-revoke-token-invites: revoke any invites associated with a token
-  ::
-  ++  se-revoke-token-invites
-    |=  =token:g
-    ^+  se-core
-    %+  roll  ~(tap by invited.ad)
-    |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
-    ?~  tok  se-core
-    ?.  =(u.tok token)  se-core
-    =.  invited.admissions.group.se-core
-      (~(del by invited.admissions.group.se-core) ship)
-    (emit:se-core (revoke-invite:se-pass:se-core ship tok))
-  ::  +se-prune-tokens: delete any expired tokens and revoke invites
-  ::
-  ::
-  ++  se-prune-tokens
-    ^+  se-core
-    %+  roll  ~(tap by tokens.ad)
-    |=  [[=token:g meta=token-meta:g] =_se-core]
-    ?.  (gte now.bowl expiry.meta)  se-core
-    +:(se-c-entry-token:se-core %del token)
   ::  +se-c-entry-pending: add or delete ships from the pending set
   ::
   ::  a ship can be granted entry to the group by virtue of its record
@@ -2257,14 +2073,10 @@
       (se-update [%entry %pending %add ships roles.c-pending])
     ::
         %del
-      =.  se-core
+      =.  pending.ad
         %+  roll  ~(tap in ships)
-        |=  [=ship =_se-core]
-        =.  se-core
-          (se-revoke-invite:se-core ship)
-        =.  pending.admissions.group.se-core
-          (~(del by pending.admissions.group.se-core) ship)
-        se-core
+        |=  [=ship =_pending.ad]
+        (~(del by pending) ship)
       (se-update [%entry %pending %del ships])
     ==
   ::  +se-c-entry-ask: approve or deny a set of ask request
@@ -2437,13 +2249,17 @@
   ++  se-send-invites
     |=  ships=(set ship)
     ^+  se-core
+    ::TODO record each invited ship in .invited.ad?
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
-    =/  =wire  (weld se-area /invite/send/(scot %p ship))
-    =^  tok=(unit token:g)  se-core
+    =*  her  +<-
+    =*  acc  +<+
+    =,  se-core
+    =/  =wire  (weld se-area /invite/(scot %p her))
+    =^  tok=(unit token:g)  acc
       ?:  ?=(%public privacy.ad)
-        [~ se-core]
-      (se-c-entry-token:se-core [%add personal+ship ~ ~ |])
+        [~ acc]
+      (se-c-entry-token [%add personal+her ~ ~ |])
     =/  =invite:g
         :*  flag
             now.bowl
@@ -2451,49 +2267,11 @@
             tok
             ~  ::  note
             se-preview
-            &  ::  valid
         ==
-    (se-send-invite:se-core ship invite)
-  ::  +se-send-invite: invite a ship with token
-  ::
-  ::  if a ship had been previously invited, we first
-  ::  revoke the invite before sending a new one.
-  ::
-  ++  se-send-invite
-    |=  [=ship =invite:g]
-    ^+  se-core
-    =.  se-core  (se-revoke-invite ship)
-    =.  invited.ad
-      (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  se-core
-      (emit (send-old-invite:se-pass ship (v7:invite:v8:gc invite)))
-    (emit (send-invite:se-pass ship invite))
-  ::  +se-revoke-invite: revoke a previously issued invite for a .ship
-  ::
-  ::  if the ship has been issued a personal invite, the token is
-  ::  revoked.
-  ++  se-revoke-invite
-    |=  =ship
-    ^+  se-core
-    ::  delete from the ship from the invited list
-    ::
-    =+  invited=(~(get by invited.ad) ship)
-    =.  invited.ad  (~(del by invited.ad) ship)
-    ::  revoke invitation if found
-    ::
-    ?~  invited  se-core
-    =*  token  token.u.invited
-    =.  se-core  (emit (revoke-invite:se-pass ship token))
-    ::  delete personal token if found
-    ::
-    ?~  token  se-core
-    =+  token-meta=(~(get by tokens.ad) u.token)
-    =?  se-core  &(?=(^ token-meta) ?=(%personal -.scheme.u.token-meta))
-      +:(se-c-entry-token %del u.token)
-    se-core
+    =/  =a-foreigns:v7:gv
+      [%invite invite]
+    =/  cage  group-foreign-1+!>(a-foreigns)
+    (emit [%pass wire %agent [her dap.bowl] %poke cage])
   ::  +se-compat-send-invites: send invites in compatible manner
   ::
   ::  if a ship is in sync, we send the invitation as usual.
@@ -2755,6 +2533,7 @@
   ++  se-watch
     |=  =path
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     ?+    path  ~|(se-watch-bad+path !!)
         ::  receive updates since .after time
         ::
@@ -2804,8 +2583,6 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  the invited list is local
-      =.  invited.admissions.group  ~
       ::  clear .active-channels, as this is updated locally
       =.  active-channels.group  ~
       (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
@@ -2870,7 +2647,6 @@
   ++  se-watch-token
     |=  =ship
     ^+  se-core
-    :: prevent inviting banned
     =^  tok=(unit token:g)  se-core
       (se-c-entry-token %add [personal+ship ~ ~ &])
     =.  se-core  (give %fact ~ group-token+!>(tok))
@@ -2883,38 +2659,21 @@
     ?.  =(%public privacy.ad)  ::TMI
       :: for a private group we wait until the request is approved
       se-core
-    ::  for a public group we send back an null token
+    ::  for a public group we send back an invite
     ::
     =.  se-core  (give %fact ~ group-token+!>(~))
     (give %kick ~ ~)
-  ::  +se-agent: handle server signs
-  ::
   ++  se-agent
     |=  [=path =sign:agent:gall]
     ^+  se-core
     ?+    path  ~|(se-agent-bad-path+path !!)
-        [%invite %send ship=@ ~]
-      =+  ship=(slav %p i.t.t.path)
+        [%invite ship=@ ~]
+      =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>}" u.p.sign]
-      se-core
-    ::
-        [%invite %send ship=@ %old ~]
-      =+  ship=(slav %p i.t.t.path)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
-      se-core
-    ::
-        [%invite %revoke ship=@ ~]
-      =+  ship=(slav %p i.t.t.path)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to revoke invite for {<ship>}" u.p.sign]
+      =.  cor
+        %+  tell:l  %crit
+        [leaf+"failed to invite ship {<ship>}" u.p.sign]
       se-core
     ==
   --
@@ -2925,17 +2684,14 @@
   +*  ad  admissions.group
   ::
   ++  go-core  .
-  ++  emit  |=(=card go-core(cor cor(cards [card cards])))
   ::  +go-abed: init
   ::
   ++  go-abed
-    |=  =flag:g
+    |=  f=flag:g
     ^+  go-core
-    ~|  flag=flag
-    =+  gru=(~(get by groups) flag)
-    ?~  gru  ~|(%go-abed-group-not-found !!)
-    =/  [=net:g =group:g]  u.gru
-    go-core(flag flag, group group, net net)
+    ~|  flag=f
+    =/  [=net:g =group:g]  (~(got by groups) f)
+    go-core(flag f, group group, net net)
   ::  +go-abet: final
   ::
   ++  go-abet
@@ -3018,24 +2774,6 @@
   ::
   ++  go-pass
     |%
-    ++  send-invite
-      |=  [=ship =invite:v8:gv]
-      =/  =wire  (weld go-area /invite/send/(scot %p ship))
-      =/  =a-foreigns:v8:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
-    ++  revoke-invite
-      |=  [=ship tok=(unit token:g)]
-      =/  =wire  (weld go-area /invite/revoke/(scot %p ship))
-      =/  =a-foreigns:v8:gv
-        [%revoke flag tok]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  request-token
       |=  =ship
       ^-  card
@@ -3189,14 +2927,7 @@
       %+  roll  ~(tap in ~(key by channels.group))
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
-    =?  go-core  send-leave  (emit leave-group:go-pass)
-    ?:  go-our-host  go-core(gone &)
-    ::  revoke all invitations
-    ::
-    =.  go-core
-      %+  roll  ~(tap by invited.ad)
-      |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
-      (emit:go-core (revoke-invite:go-pass ship tok))
+    =?  cor  send-leave  (emit leave-group:go-pass)
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
   ::
@@ -3213,64 +2944,34 @@
   ++  go-a-invite
     |=  =a-invite:g
     ?:  =(ship.a-invite src.bowl)  go-core
-    ::TODO prevent inviting banned, here and in +se-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
       ::  we are going to request it
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  go-core  (emit (request-token:go-pass ship.a-invite))
+      =.  cor  (emit (request-token:go-pass ship.a-invite))
       go-core
-    =/  =invite:v8:gv
+    =/  =wire
+      %+  weld  go-area
+      /invite/(scot %p ship.a-invite)
+    =/  =invite:v7:gv
       :*  flag
           now.bowl
           our.bowl
           token.a-invite
           note.a-invite
           go-preview
-          &  :: valid
       ==
-    (go-send-invite ship.a-invite invite)
-  ::  +go-send-invite: invite a ship with token and record
-  ::
-  ::  if a ship had been previously invited, we first
-  ::  revoke the invite before sending a new one.
-  ::
-  ++  go-send-invite
-    |=  [=ship =invite:g]
-    ^+  go-core
-    =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
-      (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  go-core
-      (emit (send-old-invite:go-pass ship (v7:invite:v8:gc invite)))
-    (emit (send-invite:go-pass ship invite))
-  ::  +go-revoke-invite: revoke a previously issued invite
-  ::
-  ::  if the ship has been issued a personal invite, we
-  ::  ask the group host to revoke it.
-  ::
-  ++  go-revoke-invite
-    |=  =ship
-    ^+  go-core
-    =+  invited=(~(get by invited.ad) ship)
-    =.  invited.ad  (~(del by invited.ad) ship)
-    ::  revoke invitation if found
-    ::
-    ?~  invited  go-core
-    =*  token  token.u.invited
-    =.  go-core  (emit (revoke-invite:go-pass ship token))
-    ::  request to delete personal token if found
-    ::
-    ?~  token  go-core
-    =+  token-meta=(~(get by tokens.ad) u.token)
-    =?  go-core  &(?=(^ token-meta) ?=(%personal -.scheme.u.token-meta))
-      (go-send-command /command/entry %entry %token %del u.token)
+      (~(put by invited.ad) ship.a-invite [now.bowl token.a-invite])
+    =.  cor
+      =/  =cage
+        group-foreign-1+!>(`a-foreigns:v7:gv`[%invite invite])
+      %^  emit  %pass  wire
+      [%agent [ship.a-invite dap.bowl] %poke cage]
     go-core
+
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
@@ -3282,9 +2983,11 @@
   ++  go-send-command
     |=  [=wire =c-group:g]
     ^+  go-core
+    ?>  from-self
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
-    (emit %pass wire %agent [p.flag server] %poke cage)
+    =.  cor  (emit %pass wire %agent [p.flag server] %poke cage)
+    go-core
   ::  +go-watch: handle group watch request
   ::
   ++  go-watch
@@ -3324,15 +3027,15 @@
       (v2:channel-preview:v7:gc channel-preview)
     =/  path-0=path  ?:  watch  ~
       /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    =.  go-core  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
-    =?  go-core  watch  (emit %give %kick ~[path-0] ~)
+    =.  cor  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
+    =?  cor  watch  (emit %give %kick ~[path-0] ~)
     ::  v1
     ::
     =/  preview-7=channel-preview:v7:gv  channel-preview
     =/  path-1=path  ?:  watch  ~
       /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-    =.  go-core  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
-    =?  go-core  watch  (emit %give %kick ~[path-1] ~)
+    =.  cor  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
+    =?  cor  watch  (emit %give %kick ~[path-1] ~)
     go-core
   ++  go-agent
     |=  [=wire =sign:agent:gall]
@@ -3358,25 +3061,10 @@
     ::
         ::  invited a ship to the group
         ::
-        [%invite %send ship=@ ~]
+        [%invite ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
-      go-core
-    ::
-        ::  invited a ship to the group (backcompat)
-        ::
-        [%invite %send ship=@ %old ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
-      go-core
-        ::  revoked invitation
-        ::
-        [%invite %revoke ship=@ ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
+      =.  cor  (fail:l %poke-ack 'failed to invite a ship' u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for a ship
@@ -3425,7 +3113,8 @@
           /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
         =/  path-1=path
           /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-        (emit %give %kick ~[path-0 path-1] ~)
+        =.  cor  (emit %give %kick ~[path-0 path-1] ~)
+        go-core
       ::
           %watch-ack
         ?~  p.sign  go-core
@@ -3449,14 +3138,27 @@
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        =.  cor  (fail:log 'group watch failed' u.p.sign)
-        ::  set foreign error and leave the group if
-        ::  it has not been initialized to allow re-joining.
+        =.  cor  (fail:log %watch-ack 'group watch failed' u.p.sign)
+        ?.  (~(has by foreigns) flag)
+          ::TODO  this should not be possible, but if it happens
+          ::      we don't have an invitation, and thus no way to rejoin.
+          ::      the user will still see the group, but it is going
+          ::      to be stale. it would be best to somehow surface
+          ::      it at the client.
+          ::
+          =.  cor  (tell:log %crit 'misguided group watch-nack' ~)
+          go-core
+        ::  join in progress, set error and leave the group
+        ::  to allow re-joining.
         ::
+        ::  however, do not leave the group if it was already initialized
+        ::  to avoid data loss.
+        ::
+        ?:  &(?=(%sub -.net) init.net)
+          =.  cor  (tell:log %crit 'watch-nack for initialized group' ~)
+          go-core
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
-        ?.  &(?=(%sub -.net) init.net)
-          (go-leave &)
-        go-core
+        (go-leave &)
       go-core
     ::
         %fact
@@ -3584,12 +3286,12 @@
         %set
       =.  ships.banned  ships.u-ban
       =.  ranks.banned  ranks.u-ban
-      go-enforce-banned
+      go-core
     ::
         %add-ships
       =.  ships.banned
         (~(uni in ships.banned) ships.u-ban)
-      go-enforce-banned
+      go-core
     ::
         %del-ships
       =.  ships.banned
@@ -3599,29 +3301,13 @@
         %add-ranks
       =.  ranks.banned
         (~(uni in ranks.banned) ranks.u-ban)
-      go-enforce-banned
+      go-core
     ::
         %del-ranks
       =.  ranks.banned
         (~(dif in ranks.banned) ranks.u-ban)
       go-core
     ==
-  ::  +go-enforce-banned: enforce bans
-  ::
-  ::  when the banned list has been updated, we must make sure
-  ::  it comes into effect. in particular, we must prune
-  ::  our invited list.
-  ::
-  ++  go-enforce-banned
-    ^+  go-core
-    ::  prune the invited list and revoke invites
-    ::
-    =.  go-core
-      %+  roll  ~(tap by invited.ad)
-      |=  [[=ship *] =_go-core]
-      ?.  (go-is-banned:go-core ship)  go-core
-      (go-revoke-invite:go-core ship)
-    go-core
   ::  +go-u-entry-token: apply entry token update
   ::
   ++  go-u-entry-token
@@ -3637,22 +3323,14 @@
       go-core
     ::
         %del
+      ::TODO if a token we had used for inviting someone to the group
+      ::     has been revoked, we should signal to the invitee.
+      ::
       ?.  (~(has by tokens.ad) token.u-token)
         (go-restart-updates `'missing deleted token')
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
-      (go-revoke-token-invites token.u-token)
+      go-core
     ==
-  ::  +go-revoke-token-invites: revoke all invites associated with a token
-  ::
-  ++  go-revoke-token-invites
-    |=  =token:g
-    %+  roll  ~(tap by invited.ad)
-    |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
-    ?~  tok  go-core
-    ?.  =(u.tok token)  go-core
-    =.  invited.admissions.group.go-core
-      (~(del by invited.admissions.group.go-core) ship)
-    (emit:go-core (revoke-invite:go-pass:go-core ship tok))
   ::  +go-u-entry-pending: apply entry pending update
   ::
   ++  go-u-entry-pending
@@ -4302,9 +3980,7 @@
   ::
   ++  fi-give-update
     =/  gang-2
-      %-  gang:v2:foreign:v7:gc
-      (v7:foreign:v8:gc foreign)
-    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign ~)))
+      (gang:v2:foreign:v7:gc foreign)
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
@@ -4431,7 +4107,7 @@
       ::      updates.
       fi-core
     ?^  p
-      =.  cor  (fail:log 'group join failed' u.p)
+      =.  cor  (fail:log %watch-ack leaf+"failed to join the group {<flag>}" ~)
       =.  progress  `%error
       fi-core
     =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
@@ -4462,8 +4138,7 @@
       fi-core
     ::
         %watch
-      =?  cor  (~(has by groups) flag)
-        go-abet:(go-leave:(go-abed:go-core flag) &)
+      =.  cor  go-abet:(go-leave:(go-abed:go-core flag) &)
       =.  progress  ~
       fi-core
     ::
@@ -4482,13 +4157,8 @@
   ++  fi-invite
     |=  =invite:g
     ^+  fi-core
-    ::  guard against invite spoofing
+    :: guard against invite spoofing
     ?>  =(from.invite src.bowl)
-    ::  drop invites received from user-blocked ships
-    ::
-    ?:  =;  blocked  (~(has in blocked) src.bowl)
-        .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
-      fi-core
     =.  invites  [invite(time now.bowl) invites]
     ::  make sure we keep the latest preview
     ::
@@ -4499,18 +4169,6 @@
       preview
     =.  fi-core  (fi-activity %group-invite src.bowl)
     fi-core
-  ::  fi-revoke: revoke a group invitation
-  ::
-  ++  fi-revoke
-    |=  tok=(unit token:g)
-    ^+  fi-core
-    %_  fi-core  invites
-      %+  turn  invites
-      |=  =invite:g
-      ?.  =(tok token.invite)  invite
-      ?.  =(src.bowl from.invite)  invite
-      invite(valid |)
-    ==
   ::  +fi-decline: reject a group invitation
   ::
   ++  fi-decline
@@ -4552,6 +4210,13 @@
     ?>  from-self
     =.  cor  (emil (get-index:fi-pass ship))
     fi-core
+  ::TODO unfortunate inherintance from old groups:
+  ::     since updates are sent out in +fi-abet,
+  ::     any calls to fi-agent will send out the whole update,
+  ::     even though no foreign group might be change. we
+  ::     should rather manually generate updates at the points
+  ::     that foreigns is affected.
+  ::
   ::  +fi-agent: receive foreign sign
   ::
   ++  fi-agent
@@ -4607,7 +4272,7 @@
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          =.  cor  (fail:log 'group ask failed' u.p.sign)
+          =.  cor  (tell:log %warn 'group ask failed' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -4619,7 +4284,7 @@
       ::
           %watch-ack
         ?^  p.sign
-          =.  cor  (fail:log 'group ask watch' u.p.sign)
+          =.  cor  (fail:log %watch-ack 'group ask watch' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -4649,7 +4314,7 @@
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
-        =.  cor  (fail:log 'group preview watch' u.p.sign)
+        =.  cor  (fail:log 'watch-ack' 'group preview watch' u.p.sign)
         fi-core
       ::
           %fact
@@ -4685,7 +4350,7 @@
       =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
-      =.  cor  (fail:log 'foreign group command' u.p.sign)
+      =.  cor  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index
@@ -4707,7 +4372,7 @@
       =.  foreigns
         %+  roll  ~(tap by previews)
         |=  [[=flag:gv =preview:v7:gv] =_foreigns]
-        =+  far=(~(gut by foreigns) flag *foreign:v8:gv)
+        =+  far=(~(gut by foreigns) flag *foreign:v7:gv)
         (~(put by foreigns) flag far(preview `preview))
       ::  v1
       ::

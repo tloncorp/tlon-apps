@@ -128,6 +128,7 @@
 ++  play-sign
   |=  [=bowl =wire =gill:gall =sign:agent:gall]
   ^+  bowl
+  =.  src.bowl  p.gill
   ?:  ?=(%poke-ack -.sign)  bowl
   =;  =_wex.bowl  bowl(wex wex)
   ?.  (~(has by wex.bowl) [wire gill])
@@ -276,7 +277,7 @@
   =.  bowl.s  (play-sign bowl.s wire gill sign)
   %.  s  %-  do
   |=  s=state
-  (~(on-agent agent.s bowl.s(src p.gill)) wire sign)
+  (~(on-agent agent.s bowl.s) wire sign)
 ::
 ++  do-arvo
   |=  [=wire sign=sign-arvo]

@@ -18,11 +18,10 @@ import expo.modules.constants.ConstantsService
 import io.tlon.landscape.notifications.NotificationException
 import io.tlon.landscape.notifications.NotificationLogger
 import io.tlon.landscape.notifications.TalkNotificationManager
-import io.tlon.landscape.notifications.NotificationMessagesCache
 import io.tlon.landscape.notifications.buildMessagingTappable
+import io.tlon.landscape.notifications.getLogPayload
 import io.tlon.landscape.notifications.processNotificationBlocking
 import io.tlon.landscape.notifications.toBasicBundle
-import android.service.notification.StatusBarNotification
 import io.tlon.landscape.utils.UvParser
 
 private const val TALK_MESSAGING_SERVICE = "talk-messaging-service"
@@ -83,52 +82,14 @@ class TalkMessagingService : FirebaseMessagingService() {
                 if (data["action"] == "notify") {
                     try {
                         data["uid"]?.let { uid ->
-                            data["id"]?.let { id ->
-                                processNotificationBlocking(this, uid, id)
-                            }
+                            processNotificationBlocking(this, uid)
                         }
                     } catch (e: NotificationException) {
                         NotificationLogger.logError(e)
                         showFallbackNotification(this, e, remoteMessage)
                     }
                 }
-
-                if (data["action"] == "dismiss") {
-                    try {
-                        data["dismissSource"]?.let { source ->
-                            data["id"]?.let { id ->
-                                dismissNotifications(this, source) { notification ->
-                                    val notifId = notification.notification.extras.getString("id", "0")
-                                    notification.notification.group == source && id >= notifId
-                                }
-                            }
-                        }
-                    } catch (e: Error) {
-                        data["uid"]?.let { uid ->
-                            NotificationLogger.logError(NotificationException("Dismiss source missing", uid, null, e))
-                        }
-                    }
-                }
             }
-    }
-
-    private fun dismissNotifications(
-        context: Context,
-        source: String,
-        shouldDismiss: (StatusBarNotification) -> Boolean
-    ) {
-        val notificationManager = NotificationManagerCompat.from(context)
-        val activeNotifications: List<StatusBarNotification> =
-            notificationManager.activeNotifications
-
-        for (notification in activeNotifications) {
-            if (shouldDismiss(notification)) {
-                notificationManager.cancel(notification.id)
-                notification.notification.extras.getString("id")?.let { id ->
-                  NotificationMessagesCache.removeMessagesOlderThan(source, id)
-                }
-            }
-        }
     }
 
     private fun showFallbackNotification(

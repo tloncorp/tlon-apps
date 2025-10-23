@@ -67,7 +67,7 @@
 =/  importing=?  |
 ::
 %-  agent:dbug
-%^  verb  |  %warn
+%+  verb  |
 ^-  agent:gall
 ::
 =<
@@ -372,7 +372,6 @@
     [%v0 %unreads ~]        ?>(from-self cor)
     [%v1 %unreads ~]        ?>(from-self cor)
     [%v4 %unreads ~]        ?>(from-self cor)
-    [%v4 %reads ~]          ?>(from-self cor)
     [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
@@ -733,7 +732,7 @@
   ^+  cor
   %-  (log |.("{<[update dist]>}"))
   =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /reads]
+    =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v0-paths
       =/  hose=(list path)  ~[/ /v0 /v2]
       =/  only=(list path)  ~[path.dist [%v0 path.dist] [%v2 path.dist]]
@@ -746,7 +745,7 @@
       activity-update+!>((update:v2:convert-to update activity))
     (give %fact v0-paths v0-cage)
   =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /reads]
+    =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v1-paths
       =/  hose=(list path)  ~[/v1 /v3]
       =/  only=(list path)  ~[path.dist [%v1 path.dist] [%v3 path.dist]]
@@ -886,7 +885,9 @@
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
-  cor(activity (~(put by activity) source summary))
+  =.  activity
+    (~(put by activity) source summary)
+  (give-unreads source)
 ::
 ++  refresh
   |=  =source:a
@@ -937,9 +938,7 @@
       ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
-    =/  children
-      ?.  deep.action  ~
-      (get-children:src indices source)
+    =/  children  (get-children:src indices source)
     =?  cor  deep.action
       |-
       ?~  children  cor
@@ -952,7 +951,6 @@
     ?:  from-parent
       (refresh-summary source)
     =.  cor  (refresh source)
-    =.  cor  (give-reads source)
     =/  new-activity=activity:a
       %+  roll
         :(weld (get-parents:src source) ~[source] ?:(deep.action children ~))
@@ -962,12 +960,12 @@
     (give-update [%activity new-activity] [%hose ~])
   ==
 ::
-++  give-reads
+++  give-unreads
   |=  =source:a
   ^+  cor
   =/  summary  (~(got by activity) source)
   =/  =update:a  [%read source summary]
-  (give-update update [%only /reads])
+  (give-update update [%only /unreads])
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]

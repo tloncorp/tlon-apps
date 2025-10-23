@@ -91,18 +91,4 @@
   return [super application:application didFailToRegisterForRemoteNotificationsWithError:error];
 }
 
-// Handle remote notifications received while app is running
-- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
-{
-  // Handle notification dismiss actions using our Swift helper
-  [[NotificationDismissHandler shared] handleNotificationDismissWithUserInfo:userInfo];
-
-  // Call super to maintain existing functionality
-  if ([super respondsToSelector:@selector(application:didReceiveRemoteNotification:fetchCompletionHandler:)]) {
-    [super application:application didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
-  } else {
-    completionHandler(UIBackgroundFetchResultNoData);
-  }
-}
-
 @end

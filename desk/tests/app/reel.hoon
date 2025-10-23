@@ -20,7 +20,7 @@
   ^-  metadata:v0:reel
   :-  %groups-0
   %-  my
-  :~  ['inviter' '~sampel-palnet']
+  :~  ['inviterUserId' '~sampel-palnet']
       ['inviterNickname' 'Sampel Palnet']
       ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
       ['invitedGroupTitle' 'Sunrise']

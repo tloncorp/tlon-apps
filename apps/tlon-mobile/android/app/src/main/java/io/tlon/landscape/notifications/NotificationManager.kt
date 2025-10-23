@@ -27,66 +27,12 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-object NotificationMessagesCache {
-    private const val MAX_CACHED_CONVERSATION_LENGTH = 15
-    private val cache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>()
-
-    fun getCachedConversation(groupingKey: String): Array<NotificationCompat.MessagingStyle.Message> =
-        cache[groupingKey] ?: emptyArray()
-
-    fun appendMessage(
-        preview: ActivityEventPreview,
-        /** Bundle to merge into the `MessagingStyle.Message`'s `extras` */
-        extras: Bundle
-    ) {
-        if (preview.groupingKey == null) {
-            return
-        }
-        if (!extras.containsKey("id")) {
-            throw Error("Message extras must have an `id` field")
-        }
-
-        val person = preview.messagingMetadata?.sender?.person
-        val incomingMessage = MessagingStyle.Message(preview.body, Date().time, person)
-        incomingMessage.extras.putAll(extras)
-
-        val previousMessages = getCachedConversation(preview.groupingKey)
-        var nextCachedList = previousMessages.plus(incomingMessage)
-        nextCachedList = nextCachedList.takeLast(MAX_CACHED_CONVERSATION_LENGTH - 1).toTypedArray()
-        cache[preview.groupingKey] = nextCachedList
-    }
-
-    fun removeMessageWithId(id: String) {
-        cache.forEach { (groupingKey, messages) ->
-            val filteredMessages = messages.filter { message ->
-                message.extras.getString("id") != id
-            }.toTypedArray()
-
-            if (filteredMessages.size != messages.size) {
-                cache[groupingKey] = filteredMessages
-            }
-        }
-    }
-
-    fun removeMessagesOlderThan(grouping: String, id: String) {
-        val messages = cache[grouping]
-        if (messages == null) {
-            return
-        }
-
-        val filteredMessages = messages.filter { message ->
-            id < (message.extras.getString("id") ?: "")
-        }.toTypedArray()
-
-        if (filteredMessages.size != messages.size) {
-            cache[grouping] = filteredMessages
-        }
-    }
-}
+const val MAX_CACHED_CONVERSATION_LENGTH = 15
+val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
-suspend fun processNotification(context: Context, uid: String, id: String) {
+suspend fun processNotification(context: Context, uid: String) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
 
@@ -119,7 +65,6 @@ suspend fun processNotification(context: Context, uid: String, id: String) {
     try {
         // Proceed with rich notification
         val extras = Bundle()
-        extras.putString("id", id)
         extras.putString("activityEventJsonString", activityEventJSON)
 
         showRichNotification(context, uid, preview, extras)
@@ -174,18 +119,18 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
             .setGroupConversation(isGroupConversation)
             .setConversationTitle(if (isGroupConversation) title else null)
 
-        // If the message has a grouping key, attempt to construct a thread view on the notification
+        val incomingMessage = MessagingStyle.Message(text, Date().time, person)
         if (preview.groupingKey != null) {
-            // Add new message to cached conversation
-            NotificationMessagesCache.appendMessage(preview, extras)
-
-            // Attach cached conversation to notification thread, including current message
-            val previousMessages = NotificationMessagesCache.getCachedConversation(preview.groupingKey)
+            val previousMessages = notificationMessagesCache[preview.groupingKey] ?: emptyArray()
             for (message in previousMessages) {
                 notifStyle.addMessage(message)
             }
-        }
 
+            var nextCachedList = previousMessages.plus(incomingMessage)
+            nextCachedList = nextCachedList.takeLast(MAX_CACHED_CONVERSATION_LENGTH - 1).toTypedArray()
+            notificationMessagesCache[preview.groupingKey] = nextCachedList
+        }
+        notifStyle.addMessage(incomingMessage)
         builder.setStyle(notifStyle)
     }
 
@@ -243,8 +188,8 @@ fun NotificationCompat.Builder.buildMessagingTappable(context: Context, id: Int,
     return builder
 }
 
-fun processNotificationBlocking(context: Context, uid: String, id: String) =
-    runBlocking { processNotification(context, uid, id) }
+fun processNotificationBlocking(context: Context, uid: String) =
+    runBlocking { processNotification(context, uid) }
 
 open class NotificationException(
     message: String,

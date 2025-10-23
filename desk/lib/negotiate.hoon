@@ -732,7 +732,6 @@
       ?.  ?=(%x i.path)  [~ ~]
       ?+  t.t.t.path  [~ ~]
         [%version ~]  ``noun+!>(ours)
-        [%config ~]  ``noun+!>(know)
         [%state ~]  ``noun+!>(state)
       ::
           [%version @ @ @ ~]

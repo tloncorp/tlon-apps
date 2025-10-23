@@ -605,7 +605,7 @@ export const postWithEverything = makePost(exampleContacts.mark, [
     cite: {
       chan: {
         nest: tlonLocalIntros.id,
-        where: '/msg/' + referencedChatPost.id,
+        where: referencedChatPost.id,
       },
     },
   }),
@@ -617,7 +617,7 @@ export const postWithEverything = makePost(exampleContacts.mark, [
   verse.block({
     cite: {
       desk: {
-        flag: '~zod/diary',
+        flag: 'diary',
         where: '~zod',
       },
     },

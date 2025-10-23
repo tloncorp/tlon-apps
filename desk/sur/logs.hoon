@@ -26,10 +26,6 @@
 +$  log-item  [=time event=log-event]
 ::  $log-data: supplemental data
 +$  log-data  (list (pair @t json))
-::  +$a-log: logs action
-::
-::  %log: log an event with supplemental data
-::  %set-posthog: global for logging to posthog
 ::
 +$  a-log
   $%  [%log event=log-event data=log-data]

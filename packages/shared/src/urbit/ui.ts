@@ -2,7 +2,7 @@ import { Activity } from './activity';
 import { ChannelHeadsResponse, Channels, Posts } from './channel';
 import { ContactBookProfile } from './contact';
 import { ChatHeadsResponse, DMInit, DMInit2, Writs } from './dms';
-import { Foreigns, Gangs, GroupV7, Groups } from './groups';
+import { Gangs, Groups } from './groups';
 
 // v4
 export interface GroupsInit {
@@ -17,18 +17,6 @@ export interface GroupsInit {
 export interface GroupsInit4 {
   groups: Groups;
   gangs: Gangs;
-  channel: {
-    channels: Channels;
-    'hidden-posts': string[];
-  };
-  activity: Activity;
-  pins: string[];
-  chat: DMInit2;
-}
-
-export interface GroupsInit5 {
-  groups: Record<string, GroupV7>;
-  foreigns: Foreigns;
   channel: {
     channels: Channels;
     'hidden-posts': string[];

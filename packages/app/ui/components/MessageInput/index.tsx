@@ -422,7 +422,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         !json.content[0].content
       ) {
         clearDraft(draftType);
-        return; // Don't store empty draft after clearing!
       }
 
       messageInputLogger.log('Storing draft', json);

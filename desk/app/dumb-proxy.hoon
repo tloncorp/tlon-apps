@@ -58,7 +58,7 @@
 ::
 =+  log=l
 ::
-%^  verb  |  %warn
+%+  verb  |
 %-  agent:dbug
 ::
 ^-  agent:gall

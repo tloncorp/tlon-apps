@@ -91,7 +91,6 @@ enum NotificationError: Error, LocalizedError {
     case previewRenderFailed(uid: String, activityEvent: String, underlyingError: Error? = nil)
     case previewEmpty(uid: String, activityEvent: String, underlyingError: Error? = nil)
     case notificationDisplayFailed(uid: String, activityEvent: String? = nil, underlyingError: Error? = nil)
-    case notificationDismissalFailed(uid: String, activityEvent: String?, underlyingError: Error? = nil)
     case unknown(uid: String, message: String = "Unknown notification processing error", underlyingError: Error? = nil)
     
     var message: String {
@@ -101,7 +100,6 @@ enum NotificationError: Error, LocalizedError {
         case .previewRenderFailed: return "Preview render failed"
         case .previewEmpty: return "Preview is empty"
         case .notificationDisplayFailed: return "Notification display failed"
-        case .notificationDismissalFailed: return "Notification dismissal failed"
         case .unknown(_, let message, _): return message
         }
     }
@@ -113,7 +111,6 @@ enum NotificationError: Error, LocalizedError {
              .previewRenderFailed(let uid, _, _),
              .previewEmpty(let uid, _, _),
              .notificationDisplayFailed(let uid, _, _),
-             .notificationDismissalFailed(let uid, _, _),
              .unknown(let uid, _, _):
             return uid
         }
@@ -126,7 +123,6 @@ enum NotificationError: Error, LocalizedError {
              .previewRenderFailed(_, _, let underlyingError),
              .previewEmpty(_, _, let underlyingError),
              .notificationDisplayFailed(_, _, let underlyingError),
-             .notificationDismissalFailed(_, _, let underlyingError),
              .unknown(_, _, let underlyingError):
             return underlyingError?.localizedDescription
         }

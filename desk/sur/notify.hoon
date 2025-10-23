@@ -40,19 +40,8 @@
       groups=(set resource:resource)
   ==
 ::
-+$  action
-  $%  [%notify ~]
-      [%dismiss source=@t]
-  ==
++$  action  ?(%notify %dismiss)
 ::
 +$  update
-  [notify-count=@ud =uid =action]
-++  v0
-  |%
-  ::
-  +$  action  ?(%notify %dismiss)
-  +$  update
-    [=uid =action]
-  --
-++  v1  .
+  [=uid =action]
 --

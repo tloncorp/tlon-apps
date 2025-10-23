@@ -34,7 +34,6 @@ export type { FontStyle } from './components/TextV2';
 export { mobileTypeStyles, desktopTypeStyles } from './components/TextV2/Text';
 export { default as UrbitSigil } from './components/UrbitSigil';
 export * from './components/View';
-export * from './contexts/ActionSheetContext';
 export * from './contexts/globalSearch';
 export { useCopy } from './hooks/useCopy';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';

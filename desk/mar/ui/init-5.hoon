@@ -10,7 +10,7 @@
     ^-  ^json
     %-  pairs
     :~  groups/(groups-ui:v7:enjs:gj groups.init)
-        foreigns/(foreigns:v8:enjs:gj foreigns.init)
+        foreigns/(foreigns:v7:enjs:gj foreigns.init)
         activity/(activity:enjs:aj activity.init |)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init

@@ -105,14 +105,17 @@
   ==
 ::
 ++  fetch
-  |=  [met=?(%head %get) url=@t hes=header-list:http]
+  |=  [met=?(%head %get) url=@t uas=@t]
   ^-  card
-  =.  hes  [['accept' '*/*'] hes]
+  =/  =header-list:http
+    :~  ['user-agent' uas]
+        ['accept' '*/*']
+    ==
   =/  =request:http
-    [?-(met %head %'HEAD', %get %'GET') url hes ~]
+    [?-(met %head %'HEAD', %get %'GET') url header-list ~]
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
-  [%pass /fetch/(scot %t url)/(crip ~(rend co %blob hes))/[met] %arvo %i %request request *outbound-config:iris]
+  [%pass /fetch/(scot %t url)/(scot %t uas)/[met] %arvo %i %request request *outbound-config:iris]
 ::
 ++  extract-data
   |=  $:  url=@t
@@ -264,7 +267,7 @@
 ::
 =+  log=l
 ::
-%^  verb  |  %warn
+%+  verb  |
 %-  agent:dbug
 ::
 ^-  agent:gall
@@ -299,7 +302,7 @@
       %noun
     =+  url=!<(@t vase)
     ?>  ?=(^ (de-purl:html url))
-    [[(fetch %head url ['user-agent' user-agent]~) ~] this]
+    [[(fetch %head url user-agent) ~] this]
   ::
       %handle-http-request
     =+  !<(order:hutils vase)
@@ -342,22 +345,14 @@
         ::  no valid cache entry for this target, start a new fetch
         ::
         =.  await  (~(put ju await) u.target id)
-        =;  hes=(list (unit [@t @t]))
-          [[(fetch %head u.target (murn hes same)) ~] this]
-        =*  hl  header-list.request
-        :~  ::  pass on the user-agent string from the original request,
-            ::  in an attempt to evade some over-aggresive bot protections
-            ::
-            %-  some
-            :-  'user-agent'
-            (fall (get-header:http 'user-agent' hl) user-agent)
+        =/  uas=@t
+          ::  pass on the user-agent string from the original request,
+          ::  in an attempt to evade some over-aggresive bot protections
           ::
-            ::  include the original accept-language header in case the
-            ::  target supports translations
-            ::
-            =-  (bind - (lead 'accept-language'))
-            (get-header:http 'accept-language' hl)
-        ==
+          %+  fall
+            (get-header:http 'user-agent' header-list.request)
+          user-agent
+        [[(fetch %head u.target uas) ~] this]
       ::  we have a valid cache entry.
       ::  if it's a redirect where we know the next target,
       ::  and can make a request to that,
@@ -389,11 +384,7 @@
       [%fetch @ @ ?(%head %get) ~]
     =/  url=@t   (slav %t i.t.wire)
     =.  url.log  `url
-    =/  hes=header-list:http
-      ?~  coin=(rush i.t.t.wire nuck:so)  ~
-      ?:  ?=([%$ %t @] u.coin)  ['user-agent' q.p.u.coin]~  ::  legacy
-      ?.  ?=(%blob -.u.coin)    ~
-      (fall ((soft header-list:http) p.u.coin) ~)
+    =/  uas=@t   (fall (slaw %t i.t.t.wire) user-agent)
     =/  met      i.t.t.t.wire
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
@@ -428,7 +419,7 @@
                 (get-header:http 'content-type' headers.response-header.res)
               (cury end 3^9)
           ==
-        [[(fetch %get url hes) ~] this]
+        [[(fetch %get url uas) ~] this]
       ::  otherwise, this is the most we'll fetch, now process the data
       ::
       =/  [report=? =result]
@@ -469,7 +460,7 @@
         ==
       ::  no valid cache entry, start a new fetch
       ::
-      [[(fetch %head u.nex hes)]~ this]
+      [[(fetch %head u.nex uas)]~ this]
     ::TODO  detect redirect loops
     ::  we have a valid cache entry.
     ::  if it's a redirect where we know the next target,

@@ -40,11 +40,11 @@
     $:  posts=v-posts
         ::  .count: number of posts, for sequence nr generation
         count=@ud
-        order=(rev arranged-posts)
-        view=(rev view)
-        sort=(rev sort)
-        perm=(rev perm)
-        meta=(rev (unit @t))
+        order=(rev order=arranged-posts)
+        view=(rev =view)
+        sort=(rev =sort)
+        perm=(rev =perm)
+        meta=(rev meta=(unit @t))
     ==
   ::  $window: sparse set of time ranges
   ::

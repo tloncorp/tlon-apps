@@ -26,7 +26,7 @@
 =|  state-0
 =*  state  -
 %-  agent:dbug
-%^  verb  |  %warn
+%+  verb  |
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .

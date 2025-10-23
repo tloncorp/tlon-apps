@@ -1,5 +1,5 @@
 /-  *notify
-|_  upd=update:v0
+|_  upd=update
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  update:v0
+  ++  noun  update
   --
 --

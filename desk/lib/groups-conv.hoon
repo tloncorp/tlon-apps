@@ -5,28 +5,6 @@
 ::
 =,  gv
 |%
-++  v8
-  |%
-  ++  foreign
-    |%
-    ++  v7
-      |=  foreign:v8:gv
-      ^-  foreign:v7:gv
-      :*  (turn invites v7:invite)
-          lookup
-          preview
-          progress
-          token
-      ==
-    --
-  ++  invite
-    |%
-    ++  v7
-      |=  invite:v8:gv
-      ^-  invite:v7:gv
-      [flag time from token note preview]
-    --
-  --
 ++  v7
   |%
   ::
@@ -381,15 +359,6 @@
     --
   ++  foreign
     |%
-    ++  v8
-      |=  foreign:v7:gv
-      ^-  foreign:v8:gv
-      :*  (turn invites v8:invite:v7)
-          lookup
-          preview
-          progress
-          token
-      ==
     ++  v2
       |%
       ++  gang
@@ -452,17 +421,6 @@
     --
   ++  invite
     |%
-    ++  v8
-      |=  invite:v7:gv
-      ^-  invite:v8:gv
-      :*  flag
-          time
-          from
-          token
-          note
-          preview
-          &  ::  valid
-      ==
     ++  v2
       |=  invite:v7:gv
       ^-  invite:v2:gv
