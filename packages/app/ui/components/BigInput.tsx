@@ -312,7 +312,9 @@ export function BigInput({
             const s3Url = uploadState.remoteUri;
             (editorRef.current.editor as any).setImage(s3Url);
           } else if (isMountedRef.current) {
-            logger.error('Failed to upload image, upload state:', uploadState);
+            logger.trackError('notebook:inline-image:upload-failure', {
+              uploadState,
+            });
             showToast({
               message: 'Failed to upload image. Please try again.',
               duration: 3000,
@@ -320,7 +322,7 @@ export function BigInput({
           }
         } catch (error) {
           if (isMountedRef.current) {
-            logger.error('Error uploading inline image:', error);
+            logger.trackError('notebook:inline-image:upload-error', { error });
             showToast({
               message:
                 'Error uploading image. Please check your connection and try again.',
