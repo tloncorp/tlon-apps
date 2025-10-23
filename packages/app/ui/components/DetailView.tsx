@@ -128,7 +128,10 @@ export const DetailView = ({
                   onPressImage={onPressImage}
                 />
               ) : channelType == 'notebook' ? (
-                <NotebookPostDetailView post={post} />
+                <NotebookPostDetailView
+                  post={post}
+                  onPressImage={onPressImage}
+                />
               ) : null}
             </View>
           );
