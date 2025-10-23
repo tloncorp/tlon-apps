@@ -302,6 +302,7 @@
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   ?>  ?=(%10 -.old)
   =.  state  old
+  =.  cor  rectify-club-state
   rectify-activity
   ::
   +$  versioned-state
@@ -1696,7 +1697,9 @@
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
     =.  cu-core  cu-clean
-    ?.  gone
+    ::  whenever leaving a club, we remove it from our state, but the
+    ::  poke-ack comes later and tries to insert an empty club
+    ?.  |(gone =(club *club:c))
       =.  clubs  (~(put by clubs) id club)
       cor
     =.  clubs  (~(del by clubs) id)
@@ -1860,8 +1863,10 @@
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
-    =.  cor  (emil (gossip:cu-pass diff))
     =?  cu-core  !?=(%writ -.delta)  (cu-give-action [id diff])
+    =-
+      =.  cor  (emil (gossip:cu-pass diff))
+      -
     ?-    -.delta
     ::
         %meta
@@ -1992,7 +1997,7 @@
       =/  loyal  (~(has in team.crew.club) ship)
       ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
-          cu-core
+          cu-core(team.crew.club (~(del in team.crew.club) ship))
         cu-core(gone &)
       ?:  &(ok.delta loyal)  cu-core
       ?.  (~(has in hive.crew.club) ship)
@@ -2671,6 +2676,17 @@
       (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
     --
   --
+::  a bug caused us to hear one last gossip about a club we left. this
+::  leaves us in a bad state where we have a club, but we're not in it.
+::  to fix we simply remove any invalid clubs
+++  rectify-club-state
+  =;  clubs=(list [id:club:c club:c])
+    cor(clubs (malt clubs))
+  %+  murn
+    ~(tap by clubs)
+  |=  [=id:club:c =club:c]
+  ^-  (unit [id:club:c club:c])
+  ?:((~(has in team.crew.club) our.bowl) `[id club] ~)
 ++  rectify-activity
   ?.  .^(? %gu (scry-path %activity /$))
     cor
