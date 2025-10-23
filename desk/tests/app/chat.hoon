@@ -1,4 +1,4 @@
-/-  c=chat, cv=chat-ver, ch=channels, h=hark, contacts, activity
+/-  c=chat, cv=chat-ver, ch=channels, contacts, activity
 /+  *test-agent, cc=chat-conv
 /=  agent  /app/chat
 |%
@@ -44,7 +44,6 @@
     [whom (v4:response-writs:v6:cc response)]
   =/  old-response-5=[whom:v5:cv response:writs:v5:cv]
     [whom (v5:response-writs:v6:cc response)]
-  =/  =new-yarn:h  [& & rope content /dm/~zod ~]
   =/  activity-action=action:activity
     [%add %dm-post [[~zod now.bw] now.bw] [%ship ~zod] ~[verse] &]
   ;<  *  bind:m  (ex-scry-result /x/unreads !>(unreads))
@@ -65,8 +64,7 @@
   :: ~&  'marked read and notification cleared'
   ;<  caz=(list card)  bind:m  (do-poke %chat-remark-action !>([[%ship ~zod] %read ~]))
   %+  ex-cards  caz
-  :~  (ex-poke /hark [~dev %hark] %hark-action-1 !>([%saw-rope rope]))
-      (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
+  :~  (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
   ==
 ++  scries
   |=  =path
@@ -75,20 +73,9 @@
     [%gu @ %activity @ %$ ~]         `!>(&)
     [%gu @ %groups @ *]           `!>(&)
     [%gx @ %groups @ %volume *]   `!>(%soft)
-    [%gx @ %hark @ *]             `!>(carpet)
   ::
       [%gx @ %chat-test @ %~.~ %negotiate %status %~.~zod %chat-test *]
     `!>(%match)
-  ==
-++  rope  `rope:h`[~ ~ %groups /dm/~zod]
-++  content  `(list content:h)`~[[%ship ~zod] ': ' 'hi ~dev']
-++  carpet
-  =/  =yarn:h  [0v0 rope *time content /dm/~zod ~]
-  ^-  carpet:h
-  :*  [%desk %groups]
-      (malt ~[[0v0 yarn]])
-      (malt ~[[rope (silt ~[0v0])]])
-      0
   ==
 ++  dm-message
   |=  [author=ship =time =verse:ch]

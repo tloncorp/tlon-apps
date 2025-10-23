@@ -1,7 +1,12 @@
-import { IconButton, useCopy } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  Icon,
+  IconButton,
+  IconType,
+  Sheet,
+  useCopy,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   Children,
   ComponentProps,
@@ -136,6 +141,7 @@ const ActionSheetComponent = ({
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -193,7 +199,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -248,7 +256,9 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -278,6 +288,10 @@ const ActionSheetComponent = ({
   // through the portal. In cases where context is required, we attempt to break out of the
   // view hierarchy using an absolutely positioned wrapper View.
 
+  // On Android, force modal mode for nested sheets to ensure proper portaling
+  const shouldUseModal =
+    Platform.OS === 'android' && (isInsideSheet || props.modal);
+
   const sheetContent = (
     <Sheet
       open={open}
@@ -287,18 +301,20 @@ const ActionSheetComponent = ({
       animation="quick"
       handleDisableScroll
       {...props}
-      modal={Platform.OS === 'ios' ? false : props.modal}
+      modal={Platform.OS === 'ios' ? false : shouldUseModal}
     >
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </ActionSheetContext.Provider>
       </Sheet.Frame>
     </Sheet>
   );
@@ -307,7 +323,7 @@ const ActionSheetComponent = ({
     <>
       {trigger}
       {Platform.OS === 'android' ? (
-        props.modal ? (
+        shouldUseModal ? (
           sheetContent
         ) : (
           <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
