@@ -1,7 +1,10 @@
-import { IconButton, useCopy } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
+import {
+  Icon,
+  IconType,
+  Sheet,
+  useCopy,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   Children,
   ComponentProps,
@@ -215,6 +218,7 @@ const ActionSheetComponent = ({
           <Dialog.Content
             borderWidth={1}
             borderColor="$border"
+            borderRadius={'$2xl'}
             padding={0}
             width="50%"
             maxWidth={800}
@@ -227,24 +231,18 @@ const ActionSheetComponent = ({
           >
             {closeButton && (
               <XStack
-                width="100%"
-                justifyContent="flex-end"
-                paddingTop="$l"
-                paddingRight="$l"
+                justifyContent="center"
+                alignItems="center"
+                position="absolute"
+                width="$3xl"
+                height={44}
+                top="$l"
+                right="$m"
+                zIndex={1}
+                cursor="pointer"
               >
-                <Dialog.Close>
-                  <IconButton
-                    backgroundColor="$border"
-                    height={24}
-                    width={24}
-                    borderRadius="$m"
-                  >
-                    <Icon
-                      type="Close"
-                      customSize={[14, 14]}
-                      color="$secondaryText"
-                    />
-                  </IconButton>
+                <Dialog.Close asChild>
+                  <Icon type="Close" size="$m" tabIndex={-1} />
                 </Dialog.Close>
               </XStack>
             )}
@@ -415,9 +413,6 @@ const useContentStyle = () => {
 const ActionSheetContentBlock = styled(View, {
   name: 'ActionSheetContentBlock',
   padding: '$xl',
-  $gtSm: {
-    padding: '$l',
-  },
   variants: {
     form: {
       true: { paddingHorizontal: '$2xl' },
@@ -450,6 +445,9 @@ const ActionSheetActionGroupContext = createStyledContext<{
 const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
   name: 'ActionSheetActionGroupFrame',
   context: ActionSheetActionGroupContext,
+  $gtSm: {
+    paddingHorizontal: '$m',
+  },
   variants: {
     accent: {
       positive: {
@@ -536,10 +534,6 @@ const ActionSheetActionFrame = styled(ListItem, {
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
   alignItems: 'center',
-  $gtSm: {
-    paddingHorizontal: '$l',
-    paddingVertical: '$m',
-  },
   pressStyle: {
     backgroundColor: '$secondaryBackground',
   },
@@ -607,21 +601,17 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   } as const,
 });
 
-const ActionSheetMainContent = styled(YStack, {
+const ActionSheetActionContent = styled(YStack, {
   name: 'ActionSheetMainContent',
   flex: 1,
   justifyContent: 'space-evenly',
   height: '$4xl',
 });
 
-function ActionSheetAction({
-  action,
-  testID,
-}: {
+const ActionSheetAction = ActionSheetActionFrame.styleable<{
   action: Action;
   testID?: string;
-}) {
-  const isWindowNarrow = useIsWindowNarrow();
+}>(({ action, testID, ...props }, ref) => {
   const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
 
   const handlePress = useCallback(() => {
@@ -644,12 +634,13 @@ function ActionSheetAction({
             : action.accent ?? accent
       }
       onPress={handlePress}
-      height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
+      ref={ref}
+      {...props}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetMainContent>
+      <ActionSheetActionContent>
         <ActionSheet.ActionTitle accent={action.accent ?? accent}>
           {action.title}
         </ActionSheet.ActionTitle>
@@ -658,7 +649,7 @@ function ActionSheetAction({
             {action.description}
           </ActionSheet.ActionDescription>
         )}
-      </ActionSheetMainContent>
+      </ActionSheetActionContent>
       {action.endIcon && (
         <ListItem.EndContent>
           {resolveIcon(action.endIcon, action.accent ?? accent)}
@@ -666,7 +657,7 @@ function ActionSheetAction({
       )}
     </ActionSheetActionFrame>
   );
-}
+});
 
 function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
   if (typeof icon === 'string') {
@@ -709,10 +700,13 @@ export const SimpleActionSheetHeader = ({
   subtitle?: string;
   icon?: ReactElement;
 }) => {
+  const isWindowNarrow = useIsWindowNarrow();
   return (
     <ActionSheet.Header>
       {icon ? icon : null}
-      <ListItem.MainContent>
+      <ListItem.MainContent
+        alignItems={isWindowNarrow ? 'flex-start' : 'center'}
+      >
         <ListItem.Title>{title}</ListItem.Title>
         {subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null}
       </ListItem.MainContent>
@@ -809,7 +803,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   FormBlock: ActionSheetFormBlock,
   ActionGroup: ActionSheetActionGroup,
   Action: ActionSheetAction,
-  MainContent: ActionSheetMainContent,
+  ActionContent: ActionSheetActionContent,
   ActionFrame: ActionSheetActionFrame,
   ActionIcon: ActionSheetActionIcon,
   ActionGroupContent: ActionSheetActionGroupContent,

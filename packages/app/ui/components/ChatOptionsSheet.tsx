@@ -839,12 +839,12 @@ export function ChatOptionsSheetContent({
       {isWindowNarrow && (
         <ActionSheet.Header>
           {icon}
-          <ActionSheet.MainContent>
+          <ActionSheet.ActionContent>
             <ListItem.Title>{title}</ListItem.Title>
             <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
               {subtitle}
             </ListItem.Subtitle>
-          </ActionSheet.MainContent>
+          </ActionSheet.ActionContent>
         </ActionSheet.Header>
       )}
       <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>
