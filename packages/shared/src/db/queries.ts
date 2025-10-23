@@ -94,6 +94,7 @@ import {
   Channel,
   ChannelUnread,
   Chat,
+  ChatMember,
   ClientMeta,
   Contact,
   ContactAttestation,
@@ -931,6 +932,32 @@ export const getChats = createReadQuery(
   ]
 );
 
+export const insertMembers = createWriteQuery(
+  'insertMembers',
+  async (params: { members: ChatMember[] }, ctx: QueryCtx) => {
+    const batchSize = 200;
+    for (let i = 0; i < params.members.length; i += batchSize) {
+      const batch = params.members.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($chatMembers)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$chatMembers.chatId, $chatMembers.contactId],
+            set: conflictUpdateSetAll($chatMembers),
+          });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorDatabaseQuery, {
+          context: 'failed to insert chat members batch',
+          count: batch.length,
+        });
+      }
+    }
+  },
+  ['groups', 'chatMembers']
+);
+
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (
@@ -1100,13 +1127,7 @@ export const insertGroups = createWriteQuery(
         }
         if (group.members?.length) {
           logger.log('insertGroups: inserting members', group.members);
-          await txCtx.db
-            .insert($chatMembers)
-            .values(group.members)
-            .onConflictDoUpdate({
-              target: [$chatMembers.chatId, $chatMembers.contactId],
-              set: conflictUpdateSetAll($chatMembers),
-            });
+          await insertMembers({ members: group.members }, txCtx);
 
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
@@ -2144,10 +2165,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       await ctx.db
         .delete($chatMembers)
         .where(eq($chatMembers.chatId, channel.id));
-      await ctx.db
-        .insert($chatMembers)
-        .values(channel.members)
-        .onConflictDoNothing();
+      await insertMembers({ members: channel.members }, ctx);
     }
   }
   await setLastPosts(null, ctx);

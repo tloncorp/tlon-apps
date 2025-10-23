@@ -550,9 +550,6 @@ export function toPostData({
   const blocks = attachments
     .filter((attachment) => attachment.type !== 'text')
     .flatMap((attachment): Block[] => {
-      if (channelType === 'notebook') {
-        return [];
-      }
       if (attachment.type === 'reference') {
         const block = createReferenceBlock(attachment);
         return block ? [block] : [];

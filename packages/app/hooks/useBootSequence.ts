@@ -164,6 +164,11 @@ export function useBootSequence() {
     //
     // SCAFFOLDING WAYFINDING: make sure the starter group is created
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      if (lureMeta?.inviteType !== 'user') {
+        logger.trackEvent('Detected group invite, skipping scaffold');
+        return NodeBootPhase.CHECKING_FOR_INVITE;
+      }
+
       try {
         await store.scaffoldPersonalGroup();
 

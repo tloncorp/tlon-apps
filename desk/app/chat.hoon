@@ -6,7 +6,7 @@
     em=emojimart
 /+  pac=dm
 /+  cc=chat-conv, chc=channel-conv
-/+  utils=channel-utils
+/+  utils=channel-utils, kol
 /+  volume
 /+  wood-lib=wood
 ::  performance, keep warm
@@ -60,7 +60,7 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
-            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)
+            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)  ::TODO  make strict
             ::  our previous mark version was actually incorrect so to
             ::  correct, we need to turn off checking here
             ::  TODO: flip back on next upgrade
@@ -202,7 +202,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %10
+    $:  %11
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -210,6 +210,7 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
+        last-updated=(list [=whom:c =time])  ::  newest first, one-per-whom
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
     ==
@@ -276,6 +277,7 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
+    ol    (kol gte)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -300,13 +302,15 @@
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
-  ?>  ?=(%10 -.old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
   =.  state  old
   =.  cor  rectify-club-state
   rectify-activity
   ::
   +$  versioned-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -428,7 +432,35 @@
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
     ==
-  +$  state-10  current-state
+  +$  state-10
+    $:  %10
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        pins=(list whom:c)
+        sends=(map whom:c (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
+        old-pins=(list whom:v2:cv)
+    ==
+  +$  state-11  current-state
+  ::
+  ++  state-10-to-11
+    |=  state-10
+    ^-  state-11
+    :*  %11
+        dms
+        clubs
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        last-updated=~
+        old-chats
+        old-pins
+    ==
   ::
   ++  state-9-to-10
     |=  state-9
@@ -1105,21 +1137,32 @@
   ::
       [%x %v3 %changes since=@ rest=*]
     =+  since=(slav %da i.t.t.t.path)
-    =/  changes=(map whom:c writs:c)
-      %-  ~(gas by *(map whom:c writs:c))
+    =/  changes=(map whom:c (unit writs:c))
+      %-  ~(gas by *(map whom:c (unit writs:c)))
       %+  weld
         %+  murn  ~(tap by dms)
         |=  [who=ship =dm:c]
-        ^-  (unit [whom:c writs:c])
+        ^-  (unit [whom:c (unit writs:c)])
         %+  bind
           (~(changes pac pact.dm) since)
-        (lead [%ship who])
+        (cork some (lead [%ship who]))
       %+  murn  ~(tap by clubs)
       |=  [=id:club:c =club:c]
-      ^-  (unit [whom:c writs:c])
+      ^-  (unit [whom:c (unit writs:c)])
       %+  bind
         (~(changes pac pact.club) since)
-      (lead [%club id])
+      (cork some (lead [%club id]))
+    =.  changes
+      %+  roll  (~(top ol last-updated) since)
+      |=  [[=whom:c @da] =_changes]
+      ?.  ?-  -.whom
+            %ship  (~(has by dms) p.whom)
+            %club  (~(has by clubs) p.whom)
+          ==
+        (~(put by changes) whom ~)  ::  include deletions
+      ?.  (~(has by changes) whom)
+        (~(put by changes) whom `~)  ::  include additions
+      changes
     ?+  t.t.t.t.path  [~ ~]
       ~  ``chat-changed-writs+!>(changes)
     ::
@@ -1128,8 +1171,9 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* w=writs:c] sum=@ud]
-      (add sum (wyt:on:writs:c w))
+      |=  [[* w=(unit writs:c)] sum=@ud]
+      ?~  w  sum
+      (add sum (wyt:on:writs:c u.w))
     ==
   ::
     ::  /init-posts:
@@ -1145,7 +1189,7 @@
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %chat-changed-writs
-    !>  %-  ~(gas by *(map whom:c writs:c))
+    !>  %-  ~(gas by *(map whom:c (unit writs:c)))
     =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
     %+  turn
       %+  scag  channels
@@ -1156,13 +1200,14 @@
         ?-(-.a %ship recency.remark.dm.a, %club recency.remark.club.a)
       ?-(-.b %ship recency.remark.dm.b, %club recency.remark.club.b)
     |=  arg=type
-    ^-  [whom:c writs:c]
+    ^-  [whom:c (unit writs:c)]
     =/  [=whom:c =pact:c]
       ?-  -.arg
         %ship  [[%ship who.arg] pact.dm.arg]
         %club  [[%club id.arg] pact.club.arg]
       ==
     :-  whom
+    %-  some
     %+  gas:on:writs:c  ~
     =/  around=(unit time)
       ?~  act=(~(get by activity) %dm whom)  ~
@@ -1695,6 +1740,8 @@
       log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
+    =?  last-updated  |(gone !(~(has by clubs) id))
+      (~(put ol last-updated) [%club id] now.bowl)
     ::  shouldn't need cleaning, but just in case
     =.  cu-core  cu-clean
     ::  whenever leaving a club, we remove it from our state, but the
@@ -1856,6 +1903,7 @@
   ::
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
+    =.  last-updated  (~(put ol last-updated) [%club id] now.bowl)
     ::  generate a uid if we're hearing from a pre-upgrade ship or if we're sending
     =^  uid  cu-core
       ?:  |(from-self (lte uid club-eq))  cu-uid
@@ -2220,6 +2268,8 @@
       log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
+    =?  last-updated  |(gone !(~(has by dms) ship))
+      (~(put ol last-updated) [%ship ship] now.bowl)
     ?.  gone
       =.  dms  (~(put by dms) ship dm)
       cor
@@ -2329,6 +2379,7 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
     =?  net.dm  &(?=(%inviting net.dm) !from-self)  %done
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  contact-action+!>(`action-0:contacts-0`[%heed ~[ship]])
