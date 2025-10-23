@@ -121,6 +121,7 @@ export async function createDefaultGroup(
 interface CreateGroupFromTemplateParams {
   templateId: GroupTemplateId;
   memberIds?: string[];
+  title?: string;
 }
 
 export async function createGroupFromTemplate(
@@ -134,7 +135,7 @@ export async function createGroupFromTemplate(
 
   const newGroup: db.Group = {
     id: groupId,
-    title: template.title,
+    title: params.title ?? template.title,
     iconImage: groupIconUrl,
     currentUserIsMember: true,
     isPersonalGroup: false,
