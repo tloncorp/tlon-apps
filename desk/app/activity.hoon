@@ -319,6 +319,23 @@
       migrate
     ==
   ::
+      %json
+    =+  !<(=json vase)
+    =/  action=term  ((se:dejs:format %tas) json)
+    ?.  =(%clear-invites action)  ~|(bad-poke+json !!)
+    %+  roll
+      ~(tap by indices)
+    |=  [[=source:a =index:a] co=_cor]
+    ?.  ?=(%group -.source)  co
+    =;  should-clear=?
+      ?.  should-clear  co
+      (read:co source [%all ~ |] |)
+    ^-  ?
+    %+  lien
+      (tap:on-stream:a stream.index)
+    |=  [=time =event:a]
+    =(%group-invite -<.event)
+  ::
       %activity-action
     =+  !<(=action:a vase)
     ?-  -.action

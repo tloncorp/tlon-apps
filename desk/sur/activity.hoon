@@ -4,6 +4,7 @@
 +|  %collections
 ::  $stream: the activity stream comprised of events from various agents
 +$  stream  ((mop time event) lte)
+++  on-stream  ((on time event) lte)
 ::  $indices: the stream and its read data split into various indices
 +$  indices
   $~  [[[%base ~] *index] ~ ~]
