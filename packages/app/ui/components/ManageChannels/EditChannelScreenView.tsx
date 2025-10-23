@@ -153,7 +153,11 @@ export function EditChannelScreenView({
               </>
             )}
             <YStack gap="$2xl">
-              <Button hero onPress={handleSubmit(handleSave)} testID="ChannelSettingsSaveButton">
+              <Button
+                hero
+                onPress={handleSubmit(handleSave)}
+                testID="ChannelSettingsSaveButton"
+              >
                 <Button.Text>Save</Button.Text>
               </Button>
               <Button heroDestructive onPress={handlePressDelete}>
@@ -662,7 +666,7 @@ function SelectableRoleListItem({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPressIn={onPress}>
       <ListItem
         {...(isSelected
           ? { backgroundColor: '$secondaryBackground' }
