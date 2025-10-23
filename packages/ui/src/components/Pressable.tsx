@@ -5,9 +5,13 @@ import { Stack, StackProps, isWeb } from 'tamagui';
 
 type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
-type PressableProps = Omit<StackProps, 'onPress' | 'onLongPress'> & {
+type PressableProps = Omit<
+  StackProps,
+  'onPress' | 'onLongPress' | 'onPressIn'
+> & {
   onLongPress?: PressHandler;
   onPress?: PressHandler;
+  onPressIn?: PressHandler;
   to?: To;
   action?: NavigationAction;
   children: React.ReactNode;
@@ -16,6 +20,7 @@ type PressableProps = Omit<StackProps, 'onPress' | 'onLongPress'> & {
 const StackComponent = ({
   onLongPress,
   onPress,
+  onPressIn,
   children,
   ...stackProps
 }: PressableProps) => {
@@ -27,6 +32,8 @@ const StackComponent = ({
       {...stackProps}
       // eslint-disable-next-line no-restricted-syntax
       onPress={onPress}
+      // eslint-disable-next-line no-restricted-syntax
+      onPressIn={onPressIn}
       // eslint-disable-next-line no-restricted-syntax
       onLongPress={longPressHandler}
     >
@@ -43,6 +50,7 @@ const StackComponent = ({
  * More info at https://reactnavigation.org/docs/use-link-props
  *
  * @param props.onPress Function to call when the press is released.
+ * @param props.onPressIn Function to call when the press starts.
  * @param props.onLongPress Function to call when the press is held. Disabled on web.
  * @param props.to Absolute path to screen (e.g. `/feeds/hot`).
  * @param props.action Optional action to use for in-page navigation. By default, the path is parsed to an action based on linking config.
@@ -50,6 +58,7 @@ const StackComponent = ({
 
 export default function Pressable({
   onPress,
+  onPressIn,
   onLongPress,
   to,
   action,
@@ -63,7 +72,7 @@ export default function Pressable({
   });
 
   const hasInteractionHandler =
-    (action == null ? onPress : onPressLink) || onLongPress;
+    (action == null ? onPress : onPressLink) || onPressIn || onLongPress;
 
   if (action && !to) {
     throw new Error(
@@ -78,6 +87,7 @@ export default function Pressable({
         {...linkProps}
         group
         onPress={onPressLink ?? onPress}
+        onPressIn={onPressIn}
         onLongPress={longPressHandler}
         cursor={stackProps.cursor || 'pointer'}
         // Pressable always blocks touches from bubbling to ancestors, even if
@@ -95,6 +105,7 @@ export default function Pressable({
     <StackComponent
       {...stackProps}
       onPress={onPress}
+      onPressIn={onPressIn}
       onLongPress={longPressHandler}
       disabled={!hasInteractionHandler}
       cursor={stackProps.cursor || 'pointer'}

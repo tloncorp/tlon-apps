@@ -643,7 +643,7 @@ function ActionSheetAction({
             ? 'disabled'
             : action.accent ?? accent
       }
-      onPress={handlePress}
+      onPressIn={handlePress}
       height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
     >
