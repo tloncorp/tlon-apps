@@ -348,9 +348,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupPrivacy"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               gap="$xl"
@@ -375,9 +375,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupRoles"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               gap="$xl"
@@ -402,9 +402,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupChannels"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               alignItems="center"
@@ -429,9 +429,9 @@ function GroupSettings({ group }: { group: db.Group }) {
           alignItems="center"
           testID="GroupNotifications"
         >
-          <ActionSheet.MainContent>
+          <ActionSheet.ActionContent>
             <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
-          </ActionSheet.MainContent>
+          </ActionSheet.ActionContent>
           <ListItem.EndContent
             flexDirection="row"
             gap="$xl"

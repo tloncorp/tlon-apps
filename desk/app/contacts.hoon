@@ -1,6 +1,6 @@
 /-  activity
 /+  default-agent, dbug, verb, neg=negotiate
-/+  *contacts
+/+  *contacts, kol
 ::
 ::  performance, keep warm
 /+  j0=contacts-json-0, j1=contacts-json-1, mark-warmer
@@ -10,18 +10,19 @@
 ::
 ::    .con: a contact
 ::    .rof: our profile
-::    .rol: [legacy] our full rolodex
+::    .rol: our full rolodex (legacy)
 ::    .far: foreign peer
 ::    .for: foreign profile
 ::    .sag: foreign subscription state
 ::
 +|  %types
 +$  card  card:agent:gall
-+$  state-3
-  $:  %3
++$  state-4
+  $:  %4
       rof=profile
       =book
       =peers
+      last-updated=(list [=kip =time])
       retry=(map ship @da)  ::  retry sub at time
   ==
 --
@@ -32,7 +33,7 @@
 %-  agent:dbug
 %^  verb  |  %warn
 ^-  agent:gall
-=|  state-3
+=|  state-4
 =*  state  -
 =<  |_  =bowl:gall
     +*  this  .
@@ -90,6 +91,7 @@
 ++  raw
   =|  out=(list card)
   |_  =bowl:gall
+  +*  ol  (kol gte)
   ::
   +|  %generic
   ::
@@ -347,6 +349,7 @@
           si-cor
         ?:  &(?=(^ for) (lte wen.u wen.for))
           si-cor
+        =.  last-updated  (~(put ol last-updated) who now.bowl)
         %_  si-cor
           for  +.u
           cor  =.  cor
@@ -492,13 +495,18 @@
         =^  caz-0=(list card)  old
           ?.  ?=(%0 -.old)  [~ old]
           (state-0-to-1 old)
+        =.  cor  (emit caz-0)
         =?  old  ?=(%1 -.old)  (state-1-to-2 old)
         =?  cor  ?=(%2 -.old)
+          ::  fix incorrectly bunted timestamp for an empty profile 
+          ::  migrated from v0.
+          ::
           ?:  &(=(*@da wen.rof) ?=(~ con.rof))
             (p-commit-self:pub ~)
           cor
         =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-        ?>  ?=(%3 -.old)
+        =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+        ?>  ?=(%4 -.old)
         =.  state  old
         inflate-io
     ::
@@ -517,16 +525,25 @@
           =^peers
           retry=(map ship @da)  ::  retry sub at time
       ==
+    +$  state-3
+      $:  %3
+          rof=profile
+          =book
+          =peers
+          last-updated=(list [=kip =time])
+          retry=(map ship @da)  ::  retry sub at time
+      ==
     +$  versioned-state
-      $%  state-3
+      $%  state-4
+          state-3
           state-2
           state-1
           state-0
       ==
     ::
-    ++  state-2-to-3
-      |=  state-2
-      ^-  state-3
+    ++  state-3-4
+      |=  state-3
+      ^-  state-4
       =*  state  +<
       ::  sanitize our nickname
       ::
@@ -552,7 +569,7 @@
           text+u.nick
         =.  peers.state
           (~(put by peers.state) her far)
-        ::  update the entry in the contact book, if any
+        ::  update the corresponding entry in the contact book, if any.
         ::
         ?~  page=(~(get by book) her)  state
         =.  con.u.page
@@ -561,12 +578,17 @@
         =.  book.state
           (~(put by book.state) her u.page)
         state
-      state(- %3)
+      state(- %4)
+    ::
+    ++  state-2-to-3
+      |=  =state-2
+      ^-  state-3
+      [rof book peers ~ retry]:state-2
     ::
     ++  state-1-to-2
-      |=  state-1
+      |=  =state-1
       ^-  state-2
-      +<(- %2)
+      state-1(- %2)
     ::
     ++  state-0-to-1
       |=  state-0
@@ -653,21 +675,27 @@
             (fall set ~)
           [%self (to-self-edit p.act-0 groups)]
         ==
-      ?-  -.act
-        %anon  p-anon:pub
-        %self  (p-self:pub p.act)
-        ::  if we add a page for someone who is not a peer,
-        ::  we meet them first
-        ::
-        %page  =?  cor  &(?=(ship p.act) !(~(has by peers) p.act))
-                 si-abet:si-meet:(sub p.act)
-               (p-page:pub p.act q.act)
-        %edit  (p-edit:pub p.act q.act)
-        %wipe  (p-wipe:pub p.act)
-        %meet  (s-many:sub p.act |=(s=_s-impl:sub si-meet:s))
-        %drop  (s-many:sub p.act |=(s=_s-impl:sub si-drop:s))
-        %snub  (s-many:sub p.act |=(s=_s-impl:sub si-snub:s))
-      ==
+      =^  kis=(list kip)  cor
+        ?-  -.act
+          %anon  [[our.bowl]~ p-anon:pub]
+          %self  [[our.bowl]~ (p-self:pub p.act)]
+          ::  if we add a page for someone who is not a peer,
+          ::  we meet them first
+          ::
+          %page  :-  [p.act]~
+                 =?  cor  &(?=(ship p.act) !(~(has by peers) p.act))
+                   si-abet:si-meet:(sub p.act)
+                 (p-page:pub p.act q.act)
+          %edit  [[p.act]~ (p-edit:pub p.act q.act)]
+          %wipe  [p.act (p-wipe:pub p.act)]
+          %meet  [~ (s-many:sub p.act |=(s=_s-impl:sub si-meet:s))]
+          %drop  [~ (s-many:sub p.act |=(s=_s-impl:sub si-drop:s))]
+          %snub  [~ (s-many:sub p.act |=(s=_s-impl:sub si-snub:s))]
+        ==
+      =-  cor(last-updated -)
+      %+  roll  kis
+      |=  [=kip =_last-updated]
+      (~(put ol last-updated) kip now.bowl)
     ==
   ::  +peek: scry
   ::
@@ -778,6 +806,21 @@
       ?~  for                  out
       ?:  (lte wen.for since)  out
       (~(put by out) who for)
+      ::
+        [%x %v2 %changes since=@ ~]
+      =+  since=(slav %da since.pat)
+      :^  ~  ~
+        %contact-changed-pages
+      !>  %-  ~(gas by *(map kip [(unit contact) (unit contact)]))
+      %+  turn  (~(top ol last-updated) since)
+      |=  [=kip @da]
+      ^-  [_kip con=(unit contact) mod=(unit contact)]
+      :-  kip
+      ?:  =(our.bowl kip)  [`con.rof ~]
+      :_  (bind (~(get by book) kip) tail)
+      ?^  kip  ~
+      =+  per=(~(get by peers) kip)
+      ?:(?=([~ ^ *] per) `con.for.u.per ~)
       ::
         [%u %v1 %contact her=@p ~]
       ?~  who=(slaw %p her.pat)
