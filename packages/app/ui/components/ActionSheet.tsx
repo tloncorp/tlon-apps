@@ -557,9 +557,9 @@ const ActionSheetActionFrame = styled(ListItem, {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
   },
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
-  },
+  // pressStyle: {
+  //   backgroundColor: '$secondaryBackground',
+  // },
   cursor: 'pointer',
   variants: {
     type: {
@@ -652,19 +652,22 @@ function ActionSheetAction({
   }
 
   return (
-    <ActionSheetActionFrame
-      type={
-        action.selected
-          ? 'selected'
-          : action.disabled
-            ? 'disabled'
-            : action.accent ?? accent
-      }
-      // onPress={handlePress}
-      height={isWindowNarrow ? undefined : '$4xl'}
-      testID={testID}
+    <Pressable
+      onPress={handlePress}
+      pressStyle={{ backgroundColor: '$secondaryBackground' }}
     >
-      <Pressable onPress={handlePress}>
+      <ActionSheetActionFrame
+        type={
+          action.selected
+            ? 'selected'
+            : action.disabled
+              ? 'disabled'
+              : action.accent ?? accent
+        }
+        // onPress={handlePress}
+        height={isWindowNarrow ? undefined : '$4xl'}
+        testID={testID}
+      >
         {action.startIcon &&
           resolveIcon(action.startIcon, action.accent ?? accent)}
         <ActionSheetMainContent>
@@ -682,8 +685,8 @@ function ActionSheetAction({
             {resolveIcon(action.endIcon, action.accent ?? accent)}
           </ListItem.EndContent>
         )}
-      </Pressable>
-    </ActionSheetActionFrame>
+      </ActionSheetActionFrame>
+    </Pressable>
   );
 }
 
