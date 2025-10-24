@@ -495,7 +495,7 @@
         =^  caz-0=(list card)  old
           ?.  ?=(%0 -.old)  [~ old]
           (state-0-to-1 old)
-        =.  cor  (emit caz-0)
+        =.  cor  (emil caz-0)
         =?  old  ?=(%1 -.old)  (state-1-to-2 old)
         =?  cor  ?=(%2 -.old)
           ::  fix incorrectly bunted timestamp for an empty profile 
@@ -528,8 +528,8 @@
     +$  state-3
       $:  %3
           rof=profile
-          =book
-          =peers
+          =^book
+          =^peers
           last-updated=(list [=kip =time])
           retry=(map ship @da)  ::  retry sub at time
       ==
@@ -541,7 +541,7 @@
           state-0
       ==
     ::
-    ++  state-3-4
+    ++  state-3-to-4
       |=  state-3
       ^-  state-4
       =*  state  +<
@@ -583,7 +583,7 @@
     ++  state-2-to-3
       |=  =state-2
       ^-  state-3
-      [rof book peers ~ retry]:state-2
+      [%3 rof book peers ~ retry]:state-2
     ::
     ++  state-1-to-2
       |=  =state-1
