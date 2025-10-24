@@ -3,6 +3,7 @@ import {
   Icon,
   IconButton,
   IconType,
+  Pressable,
   Sheet,
   useCopy,
   useIsWindowNarrow,
@@ -659,27 +660,29 @@ function ActionSheetAction({
             ? 'disabled'
             : action.accent ?? accent
       }
-      onPress={handlePress}
+      // onPress={handlePress}
       height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
     >
-      {action.startIcon &&
-        resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetMainContent>
-        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
-          {action.title}
-        </ActionSheet.ActionTitle>
-        {action.description && (
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
+      <Pressable onPress={handlePress}>
+        {action.startIcon &&
+          resolveIcon(action.startIcon, action.accent ?? accent)}
+        <ActionSheetMainContent>
+          <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+            {action.title}
+          </ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheetMainContent>
+        {action.endIcon && (
+          <ListItem.EndContent>
+            {resolveIcon(action.endIcon, action.accent ?? accent)}
+          </ListItem.EndContent>
         )}
-      </ActionSheetMainContent>
-      {action.endIcon && (
-        <ListItem.EndContent>
-          {resolveIcon(action.endIcon, action.accent ?? accent)}
-        </ListItem.EndContent>
-      )}
+      </Pressable>
     </ActionSheetActionFrame>
   );
 }
