@@ -557,9 +557,6 @@ const ActionSheetActionFrame = styled(ListItem, {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
   },
-  // pressStyle: {
-  //   backgroundColor: '$secondaryBackground',
-  // },
   cursor: 'pointer',
   variants: {
     type: {
@@ -647,15 +644,22 @@ function ActionSheetAction({
     }
   }, [action, accent]);
 
+  const pressStyle = useMemo(() => {
+    if (action.accent === 'positive') {
+      return { backgroundColor: '$positiveBackground' };
+    }
+    if (action.accent === 'negative') {
+      return { backgroundColor: '$negativeBackground' };
+    }
+    return { backgroundColor: '$secondaryBackground' };
+  }, [action.accent]);
+
   if (action.render) {
     return action.render({ action });
   }
 
   return (
-    <Pressable
-      onPress={handlePress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-    >
+    <Pressable onPress={handlePress} pressStyle={pressStyle}>
       <ActionSheetActionFrame
         type={
           action.selected
@@ -664,7 +668,6 @@ function ActionSheetAction({
               ? 'disabled'
               : action.accent ?? accent
         }
-        // onPress={handlePress}
         height={isWindowNarrow ? undefined : '$4xl'}
         testID={testID}
       >
