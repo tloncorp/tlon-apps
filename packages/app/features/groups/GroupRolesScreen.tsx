@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { generateSafeId } from '@tloncorp/shared/logic';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
@@ -234,11 +234,13 @@ function GroupRolesScreenView({
           }}
         />
       )}
-      <AddRoleSheet
-        open={showAddRole}
-        onOpenChange={setShowAddRole}
-        onAdd={handleAddRole}
-      />
+      {showAddRole && (
+        <AddRoleSheet
+          open={showAddRole}
+          onOpenChange={setShowAddRole}
+          onAdd={handleAddRole}
+        />
+      )}
     </View>
   );
 }
@@ -441,7 +443,12 @@ function AddRoleSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} moveOnKeyboardChange>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      // moveOnKeyboardChange
+      modal={Platform.OS === 'android'}
+    >
       <ActionSheet.Content flex={1} paddingBottom={bottom}>
         <ActionSheet.SimpleHeader title="Add role" />
         <YStack gap="$l" paddingHorizontal="$2xl" paddingBottom="$2xl">
