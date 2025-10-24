@@ -449,8 +449,7 @@
         '𝙢'
         '𝓶'
         '𝚖'
-        'r'
-        'n'
+        'rn'
         '𝑚'
         '𝗺'
         'ⅿ'
@@ -926,6 +925,8 @@
   ++  norm-latin
     |=  c=@t
     ^-  @t
+    ::  leave ascii as is
+    ?:  (lte c 0x7f)  c
     =/  conf=(list (pair @t (set @t)))
       con-latin
     |-
@@ -943,6 +944,9 @@
     ?:  =('' txt)  norm
     =+  len=(teff txt)
     =+  c=(end [3 len] txt)
+    ::  leave ascii as is
+    ?:  (lte c 0x7f)
+      $(norm (cat 3 norm c), txt (rsh [3 len] txt))
     =/  n=@t
       ?:  (~(has in con-sig) c)  '~'
       ?:  (~(has in con-hep) c)  '-'

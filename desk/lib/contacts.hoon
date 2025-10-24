@@ -237,19 +237,43 @@
   ^-  ?
   ?~  src  &
   =+  nom=(norm-p:confusable:unicode txt)
-  =/  ship=(unit @p)
-    %+  rush  nom
-    ;~  sfix  ;~(pfix sig fed:ag)
-      (star next)
-    ==
-  ?:  ?=(~ ship)  &
-  =(u.src u.ship)
+  ::  TODO for better performance, should probably operate on
+  ::  tapes.
+  |-
+  ?:  =('' nom)  &
+  =+  len=(teff nom)
+  =*  next  $(nom (rsh [3 len] nom))
+  =+  c=(end [3 len] nom)
+  ?.  =('~' c)  next
+  ::  could be the beginning of a pat-p, attempt to parse
+  ::
+  =/  vex  (;~(pfix sig fed:ag) [[1 1] (trip nom)])
+  ?~  q.vex  next
+  =/  ship=@p  p.u.q.vex
+  ?.  =(ship u.src)  |
+  =+  pos=q.p.vex
+  $(nom (rsh [3 (dec pos)] nom))
+  ::  q.p.vex
 ::  +sani-nickname: sanitize a nickname
+::
+::  assume nickname is insane and delete all characters
+::  that normalize to a sig.
 ::
 ++  sani-nickname
   |=  txt=@t
   ^-  @t
-  (cat 3 '.' txt)
+  =|  norm=@t
+  |-
+  ?:  =('' txt)  norm
+  =+  len=(teff txt)
+  =+  c=(end [3 len] txt)
+  =*  next
+    $(norm (cat 3 norm c), txt (rsh [3 len] txt))
+  =*  skip
+    $(txt (rsh [3 len] txt))
+  ?:  (~(has in con-sig:confusable:unicode) c)
+    skip
+  next
 ::  +do-edit: edit contact
 ::
 ::  edit .con with .mod contact map.

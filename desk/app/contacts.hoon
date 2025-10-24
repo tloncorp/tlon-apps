@@ -45,7 +45,7 @@
       =^  cards  state  abet:init:cor
       [cards this]
     ::
-    ++  on-save  !>([state okay])
+    ++  on-save  !>([state ~])
     ::
     ++  on-load
       |=  old=vase
