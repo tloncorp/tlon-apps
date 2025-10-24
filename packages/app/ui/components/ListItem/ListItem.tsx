@@ -1,7 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Icon, IconType, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
   ColorProp,
@@ -37,7 +36,7 @@ export interface BaseListItemProps<T> {
 export type ListItemProps<T> = BaseListItemProps<T> &
   Omit<ComponentProps<typeof ListItemFrame>, keyof BaseListItemProps<T>>;
 
-export const ListItemFrame = styled(XStack, {
+export const ListItemFrame = styled(Pressable, {
   name: 'ListItemFrame',
   padding: '$l',
   borderRadius: '$xl',
