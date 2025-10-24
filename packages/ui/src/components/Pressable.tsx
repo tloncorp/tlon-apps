@@ -1,7 +1,11 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
 import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
-import { useContext } from 'react';
-import { GestureResponderEvent, LayoutChangeEvent, Platform } from 'react-native';
+import { forwardRef, useContext } from 'react';
+import {
+  GestureResponderEvent,
+  LayoutChangeEvent,
+  Platform,
+} from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
 
 import { ActionSheetContext } from '../contexts/ActionSheetContext';
@@ -22,41 +26,59 @@ type PressableProps = Omit<
   children?: React.ReactNode;
 };
 
-const StackComponent = ({
-  onLongPress,
-  onPress,
-  onPressIn,
-  onPressOut,
-  children,
-  ...stackProps
-}: PressableProps) => {
-  const longPressHandler = isWeb ? undefined : onLongPress;
-  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
+const StackComponent = forwardRef<any, PressableProps>(
+  (
+    { onLongPress, onPress, onPressIn, onPressOut, children, ...stackProps },
+    ref
+  ) => {
+    const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
 
-  // On Android inside ActionSheets, automatically use onPress for onPressOut
-  // see:
-  // - https://github.com/tamagui/tamagui/issues/3288
-  // - https://github.com/react-navigation/react-navigation/issues/12039
-  const shouldUseOnPressOut =
-    Platform.OS === 'android' && isInsideSheet && onPress;
+    // On web, bypass all mobile-specific logic and act like a simple Stack
+    if (isWeb) {
+      return (
+        <Stack
+          ref={ref}
+          // eslint-disable-next-line no-restricted-syntax
+          onPress={onPress}
+          cursor={stackProps.cursor || 'pointer'}
+          {...stackProps}
+        >
+          {children}
+        </Stack>
+      );
+    }
 
-  return (
-    <Stack
-      pressStyle={{ opacity: 0.5 }}
-      {...stackProps}
-      // eslint-disable-next-line no-restricted-syntax
-      onPress={shouldUseOnPressOut ? undefined : onPress}
-      // eslint-disable-next-line no-restricted-syntax
-      onPressIn={onPressIn}
-      // eslint-disable-next-line no-restricted-syntax
-      onPressOut={shouldUseOnPressOut ? onPress : onPressOut}
-      // eslint-disable-next-line no-restricted-syntax
-      onLongPress={longPressHandler}
-    >
-      {children}
-    </Stack>
-  );
-};
+    // Mobile-only logic below
+    const longPressHandler = onLongPress;
+
+    // On Android inside ActionSheets, automatically use onPress for onPressOut
+    // see:
+    // - https://github.com/tamagui/tamagui/issues/3288
+    // - https://github.com/react-navigation/react-navigation/issues/12039
+    const shouldUseOnPressOut =
+      Platform.OS === 'android' && isInsideSheet && onPress;
+
+    return (
+      <Stack
+        ref={ref}
+        pressStyle={{ opacity: 0.5 }}
+        {...stackProps}
+        // eslint-disable-next-line no-restricted-syntax
+        onPress={shouldUseOnPressOut ? undefined : onPress}
+        // eslint-disable-next-line no-restricted-syntax
+        onPressIn={onPressIn}
+        // eslint-disable-next-line no-restricted-syntax
+        onPressOut={shouldUseOnPressOut ? onPress : onPressOut}
+        // eslint-disable-next-line no-restricted-syntax
+        onLongPress={longPressHandler}
+      >
+        {children}
+      </Stack>
+    );
+  }
+);
+
+StackComponent.displayName = 'StackComponent';
 
 /**
  * Component that wraps content and makes it pressable.
@@ -73,64 +95,81 @@ const StackComponent = ({
  * @param props.action Optional action to use for in-page navigation. By default, the path is parsed to an action based on linking config.
  */
 
-export default function Pressable({
-  onPress,
-  onPressIn,
-  onPressOut,
-  onLongPress,
-  to,
-  action,
-  children,
-  ...stackProps
-}: PressableProps) {
-  const longPressHandler = isWeb ? undefined : onLongPress;
-  const { onPress: onPressLink, ...linkProps } = useLinkProps({
-    to: to ?? '',
-    action,
-  });
+const Pressable = forwardRef<any, PressableProps>(
+  (
+    {
+      onPress,
+      onPressIn,
+      onPressOut,
+      onLongPress,
+      to,
+      action,
+      children,
+      ...stackProps
+    },
+    ref
+  ) => {
+    const longPressHandler = isWeb ? undefined : onLongPress;
+    const { onPress: onPressLink, ...linkProps } = useLinkProps({
+      to: to ?? '',
+      action,
+    });
 
-  const hasInteractionHandler =
-    (action == null ? onPress : onPressLink) || onPressIn || onLongPress;
+    // Check for interaction handlers - only needed on mobile for touch bubbling
+    // On web, we skip this check as it interferes with styled() components
+    const hasInteractionHandler = isWeb
+      ? true // Always consider web components interactive
+      : (action == null ? onPress : onPressLink) ||
+        onPressIn ||
+        onPressOut ||
+        onLongPress;
 
-  if (action && !to) {
-    throw new Error(
-      'The `to` prop is required when `action` is specified in `Pressable`'
-    );
-  }
+    if (action && !to) {
+      throw new Error(
+        'The `to` prop is required when `action` is specified in `Pressable`'
+      );
+    }
 
-  if (to || action) {
+    if (to || action) {
+      return (
+        <StackComponent
+          ref={ref}
+          {...stackProps}
+          {...linkProps}
+          group
+          onPress={onPressLink ?? onPress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          onLongPress={longPressHandler}
+          cursor={stackProps.cursor || 'pointer'}
+          // Pressable always blocks touches from bubbling to ancestors, even if
+          // no handlers are attached.
+          // To allow bubbling, disable the Pressable (mixin) when no handlers
+          // are attached.
+          disabled={!hasInteractionHandler}
+        >
+          {children}
+        </StackComponent>
+      );
+    }
+
     return (
       <StackComponent
+        ref={ref}
         {...stackProps}
-        {...linkProps}
-        group
-        onPress={onPressLink ?? onPress}
+        onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onLongPress={longPressHandler}
-        cursor={stackProps.cursor || 'pointer'}
-        // Pressable always blocks touches from bubbling to ancestors, even if
-        // no handlers are attached.
-        // To allow bubbling, disable the Pressable (mixin) when no handlers
-        // are attached.
         disabled={!hasInteractionHandler}
+        cursor={stackProps.cursor || 'pointer'}
       >
         {children}
       </StackComponent>
     );
   }
+);
 
-  return (
-    <StackComponent
-      {...stackProps}
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      onLongPress={longPressHandler}
-      disabled={!hasInteractionHandler}
-      cursor={stackProps.cursor || 'pointer'}
-    >
-      {children}
-    </StackComponent>
-  );
-}
+Pressable.displayName = 'Pressable';
+
+export default Pressable;
