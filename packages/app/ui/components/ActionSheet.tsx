@@ -1,4 +1,5 @@
 import {
+  ActionSheetContext,
   Icon,
   IconType,
   Sheet,
@@ -18,7 +19,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal, Platform, useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
@@ -35,6 +36,10 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import {
+  BottomSheetScrollView,
+  BottomSheetWrapper,
+} from './BottomSheetWrapper';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -276,7 +281,46 @@ const ActionSheetComponent = ({
   // through the portal. In cases where context is required, we attempt to break out of the
   // view hierarchy using an absolutely positioned wrapper View.
 
-  const sheetContent = (
+  // Use BottomSheetWrapper for native platforms, Sheet for web
+  const useBottomSheet = Platform.OS !== 'web';
+
+  // Use fixed snap points for sheets with keyboard input
+  // Start at higher position to leave room for keyboard
+  // Include 100% to allow full expansion when keyboard is visible
+  const snapMode = props.moveOnKeyboardChange ? undefined : 'fit';
+  const snapPoints = props.moveOnKeyboardChange
+    ? ['75%', '90%', '100%']
+    : undefined;
+
+  const sheetContent = useBottomSheet ? (
+    <BottomSheetWrapper
+      open={open}
+      onOpenChange={onOpenChange}
+      dismissOnSnapToBottom={true}
+      snapPointsMode={snapMode as any}
+      snapPoints={snapPoints}
+      animation="quick"
+      handleDisableScroll={true}
+      modal={props.modal}
+      showHandle={true}
+      showOverlay={true}
+      enablePanDownToClose={true}
+      keyboardBehavior={
+        props.moveOnKeyboardChange ? 'fillParent' : 'interactive'
+      }
+      frameStyle={{}}
+    >
+      <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+        {forcedMode === 'popover' ? (
+          <ActionSheet.ScrollableContent>
+            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+          </ActionSheet.ScrollableContent>
+        ) : (
+          children
+        )}
+      </ActionSheetContext.Provider>
+    </BottomSheetWrapper>
+  ) : (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
@@ -304,44 +348,8 @@ const ActionSheetComponent = ({
   return (
     <>
       {trigger}
-      {Platform.OS === 'android' ? (
-        props.modal ? (
-          sheetContent
-        ) : (
-          <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
-        )
-      ) : (
-        <Modal
-          visible={open}
-          onRequestClose={() => onOpenChange(false)}
-          transparent
-          animationType="none"
-        >
-          {sheetContent}
-        </Modal>
-      )}
+      {sheetContent}
     </>
-  );
-};
-
-const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
-  const { width, height } = useWindowDimensions();
-
-  if (!props.visible) {
-    return props.children;
-  }
-
-  return (
-    <View
-      position="absolute"
-      zIndex={1000}
-      top={0}
-      left={0}
-      width={width}
-      height={height}
-    >
-      {props.children}
-    </View>
   );
 };
 
@@ -380,6 +388,26 @@ const ActionSheetScrollableContent = ({
   ...props
 }: ComponentProps<typeof Sheet.ScrollView>) => {
   const contentStyle = useContentStyle();
+  const useBottomSheet = Platform.OS !== 'web';
+
+  // Use BottomSheetScrollView for native platforms
+  if (useBottomSheet) {
+    return (
+      <BottomSheetScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={contentStyle as any}
+        alwaysBounceVertical={false}
+        automaticallyAdjustsScrollIndicatorInsets={false}
+        scrollIndicatorInsets={{
+          top: 0,
+          bottom: contentStyle.paddingBottom as number,
+        }}
+        {...(props as any)}
+      />
+    );
+  }
+
+  // Use Tamagui ScrollView for web
   return (
     <SheetScrollView
       flex={1}

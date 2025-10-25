@@ -1,4 +1,4 @@
-import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
+import { VariantsFromValues, useIsWindowNarrow, useToast, ActionSheetContext } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { TextInput as RNTextInput } from 'react-native';
+import { Platform, TextInput as RNTextInput } from 'react-native';
 import {
   ScrollView,
   Spinner,
@@ -33,6 +33,7 @@ import {
   useMappedImageAttachments,
 } from '../../contexts';
 import AttachmentSheet from '../AttachmentSheet';
+import { BottomSheetTextInput } from '../BottomSheetWrapper';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { FieldContext } from './Field';
@@ -41,39 +42,51 @@ import {
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
 
+// Common text input styling configuration
+const textInputStyleConfig = {
+  name: 'RawTextInput',
+  ...mobileTypeStyles['$label/xl'],
+  lineHeight: 'unset',
+  context: FieldContext,
+  color: '$primaryText',
+  placeholderTextColor: '$tertiaryText',
+  fontFamily: '$body',
+  textAlignVertical: 'top' as const,
+  paddingVertical: '$l',
+  numberOfLines: 1,
+  '$platform-web': { outlineStyle: 'none' },
+  $gtSm: desktopTypeStyles['$label/xl'],
+  variants: {
+    accent: {
+      negative: {
+        color: '$negativeActionText',
+      },
+      positive: {
+        color: '$positiveActionText',
+      },
+    },
+  } as const,
+};
+
+const textInputAcceptProps = {
+  isInput: true,
+  accept: {
+    placeholderTextColor: 'color',
+    selectionColor: 'color',
+  } as const,
+};
+
 export const RawTextInput = styled(
   RNTextInput,
-  {
-    name: 'RawTextInput',
-    ...mobileTypeStyles['$label/xl'],
-    lineHeight: 'unset',
-    context: FieldContext,
-    color: '$primaryText',
-    placeholderTextColor: '$tertiaryText',
-    fontFamily: '$body',
-    textAlignVertical: 'top',
-    paddingVertical: '$l',
-    numberOfLines: 1,
-    '$platform-web': { outlineStyle: 'none' },
-    $gtSm: desktopTypeStyles['$label/xl'],
-    variants: {
-      accent: {
-        negative: {
-          color: '$negativeActionText',
-        },
-        positive: {
-          color: '$positiveActionText',
-        },
-      },
-    } as const,
-  },
-  {
-    isInput: true,
-    accept: {
-      placeholderTextColor: 'color',
-      selectionColor: 'color',
-    } as const,
-  }
+  textInputStyleConfig as any,
+  textInputAcceptProps
+);
+
+// Styled version of BottomSheetTextInput for use in ActionSheets on mobile
+export const RawBottomSheetTextInput = styled(
+  BottomSheetTextInput as any,
+  textInputStyleConfig as any,
+  textInputAcceptProps
 );
 
 // Text input
@@ -120,6 +133,16 @@ const TextInputComponent = RawTextInput.styleable<{
 }>(
   ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
     const fieldContext = useContext(FieldContext);
+    const actionSheetContext = useContext(ActionSheetContext);
+
+    // Use BottomSheetTextInput when inside an ActionSheet on mobile platforms
+    const shouldUseBottomSheetInput =
+      actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
+
+    const InputComponent = shouldUseBottomSheetInput
+      ? RawBottomSheetTextInput
+      : RawTextInput;
+
     return (
       <InputFrame
         accent={accent ?? fieldContext.accent}
@@ -130,7 +153,7 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        <RawTextInput flex={1} ref={ref} {...props} />
+        <InputComponent flex={1} ref={ref} {...props} />
         {props.rightControls}
       </InputFrame>
     );
