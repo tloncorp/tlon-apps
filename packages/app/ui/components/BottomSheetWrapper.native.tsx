@@ -51,12 +51,23 @@ export const BottomSheetWrapper = forwardRef<
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
-    // Forward ref to the appropriate component
-    React.useImperativeHandle(
-      ref,
-      () => (modal ? bottomSheetModalRef : bottomSheetRef).current as BottomSheet,
-      [modal]
-    );
+    // Use internal refs and expose methods via imperative handle
+    // This ensures refs are always valid
+    React.useImperativeHandle(ref, () => {
+      const modalRef = bottomSheetModalRef.current;
+      const sheetRef = bottomSheetRef.current;
+
+      return {
+        present: () => modal ? modalRef?.present() : sheetRef?.expand(),
+        dismiss: () => modal ? modalRef?.dismiss() : sheetRef?.close(),
+        close: () => modal ? modalRef?.dismiss() : sheetRef?.close(),
+        expand: () => modal ? modalRef?.present() : sheetRef?.expand(),
+        collapse: () => modal ? modalRef?.dismiss() : sheetRef?.collapse(),
+        snapToIndex: (index: number) => modal ? modalRef?.snapToIndex(index) : sheetRef?.snapToIndex(index),
+        snapToPosition: (position: string | number) => modal ? modalRef?.snapToPosition(position) : sheetRef?.snapToPosition(position),
+        forceClose: () => modal ? modalRef?.forceClose() : sheetRef?.forceClose(),
+      } as any;
+    }, [modal]);
 
     // Handle snap points
     const initialSnapPoints = useMemo(() => {
@@ -92,25 +103,32 @@ export const BottomSheetWrapper = forwardRef<
 
     // Handle open/close
     useEffect(() => {
-      if (modal) {
-        if (open) {
-          // Delay presentation to ensure modal is mounted with index=-1
-          const timer = setTimeout(() => {
-            bottomSheetModalRef.current?.present();
-          }, 10);
-          return () => clearTimeout(timer);
-        } else {
+      if (!open) {
+        // Close/dismiss the sheet
+        if (modal) {
           bottomSheetModalRef.current?.dismiss();
-          Keyboard.dismiss();
-        }
-      } else {
-        // Non-modal sheets use expand/close
-        if (open) {
-          bottomSheetRef.current?.expand();
         } else {
           bottomSheetRef.current?.close();
-          Keyboard.dismiss();
         }
+        Keyboard.dismiss();
+        return;
+      }
+
+      // Open the sheet
+      if (modal) {
+        // For modal, delay presentation to ensure it's fully mounted
+        const timer = setTimeout(() => {
+          const modalRef = bottomSheetModalRef.current;
+          if (modalRef) {
+            modalRef.present();
+          } else {
+            console.warn('BottomSheetModal ref is not available');
+          }
+        }, 100); // Increased delay for modal to be ready
+        return () => clearTimeout(timer);
+      } else {
+        // Non-modal can expand immediately
+        bottomSheetRef.current?.expand();
       }
     }, [open, modal]);
 
@@ -172,14 +190,15 @@ export const BottomSheetWrapper = forwardRef<
       index: 0, // Start at first snap point
     };
 
-    // Props specific to modal sheets
+    // Props specific to modal sheets - keep it simple like the docs
     const modalProps = {
-      ...commonProps,
-      index: -1, // Start closed
-      // ALWAYS provide snapPoints for modal sheets to avoid enableDynamicSizing bugs
+      onChange: handleSheetChanges,
+      backdropComponent: renderBackdrop,
+      handleComponent: renderHandle,
       snapPoints: customSnapPoints || ['50%', '90%'],
-      // Disable dynamic sizing for modals due to known bugs
-      enableDynamicSizing: false,
+      // Don't set index - let modal manage its own state
+      // Don't set enableDynamicSizing - use defaults
+      // Keep it minimal like documentation examples
     };
 
     const content = modal ? (
