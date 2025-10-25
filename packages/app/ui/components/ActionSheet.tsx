@@ -3,6 +3,7 @@ import {
   Icon,
   IconButton,
   IconType,
+  Pressable,
   Sheet,
   useCopy,
   useIsWindowNarrow,
@@ -556,9 +557,6 @@ const ActionSheetActionFrame = styled(ListItem, {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
   },
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
-  },
   cursor: 'pointer',
   variants: {
     type: {
@@ -646,41 +644,52 @@ function ActionSheetAction({
     }
   }, [action, accent]);
 
+  const pressStyle = useMemo(() => {
+    if (action.accent === 'positive') {
+      return { backgroundColor: '$positiveBackground' };
+    }
+    if (action.accent === 'negative') {
+      return { backgroundColor: '$negativeBackground' };
+    }
+    return { backgroundColor: '$secondaryBackground' };
+  }, [action.accent]);
+
   if (action.render) {
     return action.render({ action });
   }
 
   return (
-    <ActionSheetActionFrame
-      type={
-        action.selected
-          ? 'selected'
-          : action.disabled
-            ? 'disabled'
-            : action.accent ?? accent
-      }
-      onPress={handlePress}
-      height={isWindowNarrow ? undefined : '$4xl'}
-      testID={testID}
-    >
-      {action.startIcon &&
-        resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetMainContent>
-        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
-          {action.title}
-        </ActionSheet.ActionTitle>
-        {action.description && (
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
+    <Pressable onPress={handlePress} pressStyle={pressStyle}>
+      <ActionSheetActionFrame
+        type={
+          action.selected
+            ? 'selected'
+            : action.disabled
+              ? 'disabled'
+              : action.accent ?? accent
+        }
+        height={isWindowNarrow ? undefined : '$4xl'}
+        testID={testID}
+      >
+        {action.startIcon &&
+          resolveIcon(action.startIcon, action.accent ?? accent)}
+        <ActionSheetMainContent>
+          <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+            {action.title}
+          </ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheetMainContent>
+        {action.endIcon && (
+          <ListItem.EndContent>
+            {resolveIcon(action.endIcon, action.accent ?? accent)}
+          </ListItem.EndContent>
         )}
-      </ActionSheetMainContent>
-      {action.endIcon && (
-        <ListItem.EndContent>
-          {resolveIcon(action.endIcon, action.accent ?? accent)}
-        </ListItem.EndContent>
-      )}
-    </ActionSheetActionFrame>
+      </ActionSheetActionFrame>
+    </Pressable>
   );
 }
 
