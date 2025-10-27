@@ -21,7 +21,12 @@ export async function createGroup(page: Page) {
 
   await page.getByTestId('CreateChatSheetTrigger').click();
   await page.getByText('New group', { exact: true }).click();
-  await page.getByText('Select contacts to invite').click();
+
+  // Select "Quick group" from the GroupTypeSelectionSheet
+  await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Quick group').click();
+
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({ timeout: 5000 });
   await page.getByText('Create group').click();
 
   // Wait for group creation to complete and navigate to group
@@ -46,6 +51,111 @@ export async function createGroup(page: Page) {
       timeout: 5000,
     });
   }
+}
+
+/**
+ * Creates a group using a specific template or group type
+ */
+export async function createGroupWithTemplate(
+  page: Page,
+  groupType: 'quick' | 'basic' | string
+) {
+  // Ensure session is stable before creating group
+  await waitForSessionStability(page);
+
+  await page.getByTestId('CreateChatSheetTrigger').click();
+  await page.getByText('New group', { exact: true }).click();
+
+  // Wait for group type selection sheet
+  await expect(page.getByText('Create a group')).toBeVisible({ timeout: 5000 });
+
+  // Determine expected group title based on type
+  let expectedGroupTitle: string;
+
+  // Select the appropriate group type
+  if (groupType === 'quick') {
+    await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
+    await page.getByText('Quick group').click();
+    expectedGroupTitle = 'Untitled group'; // Quick groups have empty title
+  } else if (groupType === 'basic') {
+    await expect(page.getByText('Basic group')).toBeVisible({ timeout: 5000 });
+    await page.getByText('Basic group').click();
+
+    // Basic group requires title input
+    await expect(page.getByText('Name your group')).toBeVisible({ timeout: 5000 });
+    await page.getByPlaceholder('Group name').fill('Basic Group');
+    await page.getByText('Next', { exact: true }).click();
+
+    expectedGroupTitle = 'Basic Group';
+  } else {
+    // For template groups, find and click by title
+    await expect(page.getByText(groupType)).toBeVisible({ timeout: 5000 });
+    await page.getByText(groupType).click();
+    expectedGroupTitle = groupType; // Template uses its title as group title
+  }
+
+  // Wait for contact selection
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Create group').click();
+
+  // Wait for group creation to complete and navigate to group
+  const channelHeader = page.getByTestId('ChannelHeaderTitle');
+
+  try {
+    // Wait briefly to see if we're automatically navigated to the group
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    // Template groups don't show "Welcome to your group!" message
+    await page.waitForTimeout(1000);
+  } catch {
+    // If not automatically navigated, go to the group manually
+    await page.getByTestId('HomeNavIcon').click();
+    await expect(
+      page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
+    ).toBeVisible({ timeout: 10000 });
+    await page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`).click();
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(1000);
+  }
+}
+
+/**
+ * Verifies that a group has the expected channels
+ */
+export async function verifyGroupChannels(
+  page: Page,
+  expectedChannels: Array<{ title: string; type: 'chat' | 'notebook' | 'gallery' }>
+) {
+  // Navigate to group settings
+  await openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+
+  // Navigate to Channels
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await expect(page.getByText('Manage channels')).toBeVisible({ timeout: 5000 });
+
+  // Verify the correct number of channels by checking the last one exists
+  const lastChannel = expectedChannels[expectedChannels.length - 1];
+  const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
+  await expect(page.getByTestId(lastChannelTestId)).toBeVisible({ timeout: 5000 });
+
+  // Verify each expected channel exists with correct title and type
+  for (const channel of expectedChannels) {
+    // Capitalize the channel type for display (e.g., "chat" -> "Chat")
+    const capitalizedType = capitalize(channel.type);
+
+    // Use the pattern from existing tests: check for a div containing both title and type
+    const channelPattern = new RegExp(`^${channel.title}${capitalizedType}$`);
+    await expect(
+      page.locator('div').filter({ hasText: channelPattern }).first()
+    ).toBeVisible({ timeout: 5000 });
+  }
+}
+
+/**
+ * Capitalizes the first letter of a string
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export async function leaveGroup(page: Page, groupName: string) {

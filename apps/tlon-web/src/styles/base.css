@@ -78,6 +78,10 @@ button,
   -webkit-appearance: initial;
 }
 
+button {
+  background-color: transparent;
+}
+
 iframe {
   @apply max-w-full;
 }
