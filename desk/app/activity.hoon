@@ -834,7 +834,10 @@
   =.  indices  (~(del by indices) source)
   =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
-  ::  TODO: send notification removals?
+  =.  cor
+    ::  send dummy read to clear any badges on mobile clients
+    =/  =update:a  [%read source *activity-summary:a]
+    (give-update update [%both /reads])
   (give-update [%del source] [%hose ~])
 ::
 ++  del-event
