@@ -324,6 +324,7 @@
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
+      %clear-group-invites  clear-group-invites
       %del      (del-source +.action)
       %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
@@ -988,6 +989,20 @@
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
   ~(summarize-unreads urd indices activity volume-settings log)
+::
+++  clear-group-invites
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  =;  should-clear=?
+    ?.  should-clear  co
+    (read:co source [%all ~ |] |)
+  ^-  ?
+  %+  lien
+    (tap:on-stream:a stream.index)
+  |=  [=time =event:a]
+  =(%group-invite -<.event)
 ::
 ++  drop-orphans
   |=  dry-run=?

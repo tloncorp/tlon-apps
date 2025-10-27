@@ -1,10 +1,10 @@
 import { daToUnix, parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
+import type { UnionToIntersection } from '../utils';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
-import type { UnionToIntersection } from '../utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -290,6 +290,7 @@ export type ActivityAction =
   | { del: Source }
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction }
+  | { 'clear-group-invites': null }
   | { 'allow-notifications': PushNotificationsSetting };
 
 export interface ActivitySummaryUpdate {
