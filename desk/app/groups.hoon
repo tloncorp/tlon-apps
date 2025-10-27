@@ -340,7 +340,6 @@
     ::
         %group-action-4
       =+  !<(=a-groups:v8:gv vase)
-      ~&  group-action-4+a-groups
       ?>  from-self
       ?-    -.a-groups
           %group
