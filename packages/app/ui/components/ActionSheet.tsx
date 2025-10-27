@@ -1,7 +1,6 @@
 import {
   ActionSheetContext,
   Icon,
-  IconButton,
   IconType,
   Pressable,
   Sheet,
@@ -616,7 +615,7 @@ const ActionSheetActionDescription = styled(ListItem.Subtitle, {
   } as const,
 });
 
-const ActionSheetActionContent = styled(YStack, {
+const ActionSheetMainContent = styled(YStack, {
   name: 'ActionSheetMainContent',
   flex: 1,
   justifyContent: 'space-evenly',
@@ -628,6 +627,7 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
   testID?: string;
 }>(({ action, testID, ...props }, ref) => {
   const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = useCallback(() => {
     if (accent !== 'disabled' && !action.disabled && action.action) {
@@ -828,7 +828,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   FormBlock: ActionSheetFormBlock,
   ActionGroup: ActionSheetActionGroup,
   Action: ActionSheetAction,
-  ActionContent: ActionSheetActionContent,
+  ActionContent: ActionSheetMainContent,
   ActionFrame: ActionSheetActionFrame,
   ActionIcon: ActionSheetActionIcon,
   ActionGroupContent: ActionSheetActionGroupContent,
