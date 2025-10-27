@@ -286,7 +286,7 @@
     =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
     =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
-    =*  is-group  ?=(%group-ask -<.event)
+    =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
     =*  supported  |(is-msg is-init is-flag is-group)
     ?.  supported  $(stream rest)
     =?  notified  &(notify.volume notified.event)  &

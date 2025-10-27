@@ -161,7 +161,7 @@
     [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
-  cor
+  refresh-all-summaries
   +$  versioned-state
     $%  state-8
         state-7
