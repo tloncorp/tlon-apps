@@ -2736,6 +2736,7 @@
 ::  a bug caused us to hear one last gossip about a club we left. this
 ::  leaves us in a bad state where we have a club, but we're not in it.
 ::  to fix we simply remove any invalid clubs
+::
 ++  rectify-club-state
   =;  clubs=(list [id:club:c club:c])
     cor(clubs (malt clubs))
