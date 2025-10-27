@@ -37,6 +37,7 @@
 ::
 ::    %add: add an event to the stream
 ::    %bump: mark a source as having new activity from myself
+::    %clear-group-invites: clear all group invites
 ::    %del: remove a source and all its activity
 ::    %read: mark an event as read
 ::    %adjust: adjust the volume of an source
@@ -45,6 +46,7 @@
 +$  action
   $%  [%add =incoming-event]
       [%bump =source]
+      [%clear-group-invites ~]
       [%del =source]
       [%del-event =source event=incoming-event]
       [%read =source =read-action]

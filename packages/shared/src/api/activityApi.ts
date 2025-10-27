@@ -716,7 +716,14 @@ export const readThread = async ({
 
 export function markInvitesRead() {
   return backOff(
-    () => poke({ app: 'activity', mark: 'json', json: 'clear-invites' }),
+    () =>
+      poke({
+        app: 'activity',
+        mark: 'json',
+        json: activityAction({
+          'clear-group-invites': null,
+        }),
+      }),
     {
       delayFirstAttempt: false,
       startingDelay: 2000,
