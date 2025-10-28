@@ -1,11 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { INVITATION_WARNINGS } from '../constants/warningMessages';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
-import { ConfirmationSheet } from './ConfirmationSheet';
 import { ProfileBlock } from './ProfileBlock';
 
 function RoleAssignmentSheet({
@@ -109,7 +110,6 @@ export function ProfileSheet({
   const currentUserId = useCurrentUserId();
   const contactIsHost = groupHostId === contactId;
   const contactIsAdmin = selectedUserRoles?.includes('admin');
-  const [showKickConfirmation, setShowKickConfirmation] = useState(false);
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -120,16 +120,34 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);
 
-  const handleKickConfirm = useCallback(() => {
-    onPressKick?.();
-    setShowKickConfirmation(false);
+  const handleKickUser = useCallback(() => {
+    const displayName = contact?.nickname || contactId;
+    const message = `This user will be removed from the group.\n\n${INVITATION_WARNINGS.KICK_USER}`;
+    
+    if (isWeb) {
+      const confirmed = window.confirm(`Kick ${displayName}?\n\n${message}`);
+      if (confirmed) {
+        onPressKick?.();
+      }
+    } else {
+      Alert.alert(
+        `Kick ${displayName}?`,
+        message,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Kick User',
+            style: 'destructive',
+            onPress: onPressKick,
+          },
+        ]
+      );
+    }
     onOpenChange(false);
-  }, [onPressKick, onOpenChange]);
-
-  const handleShowKickConfirmation = useCallback(() => {
-    onOpenChange(false);
-    setShowKickConfirmation(true);
-  }, [onOpenChange]);
+  }, [contact, contactId, onOpenChange, onPressKick]);
 
   const isAdminnable = currentUserIsAdmin;
 
@@ -162,7 +180,7 @@ export function ProfileSheet({
         currentUserId !== contactId &&
           !userIsInvited && {
             title: 'Kick User',
-            action: handleShowKickConfirmation,
+            action: handleKickUser,
           },
         onPressBan &&
         onPressUnban &&
@@ -191,29 +209,17 @@ export function ProfileSheet({
   );
 
   return (
-    <>
-      <ActionSheet open={open} onOpenChange={onOpenChange}>
-        <ActionSheet.ScrollableContent>
-          <ActionSheet.ContentBlock>
-            <ProfileBlock
-              height={200}
-              contactId={contactId}
-              onPressGoToProfile={onPressGoToProfile}
-            />
-          </ActionSheet.ContentBlock>
-          <ActionSheet.SimpleActionGroupList actionGroups={actions} />
-        </ActionSheet.ScrollableContent>
-      </ActionSheet>
-      <ConfirmationSheet
-        open={showKickConfirmation}
-        onOpenChange={setShowKickConfirmation}
-        title={`Kick ${contact?.nickname || contactId}?`}
-        subtitle="This user will be removed from the group."
-        warningMessage={INVITATION_WARNINGS.KICK_USER}
-        confirmButtonTitle="Kick User"
-        confirmButtonType="negative"
-        confirmAction={handleKickConfirm}
-      />
-    </>
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ActionSheet.ScrollableContent>
+        <ActionSheet.ContentBlock>
+          <ProfileBlock
+            height={200}
+            contactId={contactId}
+            onPressGoToProfile={onPressGoToProfile}
+          />
+        </ActionSheet.ContentBlock>
+        <ActionSheet.SimpleActionGroupList actionGroups={actions} />
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
   );
 }

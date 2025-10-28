@@ -4,7 +4,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -14,7 +16,6 @@ import { INVITATION_WARNINGS } from '../../ui/constants/warningMessages';
 import {
   ActionSheet,
   ChatOptionsProvider,
-  ConfirmationSheet,
   ContactListItem,
   DeleteSheet,
   ForwardGroupSheetProvider,
@@ -247,7 +248,6 @@ function ChatDetailsScreenContent({
 function GroupLeaveActions({ group }: { group: db.Group }) {
   const { onLeaveGroup } = useChatSettingsNavigation();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
-  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
   const groupTitle = useGroupTitle(group) ?? 'group';
@@ -258,20 +258,38 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const { leaveGroup } = useChatOptions();
 
-  const handleLeaveGroupConfirm = useCallback(async () => {
-    await leaveGroup();
-    setShowLeaveConfirmation(false);
-  }, [leaveGroup]);
-
-  const handleShowLeaveConfirmation = useCallback(() => {
-    setShowLeaveConfirmation(true);
-  }, []);
+  const handleLeaveGroupWithConfirm = useCallback(async () => {
+    const message = `You will no longer receive updates from this group.\n\n${INVITATION_WARNINGS.LEAVE_GROUP}`;
+    
+    if (isWeb) {
+      const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
+      if (confirmed) {
+        await leaveGroup();
+      }
+    } else {
+      Alert.alert(
+        `Leave ${groupTitle}?`,
+        message,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Leave Group',
+            style: 'destructive',
+            onPress: leaveGroup,
+          },
+        ]
+      );
+    }
+  }, [groupTitle, leaveGroup]);
 
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
       title: 'Leave group',
-      action: handleShowLeaveConfirmation,
+      action: handleLeaveGroupWithConfirm,
     },
     canDelete && {
       title: 'Delete group',
@@ -305,16 +323,6 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         open={showDeleteSheet}
         onOpenChange={setShowDeleteSheet}
         deleteAction={handleDeleteGroup}
-      />
-      <ConfirmationSheet
-        open={showLeaveConfirmation}
-        onOpenChange={setShowLeaveConfirmation}
-        title={`Leave ${groupTitle}?`}
-        subtitle="You will no longer receive updates from this group."
-        warningMessage={INVITATION_WARNINGS.LEAVE_GROUP}
-        confirmButtonTitle="Leave Group"
-        confirmButtonType="negative"
-        confirmAction={handleLeaveGroupConfirm}
       />
     </>
   );
