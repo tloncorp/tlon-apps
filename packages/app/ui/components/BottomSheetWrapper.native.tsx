@@ -179,23 +179,9 @@ export const BottomSheetWrapper = forwardRef<
       index: 0, // Start at first snap point
     };
 
-    const modalProps = {
-      onChange: handleSheetChanges,
-      backdropComponent: renderBackdrop,
-      handleComponent: renderHandle,
-      snapPoints: transformedSnapPoints,
-      snapPointsMode,
-      enablePanDownToClose,
-      keyboardBehavior,
-      keyboardBlurBehavior: 'restore' as const,
-      android_keyboardInputMode,
-      animationConfigs: animationConfigs[animation],
-      style: frameStyle,
-    };
-
     if (modal) {
       return (
-        <BottomSheetModal ref={bottomSheetModalRef} {...modalProps}>
+        <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
           <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
         </BottomSheetModal>
       );
