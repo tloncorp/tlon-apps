@@ -284,8 +284,6 @@ const ActionSheetComponent = ({
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
-  console.log('ActionSheet snapPointsMode', props.snapPointsMode);
-  console.log('ActionSheet snapPoints', props.snapPoints);
 
   const sheetContent = useBottomSheet ? (
     <BottomSheetWrapper

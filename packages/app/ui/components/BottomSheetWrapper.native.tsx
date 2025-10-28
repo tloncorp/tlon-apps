@@ -47,6 +47,21 @@ export const BottomSheetWrapper = forwardRef<
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
+    // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
+    const transformedSnapPoints = useMemo(() => {
+      if (!snapPoints) return snapPoints;
+
+      // When in percent mode, convert numbers to percentage strings
+      if (snapPointsMode === 'percent') {
+        return snapPoints.map(point =>
+          typeof point === 'number' ? `${point}%` : point
+        );
+      }
+
+      return snapPoints;
+    }, [snapPoints, snapPointsMode]);
+
+
     React.useImperativeHandle(
       ref,
       () => {
@@ -107,10 +122,14 @@ export const BottomSheetWrapper = forwardRef<
         }, 100); // Increased delay for modal to be ready
         return () => clearTimeout(timer);
       } else {
-        // Non-modal can expand immediately
-        bottomSheetRef.current?.expand();
+        // Non-modal: use snapToIndex if snapPoints are defined, otherwise expand
+        if (transformedSnapPoints && transformedSnapPoints.length > 0) {
+          bottomSheetRef.current?.snapToIndex(0);
+        } else {
+          bottomSheetRef.current?.expand();
+        }
       }
-    }, [open, modal]);
+    }, [open, modal, transformedSnapPoints]);
 
     const handleSheetChanges = useCallback(
       (index: number) => {
@@ -152,7 +171,7 @@ export const BottomSheetWrapper = forwardRef<
       handleComponent: renderHandle,
       style: frameStyle,
       snapPointsMode,
-      snapPoints,
+      snapPoints: transformedSnapPoints,
     };
 
     const nonModalProps = {
@@ -164,6 +183,14 @@ export const BottomSheetWrapper = forwardRef<
       onChange: handleSheetChanges,
       backdropComponent: renderBackdrop,
       handleComponent: renderHandle,
+      snapPoints: transformedSnapPoints,
+      snapPointsMode,
+      enablePanDownToClose,
+      keyboardBehavior,
+      keyboardBlurBehavior: 'restore' as const,
+      android_keyboardInputMode,
+      animationConfigs: animationConfigs[animation],
+      style: frameStyle,
     };
 
     if (modal) {
