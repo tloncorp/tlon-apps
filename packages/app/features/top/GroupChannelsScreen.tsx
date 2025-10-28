@@ -4,7 +4,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -22,7 +22,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
 const logger = createDevLogger('GroupChannelsScreen', false);
 
-export function GroupChannelsScreen({ route }: Props) {
+export function GroupChannelsScreen({ route, navigation }: Props) {
+  // const navigationRef = useRef(navigation);
   return <GroupChannelsScreenContent groupId={route.params.groupId} />;
 }
 
@@ -41,6 +42,15 @@ export function GroupChannelsScreenContent({
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+
+  const handleGoToGroupMembers = useCallback(() => {
+    if (group) {
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, navigation]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -103,6 +113,7 @@ export function GroupChannelsScreenContent({
           onChannelPressed={handleChannelSelected}
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
+          onGoToGroupMembers={handleGoToGroupMembers}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

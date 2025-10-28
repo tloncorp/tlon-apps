@@ -1,9 +1,16 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { SectionListHeader, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -22,6 +29,7 @@ import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
@@ -37,6 +45,7 @@ type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
+  onGoToGroupMembers: () => void;
 };
 
 export const GroupChannelsScreenView = React.memo(
@@ -46,6 +55,7 @@ export const GroupChannelsScreenView = React.memo(
     onChannelPressed,
     onJoinChannel,
     onBackPressed,
+    onGoToGroupMembers,
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -76,6 +86,18 @@ export const GroupChannelsScreenView = React.memo(
     );
 
     const title = useGroupTitle(group);
+
+    const hasJoinRequests = useMemo(
+      () => (group?.joinRequests?.length ?? 0) > 0,
+      [group?.joinRequests?.length]
+    );
+
+    useEffect(() => {
+      if (group && hasJoinRequests) {
+        store.markGroupRead(group.id, false);
+        console.log('bl: clearing shallow');
+      }
+    }, [group, hasJoinRequests]);
 
     const titleWidth = useCallback(() => {
       if (isGroupAdmin) {
@@ -291,19 +313,26 @@ export const GroupChannelsScreenView = React.memo(
             <LoadingSpinner />
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
-          <FlashList
-            data={listItems}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            getItemType={getItemType}
-            estimatedItemSize={sizeRefs.current.channelItem}
-            overrideItemLayout={handleOverrideLayout}
-            contentContainerStyle={{
-              paddingTop: getTokenValue('$l'),
-              paddingHorizontal: getTokenValue('$l'),
-              paddingBottom: insets.bottom,
-            }}
-          />
+          <YStack flex={1}>
+            {hasJoinRequests && (
+              <SystemNotices.JoinRequestNotice
+                onViewRequests={onGoToGroupMembers}
+              />
+            )}
+            <FlashList
+              data={listItems}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              getItemType={getItemType}
+              estimatedItemSize={sizeRefs.current.channelItem}
+              overrideItemLayout={handleOverrideLayout}
+              contentContainerStyle={{
+                paddingTop: getTokenValue('$l'),
+                paddingHorizontal: getTokenValue('$l'),
+                paddingBottom: insets.bottom,
+              }}
+            />
+          </YStack>
         ) : group && group.channels && group.channels.length === 0 ? (
           // Only show "no channels" message when we're certain the group has fully synced
           <YStack

@@ -14,6 +14,7 @@ const logger = createDevLogger('SystemNotices', false);
 const SystemNotices = {
   ContactBookPrompt,
   NotificationsPrompt,
+  JoinRequestNotice,
 };
 
 const NoticeFrame = styled(YStack, {
@@ -230,6 +231,47 @@ export function ContactBookPrompt(props: {
           </Button>
         )}
       </YStack>
+    </NoticeFrame>
+  );
+}
+
+export function JoinRequestNotice(params: { onViewRequests: () => void }) {
+  return (
+    <NoticeFrame gap="$2xl">
+      <NoticeTitle>Pending Member Requests</NoticeTitle>
+      <XStack gap="$m" justifyContent="flex-end">
+        <Button
+          padding="$l"
+          paddingHorizontal="$2xl"
+          backgroundColor="$systemNoticeBackground"
+          borderColor="$positiveBorder"
+          borderWidth={1.6}
+          pressStyle={{
+            opacity: 0.7,
+            backgroundColor: '$systemNoticeBackground',
+          }}
+          // onPress={handleDismiss}
+        >
+          <Button.Text color="$systemNoticeText" fontWeight="500">
+            Dismiss
+          </Button.Text>
+        </Button>
+        <Button
+          backgroundColor="$systemNoticeText"
+          padding="$l"
+          paddingHorizontal="$2xl"
+          borderWidth={0}
+          pressStyle={{
+            opacity: 0.8,
+            backgroundColor: '$systemNoticeText',
+          }}
+          onPress={params.onViewRequests}
+        >
+          <Button.Text color="$systemNoticeBackground" fontWeight="500">
+            View Requests
+          </Button.Text>
+        </Button>
+      </XStack>
     </NoticeFrame>
   );
 }

@@ -16,6 +16,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -51,6 +52,7 @@ import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
+import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
@@ -197,6 +199,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         markRead();
       }
     }, [hasUnreads, hasLoaded, inView, markRead]);
+
+    const hasJoinRequests = useMemo(
+      () => (group?.joinRequests?.length ?? 0) > 0,
+      [group?.joinRequests?.length]
+    );
+
+    useEffect(() => {
+      if (group && hasJoinRequests) {
+        store.markGroupRead(group.id, false);
+        console.log('bl: clearing shallow');
+      }
+    }, [group, hasJoinRequests]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -391,6 +405,11 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                         />
                         <YStack alignItems="stretch" flex={1}>
+                          {hasJoinRequests && (
+                            <SystemNotices.JoinRequestNotice
+                              onViewRequests={goToGroupSettings}
+                            />
+                          )}
                           <AnimatePresence>
                             {draftInputPresentationMode !== 'fullscreen' && (
                               <View flex={1}>
