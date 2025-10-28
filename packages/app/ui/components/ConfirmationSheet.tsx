@@ -19,15 +19,17 @@ export function ConfirmationSheet({
   onOpenChange: (show: boolean) => void;
   confirmAction: () => void;
 }) {
-  const finalSubtitle = warningMessage 
-    ? (subtitle ? `${subtitle}\n\n${warningMessage}` : warningMessage)
-    : subtitle;
+  const buildSubtitle = () => {
+    if (!warningMessage) return subtitle;
+    if (!subtitle) return warningMessage;
+    return `${subtitle}\n\n${warningMessage}`;
+  };
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.SimpleHeader
         title={title}
-        subtitle={finalSubtitle}
+        subtitle={buildSubtitle()}
       />
       <ActionSheet.Content>
         <ActionSheet.SimpleActionGroupList

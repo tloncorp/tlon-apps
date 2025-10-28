@@ -10,6 +10,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { INVITATION_WARNINGS } from '../../ui/constants/warningMessages';
 import {
   ActionSheet,
   ChatOptionsProvider,
@@ -310,7 +311,7 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         onOpenChange={setShowLeaveConfirmation}
         title={`Leave ${groupTitle}?`}
         subtitle="You will no longer receive updates from this group."
-        warningMessage="Warning: Leaving this group will invalidate any invitations you've sent."
+        warningMessage={INVITATION_WARNINGS.LEAVE_GROUP}
         confirmButtonTitle="Leave Group"
         confirmButtonType="negative"
         confirmAction={handleLeaveGroupConfirm}

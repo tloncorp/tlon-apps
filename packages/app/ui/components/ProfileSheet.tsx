@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { INVITATION_WARNINGS } from '../constants/warningMessages';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ConfirmationSheet } from './ConfirmationSheet';
 import { ProfileBlock } from './ProfileBlock';
@@ -208,7 +209,7 @@ export function ProfileSheet({
         onOpenChange={setShowKickConfirmation}
         title={`Kick ${contact?.nickname || contactId}?`}
         subtitle="This user will be removed from the group."
-        warningMessage="Warning: Kicking this user will invalidate all the invitations they've sent."
+        warningMessage={INVITATION_WARNINGS.KICK_USER}
         confirmButtonTitle="Kick User"
         confirmButtonType="negative"
         confirmAction={handleKickConfirm}
