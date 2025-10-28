@@ -562,23 +562,14 @@ const ActionSheetActionFrame = styled(ListItem, {
     type: {
       positive: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
       negative: {
         backgroundColor: '$negativeBackground',
-        pressStyle: {
-          backgroundColor: '$negativeBackground',
-        },
       },
       neutral: {},
       disabled: {},
       selected: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
     },
   } as const,
