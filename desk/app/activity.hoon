@@ -836,7 +836,8 @@
   =.  volume-settings  (~(del by volume-settings) source)
   =.  cor
     ::  send dummy read to clear any badges on mobile clients
-    =/  =update:a  [%read source *activity-summary:a]
+    =/  summary  *activity-summary:a
+    =/  =update:a  [%read source summary(newest now.bowl)]
     (give-update update [%both /reads])
   (give-update [%del source] [%hose ~])
 ::

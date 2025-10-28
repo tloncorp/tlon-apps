@@ -696,6 +696,10 @@ export function getSourceForEvent(event: ActivityEvent): Source {
     };
   }
 
+  if ('dm-invite' in event) {
+    return { dm: event['dm-invite'] };
+  }
+
   if ('dm-post' in event) {
     return { dm: event['dm-post'].whom };
   }
