@@ -284,30 +284,22 @@ const ActionSheetComponent = ({
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
-  // Use fixed snap points for sheets with keyboard input
-  // Start at higher position to leave room for keyboard
-  // Include 100% to allow full expansion when keyboard is visible
-  const snapMode = props.moveOnKeyboardChange ? undefined : 'fit';
-  const snapPoints = props.moveOnKeyboardChange
-    ? ['75%', '90%', '100%']
-    : undefined;
+  console.log('ActionSheet snapPointsMode', props.snapPointsMode);
+  console.log('ActionSheet snapPoints', props.snapPoints);
 
   const sheetContent = useBottomSheet ? (
     <BottomSheetWrapper
       open={open}
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom={true}
-      snapPointsMode={snapMode as any}
-      snapPoints={snapPoints}
       animation="quick"
       handleDisableScroll={true}
       modal={props.modal}
+      snapPoints={props.snapPoints}
+      snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
       showOverlay={true}
       enablePanDownToClose={true}
-      keyboardBehavior={
-        props.moveOnKeyboardChange ? 'fillParent' : 'interactive'
-      }
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
@@ -377,13 +369,6 @@ const ActionSheetContent = YStack.styleable((props, ref) => {
   return <YStack {...contentStyle} {...props} ref={ref} />;
 });
 
-// On Android + tamagui@1.26.12, `Sheet.ScrollView` breaks press handlers after
-// any amount of scrolling, so we use a base scrollview instead. In theory, this
-// means that the transition between scrolling to the top of the scrollview and
-// swiping the sheet down may not be handled as well.
-const SheetScrollView =
-  Platform.OS === 'android' ? ScrollView : Sheet.ScrollView;
-
 const ActionSheetScrollableContent = ({
   ...props
 }: ComponentProps<typeof Sheet.ScrollView>) => {
@@ -409,7 +394,7 @@ const ActionSheetScrollableContent = ({
 
   // Use Tamagui ScrollView for web
   return (
-    <SheetScrollView
+    <Sheet.ScrollView
       flex={1}
       alwaysBounceVertical={false}
       automaticallyAdjustsScrollIndicatorInsets={false}

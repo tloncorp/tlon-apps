@@ -1,9 +1,8 @@
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetModal,
-  BottomSheetScrollView as GorhomBottomSheetScrollView,
   BottomSheetView,
-  useBottomSheetDynamicSnapPoints,
+  BottomSheetScrollView as GorhomBottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import React, {
   PropsWithChildren,
@@ -14,14 +13,12 @@ import React, {
   useRef,
 } from 'react';
 import { Keyboard, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   BottomSheetScrollViewProps,
   BottomSheetWrapperProps,
 } from './BottomSheetWrapper.types';
 
-// Main wrapper component
 export const BottomSheetWrapper = forwardRef<
   BottomSheet,
   PropsWithChildren<BottomSheetWrapperProps>
@@ -34,8 +31,6 @@ export const BottomSheetWrapper = forwardRef<
       animation = 'quick',
       dismissOnSnapToBottom = true,
       handleDisableScroll: _handleDisableScroll,
-      snapPointsMode = 'fit',
-      snapPoints: customSnapPoints,
       frameStyle,
       modal = false,
       showHandle = true,
@@ -44,54 +39,39 @@ export const BottomSheetWrapper = forwardRef<
       enablePanDownToClose = true,
       keyboardBehavior = 'interactive',
       android_keyboardInputMode = 'adjustResize',
+      snapPointsMode = 'fit',
+      snapPoints,
     },
     ref
   ) => {
-    const insets = useSafeAreaInsets();
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
-    // Use internal refs and expose methods via imperative handle
-    // This ensures refs are always valid
-    React.useImperativeHandle(ref, () => {
-      const modalRef = bottomSheetModalRef.current;
-      const sheetRef = bottomSheetRef.current;
+    React.useImperativeHandle(
+      ref,
+      () => {
+        const modalRef = bottomSheetModalRef.current;
+        const sheetRef = bottomSheetRef.current;
 
-      return {
-        present: () => modal ? modalRef?.present() : sheetRef?.expand(),
-        dismiss: () => modal ? modalRef?.dismiss() : sheetRef?.close(),
-        close: () => modal ? modalRef?.dismiss() : sheetRef?.close(),
-        expand: () => modal ? modalRef?.present() : sheetRef?.expand(),
-        collapse: () => modal ? modalRef?.dismiss() : sheetRef?.collapse(),
-        snapToIndex: (index: number) => modal ? modalRef?.snapToIndex(index) : sheetRef?.snapToIndex(index),
-        snapToPosition: (position: string | number) => modal ? modalRef?.snapToPosition(position) : sheetRef?.snapToPosition(position),
-        forceClose: () => modal ? modalRef?.forceClose() : sheetRef?.forceClose(),
-      } as any;
-    }, [modal]);
+        return {
+          present: () => (modal ? modalRef?.present() : sheetRef?.expand()),
+          dismiss: () => (modal ? modalRef?.dismiss() : sheetRef?.close()),
+          close: () => (modal ? modalRef?.dismiss() : sheetRef?.close()),
+          expand: () => (modal ? modalRef?.present() : sheetRef?.expand()),
+          collapse: () => (modal ? modalRef?.dismiss() : sheetRef?.collapse()),
+          snapToIndex: (index: number) =>
+            modal ? modalRef?.snapToIndex(index) : sheetRef?.snapToIndex(index),
+          snapToPosition: (position: string | number) =>
+            modal
+              ? modalRef?.snapToPosition(position)
+              : sheetRef?.snapToPosition(position),
+          forceClose: () =>
+            modal ? modalRef?.forceClose() : sheetRef?.forceClose(),
+        } as any;
+      },
+      [modal]
+    );
 
-    // Handle snap points
-    const initialSnapPoints = useMemo(() => {
-      // If custom snap points are provided, use them (for sheets with inputs)
-      if (customSnapPoints) {
-        return customSnapPoints;
-      }
-      // For fit mode, use dynamic content height
-      if (snapPointsMode === 'fit') {
-        return ['CONTENT_HEIGHT', '90%'];
-      }
-      // Default snap points
-      return ['50%', '90%'];
-    }, [snapPointsMode, customSnapPoints]);
-
-    // Setup dynamic snap points handling
-    const {
-      animatedHandleHeight,
-      animatedSnapPoints,
-      animatedContentHeight,
-      handleContentLayout,
-    } = useBottomSheetDynamicSnapPoints(initialSnapPoints);
-
-    // Animation config
     const animationConfigs = useMemo(
       () => ({
         quick: { duration: 250 },
@@ -132,7 +112,6 @@ export const BottomSheetWrapper = forwardRef<
       }
     }, [open, modal]);
 
-    // Callbacks
     const handleSheetChanges = useCallback(
       (index: number) => {
         // When sheet is closed (index -1), notify parent
@@ -162,7 +141,6 @@ export const BottomSheetWrapper = forwardRef<
       [showHandle]
     );
 
-    // Common props for both Modal and regular BottomSheet
     const commonProps = {
       enablePanDownToClose,
       keyboardBehavior,
@@ -172,54 +150,26 @@ export const BottomSheetWrapper = forwardRef<
       onChange: handleSheetChanges,
       backdropComponent: renderBackdrop,
       handleComponent: renderHandle,
-      bottomInset: insets.bottom,
       style: frameStyle,
+      snapPointsMode,
+      snapPoints,
     };
 
-    // Props specific to non-modal sheets
     const nonModalProps = {
       ...commonProps,
-      // Use animated snap points for fit mode, regular snap points otherwise
-      snapPoints: snapPointsMode === 'fit' ? animatedSnapPoints as any : initialSnapPoints,
-      // Add dynamic sizing properties for fit mode
-      ...(snapPointsMode === 'fit' && {
-        handleHeight: animatedHandleHeight,
-        contentHeight: animatedContentHeight,
-        enableDynamicSizing: true,
-      }),
       index: 0, // Start at first snap point
     };
 
-    // Props specific to modal sheets - keep it simple like the docs
     const modalProps = {
       onChange: handleSheetChanges,
       backdropComponent: renderBackdrop,
       handleComponent: renderHandle,
-      snapPoints: customSnapPoints || ['50%', '90%'],
-      // Don't set index - let modal manage its own state
-      // Don't set enableDynamicSizing - use defaults
-      // Keep it minimal like documentation examples
     };
-
-    const content = modal ? (
-      // Modal sheets should always use flex: 1
-      <BottomSheetView style={{ flex: 1 }}>
-        {children}
-      </BottomSheetView>
-    ) : (
-      // Non-modal sheets can use dynamic sizing
-      <BottomSheetView
-        style={{ flex: snapPointsMode === 'fit' ? 0 : 1 }}
-        onLayout={snapPointsMode === 'fit' ? handleContentLayout : undefined}
-      >
-        {children}
-      </BottomSheetView>
-    );
 
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...modalProps}>
-          {content}
+          <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
         </BottomSheetModal>
       );
     }
@@ -242,7 +192,7 @@ export const BottomSheetWrapper = forwardRef<
         pointerEvents="box-none"
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
-          {content}
+          <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
         </BottomSheet>
       </View>
     );
