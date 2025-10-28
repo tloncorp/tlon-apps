@@ -13,6 +13,7 @@ import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
+  ConfirmationSheet,
   ContactListItem,
   DeleteSheet,
   ForwardGroupSheetProvider,
@@ -245,6 +246,7 @@ function ChatDetailsScreenContent({
 function GroupLeaveActions({ group }: { group: db.Group }) {
   const { onLeaveGroup } = useChatSettingsNavigation();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
   const groupTitle = useGroupTitle(group) ?? 'group';
@@ -255,11 +257,20 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const { leaveGroup } = useChatOptions();
 
+  const handleLeaveGroupConfirm = useCallback(async () => {
+    await leaveGroup();
+    setShowLeaveConfirmation(false);
+  }, [leaveGroup]);
+
+  const handleShowLeaveConfirmation = useCallback(() => {
+    setShowLeaveConfirmation(true);
+  }, []);
+
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
       title: 'Leave group',
-      action: leaveGroup,
+      action: handleShowLeaveConfirmation,
     },
     canDelete && {
       title: 'Delete group',
@@ -293,6 +304,16 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         open={showDeleteSheet}
         onOpenChange={setShowDeleteSheet}
         deleteAction={handleDeleteGroup}
+      />
+      <ConfirmationSheet
+        open={showLeaveConfirmation}
+        onOpenChange={setShowLeaveConfirmation}
+        title={`Leave ${groupTitle}?`}
+        subtitle="You will no longer receive updates from this group."
+        warningMessage="Warning: Leaving this group will invalidate any invitations you've sent."
+        confirmButtonTitle="Leave Group"
+        confirmButtonType="negative"
+        confirmAction={handleLeaveGroupConfirm}
       />
     </>
   );
