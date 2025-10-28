@@ -41,6 +41,7 @@ export const BottomSheetWrapper = forwardRef<
       android_keyboardInputMode = 'adjustResize',
       snapPointsMode = 'fit',
       snapPoints,
+      footerComponent,
     },
     ref
   ) => {
@@ -169,6 +170,7 @@ export const BottomSheetWrapper = forwardRef<
       onChange: handleSheetChanges,
       backdropComponent: renderBackdrop,
       handleComponent: renderHandle,
+      footerComponent,
       style: frameStyle,
       snapPointsMode,
       snapPoints: transformedSnapPoints,
@@ -182,7 +184,11 @@ export const BottomSheetWrapper = forwardRef<
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
-          <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
+          {footerComponent ? (
+            <View style={{ flex: 1 }}>{children}</View>
+          ) : (
+            <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
+          )}
         </BottomSheetModal>
       );
     }
@@ -205,7 +211,11 @@ export const BottomSheetWrapper = forwardRef<
         pointerEvents="box-none"
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
-          <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
+          {footerComponent ? (
+            <View style={{ flex: 1 }}>{children}</View>
+          ) : (
+            <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
+          )}
         </BottomSheet>
       </View>
     );

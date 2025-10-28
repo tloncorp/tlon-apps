@@ -116,6 +116,7 @@ type ActionSheetProps = {
   mode?: AdaptiveMode;
   dialogContentProps?: ComponentProps<typeof Dialog.Content>;
   closeButton?: boolean;
+  footerComponent?: React.FC<any>;
 };
 
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
@@ -141,6 +142,7 @@ const ActionSheetComponent = ({
   children,
   dialogContentProps,
   closeButton,
+  footerComponent,
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -284,7 +286,6 @@ const ActionSheetComponent = ({
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
-
   const sheetContent = useBottomSheet ? (
     <BottomSheetWrapper
       open={open}
@@ -298,6 +299,7 @@ const ActionSheetComponent = ({
       showHandle={true}
       showOverlay={true}
       enablePanDownToClose={true}
+      footerComponent={footerComponent}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={{ isInsideSheet: true }}>

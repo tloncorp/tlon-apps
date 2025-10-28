@@ -24,6 +24,9 @@ export interface BottomSheetWrapperProps {
   // Handle
   showHandle?: boolean;
 
+  // Footer
+  footerComponent?: React.FC<any>;
+
   // Overlay
   showOverlay?: boolean;
   overlayOpacity?: number;
