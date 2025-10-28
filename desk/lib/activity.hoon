@@ -292,11 +292,15 @@
     =?  notified  &(notify.volume notified.event)  &
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
-    ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
+    ?.  ?&  unreads.volume
+            ?=(?(%dm-post %dm-reply %post %reply %group-ask) -<.event)
+        ==
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
     =?  main-notified  &(notify:volume notified.event)  &
+    ?:  ?=(%group-ask -<.event)
+      $(stream rest)
     =.  last
       ?~  last  `key.event
       last

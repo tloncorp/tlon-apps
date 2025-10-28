@@ -3694,7 +3694,7 @@
     |=  =u-ask:g
     ^+  go-core
     =.  go-core  (go-response [%entry %ask u-ask])
-    =?  go-core  ?=(%add -.u-ask)
+    =?  go-core  &(?=(%add -.u-ask) (go-is-admin our.bowl))
       (go-activity %ask ship.u-ask)
     ?:  go-our-host  go-core
     ?-    -.u-ask
