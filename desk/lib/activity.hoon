@@ -286,17 +286,21 @@
     =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
     =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
-    =*  is-group  ?=(%group-ask -<.event)
+    =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
     =*  supported  |(is-msg is-init is-flag is-group)
     ?.  supported  $(stream rest)
     =?  notified  &(notify.volume notified.event)  &
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
-    ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
+    ?.  ?&  unreads.volume
+            ?=(?(%dm-post %dm-reply %post %reply %group-ask) -<.event)
+        ==
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
     =?  main-notified  &(notify:volume notified.event)  &
+    ?:  ?=(%group-ask -<.event)
+      $(stream rest)
     =.  last
       ?~  last  `key.event
       last
