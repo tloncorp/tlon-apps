@@ -306,7 +306,7 @@
 ::
 +$  a-groups
   $%  [%group =flag =a-group]
-      [%invite =flag =a-invite]
+      [%invite =flag invites=(set a-invite)]
       [%leave =flag]
   ==
 +$  a-group

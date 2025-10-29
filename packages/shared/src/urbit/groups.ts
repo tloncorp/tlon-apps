@@ -1,3 +1,4 @@
+import { Story } from './channel';
 import { Metadata } from './meta';
 
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
@@ -426,3 +427,13 @@ export interface ChannelPreview {
 export function isGroup(obj: any): obj is Group {
   return 'fleet' in obj && 'cabals' in obj;
 }
+
+export interface GroupInviteAction {
+  ship: string;
+  token: string | null;
+  note: Story | null;
+}
+
+export type GroupActionV4 = {
+  invite: { flag: string; invites: GroupInviteAction[] };
+};

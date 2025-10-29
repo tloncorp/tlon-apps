@@ -247,7 +247,7 @@
     =/  =flag:gv  (flag:dejs:gj s+u.group)
     ?.  (~(has in enabled-groups) q.flag)
       %-  %^    tell
-              %warn  
+              %warn
             group-event
           ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
       [caz this]
@@ -257,18 +257,18 @@
       [caz this]
     ?.  .^(? %gu (weld prefix /groups/(scot %p p.flag)/[q.flag]))
       %-  %^    tell
-              %warn  
+              %warn
             group-event
           ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
       [caz this]
     %-  %^    tell
-            %info  
+            %info
           'Group Invite Sent'
         ~[leaf+"{<joiner.bite>} invited to group {<p.flag>}/{(trip q.flag)}"]
-    =/  =a-groups:v7:gv
+    =/  =a-groups:v8:gv
       =/  note=story:story
         ~[inline+~[(crip "lure invite {<token.bite>}")]]
-      [%invite flag [joiner.bite ~ `note]]
+      [%invite flag (sy [joiner.bite ~ `note] ~)]
     :_  this
     :_  caz
     [%pass /invite %agent [our.bowl %groups] %poke group-action-4+!>(a-groups)]

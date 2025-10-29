@@ -1049,10 +1049,10 @@
         del+whom
     ==
   ++  a-groups
-    ^-  $-(json a-groups:v7:gv)
+    ^-  $-(json a-groups:v8:gv)
     %-  of
     :~  group+(ot flag+flag a-group+a-group ~)
-        invite+(ot flag+flag a-invite+a-invite ~)
+        invite+(ot flag+flag invites+(as a-invite) ~)
         leave+flag
     ==
   ++  a-group
@@ -1075,7 +1075,7 @@
     ^-  (set role-id:v7:gv)
     (sy ((ar role-id:v7:gv) json))
   ++  a-invite
-    ^-  $-(json a-invite:v7:gv)
+    ^-  $-(json a-invite:v8:gv)
     %-  ot
     :~  ship+ship
         token+(mu (se %uv))

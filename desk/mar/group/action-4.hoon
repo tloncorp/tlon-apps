@@ -1,6 +1,6 @@
 /-  gv=groups-ver
 /+  j=groups-json
-|_  =a-groups:v7:gv
+|_  =a-groups:v8:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   --
 ++  grab
   |%
-  ++  noun  a-groups:v7:gv
-  ++  json  a-groups:v7:dejs:j
+  ++  noun  a-groups:v8:gv
+  ++  json  a-groups:dejs:j
   --
 --
