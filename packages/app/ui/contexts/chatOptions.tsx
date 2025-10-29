@@ -15,7 +15,6 @@ import {
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { INVITATION_WARNINGS } from '../constants/warningMessages';
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../components/InviteUsersSheet';
 import { useChannelTitle } from '../utils';
@@ -276,7 +275,7 @@ export const ChatOptionsProvider = ({
     }
     Alert.alert(
       `Leave ${channelTitle}?`,
-      `You will no longer receive updates from this channel.\n\n${INVITATION_WARNINGS.LEAVE_GROUP}`,
+      `You will no longer receive updates from this channel.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`,
       [
         {
           text: 'Cancel',

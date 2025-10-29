@@ -5,7 +5,6 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { INVITATION_WARNINGS } from '../constants/warningMessages';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ProfileBlock } from './ProfileBlock';
 
@@ -122,7 +121,7 @@ export function ProfileSheet({
 
   const handleKickUser = useCallback(() => {
     const displayName = contact?.nickname || contactId;
-    const message = `This user will be removed from the group.\n\n${INVITATION_WARNINGS.KICK_USER}`;
+    const message = `This user will be removed from the group.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
     
     if (isWeb) {
       const confirmed = window.confirm(`Kick ${displayName}?\n\n${message}`);

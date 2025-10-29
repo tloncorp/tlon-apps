@@ -12,7 +12,6 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
-import { INVITATION_WARNINGS } from '../../ui/constants/warningMessages';
 import {
   ActionSheet,
   ChatOptionsProvider,
@@ -259,7 +258,7 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
   const { leaveGroup } = useChatOptions();
 
   const handleLeaveGroupWithConfirm = useCallback(async () => {
-    const message = `You will no longer receive updates from this group.\n\n${INVITATION_WARNINGS.LEAVE_GROUP}`;
+    const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
     
     if (isWeb) {
       const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
