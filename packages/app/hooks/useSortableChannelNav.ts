@@ -1,23 +1,32 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { isEqual } from 'lodash';
 import { useCallback, useMemo, useRef } from 'react';
+
+import type { GroupNavSectionWithChannels } from '../ui/components/ManageChannels/ManageChannelsShared';
 
 const logger = createDevLogger('useChannelOrdering', true);
 
-export type OrderableChannelSection = {
+type GroupNavigationUpdate = Array<{
+  sectionId: string;
+  sectionIndex: number;
+  channels: Array<{ channelId: string; channelIndex: number }>;
+}>;
+
+export type SortableSection = {
   id: string;
   title: string;
-  channels: OrderableChannelItem[];
+  channels: SortableChannel[];
 };
 
-type OrderableChannelItem = {
+type SortableChannel = {
   id: string;
   type: db.ChannelType;
   title: string;
   index?: number;
 };
 
-export type OrderableChannelNavItem =
+export type SortableListItem =
   | {
       type: 'section-header';
       id: string;
@@ -27,24 +36,16 @@ export type OrderableChannelNavItem =
       totalSections: number;
       isEmpty: boolean;
       isDefault: boolean;
-      section: OrderableChannelSection;
+      section: SortableSection;
     }
   | {
       type: 'channel';
       id: string;
-      channel: OrderableChannelItem;
+      channel: SortableChannel;
       sectionId: string;
       channelIndex: number;
       sectionIndex: number;
     };
-
-type ChannelWithIndex = db.Channel & {
-  index?: number;
-};
-
-type GroupNavSectionWithChannels = Omit<db.GroupNavSection, 'channels'> & {
-  channels: ChannelWithIndex[];
-};
 
 interface UseChannelOrderingProps {
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
@@ -79,8 +80,8 @@ export function useChannelOrdering({
   sectionsRef.current = sections;
 
   // Build flat list data for rendering
-  const sortableNavItems = useMemo<OrderableChannelNavItem[]>(() => {
-    const items: OrderableChannelNavItem[] = [];
+  const sortableNavItems = useMemo<SortableListItem[]>(() => {
+    const items: SortableListItem[] = [];
 
     sections.forEach((section, sectionIndex) => {
       // Add section header (include full section object)
@@ -122,50 +123,22 @@ export function useChannelOrdering({
 
       const reorderedItems = indexToKey
         .map((key) => sortableNavItems.find((item) => item.id === key))
-        .filter((item): item is OrderableChannelNavItem => item !== undefined);
+        .filter((item): item is SortableListItem => item !== undefined);
 
-      const newNavStructure: Array<{
-        sectionId: string;
-        sectionIndex: number;
-        channels: Array<{ channelId: string; channelIndex: number }>;
-      }> = [];
+      const newNavStructure = buildNavigationStructure(reorderedItems);
 
-      let currentSection: typeof newNavStructure[number] | null = null;
+      // Build a comparable structure from existing sections
+      const oldNavStructure = sections.map((section, idx) => ({
+        sectionId: section.id,
+        sectionIndex: idx,
+        channels: section.channels.map((channel, chanIdx) => ({
+          channelId: channel.id,
+          channelIndex: chanIdx,
+        })),
+      }));
 
-      for (const item of reorderedItems) {
-        if (item.type === 'section-header') {
-          currentSection = {
-            sectionId: item.sectionId,
-            sectionIndex: newNavStructure.length,
-            channels: [],
-          };
-          newNavStructure.push(currentSection);
-        } else if (item.type === 'channel' && currentSection) {
-          currentSection.channels.push({
-            channelId: item.channel.id,
-            channelIndex: currentSection.channels.length,
-          });
-        }
-      }
-
-      // Compare by section ID, not by index, since sections might have been reordered
-      let hasChanges = newNavStructure.some((newSection) => {
-        const oldSection = sections.find((s) => s.id === newSection.sectionId);
-        if (!oldSection) return true;
-        if (newSection.channels.length !== oldSection.channels.length) return true;
-        return newSection.channels.some(
-          (newChan, chanIdx) =>
-            oldSection.channels[chanIdx]?.id !== newChan.channelId
-        );
-      }) || newNavStructure.length !== sections.length;
-
-      if (!hasChanges) {
-        hasChanges = newNavStructure.some(
-          (newSection, idx) => sections[idx]?.id !== newSection.sectionId
-        );
-      }
-
-      if (!hasChanges) {
+      // Deep equality check to detect any navigation changes
+      if (isEqual(oldNavStructure, newNavStructure)) {
         return;
       }
 
@@ -182,4 +155,29 @@ export function useChannelOrdering({
     sortableNavItems,
     handleActiveItemDropped,
   };
+}
+
+function buildNavigationStructure(
+  reorderedItems: SortableListItem[]
+): GroupNavigationUpdate {
+  const newNavStructure: GroupNavigationUpdate = [];
+  let currentSection: GroupNavigationUpdate[number] | null = null;
+
+  for (const item of reorderedItems) {
+    if (item.type === 'section-header') {
+      currentSection = {
+        sectionId: item.sectionId,
+        sectionIndex: newNavStructure.length,
+        channels: [],
+      };
+      newNavStructure.push(currentSection);
+    } else if (item.type === 'channel' && currentSection) {
+      currentSection.channels.push({
+        channelId: item.channel.id,
+        channelIndex: currentSection.channels.length,
+      });
+    }
+  }
+
+  return newNavStructure;
 }

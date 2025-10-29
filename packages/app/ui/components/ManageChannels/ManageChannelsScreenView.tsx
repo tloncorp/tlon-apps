@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import Sortable, { SortableGridRenderItem } from 'react-native-sortables';
 
 import {
-  OrderableChannelNavItem,
+  SortableListItem,
   useChannelOrdering,
 } from '../../../hooks/useSortableChannelNav';
 import {
@@ -62,48 +62,47 @@ function ManageChannelsContent({
     updateGroupNavigation,
   });
 
-  const renderItem: SortableGridRenderItem<OrderableChannelNavItem> =
-    useCallback(
-      ({ item }) => {
-        if (item.type === 'section-header') {
-          return (
-            <Sortable.Handle>
-              <SectionHeader
-                index={item.sectionIndex}
-                section={item.section}
-                editSection={setEditSection}
-                deleteSection={handleDeleteSection}
-                setShowAddSection={setShowAddSection}
-                setShowCreateChannel={setShowCreateChannel}
-                isEmpty={item.isEmpty}
-                isDefault={item.isDefault}
-              />
-            </Sortable.Handle>
-          );
-        }
+  const renderItem: SortableGridRenderItem<SortableListItem> = useCallback(
+    ({ item }) => {
+      if (item.type === 'section-header') {
+        return (
+          <Sortable.Handle>
+            <SectionHeader
+              index={item.sectionIndex}
+              section={item.section}
+              editSection={setEditSection}
+              deleteSection={handleDeleteSection}
+              setShowAddSection={setShowAddSection}
+              setShowCreateChannel={setShowCreateChannel}
+              isEmpty={item.isEmpty}
+              isDefault={item.isDefault}
+            />
+          </Sortable.Handle>
+        );
+      }
 
-        if (item.type === 'channel') {
-          return (
-            <Sortable.Handle>
-              <ChannelItem
-                channel={item.channel}
-                index={item.channelIndex}
-                onEdit={() => goToEditChannel(item.channel.id)}
-              />
-            </Sortable.Handle>
-          );
-        }
+      if (item.type === 'channel') {
+        return (
+          <Sortable.Handle>
+            <ChannelItem
+              channel={item.channel}
+              index={item.channelIndex}
+              onEdit={() => goToEditChannel(item.channel.id)}
+            />
+          </Sortable.Handle>
+        );
+      }
 
-        return null;
-      },
-      [
-        setEditSection,
-        handleDeleteSection,
-        setShowAddSection,
-        setShowCreateChannel,
-        goToEditChannel,
-      ]
-    );
+      return null;
+    },
+    [
+      setEditSection,
+      handleDeleteSection,
+      setShowAddSection,
+      setShowCreateChannel,
+      goToEditChannel,
+    ]
+  );
 
   return (
     <Sortable.Grid

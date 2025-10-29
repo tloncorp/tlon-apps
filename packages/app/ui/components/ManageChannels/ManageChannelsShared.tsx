@@ -2,11 +2,11 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { omit } from 'lodash';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import { OrderableChannelSection } from '../../../hooks/useSortableChannelNav';
+import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { capitalize } from '../../utils';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
@@ -15,22 +15,11 @@ import { EditSectionNameSheet } from './EditSectionNameSheet';
 
 const logger = createDevLogger('ManageChannelsShared', false);
 
-export type Channel = {
-  id: string;
-  type: db.ChannelType;
-  title: string;
-  index?: number;
-};
-
-export type ChannelWithIndex = db.Channel & {
-  index?: number;
-};
-
 export type GroupNavSectionWithChannels = Omit<
   db.GroupNavSection,
   'channels'
 > & {
-  channels: ChannelWithIndex[];
+  channels: (db.Channel & { index?: number })[];
 };
 
 export interface ManageChannelsScreenViewProps {
@@ -56,7 +45,7 @@ export function ChannelItem({
   onEdit,
   index,
 }: {
-  channel: Channel;
+  channel: Pick<db.Channel, 'id' | 'type' | 'title'>;
   onEdit: () => void;
   index: number;
 }) {
@@ -107,31 +96,24 @@ export function SectionHeader({
   isEmpty,
   isDefault,
 }: {
-  section: OrderableChannelSection;
+  section: SortableSection;
   index: number;
-  editSection: (section: OrderableChannelSection) => void;
+  editSection: (section: SortableSection) => void;
   deleteSection: (sectionId: string) => void;
   setShowCreateChannel: (show: boolean) => void;
   setShowAddSection: (show: boolean) => void;
   isEmpty: boolean;
   isDefault: boolean;
 }) {
-  const paddingTop = useMemo(() => (index === 0 ? '$l' : '$xl'), [index]);
-  const borderTopWidth = useMemo(() => (index === 0 ? 'unset' : 1), [index]);
-  const borderColor = useMemo(
-    () => (index === 0 ? 'transparent' : '$border'),
-    [index]
-  );
-
   return (
     <XStack
       width="100%"
       justifyContent="space-between"
       alignItems="center"
       backgroundColor="$background"
-      borderTopWidth={borderTopWidth}
-      borderColor={borderColor}
-      paddingTop={paddingTop}
+      borderTopWidth={index === 0 ? 'unset' : 1}
+      borderColor={index === 0 ? 'transparent' : '$border'}
+      paddingTop={index === 0 ? '$l' : '$xl'}
       paddingHorizontal="$l"
       marginBottom="$2xl"
       testID={`NavSection-${section.title}`}
@@ -192,7 +174,7 @@ export function useManageChannelsState({
   deleteNavSection: (navSectionId: string) => Promise<void>;
 }) {
   const [editSection, setEditSection] =
-    useState<OrderableChannelSection | null>(null);
+    useState<SortableSection | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
@@ -252,8 +234,8 @@ export function useManageChannelsState({
 }
 
 interface ManageChannelsContextValue {
-  editSection: OrderableChannelSection | null;
-  setEditSection: (section: OrderableChannelSection | null) => void;
+  editSection: SortableSection | null;
+  setEditSection: (section: SortableSection | null) => void;
   showAddSection: boolean;
   setShowAddSection: (show: boolean) => void;
   showCreateChannel: boolean;

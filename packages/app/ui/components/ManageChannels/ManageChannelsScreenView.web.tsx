@@ -20,12 +20,11 @@ import { CSSProperties, useCallback, useEffect, useState } from 'react';
 import { View } from 'tamagui';
 
 import {
-  OrderableChannelNavItem,
-  OrderableChannelSection,
+  SortableListItem,
+  SortableSection,
   useChannelOrdering,
 } from '../../../hooks/useSortableChannelNav';
 import {
-  Channel,
   ChannelItem,
   ManageChannelsProvider,
   ManageChannelsScreenViewProps,
@@ -51,7 +50,7 @@ export function ManageChannelsScreenView({
   });
 
   const [localItems, setLocalItems] =
-    useState<OrderableChannelNavItem[]>(sortableNavItems);
+    useState<SortableListItem[]>(sortableNavItems);
 
   useEffect(() => {
     setLocalItems(sortableNavItems);
@@ -149,7 +148,7 @@ export function ManageChannelsScreenView({
           >
             {activeItem.type === 'channel' && (
               <ChannelItem
-                channel={activeItem.channel as Channel}
+                channel={activeItem.channel}
                 onEdit={() => {}}
                 index={activeItem.channelIndex}
               />
@@ -211,8 +210,8 @@ function SortableSectionHeader({
   setShowAddSection,
   setShowCreateChannel,
 }: {
-  item: Extract<OrderableChannelNavItem, { type: 'section-header' }>;
-  editSection: (section: OrderableChannelSection) => void;
+  item: Extract<SortableListItem, { type: 'section-header' }>;
+  editSection: (section: SortableSection) => void;
   deleteSection: (sectionId: string) => void;
   setShowAddSection: (value: boolean) => void;
   setShowCreateChannel: (value: boolean) => void;
@@ -237,13 +236,13 @@ function SortableChannelItem({
   item,
   onEdit,
 }: {
-  item: Extract<OrderableChannelNavItem, { type: 'channel' }>;
+  item: Extract<SortableListItem, { type: 'channel' }>;
   onEdit: () => void;
 }) {
   return (
     <SortableItem id={item.id}>
       <ChannelItem
-        channel={item.channel as Channel}
+        channel={item.channel}
         onEdit={onEdit}
         index={item.channelIndex}
       />
@@ -256,7 +255,7 @@ function ManageChannelsContent({
   goToEditChannel,
   draggableIds,
 }: {
-  localItems: OrderableChannelNavItem[];
+  localItems: SortableListItem[];
   goToEditChannel: (channelId: string) => void;
   draggableIds: string[];
 }) {
