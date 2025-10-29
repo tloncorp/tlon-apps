@@ -161,6 +161,10 @@
     [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
+  ::  we're temporarily removing %group-ask notifs/unreads until the
+  ::  feature is ready, so we need to mark all groups as read to clear
+  ::  any counts/badges
+  =.  cor  clear-groups
   refresh-all-summaries
   +$  versioned-state
     $%  state-8
@@ -1008,6 +1012,12 @@
   |=  [=time =event:a]
   =(%group-invite -<.event)
 ::
+++  clear-groups
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  (read:co source [%all ~ |] |)
 ++  drop-orphans
   |=  dry-run=?
   =/  indexes  ~(tap by indices)
