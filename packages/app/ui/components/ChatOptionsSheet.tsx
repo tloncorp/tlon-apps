@@ -1,8 +1,9 @@
 import { featureFlags } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -665,6 +666,7 @@ export function ChannelOptionsSheetContent({
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
+  const showToast = useToast();
 
   const handlePressChatDetails = useCallback(() => {
     if (!group) {
@@ -672,6 +674,110 @@ export function ChannelOptionsSheetContent({
     }
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group, onPressChatDetails]);
+
+  const handleSummarizeChannel = useCallback(
+    async (timeRange: 'day' | 'week') => {
+      const now = Date.now();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const cutoffTime = timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay;
+
+      const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
+
+      showToast({
+        message: `Summarizing ${timeLabel}...`,
+        duration: 2000,
+      });
+
+      try {
+        // Fetch posts from the database for this channel within the time range
+        const posts = await db.getChannelPostsByTimeRange({
+          channelId: channel.id,
+          startTime: cutoffTime,
+          limit: 500,
+        });
+
+        if (posts.length === 0) {
+          showToast({
+            message: `No messages found in ${timeLabel}`,
+            duration: 2000,
+          });
+          return;
+        }
+
+        // Combine all messages with author attribution
+        const allMessages = posts
+          .filter((post: db.Post) => post.textContent)
+          .map((post: db.Post) => {
+            const date = new Date(post.sentAt);
+            const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+            return `[${dateStr} ${post.authorId}]: ${post.textContent}`;
+          });
+
+        let combinedText = allMessages.join('\n\n');
+
+        // Limit to ~8000 characters to avoid token limits (roughly 2000 tokens)
+        // DeepSeek can handle more, but let's be conservative
+        const MAX_CHARS = 8000;
+        if (combinedText.length > MAX_CHARS) {
+          combinedText = combinedText.substring(0, MAX_CHARS) + '\n\n[... conversation truncated due to length ...]';
+        }
+
+        console.log(`Sending ${allMessages.length} messages (${combinedText.length} chars) to AI for summarization`);
+        console.log('Preview:', combinedText.substring(0, 500) + '...');
+
+        // Call OpenRouter API to get summary
+        const response = await api.summarizeMessage({
+          messageText: combinedText,
+        });
+
+        if (response.error) {
+          console.error('Summarization error:', response.error);
+          showToast({
+            message: `Failed to summarize ${timeLabel}`,
+            duration: 2000,
+          });
+          return;
+        }
+
+        if (!response.summary) {
+          console.error('No summary returned');
+          showToast({
+            message: 'No summary received',
+            duration: 2000,
+          });
+          return;
+        }
+
+        // Send DM to self with the summary
+        const summaryContent = [
+          {
+            inline: [
+              `AI Summary of ${chatTitle} (${timeLabel}):\n\n${response.summary}`,
+            ],
+          },
+        ];
+
+        await api.sendPost({
+          channelId: currentUserId,
+          authorId: currentUserId,
+          sentAt: Date.now(),
+          content: summaryContent,
+        });
+
+        showToast({
+          message: 'Summary sent to your DMs',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Error summarizing channel:', error);
+        showToast({
+          message: `Failed to summarize ${timeLabel}`,
+          duration: 2000,
+        });
+      }
+    },
+    [channel.id, chatTitle, currentUserId, showToast]
+  );
 
   const wrappedAction = useCallback(
     (action: () => void) => {
@@ -706,6 +812,23 @@ export function ChannelOptionsSheetContent({
             title: 'Mark as read',
             action: wrappedAction.bind(null, () =>
               markChannelRead({ includeThreads: true })
+            ),
+          },
+        ],
+        [
+          'neutral',
+          {
+            title: 'Summarize last 24 hours',
+            description: 'Get AI summary of recent messages',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('day')
+            ),
+          },
+          {
+            title: 'Summarize last week',
+            description: 'Get AI summary of the past week',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('week')
             ),
           },
         ],
@@ -777,6 +900,7 @@ export function ChannelOptionsSheetContent({
       togglePinned,
       canMarkRead,
       markChannelRead,
+      handleSummarizeChannel,
       onPressChannelMeta,
       onPressEditChannel,
       onPressChannelMembers,

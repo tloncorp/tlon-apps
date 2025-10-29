@@ -1,10 +1,11 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ChannelAction } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCopy } from '@tloncorp/ui';
+import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -72,6 +73,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
+  const showToast = useToast();
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -113,6 +115,9 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'visibility':
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
+      case 'summarize':
+        // only show if message has text content
+        return !!post.textContent && post.textContent.length > 0;
       default:
         return true;
     }
@@ -122,6 +127,7 @@ const ConnectedAction = memo(function ConnectedAction({
     post.parentId,
     post.authorId,
     post.reactions?.length,
+    post.textContent,
     currentUserId,
     channel.type,
     currentUserIsAdmin,
@@ -151,6 +157,7 @@ const ConnectedAction = memo(function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
+          showToast,
         })
       }
       key={actionId}
@@ -186,6 +193,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
+  showToast,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -198,6 +206,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  showToast?: (options: { message: string; duration?: number }) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -259,6 +268,110 @@ export async function handleAction({
       }
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
+    case 'summarize': {
+      // Summarize the message (and all replies if present) using OpenRouter and send to self as DM
+      if (!post.textContent) {
+        console.error('Cannot summarize: no text content');
+        break;
+      }
+
+      // Determine if this is a conversation (has replies) or a single message
+      const hasReplies = post.replyCount && post.replyCount > 0;
+      const itemType = hasReplies ? 'conversation' : 'message';
+
+      // Show toast notification that summarization has started
+      showToast?.({
+        message: `Summarizing ${itemType}...`,
+        duration: 2000,
+      });
+
+      // Get all replies if this post has them
+      const getRepliesText = async () => {
+        if (!hasReplies) {
+          return post.textContent ?? '';
+        }
+
+        try {
+          const replies = await db.getThreadPosts({ parentId: post.id });
+          // Combine root message and all replies with improved formatting
+          const allMessages = [
+            `[${post.authorId}]: ${post.textContent}`,
+            ...replies
+              .filter((reply) => reply.textContent)
+              .map((reply) => `[${reply.authorId}]: ${reply.textContent}`),
+          ];
+          let combinedText = allMessages.join('\n\n');
+
+          // Limit to ~8000 characters to avoid token limits
+          const MAX_CHARS = 8000;
+          if (combinedText.length > MAX_CHARS) {
+            combinedText = combinedText.substring(0, MAX_CHARS) + '\n\n[... conversation truncated ...]';
+          }
+
+          return combinedText;
+        } catch (error) {
+          console.error('Error fetching replies:', error);
+          // Fall back to just the root message
+          return post.textContent ?? '';
+        }
+      };
+
+      // Get the combined text and then call OpenRouter API
+      getRepliesText()
+        .then((combinedText) => {
+          return api.summarizeMessage({ messageText: combinedText });
+        })
+        .then(async (response) => {
+          if (response.error) {
+            console.error('Summarization error:', response.error);
+            showToast?.({
+              message: `Failed to summarize ${itemType}`,
+              duration: 2000,
+            });
+            return;
+          }
+
+          if (!response.summary) {
+            console.error('No summary returned');
+            showToast?.({
+              message: 'No summary received',
+              duration: 2000,
+            });
+            return;
+          }
+
+          // Get current user's ship ID
+          const currentUserId = api.getCurrentUserId();
+
+          // Create story content with the summary
+          const summaryContent = [
+            {
+              inline: [`AI Summary:\n\n${response.summary}`],
+            },
+          ];
+
+          // Send DM to self with the summary
+          await api.sendPost({
+            channelId: currentUserId, // sending to self
+            authorId: currentUserId,
+            sentAt: Date.now(),
+            content: summaryContent,
+          });
+
+          showToast?.({
+            message: 'Summary sent to your DMs',
+            duration: 2000,
+          });
+        })
+        .catch((error) => {
+          console.error('Error in summarize action:', error);
+          showToast?.({
+            message: `Failed to summarize ${itemType}`,
+            duration: 2000,
+          });
+        });
+      break;
+    }
   }
 
   triggerHaptic('success');
@@ -361,12 +474,20 @@ export function useDisplaySpecForChannelActionId(
         const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
         return { label: post.hidden ? showMsg : hideMsg };
       }
+
+      case 'summarize': {
+        const hasReplies = post.replyCount && post.replyCount > 0;
+        return {
+          label: hasReplies ? 'Summarize conversation' : 'Summarize',
+        };
+      }
     }
   }, [
     id,
     postTerm,
     post.authorId,
     post.hidden,
+    post.replyCount,
     currentUserId,
     currentUserIsAdmin,
     isMuted,

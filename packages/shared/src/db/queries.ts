@@ -4931,6 +4931,29 @@ function conflictUpdateSet(...columns: Column[]) {
   );
 }
 
+export const getChannelPostsByTimeRange = createReadQuery(
+  'getChannelPostsByTimeRange',
+  async (
+    {
+      channelId,
+      startTime,
+      limit = 500,
+    }: { channelId: string; startTime: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        gte($posts.sentAt, startTime),
+        isNull($posts.deliveryStatus)
+      ),
+      orderBy: [asc($posts.sentAt)],
+      limit,
+    });
+  },
+  ['posts']
+);
+
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(
     (k) => c.table[k as keyof typeof c.table] === c
