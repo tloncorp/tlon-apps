@@ -3224,7 +3224,7 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  co  (emit (request-token:go-pass:co ship.a-invite))
+      =.  co  (emit:co (request-token:go-pass:co ship.a-invite))
       co
     =/  =invite:v8:gv
       :*  flag
