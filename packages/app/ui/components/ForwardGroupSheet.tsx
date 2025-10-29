@@ -140,8 +140,8 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
         snapPointsMode="fit"
         footerComponent={renderFooter}
       >
-        <ActionSheet.SimpleHeader title={'Forward group'} />
         <ActionSheet.Content flex={1} paddingBottom="$s">
+          <ActionSheet.SimpleHeader title={'Forward group'} />
           <XStack paddingHorizontal="$xl">
             <SearchBar
               placeholder="Search channels"
