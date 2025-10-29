@@ -156,3 +156,10 @@ export interface ChangesResult {
   contacts: Contact[];
   unreads: ActivityInit;
 }
+
+export interface PendingMemberDismissal {
+  groupId: string;
+  dismissedAt: number;
+}
+
+export type PendingMemberDismissals = PendingMemberDismissal[];

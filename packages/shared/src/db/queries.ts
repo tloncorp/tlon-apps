@@ -1,6 +1,7 @@
 import {
   AnyColumn,
   Column,
+  SQLChunk,
   SQLWrapper,
   Subquery,
   Table,
@@ -102,6 +103,7 @@ import {
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  PendingMemberDismissals,
   Pin,
   PinType,
   Post,
@@ -132,6 +134,38 @@ export interface GetGroupsOptions {
   includeUnreads?: boolean;
   includeLastPost?: boolean;
 }
+
+export const insertPendingMemberDismissals = createWriteQuery(
+  'insertPendingMemberDismissals',
+  async (params: { dismissals: PendingMemberDismissals }, ctx: QueryCtx) => {
+    if (params.dismissals.length === 0) {
+      return;
+    }
+
+    return batchAction(params.dismissals, async (subset) => {
+      if (subset.length === 0) return;
+
+      const sqlChunks: SQLChunk[] = [];
+      const groupIds = subset.map((d) => d.groupId);
+
+      sqlChunks.push(sql`(CASE`);
+      subset.forEach((dismissal) => {
+        sqlChunks.push(
+          sql` WHEN ${$groups.id} = ${dismissal.groupId} THEN ${dismissal.dismissedAt}`
+        );
+      });
+      sqlChunks.push(sql` END)`);
+
+      const statement = sql.join(sqlChunks, sql.raw(' '));
+
+      await ctx.db
+        .update($groups)
+        .set({ pendingMembersDismissedAt: statement })
+        .where(inArray($groups.id, groupIds));
+    });
+  },
+  ['groups']
+);
 
 export const insertSettings = createWriteQuery(
   'insertSettings',
@@ -365,6 +399,17 @@ export const getAnalyticsDigest = createReadQuery(
   },
   []
 );
+
+const BATCH_SIZE = 200;
+async function batchAction<T>(
+  items: T[],
+  handler: (subset: T[]) => Promise<void>
+) {
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    await handler(batch);
+  }
+}
 
 export const insertSystemContacts = createWriteQuery(
   'insertSystemContacts',

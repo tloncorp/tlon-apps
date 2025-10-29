@@ -235,7 +235,10 @@ export function ContactBookPrompt(props: {
   );
 }
 
-export function JoinRequestNotice(params: { onViewRequests: () => void }) {
+export function JoinRequestNotice(params: {
+  onViewRequests: () => void;
+  onDismiss: () => void;
+}) {
   return (
     <NoticeFrame gap="$2xl">
       <NoticeTitle>Pending Member Requests</NoticeTitle>
@@ -250,7 +253,7 @@ export function JoinRequestNotice(params: { onViewRequests: () => void }) {
             opacity: 0.7,
             backgroundColor: '$systemNoticeBackground',
           }}
-          // onPress={handleDismiss}
+          onPress={params.onDismiss}
         >
           <Button.Text color="$systemNoticeText" fontWeight="500">
             Dismiss

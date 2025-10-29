@@ -200,15 +200,30 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       }
     }, [hasUnreads, hasLoaded, inView, markRead]);
 
-    const hasJoinRequests = useMemo(
-      () => (group?.joinRequests?.length ?? 0) > 0,
-      [group?.joinRequests?.length]
-    );
+    const hasJoinRequests = useMemo(() => {
+      if (group && group.joinRequests && group.joinRequests.length > 0) {
+        return group.joinRequests.some((jr) => {
+          const requestedAt =
+            jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
+          const dismissedAt = group.pendingMembersDismissedAt ?? 0;
+          return requestedAt > dismissedAt;
+        });
+      }
+      return false;
+    }, [group]);
+
+    const handleDismissJoinRequests = useCallback(() => {
+      if (group) {
+        store.updatePendingMemberDismissal({
+          groupId: group.id,
+          dismissedAt: Date.now(),
+        });
+      }
+    }, [group]);
 
     useEffect(() => {
       if (group && hasJoinRequests) {
         store.markGroupRead(group.id, false);
-        console.log('bl: clearing shallow');
       }
     }, [group, hasJoinRequests]);
 
@@ -408,6 +423,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           {hasJoinRequests && (
                             <SystemNotices.JoinRequestNotice
                               onViewRequests={goToGroupSettings}
+                              onDismiss={handleDismissJoinRequests}
                             />
                           )}
                           <AnimatePresence>

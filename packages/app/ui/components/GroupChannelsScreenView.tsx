@@ -95,7 +95,6 @@ export const GroupChannelsScreenView = React.memo(
     useEffect(() => {
       if (group && hasJoinRequests) {
         store.markGroupRead(group.id, false);
-        console.log('bl: clearing shallow');
       }
     }, [group, hasJoinRequests]);
 
@@ -317,6 +316,7 @@ export const GroupChannelsScreenView = React.memo(
             {hasJoinRequests && (
               <SystemNotices.JoinRequestNotice
                 onViewRequests={onGoToGroupMembers}
+                onDismiss={() => {}}
               />
             )}
             <FlashList
