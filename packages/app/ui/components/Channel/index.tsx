@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -420,7 +421,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                         />
                         <YStack alignItems="stretch" flex={1}>
-                          {hasJoinRequests && (
+                          {hasJoinRequests && Platform.OS !== 'web' && (
                             <SystemNotices.JoinRequestNotice
                               onViewRequests={goToGroupSettings}
                               onDismiss={handleDismissJoinRequests}

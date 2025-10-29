@@ -15,6 +15,18 @@ export async function navigateToChannel(page: Page, channelName: string) {
   await channelIsLoaded(page);
 }
 
+export async function joinGroup(page: Page, groupId: string) {
+  // Ensure session is stable before joining group
+  await waitForSessionStability(page);
+
+  await page.getByTestId('CreateChatSheetTrigger').click();
+  await page.getByText('Join a group', { exact: true }).click();
+  await page.getByText('Enter group code').fill(groupId);
+  await page.getByText('Join group').click();
+
+  await expect(page.getByText('NEW')).toBeVisible({ timeout: 3000 });
+}
+
 export async function createGroup(page: Page) {
   // Ensure session is stable before creating group
   await waitForSessionStability(page);
