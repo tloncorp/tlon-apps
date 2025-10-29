@@ -6,10 +6,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import {
-  OrderableChannelNavItem,
-  OrderableChannelSection,
-} from '../../../hooks/useSortableChannelNav';
+import { OrderableChannelSection } from '../../../hooks/useSortableChannelNav';
 import { capitalize } from '../../utils';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
@@ -42,28 +39,16 @@ export interface ManageChannelsScreenViewProps {
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   group: db.Group | null;
   enableCustomChannels?: boolean;
-  moveChannelWithinNavSection: (
-    channelId: string,
-    navSectionId: string,
-    newIndex: number
-  ) => Promise<void>;
-  moveChannelToNavSection: (
-    channelId: string,
-    navSectionId: string
-  ) => Promise<void>;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
-}
-
-export function EmptySection() {
-  return (
-    <YStack alignItems="center" width="100%" paddingHorizontal="$l">
-      <Text padding="$l" fontSize="$s" color="$secondaryText">
-        No channels in this section
-      </Text>
-    </YStack>
-  );
+  updateGroupNavigation: (
+    navSections: Array<{
+      sectionId: string;
+      sectionIndex: number;
+      channels: Array<{ channelId: string; channelIndex: number }>;
+    }>
+  ) => Promise<void>;
 }
 
 export function ChannelItem({

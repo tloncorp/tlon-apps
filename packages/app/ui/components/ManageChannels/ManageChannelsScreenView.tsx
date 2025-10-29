@@ -7,7 +7,6 @@ import {
 } from '../../../hooks/useSortableChannelNav';
 import {
   ChannelItem,
-  EmptySection,
   ManageChannelsProvider,
   ManageChannelsScreenViewProps,
   SectionHeader,
@@ -19,11 +18,10 @@ export function ManageChannelsScreenView({
   groupNavSectionsWithChannels,
   goBack,
   goToEditChannel,
-  moveChannelWithinNavSection,
-  moveChannelToNavSection,
   createNavSection,
   deleteNavSection,
   updateNavSection,
+  updateGroupNavigation,
 }: ManageChannelsScreenViewProps) {
   return (
     <ManageChannelsProvider
@@ -37,8 +35,7 @@ export function ManageChannelsScreenView({
       <ManageChannelsContent
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
         goToEditChannel={goToEditChannel}
-        moveChannelWithinNavSection={moveChannelWithinNavSection}
-        moveChannelToNavSection={moveChannelToNavSection}
+        updateGroupNavigation={updateGroupNavigation}
       />
     </ManageChannelsProvider>
   );
@@ -47,13 +44,11 @@ export function ManageChannelsScreenView({
 function ManageChannelsContent({
   groupNavSectionsWithChannels,
   goToEditChannel,
-  moveChannelWithinNavSection,
-  moveChannelToNavSection,
+  updateGroupNavigation,
 }: {
   groupNavSectionsWithChannels: ManageChannelsScreenViewProps['groupNavSectionsWithChannels'];
   goToEditChannel: (channelId: string) => void;
-  moveChannelWithinNavSection: ManageChannelsScreenViewProps['moveChannelWithinNavSection'];
-  moveChannelToNavSection: ManageChannelsScreenViewProps['moveChannelToNavSection'];
+  updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
   const {
     setEditSection,
@@ -64,8 +59,7 @@ function ManageChannelsContent({
 
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
-    moveChannelWithinNavSection,
-    moveChannelToNavSection,
+    updateGroupNavigation,
   });
 
   const renderItem: SortableGridRenderItem<OrderableChannelNavItem> =
@@ -73,21 +67,19 @@ function ManageChannelsContent({
       ({ item }) => {
         if (item.type === 'section-header') {
           return (
-            <SectionHeader
-              index={item.sectionIndex}
-              section={item.section}
-              editSection={setEditSection}
-              deleteSection={handleDeleteSection}
-              setShowAddSection={setShowAddSection}
-              setShowCreateChannel={setShowCreateChannel}
-              isEmpty={item.isEmpty}
-              isDefault={item.isDefault}
-            />
+            <Sortable.Handle>
+              <SectionHeader
+                index={item.sectionIndex}
+                section={item.section}
+                editSection={setEditSection}
+                deleteSection={handleDeleteSection}
+                setShowAddSection={setShowAddSection}
+                setShowCreateChannel={setShowCreateChannel}
+                isEmpty={item.isEmpty}
+                isDefault={item.isDefault}
+              />
+            </Sortable.Handle>
           );
-        }
-
-        if (item.type === 'empty-section') {
-          return <EmptySection />;
         }
 
         if (item.type === 'channel') {

@@ -21,12 +21,12 @@ import { View } from 'tamagui';
 
 import {
   OrderableChannelNavItem,
+  OrderableChannelSection,
   useChannelOrdering,
 } from '../../../hooks/useSortableChannelNav';
 import {
   Channel,
   ChannelItem,
-  EmptySection,
   ManageChannelsProvider,
   ManageChannelsScreenViewProps,
   SectionHeader,
@@ -38,18 +38,16 @@ export function ManageChannelsScreenView({
   groupNavSectionsWithChannels,
   goBack,
   goToEditChannel,
-  moveChannelWithinNavSection,
-  moveChannelToNavSection,
   createNavSection,
   deleteNavSection,
   updateNavSection,
+  updateGroupNavigation,
 }: ManageChannelsScreenViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
-    moveChannelWithinNavSection,
-    moveChannelToNavSection,
+    updateGroupNavigation,
   });
 
   const [localItems, setLocalItems] =
@@ -112,9 +110,7 @@ export function ManageChannelsScreenView({
     setActiveId(null);
   }, []);
 
-  const draggableIds = localItems
-    .filter((item) => item.type === 'channel')
-    .map((item) => item.id);
+  const draggableIds = localItems.map((item) => item.id);
 
   const activeItem = activeId
     ? localItems.find((item) => item.id === activeId)
@@ -143,7 +139,7 @@ export function ManageChannelsScreenView({
         />
       </ManageChannelsProvider>
       <DragOverlay>
-        {activeItem && activeItem.type === 'channel' ? (
+        {activeItem ? (
           <View
             shadowColor="$shadow"
             shadowOffset={{ width: 0, height: 8 }}
@@ -151,15 +147,107 @@ export function ManageChannelsScreenView({
             shadowRadius={24}
             borderRadius="$xl"
           >
-            <ChannelItem
-              channel={activeItem.channel as Channel}
-              onEdit={() => {}}
-              index={activeItem.channelIndex}
-            />
+            {activeItem.type === 'channel' && (
+              <ChannelItem
+                channel={activeItem.channel as Channel}
+                onEdit={() => {}}
+                index={activeItem.channelIndex}
+              />
+            )}
+            {activeItem.type === 'section-header' && (
+              <SectionHeader
+                index={activeItem.sectionIndex}
+                section={activeItem.section}
+                editSection={() => {}}
+                deleteSection={() => {}}
+                setShowAddSection={() => {}}
+                setShowCreateChannel={() => {}}
+                isEmpty={activeItem.isEmpty}
+                isDefault={activeItem.isDefault}
+              />
+            )}
           </View>
         ) : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+function SortableItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    cursor: 'grab',
+    width: '100%',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
+
+function SortableSectionHeader({
+  item,
+  editSection,
+  deleteSection,
+  setShowAddSection,
+  setShowCreateChannel,
+}: {
+  item: Extract<OrderableChannelNavItem, { type: 'section-header' }>;
+  editSection: (section: OrderableChannelSection) => void;
+  deleteSection: (sectionId: string) => void;
+  setShowAddSection: (value: boolean) => void;
+  setShowCreateChannel: (value: boolean) => void;
+}) {
+  return (
+    <SortableItem id={item.id}>
+      <SectionHeader
+        index={item.sectionIndex}
+        section={item.section}
+        editSection={editSection}
+        deleteSection={deleteSection}
+        setShowAddSection={setShowAddSection}
+        setShowCreateChannel={setShowCreateChannel}
+        isEmpty={item.isEmpty}
+        isDefault={item.isDefault}
+      />
+    </SortableItem>
+  );
+}
+
+function SortableChannelItem({
+  item,
+  onEdit,
+}: {
+  item: Extract<OrderableChannelNavItem, { type: 'channel' }>;
+  onEdit: () => void;
+}) {
+  return (
+    <SortableItem id={item.id}>
+      <ChannelItem
+        channel={item.channel as Channel}
+        onEdit={onEdit}
+        index={item.channelIndex}
+      />
+    </SortableItem>
   );
 }
 
@@ -188,22 +276,15 @@ function ManageChannelsContent({
         {localItems.map((item) => {
           if (item.type === 'section-header') {
             return (
-              <SectionHeader
+              <SortableSectionHeader
                 key={item.id}
-                index={item.sectionIndex}
-                section={item.section}
+                item={item}
                 editSection={setEditSection}
                 deleteSection={handleDeleteSection}
                 setShowAddSection={setShowAddSection}
                 setShowCreateChannel={setShowCreateChannel}
-                isEmpty={item.isEmpty}
-                isDefault={item.isDefault}
               />
             );
-          }
-
-          if (item.type === 'empty-section') {
-            return <EmptySection key={item.id} />;
           }
 
           if (item.type === 'channel') {
@@ -220,40 +301,5 @@ function ManageChannelsContent({
         })}
       </div>
     </SortableContext>
-  );
-}
-
-function SortableChannelItem({
-  item,
-  onEdit,
-}: {
-  item: Extract<OrderableChannelNavItem, { type: 'channel' }>;
-  onEdit: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    cursor: 'grab',
-    width: '100%',
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ChannelItem
-        channel={item.channel as Channel}
-        onEdit={onEdit}
-        index={item.channelIndex}
-      />
-    </div>
   );
 }
