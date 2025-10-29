@@ -86,7 +86,7 @@
   $:  =privacy
       =banned
       pending=(jug ship role-id)
-      requests=(map ship (unit story:s))
+      requests=(map ship [at=@da note=(unit story:s)])
       tokens=(map token token-meta)
       referrals=(jug ship token)
       invited=(map ship [at=@da token=(unit token)])
@@ -330,6 +330,16 @@
 +$  a-role  c-role
 +$  a-channel  c-channel
 +$  a-section  c-section
+::  $a-navigation: specify the group navigation
+::
+::  group navigation is determined by the order of sections,
+::  and, within each section, the order of channels.
+::
+::  the navigation structure supplied here can be partial, and will
+::  be applied as far as possible by the server. for instance,
+::  this action can be used to only modify a certain section by
+::  supplying it in .sections.
+::
 +$  a-navigation
   $:  sections=(map section-id section)
       order=(list section-id)
@@ -508,7 +518,7 @@
       [%del ships=(set ship)]
   ==
 +$  u-ask
-  $%  [%add =ship story=(unit story:s)]
+  $%  [%add =ship at=@da story=(unit story:s)]
       [%del ships=(set ship)]
   ==
 +$  u-role
@@ -571,6 +581,7 @@
 ::
 ::  %foreign: a foreign group action
 ::  %invite: receive an .invite
+::  %revoke: accept revocation
 ::
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]

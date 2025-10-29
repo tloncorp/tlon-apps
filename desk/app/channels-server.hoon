@@ -694,7 +694,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v7:gv q.cage.sign))
+      (take-groups !<(r-groups:v9:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -743,7 +743,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]

@@ -443,7 +443,7 @@
       `this
     ::
         %fact
-      =+  !<(=r-groups:v7:groups-ver q.cage.sign)
+      =+  !<(=r-groups:v9:groups-ver q.cage.sign)
       =*  flag  flag.r-groups
       =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
       =+  token=(~(get by stable-id) id)

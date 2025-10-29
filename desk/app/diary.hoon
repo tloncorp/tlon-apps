@@ -393,11 +393,11 @@
     ::
         %fact
       ?.  ?=(%group-response-1 p.cage.sign)  cor
-      (take-groups !<(=r-groups:v7:gv q.cage.sign))
+      (take-groups !<(=r-groups:v9:gv q.cage.sign))
     ==
   ==
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
   =/  affected=(list flag:d)
     %+  murn  ~(tap by shelf)
     |=  [=flag:d =diary:d]

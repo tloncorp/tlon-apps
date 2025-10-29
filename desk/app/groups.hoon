@@ -56,17 +56,17 @@
       :~  :+  %noun               &  -:!>(*vale:m-noun)
           :+  %group              &  -:!>(*vale:m-group)
           :+  %group-1            &  -:!>(*vale:m-group-1)
-          :+  %group-2            &  -:!>(*vale:m-group-2)
+          :+  %group-2            |  -:!>(*vale:m-group-2)
         ::
           :+  %groups             &  -:!>(*vale:m-groups)
           :+  %groups-1           &  -:!>(*vale:m-groups-1)
-          :+  %groups-2           &  -:!>(*vale:m-groups-2)
+          :+  %groups-2           |  -:!>(*vale:m-groups-2)
         ::
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
-          :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
+          :+  %groups-ui-2        |  -:!>(*vale:m-groups-ui-2)
         ::
-          :+  %group-changed-groups-1  |  -:!>(*vale:m-group-changed-groups-1)
+          :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
           :+  %group-changed-groups-2  |  -:!>(*vale:m-group-changed-groups-2)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -76,15 +76,15 @@
           :+  %group-previews     &  -:!>(*vale:m-group-previews)
           :+  %group-previews-1   &  -:!>(*vale:m-group-previews-1)
         ::
-          :+  %group-update       &  -:!>(*vale:m-group-update)
-          :+  %group-log          &  -:!>(*vale:m-group-log)
+          :+  %group-update       |  -:!>(*vale:m-group-update)
+          :+  %group-log          |  -:!>(*vale:m-group-log)
         ::
           :+  %group-token        &  -:!>(*vale:m-group-token)
         ::
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
@@ -118,6 +118,7 @@
   ::
   :~  [/x/init/v1 %noun]
       [/x/v2/init %noun]
+      [/x/v3/init %noun]
     ::
       [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
@@ -158,9 +159,9 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.groups^%1 ~ ~]
+      [~.groups^%2 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%1 ~ ~]
+    :~  %groups^[~.groups^%2 ~ ~]
         %channels^[~.channels^%3 ~ ~]
         %channels-server^[~.channels^%3 ~ ~]
     ==
@@ -172,8 +173,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
-        groups=net-groups:v7:gv
+    $:  %9
+        groups=net-groups:v9:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
         =^subs:s
@@ -367,7 +368,7 @@
           [%group flag [%delete ~]]
         $(+< group-command+!>(c-groups))
       ?:  ?=(%secret -.diff)
-        =/  =group:v7:gv  +:(~(got by groups) flag)
+        =/  =group:v9:gv  +:(~(got by groups) flag)
         ?:  p.diff
           ::  enable group secrecy
           ::
@@ -678,7 +679,8 @@
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
@@ -731,7 +733,8 @@
   cor
   ::
   +$  any-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -826,8 +829,16 @@
         =^subs:s
         =pimp:imp
     ==
+  +$  state-8
+    $:  %8
+        groups=net-groups:v7:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =^subs:s
+        =pimp:imp
+    ==
   ::
-  +$   state-8  current-state
+  +$  state-9  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -947,6 +958,14 @@
     %=  state-7
       -  %8
       foreigns  (~(run by foreigns.state-7) v8:foreign:v7:gc)
+    ==
+  ::
+  ++  state-8-to-9
+    |=  =state-8
+    ^-  state-9
+    %=  state-8
+      -  %9
+      groups  (~(run by groups.state-8) v9:net-group:v7:gc)
     ==
   --
 ::
@@ -1075,17 +1094,17 @@
   ::
       ::  deprecated
       [%x %init %v1 ~]
-    =/  net-groups-7=net-groups:v7:gv
+    =/  net-groups-9=net-groups:v9:gv
       %-  ~(run by groups)
-      |=  [=net:v7:gv =group:v7:gv]
+      |=  [=net:v9:gv =group:v9:gv]
       :-  net
-      (drop-seats:group:v7:gc group our.bowl)
+      (drop-seats:group:v9:gc group our.bowl)
     =/  groups-light-ui-2
-      %-  ~(urn by net-groups-7)
-      |=  [=flag:g =net:v7:gv =group:v7:gv]
+      %-  ~(urn by net-groups-9)
+      |=  [=flag:g =net:v9:gv =group:v9:gv]
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v7:gc status net group)
+      (group-ui:v2:group:v9:gc status net group)
     ::  we filter out foreigns which are %done,
     ::  since completed gangs are removed after
     ::  the group join in old groups.
@@ -1107,47 +1126,59 @@
       [%x %v2 %init ~]
     =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v7:gv =group:v7:gv]
-      =*  light-group  (drop-seats:group:v7:gc group our.bowl)
-      =+  (group-ui:group:v7:gc net light-group)
+      |=  [=flag:g =net:v9:gv =group:v9:gv]
+      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
+      =+  (group-ui:v7:group:v9:gc net light-group)
       ::  restore member count after dropping seats
       ::TODO is this correct in other scries?
       ::
       -(member-count ~(wyt by seats.group))
     ``noun+!>([groups-light-ui-7 `foreigns:v8:gv`foreigns])
   ::
+      [%x %v3 %init ~]
+    =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
+      %-  ~(urn by groups)
+      |=  [=flag:g =net:v9:gv =group:v9:gv]
+      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
+      =+  (group-ui:group:v9:gc net light-group)
+      ::  restore member count after dropping seats
+      ::TODO is this correct in other scries?
+      ::
+      -(member-count ~(wyt by seats.group))
+    ``noun+!>([groups-light-ui-9 `foreigns:v8:gv`foreigns])
+  ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
-    =/  groups-7=groups:v7:gv  (~(run by groups) tail)
+    =/  groups-9=groups:v9:gv  (~(run by groups) tail)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gc))
-        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gc))
-        %v2  ``groups-2+!>(groups-7)
+        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
+        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
+        %v2  ``groups-2+!>((~(run by groups-9) v7:group:v9:gc))
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
-    =/  groups-7=groups:v7:gv
+    =/  groups-9=groups:v9:gv
       %-  ~(run by groups)
-      |=  [=net:v7:gv =group:v7:gv]
-      (drop-seats:group:v7:gc group our.bowl)
+      |=  [=net:v9:gv =group:v9:gv]
+      (drop-seats:group:v9:gc group our.bowl)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gc))
-        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gc))
-        %v2  ``groups-2+!>(groups-7)
+        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
+        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
+        %v2  ``groups-2+!>(groups-9)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
-    =/  net-groups-7=net-groups:v7:gv  groups
+    =/  net-groups-9=net-groups:v9:gv  groups
     ?-    ver.pole
         %v0
       =-  ``groups-ui+!>(-)
-      %-  ~(urn by net-groups-7)
-      |=  [=flag:g =net:v7:gv =group:v7:gv]
+      %-  ~(urn by net-groups-9)
+      |=  [=flag:g =net:v9:gv =group:v9:gv]
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v7:gc status net group)
+      (group-ui:v2:group:v9:gc status net group)
     ::
-      %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:gc))
-      %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:gc))
+      %v1  ``groups-ui-1+!>((~(run by net-groups-9) group-ui:v5:group:v9:gc))
+      %v2  ``groups-ui-2+!>((~(run by net-groups-9) group-ui:group:v9:gc))
     ==
   ::
     ::  deprecated
@@ -1159,13 +1190,13 @@
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-1
-    !>((~(run by (changes since)) group-ui:v5:group:v7:gc))
+    !>((~(run by (changes since)) group-ui:v5:group:v9:gc))
   ::
       [%x %v2 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-2
-    !>((~(run by (changes since)) group-ui:group:v7:gc))
+    !>((~(run by (changes since)) group-ui:group:v9:gc))
   ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1176,13 +1207,13 @@
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
         %v0
-      ``group+!>((v2:group:v7:gc +.u.net-group))
+      ``group+!>((v2:group:v9:gc +.u.net-group))
     ::
         %v1
-      ``group-1+!>((v5:group:v7:gc +.u.net-group))
+      ``group-1+!>((v5:group:v9:gc +.u.net-group))
     ::
         %v2
-      ``group-2+!>(`group:v7:gv`+.u.net-group)
+      ``group-2+!>(`group:v9:gv`+.u.net-group)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
@@ -1199,13 +1230,13 @@
         %v0
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      ``group-ui+!>((group-ui:v2:group:v7:gc status u.net-group))
+      ``group-ui+!>((group-ui:v2:group:v9:gc status u.net-group))
     ::
         %v1
-      ``group-ui-1+!>((group-ui:v5:group:v7:gc u.net-group))
+      ``group-ui-1+!>((group-ui:v5:group:v9:gc u.net-group))
     ::
         %v2
-      ``group-ui-2+!>((group-ui:group:v7:gc u.net-group))
+      ``group-ui-2+!>((group-ui:group:v9:gc u.net-group))
     ==
   ::
       ::  deprecated
@@ -1233,11 +1264,11 @@
   ==
   ++  changes
     |=  since=time
-    ^-  (map flag:v7:gv [net:v7:gv group:v7:gv])
-    %-  ~(gas by *(map flag:v7:gv [net:v7:gv group:v7:gv]))
+    ^-  (map flag:v9:gv [net:v9:gv group:v9:gv])
+    %-  ~(gas by *(map flag:v9:gv [net:v9:gv group:v9:gv]))
     %+  murn  ~(tap in groups)
     |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:v7:gv [net:v7:gv group:v7:gv]])
+    ^-  (unit [flag:v9:gv [net:v9:gv group:v9:gv]])
     =/  fresh=?
       %+  lth  since
       ?-  -.net
@@ -1247,7 +1278,7 @@
     ?.  fresh  ~
     %-  some
     :-  flag
-    [net (drop-seats:group:v7:gc group our.bowl)]
+    [net (drop-seats:group:v9:gc group our.bowl)]
   --
 ::
 ++  agent
@@ -1868,8 +1899,8 @@
       se-core
     ::  private group: record in requests
     ::
-    =.  requests.ad  (~(put by requests.ad) src.bowl story)
-    (se-update %entry %ask [%add src.bowl story])
+    =.  requests.ad  (~(put by requests.ad) src.bowl [now.bowl story])
+    (se-update %entry %ask [%add src.bowl now.bowl story])
   ::  +se-c-leave: handle a group leave request
   ::
   ::  a client is considered registered by the group host
@@ -3609,6 +3640,7 @@
     ^+  go-core
     ?:  ?&(?=(%sub -.net) (lth time.update time.net))
       ::  update out of sync, restart
+      ::TODO log the group and the time difference
       (go-restart-updates `'update out of order')
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
@@ -3799,7 +3831,7 @@
     ?:  go-our-host  go-core
     ?-    -.u-ask
         %add
-      =.  requests.ad  (~(put by requests.ad) [ship story]:u-ask)
+      =.  requests.ad  (~(put by requests.ad) ship.u-ask [at story]:u-ask)
       go-core
     ::
         %del
@@ -4270,13 +4302,13 @@
     ?.  go-is-init  go-core
     ::  v1 response
     ::
-    =/  r-groups-7=r-groups:v7:gv  [flag r-group]
+    =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
-    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
+    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
-      (diff:v2:r-group:v7:gc r-group [seats admissions]:group)
+      (diff:v2:r-group:v9:gc r-group [seats admissions]:group)
     =.  cor
       %+  roll  diffs-2
       |=  [=diff:v2:gv =_cor]
