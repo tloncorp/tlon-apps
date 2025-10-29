@@ -275,7 +275,7 @@ export const ChatOptionsProvider = ({
     }
     Alert.alert(
       `Leave ${channelTitle}?`,
-      `You will no longer receive updates from this channel.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`,
+      `You will no longer receive updates from this channel.`,
       [
         {
           text: 'Cancel',
