@@ -58,6 +58,7 @@ const useSplashHider = () => {
         withRetry(async () => {
           await SplashScreen.hideAsync();
           setSplashHidden(true);
+          splashscreenLogger.trackEvent('Splash screen hidden');
         });
       } catch (err) {
         splashscreenLogger.trackError('Failed to hide splash screen', {
