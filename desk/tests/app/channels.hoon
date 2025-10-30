@@ -32,7 +32,7 @@
   |=  =(pole knot)
   ?+  pole  ~|(`path`pole !!)
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
-    [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v7:gv)
+    [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v9:gv)
   ==
 ::
 ++  test-checkpoint-sub

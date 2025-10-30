@@ -1766,7 +1766,7 @@
     |=  [n=nest:c group=flag:g]
     =.  nest  n
     =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
-    =+  .^(grp=group:v7:gv %gx path)
+    =+  .^(grp=group:v9:gv %gx path)
     =/  is-group-host=?  =(p.group src.bowl)
     =/  is-channel-host=?
       ?&  =(src.bowl ship.n)
@@ -3209,7 +3209,7 @@
     =/  =path
       %+  scry-path  %groups
       /v2/groups/(scot %p p.flag)/[q.flag]/noun
-    =+  .^(group=group:v7:gv %gx path)
+    =+  .^(group=group:v9:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

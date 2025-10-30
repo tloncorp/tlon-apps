@@ -186,10 +186,10 @@
   ::
       %leave-old-channels
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
-    =/  groups  .^(groups:v7:gv %gx groups-path)
+    =/  groups  .^(groups:v9:gv %gx groups-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:gv group=group:v7:gv]
+      |=  [group-flag=flag:gv group=group:v9:gv]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:gv *]

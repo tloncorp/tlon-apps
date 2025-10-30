@@ -1152,7 +1152,7 @@
     ?-    ver.pole
         %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
         %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>((~(run by groups-9) v7:group:v9:gc))
+        %v2  ``groups-2+!>(groups-9)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
