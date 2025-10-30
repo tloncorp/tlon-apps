@@ -3,6 +3,7 @@
  * really really good typescript.
  */
 export * from './assertNever';
+export * from './blob';
 export * from './object';
 export type * from './utilityTypes';
 export * from './timeoutSignal';
