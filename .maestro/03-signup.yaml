@@ -15,7 +15,7 @@ onFlowComplete:
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
-- tapOn: Or if you'd prefer, sign up with an email address
+- tapOn: .*sign up with an email address.*
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
