@@ -3,7 +3,7 @@
 ::  groups agent can act both as a group server and
 ::  as a subscriber to remote groups. unlike channels, this agent is
 ::  not separated into two distinct subscriber and server agents, but
-::  rather achieves this separation with two distinct cores:
+::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
 /-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
@@ -348,7 +348,7 @@
       ::
           %invite
         =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-a-invite:group-core invites.a-groups)
+        go-abet:(go-a-invite:group-core [ships a-invite]:a-groups)
       ::
           %leave
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -510,8 +510,10 @@
       :: inviter
       ::
       ?>  (~(has by groups) p.invite-0)
-      =/  =a-invite:v7:gv  [q.invite-0 ~ ~]
-      $(+< group-action-4+!>(`a-groups:v8:gv`[%invite p.invite-0 (sy a-invite ~)]))
+      =/  =a-invite:v8:gv  [~ ~]
+      =/  =a-groups:v8:gv
+        [%invite p.invite-0 (sy q.invite-0 ~) a-invite]
+      $(+< group-action-4+!>(a-groups))
     ::
         %invite-decline
       =+  !<(=flag:g vase)
@@ -3211,12 +3213,11 @@
   ::  +go-a-invite: send an invite
   ::
   ++  go-a-invite
-    |=  invites=(set a-invite:g)
+    |=  [ships=(set ship) =a-invite:g]
     %+  roll
-      ~(tap in invites)
-    |=  [=a-invite:g co=_go-core]
-    ^+  go-core
-    ?:  =(ship.a-invite src.bowl)  co
+      ~(tap in ships)
+    |=  [=ship =_go-core]
+    ?:  =(ship src.bowl)  go-core
     ::TODO prevent inviting banned, here and in +se-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
@@ -3224,8 +3225,8 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  co  (emit:co (request-token:go-pass:co ship.a-invite))
-      co
+      =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
+      go-core
     =/  =invite:v8:gv
       :*  flag
           now.bowl
@@ -3235,7 +3236,7 @@
           go-preview
           &  :: valid
       ==
-    (go-send-invite:co ship.a-invite invite)
+    (go-send-invite:go-core ship invite)
   ::  +go-send-invite: invite a ship with token and record
   ::
   ::  if a ship had been previously invited, we first
@@ -3400,7 +3401,7 @@
         ?>  ?=(%group-token p.cage)
         =+  !<(tok=(unit token:g) q.cage)
         =+  ship=(slav %p i.t.wire)
-        (go-a-invite (sy [ship tok ~] ~))
+        (go-a-invite (sy ship ~) [tok ~])
       ==
     ::
         ::  joined or left channels

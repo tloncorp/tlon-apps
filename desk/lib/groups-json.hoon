@@ -1083,7 +1083,7 @@
     ^-  $-(json a-groups:v8:gv)
     %-  of
     :~  group+(ot flag+flag a-group+a-group ~)
-        invite+(ot flag+flag invites+(as a-invite) ~)
+        invite+(ot flag+flag ships+(as ship) a-invite+a-invite ~)
         leave+flag
     ==
   ++  a-group
@@ -1108,8 +1108,7 @@
   ++  a-invite
     ^-  $-(json a-invite:v8:gv)
     %-  ot
-    :~  ship+ship
-        token+(mu (se %uv))
+    :~  token+(mu (se %uv))
         note+(mu story:dejs:sj)
     ==
   ++  a-entry
