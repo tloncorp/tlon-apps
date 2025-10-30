@@ -49,12 +49,20 @@ export function EmojiToolbar({
       : '🌀';
 
   const handleSheetOpen = useCallback(() => {
-    if (openExternalSheet && !isWindowNarrow) {
+    if (openExternalSheet) {
+      // Use external sheet (parent component manages the emoji picker)
+      // This avoids z-index conflicts by rendering outside ChatMessageActions
       openExternalSheet(true);
+      // Small delay before closing to ensure emoji picker state is set
+      // and to allow smooth transition between modals
+      setTimeout(() => {
+        onDismiss();
+      }, 50);
       return;
     }
+    // Fallback: use local sheet state (rare case when no external sheet provided)
     setSheetOpen(true);
-  }, [setSheetOpen, openExternalSheet, isWindowNarrow]);
+  }, [setSheetOpen, openExternalSheet, onDismiss]);
 
   return (
     <>

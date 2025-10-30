@@ -2,7 +2,6 @@ import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
-  KeyboardAvoidingView,
   Sheet,
   SizableEmoji,
   getNativeEmoji,
@@ -17,9 +16,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Keyboard, Modal } from 'react-native';
+import { FlatList, Keyboard } from 'react-native';
 import { Dialog, View, VisuallyHidden } from 'tamagui';
 
+import { ActionSheet } from '../ActionSheet';
 import { SearchBar } from '../SearchBar';
 
 const EMOJI_SIZE = 32;
@@ -163,50 +163,42 @@ export function EmojiPickerSheet(
   }
 
   return (
-    <Modal transparent visible={props.open} onDismiss={handleDismiss}>
-      <Sheet
-        snapPointsMode="percent"
-        snapPoints={[snapToLarge ? 80 : 60]}
-        {...rest}
-        dismissOnSnapToBottom
-        dismissOnOverlayPress
-        animation="quick"
-        disableDrag={scrolling}
-      >
-        <Sheet.Overlay zIndex="$modalSheet" />
-        <Sheet.Frame
-          zIndex="$modalSheet"
-          padding="$xl"
-          alignItems="center"
-          flex={1}
-        >
-          <KeyboardAvoidingView style={{ flex: 1, width: '100%' }}>
-            <Sheet.Handle paddingBottom="$xl" />
-            <View width="100%" marginBottom="$xl">
-              <SearchBar
-                debounceTime={300}
-                marginHorizontal="$m"
-                onChangeQuery={handleQueryChange}
-                onFocus={handleInputFocus}
-                inputProps={{ spellCheck: false, autoComplete: 'off' }}
-              />
-            </View>
-            <View onTouchStart={() => Keyboard.dismiss()}>
-              <FlatList
-                style={{ width: '100%' }}
-                horizontal={false}
-                contentContainerStyle={{ flexGrow: 1 }}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                data={listData}
-                keyExtractor={keyExtractor}
-                numColumns={6}
-                renderItem={renderItem}
-              />
-            </View>
-          </KeyboardAvoidingView>
-        </Sheet.Frame>
-      </Sheet>
-    </Modal>
+    <ActionSheet
+      open={props.open ?? false}
+      onOpenChange={(open: boolean) => props.onOpenChange?.(open)}
+      snapPointsMode="percent"
+      snapPoints={[snapToLarge ? 80 : 60]}
+      {...rest}
+      dismissOnSnapToBottom
+      dismissOnOverlayPress
+      animation="quick"
+      disableDrag={scrolling}
+      modal
+    >
+      <ActionSheet.Content>
+        <View width="100%" marginBottom="$xl">
+          <SearchBar
+            debounceTime={300}
+            marginHorizontal="$m"
+            onChangeQuery={handleQueryChange}
+            onFocus={handleInputFocus}
+            inputProps={{ spellCheck: false, autoComplete: 'off' }}
+          />
+        </View>
+        <View onTouchStart={() => Keyboard.dismiss()}>
+          <FlatList
+            style={{ width: '100%' }}
+            horizontal={false}
+            contentContainerStyle={{ flexGrow: 1 }}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            data={listData}
+            keyExtractor={keyExtractor}
+            numColumns={6}
+            renderItem={renderItem}
+          />
+        </View>
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }

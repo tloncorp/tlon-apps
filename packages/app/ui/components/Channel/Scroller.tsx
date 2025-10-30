@@ -166,6 +166,7 @@ const Scroller = forwardRef(
       null
     );
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const activeMessageRef = useRef<db.Post | null>(null);
 
     const listRef = useRef<PostListMethods>(null);
 
@@ -173,6 +174,11 @@ const Scroller = forwardRef(
       scrollToIndex: (params: { index: number }) =>
         listRef.current?.scrollToIndex(params),
     }));
+
+    // Keep ref in sync with activeMessage for emoji picker callbacks
+    useEffect(() => {
+      activeMessageRef.current = activeMessage;
+    }, [activeMessage]);
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
@@ -434,7 +440,7 @@ const Scroller = forwardRef(
       hasNewerPosts,
     ]);
 
-    const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
+    const onEmojiSelect = useOnEmojiSelect(activeMessageRef.current, () =>
       setEmojiPickerOpen(false)
     );
 
@@ -529,7 +535,7 @@ const Scroller = forwardRef(
             />
           </Modal>
         )}
-        {emojiPickerOpen && activeMessage ? (
+        {emojiPickerOpen ? (
           <EmojiPickerSheet
             open
             onOpenChange={() => {
