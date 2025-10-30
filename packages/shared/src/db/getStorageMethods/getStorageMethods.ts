@@ -54,7 +54,7 @@ const indexedDbName = 'keyValueStorage';
 const indexedDbStoreName = 'keyValueStorage';
 const indexedDbStorage = new AwaitImplementationStorage(
   (async () => {
-    const dbOpenReq = indexedDB.open(indexedDbName);
+    const dbOpenReq = indexedDB.open(indexedDbName, 1);
     dbOpenReq.onupgradeneeded = async () => {
       const db = dbOpenReq.result;
       const s = db.createObjectStore(indexedDbStoreName);
