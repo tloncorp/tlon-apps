@@ -1,17 +1,13 @@
-import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
-  Sheet,
   SizableEmoji,
   getNativeEmoji,
   searchEmojis,
-  useIsWindowNarrow,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
-import { Dialog, View, VisuallyHidden } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { SearchBar } from '../SearchBar';
@@ -41,7 +37,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
 });
 
 export function EmojiPickerSheet(
-  props: ComponentProps<typeof Sheet> & {
+  props: ComponentProps<typeof ActionSheet> & {
     onEmojiSelect: (value: string) => void;
   }
 ) {
@@ -85,63 +81,23 @@ export function EmojiPickerSheet(
     [handleEmojiSelect]
   );
 
-  const isWindowNarrow = useIsWindowNarrow();
-
   const keyExtractor = useCallback((item: string) => item, []);
-
-  if (!isWindowNarrow) {
-    return (
-      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-        <Dialog.Portal>
-          <Dialog.Overlay
-            backgroundColor="$overlayBackground"
-            key="overlay"
-            opacity={0.4}
-          />
-          <Dialog.Content
-            borderWidth={1}
-            borderColor="$border"
-            padding="$m"
-            height={600}
-            width={350}
-            key="content"
-          >
-            <VisuallyHidden>
-              <Dialog.Title>Emoji Picker</Dialog.Title>
-            </VisuallyHidden>
-            <View width="100%" marginBottom="$xl">
-              <SearchBar
-                debounceTime={300}
-                marginHorizontal="$m"
-                onChangeQuery={handleQueryChange}
-                inputProps={{ spellCheck: false, autoComplete: 'off' }}
-              />
-            </View>
-            <FlashList
-              data={listData}
-              keyExtractor={keyExtractor}
-              numColumns={6}
-              removeClippedSubviews
-              renderItem={renderItem}
-              estimatedItemSize={48}
-            />
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
-    );
-  }
 
   return (
     <ActionSheet
-      open={props.open ?? false}
-      onOpenChange={(open: boolean) => props.onOpenChange?.(open)}
+      title="Emoji Picker"
       snapPointsMode="percent"
       snapPoints={[snapToLarge ? 80 : 60]}
-      {...rest}
+      dialogContentProps={{
+        width: 350,
+        height: 600,
+        padding: '$m',
+      }}
       dismissOnSnapToBottom
       dismissOnOverlayPress
       animation="quick"
       modal
+      {...rest}
     >
       <ActionSheet.Content padding="$m" flex={1}>
         <SearchBar
