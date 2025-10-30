@@ -346,6 +346,32 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
+export const sqliteContent = createStorageItem<ArrayBuffer | null>({
+  key: 'sqliteContent',
+  defaultValue: null,
+  persistAfterLogout: false,
+  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
+  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
+});
+
+function stringToArrayBuffer(str: string) {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
+function arrayBufferToString(buf: ArrayBuffer) {
+  const uint8s = new Uint8Array(buf);
+  let out = '';
+  for (const byte of uint8s) {
+    out += String.fromCharCode(byte);
+  }
+  return out;
+}
+
 export type NagState = {
   lastDismissed: number;
   dismissCount: number;
