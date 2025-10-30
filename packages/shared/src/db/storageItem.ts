@@ -54,7 +54,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
-  const storage = getStorageMethods(config.isSecure ?? false);
+  const storage = getStorageMethods(config);
   let updateLock = Promise.resolve();
 
   const getValue = async (waitForLock = false): Promise<T> => {

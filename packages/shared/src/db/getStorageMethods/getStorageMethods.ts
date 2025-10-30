@@ -75,4 +75,4 @@ class KeyRoutingStorage implements StorageMethods {
 }
 
 const storage = new KeyRoutingStorage();
-export const getStorageMethods: GetStorageMethods = (_isSecure) => storage;
+export const getStorageMethods: GetStorageMethods = (_config) => storage;

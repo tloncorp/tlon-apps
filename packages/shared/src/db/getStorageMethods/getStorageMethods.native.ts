@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { GetStorageMethods } from './types';
 
-export const getStorageMethods: GetStorageMethods = (isSecure: boolean) => {
+export const getStorageMethods: GetStorageMethods = ({ isSecure }) => {
   if (isSecure) {
     return {
       getItem: SecureStore.getItemAsync,
