@@ -70,7 +70,7 @@ function ManageChannelsContent({
             isEditMode={isEditMode}
             dragHandle={
               <Sortable.Handle>
-                <Icon color="$tertiaryText" type="Dragger" size="$m" />
+                <Icon color="$tertiaryText" type="Sorter" size="$m" />
               </Sortable.Handle>
             }
             onOpenMenu={() =>
@@ -92,7 +92,7 @@ function ManageChannelsContent({
             isEditMode={isEditMode}
             dragHandle={
               <Sortable.Handle>
-                <Icon color="$tertiaryText" type="Dragger" size="$m" />
+                <Icon color="$tertiaryText" type="Sorter" size="$m" />
               </Sortable.Handle>
             }
           />

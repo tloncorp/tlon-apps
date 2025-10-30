@@ -147,7 +147,7 @@ function SortableSectionHeader({
           isEditMode={isEditMode}
           dragHandle={
             <View {...dragHandleProps} cursor="grab">
-              <Icon color="$tertiaryText" type="Dragger" size="$m" />
+              <Icon color="$tertiaryText" type="Sorter" size="$m" />
             </View>
           }
           onOpenMenu={onOpenMenu}
@@ -176,7 +176,7 @@ function SortableChannelItem({
           isEditMode={isEditMode}
           dragHandle={
             <View {...dragHandleProps} cursor="grab">
-              <Icon color="$tertiaryText" type="Dragger" size="$m" />
+              <Icon color="$tertiaryText" type="Sorter" size="$m" />
             </View>
           }
         />
