@@ -268,7 +268,7 @@
     =/  =a-groups:v8:gv
       =/  note=story:story
         ~[inline+~[(crip "lure invite {<token.bite>}")]]
-      [%invite flag (sy [joiner.bite ~ `note] ~)]
+      [%invite flag (sy joiner.bite ~) [~ `note]]
     :_  this
     :_  caz
     [%pass /invite %agent [our.bowl %groups] %poke group-action-4+!>(a-groups)]

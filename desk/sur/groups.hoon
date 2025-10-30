@@ -306,7 +306,7 @@
 ::
 +$  a-groups
   $%  [%group =flag =a-group]
-      [%invite =flag invites=(set a-invite)]
+      [%invite =flag ships=(set ship) =a-invite]
       [%leave =flag]
   ==
 +$  a-group
@@ -320,8 +320,7 @@
   ==
 ::  $a-invite: invite a ship
 +$  a-invite
-  $:  =ship
-      token=(unit token)
+  $:  token=(unit token)
       note=(unit story:s)
   ==
 +$  a-entry  c-entry
