@@ -134,11 +134,11 @@ export function inviteGroupMembers({
     groupAction4({
       invite: {
         flag: groupId,
-        invites: contactIds.map((ship) => ({
-          ship,
+        ships: contactIds,
+        'a-invite': {
           token: null,
           note: null,
-        })),
+        },
       },
     })
   );

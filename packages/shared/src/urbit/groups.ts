@@ -505,11 +505,10 @@ export function isGroup(obj: any): obj is Group {
 }
 
 export interface GroupInviteAction {
-  ship: string;
   token: string | null;
   note: Story | null;
 }
 
 export type GroupActionV4 = {
-  invite: { flag: string; invites: GroupInviteAction[] };
+  invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
 };
