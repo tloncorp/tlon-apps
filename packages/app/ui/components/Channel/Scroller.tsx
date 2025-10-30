@@ -440,8 +440,11 @@ const Scroller = forwardRef(
       hasNewerPosts,
     ]);
 
-    const onEmojiSelect = useOnEmojiSelect(activeMessageRef.current, () =>
-      setEmojiPickerOpen(false)
+    const onEmojiSelect = useOnEmojiSelect(
+      activeMessage || activeMessageRef.current,
+      () => {
+        setEmojiPickerOpen(false);
+      }
     );
 
     const onScrolledToBottom = useCallback(() => {
