@@ -18,7 +18,7 @@ export class WebDb extends BaseDb {
     }
     try {
       this.sqlocal = new SQLocalDrizzle({
-        databasePath: 'tlon.sqlite',
+        databasePath: ':memory:',
         verbose: false,
       });
 
