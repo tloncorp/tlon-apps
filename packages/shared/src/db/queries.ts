@@ -94,6 +94,7 @@ import {
   Channel,
   ChannelUnread,
   Chat,
+  ChatMember,
   ClientMeta,
   Contact,
   ContactAttestation,
@@ -729,37 +730,6 @@ export const getAllChannels = createReadQuery(
   ['channels']
 );
 
-export const getChannelsForPredictiveSync = createReadQuery(
-  'getChannelsWithUncachedGap',
-  async (
-    opts: { session: Session; limit?: number },
-    ctx: QueryCtx
-  ): Promise<Channel[]> => {
-    const { session } = opts;
-    return await ctx.db.query.channels.findMany({
-      // where channel can fetch newer posts (i.e. has not cached newest posts)
-      where: not(
-        // logic ported from `hasChannelCachedNewestPosts`
-        // https://github.com/tloncorp/tlon-apps/blob/b967030abb33522964b7ca925c4c599bee489ae7/packages/shared/src/store/sync.ts#L1400
-        and(
-          isNotNull($channels.syncedAt),
-          or(
-            gte($channels.syncedAt, session.startTime ?? 0),
-            and(
-              isNotNull($channels.lastPostAt),
-              gt($channels.syncedAt, $channels.lastPostAt)
-            )
-          )
-        )!
-      ),
-
-      orderBy: [desc($channels.lastViewedAt), desc($channels.lastPostAt)],
-      limit: opts.limit,
-    });
-  },
-  ['channels']
-);
-
 export const getMentionCandidates = createReadQuery(
   'getMentionCandidates',
   async (
@@ -962,6 +932,32 @@ export const getChats = createReadQuery(
   ]
 );
 
+export const insertMembers = createWriteQuery(
+  'insertMembers',
+  async (params: { members: ChatMember[] }, ctx: QueryCtx) => {
+    const batchSize = 200;
+    for (let i = 0; i < params.members.length; i += batchSize) {
+      const batch = params.members.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($chatMembers)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$chatMembers.chatId, $chatMembers.contactId],
+            set: conflictUpdateSetAll($chatMembers),
+          });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorDatabaseQuery, {
+          context: 'failed to insert chat members batch',
+          count: batch.length,
+        });
+      }
+    }
+  },
+  ['groups', 'chatMembers']
+);
+
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (
@@ -1131,13 +1127,7 @@ export const insertGroups = createWriteQuery(
         }
         if (group.members?.length) {
           logger.log('insertGroups: inserting members', group.members);
-          await txCtx.db
-            .insert($chatMembers)
-            .values(group.members)
-            .onConflictDoUpdate({
-              target: [$chatMembers.chatId, $chatMembers.contactId],
-              set: conflictUpdateSetAll($chatMembers),
-            });
+          await insertMembers({ members: group.members }, txCtx);
 
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
@@ -1951,12 +1941,11 @@ export const getChannelVolumeSetting = createReadQuery(
 export const getVolumeExceptions = createReadQuery(
   'getVolumeExceptions',
   async (ctx: QueryCtx) => {
-    const base = await ctx.db.query.volumeSettings.findFirst({
-      where: eq($volumeSettings.itemType, 'base'),
-    });
-
     const exceptions = await ctx.db.query.volumeSettings.findMany({
-      where: not(eq($volumeSettings.level, base?.level || 'default')),
+      where: or(
+        eq($volumeSettings.itemType, 'group'),
+        eq($volumeSettings.itemType, 'channel')
+      ),
     });
 
     const groupIds = [];
@@ -2176,10 +2165,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       await ctx.db
         .delete($chatMembers)
         .where(eq($chatMembers.chatId, channel.id));
-      await ctx.db
-        .insert($chatMembers)
-        .values(channel.members)
-        .onConflictDoNothing();
+      await insertMembers({ members: channel.members }, ctx);
     }
   }
   await setLastPosts(null, ctx);

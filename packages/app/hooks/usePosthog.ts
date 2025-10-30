@@ -24,6 +24,9 @@ export function usePosthog() {
         // TODO: how to send await all pending events sent?
       },
       reset: () => posthog?.reset(),
+      distinctId: () => {
+        return posthog?.get_distinct_id();
+      },
     };
   }, [posthog]);
 }

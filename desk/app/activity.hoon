@@ -67,7 +67,7 @@
 =/  importing=?  |
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ^-  agent:gall
 ::
 =<
@@ -161,7 +161,11 @@
     [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
-  cor
+  ::  we're temporarily removing %group-ask notifs/unreads until the
+  ::  feature is ready, so we need to mark all groups as read to clear
+  ::  any counts/badges
+  =.  cor  clear-groups
+  refresh-all-summaries
   +$  versioned-state
     $%  state-8
         state-7
@@ -324,6 +328,7 @@
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
+      %clear-group-invites  clear-group-invites
       %del      (del-source +.action)
       %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
@@ -372,6 +377,7 @@
     [%v0 %unreads ~]        ?>(from-self cor)
     [%v1 %unreads ~]        ?>(from-self cor)
     [%v4 %unreads ~]        ?>(from-self cor)
+    [%v4 %reads ~]          ?>(from-self cor)
     [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
@@ -732,7 +738,7 @@
   ^+  cor
   %-  (log |.("{<[update dist]>}"))
   =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /unreads]
+    =?  dist  ?=(%read -.update)  [%both /reads]
     =/  v0-paths
       =/  hose=(list path)  ~[/ /v0 /v2]
       =/  only=(list path)  ~[path.dist [%v0 path.dist] [%v2 path.dist]]
@@ -745,7 +751,7 @@
       activity-update+!>((update:v2:convert-to update activity))
     (give %fact v0-paths v0-cage)
   =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /unreads]
+    =?  dist  ?=(%read -.update)  [%both /reads]
     =/  v1-paths
       =/  hose=(list path)  ~[/v1 /v3]
       =/  only=(list path)  ~[path.dist [%v1 path.dist] [%v3 path.dist]]
@@ -832,7 +838,11 @@
   =.  indices  (~(del by indices) source)
   =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
-  ::  TODO: send notification removals?
+  =.  cor
+    ::  send dummy read to clear any badges on mobile clients
+    =/  summary  *activity-summary:a
+    =/  =update:a  [%read source summary(newest now.bowl)]
+    (give-update update [%both /reads])
   (give-update [%del source] [%hose ~])
 ::
 ++  del-event
@@ -885,9 +895,7 @@
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
-  =.  activity
-    (~(put by activity) source summary)
-  (give-unreads source)
+  cor(activity (~(put by activity) source summary))
 ::
 ++  refresh
   |=  =source:a
@@ -938,7 +946,9 @@
       ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
-    =/  children  (get-children:src indices source)
+    =/  children
+      ?.  deep.action  ~
+      (get-children:src indices source)
     =?  cor  deep.action
       |-
       ?~  children  cor
@@ -951,6 +961,7 @@
     ?:  from-parent
       (refresh-summary source)
     =.  cor  (refresh source)
+    =.  cor  (give-reads source)
     =/  new-activity=activity:a
       %+  roll
         :(weld (get-parents:src source) ~[source] ?:(deep.action children ~))
@@ -960,12 +971,12 @@
     (give-update [%activity new-activity] [%hose ~])
   ==
 ::
-++  give-unreads
+++  give-reads
   |=  =source:a
   ^+  cor
   =/  summary  (~(got by activity) source)
   =/  =update:a  [%read source summary]
-  (give-update update [%only /unreads])
+  (give-update update [%only /reads])
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
@@ -987,6 +998,26 @@
 ++  summarize-unreads
   ~(summarize-unreads urd indices activity volume-settings log)
 ::
+++  clear-group-invites
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  =;  should-clear=?
+    ?.  should-clear  co
+    (read:co source [%all ~ |] |)
+  ^-  ?
+  %+  lien
+    (tap:on-stream:a stream.index)
+  |=  [=time =event:a]
+  =(%group-invite -<.event)
+::
+++  clear-groups
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  (read:co source [%all ~ |] |)
 ++  drop-orphans
   |=  dry-run=?
   =/  indexes  ~(tap by indices)

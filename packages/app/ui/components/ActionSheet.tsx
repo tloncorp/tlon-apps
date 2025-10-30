@@ -1,7 +1,13 @@
-import { IconButton, useCopy } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  Icon,
+  IconButton,
+  IconType,
+  Pressable,
+  Sheet,
+  useCopy,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   Children,
   ComponentProps,
@@ -136,6 +142,7 @@ const ActionSheetComponent = ({
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -193,7 +200,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -248,7 +257,9 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -267,42 +278,89 @@ const ActionSheetComponent = ({
     );
   }
 
+  // On Android with new architecture (bridgeless mode), wrapping Sheet in Modal
+  // causes the Modal to receive ThemedReactContext instead of BridgelessReactContext,
+  // preventing access to native/JS modules and causing the app to freeze.
+  // See: https://github.com/reactwg/react-native-new-architecture/discussions/186
+  //
+  // Tamagui Sheet has a built in `modal` prop that uses a custom portal implementation
+  // distinct from the native RN Modal. On Android, you can pass this ActionSheet to force
+  // modal-like display. This approach cannot be used everywhere since context isn't passed
+  // through the portal. In cases where context is required, we attempt to break out of the
+  // view hierarchy using an absolutely positioned wrapper View.
+
+  // On Android, force modal mode for nested sheets to ensure proper portaling
+  const shouldUseModal =
+    Platform.OS === 'android' && (isInsideSheet || props.modal);
+
+  const sheetContent = (
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      dismissOnSnapToBottom
+      snapPointsMode="fit"
+      animation="quick"
+      handleDisableScroll
+      {...props}
+      modal={Platform.OS === 'ios' ? false : shouldUseModal}
+    >
+      <Sheet.Overlay animation="quick" />
+      <Sheet.Frame pressStyle={{}}>
+        <Sheet.Handle />
+        <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </ActionSheetContext.Provider>
+      </Sheet.Frame>
+    </Sheet>
+  );
+
   return (
     <>
       {trigger}
-      <Modal
-        visible={open}
-        onRequestClose={() => onOpenChange(false)}
-        transparent
-        animationType="none"
-      >
-        <Sheet
-          open={open}
-          onOpenChange={onOpenChange}
-          dismissOnSnapToBottom
-          snapPointsMode="fit"
-          animation="quick"
-          handleDisableScroll
-          {...props}
+      {Platform.OS === 'android' ? (
+        shouldUseModal ? (
+          sheetContent
+        ) : (
+          <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
+        )
+      ) : (
+        <Modal
+          visible={open}
+          onRequestClose={() => onOpenChange(false)}
+          transparent
+          animationType="none"
         >
-          <Sheet.Overlay animation="quick" />
-          {/*
-          press style is set here to ensure touch responders are added and drag gestures
-          bubble up accordingly (unclear why needed after adding modal wrapper)
-        */}
-          <Sheet.Frame pressStyle={{}}>
-            <Sheet.Handle />
-            {forcedMode === 'popover' ? (
-              <ActionSheet.ScrollableContent>
-                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-              </ActionSheet.ScrollableContent>
-            ) : (
-              children
-            )}
-          </Sheet.Frame>
-        </Sheet>
-      </Modal>
+          {sheetContent}
+        </Modal>
+      )}
     </>
+  );
+};
+
+const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
+  const { width, height } = useWindowDimensions();
+
+  if (!props.visible) {
+    return props.children;
+  }
+
+  return (
+    <View
+      position="absolute"
+      zIndex={1000}
+      top={0}
+      left={0}
+      width={width}
+      height={height}
+    >
+      {props.children}
+    </View>
   );
 };
 
@@ -499,31 +557,19 @@ const ActionSheetActionFrame = styled(ListItem, {
     paddingHorizontal: '$l',
     paddingVertical: '$m',
   },
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
-  },
   cursor: 'pointer',
   variants: {
     type: {
       positive: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
       negative: {
         backgroundColor: '$negativeBackground',
-        pressStyle: {
-          backgroundColor: '$negativeBackground',
-        },
       },
       neutral: {},
       disabled: {},
       selected: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
     },
   } as const,
@@ -589,41 +635,52 @@ function ActionSheetAction({
     }
   }, [action, accent]);
 
+  const pressStyle = useMemo(() => {
+    if (action.accent === 'positive') {
+      return { backgroundColor: '$positiveBackground' };
+    }
+    if (action.accent === 'negative') {
+      return { backgroundColor: '$negativeBackground' };
+    }
+    return { backgroundColor: '$secondaryBackground' };
+  }, [action.accent]);
+
   if (action.render) {
     return action.render({ action });
   }
 
   return (
-    <ActionSheetActionFrame
-      type={
-        action.selected
-          ? 'selected'
-          : action.disabled
-            ? 'disabled'
-            : action.accent ?? accent
-      }
-      onPress={handlePress}
-      height={isWindowNarrow ? undefined : '$4xl'}
-      testID={testID}
-    >
-      {action.startIcon &&
-        resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetMainContent>
-        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
-          {action.title}
-        </ActionSheet.ActionTitle>
-        {action.description && (
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
+    <Pressable onPress={handlePress} pressStyle={pressStyle}>
+      <ActionSheetActionFrame
+        type={
+          action.selected
+            ? 'selected'
+            : action.disabled
+              ? 'disabled'
+              : action.accent ?? accent
+        }
+        height={isWindowNarrow ? undefined : '$4xl'}
+        testID={testID}
+      >
+        {action.startIcon &&
+          resolveIcon(action.startIcon, action.accent ?? accent)}
+        <ActionSheetMainContent>
+          <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+            {action.title}
+          </ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheetMainContent>
+        {action.endIcon && (
+          <ListItem.EndContent>
+            {resolveIcon(action.endIcon, action.accent ?? accent)}
+          </ListItem.EndContent>
         )}
-      </ActionSheetMainContent>
-      {action.endIcon && (
-        <ListItem.EndContent>
-          {resolveIcon(action.endIcon, action.accent ?? accent)}
-        </ListItem.EndContent>
-      )}
-    </ActionSheetActionFrame>
+      </ActionSheetActionFrame>
+    </Pressable>
   );
 }
 

@@ -60,6 +60,44 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
+  ++  v8
+    =,  v7
+    |%
+    ++  invite
+      |=  invite:v8:gv
+      ^-  json
+      %-  pairs
+      :~  flag+(^flag flag)
+          token+?~(token ~ (^token u.token))
+          from+(ship from)
+          note+?~(note ~ (story:enjs:sj u.note))
+          preview+(^preview preview)
+          valid+b+valid
+      ==
+    ::
+    ++  foreigns
+      |=  =foreigns:v8:gv
+      ^-  json
+      %-  pairs
+      %+  turn  ~(tap by foreigns)
+      |=  [=flag:gv =foreign:v8:gv]
+      [(print-flag flag) (^foreign foreign)]
+    ::
+    ++  foreign
+      |=  foreign:v8:gv
+      ^-  json
+      %-  pairs
+      :~  :-  %invites
+          ?~  invites  ~
+          a+(turn invites invite)
+        ::
+          lookup+?~(lookup ~ s+u.lookup)
+          preview+?~(preview ~ (^preview u.preview))
+          progress+?~(progress ~ s+u.progress)
+          token+?~(token ~ (^token u.token))
+      ==
+    --
+  ::
   ++  v7
     =,  v6
     |%
@@ -426,13 +464,6 @@
       %+  turn  ~(tap by ps)
       |=  [f=flag:gv p=preview:v7:gv]
       [(print-flag f) (preview p)]
-    :: ++  invites
-    ::   |=  =invites:v7:gv
-    ::   ^-  json
-    ::   %-  pairs
-    ::   %+  turn  ~(tap by invites)
-    ::   |=  [=flag:gv invites=(list invite:v7:gv)]
-    ::   [(print-flag flag) a+(turn invites invite)]
     ++  invite
       |=  invite:v7:gv
       ^-  json
@@ -1049,10 +1080,10 @@
         del+whom
     ==
   ++  a-groups
-    ^-  $-(json a-groups:v7:gv)
+    ^-  $-(json a-groups:v8:gv)
     %-  of
     :~  group+(ot flag+flag a-group+a-group ~)
-        invite+(ot flag+flag a-invite+a-invite ~)
+        invite+(ot flag+flag ships+(as ship) a-invite+a-invite ~)
         leave+flag
     ==
   ++  a-group
@@ -1075,10 +1106,9 @@
     ^-  (set role-id:v7:gv)
     (sy ((ar role-id:v7:gv) json))
   ++  a-invite
-    ^-  $-(json a-invite:v7:gv)
+    ^-  $-(json a-invite:v8:gv)
     %-  ot
-    :~  ship+ship
-        token+(mu (se %uv))
+    :~  token+(mu (se %uv))
         note+(mu story:dejs:sj)
     ==
   ++  a-entry

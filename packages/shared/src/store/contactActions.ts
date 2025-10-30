@@ -120,7 +120,7 @@ export async function addContactSuggestions(contactIds: string[]) {
 export async function findContactSuggestions() {
   const runContext: Record<string, any> = {};
   const currentUserId = api.getCurrentUserId();
-  const GROUP_SIZE_LIMIT = 32; // arbitrary
+  const GROUP_SIZE_LIMIT = 14; // arbitrary smaller than trimmed member max
   const MAX_SUGGESTIONS = 6; // arbitrary
 
   try {
@@ -129,6 +129,12 @@ export async function findContactSuggestions() {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     if (lastAddedSuggestionsAt > oneDayAgo) {
       logger.log('Suggestions added recently, skipping');
+      return;
+    }
+
+    const numExistingSuggestions = await db.getSuggestedContacts();
+    if (numExistingSuggestions.length >= 6) {
+      logger.log('Sufficient suggestions already exist, skipping');
       return;
     }
 
@@ -175,23 +181,24 @@ export async function findContactSuggestions() {
         const contacts = await db.getContacts();
         const memberSet = new Set(allRelevantMembers);
         const memberContacts = contacts.filter(
-          (c) => memberSet.has(c.id) && !c.isContact && !c.isContactSuggestion
+          (c) =>
+            memberSet.has(c.id) &&
+            !c.isContact &&
+            !c.isContactSuggestion &&
+            c.nickname
         );
         runContext.relevantMembers = memberContacts.length;
 
         // welcome to my suggestion ranking algorithm
         const contactScores = memberContacts.map((contact) => {
           let score = 0;
-          if (contact.nickname) {
-            score += 10;
+
+          if (contact.avatarImage) {
+            score += 20;
           }
 
           if (contact.pinnedGroups.length > 0) {
             score += 5;
-          }
-
-          if (contact.avatarImage) {
-            score += 3;
           }
 
           if (contact.bio) {

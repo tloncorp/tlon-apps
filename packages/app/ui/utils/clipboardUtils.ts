@@ -34,11 +34,12 @@ export const getClipboardImageWithFallbacks = async (): Promise<{
   return null;
 };
 
-export const createImageAssetFromClipboardData = (
-  clipboardData: { data: string; mimeType: string }
-): ImagePicker.ImagePickerAsset => {
+export const createImageAssetFromClipboardData = (clipboardData: {
+  data: string;
+  mimeType: string;
+}): ImagePicker.ImagePickerAsset => {
   const { data: imageData, mimeType } = clipboardData;
-  
+
   const uri = imageData.startsWith('data:')
     ? imageData
     : `data:${mimeType};base64,${imageData}`;
@@ -49,9 +50,7 @@ export const createImageAssetFromClipboardData = (
     width: 300,
     height: 300,
     fileName:
-      mimeType === 'image/jpeg'
-        ? 'clipboard-image.jpg'
-        : 'clipboard-image.png',
+      mimeType === 'image/jpeg' ? 'clipboard-image.jpg' : 'clipboard-image.png',
     fileSize: 0,
     type: 'image',
     duration: undefined,

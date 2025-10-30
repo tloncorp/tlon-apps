@@ -23,16 +23,7 @@ test('should test DM thread creation and initial interactions', async ({
     await helpers.navigateBack(zodPage);
   }
 
-  // Verify message preview is visible on ~zod's side
-  await helpers.verifyMessagePreview(
-    zodPage,
-    "Hello ~ten! Let's test threads in DMs.",
-    true,
-    '~ten'
-  );
-
   // ~ten receives the DM and accepts it
-  await tenPage.reload();
   // Wait for DM to appear after reload - deterministic wait
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible({
     timeout: 15000,

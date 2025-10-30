@@ -6,15 +6,29 @@ import shipManifest from './e2e/shipManifest.json';
  * @see https://playwright.dev/docs/test-configuration
  */
 const isProductionMode = process.env.USE_PRODUCTION_BUILD === 'true';
-const webServers = Object.entries(shipManifest).map(
-  ([key, ship]: [string, any]) => ({
-    command: isProductionMode
-      ? `cross-env SHIP_URL=${ship.url}  VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm serve --port ${ship.webUrl.match(/:(\d+)/)?.[1] || '3000'} --host`
-      : `cross-env SHIP_URL=${ship.url} VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
-    url: `${ship.webUrl}/apps/groups/`,
-    reuseExistingServer: !process.env.CI,
-    timeout: isProductionMode ? 180 * 1000 : 120 * 1000,
+const shard = process.env.SHARD ? parseInt(process.env.SHARD, 10) : undefined;
+const totalShards = process.env.TOTAL_SHARDS ? parseInt(process.env.TOTAL_SHARDS, 10) : undefined;
+const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
+
+const webServers = Object.entries(shipManifest)
+  .filter(([, ship]: [string, any]) => {
+    // Skip if marked as skipSetup
+    if (ship.skipSetup) return false;
+    // Skip optional ships unless explicitly included
+    if (ship.optional && !INCLUDE_OPTIONAL_SHIPS) return false;
+    return true;
   })
+  .map(([key, ship]: [string, any]) => {
+    const port = parseInt(ship.webUrl.match(/:(\d+)/)?.[1] || '3000', 10);
+    return {
+      command: isProductionMode
+        ? `cross-env SHIP_URL=${ship.url}  VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm serve --port ${port} --host`
+        : `cross-env VITE_PORT=${port} SHIP_URL=${ship.url} VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
+      url: `${ship.webUrl}/apps/groups/`,
+      reuseExistingServer: !process.env.CI,
+      timeout: isProductionMode ? 180 * 1000 : 120 * 1000,
+    };
+  }
 );
 
 export default defineConfig({
@@ -34,12 +48,32 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 1,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: shard
+    ? [
+        // Use blob reporter for sharded runs - generates intermediate reports that can be merged
+        // Note: Docker volume mounts already provide shard isolation, no need for nested dirs
+        ['blob', {
+          outputDir: 'playwright-report'
+        }],
+        ['junit', {
+          outputFile: 'test-results/junit.xml'
+        }],
+      ]
+    : [
+        // Use HTML reporter for non-sharded runs
+        ['html', {
+          outputFolder: 'playwright-report',
+          open: 'never'
+        }],
+        ['junit', {
+          outputFile: 'test-results/junit.xml'
+        }],
+      ],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000/apps/groups/',
+    baseURL: `http://localhost:3000/apps/groups/`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
