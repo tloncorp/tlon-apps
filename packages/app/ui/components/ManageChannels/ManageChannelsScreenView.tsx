@@ -113,6 +113,7 @@ function ManageChannelsContent({
       enableActiveItemSnap={false}
       customHandle
       sortEnabled={isEditMode}
+      dragActivationDelay={0}
       onActiveItemDropped={handleActiveItemDropped}
     />
   );
