@@ -44,6 +44,7 @@ export const BottomSheetWrapper = forwardRef<
       snapPointsMode = 'fit',
       snapPoints,
       footerComponent,
+      hasScrollableContent = false,
     },
     ref
   ) => {
@@ -187,7 +188,7 @@ export const BottomSheetWrapper = forwardRef<
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
-          {footerComponent || isNested ? (
+          {footerComponent || isNested || hasScrollableContent ? (
             <View style={{ flex: 1 }}>{children}</View>
           ) : (
             <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>

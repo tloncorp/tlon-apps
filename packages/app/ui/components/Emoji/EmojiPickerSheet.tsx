@@ -9,14 +9,8 @@ import {
   useIsWindowNarrow,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
-import React, {
-  ComponentProps,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { FlatList, Keyboard } from 'react-native';
+import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { FlatList } from 'react-native';
 import { Dialog, View, VisuallyHidden } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
@@ -51,7 +45,6 @@ export function EmojiPickerSheet(
     onEmojiSelect: (value: string) => void;
   }
 ) {
-  const [scrolling, setIsScrolling] = useState(false);
   const [snapToLarge, setSnapToLarge] = useState(false);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
@@ -71,15 +64,6 @@ export function EmojiPickerSheet(
     setSnapToLarge(true);
   }, []);
 
-  const handleDismiss = useCallback(() => {
-    setQuery('');
-    setIsScrolling(false);
-    setSnapToLarge(false);
-    setTimeout(() => {
-      props.onOpenChange?.(false);
-    }, 100);
-  }, [props]);
-
   const handleEmojiSelect = useCallback(
     (shortCode: string) => {
       const nativeEmoji = getNativeEmoji(shortCode);
@@ -94,11 +78,6 @@ export function EmojiPickerSheet(
     [onEmojiSelect, props]
   );
 
-  const onTouchStart = useCallback(() => {
-    setIsScrolling(true);
-  }, []);
-  const onTouchEnd = useCallback(() => setIsScrolling(false), []);
-
   const renderItem = useCallback(
     ({ item }: { item: string }) => (
       <MemoizedEmojiButton item={item} onSelect={handleEmojiSelect} />
@@ -109,14 +88,6 @@ export function EmojiPickerSheet(
   const isWindowNarrow = useIsWindowNarrow();
 
   const keyExtractor = useCallback((item: string) => item, []);
-
-  const hasOpened = useRef(props.open);
-  if (!hasOpened.current && props.open) {
-    hasOpened.current = true;
-  }
-
-  // Sheets are heavy; we don't want to render until we need to
-  if (!hasOpened.current) return null;
 
   if (!isWindowNarrow) {
     return (
@@ -147,8 +118,6 @@ export function EmojiPickerSheet(
               />
             </View>
             <FlashList
-              onTouchStart={onTouchStart}
-              onTouchEnd={onTouchEnd}
               data={listData}
               keyExtractor={keyExtractor}
               numColumns={6}
@@ -172,32 +141,32 @@ export function EmojiPickerSheet(
       dismissOnSnapToBottom
       dismissOnOverlayPress
       animation="quick"
-      disableDrag={scrolling}
       modal
     >
-      <ActionSheet.Content>
-        <View width="100%" marginBottom="$xl">
-          <SearchBar
-            debounceTime={300}
-            marginHorizontal="$m"
-            onChangeQuery={handleQueryChange}
-            onFocus={handleInputFocus}
-            inputProps={{ spellCheck: false, autoComplete: 'off' }}
-          />
-        </View>
-        <View onTouchStart={() => Keyboard.dismiss()}>
-          <FlatList
-            style={{ width: '100%' }}
-            horizontal={false}
-            contentContainerStyle={{ flexGrow: 1 }}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-            data={listData}
-            keyExtractor={keyExtractor}
-            numColumns={6}
-            renderItem={renderItem}
-          />
-        </View>
+      <ActionSheet.Content padding="$m" flex={1}>
+        <SearchBar
+          debounceTime={300}
+          marginHorizontal="$m"
+          onChangeQuery={handleQueryChange}
+          onFocus={handleInputFocus}
+          inputProps={{ spellCheck: false, autoComplete: 'off' }}
+        />
+        <FlatList
+          style={{ width: '100%' }}
+          horizontal={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+          data={listData}
+          keyExtractor={keyExtractor}
+          numColumns={6}
+          renderItem={renderItem}
+          renderScrollComponent={(props) => (
+            <ActionSheet.ScrollableContent
+              {...(props as ComponentProps<
+                typeof ActionSheet.ScrollableContent
+              >)}
+            />
+          )}
+        />
       </ActionSheet.Content>
     </ActionSheet>
   );

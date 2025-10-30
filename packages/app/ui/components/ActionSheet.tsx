@@ -173,6 +173,37 @@ const ActionSheetComponent = ({
     }
   }, [onOpenChange, open]);
 
+  // Detect if children contain scrollable content (must be before any early returns)
+  const hasScrollableContent = useMemo(() => {
+    let hasScrollable = false;
+
+    const checkChild = (child: ReactNode): void => {
+      if (!child) return;
+
+      if (typeof child === 'object' && 'type' in child) {
+        // Check if it's ActionSheet.ScrollableContent
+        if (child.type === ActionSheetScrollableContent) {
+          hasScrollable = true;
+          return;
+        }
+
+        // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
+        if (child.props?.renderScrollComponent) {
+          hasScrollable = true;
+          return;
+        }
+
+        // Recursively check children
+        if (child.props?.children) {
+          Children.forEach(child.props.children, checkChild);
+        }
+      }
+    };
+
+    Children.forEach(children, checkChild);
+    return hasScrollable;
+  }, [children]);
+
   if (!hasOpened.current && open) {
     hasOpened.current = true;
   }
@@ -300,6 +331,7 @@ const ActionSheetComponent = ({
       showOverlay={true}
       enablePanDownToClose={true}
       footerComponent={footerComponent}
+      hasScrollableContent={hasScrollableContent}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
