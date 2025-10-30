@@ -204,6 +204,7 @@ export function PrivateChannelToggle({
       gap="$xl"
       backgroundColor="$secondaryBackground"
       width="100%"
+      pointerEvents="auto"
     >
       <YStack gap="$xl" flex={1}>
         <Text size="$label/l">Private Channel</Text>
