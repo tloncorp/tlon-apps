@@ -7,5 +7,5 @@ export interface StorageMethods {
 }
 
 export type GetStorageMethods = <T>(
-  config: StorageItemConfig<T>
+  config: Pick<StorageItemConfig<T>, 'isSecure' | 'isLarge'>
 ) => StorageMethods;

@@ -13,6 +13,8 @@ export type StorageItemConfig<T> = {
   defaultValue: T;
   isSecure?: boolean;
   persistAfterLogout?: boolean;
+  /** Set to true to avoid 5mb max size limit in web AsyncStorage */
+  isLarge?: boolean;
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
 };

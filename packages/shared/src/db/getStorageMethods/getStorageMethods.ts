@@ -28,51 +28,48 @@ function awaitRequest<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-class KeyRoutingStorage implements StorageMethods {
-  #defaultStorage = AsyncStorage;
-  #indexedDbStoragePromise: Promise<IndexedDbKeyValueStorage>;
-  readonly #indexedDbName = 'keyValueStorage';
-  readonly #indexedStoreName = 'keyValueStorage';
-
-  constructor() {
-    this.#indexedDbStoragePromise = (async () => {
-      const dbOpenReq = indexedDB.open('keyValueStorage', 1);
-      dbOpenReq.onupgradeneeded = async () => {
-        const db = dbOpenReq.result;
-        const s = db.createObjectStore('keyValueStore');
-        await new Promise((resolve, reject) => {
-          s.transaction.oncomplete = resolve;
-          s.transaction.onerror = reject;
-        });
-      };
-      const db = await awaitRequest(dbOpenReq);
-      return new IndexedDbKeyValueStorage(() => {
-        const tx = db.transaction(this.#indexedDbName, 'readwrite');
-        return tx.objectStore(this.#indexedStoreName);
-      });
-    })();
-  }
-
-  async route(key: string): Promise<StorageMethods> {
-    if (key === 'sqliteContent') {
-      return await this.#indexedDbStoragePromise;
-    }
-    return this.#defaultStorage;
-  }
+/**
+ * If you have a `StorageMethods` implementation that requires async
+ * initialization, you can use this class to synchronously construct a
+ * `StorageMethods` object that "moves" the async down to its methods.
+ */
+class AwaitImplementationStorage implements StorageMethods {
+  constructor(private basePromise: Promise<StorageMethods>) {}
 
   async getItem(key: string): Promise<string | null> {
-    const m = await this.route(key);
+    const m = await this.basePromise;
     return await m.getItem(key);
   }
   async setItem(key: string, value: string): Promise<void> {
-    const m = await this.route(key);
+    const m = await this.basePromise;
     return await m.setItem(key, value);
   }
   async removeItem(key: string): Promise<void> {
-    const m = await this.route(key);
+    const m = await this.basePromise;
     return await m.removeItem(key);
   }
 }
 
-const storage = new KeyRoutingStorage();
-export const getStorageMethods: GetStorageMethods = (_config) => storage;
+const indexedDbName = 'keyValueStorage';
+const indexedDbStoreName = 'keyValueStorage';
+const indexedDbStorage = new AwaitImplementationStorage(
+  (async () => {
+    const dbOpenReq = indexedDB.open(indexedDbName);
+    dbOpenReq.onupgradeneeded = async () => {
+      const db = dbOpenReq.result;
+      const s = db.createObjectStore(indexedDbStoreName);
+      await new Promise((resolve, reject) => {
+        s.transaction.oncomplete = resolve;
+        s.transaction.onerror = reject;
+      });
+    };
+    const db = await awaitRequest(dbOpenReq);
+
+    return new IndexedDbKeyValueStorage(() => {
+      const tx = db.transaction(indexedDbStoreName, 'readwrite');
+      return tx.objectStore(indexedDbStoreName);
+    });
+  })()
+);
+export const getStorageMethods: GetStorageMethods = (config) =>
+  config.isLarge ? indexedDbStorage : AsyncStorage;

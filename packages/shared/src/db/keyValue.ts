@@ -352,6 +352,7 @@ export const sqliteContent = createStorageItem<ArrayBuffer | null>({
   persistAfterLogout: false,
   serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
   deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
+  isLarge: true,
 });
 
 function stringToArrayBuffer(str: string) {
