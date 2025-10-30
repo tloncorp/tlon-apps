@@ -4,10 +4,12 @@ import BottomSheet, {
   BottomSheetView,
   BottomSheetScrollView as GorhomBottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
+import { ActionSheetContext } from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -54,14 +56,13 @@ export const BottomSheetWrapper = forwardRef<
 
       // When in percent mode, convert numbers to percentage strings
       if (snapPointsMode === 'percent') {
-        return snapPoints.map(point =>
+        return snapPoints.map((point) =>
           typeof point === 'number' ? `${point}%` : point
         );
       }
 
       return snapPoints;
     }, [snapPoints, snapPointsMode]);
-
 
     React.useImperativeHandle(
       ref,
@@ -181,10 +182,12 @@ export const BottomSheetWrapper = forwardRef<
       index: 0, // Start at first snap point
     };
 
+    const isNested = useContext(ActionSheetContext).isInsideSheet;
+
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
-          {footerComponent ? (
+          {footerComponent || isNested ? (
             <View style={{ flex: 1 }}>{children}</View>
           ) : (
             <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
