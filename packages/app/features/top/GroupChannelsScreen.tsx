@@ -90,17 +90,20 @@ export function GroupChannelsScreenContent({
     [isWindowNarrow, navigation]
   );
 
+  const chatSettingsNav = useChatSettingsNavigation();
+
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
       initialChat={{ type: 'group', id }}
-      {...useChatSettingsNavigation()}
+      {...chatSettingsNav}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
         <GroupChannelsScreenView
           onChannelPressed={handleChannelSelected}
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
+          onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

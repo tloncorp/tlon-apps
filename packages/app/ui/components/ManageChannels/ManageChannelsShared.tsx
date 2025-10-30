@@ -363,7 +363,7 @@ export function ManageChannelsProvider({
                   onPress={() => state.setIsEditMode(!state.isEditMode)}
                   color="$positiveActionText"
                 >
-                  {state.isEditMode ? 'Done' : 'Edit'}
+                  {state.isEditMode ? 'Done' : 'Sort'}
                 </ScreenHeader.TextButton>
                 {!state.isEditMode && (
                   <ScreenHeader.TextButton
