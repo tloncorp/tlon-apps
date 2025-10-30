@@ -52,24 +52,31 @@ class AwaitImplementationStorage implements StorageMethods {
 
 const indexedDbName = 'keyValueStorage';
 const indexedDbStoreName = 'keyValueStorage';
-const indexedDbStorage = new AwaitImplementationStorage(
-  (async () => {
-    const dbOpenReq = indexedDB.open(indexedDbName, 1);
-    dbOpenReq.onupgradeneeded = async () => {
-      const db = dbOpenReq.result;
-      const s = db.createObjectStore(indexedDbStoreName);
-      await new Promise((resolve, reject) => {
-        s.transaction.oncomplete = resolve;
-        s.transaction.onerror = reject;
-      });
-    };
-    const db = await awaitRequest(dbOpenReq);
+const indexedDbStorage =
+  globalThis?.indexedDB == null
+    ? null
+    : new AwaitImplementationStorage(
+        (async () => {
+          const dbOpenReq = globalThis.indexedDB.open(indexedDbName, 1);
+          dbOpenReq.onupgradeneeded = async () => {
+            const db = dbOpenReq.result;
+            const s = db.createObjectStore(indexedDbStoreName);
+            await new Promise((resolve, reject) => {
+              s.transaction.oncomplete = resolve;
+              s.transaction.onerror = reject;
+            });
+          };
+          const db = await awaitRequest(dbOpenReq);
 
-    return new IndexedDbKeyValueStorage(() => {
-      const tx = db.transaction(indexedDbStoreName, 'readwrite');
-      return tx.objectStore(indexedDbStoreName);
-    });
-  })()
-);
-export const getStorageMethods: GetStorageMethods = (config) =>
-  config.isLarge ? indexedDbStorage : AsyncStorage;
+          return new IndexedDbKeyValueStorage(() => {
+            const tx = db.transaction(indexedDbStoreName, 'readwrite');
+            return tx.objectStore(indexedDbStoreName);
+          });
+        })()
+      );
+export const getStorageMethods: GetStorageMethods = (config) => {
+  if (config.isLarge) {
+    return indexedDbStorage ?? AsyncStorage;
+  }
+  return AsyncStorage;
+};
