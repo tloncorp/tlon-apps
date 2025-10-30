@@ -489,6 +489,7 @@
       [%role roles=(set role-id) =u-role]
       [%channel =nest =u-channel]
       [%section =section-id =u-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -549,6 +550,7 @@
       [%del ~]
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
+      [%set order=(list nest)]
   ==
 +$  r-groups  [=flag =r-group]
 +$  r-group
@@ -559,6 +561,7 @@
       [%role roles=(set role-id) =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==

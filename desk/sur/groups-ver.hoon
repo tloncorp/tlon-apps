@@ -46,7 +46,9 @@
     ==
     ::  $update: depends on $u-group
     +$  update  [=time =u-group]
-    ::  $u-group: depends on $u-entry, $group
+    ::  $u-group: modified, depends on $u-entry, $group.
+    ::
+    ::  %section-order: set section order
     ::
     +$  u-group
       $%  [%create =group]
@@ -56,8 +58,21 @@
           [%role roles=(set role-id) =u-role]
           [%channel =nest =u-channel]
           [%section =section-id =u-section]
+          [%section-order order=(list section-id)]
           [%flag-content =nest =plan src=ship]
           [%delete ~]
+      ==
+    ::  $u-section: modified
+    ::
+    ::  %set: set channel order
+    ::
+    +$  u-section
+      $%  [%add meta=data:meta]
+          [%edit meta=data:meta]
+          [%del ~]
+          [%move idx=@ud]
+          [%move-nest =nest idx=@ud]
+          [%set order=(list nest)]
       ==
     ::  $u-entry: depends on %u-ask
     +$  u-entry
@@ -77,7 +92,12 @@
       ==
     ::  $r-groups: depends on $r-group
     +$  r-groups  [=flag =r-group]
-    ::  $r-group: depends on $group, $r-entry
+    ::  $r-group: modified
+    ::
+    ::  depends on $group, $r-entry, $r-section.
+    ::
+    ::  %section-order: set section order
+    ::
     +$  r-group
       $%  [%create =group]
           [%meta meta=data:meta]
@@ -86,6 +106,7 @@
           [%role roles=(set role-id) =r-role]
           [%channel =nest =r-channel]
           [%section =section-id =r-section]
+          [%section-order order=(list section-id)]
           [%flag-content =nest =plan src=ship]
           [%delete ~]
       ==
@@ -99,6 +120,8 @@
       ==
     ::  $r-ask: depends on $u-ask
     +$  r-ask  u-ask
+    ::  $r-section: depends on $u-section
+    +$  r-section  u-section
     ::  $group-ui: depends on $group
     +$  group-ui
       $:  =group
@@ -191,15 +214,9 @@
         [%navigation =a-navigation]
         [%flag-content =nest =plan src=ship]
     ==
+  ::  $a-section: depends on $c-section
+  +$  a-section  c-section
   ::  $a-navigation: specify the group navigation
-  ::
-  ::  group navigation is determined by the order of sections,
-  ::  and, within each section, the order of channels.
-  ::
-  ::  the navigation structure supplied here can be partial, and will
-  ::  be applied as far as possible by the server. for instance,
-  ::  this action can be used to only modify a certain section by
-  ::  supplying it in .sections.
   ::
   +$  a-navigation
     $:  sections=(map section-id section)

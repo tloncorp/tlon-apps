@@ -115,7 +115,7 @@
 ::
 ::
 ++  ex-u-groups
-  |=  [caz=(list card) us-groups=(list u-group:v7:gv)]
+  |=  [caz=(list card) us-groups=(list u-group:v9:gv)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
@@ -123,7 +123,7 @@
   (turn us-groups (cury ex-update now.bowl))
 ::
 ++  ex-update
-  |=  [=time =u-group:v7:gv]
+  |=  [=time =u-group:v9:gv]
   %+  ex-fact
     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
   group-update+!>(`update:g`[time u-group])
@@ -276,13 +276,14 @@
     ((do-as ~dev) (do-c-groups [%ask my-flag `story]))
   ;<  *  bind:m
     ((do-as ~dev) (do-watch ask-path))
+  ;<  =bowl  bind:m  get-bowl
   ;<  ~  bind:m
-    (ex-u-groups caz [%entry %ask [%add ~dev `story]]~)
+    (ex-u-groups caz [%entry %ask [%add ~dev now.bowl `story]]~)
   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
-      !>(`(unit (unit story:s))```story)
+      !>(`(unit [at=@da (unit story:s)])``[now.bowl `story])
     !>((~(get by requests.admissions.group) ~dev))
   ::  an admin can approve or deny the request
   ::
@@ -351,14 +352,15 @@
     ((do-as ~dev) (do-c-groups [%ask my-flag `story]))
   ;<  *  bind:m
     ((do-as ~dev) (do-watch ask-path))
+  ;<  =bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m
-    (ex-u-groups caz [%entry %ask [%add ~dev `story]]~)
+    (ex-u-groups caz [%entry %ask [%add ~dev now.bowl `story]]~)
   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
       !>((~(get by requests.admissions.group) ~dev))
-    !>(`(unit (unit story:s))```story)
+    !>(`(unit [at=@da (unit story:s)])``[now.bowl `story])
   ::  a ship can rescind the ask request by issuing a leave poke.
   ::  the group host delets the request and kicks the subscription.
   ::
@@ -486,8 +488,9 @@
     ((do-as ~fun) (do-c-groups [%ask my-flag `story]))
   ;<  *  bind:m
     ((do-as ~fun) (do-watch ask-path))
+  ;<  =^bowl  bind:m  get-bowl
   ;<  ~  bind:m
-    (ex-u-groups caz [%entry %ask [%add ~fun `story]]~)
+    (ex-u-groups caz [%entry %ask [%add ~fun now.bowl `story]]~)
   ::
   ;<  caz=(list card)  bind:m  (do-c-group [%entry %ban %add-ships (sy ~fun ~)])
   ;<  =bowl:gall  bind:m  get-bowl

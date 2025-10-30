@@ -2779,26 +2779,9 @@
         ::
         :: order channels in the section to achieve the target order
         %set
-      ?~  sec=(~(get by sections.group) section-id)  se-core
-      =*  section  u.sec
-      :: to achieve desired order, we perform the following steps:
-      :: 1. prune non-existent nests
-      :: 2. for those channels which exists in the target order, but
-      ::    not in the source, assign them to the section.
-      :: 3. for those channels which exists in the source order, but
-      ::    not in the target, assign them to the %default section
-      :: 4. move nests one by one to achieve the desired order
-      ::
-      :: this algorithm is sure to achieve the target ordering: to see this,
-      :: consider that after step (2) all channels of the target order
-      :: are present in the source order. after step (3), all channels of the
-      :: source order are present in the target order, and thus these two sets
-      :: of channels are equal. after moving each channel to its
-      :: position in step (4), we are sure that the section is in the target order.
-      ::
-      ::
+      ?~  section=(~(get by sections.group) section-id)  
+        se-core
       =*  order  order.c-section
-      ::  prune non-existent nests
       =.  order  (skim order ~(has by channels.group))
       ::  assign all channels in the target order to the section
       ::
@@ -2812,32 +2795,21 @@
       ::  to the default section.
       ::
       =.  se-core
-        %+  roll  order.section
+        %+  roll  order.u.section
         |=  [=nest:g =_se-core]
         ?:  (~(has of order) nest)  se-core
         (se-c-channel nest [%section %default])
-      ::  order all channels
-      =|  idx=@ud
-      |-
-      ?~  order  se-core
-      %=  $
-        order  t.order
-        idx  +(idx)
-        se-core  (se-c-section section-id [%move-nest i.order idx])
-      ==
+      =.  sections.group
+        %+  ~(put by sections.group)  section-id
+        u.section(order order)
+      (se-update [%section section-id %set order])
     ==
   ++  se-c-section-order
     |=  order=(list section-id:g)
     =.  order
       (skim order ~(has by sections.group))
-    =|  idx=@ud
-    |-
-    ?~  order  se-core
-    %=  $
-      order  t.order
-      idx  +(idx)
-      se-core  (se-c-section i.order [%move idx])
-    ==
+    =.  section-order.group  order
+    (se-update [%section-order order])
   ++  se-c-flag-content
     |=  [=nest:g =plan:g src=ship]
     ^+  se-core
@@ -3408,12 +3380,8 @@
       =?  go-core  &(exists !=(meta.section-old meta.section))
         %+  go-send-command:go-core  /command/section
         [%section section-id %edit meta.section]
-      ::  assign and order channels
-      ::
       %+  go-send-command:go-core  /command/section
       [%section section-id %set order.section]
-    ::  order sections
-    ::
     %+  go-send-command:go-core  /command/section-order
     [%section-order order.a-navigation]
   ::  +go-watch: handle group watch request
@@ -3647,15 +3615,16 @@
       [%sub time.update init.net]
     =*  u-group  u-group.update
     ?-  -.u-group
-      %create        (go-u-create group.u-group)
-      %meta          (go-u-meta data.u-group)
-      %entry         (go-u-entry u-entry.u-group)
-      %seat          (go-u-seat [ships u-seat]:u-group)
-      %role          (go-u-role [roles u-role]:u-group)
-      %channel       (go-u-channel [nest u-channel]:u-group)
-      %section       (go-u-section [section-id u-section]:u-group)
-      %flag-content  (go-u-flag-content [nest plan src]:u-group)
-      %delete        (go-leave |)
+      %create         (go-u-create group.u-group)
+      %meta           (go-u-meta data.u-group)
+      %entry          (go-u-entry u-entry.u-group)
+      %seat           (go-u-seat [ships u-seat]:u-group)
+      %role           (go-u-role [roles u-role]:u-group)
+      %channel        (go-u-channel [nest u-channel]:u-group)
+      %section        (go-u-section [section-id u-section]:u-group)
+      %section-order  (go-u-section-order order.u-group)
+      %flag-content   (go-u-flag-content [nest plan src]:u-group)
+      %delete         (go-leave |)
     ==
   ::  +go-u-create: apply initial update
   ::
@@ -4250,7 +4219,29 @@
         (~(into of order.section) [idx nest]:u-section)
       =.  sections.group  (~(put by sections.group) section-id section)
       go-core
+    ::
+        %set
+      ?~  section=(~(get by sections.group) section-id)  
+        (go-restart-updates `'missing ordered section')
+      ?:  go-our-host  go-core
+      =*  order  order.u-section
+      =.  order  (skim order ~(has by channels.group))
+      =.  sections.group
+        %+  ~(put by sections.group)  section-id
+        u.section(order order)
+      (go-response %section section-id [%set order.u-section])
     ==
+  ::  +go-u-section-order: apply section order update
+  ::
+  ++  go-u-section-order
+    |=  order=(list section-id:g)
+    ^+  go-core
+    =.  go-core  (go-response %section-order order)
+    ?:  go-our-host  go-core
+    ?:  !=(~ (skip order ~(has by sections.group)))
+      (go-restart-updates `'missing sections in order')
+    =.  section-order.group  order
+    go-core
   ::  +go-u-flag-content: apply flag content update
   ::
   ++  go-u-flag-content

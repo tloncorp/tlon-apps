@@ -209,6 +209,9 @@
             'r-section'^(r-section r-section.r-group)
         ==
       ::
+          %section-order  
+        (frond 'section-order' a+(turn order.r-group (lead %s)))
+      ::
         %flag-content  (flag-content +.r-group)
         %delete  ~
       ==
@@ -236,6 +239,23 @@
         ==
       ::
         %del  (pairs 'ships'^(ships ships.r-ask) ~)
+      ==
+    ++  r-section
+      |=  =r-section:v9:gv
+      ^-  json
+      %+  frond  -.r-section
+      ^-  json
+      ?-    -.r-section
+        %add   (meta meta.r-section)
+        %edit  (meta meta.r-section)
+        %del   ~
+        %move  (frond 'idx' (numb idx.r-section))
+      ::
+          %move-nest
+        (pairs 'idx'^(numb idx.r-section) 'nest'^(nest nest.r-section) ~)
+      ::
+          %set
+        (frond 'set' a+(turn order.r-section nest))
       ==
     --
   ::

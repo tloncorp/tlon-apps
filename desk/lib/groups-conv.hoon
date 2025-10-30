@@ -109,18 +109,45 @@
       |%
       ++  diff
         |=  [=r-group:v9:gv seats=(map ship seat:v9:gv) =admissions:v9:gv]
-        =/  r-group-7=r-group:v7:gv
+        =/  rs-group-7=(list r-group:v7:gv)
           ?:  ?=(%create -.r-group)
-            [%create (v7:group group.r-group)]
-          ?.  ?=([%entry %ask %add *] r-group)  r-group
-            [%entry %ask %add ship note]:r-ask.r-entry.r-group
+            [%create (v7:group group.r-group)]~
+          ?:  ?=([%section-order *] r-group)
+            =*  order  order.r-group
+            =|  idx=@ud
+            =|  rs=(list r-group:v7:gv)
+            |-
+            ?~  order  (flop rs)
+            %=  $
+              order  t.order
+              idx  +(idx)
+              rs  :_(rs [%section i.order [%move idx]])
+            ==
+          ?:  ?=([%section @ %set *] r-group)
+            :: order all channels
+            =*  order  order.r-section.r-group
+            =|  idx=@ud
+            =|  rs=(list r-group:v7:gv)
+            |-
+            ?~  order  (flop rs)
+            %=  $
+              order  t.order
+              idx  +(idx)
+              rs  :_(rs [%section section-id.r-group [%move-nest i.order idx]])
+            ==
+          ?.  ?=([%entry %ask %add *] r-group)  [r-group]~
+            =>  r-ask.r-entry.r-group
+            [%entry %ask %add ship note]~
         =/  admissions-7=admissions:v7:gv
           %=  admissions  requests
             %-  ~(run by requests.admissions)
             |=  [at=@da note=(unit story:s)]
             note
           ==
-        (diff:v2:r-group:v7 r-group-7 seats admissions-7)
+        %-  zing
+        %+  turn  rs-group-7
+        |=  =r-group:v7:gv
+        (diff:v2:r-group:v7 r-group seats admissions-7)
       --
     --
   --

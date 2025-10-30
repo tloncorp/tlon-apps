@@ -141,7 +141,7 @@
     %+  turn  rs-groups
     |=  =r-groups:v9:gv
     %+  turn
-      (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
@@ -180,7 +180,7 @@
   =*  r-groups  p.exe
   =/  actions-2=(list action:v2:gv)
     %+  turn
-      (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  welp
