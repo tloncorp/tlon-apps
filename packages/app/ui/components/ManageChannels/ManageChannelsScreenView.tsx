@@ -1,3 +1,4 @@
+import { Icon } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import Sortable, { SortableGridRenderItem } from 'react-native-sortables';
 
@@ -31,6 +32,7 @@ export function ManageChannelsScreenView({
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       updateNavSection={updateNavSection}
       deleteNavSection={deleteNavSection}
+      updateGroupNavigation={updateGroupNavigation}
     >
       <ManageChannelsContent
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
@@ -50,12 +52,7 @@ function ManageChannelsContent({
   goToEditChannel: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
-  const {
-    setEditSection,
-    handleDeleteSection,
-    setShowAddSection,
-    setShowCreateChannel,
-  } = useManageChannelsContext();
+  const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
 
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
@@ -66,42 +63,45 @@ function ManageChannelsContent({
     ({ item }) => {
       if (item.type === 'section-header') {
         return (
-          <Sortable.Handle>
-            <SectionHeader
-              index={item.sectionIndex}
-              section={item.section}
-              editSection={setEditSection}
-              deleteSection={handleDeleteSection}
-              setShowAddSection={setShowAddSection}
-              setShowCreateChannel={setShowCreateChannel}
-              isEmpty={item.isEmpty}
-              isDefault={item.isDefault}
-            />
-          </Sortable.Handle>
+          <SectionHeader
+            index={item.sectionIndex}
+            section={item.section}
+            isDefault={item.isDefault}
+            isEditMode={isEditMode}
+            dragHandle={
+              <Sortable.Handle>
+                <Icon color="$tertiaryText" type="Dragger" size="$m" />
+              </Sortable.Handle>
+            }
+            onOpenMenu={() =>
+              setSectionMenuSection({
+                section: item.section,
+                isEmpty: item.isEmpty,
+              })
+            }
+          />
         );
       }
 
       if (item.type === 'channel') {
         return (
-          <Sortable.Handle>
-            <ChannelItem
-              channel={item.channel}
-              index={item.channelIndex}
-              onEdit={() => goToEditChannel(item.channel.id)}
-            />
-          </Sortable.Handle>
+          <ChannelItem
+            channel={item.channel}
+            index={item.channelIndex}
+            onEdit={() => goToEditChannel(item.channel.id)}
+            isEditMode={isEditMode}
+            dragHandle={
+              <Sortable.Handle>
+                <Icon color="$tertiaryText" type="Dragger" size="$m" />
+              </Sortable.Handle>
+            }
+          />
         );
       }
 
       return null;
     },
-    [
-      setEditSection,
-      handleDeleteSection,
-      setShowAddSection,
-      setShowCreateChannel,
-      goToEditChannel,
-    ]
+    [setSectionMenuSection, goToEditChannel, isEditMode]
   );
 
   return (
@@ -112,6 +112,7 @@ function ManageChannelsContent({
       activeItemScale={1.05}
       enableActiveItemSnap={false}
       customHandle
+      sortEnabled={isEditMode}
       onActiveItemDropped={handleActiveItemDropped}
     />
   );

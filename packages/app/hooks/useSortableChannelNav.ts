@@ -5,7 +5,7 @@ import { useCallback, useMemo, useRef } from 'react';
 
 import type { GroupNavSectionWithChannels } from '../ui/components/ManageChannels/ManageChannelsShared';
 
-const logger = createDevLogger('useChannelOrdering', true);
+const logger = createDevLogger('useChannelOrdering', false);
 
 type GroupNavigationUpdate = Array<{
   sectionId: string;
@@ -62,7 +62,6 @@ export function useChannelOrdering({
   groupNavSectionsWithChannels,
   updateGroupNavigation,
 }: UseChannelOrderingProps) {
-  // Transform raw section data into orderable sections
   const sections = useMemo(() => {
     return groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
@@ -79,12 +78,10 @@ export function useChannelOrdering({
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
 
-  // Build flat list data for rendering
   const sortableNavItems = useMemo<SortableListItem[]>(() => {
     const items: SortableListItem[] = [];
 
     sections.forEach((section, sectionIndex) => {
-      // Add section header (include full section object)
       items.push({
         type: 'section-header',
         id: `section-header-${section.id}`,
@@ -97,7 +94,6 @@ export function useChannelOrdering({
         section, // Include full section object
       });
 
-      // Add channels
       section.channels.forEach((channel, channelIndex) => {
         items.push({
           type: 'channel',
@@ -127,7 +123,6 @@ export function useChannelOrdering({
 
       const newNavStructure = buildNavigationStructure(reorderedItems);
 
-      // Build a comparable structure from existing sections
       const oldNavStructure = sections.map((section, idx) => ({
         sectionId: section.id,
         sectionIndex: idx,
@@ -137,7 +132,6 @@ export function useChannelOrdering({
         })),
       }));
 
-      // Deep equality check to detect any navigation changes
       if (isEqual(oldNavStructure, newNavStructure)) {
         return;
       }

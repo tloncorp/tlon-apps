@@ -1,8 +1,6 @@
 import {
   DndContext,
   DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
   MouseSensor,
   TouchSensor,
   closestCenter,
@@ -16,12 +14,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CSSProperties, useCallback, useEffect, useState } from 'react';
-import { View } from 'tamagui';
+import { Icon } from '@tloncorp/ui';
+import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { View, YStack } from 'tamagui';
 
 import {
   SortableListItem,
-  SortableSection,
   useChannelOrdering,
 } from '../../../hooks/useSortableChannelNav';
 import {
@@ -42,8 +40,6 @@ export function ManageChannelsScreenView({
   updateNavSection,
   updateGroupNavigation,
 }: ManageChannelsScreenViewProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
     updateGroupNavigation,
@@ -52,33 +48,167 @@ export function ManageChannelsScreenView({
   const [localItems, setLocalItems] =
     useState<SortableListItem[]>(sortableNavItems);
 
+  const isUpdatingRef = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
+    if (isUpdatingRef.current) {
+      return;
+    }
     setLocalItems(sortableNavItems);
   }, [sortableNavItems]);
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 8,
-      },
-    })
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
+  const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor));
 
-      setActiveId(null);
+  return (
+    <ManageChannelsProvider
+      goBack={goBack}
+      group={group}
+      createNavSection={createNavSection}
+      groupNavSectionsWithChannels={groupNavSectionsWithChannels}
+      updateNavSection={updateNavSection}
+      deleteNavSection={deleteNavSection}
+      updateGroupNavigation={updateGroupNavigation}
+    >
+      <ManageChannelsContent
+        goToEditChannel={goToEditChannel}
+        localItems={localItems}
+        setLocalItems={setLocalItems}
+        isUpdatingRef={isUpdatingRef}
+        timeoutRef={timeoutRef}
+        sensors={sensors}
+        handleActiveItemDropped={handleActiveItemDropped}
+      />
+    </ManageChannelsProvider>
+  );
+}
+
+function SortableItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandleProps: any) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    width: '100%',
+  };
+
+  const dragHandleProps = {
+    ref: setActivatorNodeRef,
+    ...attributes,
+    ...listeners,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children(dragHandleProps)}
+    </div>
+  );
+}
+
+function SortableSectionHeader({
+  item,
+  isEditMode,
+  onOpenMenu,
+}: {
+  item: Extract<SortableListItem, { type: 'section-header' }>;
+  isEditMode: boolean;
+  onOpenMenu: () => void;
+}) {
+  return (
+    <SortableItem id={item.id}>
+      {(dragHandleProps) => (
+        <SectionHeader
+          index={item.sectionIndex}
+          section={item.section}
+          isDefault={item.isDefault}
+          isEditMode={isEditMode}
+          dragHandle={
+            <View {...dragHandleProps} cursor="grab">
+              <Icon color="$tertiaryText" type="Dragger" size="$m" />
+            </View>
+          }
+          onOpenMenu={onOpenMenu}
+        />
+      )}
+    </SortableItem>
+  );
+}
+
+function SortableChannelItem({
+  item,
+  onEdit,
+  isEditMode,
+}: {
+  item: Extract<SortableListItem, { type: 'channel' }>;
+  onEdit: () => void;
+  isEditMode: boolean;
+}) {
+  return (
+    <SortableItem id={item.id}>
+      {(dragHandleProps) => (
+        <ChannelItem
+          channel={item.channel}
+          onEdit={onEdit}
+          index={item.channelIndex}
+          isEditMode={isEditMode}
+          dragHandle={
+            <View {...dragHandleProps} cursor="grab">
+              <Icon color="$tertiaryText" type="Dragger" size="$m" />
+            </View>
+          }
+        />
+      )}
+    </SortableItem>
+  );
+}
+
+function ManageChannelsContent({
+  goToEditChannel,
+  localItems,
+  setLocalItems,
+  isUpdatingRef,
+  timeoutRef,
+  sensors,
+  handleActiveItemDropped,
+}: {
+  goToEditChannel: (channelId: string) => void;
+  localItems: SortableListItem[];
+  setLocalItems: (items: SortableListItem[]) => void;
+  isUpdatingRef: React.MutableRefObject<boolean>;
+  timeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
+  sensors: ReturnType<typeof useSensors>;
+  handleActiveItemDropped: ReturnType<
+    typeof useChannelOrdering
+  >['handleActiveItemDropped'];
+}) {
+  const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
 
       if (!over || active.id === over.id) {
         return;
@@ -96,209 +226,79 @@ export function ManageChannelsScreenView({
 
       const indexToKey = reordered.map((item) => item.id);
 
-      handleActiveItemDropped({
-        fromIndex: activeIndex,
-        toIndex: overIndex,
-        indexToKey,
-      });
+      isUpdatingRef.current = true;
+
+      try {
+        await handleActiveItemDropped({
+          fromIndex: activeIndex,
+          toIndex: overIndex,
+          indexToKey,
+        });
+      } finally {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+          isUpdatingRef.current = false;
+          timeoutRef.current = null;
+        }, 500);
+      }
     },
-    [localItems, handleActiveItemDropped]
+    [
+      localItems,
+      handleActiveItemDropped,
+      setLocalItems,
+      isUpdatingRef,
+      timeoutRef,
+    ]
   );
 
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
-
   const draggableIds = localItems.map((item) => item.id);
-
-  const activeItem = activeId
-    ? localItems.find((item) => item.id === activeId)
-    : null;
+  const activeSensors = isEditMode ? sensors : [];
 
   return (
     <DndContext
-      sensors={sensors}
+      sensors={activeSensors}
       collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
     >
-      <ManageChannelsProvider
-        goBack={goBack}
-        group={group}
-        createNavSection={createNavSection}
-        groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-        updateNavSection={updateNavSection}
-        deleteNavSection={deleteNavSection}
+      <SortableContext
+        items={draggableIds}
+        strategy={verticalListSortingStrategy}
       >
-        <ManageChannelsContent
-          localItems={localItems}
-          goToEditChannel={goToEditChannel}
-          draggableIds={draggableIds}
-        />
-      </ManageChannelsProvider>
-      <DragOverlay>
-        {activeItem ? (
-          <View
-            shadowColor="$shadow"
-            shadowOffset={{ width: 0, height: 8 }}
-            shadowOpacity={0.35}
-            shadowRadius={24}
-            borderRadius="$xl"
-          >
-            {activeItem.type === 'channel' && (
-              <ChannelItem
-                channel={activeItem.channel}
-                onEdit={() => {}}
-                index={activeItem.channelIndex}
-              />
-            )}
-            {activeItem.type === 'section-header' && (
-              <SectionHeader
-                index={activeItem.sectionIndex}
-                section={activeItem.section}
-                editSection={() => {}}
-                deleteSection={() => {}}
-                setShowAddSection={() => {}}
-                setShowCreateChannel={() => {}}
-                isEmpty={activeItem.isEmpty}
-                isDefault={activeItem.isDefault}
-              />
-            )}
-          </View>
-        ) : null}
-      </DragOverlay>
+        <YStack width="100%" overflow="hidden" gap="$xs">
+          {localItems.map((item) => {
+            if (item.type === 'section-header') {
+              return (
+                <SortableSectionHeader
+                  key={item.id}
+                  item={item}
+                  isEditMode={isEditMode}
+                  onOpenMenu={() =>
+                    setSectionMenuSection({
+                      section: item.section,
+                      isEmpty: item.isEmpty,
+                    })
+                  }
+                />
+              );
+            }
+
+            if (item.type === 'channel') {
+              return (
+                <SortableChannelItem
+                  key={item.id}
+                  item={item}
+                  onEdit={() => goToEditChannel(item.channel.id)}
+                  isEditMode={isEditMode}
+                />
+              );
+            }
+
+            return null;
+          })}
+        </YStack>
+      </SortableContext>
     </DndContext>
-  );
-}
-
-function SortableItem({
-  id,
-  children,
-}: {
-  id: string;
-  children: React.ReactNode;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    cursor: 'grab',
-    width: '100%',
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
-    </div>
-  );
-}
-
-function SortableSectionHeader({
-  item,
-  editSection,
-  deleteSection,
-  setShowAddSection,
-  setShowCreateChannel,
-}: {
-  item: Extract<SortableListItem, { type: 'section-header' }>;
-  editSection: (section: SortableSection) => void;
-  deleteSection: (sectionId: string) => void;
-  setShowAddSection: (value: boolean) => void;
-  setShowCreateChannel: (value: boolean) => void;
-}) {
-  return (
-    <SortableItem id={item.id}>
-      <SectionHeader
-        index={item.sectionIndex}
-        section={item.section}
-        editSection={editSection}
-        deleteSection={deleteSection}
-        setShowAddSection={setShowAddSection}
-        setShowCreateChannel={setShowCreateChannel}
-        isEmpty={item.isEmpty}
-        isDefault={item.isDefault}
-      />
-    </SortableItem>
-  );
-}
-
-function SortableChannelItem({
-  item,
-  onEdit,
-}: {
-  item: Extract<SortableListItem, { type: 'channel' }>;
-  onEdit: () => void;
-}) {
-  return (
-    <SortableItem id={item.id}>
-      <ChannelItem
-        channel={item.channel}
-        onEdit={onEdit}
-        index={item.channelIndex}
-      />
-    </SortableItem>
-  );
-}
-
-function ManageChannelsContent({
-  localItems,
-  goToEditChannel,
-  draggableIds,
-}: {
-  localItems: SortableListItem[];
-  goToEditChannel: (channelId: string) => void;
-  draggableIds: string[];
-}) {
-  const {
-    setEditSection,
-    handleDeleteSection,
-    setShowAddSection,
-    setShowCreateChannel,
-  } = useManageChannelsContext();
-
-  return (
-    <SortableContext
-      items={draggableIds}
-      strategy={verticalListSortingStrategy}
-    >
-      <div style={{ width: '100%' }}>
-        {localItems.map((item) => {
-          if (item.type === 'section-header') {
-            return (
-              <SortableSectionHeader
-                key={item.id}
-                item={item}
-                editSection={setEditSection}
-                deleteSection={handleDeleteSection}
-                setShowAddSection={setShowAddSection}
-                setShowCreateChannel={setShowCreateChannel}
-              />
-            );
-          }
-
-          if (item.type === 'channel') {
-            return (
-              <SortableChannelItem
-                key={item.id}
-                item={item}
-                onEdit={() => goToEditChannel(item.channel.id)}
-              />
-            );
-          }
-
-          return null;
-        })}
-      </div>
-    </SortableContext>
   );
 }

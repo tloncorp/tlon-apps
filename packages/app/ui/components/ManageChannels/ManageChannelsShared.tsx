@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { omit } from 'lodash';
 import React, { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { capitalize } from '../../utils';
+import { SimpleActionSheet } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
@@ -44,10 +45,14 @@ export function ChannelItem({
   channel,
   onEdit,
   index,
+  isEditMode,
+  dragHandle,
 }: {
   channel: Pick<db.Channel, 'id' | 'type' | 'title'>;
   onEdit: () => void;
   index: number;
+  isEditMode?: boolean;
+  dragHandle?: React.ReactNode;
 }) {
   return (
     <XStack
@@ -69,7 +74,7 @@ export function ChannelItem({
         />
         <YStack gap="$2xs">
           <Text fontSize="$l" paddingVertical="$s">
-            {channel?.title} {index}
+            {channel?.title}
           </Text>
           <Text fontSize="$s" color="$secondaryText">
             {capitalize(channel.type)}
@@ -77,11 +82,18 @@ export function ChannelItem({
         </YStack>
       </XStack>
 
-      <Pressable onPress={onEdit} testID="EditChannelButton">
-        <View paddingVertical="$xs">
-          <Icon color="$secondaryText" type="Overflow" size="$m" />
-        </View>
-      </Pressable>
+      <XStack alignItems="center" gap="$l">
+        {isEditMode && dragHandle && (
+          <View paddingVertical="$xs">{dragHandle}</View>
+        )}
+        {!isEditMode && (
+          <Pressable onPress={onEdit} testID="EditChannelButton">
+            <View paddingVertical="$xs">
+              <Icon color="$secondaryText" type="Overflow" size="$m" />
+            </View>
+          </Pressable>
+        )}
+      </XStack>
     </XStack>
   );
 }
@@ -89,75 +101,42 @@ export function ChannelItem({
 export function SectionHeader({
   section,
   index,
-  editSection,
-  deleteSection,
-  setShowCreateChannel,
-  setShowAddSection,
-  isEmpty,
   isDefault,
+  isEditMode,
+  dragHandle,
+  onOpenMenu,
 }: {
   section: SortableSection;
   index: number;
-  editSection: (section: SortableSection) => void;
-  deleteSection: (sectionId: string) => void;
-  setShowCreateChannel: (show: boolean) => void;
-  setShowAddSection: (show: boolean) => void;
-  isEmpty: boolean;
   isDefault: boolean;
+  isEditMode?: boolean;
+  dragHandle?: React.ReactNode;
+  onOpenMenu?: () => void;
 }) {
   return (
     <XStack
       width="100%"
+      height={40}
       justifyContent="space-between"
       alignItems="center"
-      backgroundColor="$background"
-      borderTopWidth={index === 0 ? 'unset' : 1}
-      borderColor={index === 0 ? 'transparent' : '$border'}
-      paddingTop={index === 0 ? '$l' : '$xl'}
-      paddingHorizontal="$l"
-      marginBottom="$2xl"
+      backgroundColor="$secondaryBackground"
+      paddingHorizontal="$s"
+      paddingRight="$l"
       testID={`NavSection-${section.title}`}
     >
       <Text paddingLeft="$l" fontSize="$s" color="$secondaryText">
         {section.title}
       </Text>
-      <XStack gap="$s">
-        {!isDefault ? (
-          <>
-            <Button minimal size="$s" onPress={() => editSection(section)}>
-              <Button.Text size="$s" color="$positiveActionText">
-                Edit
-              </Button.Text>
-            </Button>
-            {isEmpty && (
-              <Button
-                minimal
-                size="$s"
-                onPress={() => deleteSection(section.id)}
-              >
-                <Button.Text size="$s" color="$negativeActionText">
-                  Delete
-                </Button.Text>
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            <Button
-              minimal
-              size="$s"
-              onPress={() => setShowCreateChannel(true)}
-            >
-              <Button.Text size="$s" color="$positiveActionText">
-                New Channel
-              </Button.Text>
-            </Button>
-            <Button minimal size="$s" onPress={() => setShowAddSection(true)}>
-              <Button.Text size="$s" color="$positiveActionText">
-                New Section
-              </Button.Text>
-            </Button>
-          </>
+      <XStack gap="$s" alignItems="center">
+        {!isDefault && !isEditMode && (
+          <Pressable onPress={onOpenMenu} testID="SectionMenuButton">
+            <View paddingVertical="$xs">
+              <Icon color="$secondaryText" type="Overflow" size="$m" />
+            </View>
+          </Pressable>
+        )}
+        {isEditMode && dragHandle && (
+          <View paddingVertical="$xs">{dragHandle}</View>
         )}
       </XStack>
     </XStack>
@@ -168,15 +147,28 @@ export function useManageChannelsState({
   groupNavSectionsWithChannels,
   updateNavSection,
   deleteNavSection,
+  updateGroupNavigation,
 }: {
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
+  updateGroupNavigation: (
+    navSections: Array<{
+      sectionId: string;
+      sectionIndex: number;
+      channels: Array<{ channelId: string; channelIndex: number }>;
+    }>
+  ) => Promise<void>;
 }) {
-  const [editSection, setEditSection] =
-    useState<SortableSection | null>(null);
+  const [editSection, setEditSection] = useState<SortableSection | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [sectionMenuSection, setSectionMenuSection] = useState<{
+    section: SortableSection;
+    isEmpty: boolean;
+  } | null>(null);
 
   const handleUpdateSection = useCallback(
     async (sectionId: string, title: string) => {
@@ -203,22 +195,71 @@ export function useManageChannelsState({
 
   const handleDeleteSection = useCallback(
     async (sectionId: string) => {
-      const navSection = groupNavSectionsWithChannels.find(
+      const sectionIndex = groupNavSectionsWithChannels.findIndex(
         (s) => s.sectionId === sectionId
       );
 
-      if (!navSection) {
+      if (sectionIndex === -1) {
         logger.error(`Section not found: ${sectionId} (for deletion)`);
         return;
       }
 
+      const navSection = groupNavSectionsWithChannels[sectionIndex];
+      const hasChannels = navSection.channels.length > 0;
+
       try {
+        // If the section has channels, move them to the previous section first
+        if (hasChannels && sectionIndex > 0) {
+          // Build the new navigation structure with channels moved to previous section
+          const updatedNavSections = groupNavSectionsWithChannels.map(
+            (section, idx) => {
+              if (idx === sectionIndex - 1) {
+                // Previous section gets the deleted section's channels appended
+                return {
+                  sectionId: section.sectionId,
+                  sectionIndex: idx,
+                  channels: [
+                    ...section.channels.map((ch, chIdx) => ({
+                      channelId: ch.id,
+                      channelIndex: chIdx,
+                    })),
+                    ...navSection.channels.map((ch, chIdx) => ({
+                      channelId: ch.id,
+                      channelIndex: section.channels.length + chIdx,
+                    })),
+                  ],
+                };
+              } else if (idx === sectionIndex) {
+                // Section being deleted has empty channels
+                return {
+                  sectionId: section.sectionId,
+                  sectionIndex: idx,
+                  channels: [],
+                };
+              } else {
+                // Other sections remain unchanged
+                return {
+                  sectionId: section.sectionId,
+                  sectionIndex: idx,
+                  channels: section.channels.map((ch, chIdx) => ({
+                    channelId: ch.id,
+                    channelIndex: chIdx,
+                  })),
+                };
+              }
+            }
+          );
+
+          await updateGroupNavigation(updatedNavSections);
+        }
+
+        // Now delete the section
         await deleteNavSection(navSection.id);
       } catch (e) {
         logger.error('Failed to delete section:', e);
       }
     },
-    [deleteNavSection, groupNavSectionsWithChannels]
+    [deleteNavSection, groupNavSectionsWithChannels, updateGroupNavigation]
   );
 
   return {
@@ -228,6 +269,12 @@ export function useManageChannelsState({
     setShowAddSection,
     showCreateChannel,
     setShowCreateChannel,
+    showNewMenu,
+    setShowNewMenu,
+    isEditMode,
+    setIsEditMode,
+    sectionMenuSection,
+    setSectionMenuSection,
     handleUpdateSection,
     handleDeleteSection,
   };
@@ -240,6 +287,14 @@ interface ManageChannelsContextValue {
   setShowAddSection: (show: boolean) => void;
   showCreateChannel: boolean;
   setShowCreateChannel: (show: boolean) => void;
+  showNewMenu: boolean;
+  setShowNewMenu: (show: boolean) => void;
+  isEditMode: boolean;
+  setIsEditMode: (isEditMode: boolean) => void;
+  sectionMenuSection: { section: SortableSection; isEmpty: boolean } | null;
+  setSectionMenuSection: (
+    section: { section: SortableSection; isEmpty: boolean } | null
+  ) => void;
   handleUpdateSection: (sectionId: string, title: string) => Promise<void>;
   handleDeleteSection: (sectionId: string) => Promise<void>;
 }
@@ -265,6 +320,7 @@ export function ManageChannelsProvider({
   groupNavSectionsWithChannels,
   updateNavSection,
   deleteNavSection,
+  updateGroupNavigation,
 }: {
   children: React.ReactNode;
   goBack: () => void;
@@ -273,11 +329,19 @@ export function ManageChannelsProvider({
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
+  updateGroupNavigation: (
+    navSections: Array<{
+      sectionId: string;
+      sectionIndex: number;
+      channels: Array<{ channelId: string; channelIndex: number }>;
+    }>
+  ) => Promise<void>;
 }) {
   const state = useManageChannelsState({
     groupNavSectionsWithChannels,
     updateNavSection,
     deleteNavSection,
+    updateGroupNavigation,
   });
 
   const { bottom } = useSafeAreaInsets();
@@ -290,11 +354,33 @@ export function ManageChannelsProvider({
           justifyContent="space-between"
           flex={1}
         >
-          <ScreenHeader title="Manage channels" backAction={goBack} />
+          <ScreenHeader
+            title="Channels"
+            backAction={goBack}
+            rightControls={
+              <XStack gap="$xl">
+                <ScreenHeader.TextButton
+                  onPress={() => state.setIsEditMode(!state.isEditMode)}
+                  color="$positiveActionText"
+                >
+                  {state.isEditMode ? 'Done' : 'Edit'}
+                </ScreenHeader.TextButton>
+                {!state.isEditMode && (
+                  <ScreenHeader.TextButton
+                    onPress={() => state.setShowNewMenu(true)}
+                    color="$positiveActionText"
+                  >
+                    New
+                  </ScreenHeader.TextButton>
+                )}
+              </XStack>
+            }
+          />
           <YStack
             backgroundColor="$background"
             gap="$2xl"
             alignItems="center"
+            paddingTop="$l"
             flex={1}
           >
             <ScrollView
@@ -331,6 +417,7 @@ export function ManageChannelsProvider({
         <EditSectionNameSheet
           open={!!state.editSection}
           mode="edit"
+          name={state.editSection?.title}
           onOpenChange={(open) =>
             state.setEditSection(open ? state.editSection : null)
           }
@@ -340,6 +427,60 @@ export function ManageChannelsProvider({
                   state.handleUpdateSection(state.editSection!.id, title)
               : undefined
           }
+        />
+        <SimpleActionSheet
+          open={state.showNewMenu}
+          onOpenChange={(open) => state.setShowNewMenu(open)}
+          actions={[
+            {
+              title: 'New channel',
+              description: 'Create a new channel in this group',
+              action: () => {
+                state.setShowNewMenu(false);
+                state.setShowCreateChannel(true);
+              },
+            },
+            {
+              title: 'New section',
+              description: 'Create a section to organize channels',
+              action: () => {
+                state.setShowNewMenu(false);
+                state.setShowAddSection(true);
+              },
+            },
+          ]}
+        />
+        <SimpleActionSheet
+          open={!!state.sectionMenuSection}
+          onOpenChange={(open) =>
+            state.setSectionMenuSection(open ? state.sectionMenuSection : null)
+          }
+          actions={[
+            {
+              title: 'Edit name',
+              description: 'Edit the name of this section',
+              action: () => {
+                if (state.sectionMenuSection) {
+                  state.setEditSection(state.sectionMenuSection.section);
+                  state.setSectionMenuSection(null);
+                }
+              },
+            },
+            {
+              title: 'Delete section',
+              description: state.sectionMenuSection?.isEmpty
+                ? 'Remove this section'
+                : 'Remove this section and move its channels to the previous section',
+              action: () => {
+                if (state.sectionMenuSection) {
+                  state.handleDeleteSection(
+                    state.sectionMenuSection.section.id
+                  );
+                  state.setSectionMenuSection(null);
+                }
+              },
+            },
+          ]}
         />
       </View>
     </ManageChannelsContext.Provider>
