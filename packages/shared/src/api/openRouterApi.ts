@@ -48,7 +48,7 @@ export async function summarizeMessage({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3.1:free',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'user',
