@@ -4,7 +4,7 @@ import BottomSheet, {
   BottomSheetView,
   BottomSheetScrollView as GorhomBottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { ActionSheetContext } from '@tloncorp/ui';
+import { ActionSheetContext, View } from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
   forwardRef,
@@ -14,7 +14,8 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { Keyboard, View } from 'react-native';
+import { Keyboard } from 'react-native';
+import { useTheme } from 'tamagui';
 
 import {
   BottomSheetScrollViewProps,
@@ -50,6 +51,7 @@ export const BottomSheetWrapper = forwardRef<
   ) => {
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    const theme = useTheme();
 
     // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
     const transformedSnapPoints = useMemo(() => {
@@ -153,9 +155,12 @@ export const BottomSheetWrapper = forwardRef<
             appearsOnIndex={0}
             opacity={overlayOpacity}
             pressBehavior="close"
+            style={{
+              backgroundColor: theme.overlayBackground.val,
+            }}
           />
         ) : null,
-      [showOverlay, overlayOpacity]
+      [showOverlay, overlayOpacity, theme]
     );
 
     const renderHandle = useCallback(
@@ -176,6 +181,9 @@ export const BottomSheetWrapper = forwardRef<
       style: frameStyle,
       snapPointsMode,
       snapPoints: transformedSnapPoints,
+      backgroundStyle: {
+        backgroundColor: theme.background.val,
+      },
     };
 
     const nonModalProps = {
@@ -204,21 +212,28 @@ export const BottomSheetWrapper = forwardRef<
 
     return (
       <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 999,
-        }}
+        position="absolute"
+        left={0}
+        right={0}
+        top={0}
+        bottom={0}
+        zIndex={999}
         pointerEvents="box-none"
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
           {footerComponent ? (
-            <View style={{ flex: 1 }}>{children}</View>
+            <View style={{ flex: 1, backgroundColor: theme.background.val }}>
+              {children}
+            </View>
           ) : (
-            <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
+            <BottomSheetView
+              style={{
+                flex: 1,
+                backgroundColor: theme.background.val,
+              }}
+            >
+              {children}
+            </BottomSheetView>
           )}
         </BottomSheet>
       </View>
@@ -232,14 +247,12 @@ BottomSheetWrapper.displayName = 'BottomSheetWrapper';
 const BottomSheetHandle = () => {
   return (
     <View
-      style={{
-        alignSelf: 'center',
-        marginVertical: 12,
-        width: 48,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#D1D5DB',
-      }}
+      alignSelf="center"
+      marginVertical="$l"
+      width="$4xl"
+      height="$xs"
+      borderRadius="$2xs"
+      backgroundColor="$border"
     />
   );
 };
