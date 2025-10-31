@@ -149,9 +149,19 @@ const ActionSheetComponent = ({
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const maxHeight = height - bottom - getTokenValue('$2xl');
-  // For popovers, use a more conservative max height to ensure it fits in viewport
-  const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
+
+  // Memoize dimension calculations
+  const maxHeight = useMemo(
+    () => height - bottom - getTokenValue('$2xl'),
+    [height, bottom]
+  );
+  const popoverMaxHeight = useMemo(
+    () => Math.min(maxHeight, height * 0.5),
+    [maxHeight, height]
+  );
+
+  // Memoize context value to prevent unnecessary re-renders
+  const actionSheetContextValue = useMemo(() => ({ isInsideSheet: true }), []);
 
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
@@ -174,11 +184,13 @@ const ActionSheetComponent = ({
   }, [onOpenChange, open]);
 
   // Detect if children contain scrollable content (must be before any early returns)
+  // Uses depth-limited recursion to find nested scrollable content
   const hasScrollableContent = useMemo(() => {
     let hasScrollable = false;
+    const MAX_DEPTH = 3; // Limit recursion depth for performance
 
-    const checkChild = (child: ReactNode): void => {
-      if (!child) return;
+    const checkChild = (child: ReactNode, depth: number): void => {
+      if (!child || depth > MAX_DEPTH) return;
 
       if (typeof child === 'object' && 'type' in child) {
         // Check if it's ActionSheet.ScrollableContent
@@ -193,14 +205,16 @@ const ActionSheetComponent = ({
           return;
         }
 
-        // Recursively check children
-        if (child.props?.children) {
-          Children.forEach(child.props.children, checkChild);
+        // Recursively check children with depth limit
+        if (child.props?.children && !hasScrollable) {
+          Children.forEach(child.props.children, (c) =>
+            checkChild(c, depth + 1)
+          );
         }
       }
     };
 
-    Children.forEach(children, checkChild);
+    Children.forEach(children, (child) => checkChild(child, 0));
     return hasScrollable;
   }, [children]);
 
@@ -234,7 +248,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {children}
+            <ActionSheetContext.Provider value={actionSheetContextValue}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -284,7 +300,9 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            {children}
+            <ActionSheetContext.Provider value={actionSheetContextValue}>
+              {children}
+            </ActionSheetContext.Provider>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -334,7 +352,7 @@ const ActionSheetComponent = ({
       hasScrollableContent={hasScrollableContent}
       frameStyle={{}}
     >
-      <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
         {forcedMode === 'popover' ? (
           <ActionSheet.ScrollableContent>
             <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
@@ -358,13 +376,15 @@ const ActionSheetComponent = ({
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <ActionSheetContext.Provider value={actionSheetContextValue}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </ActionSheetContext.Provider>
       </Sheet.Frame>
     </Sheet>
   );
@@ -834,7 +854,7 @@ function ActionSheetCopyAction({
       startIcon: action.startIcon,
       endIcon: didCopy ? 'Checkmark' : 'Copy',
     }),
-    [action, doCopy, didCopy]
+    [action.title, action.description, action.startIcon, doCopy, didCopy]
   );
   return <ActionSheetAction {...props} action={resolvedAction} />;
 }

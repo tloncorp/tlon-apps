@@ -53,6 +53,15 @@ export const BottomSheetWrapper = forwardRef<
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
     const theme = useTheme();
 
+    const backgroundColor = useMemo(
+      () => theme.background.val,
+      [theme.background.val]
+    );
+    const overlayBackgroundColor = useMemo(
+      () => theme.overlayBackground.val,
+      [theme.overlayBackground.val]
+    );
+
     // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
     const transformedSnapPoints = useMemo(() => {
       if (!snapPoints) return snapPoints;
@@ -101,40 +110,26 @@ export const BottomSheetWrapper = forwardRef<
       []
     );
 
-    // Handle open/close
+    // Handle modal sheet open/close (non-modal uses index prop)
     useEffect(() => {
-      if (!open) {
-        // Close/dismiss the sheet
-        if (modal) {
-          bottomSheetModalRef.current?.dismiss();
-        } else {
-          bottomSheetRef.current?.close();
-        }
-        Keyboard.dismiss();
-        return;
-      }
+      if (!modal) return;
 
-      // Open the sheet
-      if (modal) {
-        // For modal, delay presentation to ensure it's fully mounted
+      if (open) {
+        // Small delay to ensure modal is mounted before presenting
         const timer = setTimeout(() => {
-          const modalRef = bottomSheetModalRef.current;
-          if (modalRef) {
-            modalRef.present();
-          } else {
-            console.warn('BottomSheetModal ref is not available');
-          }
-        }, 100); // Increased delay for modal to be ready
+          bottomSheetModalRef.current?.present();
+        }, 50);
         return () => clearTimeout(timer);
       } else {
-        // Non-modal: use snapToIndex if snapPoints are defined, otherwise expand
-        if (transformedSnapPoints && transformedSnapPoints.length > 0) {
-          bottomSheetRef.current?.snapToIndex(0);
-        } else {
-          bottomSheetRef.current?.expand();
-        }
+        bottomSheetModalRef.current?.dismiss();
       }
-    }, [open, modal, transformedSnapPoints]);
+    }, [open, modal]);
+
+    useEffect(() => {
+      if (!open) {
+        Keyboard.dismiss();
+      }
+    }, [open]);
 
     const handleSheetChanges = useCallback(
       (index: number) => {
@@ -156,11 +151,11 @@ export const BottomSheetWrapper = forwardRef<
             opacity={overlayOpacity}
             pressBehavior="close"
             style={{
-              backgroundColor: theme.overlayBackground.val,
+              backgroundColor: overlayBackgroundColor,
             }}
           />
         ) : null,
-      [showOverlay, overlayOpacity, theme]
+      [showOverlay, overlayOpacity, overlayBackgroundColor]
     );
 
     const renderHandle = useCallback(
@@ -168,28 +163,48 @@ export const BottomSheetWrapper = forwardRef<
       [showHandle]
     );
 
-    const commonProps = {
-      enablePanDownToClose,
-      keyboardBehavior,
-      keyboardBlurBehavior: 'restore' as const,
-      android_keyboardInputMode,
-      animationConfigs: animationConfigs[animation],
-      onChange: handleSheetChanges,
-      backdropComponent: renderBackdrop,
-      handleComponent: renderHandle,
-      footerComponent,
-      style: frameStyle,
-      snapPointsMode,
-      snapPoints: transformedSnapPoints,
-      backgroundStyle: {
-        backgroundColor: theme.background.val,
-      },
-    };
+    const commonProps = useMemo(
+      () => ({
+        enablePanDownToClose,
+        keyboardBehavior,
+        keyboardBlurBehavior: 'restore' as const,
+        android_keyboardInputMode,
+        animationConfigs: animationConfigs[animation],
+        onChange: handleSheetChanges,
+        backdropComponent: renderBackdrop,
+        handleComponent: renderHandle,
+        footerComponent,
+        style: frameStyle,
+        snapPointsMode,
+        snapPoints: transformedSnapPoints,
+        backgroundStyle: {
+          backgroundColor: backgroundColor,
+        },
+      }),
+      [
+        enablePanDownToClose,
+        keyboardBehavior,
+        android_keyboardInputMode,
+        animationConfigs,
+        animation,
+        handleSheetChanges,
+        renderBackdrop,
+        renderHandle,
+        footerComponent,
+        frameStyle,
+        snapPointsMode,
+        transformedSnapPoints,
+        backgroundColor,
+      ]
+    );
 
-    const nonModalProps = {
-      ...commonProps,
-      index: 0, // Start at first snap point
-    };
+    const nonModalProps = useMemo(
+      () => ({
+        ...commonProps,
+        index: open ? 0 : -1, // Control visibility via index instead of conditional rendering
+      }),
+      [commonProps, open]
+    );
 
     const isNested = useContext(ActionSheetContext).isInsideSheet;
 
@@ -205,11 +220,6 @@ export const BottomSheetWrapper = forwardRef<
       );
     }
 
-    // For non-modal, we need to handle visibility ourselves
-    if (!open) {
-      return null;
-    }
-
     return (
       <View
         position="absolute"
@@ -222,14 +232,12 @@ export const BottomSheetWrapper = forwardRef<
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
           {footerComponent ? (
-            <View style={{ flex: 1, backgroundColor: theme.background.val }}>
-              {children}
-            </View>
+            <View style={{ flex: 1, backgroundColor }}>{children}</View>
           ) : (
             <BottomSheetView
               style={{
                 flex: 1,
-                backgroundColor: theme.background.val,
+                backgroundColor,
               }}
             >
               {children}
