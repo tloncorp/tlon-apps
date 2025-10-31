@@ -974,6 +974,19 @@
     ::  server paths
     ::
   ::
+      [%server %groups ship=@ name=@ %preview ~]
+    =+  ship=(slav %p ship.pole)
+    ?>  =(our.bowl ship)
+    ?:  (~(has by groups) our.bowl name.pole)
+      =/  se-core  (se-abed:se-core [our.bowl name.pole])
+      ?:  (se-is-banned:se-core src.bowl)
+        ~|(%se-is-banned !!)
+      se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
+    =/  =preview-update:v7:gv  ~
+    =.  cor
+      (emit %give %fact ~ group-preview-3+!>(preview-update))
+    (emit %give %kick ~ ~)
+  ::
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
@@ -981,19 +994,6 @@
     ~|  %se-is-banned
     ?<  (se-is-banned:se-core src.bowl)
     se-abet:(se-watch:se-core rest.pole)
-  ::
-      [%server %groups ship=@ name=@ %preview ~]
-    =+  ship=(slav %p ship.pole)
-    ?>  =(our.bowl ship)
-    ?:  (~(has by groups) our.bowl name.pole)
-      =/  se-core  (se-abed:se-core [our.bowl name.pole])
-      ~|  %se-is-banned
-      ?<  (se-is-banned:se-core src.bowl)
-      se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
-    =/  =preview-update:v7:gv  ~
-    =.  cor
-      (emit %give %fact ~ group-preview-3+!>(preview-update))
-    (emit %give %kick ~ ~)
   ::
     [%server %groups %index ~]  server-watch-index
   ::
