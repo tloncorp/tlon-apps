@@ -991,8 +991,8 @@
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
     =/  se-core  (se-abed:se-core [our.bowl name.pole])
-    ~|  %se-is-banned
-    ?<  (se-is-banned:se-core src.bowl)
+    ?:  (se-is-banned:se-core src.bowl)
+      ~|(%se-is-banned !!)
     se-abet:(se-watch:se-core rest.pole)
   ::
     [%server %groups %index ~]  server-watch-index
