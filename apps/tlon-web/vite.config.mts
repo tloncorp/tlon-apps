@@ -234,6 +234,7 @@ export default ({ mode }: { mode: string }) => {
             },
           } as BuildOptions),
     worker: {
+      format: 'es',
       rollupOptions: {
         output: {
           hashCharacters: 'base36' as any,
