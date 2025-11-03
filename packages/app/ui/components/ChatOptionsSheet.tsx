@@ -17,6 +17,7 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
+import { useOpenRouterApi } from '../../hooks/useOpenRouterApi';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
@@ -653,6 +654,7 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const { summarizeMessage } = useOpenRouterApi();
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -679,7 +681,8 @@ export function ChannelOptionsSheetContent({
     async (timeRange: 'day' | 'week') => {
       const now = Date.now();
       const msPerDay = 24 * 60 * 60 * 1000;
-      const cutoffTime = timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay;
+      const cutoffTime =
+        timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay;
 
       const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
 
@@ -715,20 +718,21 @@ export function ChannelOptionsSheetContent({
 
         let combinedText = allMessages.join('\n\n');
 
-        // Limit to ~8000 characters to avoid token limits (roughly 2000 tokens)
-        // DeepSeek can handle more, but let's be conservative
-        const MAX_CHARS = 8000;
+        // Limit to ~10000 characters to avoid token limits
+        const MAX_CHARS = 10000;
         if (combinedText.length > MAX_CHARS) {
-          combinedText = combinedText.substring(0, MAX_CHARS) + '\n\n[... conversation truncated due to length ...]';
+          combinedText =
+            combinedText.substring(0, MAX_CHARS) +
+            '\n\n[... conversation truncated due to length ...]';
         }
 
-        console.log(`Sending ${allMessages.length} messages (${combinedText.length} chars) to AI for summarization`);
+        console.log(
+          `Sending ${allMessages.length} messages (${combinedText.length} chars) to AI for summarization`
+        );
         console.log('Preview:', combinedText.substring(0, 500) + '...');
 
         // Call OpenRouter API to get summary
-        const response = await api.summarizeMessage({
-          messageText: combinedText,
-        });
+        const response = await summarizeMessage(combinedText);
 
         if (response.error) {
           console.error('Summarization error:', response.error);

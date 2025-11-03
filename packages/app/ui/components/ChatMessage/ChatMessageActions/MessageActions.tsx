@@ -10,6 +10,7 @@ import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { useOpenRouterApi } from '../../../../hooks/useOpenRouterApi';
 import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
@@ -74,6 +75,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
+  const { summarizeMessage } = useOpenRouterApi();
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -158,6 +160,7 @@ const ConnectedAction = memo(function ConnectedAction({
           onViewReactions,
           addAttachment,
           showToast,
+          summarizeMessage,
         })
       }
       key={actionId}
@@ -194,6 +197,7 @@ export async function handleAction({
   onForward,
   addAttachment,
   showToast,
+  summarizeMessage,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -207,6 +211,9 @@ export async function handleAction({
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
   showToast?: (options: { message: string; duration?: number }) => void;
+  summarizeMessage?: (
+    messageText: string
+  ) => Promise<{ summary: string; error?: string }>;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -302,10 +309,12 @@ export async function handleAction({
           ];
           let combinedText = allMessages.join('\n\n');
 
-          // Limit to ~8000 characters to avoid token limits
-          const MAX_CHARS = 8000;
+          // Limit to ~10000 characters to avoid token limits
+          const MAX_CHARS = 10000;
           if (combinedText.length > MAX_CHARS) {
-            combinedText = combinedText.substring(0, MAX_CHARS) + '\n\n[... conversation truncated ...]';
+            combinedText =
+              combinedText.substring(0, MAX_CHARS) +
+              '\n\n[... conversation truncated ...]';
           }
 
           return combinedText;
@@ -319,7 +328,10 @@ export async function handleAction({
       // Get the combined text and then call OpenRouter API
       getRepliesText()
         .then((combinedText) => {
-          return api.summarizeMessage({ messageText: combinedText });
+          if (!summarizeMessage) {
+            throw new Error('Summarize function not available');
+          }
+          return summarizeMessage(combinedText);
         })
         .then(async (response) => {
           if (response.error) {
