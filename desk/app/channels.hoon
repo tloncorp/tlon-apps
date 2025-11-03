@@ -1208,12 +1208,12 @@
       %^  give  %fact
         ~[v2+path v3+suffix]
       ?~  got  cage.sign
-      channel-said-1+!>(u.got)
+      channel-said-1+!>((v8:said:v9:ccv u.got))
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(u.got)
+      channel-said-2+!>(`said:v9:c`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
