@@ -960,7 +960,11 @@
     =.  indices  (~(put by indices) source new)
     ?:  from-parent
       (refresh-summary source)
+    =/  old-summary  (~(gut by activity) source *activity-summary:a)
     =.  cor  (refresh source)
+    =/  new-summary  (~(gut by activity) source *activity-summary:a)
+    ::  ignore newest since that will always change on read
+    ?.  !=(+.old-summary +.new-summary)  cor
     =.  cor  (give-reads source)
     =/  new-activity=activity:a
       %+  roll
