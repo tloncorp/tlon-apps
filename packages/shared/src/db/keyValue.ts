@@ -350,21 +350,21 @@ export const sqliteContent = createStorageItem<ArrayBuffer | null>({
   key: 'sqliteContent',
   defaultValue: null,
   persistAfterLogout: false,
-  serialize: (value) => (value == null ? '' : utf8ArrayBufferToString(value)),
-  deserialize: (str) =>
-    str.length === 0 ? null : stringToUtf8ArrayBuffer(str),
+  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
+  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
   isLarge: true,
 });
 
-function stringToUtf8ArrayBuffer(str: string) {
+function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);
-  const encoder = new TextEncoder();
-  encoder.encodeInto(str, bufView);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
   return buf;
 }
 
-function utf8ArrayBufferToString(buf: ArrayBuffer) {
+function arrayBufferToString(buf: ArrayBuffer) {
   const uint8s = new Uint8Array(buf);
   let out = '';
   for (const byte of uint8s) {
