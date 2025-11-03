@@ -18,6 +18,7 @@ import React, {
 import { Popover, isWeb } from 'tamagui';
 
 import { useOpenRouterApi } from '../../hooks/useOpenRouterApi';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
@@ -655,6 +656,7 @@ export function ChannelOptionsSheetContent({
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
   const { summarizeMessage } = useOpenRouterApi();
+  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -819,7 +821,7 @@ export function ChannelOptionsSheetContent({
             ),
           },
         ],
-        [
+        aiSummarizationEnabled && [
           'neutral',
           {
             title: 'Summarize last 24 hours',
@@ -904,6 +906,7 @@ export function ChannelOptionsSheetContent({
       togglePinned,
       canMarkRead,
       markChannelRead,
+      aiSummarizationEnabled,
       handleSummarizeChannel,
       onPressChannelMeta,
       onPressEditChannel,

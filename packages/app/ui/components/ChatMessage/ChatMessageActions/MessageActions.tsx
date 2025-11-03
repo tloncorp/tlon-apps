@@ -12,6 +12,7 @@ import { isWeb } from 'tamagui';
 
 import { useOpenRouterApi } from '../../../../hooks/useOpenRouterApi';
 import { useRenderCount } from '../../../../hooks/useRenderCount';
+import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
@@ -76,6 +77,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
   const { summarizeMessage } = useOpenRouterApi();
+  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -118,8 +120,12 @@ const ConnectedAction = memo(function ConnectedAction({
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
       case 'summarize':
-        // only show if message has text content
-        return !!post.textContent && post.textContent.length > 0;
+        // only show if feature flag is enabled and message has text content
+        return (
+          aiSummarizationEnabled &&
+          !!post.textContent &&
+          post.textContent.length > 0
+        );
       default:
         return true;
     }
@@ -135,6 +141,7 @@ const ConnectedAction = memo(function ConnectedAction({
     currentUserIsAdmin,
     action.isNetworkDependent,
     connectionStatus,
+    aiSummarizationEnabled,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
