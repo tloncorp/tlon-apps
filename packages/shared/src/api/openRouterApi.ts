@@ -56,7 +56,7 @@ export async function summarizeMessage({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-v3.2-exp',
+        model: 'deepseek/deepseek-chat-v3-0324:free',
         messages: [
           {
             role: 'user',
