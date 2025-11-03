@@ -162,13 +162,6 @@ export function ActivityScreenView({
   const { data: baseActivity } = store.useBaseUnread();
   const hasUnreadNotifications = (baseActivity?.notifyCount || 0) > 0;
 
-  console.log(
-    'baseActivity',
-    baseActivity,
-    'hasUnreadNotifications',
-    hasUnreadNotifications
-  );
-
   return (
     <ActivityScreenContent
       activeTab={activeTab}
