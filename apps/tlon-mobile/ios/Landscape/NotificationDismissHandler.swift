@@ -51,6 +51,7 @@ import JavaScriptCore
             try await center.setBadgeCount(notifyCount)
         } catch {
             print("[dismisser] Failed to set badge count: \(error)")
+            await NotificationLogger.logError(.notificationDismissalFailed(uid: uid, activityEvent: nil, underlyingError: error))
         }
 
         // Get delivered notifications and dismiss older ones
