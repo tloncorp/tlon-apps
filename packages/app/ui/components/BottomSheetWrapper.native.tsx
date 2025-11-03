@@ -22,6 +22,76 @@ import {
   BottomSheetWrapperProps,
 } from './BottomSheetWrapper.types';
 
+const MemoizedBackdrop = React.memo(
+  ({
+    backdropStyle,
+    overlayOpacity,
+    ...props
+  }: {
+    backdropStyle: any;
+    overlayOpacity: number;
+  } & any) => (
+    <BottomSheetBackdrop
+      {...props}
+      disappearsOnIndex={-1}
+      appearsOnIndex={0}
+      opacity={overlayOpacity}
+      pressBehavior="close"
+      style={backdropStyle}
+    />
+  )
+);
+
+MemoizedBackdrop.displayName = 'MemoizedBackdrop';
+
+const MemoizedHandle = React.memo(() => <BottomSheetHandle />);
+
+MemoizedHandle.displayName = 'MemoizedHandle';
+
+const ModalChildrenWrapper = React.memo(
+  ({
+    useBottomSheetView,
+    style,
+    children,
+  }: {
+    useBottomSheetView: boolean;
+    style: { flex: number };
+    children: React.ReactNode;
+  }) => {
+    if (useBottomSheetView) {
+      return <BottomSheetView style={style}>{children}</BottomSheetView>;
+    }
+    return <View style={style}>{children}</View>;
+  }
+);
+
+ModalChildrenWrapper.displayName = 'ModalChildrenWrapper';
+
+const NonModalChildrenWrapper = React.memo(
+  ({
+    useBottomSheetView,
+    style,
+    children,
+  }: {
+    useBottomSheetView: boolean;
+    style: { flex: number; backgroundColor: string };
+    children: React.ReactNode;
+  }) => {
+    if (useBottomSheetView) {
+      return <BottomSheetView style={style}>{children}</BottomSheetView>;
+    }
+    return <View style={style}>{children}</View>;
+  }
+);
+
+NonModalChildrenWrapper.displayName = 'NonModalChildrenWrapper';
+
+const ANIMATION_CONFIGS = {
+  quick: { duration: 250 },
+  medium: { duration: 350 },
+  slow: { duration: 500 },
+} as const;
+
 export const BottomSheetWrapper = forwardRef<
   BottomSheet,
   PropsWithChildren<BottomSheetWrapperProps>
@@ -60,6 +130,20 @@ export const BottomSheetWrapper = forwardRef<
     const overlayBackgroundColor = useMemo(
       () => theme.overlayBackground.val,
       [theme.overlayBackground.val]
+    );
+
+    const backdropStyle = useMemo(
+      () => ({
+        backgroundColor: overlayBackgroundColor,
+      }),
+      [overlayBackgroundColor]
+    );
+
+    const flexStyle = useMemo(() => ({ flex: 1 }), []);
+
+    const flexWithBackgroundStyle = useMemo(
+      () => ({ flex: 1, backgroundColor }),
+      [backgroundColor]
     );
 
     // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
@@ -101,15 +185,6 @@ export const BottomSheetWrapper = forwardRef<
       [modal]
     );
 
-    const animationConfigs = useMemo(
-      () => ({
-        quick: { duration: 250 },
-        medium: { duration: 350 },
-        slow: { duration: 500 },
-      }),
-      []
-    );
-
     // Handle modal sheet open/close (non-modal uses index prop)
     useEffect(() => {
       if (!modal) return;
@@ -144,22 +219,17 @@ export const BottomSheetWrapper = forwardRef<
     const renderBackdrop = useCallback(
       (props: any) =>
         showOverlay ? (
-          <BottomSheetBackdrop
+          <MemoizedBackdrop
             {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            opacity={overlayOpacity}
-            pressBehavior="close"
-            style={{
-              backgroundColor: overlayBackgroundColor,
-            }}
+            backdropStyle={backdropStyle}
+            overlayOpacity={overlayOpacity}
           />
         ) : null,
-      [showOverlay, overlayOpacity, overlayBackgroundColor]
+      [showOverlay, overlayOpacity, backdropStyle]
     );
 
     const renderHandle = useCallback(
-      () => (showHandle ? <BottomSheetHandle /> : null),
+      () => (showHandle ? <MemoizedHandle /> : null),
       [showHandle]
     );
 
@@ -169,7 +239,7 @@ export const BottomSheetWrapper = forwardRef<
         keyboardBehavior,
         keyboardBlurBehavior: 'restore' as const,
         android_keyboardInputMode,
-        animationConfigs: animationConfigs[animation],
+        animationConfigs: ANIMATION_CONFIGS[animation],
         onChange: handleSheetChanges,
         backdropComponent: renderBackdrop,
         handleComponent: renderHandle,
@@ -185,7 +255,6 @@ export const BottomSheetWrapper = forwardRef<
         enablePanDownToClose,
         keyboardBehavior,
         android_keyboardInputMode,
-        animationConfigs,
         animation,
         handleSheetChanges,
         renderBackdrop,
@@ -208,6 +277,13 @@ export const BottomSheetWrapper = forwardRef<
 
     const isNested = useContext(ActionSheetContext).isInsideSheet;
 
+    const useBottomSheetViewForModal = !(
+      footerComponent ||
+      isNested ||
+      hasScrollableContent
+    );
+    const useBottomSheetViewForNonModal = !footerComponent;
+
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
@@ -216,11 +292,12 @@ export const BottomSheetWrapper = forwardRef<
               - isNested: Avoids gesture conflicts between parent/child sheets
               - hasScrollableContent: Scrollables (BottomSheetScrollView) should be direct children,
                 not wrapped in BottomSheetView per gorhom's architecture */}
-          {footerComponent || isNested || hasScrollableContent ? (
-            <View flex={1}>{children}</View>
-          ) : (
-            <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
-          )}
+          <ModalChildrenWrapper
+            useBottomSheetView={useBottomSheetViewForModal}
+            style={flexStyle}
+          >
+            {children}
+          </ModalChildrenWrapper>
         </BottomSheetModal>
       );
     }
@@ -237,20 +314,12 @@ export const BottomSheetWrapper = forwardRef<
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
           {/* BottomSheetView only for simple static content, not for layouts with footers */}
-          {footerComponent ? (
-            <View flex={1} backgroundColor={backgroundColor}>
-              {children}
-            </View>
-          ) : (
-            <BottomSheetView
-              style={{
-                flex: 1,
-                backgroundColor,
-              }}
-            >
-              {children}
-            </BottomSheetView>
-          )}
+          <NonModalChildrenWrapper
+            useBottomSheetView={useBottomSheetViewForNonModal}
+            style={flexWithBackgroundStyle}
+          >
+            {children}
+          </NonModalChildrenWrapper>
         </BottomSheet>
       </View>
     );
