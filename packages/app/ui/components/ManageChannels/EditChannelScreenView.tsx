@@ -591,24 +591,6 @@ export function RoleSelectionSheet({
     onOpenChange(false);
   }, [tempSelectedRoleIds, onSave, onOpenChange]);
 
-  const renderFooter = useCallback(
-    (_props: any) => (
-      <View
-        paddingHorizontal="$l"
-        paddingTop="$m"
-        paddingBottom={insets.bottom}
-        backgroundColor="$background"
-        borderTopWidth={1}
-        borderTopColor="$border"
-      >
-        <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-          <Button.Text>Save</Button.Text>
-        </Button>
-      </View>
-    ),
-    [handleSave, insets.bottom]
-  );
-
   return (
     <ActionSheet
       open={open}
@@ -617,7 +599,6 @@ export function RoleSelectionSheet({
       snapPointsMode="percent"
       disableDrag={isScrolling}
       modal
-      footerComponent={renderFooter}
     >
       <ActionSheet.SimpleHeader
         title="Search and add roles"
@@ -656,6 +637,18 @@ export function RoleSelectionSheet({
             </View>
           )}
         </YStack>
+        <View
+          paddingHorizontal="$l"
+          paddingTop="$m"
+          paddingBottom={insets.bottom}
+          backgroundColor="$background"
+          borderTopWidth={1}
+          borderTopColor="$border"
+        >
+          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
+            <Button.Text>Save</Button.Text>
+          </Button>
+        </View>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
   );
