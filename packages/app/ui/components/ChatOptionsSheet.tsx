@@ -782,7 +782,7 @@ export function ChannelOptionsSheetContent({
         });
       }
     },
-    [channel.id, chatTitle, currentUserId, showToast]
+    [channel.id, chatTitle, currentUserId, showToast, summarizeMessage]
   );
 
   const wrappedAction = useCallback(
