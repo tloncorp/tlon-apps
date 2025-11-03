@@ -2583,3 +2583,29 @@ index b129b27b1f00d6000305fe33fa601f40ddab6d94..1609ea321b226445a4feb41e0c3ffb8e
      "./sqlite-core/columns/all": {
        "import": {
          "types": "./sqlite-core/columns/all.d.ts",
+diff --git a/sqlite-proxy/session.cjs b/sqlite-proxy/session.cjs
+index 5d1d29572f584f65d06246ad38f67e20c5849957..b71ec615904c285544d196b30a94e5928a3ca9d9 100644
+--- a/sqlite-proxy/session.cjs
++++ b/sqlite-proxy/session.cjs
+@@ -161,7 +161,7 @@ class RemotePreparedQuery extends import_session.SQLitePreparedQuery {
+     if (!this.fields && !this.customResultMapper) {
+       return row;
+     }
+-    if (!row) {
++    if (!row || !row.length) {
+       return void 0;
+     }
+     if (this.customResultMapper) {
+diff --git a/sqlite-proxy/session.js b/sqlite-proxy/session.js
+index 844aa3ddf68cf53b24087d8d4d5c2f07a53cc654..f0d938b0dab6c8aec0926392be9cd67a15723685 100644
+--- a/sqlite-proxy/session.js
++++ b/sqlite-proxy/session.js
+@@ -136,7 +136,7 @@ class RemotePreparedQuery extends SQLitePreparedQuery {
+     if (!this.fields && !this.customResultMapper) {
+       return row;
+     }
+-    if (!row) {
++    if (!row || !row.length) {
+       return void 0;
+     }
+     if (this.customResultMapper) {
