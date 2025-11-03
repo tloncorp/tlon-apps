@@ -150,7 +150,6 @@ const ActionSheetComponent = ({
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
-  // Memoize dimension calculations
   const maxHeight = useMemo(
     () => height - bottom - getTokenValue('$2xl'),
     [height, bottom]
@@ -160,7 +159,6 @@ const ActionSheetComponent = ({
     [maxHeight, height]
   );
 
-  // Memoize context value to prevent unnecessary re-renders
   const actionSheetContextValue = useMemo(() => ({ isInsideSheet: true }), []);
 
   // listen for escape key to close the sheet
@@ -321,17 +319,6 @@ const ActionSheetComponent = ({
     );
   }
 
-  // On Android with new architecture (bridgeless mode), wrapping Sheet in Modal
-  // causes the Modal to receive ThemedReactContext instead of BridgelessReactContext,
-  // preventing access to native/JS modules and causing the app to freeze.
-  // See: https://github.com/reactwg/react-native-new-architecture/discussions/186
-  //
-  // Tamagui Sheet has a built in `modal` prop that uses a custom portal implementation
-  // distinct from the native RN Modal. On Android, you can pass this ActionSheet to force
-  // modal-like display. This approach cannot be used everywhere since context isn't passed
-  // through the portal. In cases where context is required, we attempt to break out of the
-  // view hierarchy using an absolutely positioned wrapper View.
-
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
@@ -371,7 +358,7 @@ const ActionSheetComponent = ({
       animation="quick"
       handleDisableScroll
       {...props}
-      modal={Platform.OS === 'ios' ? false : props.modal}
+      modal={props.modal}
     >
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>

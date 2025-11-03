@@ -344,7 +344,6 @@ function PrivateChannelPermissionsView({
   );
 }
 
-
 const options = {
   inputs: objectEntries(allDraftInputs).map(([id, { displayName }]) => ({
     title: displayName,

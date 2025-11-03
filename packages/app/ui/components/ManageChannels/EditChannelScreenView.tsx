@@ -206,7 +206,7 @@ export function PrivateChannelToggle({
       width="100%"
       pointerEvents="auto"
     >
-      <YStack gap="$xl" flex={1}>
+      <YStack gap="$xl" flex={1} pointerEvents="auto">
         <Text size="$label/l">Private Channel</Text>
         <Text size="$label/s" color="$tertiaryText">
           By making a channel private, only select members and roles will be

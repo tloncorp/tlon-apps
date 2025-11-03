@@ -434,9 +434,9 @@ const Scroller = forwardRef(
       hasNewerPosts,
     ]);
 
-    const onEmojiSelect = useOnEmojiSelect(activeMessage, () => {
-      setEmojiPickerOpen(false);
-    });
+    const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
+      setEmojiPickerOpen(false)
+    );
 
     const onScrolledToBottom = useCallback(() => {
       setIsAtBottom(true);
@@ -529,7 +529,7 @@ const Scroller = forwardRef(
             />
           </Modal>
         )}
-        {emojiPickerOpen ? (
+        {emojiPickerOpen && activeMessage ? (
           <EmojiPickerSheet
             open
             onOpenChange={() => {
