@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
+import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
@@ -222,6 +223,7 @@ export function ActivityScreenContent({
   );
 
   const markAllRead = useCallback(async () => {
+    await setBadgeCountAsync(0);
     await store.markAllRead();
   }, []);
 
