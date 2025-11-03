@@ -1,4 +1,9 @@
-import { VariantsFromValues, useIsWindowNarrow, useToast, ActionSheetContext } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  VariantsFromValues,
+  useIsWindowNarrow,
+  useToast,
+} from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -18,6 +23,7 @@ import {
 import React from 'react';
 import { Platform, TextInput as RNTextInput } from 'react-native';
 import {
+  GetProps,
   ScrollView,
   Spinner,
   View,
@@ -43,17 +49,16 @@ import {
 } from './formUtils';
 
 // Common text input styling configuration
+// Only contains style properties and Tamagui-specific config (name, variants, media queries)
 const textInputStyleConfig = {
   name: 'RawTextInput',
   ...mobileTypeStyles['$label/xl'],
   lineHeight: 'unset',
   context: FieldContext,
   color: '$primaryText',
-  placeholderTextColor: '$tertiaryText',
   fontFamily: '$body',
   textAlignVertical: 'top' as const,
   paddingVertical: '$l',
-  numberOfLines: 1,
   '$platform-web': { outlineStyle: 'none' },
   $gtSm: desktopTypeStyles['$label/xl'],
   variants: {
@@ -66,7 +71,13 @@ const textInputStyleConfig = {
       },
     },
   } as const,
-};
+} as const;
+
+// Default props for TextInput components (not style properties)
+const textInputDefaultProps = {
+  numberOfLines: 1,
+  placeholderTextColor: '$tertiaryText',
+} as const;
 
 const textInputAcceptProps = {
   isInput: true,
@@ -78,14 +89,14 @@ const textInputAcceptProps = {
 
 export const RawTextInput = styled(
   RNTextInput,
-  textInputStyleConfig as any,
+  textInputStyleConfig,
   textInputAcceptProps
 );
 
 // Styled version of BottomSheetTextInput for use in ActionSheets on mobile
 export const RawBottomSheetTextInput = styled(
-  BottomSheetTextInput as any,
-  textInputStyleConfig as any,
+  BottomSheetTextInput,
+  textInputStyleConfig,
   textInputAcceptProps
 );
 
@@ -139,9 +150,14 @@ const TextInputComponent = RawTextInput.styleable<{
     const shouldUseBottomSheetInput =
       actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
 
-    const InputComponent = shouldUseBottomSheetInput
-      ? RawBottomSheetTextInput
-      : RawTextInput;
+    // Shared props for both input components
+    // Type cast needed because Tamagui's styled() wrapper adds broader types (like boxShadow: array)
+    // that don't exactly match TextInput's narrower prop types (boxShadow: string only)
+    const sharedInputProps = {
+      flex: 1,
+      ...textInputDefaultProps,
+      ...props,
+    } as GetProps<typeof RawTextInput>;
 
     return (
       <InputFrame
@@ -153,7 +169,14 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        <InputComponent flex={1} ref={ref} {...props} />
+        {shouldUseBottomSheetInput ? (
+          <RawBottomSheetTextInput
+            ref={ref}
+            {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
+          />
+        ) : (
+          <RawTextInput ref={ref} {...sharedInputProps} />
+        )}
         {props.rightControls}
       </InputFrame>
     );
