@@ -164,6 +164,15 @@ export async function leaveGroup(page: Page, groupName: string) {
     await page.getByText(groupName).first().click();
     await openGroupSettings(page);
     await page.waitForSelector('text=Group Info');
+    
+    // Set up dialog handler to accept the confirmation
+    page.once('dialog', async (dialog) => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Leave');
+      expect(dialog.message()).toContain('invalidate any invitations');
+      await dialog.accept();
+    });
+    
     await page.getByText('Leave group').click();
   }
 }
@@ -490,6 +499,15 @@ export async function kickUserFromGroup(page: Page, memberName: string) {
   await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
 
   await expect(page.getByText('Kick User')).toBeVisible();
+  
+  // Set up dialog handler to accept the confirmation
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain('Kick');
+    expect(dialog.message()).toContain('invalidate all the invitations');
+    await dialog.accept();
+  });
+  
   await page.getByText('Kick User').click();
 
   await page.waitForTimeout(2000); // Wait for kick to complete
