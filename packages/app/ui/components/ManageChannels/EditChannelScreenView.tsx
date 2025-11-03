@@ -622,7 +622,7 @@ export function RoleSelectionSheet({
         onScrollBeginDrag={() => setIsScrolling(true)}
         onScrollEndDrag={() => setIsScrolling(false)}
       >
-        <YStack gap="$m" paddingTop="$m">
+        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
           {filteredRoles.map((role) => (
             <SelectableRoleListItem
               key={role.value}
