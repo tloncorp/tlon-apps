@@ -153,15 +153,7 @@ export async function markAllRead() {
 export async function advanceActivitySeenMarker(timestamp: number) {
   const settings = await db.getSettings();
   const existingMarker = settings?.activitySeenTimestamp ?? 1;
-  // const base = await db.getBaseUnread();
-  // if (base) {
-  //   await db.insertBaseUnread({
-  //     ...base,
-  //     id: BASE_UNREADS_SINGLETON_KEY,
-  //     notify: false,
-  //     notifyCount: 0,
-  //   });
-  // }
+
   if (timestamp > existingMarker) {
     // optimistic update
     db.insertSettings({
