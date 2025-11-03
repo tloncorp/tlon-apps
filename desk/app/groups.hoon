@@ -1832,7 +1832,7 @@
         |=  =role-id:g
         [role-id *role:g]
       group
-    ::  populate the admin seat. nb this must follow group memember
+    ::  populate the admin seat. nb this must follow group member
     ::  seats population above, otherwise the group host might lose the
     ::  admin role.
     ::
@@ -2779,7 +2779,7 @@
         ::
         :: order channels in the section to achieve the target order
         %set
-      ?~  section=(~(get by sections.group) section-id)  
+      ?~  section=(~(get by sections.group) section-id)
         se-core
       =*  order  order.c-section
       =.  order  (skim order ~(has by channels.group))
@@ -3607,8 +3607,12 @@
     |=  =update:g
     ^+  go-core
     ?:  ?&(?=(%sub -.net) (lth time.update time.net))
-      ::  update out of sync, restart
-      ::TODO log the group and the time difference
+      =+  delta=`@dr`(sub time.net time.update)
+      =.  cor
+        %+  ~(tell l ~)  %crit
+        :~  'update out of order'
+            leaf+"client: {<time.net>}, host: {<time.update>}, delta: {<delta>}"
+        ==
       (go-restart-updates `'update out of order')
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
@@ -4221,7 +4225,7 @@
       go-core
     ::
         %set
-      ?~  section=(~(get by sections.group) section-id)  
+      ?~  section=(~(get by sections.group) section-id)
         (go-restart-updates `'missing ordered section')
       ?:  go-our-host  go-core
       =*  order  order.u-section
