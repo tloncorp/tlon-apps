@@ -211,8 +211,13 @@ export const BottomSheetWrapper = forwardRef<
     if (modal) {
       return (
         <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
+          {/* BottomSheetView is only for simple static content. Use plain View for:
+              - footerComponent: BottomSheetView interferes with gorhom's footer layout system
+              - isNested: Avoids gesture conflicts between parent/child sheets
+              - hasScrollableContent: Scrollables (BottomSheetScrollView) should be direct children,
+                not wrapped in BottomSheetView per gorhom's architecture */}
           {footerComponent || isNested || hasScrollableContent ? (
-            <View style={{ flex: 1 }}>{children}</View>
+            <View flex={1}>{children}</View>
           ) : (
             <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
           )}
@@ -231,8 +236,11 @@ export const BottomSheetWrapper = forwardRef<
         pointerEvents="box-none"
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
+          {/* BottomSheetView only for simple static content, not for layouts with footers */}
           {footerComponent ? (
-            <View style={{ flex: 1, backgroundColor }}>{children}</View>
+            <View flex={1} backgroundColor={backgroundColor}>
+              {children}
+            </View>
           ) : (
             <BottomSheetView
               style={{
