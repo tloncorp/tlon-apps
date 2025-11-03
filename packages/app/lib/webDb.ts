@@ -35,11 +35,14 @@ export class WebDb extends BaseDb {
       if (ENABLE_DB_FILE_LOAD) {
         try {
           await this.loadDbFromFile();
+          // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
+          await this.sqlocal.sql`select null`;
         } catch (e) {
           logger.warn(
             'Failed to load DB from file, continuing with empty DB',
             e
           );
+          await this.sqlocal.deleteDatabaseFile();
         }
       }
 
