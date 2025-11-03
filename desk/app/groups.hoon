@@ -679,6 +679,16 @@
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  ::  v8 -> v9: leave all /contact subscriptions
+  ::
+  =?  cor  ?=(%8 -.old)
+    %+  roll  ~(tap by wex.bowl)
+    |=  [[[=wire =dock] *] =_cor]
+    ?.  ?=([%contact ~] wire)  cor
+    =^  caz=(list card)  subs.cor
+      (~(unsubscribe s [subs bowl]) wire dock)
+    =.  cor  (emil:cor caz)
+    (emit:cor [%pass wire %agent dock %leave ~])
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   ?>  ?=(%9 -.old)
   ::  initialize .active-channels on each reload
