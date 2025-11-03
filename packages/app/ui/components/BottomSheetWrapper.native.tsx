@@ -232,7 +232,7 @@ export const BottomSheetWrapper = forwardRef<
         right={0}
         top={0}
         bottom={0}
-        zIndex={999}
+        zIndex={9999}
         pointerEvents="box-none"
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
