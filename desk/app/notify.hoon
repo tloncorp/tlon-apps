@@ -204,16 +204,15 @@
       ?.  (lth -.old-state %7)  ~
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
-    :_  this(state migrated)
-    ?:  ?&  (~(has by wex.bowl) [/activity our.bowl %activity])
-            (~(has by wex.bowl) [/reads our.bowl %activity])
-        ==
-      caz
-    :*  (~(watch-our pass:io /activity) %activity /notifications)
-        (~(watch-our pass:io /reads) %activity /v4/reads)
-        ?.  =(~rivfur-livmet our.bowl)  caz
-        [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
-    ==
+    =?  caz  !(~(has by wex.bowl) [/activity our.bowl %activity])
+      :-  (~(watch-our pass:io /activity) %activity /notifications)
+      ?.  =(~rivfur-livmet our.bowl)  caz
+      :_  caz
+      [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
+    =?  caz  !(~(has by wex.bowl) [/reads our.bowl %activity])
+      :_  caz
+      (~(watch-our pass:io /reads) %activity /v4/reads)
+    [caz this(state migrated)]
   ::
   ++  on-poke
     |=  [=mark =vase]
