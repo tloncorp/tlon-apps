@@ -98,7 +98,6 @@ export function useRecaptcha() {
   }, [execRecaptchaLogin]);
 
   return {
-    errored: !!error && !isInitialized,
     getToken,
   };
 }
