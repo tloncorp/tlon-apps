@@ -143,12 +143,7 @@ export async function getFallbackLinkMetadata(
 ): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
     const env = getConstants();
-    // hack to avoid shuffling env vars around
-    const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
-      0,
-      env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
-    );
-    const response = await fetch(`${serverlessInfraUrl}/linkPreview`, {
+    const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/linkPreview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

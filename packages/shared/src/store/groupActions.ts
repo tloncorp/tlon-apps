@@ -312,11 +312,7 @@ export async function inviteGroupMembers({
   });
 
   try {
-    if (existingGroup.privacy === 'public') {
-      await api.addGroupMembers({ groupId, contactIds });
-    } else {
-      await api.inviteGroupMembers({ groupId, contactIds });
-    }
+    await api.inviteGroupMembers({ groupId, contactIds });
   } catch (e) {
     logger.trackError('Failed to invite group members', {
       errorMessage: e.message,

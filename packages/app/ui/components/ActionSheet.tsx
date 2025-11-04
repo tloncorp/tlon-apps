@@ -1,6 +1,9 @@
 import {
+  ActionSheetContext,
   Icon,
+  IconButton,
   IconType,
+  Pressable,
   Sheet,
   useCopy,
   useIsWindowNarrow,
@@ -139,6 +142,7 @@ const ActionSheetComponent = ({
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -196,7 +200,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -246,7 +252,9 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            {children}
+            <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+              {children}
+            </ActionSheetContext.Provider>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -276,6 +284,10 @@ const ActionSheetComponent = ({
   // through the portal. In cases where context is required, we attempt to break out of the
   // view hierarchy using an absolutely positioned wrapper View.
 
+  // On Android, force modal mode for nested sheets to ensure proper portaling
+  const shouldUseModal =
+    Platform.OS === 'android' && (isInsideSheet || props.modal);
+
   const sheetContent = (
     <Sheet
       open={open}
@@ -285,18 +297,20 @@ const ActionSheetComponent = ({
       animation="quick"
       handleDisableScroll
       {...props}
-      modal={Platform.OS === 'ios' ? false : props.modal}
+      modal={Platform.OS === 'ios' ? false : shouldUseModal}
     >
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <ActionSheetContext.Provider value={{ isInsideSheet: true }}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </ActionSheetContext.Provider>
       </Sheet.Frame>
     </Sheet>
   );
@@ -305,7 +319,7 @@ const ActionSheetComponent = ({
     <>
       {trigger}
       {Platform.OS === 'android' ? (
-        props.modal ? (
+        shouldUseModal ? (
           sheetContent
         ) : (
           <ModalLikeWrapper visible={open}>{sheetContent}</ModalLikeWrapper>
@@ -534,31 +548,23 @@ const ActionSheetActionFrame = styled(ListItem, {
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
   alignItems: 'center',
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
+  $gtSm: {
+    paddingHorizontal: '$l',
+    paddingVertical: '$m',
   },
   cursor: 'pointer',
   variants: {
     type: {
       positive: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
       negative: {
         backgroundColor: '$negativeBackground',
-        pressStyle: {
-          backgroundColor: '$negativeBackground',
-        },
       },
       neutral: {},
       disabled: {},
       selected: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
     },
   } as const,
@@ -620,42 +626,53 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
     }
   }, [action, accent]);
 
+  const pressStyle = useMemo(() => {
+    if (action.accent === 'positive') {
+      return { backgroundColor: '$positiveBackground' };
+    }
+    if (action.accent === 'negative') {
+      return { backgroundColor: '$negativeBackground' };
+    }
+    return { backgroundColor: '$secondaryBackground' };
+  }, [action.accent]);
+
   if (action.render) {
     return action.render({ action });
   }
 
   return (
-    <ActionSheetActionFrame
-      type={
-        action.selected
-          ? 'selected'
-          : action.disabled
-            ? 'disabled'
-            : action.accent ?? accent
-      }
-      onPress={handlePress}
-      testID={testID}
-      ref={ref}
-      {...props}
-    >
-      {action.startIcon &&
-        resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetActionContent>
-        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
-          {action.title}
-        </ActionSheet.ActionTitle>
-        {action.description && (
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
+    <Pressable onPress={handlePress} pressStyle={pressStyle}>
+      <ActionSheetActionFrame
+        type={
+          action.selected
+            ? 'selected'
+            : action.disabled
+              ? 'disabled'
+              : action.accent ?? accent
+        }
+        testID={testID}
+        ref={ref}
+        {...props}
+      >
+        {action.startIcon &&
+          resolveIcon(action.startIcon, action.accent ?? accent)}
+        <ActionSheetActionContent>
+          <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+            {action.title}
+          </ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheetActionContent>
+        {action.endIcon && (
+          <ListItem.EndContent>
+            {resolveIcon(action.endIcon, action.accent ?? accent)}
+          </ListItem.EndContent>
         )}
-      </ActionSheetActionContent>
-      {action.endIcon && (
-        <ListItem.EndContent>
-          {resolveIcon(action.endIcon, action.accent ?? accent)}
-        </ListItem.EndContent>
-      )}
-    </ActionSheetActionFrame>
+      </ActionSheetActionFrame>
+    </Pressable>
   );
 });
 

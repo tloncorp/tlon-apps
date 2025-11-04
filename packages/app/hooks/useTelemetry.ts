@@ -266,3 +266,8 @@ export function useTelemetry(): TelemetryClient {
 function isHostedUser(isHosted: boolean) {
   return isHosted ? 'true' : 'false';
 }
+
+export function useTelemetryId() {
+  const posthog = usePosthog();
+  return posthog.distinctId;
+}

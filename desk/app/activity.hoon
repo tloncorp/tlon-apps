@@ -161,7 +161,11 @@
     [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
-  cor
+  ::  we're temporarily removing %group-ask notifs/unreads until the
+  ::  feature is ready, so we need to mark all groups as read to clear
+  ::  any counts/badges
+  =.  cor  clear-groups
+  refresh-all-summaries
   +$  versioned-state
     $%  state-8
         state-7
@@ -324,6 +328,7 @@
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
+      %clear-group-invites  clear-group-invites
       %del      (del-source +.action)
       %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
@@ -833,7 +838,11 @@
   =.  indices  (~(del by indices) source)
   =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
-  ::  TODO: send notification removals?
+  =.  cor
+    ::  send dummy read to clear any badges on mobile clients
+    =/  summary  *activity-summary:a
+    =/  =update:a  [%read source summary(newest now.bowl)]
+    (give-update update [%both /reads])
   (give-update [%del source] [%hose ~])
 ::
 ++  del-event
@@ -989,6 +998,26 @@
 ++  summarize-unreads
   ~(summarize-unreads urd indices activity volume-settings log)
 ::
+++  clear-group-invites
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  =;  should-clear=?
+    ?.  should-clear  co
+    (read:co source [%all ~ |] |)
+  ^-  ?
+  %+  lien
+    (tap:on-stream:a stream.index)
+  |=  [=time =event:a]
+  =(%group-invite -<.event)
+::
+++  clear-groups
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a =index:a] co=_cor]
+  ?.  ?=(%group -.source)  co
+  (read:co source [%all ~ |] |)
 ++  drop-orphans
   |=  dry-run=?
   =/  indexes  ~(tap by indices)
