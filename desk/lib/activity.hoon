@@ -198,6 +198,9 @@
   ++  get-volume
     |=  [vs=volume-settings:a event=incoming-event:a]
     ^-  volume:a
+    ::  temporarily disabling group-ask notifs and unreads
+    ?:  ?=(%group-ask -.event)
+      [| |]
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
     (~(gut by loudness) (event-type event) [unreads=& notify=|])
@@ -293,14 +296,16 @@
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
     ?.  ?&  unreads.volume
-            ?=(?(%dm-post %dm-reply %post %reply %group-ask) -<.event)
+            ::  temporarily disabling group-ask handling,
+            ::  add %group-ask back here when we're ready
+            ?=(?(%dm-post %dm-reply %post %reply) -<.event)
         ==
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
     =?  main-notified  &(notify:volume notified.event)  &
-    ?:  ?=(%group-ask -<.event)
-      $(stream rest)
+    :: ?:  ?=(%group-ask -<.event)
+    ::   $(stream rest)
     =.  last
       ?~  last  `key.event
       last

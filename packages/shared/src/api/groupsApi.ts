@@ -43,6 +43,14 @@ function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
   };
 }
 
+function groupAction4(action: ub.GroupActionV4) {
+  return {
+    app: 'groups',
+    mark: 'group-action-4',
+    json: action,
+  };
+}
+
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
     app: 'groups-ui',
@@ -123,32 +131,13 @@ export function inviteGroupMembers({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        shut: {
-          'add-ships': {
-            ships: contactIds,
-            kind: 'pending',
-          },
-        },
-      },
-    })
-  );
-}
-
-export function addGroupMembers({
-  groupId,
-  contactIds,
-}: {
-  groupId: string;
-  contactIds: string[];
-}) {
-  return poke(
-    groupAction(groupId, {
-      fleet: {
+    groupAction4({
+      invite: {
+        flag: groupId,
         ships: contactIds,
-        diff: {
-          add: null,
+        'a-invite': {
+          token: null,
+          note: null,
         },
       },
     })

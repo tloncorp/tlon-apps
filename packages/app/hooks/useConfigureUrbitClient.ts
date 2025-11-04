@@ -56,7 +56,11 @@ export function configureUrbitClient({
     shipUrl: shipUrl,
     verbose: ENABLED_LOGGERS.includes('urbit'),
     fetchFn: apiFetch,
-    onQuitOrReset: sync.handleDiscontinuity,
+    onQuitOrReset: (cause) => {
+      sync.handleDiscontinuity({
+        retainChannelStatus: cause === 'subscriptionQuit',
+      });
+    },
     onChannelStatusChange: sync.handleChannelStatusChange,
     getCode: async () => {
       clientLogger.log('Client getting access code');
