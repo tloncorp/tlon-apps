@@ -1,5 +1,4 @@
 import { featureFlags } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
@@ -17,7 +16,6 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { useOpenRouterApi } from '../../hooks/useOpenRouterApi';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
@@ -655,7 +653,6 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
-  const { summarizeMessage } = useOpenRouterApi();
   const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const currentUserId = useCurrentUserId();
@@ -685,7 +682,6 @@ export function ChannelOptionsSheetContent({
       const msPerDay = 24 * 60 * 60 * 1000;
       const cutoffTime =
         timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay;
-
       const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
 
       showToast({
@@ -694,80 +690,12 @@ export function ChannelOptionsSheetContent({
       });
 
       try {
-        // Fetch posts from the database for this channel within the time range
-        const posts = await db.getChannelPostsByTimeRange({
+        await store.summarizeChannelTimeRange({
           channelId: channel.id,
           startTime: cutoffTime,
-          limit: 500,
-        });
-
-        if (posts.length === 0) {
-          showToast({
-            message: `No messages found in ${timeLabel}`,
-            duration: 2000,
-          });
-          return;
-        }
-
-        // Combine all messages with author attribution
-        const allMessages = posts
-          .filter((post: db.Post) => post.textContent)
-          .map((post: db.Post) => {
-            const date = new Date(post.sentAt);
-            const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-            return `[${dateStr} ${post.authorId}]: ${post.textContent}`;
-          });
-
-        let combinedText = allMessages.join('\n\n');
-
-        // Limit to ~10000 characters to avoid token limits
-        const MAX_CHARS = 10000;
-        if (combinedText.length > MAX_CHARS) {
-          combinedText =
-            combinedText.substring(0, MAX_CHARS) +
-            '\n\n[... conversation truncated due to length ...]';
-        }
-
-        console.log(
-          `Sending ${allMessages.length} messages (${combinedText.length} chars) to AI for summarization`
-        );
-        console.log('Preview:', combinedText.substring(0, 500) + '...');
-
-        // Call OpenRouter API to get summary
-        const response = await summarizeMessage(combinedText);
-
-        if (response.error) {
-          console.error('Summarization error:', response.error);
-          showToast({
-            message: `Failed to summarize ${timeLabel}`,
-            duration: 2000,
-          });
-          return;
-        }
-
-        if (!response.summary) {
-          console.error('No summary returned');
-          showToast({
-            message: 'No summary received',
-            duration: 2000,
-          });
-          return;
-        }
-
-        // Send DM to self with the summary
-        const summaryContent = [
-          {
-            inline: [
-              `AI Summary of ${chatTitle} (${timeLabel}):\n\n${response.summary}`,
-            ],
-          },
-        ];
-
-        await api.sendPost({
-          channelId: currentUserId,
-          authorId: currentUserId,
-          sentAt: Date.now(),
-          content: summaryContent,
+          channelTitle: chatTitle,
+          timeLabel,
+          currentUserId,
         });
 
         showToast({
@@ -776,13 +704,17 @@ export function ChannelOptionsSheetContent({
         });
       } catch (error) {
         console.error('Error summarizing channel:', error);
+        const message =
+          error.message === 'No messages found in time range'
+            ? `No messages found in ${timeLabel}`
+            : `Failed to summarize ${timeLabel}`;
         showToast({
-          message: `Failed to summarize ${timeLabel}`,
+          message,
           duration: 2000,
         });
       }
     },
-    [channel.id, chatTitle, currentUserId, showToast, summarizeMessage]
+    [channel.id, chatTitle, currentUserId, showToast]
   );
 
   const wrappedAction = useCallback(

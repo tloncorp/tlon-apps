@@ -10,7 +10,6 @@ import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useOpenRouterApi } from '../../../../hooks/useOpenRouterApi';
 import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
@@ -76,7 +75,6 @@ const ConnectedAction = memo(function ConnectedAction({
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
-  const { summarizeMessage } = useOpenRouterApi();
   const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
@@ -167,7 +165,6 @@ const ConnectedAction = memo(function ConnectedAction({
           onViewReactions,
           addAttachment,
           showToast,
-          summarizeMessage,
         })
       }
       key={actionId}
@@ -204,7 +201,6 @@ export async function handleAction({
   onForward,
   addAttachment,
   showToast,
-  summarizeMessage,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -218,9 +214,6 @@ export async function handleAction({
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
   showToast?: (options: { message: string; duration?: number }) => void;
-  summarizeMessage?: (
-    messageText: string
-  ) => Promise<{ summary: string; error?: string }>;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -299,84 +292,11 @@ export async function handleAction({
         duration: 2000,
       });
 
-      // Get all replies if this post has them
-      const getRepliesText = async () => {
-        if (!hasReplies) {
-          return post.textContent ?? '';
-        }
+      const currentUserId = api.getCurrentUserId();
 
-        try {
-          const replies = await db.getThreadPosts({ parentId: post.id });
-          // Combine root message and all replies with improved formatting
-          const allMessages = [
-            `[${post.authorId}]: ${post.textContent}`,
-            ...replies
-              .filter((reply) => reply.textContent)
-              .map((reply) => `[${reply.authorId}]: ${reply.textContent}`),
-          ];
-          let combinedText = allMessages.join('\n\n');
-
-          // Limit to ~10000 characters to avoid token limits
-          const MAX_CHARS = 10000;
-          if (combinedText.length > MAX_CHARS) {
-            combinedText =
-              combinedText.substring(0, MAX_CHARS) +
-              '\n\n[... conversation truncated ...]';
-          }
-
-          return combinedText;
-        } catch (error) {
-          console.error('Error fetching replies:', error);
-          // Fall back to just the root message
-          return post.textContent ?? '';
-        }
-      };
-
-      // Get the combined text and then call OpenRouter API
-      getRepliesText()
-        .then((combinedText) => {
-          if (!summarizeMessage) {
-            throw new Error('Summarize function not available');
-          }
-          return summarizeMessage(combinedText);
-        })
-        .then(async (response) => {
-          if (response.error) {
-            console.error('Summarization error:', response.error);
-            showToast?.({
-              message: `Failed to summarize ${itemType}`,
-              duration: 2000,
-            });
-            return;
-          }
-
-          if (!response.summary) {
-            console.error('No summary returned');
-            showToast?.({
-              message: 'No summary received',
-              duration: 2000,
-            });
-            return;
-          }
-
-          // Get current user's ship ID
-          const currentUserId = api.getCurrentUserId();
-
-          // Create story content with the summary
-          const summaryContent = [
-            {
-              inline: [`AI Summary:\n\n${response.summary}`],
-            },
-          ];
-
-          // Send DM to self with the summary
-          await api.sendPost({
-            channelId: currentUserId, // sending to self
-            authorId: currentUserId,
-            sentAt: Date.now(),
-            content: summaryContent,
-          });
-
+      store
+        .summarizeThread({ postId: post.id, currentUserId })
+        .then(() => {
           showToast?.({
             message: 'Summary sent to your DMs',
             duration: 2000,
