@@ -680,8 +680,6 @@ export function ChannelOptionsSheetContent({
     async (timeRange: 'day' | 'week') => {
       const now = Date.now();
       const msPerDay = 24 * 60 * 60 * 1000;
-      const cutoffTime =
-        timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay;
       const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
 
       showToast({
@@ -690,9 +688,9 @@ export function ChannelOptionsSheetContent({
       });
 
       try {
-        await store.summarizeChannelTimeRange({
+        await store.summarizeMessages({
           channelId: channel.id,
-          startTime: cutoffTime,
+          startTime: timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay,
           channelTitle: chatTitle,
           timeLabel,
           currentUserId,

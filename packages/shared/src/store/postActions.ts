@@ -879,170 +879,114 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
 }
 
 /**
- * Prepares a post and all its replies for AI summarization by formatting them
- * with author attribution and applying character limits.
+ * Summarizes messages and sends the summary as a DM to the current user.
+ *
+ * For thread summarization: provide postId
+ * For channel time range summarization: provide channelId + startTime
  */
-export async function prepareThreadForSummarization(
-  postId: string,
-  maxChars: number = 10000
-): Promise<string> {
-  const post = await db.getPost({ postId });
-
-  if (!post || !post.textContent) {
-    throw new Error('Post not found or has no text content');
-  }
-
-  const hasReplies = post.replyCount && post.replyCount > 0;
-
-  if (!hasReplies) {
-    return post.textContent;
-  }
-
-  try {
-    const replies = await db.getThreadPosts({ parentId: post.id });
-    const allMessages = [
-      `[${post.authorId}]: ${post.textContent}`,
-      ...replies
-        .filter((reply) => reply.textContent)
-        .map((reply) => `[${reply.authorId}]: ${reply.textContent}`),
-    ];
-
-    let combinedText = allMessages.join('\n\n');
-
-    if (combinedText.length > maxChars) {
-      combinedText =
-        combinedText.substring(0, maxChars) +
-        '\n\n[... conversation truncated ...]';
-    }
-
-    return combinedText;
-  } catch (error) {
-    logger.trackError('Error fetching thread for summarization', error);
-    // Fall back to just the root message
-    return post.textContent;
-  }
-}
-
-/**
- * Prepares channel posts from a time range for AI summarization by formatting
- * them with timestamps, author attribution, and applying character limits.
- */
-export async function prepareChannelPostsForSummarization({
-  channelId,
-  startTime,
-  limit = 500,
-  maxChars = 10000,
-}: {
-  channelId: string;
-  startTime: number;
-  limit?: number;
-  maxChars?: number;
-}): Promise<string> {
-  const posts = await db.getChannelPostsByTimeRange({
-    channelId,
-    startTime,
-    limit,
-  });
-
-  if (posts.length === 0) {
-    throw new Error('No messages found in time range');
-  }
-
-  const allMessages = posts
-    .filter((post: db.Post) => post.textContent)
-    .map((post: db.Post) => {
-      const date = new Date(post.sentAt);
-      const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-      return `[${dateStr} ${post.authorId}]: ${post.textContent}`;
-    });
-
-  let combinedText = allMessages.join('\n\n');
-
-  if (combinedText.length > maxChars) {
-    combinedText =
-      combinedText.substring(0, maxChars) +
-      '\n\n[... conversation truncated due to length ...]';
-  }
-
-  return combinedText;
-}
-
-/**
- * Summarizes a thread (post + replies) and sends the summary as a DM to the current user.
- */
-export async function summarizeThread({
+export async function summarizeMessages({
   postId,
-  currentUserId,
-}: {
-  postId: string;
-  currentUserId: string;
-}): Promise<void> {
-  const combinedText = await prepareThreadForSummarization(postId);
-  const response = await api.summarizeMessage({ messageText: combinedText });
-
-  if (response.error || !response.summary) {
-    throw new Error(response.error || 'No summary returned');
-  }
-
-  const summaryContent = [
-    {
-      inline: [`AI Summary:\n\n${response.summary}`],
-    },
-  ];
-
-  await api.sendPost({
-    channelId: currentUserId,
-    authorId: currentUserId,
-    sentAt: Date.now(),
-    content: summaryContent,
-  });
-}
-
-/**
- * Summarizes channel posts from a time range and sends the summary as a DM to the current user.
- */
-export async function summarizeChannelTimeRange({
   channelId,
   startTime,
   channelTitle,
   timeLabel,
   currentUserId,
+  limit = 500,
+  maxChars = 10000,
 }: {
-  channelId: string;
-  startTime: number;
-  channelTitle: string;
-  timeLabel: string;
+  postId?: string;
+  channelId?: string;
+  startTime?: number;
+  channelTitle?: string;
+  timeLabel?: string;
   currentUserId: string;
+  limit?: number;
+  maxChars?: number;
 }): Promise<void> {
-  const combinedText = await prepareChannelPostsForSummarization({
-    channelId,
-    startTime,
-    limit: 500,
-  });
+  let combinedText: string;
+  let summaryPrefix: string;
 
-  logger.crumb('Sending to AI for summarization', {
-    chars: combinedText.length,
-    preview: combinedText.substring(0, 500),
-  });
+  // Thread summarization
+  if (postId) {
+    const post = await db.getPost({ postId });
+    if (!post || !post.textContent) {
+      throw new Error('Post not found or has no text content');
+    }
 
+    const hasReplies = post.replyCount && post.replyCount > 0;
+    if (!hasReplies) {
+      combinedText = post.textContent;
+    } else {
+      try {
+        const replies = await db.getThreadPosts({ parentId: post.id });
+        const allMessages = [
+          `[${post.authorId}]: ${post.textContent}`,
+          ...replies
+            .filter((reply) => reply.textContent)
+            .map((reply) => `[${reply.authorId}]: ${reply.textContent}`),
+        ];
+        combinedText = allMessages.join('\n\n');
+      } catch (error) {
+        logger.trackError('Error fetching thread for summarization', error);
+        combinedText = post.textContent;
+      }
+    }
+    summaryPrefix = 'AI Summary:';
+  }
+  // Channel time range summarization
+  else if (channelId && startTime !== undefined) {
+    const posts = await db.getChannelPostsByTimeRange({
+      channelId,
+      startTime,
+      limit,
+    });
+
+    if (posts.length === 0) {
+      throw new Error('No messages found in time range');
+    }
+
+    const allMessages = posts
+      .filter((post: db.Post) => post.textContent)
+      .map((post: db.Post) => {
+        const date = new Date(post.sentAt);
+        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+        return `[${dateStr} ${post.authorId}]: ${post.textContent}`;
+      });
+
+    combinedText = allMessages.join('\n\n');
+    summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
+
+    logger.crumb('Sending to AI for summarization', {
+      chars: combinedText.length,
+      preview: combinedText.substring(0, 500),
+    });
+  } else {
+    throw new Error('Must provide either postId or (channelId + startTime)');
+  }
+
+  // Apply character limit
+  if (combinedText.length > maxChars) {
+    combinedText =
+      combinedText.substring(0, maxChars) +
+      '\n\n[... conversation truncated ...]';
+  }
+
+  // Call AI API
   const response = await api.summarizeMessage({ messageText: combinedText });
 
   if (response.error || !response.summary) {
     throw new Error(response.error || 'No summary returned');
   }
 
-  const summaryContent = [
-    {
-      inline: [
-        `AI Summary of ${channelTitle} (${timeLabel}):\n\n${response.summary}`,
-      ],
-    },
-  ];
-
+  // Send DM to self
   await api.sendPost({
     channelId: currentUserId,
     authorId: currentUserId,
     sentAt: Date.now(),
-    content: summaryContent,
+    content: [
+      {
+        inline: [`${summaryPrefix}\n\n${response.summary}`],
+      },
+    ],
   });
 }

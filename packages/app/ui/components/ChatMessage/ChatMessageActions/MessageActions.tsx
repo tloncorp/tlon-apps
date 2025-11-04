@@ -276,26 +276,24 @@ export async function handleAction({
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
     case 'summarize': {
-      // Summarize the message (and all replies if present) using OpenRouter and send to self as DM
       if (!post.textContent) {
         console.error('Cannot summarize: no text content');
         break;
       }
 
-      // Determine if this is a conversation (has replies) or a single message
       const hasReplies = post.replyCount && post.replyCount > 0;
       const itemType = hasReplies ? 'conversation' : 'message';
 
-      // Show toast notification that summarization has started
       showToast?.({
         message: `Summarizing ${itemType}...`,
         duration: 2000,
       });
 
-      const currentUserId = api.getCurrentUserId();
-
       store
-        .summarizeThread({ postId: post.id, currentUserId })
+        .summarizeMessages({
+          postId: post.id,
+          currentUserId: api.getCurrentUserId(),
+        })
         .then(() => {
           showToast?.({
             message: 'Summary sent to your DMs',
