@@ -24,7 +24,10 @@ export function useRecaptcha() {
 
         if (isMounted) {
           isInitializedRef.current = true;
-          logger.log('reCAPTCHA initialized successfully');
+          logger.trackEvent('reCAPTCHA initialized successfully', {
+            siteKey: RECAPTCHA_SITE_KEY,
+            retryCount,
+          });
         }
       } catch (err) {
         if (!isMounted) return;
