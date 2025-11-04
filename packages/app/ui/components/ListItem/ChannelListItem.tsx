@@ -178,7 +178,17 @@ export function ChannelListItem({
                   mode="contactId"
                   expandLongIds
                 />
-                {memberCount > 2 && ` and ${memberCount - 1} others`}
+                {memberCount === 3 && (
+                  <>
+                    {' and '}
+                    <ContactName
+                      contactId={model.members?.[1]?.contactId ?? ''}
+                      mode="contactId"
+                      expandLongIds
+                    />
+                  </>
+                )}
+                {memberCount > 3 && ` and ${memberCount - 1} others`}
               </ListItem.SubtitleWithIcon>
             ) : null}
             {model.lastPost && !model.isDmInvite && (
