@@ -1,14 +1,12 @@
 import { RECAPTCHA_SITE_KEY } from '@tloncorp/app/constants';
 import { createDevLogger } from '@tloncorp/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useOnboardingContext } from '../lib/OnboardingContext';
 
 const logger = createDevLogger('recaptcha', true);
 
 export function useRecaptcha() {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const isInitializedRef = useRef(false);
   const { initRecaptcha, execRecaptchaLogin } = useOnboardingContext();
@@ -26,8 +24,6 @@ export function useRecaptcha() {
 
         if (isMounted) {
           isInitializedRef.current = true;
-          setIsInitialized(true);
-          setError(null);
           logger.log('reCAPTCHA initialized successfully');
         }
       } catch (err) {
@@ -36,7 +32,6 @@ export function useRecaptcha() {
         retryCount += 1;
 
         if (err instanceof Error) {
-          setError(err);
           logger.trackError('Error initializing reCAPTCHA client', {
             thrownErrorMessage: err.message,
             siteKey: RECAPTCHA_SITE_KEY,
@@ -75,7 +70,6 @@ export function useRecaptcha() {
       const err = new Error(
         'reCAPTCHA initialization timed out after 4 seconds'
       );
-      setError(err);
       logger.trackError('reCAPTCHA initialization timeout', {
         thrownErrorMessage: err.message,
       });
@@ -88,7 +82,6 @@ export function useRecaptcha() {
     } catch (err) {
       console.error('Error executing reCAPTCHA:', err);
       if (err instanceof Error) {
-        setError(err);
         logger.trackError('Error executing reCAPTCHA', {
           thrownErrorMessage: err.message,
         });
