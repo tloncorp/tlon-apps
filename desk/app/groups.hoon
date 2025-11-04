@@ -64,9 +64,13 @@
         ::
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
+          ::
+          ::TODO make strict once used
           :+  %groups-ui-2        |  -:!>(*vale:m-groups-ui-2)
         ::
           :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
+          ::
+          ::TODO make strict once used
           :+  %group-changed-groups-2  |  -:!>(*vale:m-group-changed-groups-2)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -84,12 +88,18 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
+          ::
+          ::TODO make strict once used
           :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
+          ::
+          ::TODO make strict once used
           :+  %foreign-1          |  -:!>(*vale:m-foreign-1)
+          ::
+          ::TODO make strict once used
           :+  %foreigns-1         |  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
@@ -682,13 +692,11 @@
   ::  v8 -> v9: leave all /contact subscriptions
   ::
   =?  cor  ?=(%8 -.old)
-    %+  roll  ~(tap by wex.bowl)
-    |=  [[[=wire =dock] *] =_cor]
-    ?.  ?=([%contact ~] wire)  cor
+    =/  =dock  [our.bowl %contacts]
     =^  caz=(list card)  subs.cor
-      (~(unsubscribe s [subs bowl]) wire dock)
+      (~(unsubscribe s [subs bowl]) /contact dock)
     =.  cor  (emil:cor caz)
-    (emit:cor [%pass wire %agent dock %leave ~])
+    (emit:cor [%pass /contact %agent dock %leave ~])
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   ?>  ?=(%9 -.old)
   ::  initialize .active-channels on each reload
@@ -1104,17 +1112,13 @@
   ::
       ::  deprecated
       [%x %init %v1 ~]
-    =/  net-groups-9=net-groups:v9:gv
-      %-  ~(run by groups)
-      |=  [=net:v9:gv =group:v9:gv]
-      :-  net
-      (drop-seats:group:v9:gc group our.bowl)
     =/  groups-light-ui-2
-      %-  ~(urn by net-groups-9)
+      %-  ~(urn by groups)
       |=  [=flag:g =net:v9:gv =group:v9:gv]
+      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v9:gc status net group)
+      (group-ui:v2:group:v9:gc status net light-group)
     ::  we filter out foreigns which are %done,
     ::  since completed gangs are removed after
     ::  the group join in old groups.
@@ -1140,7 +1144,6 @@
       =*  light-group  (drop-seats:group:v9:gc group our.bowl)
       =+  (group-ui:v7:group:v9:gc net light-group)
       ::  restore member count after dropping seats
-      ::TODO is this correct in other scries?
       ::
       -(member-count ~(wyt by seats.group))
     ``noun+!>([groups-light-ui-7 `foreigns:v8:gv`foreigns])
@@ -1152,7 +1155,6 @@
       =*  light-group  (drop-seats:group:v9:gc group our.bowl)
       =+  (group-ui:group:v9:gc net light-group)
       ::  restore member count after dropping seats
-      ::TODO is this correct in other scries?
       ::
       -(member-count ~(wyt by seats.group))
     ``noun+!>([groups-light-ui-9 `foreigns:v8:gv`foreigns])
