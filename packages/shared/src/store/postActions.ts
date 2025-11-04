@@ -906,6 +906,9 @@ export async function summarizeMessages({
   let combinedText: string;
   let summaryPrefix: string;
 
+  // Reduce character limit for channel summaries to avoid overwhelming model
+  const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
+
   // Thread summarization
   if (postId) {
     const post = await db.getPost({ postId });
@@ -920,10 +923,10 @@ export async function summarizeMessages({
       try {
         const replies = await db.getThreadPosts({ parentId: post.id });
         const allMessages = [
-          `[${post.authorId}]: ${post.textContent}`,
+          `${post.authorId}: ${post.textContent}`,
           ...replies
             .filter((reply) => reply.textContent)
-            .map((reply) => `[${reply.authorId}]: ${reply.textContent}`),
+            .map((reply) => `${reply.authorId}: ${reply.textContent}`),
         ];
         combinedText = allMessages.join('\n\n');
       } catch (error) {
@@ -948,9 +951,7 @@ export async function summarizeMessages({
     const allMessages = posts
       .filter((post: db.Post) => post.textContent)
       .map((post: db.Post) => {
-        const date = new Date(post.sentAt);
-        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-        return `[${dateStr} ${post.authorId}]: ${post.textContent}`;
+        return `${post.authorId}: ${post.textContent}`;
       });
 
     combinedText = allMessages.join('\n\n');
@@ -965,9 +966,9 @@ export async function summarizeMessages({
   }
 
   // Apply character limit
-  if (combinedText.length > maxChars) {
+  if (combinedText.length > effectiveMaxChars) {
     combinedText =
-      combinedText.substring(0, maxChars) +
+      combinedText.substring(0, effectiveMaxChars) +
       '\n\n[... conversation truncated ...]';
   }
 

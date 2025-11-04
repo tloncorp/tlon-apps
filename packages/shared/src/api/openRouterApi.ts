@@ -6,21 +6,24 @@ import { getConstants } from '../domain/constants';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-const SUMMARIZATION_PROMPT = `System: You are an expert technical conversation summarizer for Urbit developers.
-Prioritize conciseness—every word must add value. Preserve exact technical
-terminology, @p ship names, error messages, and code snippets verbatim. Target
-150-250 words. Use bullet points over paragraphs. Avoid filler phrases like
-"the conversation discusses."
+const SUMMARIZATION_PROMPT = `Summarize this software development technical conversation concisely. Each message shows the author's user ID.
 
-User: Summarize this technical discussion in under 200 words:
+Instructions:
+- Keep summary under 200 words
+- Use bullet points
+- Preserve technical terms, ship names (~zod, ~bus), and code exactly
+- Focus on key points and decisions
+
+Conversation:
+
 [CONVERSATION]
 
-Format as:
-TOPIC: [1 sentence]
+Format:
+TOPIC: [one sentence]
 KEY POINTS: [3-5 bullets]
-TECHNICAL DETAILS: [preserve code/errors exactly]
+TECHNICAL DETAILS: [code/errors if present]
 DECISIONS: [if any]
-ACTION ITEMS: [with @p assignments]`;
+ACTION ITEMS: [if any]`;
 
 export interface SummarizeMessageParams {
   messageText: string;
@@ -58,18 +61,25 @@ export async function summarizeMessage({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3-0324:free',
+        model: 'deepseek/deepseek-chat-v3.1:free',
         messages: [
           {
             role: 'user',
             content: prompt,
           },
         ],
+        temperature: 0.3,
+        max_tokens: 900,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      if (response.status === 429) {
+        throw new Error('AI provider is rate-limited. Please try again in a few moments.');
+      }
+
       throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
     }
 

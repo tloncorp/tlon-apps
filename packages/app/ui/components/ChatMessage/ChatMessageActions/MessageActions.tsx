@@ -302,9 +302,13 @@ export async function handleAction({
         })
         .catch((error) => {
           console.error('Error in summarize action:', error);
+          const message =
+            error.message === 'AI provider is rate-limited. Please try again in a few moments.'
+              ? error.message
+              : `Failed to summarize ${itemType}`;
           showToast?.({
-            message: `Failed to summarize ${itemType}`,
-            duration: 2000,
+            message,
+            duration: 3000,
           });
         });
       break;

@@ -702,13 +702,17 @@ export function ChannelOptionsSheetContent({
         });
       } catch (error) {
         console.error('Error summarizing channel:', error);
-        const message =
-          error.message === 'No messages found in time range'
-            ? `No messages found in ${timeLabel}`
-            : `Failed to summarize ${timeLabel}`;
+        let message: string;
+        if (error.message === 'No messages found in time range') {
+          message = `No messages found in ${timeLabel}`;
+        } else if (error.message === 'AI provider is rate-limited. Please try again in a few moments.') {
+          message = error.message;
+        } else {
+          message = `Failed to summarize ${timeLabel}`;
+        }
         showToast({
           message,
-          duration: 2000,
+          duration: 3000,
         });
       }
     },
