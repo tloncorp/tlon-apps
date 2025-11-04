@@ -316,6 +316,7 @@
       [%role roles=(set role-id) =a-role]
       [%channel =nest =a-channel]
       [%section =section-id =a-section]
+      [%navigation =a-navigation]
       [%flag-content =nest =plan src=ship]
   ==
 ::  $a-invite: invite a ship
@@ -329,6 +330,10 @@
 +$  a-role  c-role
 +$  a-channel  c-channel
 +$  a-section  c-section
++$  a-navigation
+  $:  sections=(map section-id section)
+      order=(list section-id)
+  ==
 ::  $c-groups: group commands
 ::
 ::   %create: create a new group
@@ -364,6 +369,7 @@
       [%role roles=(set role-id) =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -462,6 +468,7 @@
       [%del ~]
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
+      [%set order=(list nest)]
   ==
 +$  update  [=time =u-group]
 +$  u-group
