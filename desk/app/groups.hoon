@@ -4785,6 +4785,8 @@
       ::
           %watch-ack
         =+  lok=lookup
+        =?  cor  !?=([~ %preview] lok)
+          (tell:log %warn 'invalid preview watch-ack' leaf+"lookup: {<lok>}")
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
