@@ -271,7 +271,13 @@ export const ChatOptionsProvider = ({
 
   const leaveChannel = useCallback(() => {
     if (isWeb) {
-      return onLeaveChannelConfirmed();
+      const confirmed = window.confirm(
+        `Leave ${channelTitle}?\n\nYou will no longer receive updates from this channel.`
+      );
+      if (confirmed) {
+        onLeaveChannelConfirmed();
+      }
+      return;
     }
     Alert.alert(
       `Leave ${channelTitle}?`,
