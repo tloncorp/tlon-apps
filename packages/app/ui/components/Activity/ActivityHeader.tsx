@@ -1,7 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import React from 'react';
+import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
+import React, { useCallback } from 'react';
 import { View } from 'tamagui';
 
+import { ActionSheet } from '../ActionSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { Tabs } from '../Tabs';
 
@@ -18,21 +20,24 @@ function ActivityHeaderRaw({
   hasUnreadNotifications: boolean;
   markAllRead: () => Promise<void>;
 }) {
+  const [overflowOpen, setOverflowOpen] = React.useState(false);
+  const onOverflowOpenChange = useCallback((open: boolean) => {
+    console.log('Overflow menu open state changed:', open);
+    setOverflowOpen(open);
+  }, []);
+
   return (
     <View>
       <View width="100%">
         <ScreenHeader>
           <ScreenHeader.Title textAlign="center">Activity</ScreenHeader.Title>
           <ScreenHeader.Controls side="right">
-            {hasUnreadNotifications && (
-              <ScreenHeader.TextButton
-                size="$label/m"
-                color="$blue"
-                onPress={markAllRead}
-              >
-                Mark all read
-              </ScreenHeader.TextButton>
-            )}
+            <ActivityOverflowMenu
+              open={overflowOpen}
+              onOpenChange={onOverflowOpenChange}
+              markAllRead={markAllRead}
+              hasUnreadNotifications={hasUnreadNotifications}
+            />
           </ScreenHeader.Controls>
         </ScreenHeader>
       </View>
@@ -69,3 +74,61 @@ function ActivityHeaderRaw({
   );
 }
 export const ActivityHeader = React.memo(ActivityHeaderRaw);
+
+function ActivityOverflowMenu({
+  open,
+  onOpenChange,
+  markAllRead,
+  hasUnreadNotifications,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  markAllRead: () => Promise<void>;
+  hasUnreadNotifications: boolean;
+}) {
+  const [confirmationOpen, setConfirmationOpen] = React.useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
+  const handleOpenConfirmation = useCallback(() => {
+    setConfirmationOpen(true);
+  }, []);
+
+  const handleMarkAllRead = useCallback(async () => {
+    onOpenChange(false);
+    await markAllRead();
+  }, [onOpenChange, markAllRead]);
+
+  return (
+    <ActionSheet
+      mode={isWindowNarrow ? 'sheet' : 'popover'}
+      open={open}
+      onOpenChange={onOpenChange}
+      trigger={
+        <ScreenHeader.IconButton
+          type="Overflow"
+          onPress={!isWindowNarrow ? undefined : () => onOpenChange(true)}
+        />
+      }
+    >
+      <ActionSheet.Content>
+        <ActionSheet.ActionGroup accent="neutral">
+          <ActionSheet.Action
+            action={{
+              title: 'Mark all as read',
+              accent: hasUnreadNotifications ? 'positive' : 'disabled',
+              disabled: !hasUnreadNotifications,
+              action: handleOpenConfirmation,
+            }}
+          />
+        </ActionSheet.ActionGroup>
+      </ActionSheet.Content>
+      <ConfirmDialog
+        open={confirmationOpen}
+        onOpenChange={setConfirmationOpen}
+        title="Mark all as read"
+        description="Are you sure you want to mark all conversations and notifications as read?"
+        confirmText="Mark all read"
+        onConfirm={handleMarkAllRead}
+      />
+    </ActionSheet>
+  );
+}
