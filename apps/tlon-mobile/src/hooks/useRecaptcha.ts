@@ -10,6 +10,7 @@ export function useRecaptcha() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const isInitializedRef = useRef(false);
   const { initRecaptcha, execRecaptchaLogin } = useOnboardingContext();
 
   // Continuously attempt to initialize reCAPTCHA until success or unmount
@@ -24,6 +25,7 @@ export function useRecaptcha() {
         await initRecaptcha(RECAPTCHA_SITE_KEY, 10_000);
 
         if (isMounted) {
+          isInitializedRef.current = true;
           setIsInitialized(true);
           setError(null);
           logger.log('reCAPTCHA initialized successfully');
@@ -49,7 +51,7 @@ export function useRecaptcha() {
         // Schedule next attempt after failure
         timeoutRef.current = setTimeout(() => {
           attemptInitialization();
-        }, 2000);
+        }, 1000);
       }
     };
 
@@ -64,6 +66,22 @@ export function useRecaptcha() {
   }, [initRecaptcha]);
 
   const getToken = useCallback(async () => {
+    const startTime = Date.now();
+    while (!isInitializedRef.current && Date.now() - startTime < 4000) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    if (!isInitializedRef.current) {
+      const err = new Error(
+        'reCAPTCHA initialization timed out after 4 seconds'
+      );
+      setError(err);
+      logger.trackError('reCAPTCHA initialization timeout', {
+        thrownErrorMessage: err.message,
+      });
+      throw err;
+    }
+
     try {
       const token = await execRecaptchaLogin();
       return token;
@@ -75,6 +93,7 @@ export function useRecaptcha() {
           thrownErrorMessage: err.message,
         });
       }
+      throw err;
     }
   }, [execRecaptchaLogin]);
 
