@@ -2,6 +2,8 @@
  * OpenRouter API integration for AI-powered message summarization
  */
 
+import { getConstants } from '../domain/constants';
+
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const SUMMARIZATION_PROMPT = `System: You are an expert technical conversation summarizer for Urbit developers.
@@ -22,7 +24,6 @@ ACTION ITEMS: [with @p assignments]`;
 
 export interface SummarizeMessageParams {
   messageText: string;
-  apiKey?: string;
 }
 
 export interface SummarizeMessageResponse {
@@ -32,25 +33,26 @@ export interface SummarizeMessageResponse {
 
 /**
  * Summarizes a message using OpenRouter's API
+ * @throws {Error} If OPENROUTER_API_KEY is not configured
  */
 export async function summarizeMessage({
   messageText,
-  apiKey,
 }: SummarizeMessageParams): Promise<SummarizeMessageResponse> {
-  try {
-    if (!apiKey) {
-      return {
-        summary: '',
-        error: 'OpenRouter API key not configured',
-      };
-    }
+  const constants = getConstants();
 
+  if (!constants.OPENROUTER_API_KEY || constants.OPENROUTER_API_KEY.length === 0) {
+    throw new Error(
+      'OPENROUTER_API_KEY is not configured. Set VITE_OPENROUTER_API_KEY environment variable.'
+    );
+  }
+
+  try {
     const prompt = SUMMARIZATION_PROMPT.replace('[CONVERSATION]', messageText);
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${constants.OPENROUTER_API_KEY}`,
         'HTTP-Referer': 'https://tlon.io',
         'X-Title': 'Tlon Messenger',
         'Content-Type': 'application/json',
