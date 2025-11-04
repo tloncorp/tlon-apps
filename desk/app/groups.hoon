@@ -695,8 +695,7 @@
     =/  =dock  [our.bowl %contacts]
     =^  caz=(list card)  subs.cor
       (~(unsubscribe s [subs bowl]) /contact dock)
-    =.  cor  (emil:cor caz)
-    (emit:cor [%pass /contact %agent dock %leave ~])
+    (emil:cor caz)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   ?>  ?=(%9 -.old)
   ::  initialize .active-channels on each reload
