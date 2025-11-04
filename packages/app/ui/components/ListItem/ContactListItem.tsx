@@ -2,9 +2,9 @@ import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { isWeb } from 'tamagui';
 
-import { formatUserId } from '../../utils';
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
+import { ContactName as ContactNameV2 } from '../ContactNameV2';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
 
@@ -49,17 +49,27 @@ export const ContactListItem = ({
         {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
         <ListItem.MainContent>
           <ListItem.Title>
-            <ContactName
-              matchText={matchText}
-              showNickname={showNickname}
-              showUserId={!showNickname && showUserId}
-              full={full}
-              userId={contactId}
-            />
+            {matchText ? (
+              // Use old ContactName for search highlighting
+              <ContactName
+                matchText={matchText}
+                showNickname={showNickname}
+                showUserId={!showNickname && showUserId}
+                full={full}
+                userId={contactId}
+              />
+            ) : (
+              // Use ContactNameV2 for monospace styling
+              <ContactNameV2
+                contactId={contactId}
+                mode={showNickname ? 'auto' : 'contactId'}
+                expandLongIds={full}
+              />
+            )}
           </ListItem.Title>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
-              {formatUserId(contactId, true)?.display}
+              <ContactNameV2 contactId={contactId} mode="contactId" expandLongIds />
             </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}

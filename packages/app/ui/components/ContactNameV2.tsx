@@ -1,11 +1,35 @@
+/**
+ * ContactNameV2 - The canonical component for displaying contact names throughout the app.
+ *
+ * This component provides consistent contact name display with:
+ * - Automatic Calm mode support (respects disableNicknames setting)
+ * - Flexible display modes (nickname, contactId, both, or auto)
+ * - Proper aria labels for accessibility
+ * - Full or shortened userId display
+ *
+ * Usage:
+ * ```tsx
+ * // Auto mode (shows nickname if available, otherwise userId)
+ * <ContactName contactId={userId} />
+ *
+ * // Force show nickname
+ * <ContactName contactId={userId} mode="nickname" />
+ *
+ * // Show both nickname and userId
+ * <ContactName contactId={userId} mode="both" />
+ *
+ * // Use as a hook for text-only contexts
+ * const name = useContactName(userId);
+ * ```
+ *
+ * Note: For search highlighting, use the legacy ContactName component instead.
+ */
 import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
 import { useCalm } from '../contexts';
 import { useContact } from '../contexts/appDataContext';
 import { formatUserId } from '../utils/user';
-
-// This file is temporary -- it uses the new text, and I want to make sure it works across all callsites before swapping it in
 
 type ContactNameOptions = {
   contactId: string;
@@ -86,6 +110,7 @@ const BaseContactName = RawText.styleable<{
       <RawText
         {...useContactNameProps({ contactId, expandLongIds, mode })}
         {...props}
+        style={props.style ?? { whiteSpace: 'nowrap' }}
       ></RawText>
     );
   },
