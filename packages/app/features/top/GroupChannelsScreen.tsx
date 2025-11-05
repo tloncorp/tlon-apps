@@ -22,8 +22,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
 const logger = createDevLogger('GroupChannelsScreen', false);
 
-export function GroupChannelsScreen({ route, navigation }: Props) {
-  // const navigationRef = useRef(navigation);
+export function GroupChannelsScreen({ route }: Props) {
   return <GroupChannelsScreenContent groupId={route.params.groupId} />;
 }
 

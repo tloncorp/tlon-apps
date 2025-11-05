@@ -111,7 +111,6 @@ async function sendBundlerRequest(
   try {
     await fetch(url);
   } catch (e) {
-    console.log(`fetch failed`, url, e.toString());
     console.log(e);
   }
 }
