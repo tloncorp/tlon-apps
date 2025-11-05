@@ -301,6 +301,7 @@ const ActionSheetComponent = ({
             <ActionSheetContext.Provider value={actionSheetContextValue}>
               {children}
             </ActionSheetContext.Provider>
+            {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
 
