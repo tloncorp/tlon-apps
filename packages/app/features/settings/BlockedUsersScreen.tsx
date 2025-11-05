@@ -6,7 +6,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { getDisplayName } from '../../ui';
+import { formatUserId } from '../../ui/utils/user';
 import {
   BlockedContactsWidget,
   ScreenHeader,
@@ -21,7 +21,8 @@ export function BlockedUsersScreen(props: Props) {
   const isNarrow = useIsWindowNarrow();
 
   const onBlockedContactPress = useCallback((contact: db.Contact) => {
-    const displayName = getDisplayName(contact);
+    // For the confirmation dialog, we use nickname if available, otherwise formatted userId
+    const displayName = contact.nickname || formatUserId(contact.id)?.display || contact.id;
     const message = store.getConfirmationMessage(false); // Always unblocking from this screen
 
     if (isWeb) {

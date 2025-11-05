@@ -827,6 +827,27 @@ export const removeMembersFromRole = async ({
   );
 };
 
+export const removeAllRolesFromMembers = async ({
+  groupId,
+  contactIds,
+  roleIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+  roleIds: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships: contactIds,
+        diff: {
+          'del-sects': roleIds,
+        },
+      },
+    })
+  );
+};
+
 export type GroupDelete = {
   type: 'deleteGroup';
   groupId: string;

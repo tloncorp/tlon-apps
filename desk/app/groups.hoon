@@ -305,7 +305,7 @@
     ==
     ::
         %group-command
-      =+  !<(=c-groups:v7:gv vase)
+      =+  !<(=c-groups:v8:gv vase)
       ?-    -.c-groups
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
@@ -1994,6 +1994,10 @@
       ?>  se-src-is-admin
       (se-c-section [section-id c-section]:c-group)
     ::
+        %section-order
+      ?>  se-src-is-admin
+      (se-c-section-order order.c-group)
+    ::
         %flag-content
       ?>  se-src-is-member
       (se-c-flag-content [nest plan src]:c-group)
@@ -2742,6 +2746,68 @@
         (~(into of order.section) [idx nest]:c-section)
       =.  sections.group  (~(put by sections.group) section-id section)
       (se-update %section section-id [%move-nest [nest idx]:c-section])
+    ::
+        ::
+        :: order channels in the section to achieve the target order
+        %set
+      ?~  sec=(~(get by sections.group) section-id)  se-core
+      =*  section  u.sec
+      :: to achieve desired order, we perform the following steps:
+      :: 1. prune non-existent nests
+      :: 2. for those channels which exists in the target order, but
+      ::    not in the source, assign them to the section.
+      :: 3. for those channels which exists in the source order, but
+      ::    not in the target, assign them to the %default section
+      :: 4. move nests one by one to achieve the desired order
+      ::
+      :: this algorithm is sure to achieve the target ordering: to see this,
+      :: consider that after step (2) all channels of the target order
+      :: are present in the source order. after step (3), all channels of the
+      :: source order are present in the target order, and thus these two sets
+      :: of channels are equal. after moving each channel to its
+      :: position in step (4), we are sure that the section is in the target order.
+      ::
+      ::
+      =*  order  order.c-section
+      ::  prune non-existent nests
+      =.  order  (skim order ~(has by channels.group))
+      ::  assign all channels in the target order to the section
+      ::
+      =.  se-core
+        %+  roll  order
+        |=  [=nest:g =_se-core]
+        =+  chan=(~(got by channels.group) nest)
+        ?:  =(section.chan section-id)  se-core
+        (se-c-channel:se-core nest [%section section-id])
+      ::  assign all channels not found in the target order
+      ::  to the default section.
+      ::
+      =.  se-core
+        %+  roll  order.section
+        |=  [=nest:g =_se-core]
+        ?:  (~(has of order) nest)  se-core
+        (se-c-channel nest [%section %default])
+      ::  order all channels
+      =|  idx=@ud
+      |-
+      ?~  order  se-core
+      %=  $
+        order  t.order
+        idx  +(idx)
+        se-core  (se-c-section section-id [%move-nest i.order idx])
+      ==
+    ==
+  ++  se-c-section-order
+    |=  order=(list section-id:g)
+    =.  order
+      (skim order ~(has by sections.group))
+    =|  idx=@ud
+    |-
+    ?~  order  se-core
+    %=  $
+      order  t.order
+      idx  +(idx)
+      se-core  (se-c-section i.order [%move idx])
     ==
   ++  se-c-flag-content
     |=  [=nest:g =plan:g src=ship]
@@ -3281,6 +3347,8 @@
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
+    ?:  ?=(%navigation -.a-group)
+      (go-a-navigation a-navigation.a-group)
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
@@ -3290,6 +3358,38 @@
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
     (emit %pass wire %agent [p.flag server] %poke cage)
+  ::  +go-a-navigation: process navigation action
+  ::
+  ++  go-a-navigation
+    |=  =a-navigation:g
+    ^+  go-core
+    =*  sections  sections.a-navigation
+    ::  update sections
+    ::
+    =.  go-core
+      %+  roll  ~(tap by sections)
+      |=  [[=section-id:g =section:g] =_go-core]
+      =/  section-old
+        (~(gut by sections.group) section-id *section:g)
+      ::  create a section if it does not exist
+      ::
+      =+  exists=(~(has by sections.group) section-id)
+      =?  go-core  !exists
+        %+  go-send-command:go-core  /command/section
+        [%section section-id %add meta.section]
+      ::  update metadata
+      ::
+      =?  go-core  &(exists !=(meta.section-old meta.section))
+        %+  go-send-command:go-core  /command/section
+        [%section section-id %edit meta.section]
+      ::  assign and order channels
+      ::
+      %+  go-send-command:go-core  /command/section
+      [%section section-id %set order.section]
+    ::  order sections
+    ::
+    %+  go-send-command:go-core  /command/section-order
+    [%section-order order.a-navigation]
   ::  +go-watch: handle group watch request
   ::
   ++  go-watch

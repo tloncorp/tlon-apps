@@ -2,7 +2,7 @@ import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { ColorTokens, SizableText, View } from 'tamagui';
 
-type BadgeType = 'positive' | 'warning' | 'neutral' | 'tertiary';
+export type BadgeType = 'positive' | 'warning' | 'neutral' | 'tertiary';
 
 const badgeBackground: Record<BadgeType, ColorTokens | 'unset'> = {
   positive: '$positiveBackground',

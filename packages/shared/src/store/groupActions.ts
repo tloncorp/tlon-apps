@@ -1027,24 +1027,53 @@ export async function kickUserFromGroup({
     return;
   }
 
-  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+  const memberToKick = existingGroup.members.find(
+    (member) => member.contactId === contactId
+  );
+
+  if (!memberToKick) {
     logger.error('User not found in group', groupId, contactId);
     return;
   }
-  // optimistic update
+
+  const memberRoles = memberToKick.roles || [];
+  const roleIds = memberRoles.map((role) => role.roleId);
+
+  for (const roleId of roleIds) {
+    await db.removeMembersFromRole({
+      groupId,
+      roleId,
+      contactIds: [contactId],
+    });
+  }
+
   await db.removeChatMembers({
     chatId: groupId,
     contactIds: [contactId],
   });
 
   try {
+    if (roleIds.length > 0) {
+      await api.removeAllRolesFromMembers({
+        groupId,
+        contactIds: [contactId],
+        roleIds,
+      });
+    }
+
     await api.kickUsersFromGroup({
       groupId,
       contactIds: [contactId],
     });
   } catch (e) {
     logger.error('Failed to kick user from group', e);
-    // rollback optimistic update
+    for (const roleId of roleIds) {
+      await db.addMembersToRole({
+        groupId,
+        roleId,
+        contactIds: [contactId],
+      });
+    }
     await db.addChatMembers({
       chatId: groupId,
       type: 'group',
