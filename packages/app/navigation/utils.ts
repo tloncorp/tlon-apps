@@ -433,6 +433,9 @@ export function getDesktopChannelRoute(
         },
       },
     },
+    // Add a unique key to ensure React Navigation creates a separate screen
+    // instance for each channel, preventing navigation to wrong channels
+    key: `${tab}-${screenName}-${channelId}`,
   } as const;
 }
 
