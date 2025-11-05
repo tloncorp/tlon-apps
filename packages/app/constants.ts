@@ -5,15 +5,5 @@ export const EMAIL_REGEX =
 export const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
 export const IS_IOS = false;
 export const IS_ANDROID = false;
-export const SIG_LIKES = [
-  '\u007E', 
-  '\u02DC',
-  '\u223C', 
-  '\u301C',
-  '\uFF5E',
-  '\u2053', 
-  '\u2241',
-];
-
 
 export * from './lib/envVars';

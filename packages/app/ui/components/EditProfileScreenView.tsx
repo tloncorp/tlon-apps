@@ -1,18 +1,19 @@
 import * as db from '@tloncorp/shared/db';
-import { PATP_REGEX } from '@tloncorp/shared/logic';
+import {
+  NicknameValidationErrorType,
+  validateNickname,
+} from '@tloncorp/shared/logic';
 import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
 } from '@tloncorp/ui';
-import { isValidPatp } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
-import { SIG_LIKES } from '../../constants';
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
@@ -34,38 +35,17 @@ interface Props {
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
 
-function validateNickname(
-  nickname: string,
-  currentUserId: string
-): string | true {
-  if (!nickname || nickname.length === 0) {
-    return true;
-  }
-
-  for (let i = 0; i < nickname.length; i++) {
-    const char = nickname[i];
-    const isConfusable = SIG_LIKES.some((sig) => sig === char);
-
-    if (isConfusable && char !== '~') {
+function getNicknameErrorMessage(
+  errorType: NicknameValidationErrorType
+): string {
+  switch (errorType) {
+    case 'confusable_characters':
       return 'Nickname cannot contain characters that look like ~';
-    }
+    case 'invalid_patp':
+      return 'You can only use your own ID in your nickname';
+    case 'wrong_user_id':
+      return 'You can only use your own ID in your nickname';
   }
-
-  if (nickname.includes('~')) {
-    const matches = nickname.match(new RegExp(PATP_REGEX, 'gi'));
-    if (matches) {
-      for (const match of matches) {
-        if (!isValidPatp(match)) {
-          return 'You can only use your own ID in your nickname';
-        }
-        if (match !== currentUserId) {
-          return 'You can only use your own ID in your nickname';
-        }
-      }
-    }
-  }
-
-  return true;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -294,10 +274,16 @@ export function EditProfileScreenView(props: Props) {
                       value: 30,
                       message: 'Your nickname is limited to 30 characters',
                     },
-                    validate: (value) =>
-                      isCurrUser
-                        ? validateNickname(value, currentUserId)
-                        : true,
+                    validate: (value) => {
+                      if (!isCurrUser) {
+                        return true;
+                      }
+                      const result = validateNickname(value, currentUserId);
+                      if (!result.isValid) {
+                        return getNicknameErrorMessage(result.errorType);
+                      }
+                      return true;
+                    },
                   }}
                 />
               </View>
