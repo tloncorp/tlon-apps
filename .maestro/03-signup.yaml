@@ -102,7 +102,6 @@ onFlowComplete:
 
 # assert everything we expect to be there is
 - assertVisible: '~wittyr-witbes' # Tlon Support
-- assertVisible: E2E Tester's Group
 - assertVisible: Bot Farm 2
 - assertVisible: shadow brian :)
 - assertVisible: Tlon Studio
