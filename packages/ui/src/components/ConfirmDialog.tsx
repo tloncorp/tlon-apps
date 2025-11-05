@@ -59,7 +59,7 @@ export function ConfirmDialog({
   // Web: use Tamagui Dialog
   if (Platform.OS === 'web') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange} modal>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay
             key="overlay"
