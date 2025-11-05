@@ -101,8 +101,7 @@ onFlowComplete:
 - tapOn: Finish
 
 # assert everything we expect to be there is
-- assertVisible: Tlon Support
-# - assertVisible: E2E Tester's Group
+- assertVisible: '~wittyr-witbes' # Tlon Support
 - assertVisible: Bot Farm 2
 - assertVisible: shadow brian :)
 # - assertVisible: Tlon Studio
