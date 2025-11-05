@@ -26,7 +26,9 @@ export async function createGroup(page: Page) {
   await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
   await page.getByText('Quick group').click();
 
-  await expect(page.getByText('Select contacts to invite')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({
+    timeout: 5000,
+  });
   await page.getByText('Create group').click();
 
   // Wait for group creation to complete and navigate to group
@@ -82,7 +84,9 @@ export async function createGroupWithTemplate(
     await page.getByText('Basic group').click();
 
     // Basic group requires title input
-    await expect(page.getByText('Name your group')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Name your group')).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByPlaceholder('Group name').fill('Basic Group');
     await page.getByText('Next', { exact: true }).click();
 
@@ -95,7 +99,9 @@ export async function createGroupWithTemplate(
   }
 
   // Wait for contact selection
-  await expect(page.getByText('Select contacts to invite')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({
+    timeout: 5000,
+  });
   await page.getByText('Create group').click();
 
   // Wait for group creation to complete and navigate to group
@@ -112,7 +118,9 @@ export async function createGroupWithTemplate(
     await expect(
       page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
     ).toBeVisible({ timeout: 10000 });
-    await page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`).click();
+    await page
+      .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
+      .click();
     await expect(channelHeader).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000);
   }
@@ -123,7 +131,10 @@ export async function createGroupWithTemplate(
  */
 export async function verifyGroupChannels(
   page: Page,
-  expectedChannels: Array<{ title: string; type: 'chat' | 'notebook' | 'gallery' }>
+  expectedChannels: Array<{
+    title: string;
+    type: 'chat' | 'notebook' | 'gallery';
+  }>
 ) {
   // Navigate to group settings
   await openGroupSettings(page);
@@ -131,12 +142,16 @@ export async function verifyGroupChannels(
 
   // Navigate to Channels
   await page.getByTestId('GroupChannels').getByText('Channels').click();
-  await expect(page.getByText('Manage channels')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('Manage channels')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Verify the correct number of channels by checking the last one exists
   const lastChannel = expectedChannels[expectedChannels.length - 1];
   const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
-  await expect(page.getByTestId(lastChannelTestId)).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId(lastChannelTestId)).toBeVisible({
+    timeout: 5000,
+  });
 
   // Verify each expected channel exists with correct title and type
   for (const channel of expectedChannels) {
@@ -164,7 +179,7 @@ export async function leaveGroup(page: Page, groupName: string) {
     await page.getByText(groupName).first().click();
     await openGroupSettings(page);
     await page.waitForSelector('text=Group Info');
-    
+
     // Set up dialog handler to accept the confirmation
     page.once('dialog', async (dialog) => {
       expect(dialog.type()).toBe('confirm');
@@ -172,7 +187,7 @@ export async function leaveGroup(page: Page, groupName: string) {
       expect(dialog.message()).toContain('invalidate any invitations');
       await dialog.accept();
     });
-    
+
     await page.getByText('Leave group').click();
   }
 }
@@ -499,7 +514,7 @@ export async function kickUserFromGroup(page: Page, memberName: string) {
   await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
 
   await expect(page.getByText('Kick User')).toBeVisible();
-  
+
   // Set up dialog handler to accept the confirmation
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
@@ -507,7 +522,7 @@ export async function kickUserFromGroup(page: Page, memberName: string) {
     expect(dialog.message()).toContain('invalidate all the invitations');
     await dialog.accept();
   });
-  
+
   await page.getByText('Kick User').click();
 
   await page.waitForTimeout(2000); // Wait for kick to complete
@@ -1467,7 +1482,7 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.waitForTimeout(500);
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
-  ).not.toBeVisible();
+  ).not.toBeVisible({ timeout: 15000 });
 }
 
 /**

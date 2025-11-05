@@ -14,7 +14,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -713,6 +713,22 @@ export const readThread = async ({
     numOfAttempts: 4,
   });
 };
+
+export function markInvitesRead() {
+  return backOff(
+    () =>
+      poke(
+        activityAction({
+          'clear-group-invites': null,
+        })
+      ),
+    {
+      delayFirstAttempt: false,
+      startingDelay: 2000,
+      numOfAttempts: 4,
+    }
+  );
+}
 
 // We need to pass a particular data structure to the backend when referencing
 // threads. It's subtly different depending on whether it's %chat or %channels based

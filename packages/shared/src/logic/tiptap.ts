@@ -434,6 +434,21 @@ export function JSONToInlines(
         },
       ];
     }
+    case 'image': {
+      if (!json.attrs) {
+        return [];
+      }
+      return [
+        {
+          image: {
+            src: json.attrs.src,
+            alt: json.attrs.alt || '',
+            height: json.attrs.height || 0,
+            width: json.attrs.width || 0,
+          },
+        },
+      ];
+    }
     default: {
       return [];
     }
@@ -568,6 +583,21 @@ export const inlineToContent = (
     return makeLink(inline.link);
   }
 
+  if ('image' in inline) {
+    const imageInline = inline as {
+      image: { src: string; alt?: string; height?: number; width?: number };
+    };
+    return {
+      type: 'image',
+      attrs: {
+        src: imageInline.image.src,
+        alt: imageInline.image.alt || '',
+        height: imageInline.image.height || 0,
+        width: imageInline.image.width || 0,
+      },
+    };
+  }
+
   const key = Object.keys(inline)[0] as InlineKey;
   if (key === 'break') {
     return makeParagraph();
@@ -674,7 +704,7 @@ export const blockToContent = (content: Block): JSONContent => {
 
   if ('image' in content) {
     return {
-      type: 'diary-image',
+      type: 'image',
       attrs: content.image,
     };
   }
