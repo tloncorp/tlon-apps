@@ -14,7 +14,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { poke, scry, subscribe, trackedPoke } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -939,76 +939,12 @@ function getPostIdFromSource(source: ub.Source): string {
   considered "meaningful". These are what's manipulated when you mute a resource for example.
 */
 
-type VolumeItemType = db.VolumeSettings['itemType'];
-
-function getPendingVolumeKey(itemId: string, itemType: VolumeItemType): string {
-  return `${itemType}:${itemId}`;
-}
-
-function getPendingVolumeKeyFromSource(source: ub.Source): string {
-  if ('base' in source) {
-    return getPendingVolumeKey('base', 'base');
-  }
-
-  if ('group' in source) {
-    return getPendingVolumeKey(source.group, 'group');
-  }
-
-  if ('channel' in source) {
-    return getPendingVolumeKey(source.channel.nest, 'channel');
-  }
-
-  if ('dm' in source) {
-    const itemId = 'ship' in source.dm ? source.dm.ship : source.dm.club;
-    return getPendingVolumeKey(itemId, 'channel');
-  }
-
-  if ('thread' in source || 'dm-thread' in source) {
-    const itemId = getPostIdFromSource(source);
-    return getPendingVolumeKey(itemId, 'thread');
-  }
-
-  throw new Error('Unsupported volume source');
-}
-
-// Track volume changes in progress to prevent sync from overwriting optimistic updates
-const pendingVolumeChanges = new Set<string>();
-
-export function isVolumePending(
-  itemId: string,
-  itemType: VolumeItemType
-): boolean {
-  return pendingVolumeChanges.has(getPendingVolumeKey(itemId, itemType));
-}
-
 export async function adjustVolumeSetting(
   source: ub.Source,
   volume: ub.VolumeMap | null
 ) {
   const action = activityAction({ adjust: { source, volume } });
-  const pendingKey = getPendingVolumeKeyFromSource(source);
-  const sourceString = ub.sourceToString(source);
-
-  // Mark this volume as pending to prevent sync from overwriting it
-  pendingVolumeChanges.add(pendingKey);
-
-  try {
-    return await trackedPoke<ub.ActivityAction, ub.ActivityUpdate>(
-      action,
-      { app: 'activity', path: '/v4' },
-      (update: ub.ActivityUpdate) => {
-        if ('adjust' in update) {
-          const updateSourceId = ub.sourceToString(update.adjust.source);
-          return sourceString === updateSourceId;
-        }
-        return false;
-      },
-      { timeout: 10000 }
-    );
-  } finally {
-    // Always remove from pending set, even on error
-    pendingVolumeChanges.delete(pendingKey);
-  }
+  return poke(action);
 }
 
 // This is a global, top level filter for which kinds of activity events are allowed to send
