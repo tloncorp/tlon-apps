@@ -185,7 +185,7 @@ export const BottomSheetWrapper = forwardRef<
       [modal]
     );
 
-    // Handle modal sheet open/close (non-modal uses index prop)
+    // Handle modal sheet open/close
     useEffect(() => {
       if (!modal) return;
 
@@ -197,6 +197,17 @@ export const BottomSheetWrapper = forwardRef<
         return () => clearTimeout(timer);
       } else {
         bottomSheetModalRef.current?.dismiss();
+      }
+    }, [open, modal]);
+
+    // Handle non-modal sheet open/close
+    useEffect(() => {
+      if (modal) return;
+
+      if (!open) {
+        bottomSheetRef.current?.close();
+      } else {
+        bottomSheetRef.current?.expand();
       }
     }, [open, modal]);
 
