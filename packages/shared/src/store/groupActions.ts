@@ -215,7 +215,10 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
       async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
     )
   );
-  return memberContacts.map((c) => c?.nickname ?? c?.id).join(', ');
+  // Use peerNickname (what people call themselves) instead of nickname (which
+  // includes customNickname/pet names) to avoid leaking pet names to other
+  // group members via the global group title stored on backend
+  return memberContacts.map((c) => c?.peerNickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {
