@@ -91,7 +91,7 @@ export interface ClientParams {
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: () => void;
-  onQuitOrReset?: () => void;
+  onQuitOrReset?: (cause: 'subscriptionQuit' | 'reset') => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
 
@@ -187,7 +187,7 @@ export function internalConfigureClient({
     logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
       context: 'seamless-reset',
     });
-    config.onQuitOrReset?.();
+    config.onQuitOrReset?.('reset');
   });
 
   config.client.on('error', (error) => {
@@ -258,7 +258,7 @@ export async function subscribe<T>(
       },
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
-        config.onQuitOrReset?.();
+        config.onQuitOrReset?.('subscriptionQuit');
       },
       err: (error, id) => {
         logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {
