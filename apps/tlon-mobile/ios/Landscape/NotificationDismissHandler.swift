@@ -5,6 +5,8 @@ import JavaScriptCore
 @objc class NotificationDismissHandler: NSObject {
 
     @objc static let shared = NotificationDismissHandler()
+    
+    private let userDefaults = UserDefaults.forDefaultAppGroup
 
     private override init() {
         super.init()
@@ -12,19 +14,19 @@ import JavaScriptCore
 
     @objc func handleNotificationDismiss(userInfo: [AnyHashable: Any]) {
         print("[dismisser] handleNotificationDismiss called with userInfo: \(userInfo)")
-
+        
         guard let action = userInfo["action"] as? String else {
             print("[dismisser] No action field found")
             return
         }
-
+        
         print("[dismisser] Action: \(action)")
-
+        
         guard action == "dismiss" else {
             print("[dismisser] Action is not dismiss, ignoring")
             return
         }
-
+        
         guard let source = userInfo["dismissSource"] as? String,
               let notifyCount = userInfo["notifyCount"] as? String,
               let uid = userInfo["uid"] as? String,
@@ -33,10 +35,19 @@ import JavaScriptCore
             return
         }
         
-        let count = Int(notifyCount) ?? 0
-
+        var count = Int(notifyCount) ?? 0
+        
         print("[dismisser] Dismissing notifications \(source) new count \(count) id \(id)")
-        // Fetch the activity event to get grouping information
+        
+        let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
+        let latestBadge = userDefaults.integer(forKey: "latest-badge-count")
+        if latestNotif > uid {
+            count = latestBadge
+        } else {
+            userDefaults.set(uid, forKey: "latest-notification")
+            userDefaults.set(count, forKey: "latest-badge-count")
+        }
+        
         Task {
             await dismissNotifications(forId: id, source: source, notifyCount: count, uid: uid)
         }
