@@ -331,7 +331,7 @@
       %clear-group-invites  clear-group-invites
       %del      (del-source +.action)
       %del-event  (del-event +.action)
-      %read     (read source.action read-action.action |)
+      %read     (read ~[source.action] read-action.action)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
@@ -923,9 +923,31 @@
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
-  |=  [=source:a action=read-action:a from-parent=?]
+  |=  [sources=(list source:a) action=read-action:a]
   ^+  cor
-  ::  we got by here because we don't want reading random sources to
+  =|  reads=(list source:a)
+  =|  updates=(set source:a)
+  =|  from-parent=_|
+  =;  [[=_reads =_updates] nc=_cor]
+    =.  cor  nc
+    =.  cor
+      ::NOTE  doesn't "compress" into a single fact w/o changing $update,
+      ::      could do that in the future
+      |-  ?~  reads  cor
+      =.  cor  (give-reads i.reads)
+      $(reads t.reads)
+    =/  new-activity=activity:a
+      %+  roll  ~(tap in updates)
+      |=  [=source:a out=activity:a]
+      (~(put by out) source (~(gut by activity) source *activity-summary:a))
+    %-  (log |.("sending activity: {<new-activity>}"))
+    (give-update [%activity new-activity] [%hose ~])
+  |-
+  ?~  sources
+    [[reads updates] cor]
+  =*  source  i.sources
+  =*  continue  $(sources t.sources)
+  ::  we +got:by here because we don't want reading random sources to
   ::  inject themselves into the activity summary.
   =/  =index:a  (~(got by indices) source)
   ?-  -.action
@@ -949,30 +971,28 @@
     =/  children
       ?.  deep.action  ~
       (get-children:src indices source)
-    =?  cor  deep.action
-      |-
-      ?~  children  cor
-      =/  =source:a  i.children
-      =.  cor  (read source action &)
-      $(children t.children)
+    =^  [nr=_reads nu=_updates]  cor
+      ?:  =(~ children)  [[reads updates] cor]
+      ::REVIEW  are we concerned about doing sources twice?
+      $(sources children, from-parent &)
+    =.  reads  nr
+    =.  updates  nu
     ::  we need to refresh our own index to reflect new reads
     %-  (log |.("refeshing index: {<source>}"))
     =.  indices  (~(put by indices) source new)
     ?:  from-parent
-      (refresh-summary source)
+      =.  cor  (refresh-summary source)
+      continue
     =/  old-summary  (~(gut by activity) source *activity-summary:a)
     =.  cor  (refresh source)
     =/  new-summary  (~(gut by activity) source *activity-summary:a)
-    ::  ignore .newest since that will always change on read
-    ?:  =(+.old-summary +.new-summary)  cor
-    =.  cor  (give-reads source)
-    =/  new-activity=activity:a
-      %+  roll
-        :(weld (get-parents:src source) ~[source] ?:(deep.action children ~))
-      |=  [=source:a out=activity:a]
-      (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log |.("sending activity: {<new-activity>}"))
-    (give-update [%activity new-activity] [%hose ~])
+    ::  ignore newest since that will always change on read
+    ?.  !=(+.old-summary +.new-summary)  continue
+    =.  reads  [source reads]
+    =.  updates
+      %-  ~(gas in updates)
+      :(weld (get-parents:src source) ~[source] children)
+    continue
   ==
 ::
 ++  give-reads
@@ -1003,25 +1023,25 @@
   ~(summarize-unreads urd indices activity volume-settings log)
 ::
 ++  clear-group-invites
-  %+  roll
-    ~(tap by indices)
-  |=  [[=source:a =index:a] co=_cor]
-  ?.  ?=(%group -.source)  co
+  =;  sources=(list source:a)
+    (read sources [%all ~ |])
+  %+  murn  ~(tap by indices)
+  |=  [=source:a =index:a]
+  ^-  (unit source:a)
+  ?.  ?=(%group -.source)  ~
   =;  should-clear=?
-    ?.  should-clear  co
-    (read:co source [%all ~ |] |)
-  ^-  ?
-  %+  lien
-    (tap:on-stream:a stream.index)
+    ?:(should-clear `source ~)
+  %+  lien  (tap:on-stream:a stream.index)
   |=  [=time =event:a]
   =(%group-invite -<.event)
 ::
 ++  clear-groups
-  %+  roll
-    ~(tap by indices)
-  |=  [[=source:a =index:a] co=_cor]
-  ?.  ?=(%group -.source)  co
-  (read:co source [%all ~ |] |)
+  =;  sources=(list source:a)
+    (read sources [%all ~ |])
+  %+  murn  ~(tap by indices)
+  |=  [=source:a =index:a]
+  ^-  (unit source:a)
+  ?:(?=(%group -.source) `source ~)
 ++  drop-orphans
   |=  dry-run=?
   =/  indexes  ~(tap by indices)

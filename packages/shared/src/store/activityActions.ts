@@ -139,18 +139,21 @@ export async function setDefaultNotificationLevel(
   }
 }
 
+export async function markAllRead() {
+  await db.insertBaseUnread({
+    id: BASE_UNREADS_SINGLETON_KEY,
+    count: 0,
+    updatedAt: Date.now(),
+    notify: false,
+    notifyCount: 0,
+  });
+  await api.readAll();
+}
+
 export async function advanceActivitySeenMarker(timestamp: number) {
   const settings = await db.getSettings();
   const existingMarker = settings?.activitySeenTimestamp ?? 1;
-  const base = await db.getBaseUnread();
-  if (base) {
-    await db.insertBaseUnread({
-      ...base,
-      id: BASE_UNREADS_SINGLETON_KEY,
-      notify: false,
-      notifyCount: 0,
-    });
-  }
+
   if (timestamp > existingMarker) {
     // optimistic update
     db.insertSettings({
