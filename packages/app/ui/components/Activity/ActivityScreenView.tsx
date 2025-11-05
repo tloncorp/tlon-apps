@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
+import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
@@ -158,6 +159,9 @@ export function ActivityScreenView({
     setRefreshing(false);
   }, [refresh]);
 
+  const { data: baseActivity } = store.useBaseUnread();
+  const hasUnreadNotifications = (baseActivity?.notifyCount || 0) > 0;
+
   return (
     <ActivityScreenContent
       activeTab={activeTab}
@@ -169,6 +173,7 @@ export function ActivityScreenView({
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
+      hasUnreadNotifications={hasUnreadNotifications}
       onGroupAction={onGroupAction}
     />
   );
@@ -185,6 +190,7 @@ export function ActivityScreenContent({
   onRefreshTriggered,
   onGroupAction,
   seenMarker,
+  hasUnreadNotifications,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -195,6 +201,7 @@ export function ActivityScreenContent({
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
+  hasUnreadNotifications: boolean;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
@@ -207,6 +214,12 @@ export function ActivityScreenContent({
     },
     [onGroupAction]
   );
+
+  const markAllRead = useCallback(async () => {
+    console.log('Marking all activity as read');
+    await setBadgeCountAsync(0);
+    await store.markAllRead();
+  }, []);
 
   const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
@@ -233,7 +246,12 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
+        <ActivityHeader
+          activeTab={activeTab}
+          onTabPress={onPressTab}
+          hasUnreadNotifications={hasUnreadNotifications}
+          markAllRead={markAllRead}
+        />
         {events.length > 0 && (
           <FlatList
             data={events}
