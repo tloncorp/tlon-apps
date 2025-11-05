@@ -425,10 +425,10 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/groups/${groupId}/v1`;
+  const path = `/v2/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.Group>({ app: 'groups', path });
-  return toClientGroup(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
+  return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async (
@@ -973,8 +973,7 @@ export type GroupRevokeMemberInvites = {
 
 export type GroupJoinRequest = {
   type: 'groupJoinRequest';
-  groupId: string;
-  ships: string[];
+  request: db.GroupJoinRequest;
 };
 
 export type GroupRevokeJoinRequests = {
@@ -1089,7 +1088,20 @@ export const subscribeGroups = async (
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
       logger.log('groupUpdateEvent', groupUpdateEvent);
-      eventHandler(toGroupUpdate(groupUpdateEvent));
+      const update = toGroupUpdate(groupUpdateEvent);
+      if (update) {
+        eventHandler(update);
+      }
+    }
+  );
+
+  subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v1/groups' },
+    (rawEvent) => {
+      const update = toV1GroupsUpdate(rawEvent);
+      if (update) {
+        eventHandler(update);
+      }
     }
   );
 
@@ -1102,9 +1114,35 @@ export const subscribeGroups = async (
   );
 };
 
+export const toV1GroupsUpdate = (
+  rawEvent: ub.V1GroupResponse
+): GroupUpdate | null => {
+  const groupId = rawEvent.flag;
+  const event = rawEvent['r-group'];
+
+  if ('entry' in event) {
+    if ('ask' in event.entry) {
+      const askData = event.entry.ask;
+      if ('add' in askData) {
+        const joinRequestData = askData.add;
+        return {
+          type: 'groupJoinRequest',
+          request: {
+            groupId,
+            requestedAt: joinRequestData.requestedAt,
+            contactId: joinRequestData.ship,
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
 export const toGroupUpdate = (
   groupUpdateEvent: ub.GroupAction
-): GroupUpdate => {
+): GroupUpdate | null => {
   const groupId = groupUpdateEvent.flag;
   const updateDiff = groupUpdateEvent.update.diff;
 
@@ -1162,14 +1200,16 @@ export const toGroupUpdate = (
   if ('cordon' in updateDiff) {
     if ('shut' in updateDiff.cordon) {
       if ('add-ships' in updateDiff.cordon.shut) {
-        return {
-          type:
-            updateDiff.cordon.shut['add-ships'].kind === 'pending'
-              ? 'inviteGroupMembers'
-              : 'groupJoinRequest',
-          ships: updateDiff.cordon.shut['add-ships'].ships,
-          groupId,
-        };
+        if (updateDiff.cordon.shut['add-ships'].kind === 'pending') {
+          return {
+            type: 'inviteGroupMembers',
+            ships: updateDiff.cordon.shut['add-ships'].ships,
+            groupId,
+          };
+        } else {
+          // no-op, requests to join a private group are handled by the new /v1/groups subscription
+          return null;
+        }
       }
 
       if ('del-ships' in updateDiff.cordon.shut) {
@@ -1624,9 +1664,10 @@ export function toClientGroupV7(
 
   // v7 uses admissions.requests instead of cordon.shut.ask
   const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
-    ? Object.keys(group.admissions.requests).map((ship) => ({
+    ? Object.entries(group.admissions.requests).map(([ship, request]) => ({
         contactId: ship,
         groupId: id,
+        requestedAt: request.requestedAt || null,
       }))
     : [];
 

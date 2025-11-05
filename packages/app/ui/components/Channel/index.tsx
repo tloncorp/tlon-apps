@@ -203,10 +203,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const hasJoinRequests = useMemo(() => {
       if (group && group.joinRequests && group.joinRequests.length > 0) {
+        const dismissedAt = group.pendingMembersDismissedAt ?? 0;
         return group.joinRequests.some((jr) => {
           const requestedAt =
             jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
-          const dismissedAt = group.pendingMembersDismissedAt ?? 0;
           return requestedAt > dismissedAt;
         });
       }

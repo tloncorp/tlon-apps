@@ -100,6 +100,7 @@ import {
   Contact,
   ContactAttestation,
   Group,
+  GroupJoinRequest,
   GroupNavSection,
   GroupRole,
   GroupUnread,
@@ -1220,13 +1221,14 @@ export const insertGroups = createWriteQuery(
           );
           await txCtx.db
             .insert($groupJoinRequests)
-            .values(
-              group.joinRequests.map((m) => ({
-                groupId: group.id,
-                contactId: m.contactId,
-              }))
-            )
-            .onConflictDoNothing();
+            .values(group.joinRequests)
+            .onConflictDoUpdate({
+              target: [
+                $groupJoinRequests.groupId,
+                $groupJoinRequests.contactId,
+              ],
+              set: conflictUpdateSetAll($groupJoinRequests),
+            });
         }
       }
       await setLastPosts(null, txCtx);
@@ -1584,22 +1586,17 @@ export const deleteGroupInvites = createWriteQuery(
   ['groupMemberInvites']
 );
 
-export const addGroupJoinRequests = createWriteQuery(
-  'addGroupJoinRequest',
-  async (
-    requests: { groupId: string; contactIds: string[] },
-    ctx: QueryCtx
-  ) => {
-    if (requests.contactIds.length === 0) return;
+export const insertGroupJoinRequests = createWriteQuery(
+  'insertGroupJoinRequests',
+  async (requests: GroupJoinRequest[], ctx: QueryCtx) => {
+    if (requests.length === 0) return;
     return ctx.db
       .insert($groupJoinRequests)
-      .values(
-        requests.contactIds.map((contactId) => ({
-          groupId: requests.groupId,
-          contactId,
-        }))
-      )
-      .onConflictDoNothing();
+      .values(requests)
+      .onConflictDoUpdate({
+        target: [$groupJoinRequests.groupId, $groupJoinRequests.contactId],
+        set: conflictUpdateSetAll($groupJoinRequests),
+      });
   },
   ['groupJoinRequests']
 );
