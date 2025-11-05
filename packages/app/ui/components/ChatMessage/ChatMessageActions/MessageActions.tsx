@@ -96,8 +96,8 @@ const ConnectedAction = memo(function ConnectedAction({
         // 2. the message isn't a reply
         return !post.deliveryStatus && !post.parentId;
       case 'muteThread':
-        // only show mute for threads
-        return post.parentId;
+        // show mute/unmute if the post has replies or is in a thread
+        return post.parentId || (post.replyCount || 0) > 0;
       case 'edit':
         // only show edit for current user's posts
         // OR admins for top-level notebook posts

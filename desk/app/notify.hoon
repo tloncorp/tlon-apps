@@ -478,7 +478,7 @@
         =/  [v0-paths=(list path) v1-paths=(list path)]
           %+  roll  ~(tap by sup.bowl)
           |=  [[duct ship =path] v0=(list path) v1=(list path)]
-          ?:  ?=(%notify -.path)  [[path v0] v1]
+          ?:  ?=([%notify *] path)  [[path v0] v1]
           [v0 [path v1]]
         :_  this(notifications (~(put by notifications) time-id [event ~]))
         =/  update-0=update:v0  [`@`time-id %notify]
@@ -486,8 +486,11 @@
           [notify-count `@`time-id %notify ~]
         ::NOTE  this used to try to inject the notification into %hark too,
         ::      but we now no longer do so.
-        :~  (fact:io notify-update-1+!>(update) v1-paths)
-            (fact:io notify-update+!>(update-0) v0-paths)
+        =-  (murn - same)
+        :~  ?~  v1-paths  ~
+            `(fact:io notify-update-1+!>(update) v1-paths)
+            ?~  v0-paths  ~
+            `(fact:io notify-update+!>(update-0) v0-paths)
         ==
       ::
           %kick
@@ -514,8 +517,9 @@
         =/  v1-paths
           %+  murn  ~(tap by sup.bowl)
           |=  [duct ship =path]
-          ?:  ?=(%notify -.path)  ~
+          ?:  ?=([%notify *] path)  ~
           `path
+        ?~  v1-paths  ~
         =/  source=@t  (string-source:enjs:aj source.update)
         =/  =update:v1
           ::  the "newest" item in a recently read activity source

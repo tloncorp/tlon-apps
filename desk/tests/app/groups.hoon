@@ -104,7 +104,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-action-4+!>(`a-groups:v7:gv`a-groups))
+  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
 ::
 ++  do-a-group
   |=  =a-group:g
@@ -112,7 +112,7 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-groups:g  [%group my-flag a-group]
-  (do-poke group-action-4+!>(`a-groups:v7:gv`a-groups))
+  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
 ::
 ++  do-a-foreigns
   |=  =a-foreigns:g
