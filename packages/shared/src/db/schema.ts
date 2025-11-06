@@ -355,6 +355,7 @@ export const baseUnreads = sqliteTable('base_unreads', {
   count: integer('count'),
   notifyCount: integer('notify_count'),
   updatedAt: timestamp('updated_at').notNull(),
+  notifTimestamp: text('notif_timestamp'), // used for ordering against notification identifiers (uid)
 });
 
 export type ActivityBucket = 'all' | 'mentions' | 'replies';

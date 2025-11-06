@@ -425,6 +425,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
                   notify: summary.notify,
                   notifyCount: summary['notify-count'],
                   updatedAt: summary.recency,
+                  notifTimestamp: summary['recency-uv'],
                 },
               });
               break;

@@ -1,7 +1,6 @@
 import { UrbitModuleSpec } from '@tloncorp/app/utils/urbitModule';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { formatUv, unixToDa } from '@urbit/aura';
 import { useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -12,10 +11,12 @@ const logger = createDevLogger('useSyncAppBadge', false);
 export function useSyncAppBadge() {
   useEffect(() => {
     db.observeWrites<db.BaseUnread>(db.ObservableField.BaseUnread, (unread) => {
-      if (Platform.OS === 'ios') {
+      if (Platform.OS === 'ios' && unread.notifTimestamp) {
         try {
-          const uid = formatUv(unixToDa(unread.updatedAt));
-          UrbitModule.updateBadgeCount(unread.notifyCount ?? 0, uid);
+          UrbitModule.updateBadgeCount(
+            unread.notifyCount ?? 0,
+            unread.notifTimestamp
+          );
         } catch (e) {
           logger.trackError('Failed to sync OS badge count', {
             error: e.toString(),
