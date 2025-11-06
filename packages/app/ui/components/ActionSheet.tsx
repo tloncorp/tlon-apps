@@ -1,7 +1,9 @@
 import {
   ActionSheetContext,
   Icon,
+  IconButton,
   IconType,
+  Pressable,
   Sheet,
   useCopy,
   useIsWindowNarrow,
@@ -146,6 +148,7 @@ const ActionSheetComponent = ({
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -587,31 +590,23 @@ const ActionSheetActionFrame = styled(ListItem, {
   paddingHorizontal: '$2xl',
   paddingVertical: '$l',
   alignItems: 'center',
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
+  $gtSm: {
+    paddingHorizontal: '$l',
+    paddingVertical: '$m',
   },
   cursor: 'pointer',
   variants: {
     type: {
       positive: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
       negative: {
         backgroundColor: '$negativeBackground',
-        pressStyle: {
-          backgroundColor: '$negativeBackground',
-        },
       },
       neutral: {},
       disabled: {},
       selected: {
         backgroundColor: '$positiveBackground',
-        pressStyle: {
-          backgroundColor: '$positiveBackground',
-        },
       },
     },
   } as const,
@@ -673,42 +668,53 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
     }
   }, [action, accent]);
 
+  const pressStyle = useMemo(() => {
+    if (action.accent === 'positive') {
+      return { backgroundColor: '$positiveBackground' };
+    }
+    if (action.accent === 'negative') {
+      return { backgroundColor: '$negativeBackground' };
+    }
+    return { backgroundColor: '$secondaryBackground' };
+  }, [action.accent]);
+
   if (action.render) {
     return action.render({ action });
   }
 
   return (
-    <ActionSheetActionFrame
-      type={
-        action.selected
-          ? 'selected'
-          : action.disabled
-            ? 'disabled'
-            : action.accent ?? accent
-      }
-      onPress={handlePress}
-      testID={testID}
-      ref={ref}
-      {...props}
-    >
-      {action.startIcon &&
-        resolveIcon(action.startIcon, action.accent ?? accent)}
-      <ActionSheetActionContent>
-        <ActionSheet.ActionTitle accent={action.accent ?? accent}>
-          {action.title}
-        </ActionSheet.ActionTitle>
-        {action.description && (
-          <ActionSheet.ActionDescription>
-            {action.description}
-          </ActionSheet.ActionDescription>
+    <Pressable onPress={handlePress} pressStyle={pressStyle}>
+      <ActionSheetActionFrame
+        type={
+          action.selected
+            ? 'selected'
+            : action.disabled
+              ? 'disabled'
+              : action.accent ?? accent
+        }
+        testID={testID}
+        ref={ref}
+        {...props}
+      >
+        {action.startIcon &&
+          resolveIcon(action.startIcon, action.accent ?? accent)}
+        <ActionSheetActionContent>
+          <ActionSheet.ActionTitle accent={action.accent ?? accent}>
+            {action.title}
+          </ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheetActionContent>
+        {action.endIcon && (
+          <ListItem.EndContent>
+            {resolveIcon(action.endIcon, action.accent ?? accent)}
+          </ListItem.EndContent>
         )}
-      </ActionSheetActionContent>
-      {action.endIcon && (
-        <ListItem.EndContent>
-          {resolveIcon(action.endIcon, action.accent ?? accent)}
-        </ListItem.EndContent>
-      )}
-    </ActionSheetActionFrame>
+      </ActionSheetActionFrame>
+    </Pressable>
   );
 });
 

@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { markInvitesRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -214,6 +215,12 @@ export function ChatListScreenView({
       (chat) => chat.type === 'group' && chat.group.id === TLON_EMPLOYEE_GROUP
     );
   }, [resolvedChats]);
+
+  useEffect(() => {
+    if (isFocused) {
+      markInvitesRead();
+    }
+  }, [isFocused]);
 
   useEffect(() => {
     if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {

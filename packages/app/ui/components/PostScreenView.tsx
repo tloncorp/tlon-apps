@@ -274,9 +274,15 @@ export function PostScreenView({
       ? null
       : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
   );
+
+  const { attachAssets, clearAttachments } = useAttachmentContext();
+
   const handleGoBack = useCallback(() => {
     if (isEditingParent) {
       setEditingPost?.(undefined);
+      // Clear attachments when exiting edit mode to prevent them from
+      // appearing in the reply input
+      clearAttachments();
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
@@ -285,9 +291,14 @@ export function PostScreenView({
     } else {
       goBack?.();
     }
-  }, [channel.type, goBack, isEditingParent, setEditingPost, draftCallbacks]);
-
-  const { attachAssets } = useAttachmentContext();
+  }, [
+    channel.type,
+    goBack,
+    isEditingParent,
+    setEditingPost,
+    draftCallbacks,
+    clearAttachments,
+  ]);
 
   const { navigateToRef } = useChannelNavigation({
     channelId: channel.id,

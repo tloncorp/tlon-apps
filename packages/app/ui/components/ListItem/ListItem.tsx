@@ -1,7 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Icon, IconType, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
   ColorProp,
