@@ -190,6 +190,7 @@ export const syncSince = async ({
             queryCtx: batchCtx,
             callCtx,
           });
+          await syncUnreads(syncCtx, batchCtx);
         }));
   } catch (e) {
     logger.trackError('sync since failed', {

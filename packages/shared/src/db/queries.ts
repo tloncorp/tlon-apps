@@ -114,6 +114,7 @@ import {
   ThreadUnreadState,
   VolumeSettings,
 } from './types';
+import { ObservableField, notifyWriteObservers } from './writeObservers';
 
 const logger = createDevLogger('queries', false);
 
@@ -4144,10 +4145,18 @@ export const insertBaseUnread = createWriteQuery(
   'insertBaseUnread',
   async (unread: BaseUnread, ctx: QueryCtx) => {
     logger.log('insertBaseUnread', unread);
-    return ctx.db.insert($baseUnreads).values([unread]).onConflictDoUpdate({
-      target: $baseUnreads.id,
-      set: unread,
-    });
+    const result = await ctx.db
+      .insert($baseUnreads)
+      .values([unread])
+      .onConflictDoUpdate({
+        target: $baseUnreads.id,
+        set: unread,
+      });
+
+    console.log(`bl: writing base unread`, unread);
+    notifyWriteObservers(ObservableField.BaseUnread, unread);
+
+    return result;
   },
   ['baseUnreads']
 );

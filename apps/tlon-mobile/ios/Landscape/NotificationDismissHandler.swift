@@ -35,35 +35,28 @@ import JavaScriptCore
             return
         }
         
-        var count = Int(notifyCount) ?? 0
+        let count = Int(notifyCount) ?? 0
         
         print("[dismisser] Dismissing notifications \(source) new count \(count) id \(id)")
         
-        let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
-        let latestBadge = userDefaults.integer(forKey: "latest-badge-count")
-        if latestNotif > uid {
-            count = latestBadge
-        } else {
-            userDefaults.set(uid, forKey: "latest-notification")
-            userDefaults.set(count, forKey: "latest-badge-count")
-        }
+        // let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
+        // let latestBadge = userDefaults.integer(forKey: "latest-badge-count")
+        // if latestNotif > uid {
+        //     count = latestBadge
+        // } else {
+        //     userDefaults.set(uid, forKey: "latest-notification")
+        //     userDefaults.set(count, forKey: "latest-badge-count")
+        // }
         
-        Task {
-            await dismissNotifications(forId: id, source: source, notifyCount: count, uid: uid)
-        }
+         Task {
+             await updateBadgeCountIfNeeded(newCount: count, uid: uid)
+             await dismissPushNotifications(forId: id, source: source)
+         }
     }
 
     @MainActor
-    private func dismissNotifications(forId dismissId: String, source: String, notifyCount: Int, uid: String) async {
+    private func dismissPushNotifications(forId dismissId: String, source: String) async {
         let center = UNUserNotificationCenter.current()
-
-        // Set badge count
-        do {
-            try await center.setBadgeCount(notifyCount)
-        } catch {
-            print("[dismisser] Failed to set badge count: \(error)")
-            await NotificationLogger.logError(.badgeSettingFailed(uid: uid, underlyingError: error))
-        }
 
         // Get delivered notifications and dismiss older ones
         let notifications = await center.deliveredNotifications()
@@ -87,6 +80,25 @@ import JavaScriptCore
         if !identifiersToDismiss.isEmpty {
             center.removeDeliveredNotifications(withIdentifiers: identifiersToDismiss)
             print("[dismisser] Dismissed \(identifiersToDismiss.count) notifications for grouping: \(source)")
+        }
+    }
+
+    @MainActor
+    func updateBadgeCountIfNeeded(newCount: Int, uid: String) async {
+        let center = UNUserNotificationCenter.current()
+        let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
+        
+        print("bl: comparing \(uid) to \(latestNotif)")
+
+        if (uid > latestNotif) {
+            do {
+                try await center.setBadgeCount(newCount)
+                userDefaults.set(uid, forKey: "latest-notification")
+                userDefaults.set(newCount, forKey: "latest-badge-count")
+            } catch {
+                print("[dismisser] Failed to set badge count: \(error)")
+                await NotificationLogger.logError(.badgeSettingFailed(uid: uid, underlyingError: error))
+            }
         }
     }
 }
