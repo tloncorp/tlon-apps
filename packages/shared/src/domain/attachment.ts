@@ -84,3 +84,84 @@ export type FinalizedAttachment =
   | UploadedImageAttachment
   | TextAttachment
   | LinkAttachment;
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace Attachment {
+  export type UploadIntent = { fileUri: string } & (
+    | { type: 'image'; asset: ImagePickerAsset }
+    | { type: 'file' }
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  export namespace UploadIntent {
+    export function fromImagePickerAsset(
+      asset: ImagePickerAsset
+    ): UploadIntent {
+      return {
+        fileUri: asset.uri,
+        type: 'image',
+        asset,
+      };
+    }
+  }
+
+  export function toUploadIntent(
+    attachment: Attachment
+  ):
+    | { needsUpload: false; finalized: FinalizedAttachment }
+    | ({ needsUpload: true } & UploadIntent) {
+    switch (attachment.type) {
+      case 'image':
+        return {
+          needsUpload: true,
+          fileUri: attachment.file.uri,
+          type: 'image',
+          asset: attachment.file,
+        };
+      case 'text':
+      // fallthrough
+      case 'link':
+      // fallthrough
+      case 'reference':
+        return { needsUpload: false, finalized: attachment };
+    }
+  }
+
+  export function fromUploadIntent(uploadIntent: UploadIntent): Attachment {
+    switch (uploadIntent.type) {
+      case 'image': {
+        return { type: 'image', file: uploadIntent.asset };
+      }
+      case 'file': {
+        // TODO
+        throw new Error('File attachments are not implemented.');
+      }
+    }
+  }
+
+  export function toSuccessfulFinalizedAttachment(
+    attachment: Attachment,
+    uploadState: UploadState | null
+  ): FinalizedAttachment | null {
+    const uploadIntent = toUploadIntent(attachment);
+    if (uploadIntent.needsUpload) {
+      if (uploadState == null || uploadState.status !== 'success') {
+        return null;
+      }
+      switch (uploadIntent.type) {
+        case 'image':
+          return {
+            type: 'image',
+            file: uploadIntent.asset,
+            uploadState,
+          };
+
+        case 'file':
+          // TODO
+          throw new Error('File attachments are not implemented.');
+      }
+    } else {
+      return uploadIntent.finalized;
+    }
+  }
+}

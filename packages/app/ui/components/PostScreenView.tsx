@@ -1,4 +1,5 @@
 import {
+  Attachment,
   DraftInputId,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
@@ -25,8 +26,8 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useConnectionStatus } from '../../features/top/useConnectionStatus';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -326,7 +327,13 @@ export function PostScreenView({
               paddingBottom={bottom}
               backgroundColor="$background"
               flex={1}
-              onAssetsDropped={attachAssets}
+              onAssetsDropped={(images) =>
+                attachAssets(
+                  images.map((x) =>
+                    Attachment.UploadIntent.fromImagePickerAsset(x)
+                  )
+                )
+              }
             >
               <KeyboardAvoidingView>
                 <YStack flex={1} backgroundColor={'$background'}>

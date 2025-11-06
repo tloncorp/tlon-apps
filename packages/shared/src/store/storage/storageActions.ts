@@ -9,6 +9,7 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
+import { Attachment } from '../../domain/attachment';
 import { setUploadState } from './storageUploadState';
 import {
   fetchFileFromUri,
@@ -38,7 +39,29 @@ function getSaveFormat(mimeType?: string): SaveFormat {
   return SaveFormat.JPEG;
 }
 
-export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
+export async function uploadAsset(
+  asset: Attachment.UploadIntent,
+  isWeb = false
+) {
+  switch (asset.type) {
+    case 'image': {
+      return await uploadImageAsset(asset.asset, isWeb);
+    }
+
+    case 'file': {
+      return await performUpload(
+        {
+          uri: asset.fileUri,
+          mimeType: undefined, // TODO
+        },
+        isWeb
+      );
+    }
+  }
+  throw new Error('not implemented');
+}
+
+const uploadImageAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
     return;

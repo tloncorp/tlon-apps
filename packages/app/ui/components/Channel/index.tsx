@@ -1,5 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Attachment,
   DraftInputId,
   UploadedImageAttachment,
   finalizeAndSendPost,
@@ -36,6 +37,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -43,7 +45,6 @@ import {
   useCurrentUserId,
 } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
@@ -225,15 +226,21 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const handleImageDrop = useCallback(
       async (assets: ImagePickerAsset[]) => {
+        const uploadIntents = assets.map((x) =>
+          Attachment.UploadIntent.fromImagePickerAsset(x)
+        );
         if (channel.type !== 'gallery') {
-          attachAssets(assets);
+          attachAssets(uploadIntents);
           return;
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(assets);
+          const uploadedAttachments = await uploadAssets(uploadIntents);
 
           for (const attachment of uploadedAttachments) {
+            if (attachment.type !== 'image') {
+              throw new Error('Not implemented');
+            }
             const story: Story = [
               {
                 block: {

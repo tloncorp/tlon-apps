@@ -1,4 +1,8 @@
-import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
+import {
+  Attachment,
+  PLACEHOLDER_ASSET_URI,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -75,8 +79,13 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
+        // TODO: we're doing two layers of conversion here - and
+        // createImageAssetFromClipboardData in particular lies about the
+        // image's dimensions. could probably remove one layer.
         const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
-        attachAssets([clipboardAsset]);
+        attachAssets([
+          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
+        ]);
         onAttach?.([clipboardAsset]);
       } catch (error) {
         logger.trackError('Error pasting from clipboard', { error });
@@ -84,19 +93,20 @@ export default function AttachmentSheet({
     }, 50);
   }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
 
-  const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
-    () => ({
-      assetId: 'placeholder-asset-id',
-      uri: PLACEHOLDER_ASSET_URI,
-      width: 300,
-      height: 300,
-      fileName: 'camera-image.jpg',
-      fileSize: 0,
-      type: 'image',
-      duration: undefined,
-      exif: undefined,
-      base64: undefined,
-    }),
+  const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
+    () =>
+      Attachment.UploadIntent.fromImagePickerAsset({
+        assetId: 'placeholder-asset-id',
+        uri: PLACEHOLDER_ASSET_URI,
+        width: 300,
+        height: 300,
+        fileName: 'camera-image.jpg',
+        fileSize: 0,
+        type: 'image',
+        duration: undefined,
+        exif: undefined,
+        base64: undefined,
+      }),
     []
   );
 
@@ -126,7 +136,7 @@ export default function AttachmentSheet({
         // Immediately set the placeholder attachment to show in the UI
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
         if (Platform.OS !== 'web') {
-          attachAssets([placeholderAsset]);
+          attachAssets([placeholderUploadIntent]);
         }
 
         const result = await ImagePicker.launchCameraAsync({
@@ -141,7 +151,9 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([realAsset]);
+          attachAssets([
+            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
+          ]);
           onAttach?.(result.assets);
         } else {
           // If user canceled, remove the placeholder
@@ -161,7 +173,7 @@ export default function AttachmentSheet({
     onOpenChange,
     cameraPermissionStatus,
     requestCameraPermission,
-    placeholderAsset,
+    placeholderUploadIntent,
     removePlaceholderAttachment,
   ]);
 
@@ -183,7 +195,7 @@ export default function AttachmentSheet({
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
         setTimeout(() => {
           if (Platform.OS !== 'web') {
-            attachAssets([placeholderAsset]);
+            attachAssets([placeholderUploadIntent]);
           }
         }, 200);
 
@@ -199,7 +211,9 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([realAsset]);
+          attachAssets([
+            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
+          ]);
           onAttach?.(result.assets);
         } else {
           // If user canceled, remove the placeholder
@@ -220,7 +234,7 @@ export default function AttachmentSheet({
     onOpenChange,
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
-    placeholderAsset,
+    placeholderUploadIntent,
     removePlaceholderAttachment,
   ]);
 

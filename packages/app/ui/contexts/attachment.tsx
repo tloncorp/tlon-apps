@@ -2,14 +2,12 @@ import {
   Attachment,
   FinalizedAttachment,
   ImageAttachment,
-  UploadedImageAttachment,
 } from '@tloncorp/shared';
 import {
   finalizeAttachments,
   useUploadStates,
   waitForUploads,
 } from '@tloncorp/shared/store';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   PropsWithChildren,
   createContext,
@@ -28,10 +26,10 @@ export type AttachmentState = {
   clearAttachments: () => void;
   resetAttachments: (attachments: Attachment[]) => void;
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
-  attachAssets: (assets: ImagePickerAsset[]) => void;
+  attachAssets: (assets: Attachment.UploadIntent[]) => void;
   uploadAssets: (
-    assets: ImagePickerAsset[]
-  ) => Promise<UploadedImageAttachment[]>;
+    assets: Attachment.UploadIntent[]
+  ) => Promise<FinalizedAttachment[]>;
   canUpload: boolean;
 };
 
@@ -68,35 +66,45 @@ export const AttachmentProvider = ({
   children,
 }: PropsWithChildren<{
   canUpload: boolean;
-  uploadAsset: (asset: ImagePickerAsset, isWeb?: boolean) => Promise<void>;
+  uploadAsset: (
+    asset: Attachment.UploadIntent,
+    isWeb?: boolean
+  ) => Promise<void>;
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
 
   const assetUploadStates = useUploadStates(
-    state
-      .filter((a): a is ImageAttachment => a.type === 'image')
-      .map((a) => a.file.uri)
+    state.flatMap((a) => {
+      const x = Attachment.toUploadIntent(a);
+      if (x.needsUpload) {
+        return [x.fileUri];
+      } else {
+        return [];
+      }
+    })
   );
 
   const attachments = useMemo(() => {
     return state.map((a) => {
-      if (a.type === 'image') {
+      const x = Attachment.toUploadIntent(a);
+      if (x.needsUpload) {
         return {
           ...a,
-          uploadState: assetUploadStates[a.file.uri],
+          uploadState: assetUploadStates[x.fileUri],
         };
       }
-
       return a;
     });
   }, [assetUploadStates, state]);
 
   useEffect(() => {
     attachments.forEach((a) => {
-      if (a.type === 'image' && !a.uploadState) {
-        uploadAsset(a.file, isWeb);
+      const x = Attachment.toUploadIntent(a);
+      if (!x.needsUpload) {
+        return;
       }
+      uploadAsset(x, isWeb);
     });
   }, [attachments, uploadAsset]);
 
@@ -105,26 +113,36 @@ export const AttachmentProvider = ({
   }, []);
 
   const handleAttachAssets = useCallback(
-    (assets: ImagePickerAsset[]) => {
-      assets.forEach((asset) =>
-        handleAddAttachment({ type: 'image', file: asset })
+    (uploadIntents: Attachment.UploadIntent[]) => {
+      uploadIntents.forEach((uploadIntent) =>
+        handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
       );
     },
     [handleAddAttachment]
   );
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {
+    const removedUploadInfo = Attachment.toUploadIntent(attachment);
     setState((prev) =>
-      prev.filter(
-        (a) =>
-          a !== attachment &&
-          // TODO: unique attachment ids
-          !(
-            a.type === 'image' &&
-            attachment.type === 'image' &&
-            attachment.file.uri === a.file.uri
-          )
-      )
+      prev.filter((a) => {
+        // remove identical attachments
+        if (a === attachment) {
+          return false;
+        }
+
+        if (removedUploadInfo.needsUpload) {
+          const itemUploadInfo = Attachment.toUploadIntent(a);
+
+          // remove attachments with the same local file uri
+          if (
+            itemUploadInfo.needsUpload &&
+            itemUploadInfo.fileUri === removedUploadInfo.fileUri
+          ) {
+            return false;
+          }
+        }
+        return true;
+      })
     );
   }, []);
 
@@ -142,37 +160,38 @@ export const AttachmentProvider = ({
   );
 
   const handleUploadAssets = useCallback(
-    async (assets: ImagePickerAsset[]): Promise<UploadedImageAttachment[]> => {
+    async (
+      uploadIntents: Attachment.UploadIntent[]
+    ): Promise<FinalizedAttachment[]> => {
       const assetUris: string[] = [];
 
-      const uploadPromises = assets.map(async (asset) => {
-        await uploadAsset(asset, isWeb);
-        assetUris.push(asset.uri);
-        return asset;
+      const uploadPromises = uploadIntents.map(async (u) => {
+        await uploadAsset(u, isWeb);
+        assetUris.push(u.fileUri);
+        return u;
       });
 
       const uploadedAssets = await Promise.all(uploadPromises);
 
       setState((prev) => [
         ...prev,
-        ...uploadedAssets.map((asset) => ({
-          type: 'image' as const,
-          file: asset,
-        })),
+        ...uploadedAssets.map((asset) => Attachment.fromUploadIntent(asset)),
       ]);
 
       const uploadStates = await waitForUploads(assetUris);
 
-      return uploadedAssets
-        .map((asset) => ({
-          type: 'image' as const,
-          file: asset,
-          uploadState: uploadStates[asset.uri],
-        }))
-        .filter(
-          (attachment): attachment is UploadedImageAttachment =>
-            attachment.uploadState?.status === 'success'
+      const out: FinalizedAttachment[] = [];
+      for (const asset of uploadedAssets) {
+        const uploadState = uploadStates[asset.fileUri];
+        const finalized = Attachment.toSuccessfulFinalizedAttachment(
+          Attachment.fromUploadIntent(asset),
+          uploadState ?? null
         );
+        if (finalized) {
+          out.push(finalized);
+        }
+      }
+      return out;
     },
     [uploadAsset]
   );

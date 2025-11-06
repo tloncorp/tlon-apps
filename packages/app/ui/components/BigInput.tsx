@@ -1,4 +1,5 @@
 import {
+  Attachment,
   FinalizedAttachment,
   createDevLogger,
   tiptap,
@@ -295,7 +296,10 @@ export function BigInput({
         // Instead, we upload directly and wait for the URL
         try {
           // Upload the image directly without adding to attachments
-          await uploadAssetToStorage(asset, true);
+          await uploadAssetToStorage(
+            Attachment.UploadIntent.fromImagePickerAsset(asset),
+            true
+          );
 
           if (!isMountedRef.current) return;
 
