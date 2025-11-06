@@ -143,8 +143,18 @@ export class NativeDb extends BaseDb {
       return;
     }
 
+    const MIGRATION_TIMEOUT = 3000; // 3 seconds
+
     try {
-      await this.connection?.migrateClient(this.client!);
+      await Promise.race([
+        this.connection?.migrateClient(this.client!),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Migration timeout exceeded')),
+            MIGRATION_TIMEOUT
+          )
+        ),
+      ]);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: successfully migrated DB',
       });
@@ -165,7 +175,15 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: migration retry: purged db',
       });
-      await this.connection?.migrateClient(this.client!);
+      await Promise.race([
+        this.connection?.migrateClient(this.client!),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Migration timeout exceeded on retry')),
+            MIGRATION_TIMEOUT
+          )
+        ),
+      ]);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context:
           'runMigrations: migration retry: successfully migrated on retry (this should not happen often)',
