@@ -160,9 +160,6 @@ export function ActivityScreenView({
     setRefreshing(false);
   }, [refresh]);
 
-  const { data: baseActivity } = store.useBaseUnread();
-  const hasUnreadNotifications = (baseActivity?.notifyCount || 0) > 0;
-
   return (
     <ActivityScreenContent
       activeTab={activeTab}
@@ -174,7 +171,6 @@ export function ActivityScreenView({
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
-      hasUnreadNotifications={hasUnreadNotifications}
       onGroupAction={onGroupAction}
     />
   );
@@ -191,7 +187,6 @@ export function ActivityScreenContent({
   onRefreshTriggered,
   onGroupAction,
   seenMarker,
-  hasUnreadNotifications,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -202,7 +197,6 @@ export function ActivityScreenContent({
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
-  hasUnreadNotifications: boolean;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
@@ -253,7 +247,6 @@ export function ActivityScreenContent({
         <ActivityHeader
           activeTab={activeTab}
           onTabPress={onPressTab}
-          hasUnreadNotifications={hasUnreadNotifications}
           markAllRead={markAllRead}
         />
         {events.length > 0 && (
