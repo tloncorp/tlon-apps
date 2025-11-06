@@ -1061,10 +1061,22 @@
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ::
+    ::  ignore responses for deleted dms
+    ?:  ?&  !(~(has by dms) ship)
+            ?=(%poke-ack -.sign)
+        ==
+      cor
     di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
+    ::
+    ::  ignore responses for deleted clubs
+    ?:  ?&  !(~(has by clubs) id)
+            ?=(%poke-ack -.sign)
+        ==
+      cor
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
   ==
 ++  give-kick

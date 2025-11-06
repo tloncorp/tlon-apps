@@ -1263,8 +1263,8 @@
   ::
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
-    ::  ignore responses after group has been deleted
     ::
+    ::  ignore responses after group has been deleted
     ?:  ?&  !(~(has by groups) ship name.pole)
             &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
         ==
