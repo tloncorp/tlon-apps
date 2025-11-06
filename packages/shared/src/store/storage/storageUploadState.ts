@@ -11,12 +11,15 @@ import {
 } from '../../domain';
 
 const logger = createDevLogger('uploadState', false);
-let uploadStates: Record<string, UploadState> = {};
+let uploadStates: Record<Attachment.UploadIntent.Key, UploadState> = {};
 
 export type UploadStateListener = (state: UploadState) => void;
 const uploadStateListeners: UploadStateListener[] = [];
 
-export const setUploadState = (key: string, state: UploadState) => {
+export const setUploadState = (
+  key: Attachment.UploadIntent.Key,
+  state: UploadState
+) => {
   uploadStates = { ...uploadStates, [key]: state };
   logger.log('upload states changed', uploadStates);
   uploadStateListeners.forEach((listener) => listener(uploadStates[key]));
@@ -29,7 +32,7 @@ export function subscribeToUploadStates(listener: UploadStateListener) {
   };
 }
 
-export const useUploadStates = (keys: string[]) => {
+export const useUploadStates = (keys: Attachment.UploadIntent.Key[]) => {
   const states = useSyncExternalStore(
     subscribeToUploadStates,
     useCallback(() => {
@@ -37,12 +40,15 @@ export const useUploadStates = (keys: string[]) => {
     }, [])
   );
   return useMemo(() => {
-    return keys.reduce<Record<string, UploadState>>((memo, k) => {
-      return {
-        ...memo,
-        [k]: states[k],
-      };
-    }, {});
+    return keys.reduce(
+      (memo, k) => {
+        return {
+          ...memo,
+          [k]: states[k],
+        };
+      },
+      {} as Record<Attachment.UploadIntent.Key, UploadState>
+    );
   }, [states, keys]);
 };
 
@@ -70,7 +76,7 @@ export async function finalizeAttachments(
 ): Promise<FinalizedAttachment[]> {
   const assetAttachments = attachments.filter(requiresUpload);
   const completedUploads = await waitForUploads(
-    assetAttachments.map((a) => a.file.uri)
+    assetAttachments.map(Attachment.UploadIntent.extractKey)
   );
   return attachments.map((attachment) => {
     if (requiresUpload(attachment)) {

@@ -296,15 +296,16 @@ export function BigInput({
         // Instead, we upload directly and wait for the URL
         try {
           // Upload the image directly without adding to attachments
-          await uploadAssetToStorage(
-            Attachment.UploadIntent.fromImagePickerAsset(asset),
-            true
-          );
+          const uploadIntent =
+            Attachment.UploadIntent.fromImagePickerAsset(asset);
+          await uploadAssetToStorage(uploadIntent, true);
 
           if (!isMountedRef.current) return;
 
           // Wait for the upload to complete and get the S3 URL
-          const uploadStates = await waitForUploads([asset.uri]);
+          const uploadStates = await waitForUploads([
+            Attachment.UploadIntent.extractKey(uploadIntent),
+          ]);
 
           // Check again after await
           if (!isMountedRef.current) return;

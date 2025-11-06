@@ -78,7 +78,7 @@ export const AttachmentProvider = ({
     state.flatMap((a) => {
       const x = Attachment.toUploadIntent(a);
       if (x.needsUpload) {
-        return [x.fileUri];
+        return [Attachment.UploadIntent.extractKey(x)];
       } else {
         return [];
       }
@@ -91,7 +91,7 @@ export const AttachmentProvider = ({
       if (x.needsUpload) {
         return {
           ...a,
-          uploadState: assetUploadStates[x.fileUri],
+          uploadState: assetUploadStates[Attachment.UploadIntent.extractKey(x)],
         };
       }
       return a;
@@ -133,10 +133,13 @@ export const AttachmentProvider = ({
         if (removedUploadInfo.needsUpload) {
           const itemUploadInfo = Attachment.toUploadIntent(a);
 
-          // remove attachments with the same local file uri
+          // remove attachments pointing to the same data
           if (
             itemUploadInfo.needsUpload &&
-            itemUploadInfo.fileUri === removedUploadInfo.fileUri
+            Attachment.UploadIntent.equivalent(
+              itemUploadInfo,
+              removedUploadInfo
+            )
           ) {
             return false;
           }
@@ -163,11 +166,11 @@ export const AttachmentProvider = ({
     async (
       uploadIntents: Attachment.UploadIntent[]
     ): Promise<FinalizedAttachment[]> => {
-      const assetUris: string[] = [];
+      const assetUris: Attachment.UploadIntent.Key[] = [];
 
       const uploadPromises = uploadIntents.map(async (u) => {
         await uploadAsset(u, isWeb);
-        assetUris.push(u.fileUri);
+        assetUris.push(Attachment.UploadIntent.extractKey(u));
         return u;
       });
 
@@ -182,7 +185,8 @@ export const AttachmentProvider = ({
 
       const out: FinalizedAttachment[] = [];
       for (const asset of uploadedAssets) {
-        const uploadState = uploadStates[asset.fileUri];
+        const uploadState =
+          uploadStates[Attachment.UploadIntent.extractKey(asset)];
         const finalized = Attachment.toSuccessfulFinalizedAttachment(
           Attachment.fromUploadIntent(asset),
           uploadState ?? null

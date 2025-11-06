@@ -1,4 +1,5 @@
 import { ImagePickerAsset } from 'expo-image-picker';
+import { memoize, uniqueId } from 'lodash';
 
 import { ContentReference } from './references';
 import { UploadState } from './uploads';
@@ -87,21 +88,39 @@ export type FinalizedAttachment =
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Attachment {
-  export type UploadIntent = { fileUri: string } & (
+  export type UploadIntent =
     | { type: 'image'; asset: ImagePickerAsset }
-    | { type: 'file' }
-  );
+    | { type: 'file'; file: File };
 
   // eslint-disable-next-line @typescript-eslint/no-namespace
   export namespace UploadIntent {
+    /** Branded type to avoid using wrong keys downstream */
+    export type Key = string & { __brand: 'Attachment.UploadIntent.Key' };
+
     export function fromImagePickerAsset(
       asset: ImagePickerAsset
     ): UploadIntent {
       return {
-        fileUri: asset.uri,
         type: 'image',
         asset,
       };
+    }
+
+    /** Used when keying a 'file'-type UploadIntent. Memoized so that
+     * equivalent `File`s yield the same ID. */
+    const fileKey = memoize((file: File): string => uniqueId('File'));
+
+    export function extractKey(uploadIntent: UploadIntent): UploadIntent.Key {
+      const rawValue: string = (() => {
+        switch (uploadIntent.type) {
+          case 'image':
+            return uploadIntent.asset.uri;
+          case 'file':
+            return fileKey(uploadIntent.file);
+        }
+      })();
+      // cast to branded type
+      return rawValue as UploadIntent.Key;
     }
   }
 
@@ -114,7 +133,6 @@ export namespace Attachment {
       case 'image':
         return {
           needsUpload: true,
-          fileUri: attachment.file.uri,
           type: 'image',
           asset: attachment.file,
         };

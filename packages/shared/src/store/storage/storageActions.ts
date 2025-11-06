@@ -45,7 +45,8 @@ export async function uploadAsset(
 ) {
   switch (asset.type) {
     case 'image': {
-      return await uploadImageAsset(asset.asset, isWeb);
+      await uploadImageAsset(asset, isWeb);
+      break;
     }
 
     case 'file': {
@@ -56,16 +57,21 @@ export async function uploadAsset(
         },
         isWeb
       );
+      break;
     }
   }
-  throw new Error('not implemented');
 }
 
-const uploadImageAsset = async (asset: ImagePickerAsset, isWeb = false) => {
+const uploadImageAsset = async (
+  uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
+  isWeb = false
+) => {
+  const asset = uploadIntent.asset;
   if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
     return;
   }
+  const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
   logger.crumb(
     'uploading asset',
     asset.mimeType,
@@ -74,7 +80,10 @@ const uploadImageAsset = async (asset: ImagePickerAsset, isWeb = false) => {
     isWeb
   );
   logger.log('full asset', asset);
-  setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
+  setUploadState(uploadKey, {
+    status: 'uploading',
+    localUri: asset.uri,
+  });
   try {
     logger.log('resizing asset', asset.uri);
     let resizedAsset = asset;
@@ -102,11 +111,11 @@ const uploadImageAsset = async (asset: ImagePickerAsset, isWeb = false) => {
     );
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
-    setUploadState(asset.uri, { status: 'success', remoteUri });
+    setUploadState(uploadKey, { status: 'success', remoteUri });
   } catch (e) {
     logger.crumb('upload failed');
     console.error(e);
-    setUploadState(asset.uri, { status: 'error', errorMessage: e.message });
+    setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
   }
 };
 
