@@ -35,6 +35,7 @@ async function reset() {
   ]);
 
   const output = initialGenerateResult.stdout.toString();
+  console.log(`driz output`, output);
   if (output.includes('No schema changes')) {
     console.log('No schema changes detected');
     return;
