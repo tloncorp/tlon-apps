@@ -189,4 +189,5 @@ export const setupDb = () => nativeDb.setupDb();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const resetDb = () => nativeDb.resetDb();
+export const runMigrations = () => nativeDb.runMigrations();
 export const useMigrations = () => useMigrationsBase(nativeDb);
