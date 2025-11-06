@@ -12,22 +12,18 @@ const logger = createDevLogger('useSyncAppBadge', false);
 export function useSyncAppBadge() {
   useEffect(() => {
     db.observeWrites<db.BaseUnread>(db.ObservableField.BaseUnread, (unread) => {
-      console.log(`bl: write obsserver fired`, unread);
-      try {
-        const roundedUpUnix = Math.ceil(unread.updatedAt / 1000);
-        const uid = formatUv(unixToDa(roundedUpUnix));
-        console.log(`bl: calling updateBadgeCount with`, {
-          count: unread.notifyCount ?? 0,
-          uid,
-        });
-        UrbitModule.updateBadgeCount(unread.notifyCount ?? 0, uid);
-      } catch (e) {
-        logger.trackError('Failed to sync OS badge count', {
-          error: e.toString(),
-          errorStack: e.stack,
-          count: unread.notifyCount,
-          updatedAt: unread.updatedAt,
-        });
+      if (Platform.OS === 'ios') {
+        try {
+          const uid = formatUv(unixToDa(unread.updatedAt));
+          UrbitModule.updateBadgeCount(unread.notifyCount ?? 0, uid);
+        } catch (e) {
+          logger.trackError('Failed to sync OS badge count', {
+            error: e.toString(),
+            errorStack: e.stack,
+            count: unread.notifyCount,
+            updatedAt: unread.updatedAt,
+          });
+        }
       }
     });
   }, []);

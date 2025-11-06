@@ -39,15 +39,6 @@ import JavaScriptCore
         
         print("[dismisser] Dismissing notifications \(source) new count \(count) id \(id)")
         
-        // let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
-        // let latestBadge = userDefaults.integer(forKey: "latest-badge-count")
-        // if latestNotif > uid {
-        //     count = latestBadge
-        // } else {
-        //     userDefaults.set(uid, forKey: "latest-notification")
-        //     userDefaults.set(count, forKey: "latest-badge-count")
-        // }
-        
          Task {
              await updateBadgeCountIfNeeded(newCount: count, uid: uid)
              await dismissPushNotifications(forId: id, source: source)
@@ -88,10 +79,11 @@ import JavaScriptCore
         let center = UNUserNotificationCenter.current()
         let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0"
         
-        print("bl: comparing \(uid) to \(latestNotif)")
+        print("[dismisser] Comparing \(uid) to \(latestNotif)")
 
-        if (uid > latestNotif) {
+        if (uid >= latestNotif) {
             do {
+                print("[dismisser] Have newer badge count, updating")
                 try await center.setBadgeCount(newCount)
                 userDefaults.set(uid, forKey: "latest-notification")
                 userDefaults.set(newCount, forKey: "latest-badge-count")
@@ -99,6 +91,8 @@ import JavaScriptCore
                 print("[dismisser] Failed to set badge count: \(error)")
                 await NotificationLogger.logError(.badgeSettingFailed(uid: uid, underlyingError: error))
             }
+        } else {
+            print("[dismisser] Badge update is older than current, discarding")
         }
     }
 }

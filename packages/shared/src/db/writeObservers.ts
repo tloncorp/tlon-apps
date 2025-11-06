@@ -7,17 +7,17 @@ export enum ObservableField {
 }
 
 export function observeWrites<T>(
-  queryLabel: ObservableField,
+  field: ObservableField,
   callback: WriteCallback<T>
 ) {
-  if (!observers.has(queryLabel)) {
-    observers.set(queryLabel, new Set());
+  if (!observers.has(field)) {
+    observers.set(field, new Set());
   }
-  observers.get(queryLabel)!.add(callback);
+  observers.get(field)!.add(callback);
 
-  return () => observers.get(queryLabel)?.delete(callback);
+  return () => observers.get(field)?.delete(callback);
 }
 
-export function notifyWriteObservers<T>(queryLabel: ObservableField, data: T) {
-  observers.get(queryLabel)?.forEach((cb) => cb(data));
+export function notifyWriteObservers<T>(field: ObservableField, data: T) {
+  observers.get(field)?.forEach((cb) => cb(data));
 }

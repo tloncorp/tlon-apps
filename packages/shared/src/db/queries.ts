@@ -3067,6 +3067,9 @@ export const insertChanges = createWriteQuery(
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
         await insertThreadUnreads(input.unreads.threadActivity, ctx);
+        if (input.unreads.baseUnread) {
+          await insertBaseUnread(input.unreads.baseUnread, ctx);
+        }
       });
     } catch (e) {
       logger.trackError('failed to insert changes', {
@@ -4153,7 +4156,6 @@ export const insertBaseUnread = createWriteQuery(
         set: unread,
       });
 
-    console.log(`bl: writing base unread`, unread);
     notifyWriteObservers(ObservableField.BaseUnread, unread);
 
     return result;

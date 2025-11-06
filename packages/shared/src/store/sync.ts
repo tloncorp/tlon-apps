@@ -22,7 +22,7 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { Session, getSession, setSession, updateSession } from './session';
+import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -190,7 +190,6 @@ export const syncSince = async ({
             queryCtx: batchCtx,
             callCtx,
           });
-          await syncUnreads(syncCtx, batchCtx);
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
