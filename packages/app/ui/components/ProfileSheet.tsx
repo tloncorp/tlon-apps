@@ -59,6 +59,7 @@ function RoleAssignmentSheet({
       open={open}
       onOpenChange={setOpen}
       mode="popover"
+      modal
       trigger={
         <ActionSheet.Action
           {...actionProps}

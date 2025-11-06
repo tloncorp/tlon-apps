@@ -1,11 +1,7 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
 import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
-import { forwardRef, useContext } from 'react';
-import {
-  GestureResponderEvent,
-  LayoutChangeEvent,
-  Platform,
-} from 'react-native';
+import { forwardRef } from 'react';
+import { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
 
 import { ActionSheetContext } from '../contexts/ActionSheetContext';
@@ -31,8 +27,6 @@ const StackComponent = forwardRef<any, PressableProps>(
     { onLongPress, onPress, onPressIn, onPressOut, children, ...stackProps },
     ref
   ) => {
-    const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
-
     // On web, bypass all mobile-specific logic and act like a simple Stack
     if (isWeb) {
       return (
@@ -51,24 +45,17 @@ const StackComponent = forwardRef<any, PressableProps>(
     // Mobile-only logic below
     const longPressHandler = onLongPress;
 
-    // On Android inside ActionSheets, automatically use onPress for onPressOut
-    // see:
-    // - https://github.com/tamagui/tamagui/issues/3288
-    // - https://github.com/react-navigation/react-navigation/issues/12039
-    const shouldUseOnPressOut =
-      Platform.OS === 'android' && isInsideSheet && onPress;
-
     return (
       <Stack
         ref={ref}
         pressStyle={{ opacity: 0.5 }}
         {...stackProps}
         // eslint-disable-next-line no-restricted-syntax
-        onPress={shouldUseOnPressOut ? undefined : onPress}
+        onPress={onPress}
         // eslint-disable-next-line no-restricted-syntax
         onPressIn={onPressIn}
         // eslint-disable-next-line no-restricted-syntax
-        onPressOut={shouldUseOnPressOut ? onPress : onPressOut}
+        onPressOut={onPressOut}
         // eslint-disable-next-line no-restricted-syntax
         onLongPress={longPressHandler}
       >
