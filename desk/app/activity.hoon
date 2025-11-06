@@ -965,7 +965,6 @@
       ::  if we don't have an event, then this is read anyway so we can
       ::  just reuse the floor. likely if a recursive read is happening
       ::  from one of our parents
-      %+  add  (div ~s1 1.000)
       ?~(latest floor.reads.index time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
