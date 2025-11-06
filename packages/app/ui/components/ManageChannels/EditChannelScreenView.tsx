@@ -204,8 +204,9 @@ export function PrivateChannelToggle({
       gap="$xl"
       backgroundColor="$secondaryBackground"
       width="100%"
+      pointerEvents="auto"
     >
-      <YStack gap="$xl" flex={1}>
+      <YStack gap="$xl" flex={1} pointerEvents="auto">
         <Text size="$label/l">Private Channel</Text>
         <Text size="$label/s" color="$tertiaryText">
           By making a channel private, only select members and roles will be
@@ -597,6 +598,7 @@ export function RoleSelectionSheet({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      modal
     >
       <ActionSheet.SimpleHeader
         title="Search and add roles"
@@ -620,7 +622,7 @@ export function RoleSelectionSheet({
         onScrollBeginDrag={() => setIsScrolling(true)}
         onScrollEndDrag={() => setIsScrolling(false)}
       >
-        <YStack gap="$m" paddingTop="$m">
+        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
           {filteredRoles.map((role) => (
             <SelectableRoleListItem
               key={role.value}
@@ -635,19 +637,19 @@ export function RoleSelectionSheet({
             </View>
           )}
         </YStack>
+        <View
+          paddingHorizontal="$l"
+          paddingTop="$m"
+          paddingBottom={insets.bottom}
+          backgroundColor="$background"
+          borderTopWidth={1}
+          borderTopColor="$border"
+        >
+          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
+            <Button.Text>Save</Button.Text>
+          </Button>
+        </View>
       </ActionSheet.ScrollableContent>
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$m"
-        paddingBottom={insets.bottom}
-        backgroundColor="$background"
-        borderTopWidth={1}
-        borderTopColor="$border"
-      >
-        <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-          <Button.Text>Save</Button.Text>
-        </Button>
-      </ActionSheet.Content>
     </ActionSheet>
   );
 }

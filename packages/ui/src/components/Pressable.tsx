@@ -1,6 +1,7 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
 import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
-import { GestureResponderEvent } from 'react-native';
+import { forwardRef } from 'react';
+import { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
 
 type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
@@ -13,27 +14,50 @@ type PressableProps = Omit<StackProps, 'onPress' | 'onLongPress'> & {
   children: React.ReactNode;
 };
 
-const StackComponent = ({
-  onLongPress,
-  onPress,
-  children,
-  ...stackProps
-}: PressableProps) => {
-  const longPressHandler = isWeb ? undefined : onLongPress;
+const StackComponent = forwardRef<any, PressableProps>(
+  (
+    { onLongPress, onPress, onPressIn, onPressOut, children, ...stackProps },
+    ref
+  ) => {
+    // On web, bypass all mobile-specific logic and act like a simple Stack
+    if (isWeb) {
+      return (
+        <Stack
+          ref={ref}
+          // eslint-disable-next-line no-restricted-syntax
+          onPress={onPress}
+          cursor={stackProps.cursor || 'pointer'}
+          {...stackProps}
+        >
+          {children}
+        </Stack>
+      );
+    }
 
-  return (
-    <Stack
-      pressStyle={{ opacity: 0.5 }}
-      {...stackProps}
-      // eslint-disable-next-line no-restricted-syntax
-      onPress={onPress}
-      // eslint-disable-next-line no-restricted-syntax
-      onLongPress={longPressHandler}
-    >
-      {children}
-    </Stack>
-  );
-};
+    // Mobile-only logic below
+    const longPressHandler = onLongPress;
+
+    return (
+      <Stack
+        ref={ref}
+        pressStyle={{ opacity: 0.5 }}
+        {...stackProps}
+        // eslint-disable-next-line no-restricted-syntax
+        onPress={onPress}
+        // eslint-disable-next-line no-restricted-syntax
+        onPressIn={onPressIn}
+        // eslint-disable-next-line no-restricted-syntax
+        onPressOut={onPressOut}
+        // eslint-disable-next-line no-restricted-syntax
+        onLongPress={longPressHandler}
+      >
+        {children}
+      </Stack>
+    );
+  }
+);
+
+StackComponent.displayName = 'StackComponent';
 
 /**
  * Component that wraps content and makes it pressable.
