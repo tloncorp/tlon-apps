@@ -11,6 +11,11 @@ export const useConnectionStatus = (contactId: string) => {
   const currentUserId = useCurrentUserId();
 
   useEffect(() => {
+    if (!contactId || contactId === '') {
+      setConnectionStatus(null);
+      return;
+    }
+
     if (currentUserId === contactId) {
       setConnectionStatus({ status: 'yes', complete: true });
     } else {

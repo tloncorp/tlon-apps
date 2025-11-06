@@ -17,6 +17,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
+  onShowEmojiPicker,
 }: ChatMessageActionsProps) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
@@ -57,7 +58,11 @@ export function ChatMessageActions({
         paddingHorizontal="$xl"
       >
         <YStack gap="$xs">
-          <EmojiToolbar post={post} onDismiss={onDismiss} />
+          <EmojiToolbar
+            post={post}
+            onDismiss={onDismiss}
+            openExternalSheet={onShowEmojiPicker}
+          />
           <MessageContainer post={post} />
           <MessageActions
             post={post}

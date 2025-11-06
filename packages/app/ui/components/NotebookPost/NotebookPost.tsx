@@ -277,9 +277,22 @@ function NotebookPostHeader({
   );
 }
 
-export function NotebookPostDetailView({ post }: { post: db.Post }) {
+export function NotebookPostDetailView({
+  post,
+  onPressImage,
+}: {
+  post: db.Post;
+  onPressImage?: (post: db.Post, uri?: string) => void;
+}) {
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
+
+  const handlePressImage = useCallback(
+    (src: string) => {
+      onPressImage?.(post, src);
+    },
+    [onPressImage, post]
+  );
 
   return (
     <NotebookPostFrame
@@ -305,6 +318,7 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
         marginHorizontal="$-l"
         paddingHorizontal="$xl"
         testID="NotebookPostContent"
+        onPressImage={handlePressImage}
         content={
           post.editStatus === 'failed' || post.editStatus === 'pending'
             ? lastEditContent

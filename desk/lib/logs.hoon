@@ -23,6 +23,15 @@
   --
 |%
 ::
+++  volume-val
+  |=  =volume
+  ?-  volume
+    %dbug  0
+    %info  1
+    %warn  2
+    %crit  3
+  ==
+::
 ++  fail-event
   |=  [=term =tang]
   ^-  $>(%fail log-event)

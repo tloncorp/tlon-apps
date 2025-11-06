@@ -216,10 +216,9 @@ export function GroupsPane(props: { onActionPress: () => void }) {
           <SplashTitle marginTop="$4xl">
             This is a <Text color="$positiveActionText">group.</Text>
           </SplashTitle>
-          <SplashTitle marginTop="$xs">We've created one for you.</SplashTitle>
           <SplashParagraph marginTop="$2xl">
-            This group lives on your Tlon computer. Your group can serve a lot
-            of purposes: family chats, work collaboration, newsletters, etc.
+            A group lives on your Tlon computer. A group can serve a lot of
+            purposes: family chats, work collaboration, newsletters, etc.
           </SplashParagraph>
         </YStack>
       </YStack>

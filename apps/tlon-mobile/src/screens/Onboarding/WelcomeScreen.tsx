@@ -151,17 +151,20 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             />
           </ActionSheet.ActionGroup>
           <ActionSheet.ContentBlock alignItems="center">
-            <TlonText.Text
-              color="$secondaryText"
-              textDecorationLine="underline"
-              textDecorationDistance={10}
+            <Pressable
               onPress={() => {
                 setOpen(false);
                 navigation.navigate('ShipLogin');
               }}
             >
-              Or configure self hosted
-            </TlonText.Text>
+              <TlonText.Text
+                color="$secondaryText"
+                textDecorationLine="underline"
+                textDecorationDistance={10}
+              >
+                Or configure self hosted
+              </TlonText.Text>
+            </Pressable>
           </ActionSheet.ContentBlock>
         </ActionSheet.Content>
       </ActionSheet>

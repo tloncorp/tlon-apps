@@ -7,6 +7,12 @@
 +$  flag  (pair ship term)
 ::  $nest: id for a channel
 +$  nest  (pair term flag)
+::  $plan: index into channel state
+::    p: post being referred to
+::    q: reply being referred to, if any
+::
++$  plan
+  (pair time (unit time))
 ::  $section-id: section id
 ::
 +$  section-id  term
@@ -141,6 +147,7 @@
       token=(unit token)
       note=(unit story:s)
       =preview
+      valid=?
   ==
 ::  $progress: group join in progress
 ::
@@ -263,16 +270,9 @@
       =banned
       members=(jug ship role-id)
   ==
-::  $plan: index into channel state
-::    p: post being referred to
-::    q: reply being referred to, if any
-::
-+$  plan
-  (pair time (unit time))
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
-::
 ::  %groups acur interface
 ::
 ::  a-* actions
@@ -306,7 +306,7 @@
 ::
 +$  a-groups
   $%  [%group =flag =a-group]
-      [%invite =flag =a-invite]
+      [%invite =flag ships=(set ship) =a-invite]
       [%leave =flag]
   ==
 +$  a-group
@@ -316,12 +316,12 @@
       [%role roles=(set role-id) =a-role]
       [%channel =nest =a-channel]
       [%section =section-id =a-section]
+      [%navigation =a-navigation]
       [%flag-content =nest =plan src=ship]
   ==
 ::  $a-invite: invite a ship
 +$  a-invite
-  $:  =ship
-      token=(unit token)
+  $:  token=(unit token)
       note=(unit story:s)
   ==
 +$  a-entry  c-entry
@@ -329,6 +329,10 @@
 +$  a-role  c-role
 +$  a-channel  c-channel
 +$  a-section  c-section
++$  a-navigation
+  $:  sections=(map section-id section)
+      order=(list section-id)
+  ==
 ::  $c-groups: group commands
 ::
 ::   %create: create a new group
@@ -364,6 +368,7 @@
       [%role roles=(set role-id) =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -462,6 +467,7 @@
       [%del ~]
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
+      [%set order=(list nest)]
   ==
 +$  update  [=time =u-group]
 +$  u-group
@@ -568,6 +574,7 @@
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
       [%invite =invite]
+      [%revoke =flag token=(unit token)]
   ==
 ::  $a-foreign: foreign group action
 ::
