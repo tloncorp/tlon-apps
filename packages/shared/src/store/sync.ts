@@ -337,18 +337,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
     api.getVolumeSettings()
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
-
-  // Only delete other volume settings on the initial sync to ensure we start
-  // with a clean slate. After that, trust the backend as source of truth but
-  // rely on subscription updates to handle deletions incrementally.
-  const lastSyncedAt = await db.volumeSettingsSyncedAt.getValue();
-  const isInitialSync = lastSyncedAt === 0;
-
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: isInitialSync });
-
-  if (isInitialSync) {
-    await db.volumeSettingsSyncedAt.setValue(Date.now());
-  }
+  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {

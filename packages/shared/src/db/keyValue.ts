@@ -288,11 +288,6 @@ export const changesSyncedAt = createStorageItem<number | null>({
   defaultValue: null,
 });
 
-export const volumeSettingsSyncedAt = createStorageItem<number>({
-  key: 'volumeSettingsSyncedAt',
-  defaultValue: 0,
-});
-
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,
