@@ -1,6 +1,8 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
@@ -57,6 +59,7 @@ function RoleAssignmentSheet({
       open={open}
       onOpenChange={setOpen}
       mode="popover"
+      modal
       trigger={
         <ActionSheet.Action
           {...actionProps}
@@ -117,6 +120,35 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);
 
+  const handleKickUser = useCallback(() => {
+    const displayName = contact?.nickname || contactId;
+    const message = `This user will be removed from the group.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
+    
+    if (isWeb) {
+      const confirmed = window.confirm(`Kick ${displayName}?\n\n${message}`);
+      if (confirmed) {
+        onPressKick?.();
+      }
+    } else {
+      Alert.alert(
+        `Kick ${displayName}?`,
+        message,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Kick User',
+            style: 'destructive',
+            onPress: onPressKick,
+          },
+        ]
+      );
+    }
+    onOpenChange(false);
+  }, [contact, contactId, onOpenChange, onPressKick]);
+
   const isAdminnable = currentUserIsAdmin;
 
   const actions: ActionGroup[] = createActionGroups(
@@ -148,10 +180,7 @@ export function ProfileSheet({
         currentUserId !== contactId &&
           !userIsInvited && {
             title: 'Kick User',
-            action: () => {
-              onPressKick?.();
-              onOpenChange(false);
-            },
+            action: handleKickUser,
           },
         onPressBan &&
         onPressUnban &&

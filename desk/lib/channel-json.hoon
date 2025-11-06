@@ -338,10 +338,10 @@
   ++  v-channel
     |=  ca=v-channel:c
     %-  pairs
-    :~  order+(order order.order.ca)
-        perms+(perm perm.perm.ca)
-        view+s+view.view.ca
-        sort+s+sort.sort.ca
+    :~  order+(order +.order.ca)
+        perms+(perm +.perm.ca)
+        view+s++.view.ca
+        sort+s++.sort.ca
         pending+(pending-msgs pending.ca)
     ==
   ::

@@ -45,6 +45,7 @@ const ActivityFixture = ({
         events={items}
         seenMarker={Date.now()}
         onGroupAction={() => {}}
+        hasUnreadNotifications={false}
       />
     </ActivityFixtureWrapper>
   );

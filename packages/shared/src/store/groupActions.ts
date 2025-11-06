@@ -5,9 +5,10 @@ import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import { GroupTemplateId, groupTemplatesById } from '../domain/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { createSectionId } from '../urbit';
+import { createSectionId, getChannelKindFromType } from '../urbit';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
@@ -117,6 +118,51 @@ export async function createDefaultGroup(
   return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
 }
 
+interface CreateGroupFromTemplateParams {
+  templateId: GroupTemplateId;
+  memberIds?: string[];
+  title?: string;
+}
+
+export async function createGroupFromTemplate(
+  params: CreateGroupFromTemplateParams
+): Promise<db.Group> {
+  const template = groupTemplatesById[params.templateId];
+  const currentUserId = api.getCurrentUserId();
+  const groupSlug = getRandomId();
+  const groupId = `${currentUserId}/${groupSlug}`;
+  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
+
+  const newGroup: db.Group = {
+    id: groupId,
+    title: params.title ?? template.title,
+    iconImage: groupIconUrl,
+    currentUserIsMember: true,
+    isPersonalGroup: false,
+    hostUserId: currentUserId,
+    currentUserIsHost: true,
+    privacy: 'secret',
+  };
+
+  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
+    const channelSlug = getRandomId();
+    const channelKind = getChannelKindFromType(channelTemplate.type);
+    const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
+    return {
+      id: channelId,
+      groupId,
+      type: channelTemplate.type,
+      title: channelTemplate.title,
+      description: channelTemplate.description,
+      lastPostSequenceNum: 0,
+    };
+  });
+
+  newGroup.channels = channels;
+
+  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+}
+
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
@@ -169,7 +215,10 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
       async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
     )
   );
-  return memberContacts.map((c) => c?.nickname ?? c?.id).join(', ');
+  // Use peerNickname (what people call themselves) instead of nickname (which
+  // includes customNickname/pet names) to avoid leaking pet names to other
+  // group members via the global group title stored on backend
+  return memberContacts.map((c) => c?.peerNickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {
@@ -266,11 +315,7 @@ export async function inviteGroupMembers({
   });
 
   try {
-    if (existingGroup.privacy === 'public') {
-      await api.addGroupMembers({ groupId, contactIds });
-    } else {
-      await api.inviteGroupMembers({ groupId, contactIds });
-    }
+    await api.inviteGroupMembers({ groupId, contactIds });
   } catch (e) {
     logger.trackError('Failed to invite group members', {
       errorMessage: e.message,
@@ -985,24 +1030,53 @@ export async function kickUserFromGroup({
     return;
   }
 
-  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+  const memberToKick = existingGroup.members.find(
+    (member) => member.contactId === contactId
+  );
+
+  if (!memberToKick) {
     logger.error('User not found in group', groupId, contactId);
     return;
   }
-  // optimistic update
+
+  const memberRoles = memberToKick.roles || [];
+  const roleIds = memberRoles.map((role) => role.roleId);
+
+  for (const roleId of roleIds) {
+    await db.removeMembersFromRole({
+      groupId,
+      roleId,
+      contactIds: [contactId],
+    });
+  }
+
   await db.removeChatMembers({
     chatId: groupId,
     contactIds: [contactId],
   });
 
   try {
+    if (roleIds.length > 0) {
+      await api.removeAllRolesFromMembers({
+        groupId,
+        contactIds: [contactId],
+        roleIds,
+      });
+    }
+
     await api.kickUsersFromGroup({
       groupId,
       contactIds: [contactId],
     });
   } catch (e) {
     logger.error('Failed to kick user from group', e);
-    // rollback optimistic update
+    for (const roleId of roleIds) {
+      await db.addMembersToRole({
+        groupId,
+        roleId,
+        contactIds: [contactId],
+      });
+    }
     await db.addChatMembers({
       chatId: groupId,
       type: 'group',

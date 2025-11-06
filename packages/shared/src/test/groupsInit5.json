@@ -1,0 +1,142 @@
+{
+  "groups": {
+    "~test-ship/test-group": {
+      "meta": {
+        "image": "#999999",
+        "title": "Test Group V5",
+        "cover": "#D9D9D9",
+        "description": "A test group with v7 structure"
+      },
+      "admissions": {
+        "privacy": "public",
+        "banned": {
+          "ships": [],
+          "ranks": []
+        },
+        "pending": {},
+        "requests": {},
+        "tokens": {},
+        "referrals": {},
+        "invited": {}
+      },
+      "seats": {
+        "~solfer-magfed": {
+          "roles": ["admin"],
+          "joined": 1692473215572
+        }
+      },
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Administrators can manage the group"
+        },
+        "member": {
+          "image": "",
+          "title": "Member",
+          "cover": "",
+          "description": "Regular members"
+        }
+      },
+      "admins": ["admin"],
+      "channels": {
+        "chat/~test-ship/welcome": {
+          "added": 1692473215572,
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome channel"
+          },
+          "zone": "default",
+          "readers": [],
+          "join": true
+        }
+      },
+      "active-channels": ["chat/~test-ship/welcome"],
+      "sections": {
+        "default": {
+          "idx": ["chat/~test-ship/welcome"],
+          "meta": {
+            "image": "",
+            "title": "Default",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "section-order": ["default"],
+      "flagged-content": {}
+    }
+  },
+  "foreigns": {
+    "~foreign-ship/foreign-group": {
+      "invites": [
+        {
+          "flag": "~foreign-ship/foreign-group",
+          "time": 1692473215572,
+          "from": "~foreign-ship",
+          "token": null,
+          "note": null,
+          "preview": {
+            "flag": "~foreign-ship/foreign-group",
+            "meta": {
+              "image": "#999999",
+              "title": "Foreign Group",
+              "cover": "#D9D9D9",
+              "description": "An unjoined group"
+            },
+            "time": 1692473215572,
+            "member-count": 5,
+            "privacy": "private"
+          },
+          "valid": true
+        }
+      ],
+      "lookup": null,
+      "preview": {
+        "flag": "~foreign-ship/foreign-group",
+        "meta": {
+          "image": "#999999",
+          "title": "Foreign Group",
+          "cover": "#D9D9D9",
+          "description": "An unjoined group"
+        },
+        "time": 1692473215572,
+        "member-count": 5,
+        "privacy": "private"
+      },
+      "progress": null,
+      "token": null
+    }
+  },
+  "channel": {
+    "channels": {
+      "chat/~test-ship/welcome": {
+        "group": "~test-ship/test-group",
+        "nest": "chat/~test-ship/welcome",
+        "remark": null,
+        "zone": "default",
+        "order": [],
+        "posts": null,
+        "perms": {
+          "writers": []
+        }
+      }
+    },
+    "hidden-posts": []
+  },
+  "activity": {
+    "unreads": {},
+    "recency": []
+  },
+  "pins": [],
+  "chat": {
+    "dms": [],
+    "clubs": {},
+    "invited": [],
+    "blocked": [],
+    "hidden-messages": []
+  }
+}

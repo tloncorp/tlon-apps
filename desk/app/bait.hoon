@@ -68,7 +68,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 =>
 |%
 ::  |l: logs core
@@ -259,20 +259,20 @@
       ::
           [ship=@ name=@ %metadata ~]
         =/  token  (crip "{(trip ship.pole)}/{(trip name.pole)}")
-        =/  =metadata:reel
-          (~(gut by token-metadata) token *metadata:reel)
-        (json-response:gen:server (enjs-metadata metadata))
+        ?~  meta=(~(get by token-metadata) token)
+          (not-found 'Associated group token not found')
+        (json-response:gen:server (enjs-metadata u.meta))
       ::
           [token=@ %metadata ~]
-        =/  =metadata:reel
-          (~(gut by token-metadata) token.pole *metadata:reel)
-        (json-response:gen:server (enjs-metadata metadata))
+        ?~  meta=(~(get by token-metadata) token.pole)
+          (not-found 'Token not found')
+        (json-response:gen:server (enjs-metadata u.meta))
       ::
           [token=* ~]
         =/  token  (crip (join '/' pole))
-        =/  =metadata:reel
-          (~(gut by token-metadata) token *metadata:reel)
-        (manx-response:gen:server (landing-page metadata))
+        ?~  meta=(~(get by token-metadata) token)
+          (not-found 'Token not found')
+        (manx-response:gen:server (landing-page u.meta))
       ==
     ::
     ++  allow
@@ -380,6 +380,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+    path  (on-peek:def path)
+      [%x %metadata ~]
+    ``noun+!>(token-metadata)
+  ::
       [%x token=@ %metadata ~]
     ?~  meta=(~(get by token-metadata) i.t.path)
       [~ ~]

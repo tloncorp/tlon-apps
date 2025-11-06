@@ -6,7 +6,10 @@ import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts';
-import { getClipboardImageWithFallbacks, createImageAssetFromClipboardData } from '../utils';
+import {
+  createImageAssetFromClipboardData,
+  getClipboardImageWithFallbacks,
+} from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -271,6 +274,7 @@ export default function AttachmentSheet({
     <ActionSheet
       open={showAttachmentSheet}
       onOpenChange={(open: boolean) => onOpenChange(open)}
+      modal
     >
       <ActionSheet.Header>
         <ListItem.MainContent>
