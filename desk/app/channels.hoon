@@ -1265,6 +1265,12 @@
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ::
+    ::  ignore watch-acks for deleted channels
+    ?:  ?&  !(~(has by v-channels) kind.pole ship name.pole)
+            ?=(%watch-ack -.sign)
+        ==
+      cor
     ca-abet:(ca-agent:(ca-abed:ca-core kind.pole ship name.pole) rest.pole sign)
   ::
       [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
