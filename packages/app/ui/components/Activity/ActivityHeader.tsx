@@ -12,12 +12,10 @@ export type ActivityTab = 'all' | 'threads' | 'mentions';
 function ActivityHeaderRaw({
   activeTab,
   onTabPress,
-  hasUnreadNotifications,
   markAllRead,
 }: {
   activeTab: db.ActivityBucket;
   onTabPress: (tab: db.ActivityBucket) => void;
-  hasUnreadNotifications: boolean;
   markAllRead: () => Promise<void>;
 }) {
   const [overflowOpen, setOverflowOpen] = React.useState(false);
@@ -36,7 +34,6 @@ function ActivityHeaderRaw({
               open={overflowOpen}
               onOpenChange={onOverflowOpenChange}
               markAllRead={markAllRead}
-              hasUnreadNotifications={hasUnreadNotifications}
             />
           </ScreenHeader.Controls>
         </ScreenHeader>
@@ -79,12 +76,10 @@ function ActivityOverflowMenu({
   open,
   onOpenChange,
   markAllRead,
-  hasUnreadNotifications,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   markAllRead: () => Promise<void>;
-  hasUnreadNotifications: boolean;
 }) {
   const [confirmationOpen, setConfirmationOpen] = React.useState(false);
   const isWindowNarrow = useIsWindowNarrow();
@@ -114,8 +109,7 @@ function ActivityOverflowMenu({
           <ActionSheet.Action
             action={{
               title: 'Mark all as read',
-              accent: hasUnreadNotifications ? 'positive' : 'disabled',
-              disabled: !hasUnreadNotifications,
+              accent: 'positive',
               action: handleOpenConfirmation,
             }}
           />
