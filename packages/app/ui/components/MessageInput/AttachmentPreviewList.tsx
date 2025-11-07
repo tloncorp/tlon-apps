@@ -160,6 +160,14 @@ export function AttachmentPreview({
       return <Container showSpinner={uploading} />;
     }
 
+    case 'file': {
+      return (
+        <Container showSpinner={uploading}>
+          <Text>{attachment.localFile.name}</Text>
+        </Container>
+      );
+    }
+
     default: {
       // this will raise type error if missing a case
       const _exhaustiveCheck: never = attachment;
