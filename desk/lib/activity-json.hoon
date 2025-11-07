@@ -145,6 +145,7 @@
     |=  sum=activity-summary:a
     %-  pairs
     :~  recency+(time newest.sum)
+        recency-uv+s+(scot %uv newest.sum)
         count+(numb count.sum)
         notify-count+(numb notify-count.sum)
         notify+b+notify.sum
