@@ -2270,7 +2270,6 @@
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
-      di-hark  ~(. hark-dm:ch [now.bowl ship])
       log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
