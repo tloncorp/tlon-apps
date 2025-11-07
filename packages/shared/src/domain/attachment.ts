@@ -69,6 +69,24 @@ export namespace UploadedImageAttachment {
   }
 }
 
+export type FileAttachment = {
+  type: 'file';
+  localFile: File;
+};
+
+export type UploadedFileAttachment = {
+  type: 'file';
+  localFile: File;
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace UploadedFileAttachment {
+  export function uri(attachment: UploadedFileAttachment): string {
+    return uploadStateUri(attachment.uploadState);
+  }
+}
+
 export type TextAttachment = {
   type: 'text';
   text: string;
@@ -77,12 +95,14 @@ export type TextAttachment = {
 export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
+  | FileAttachment
   | TextAttachment
   | LinkAttachment;
 
 export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
+  | UploadedFileAttachment
   | TextAttachment
   | LinkAttachment;
 
@@ -122,6 +142,71 @@ export namespace Attachment {
       // cast to branded type
       return rawValue as UploadIntent.Key;
     }
+
+    export function equivalent(a: UploadIntent, b: UploadIntent): boolean {
+      if (a.type !== b.type) {
+        return false;
+      }
+      switch (a.type) {
+        case 'image':
+          return a.asset.uri === (b as typeof a).asset.uri;
+        case 'file':
+          return a.file === (b as typeof a).file;
+      }
+    }
+
+    export function toFinalizedAttachment(
+      uploadIntent: UploadIntent,
+      uploadState: UploadState
+    ): FinalizedAttachment | null {
+      if (uploadState.status === 'error') {
+        return null;
+      }
+      switch (uploadIntent.type) {
+        case 'image':
+          return {
+            type: 'image',
+            file: uploadIntent.asset,
+            uploadState,
+          };
+
+        case 'file':
+          return {
+            type: 'file',
+            localFile: uploadIntent.file,
+            uploadState,
+          };
+      }
+    }
+
+    /** Builds a FinalizedAttachment using local data - used in optimistic UI update. */
+    export function toLocalFinalizedAttachment(
+      uploadIntent: UploadIntent
+    ): FinalizedAttachment | null {
+      switch (uploadIntent.type) {
+        case 'image':
+          return {
+            type: 'image',
+            file: uploadIntent.asset,
+            uploadState: {
+              status: 'uploading',
+              localUri: uploadIntent.asset.uri,
+            },
+          };
+
+        case 'file':
+          return {
+            type: 'file',
+            localFile: uploadIntent.file,
+            uploadState: {
+              status: 'uploading',
+              // TODO: URL.revokeObjectURL when no longer needed - shouldn't be
+              // an issue unless user uploads a *lot* of files
+              localUri: URL.createObjectURL(uploadIntent.file),
+            },
+          };
+      }
+    }
   }
 
   export function toUploadIntent(
@@ -135,6 +220,12 @@ export namespace Attachment {
           needsUpload: true,
           type: 'image',
           asset: attachment.file,
+        };
+      case 'file':
+        return {
+          needsUpload: true,
+          type: 'file',
+          file: attachment.localFile,
         };
       case 'text':
       // fallthrough
@@ -151,8 +242,7 @@ export namespace Attachment {
         return { type: 'image', file: uploadIntent.asset };
       }
       case 'file': {
-        // TODO
-        throw new Error('File attachments are not implemented.');
+        return { type: 'file', localFile: uploadIntent.file };
       }
     }
   }
@@ -175,11 +265,25 @@ export namespace Attachment {
           };
 
         case 'file':
-          // TODO
-          throw new Error('File attachments are not implemented.');
+          return {
+            type: 'file',
+            localFile: uploadIntent.file,
+            uploadState,
+          };
       }
     } else {
       return uploadIntent.finalized;
     }
+  }
+}
+
+function uploadStateUri(
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>
+): string {
+  switch (uploadState.status) {
+    case 'success':
+      return uploadState.remoteUri;
+    case 'uploading':
+      return uploadState.localUri;
   }
 }

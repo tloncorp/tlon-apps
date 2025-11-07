@@ -10,6 +10,7 @@ import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { Attachment } from '../../domain/attachment';
+import { DisposableObjectURL } from '../../utils';
 import { setUploadState } from './storageUploadState';
 import {
   fetchFileFromUri,
@@ -50,9 +51,10 @@ export async function uploadAsset(
     }
 
     case 'file': {
-      return await performUpload(
+      using objectUrl = new DisposableObjectURL(asset.file);
+      await performUpload(
         {
-          uri: asset.fileUri,
+          uri: objectUrl.value,
           mimeType: undefined, // TODO
         },
         isWeb
