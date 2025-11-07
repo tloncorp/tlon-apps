@@ -1080,7 +1080,7 @@
             ?=(%poke-ack -.sign)
         ==
       cor
-    cu-abet:(cu-agent:(cu-abed-hard id) rest.pole sign)
+    cu-abet:(cu-agent:(cu-abed-hard:cu-core id) rest.pole sign)
   ==
 ++  give-kick
   |=  [pas=(list path) =cage]
