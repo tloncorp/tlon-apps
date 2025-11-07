@@ -127,7 +127,7 @@ function toPostReference(said: ub.Said) {
   }
 }
 
-export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   checkNest(nest);
 
   return channelAction(nest, {
