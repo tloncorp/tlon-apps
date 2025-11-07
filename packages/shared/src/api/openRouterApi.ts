@@ -45,7 +45,7 @@ export async function summarizeMessage({
 
   if (!constants.OPENROUTER_API_KEY || constants.OPENROUTER_API_KEY.length === 0) {
     throw new Error(
-      'OPENROUTER_API_KEY is not configured. Set VITE_OPENROUTER_API_KEY environment variable.'
+      'OPENROUTER_API_KEY is not configured. Please set either OPENROUTER_API_KEY (native/mobile) or VITE_OPENROUTER_API_KEY (web) environment variable.'
     );
   }
 
