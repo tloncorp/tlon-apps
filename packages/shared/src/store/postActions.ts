@@ -35,7 +35,7 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: await finalizeAttachments(draft.attachments),
   });
@@ -44,6 +44,7 @@ export async function finalizePostDraft(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
 
   if (draft.isEdit) {
@@ -202,6 +203,7 @@ async function _sendPost({
         channelId: channel.id,
         authorId,
         content: finalizedPostData.content,
+        blob: finalizedPostData.blob,
         metadata: finalizedPostData.metadata,
         sentAt: cachePost.sentAt,
       });
@@ -308,6 +310,8 @@ export async function retrySendPost({
           channelId: post.channelId,
           authorId: post.authorId,
           content: story,
+          // TODO: do we not store `blob`?
+          // blob: post.blob || undefined,
           metadata:
             post.image || post.title
               ? {

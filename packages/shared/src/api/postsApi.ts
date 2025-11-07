@@ -140,12 +140,14 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  blob,
   metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  blob?: string;
   metadata?: db.PostMetadata;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
@@ -177,6 +179,7 @@ export const sendPost = async ({
 
   const essay = toPostEssay({
     content,
+    blob,
     authorId,
     sentAt,
     channelType,
