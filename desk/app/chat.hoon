@@ -1061,8 +1061,8 @@
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ::
     ::  ignore responses for deleted dms
+    ::
     ?:  ?&  !(~(has by dms) ship)
             ?=(%poke-ack -.sign)
         ==
@@ -1071,8 +1071,8 @@
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    ::
     ::  ignore responses for deleted clubs
+    ::
     ?:  ?&  !(~(has by clubs) id)
             ?=(%poke-ack -.sign)
         ==
