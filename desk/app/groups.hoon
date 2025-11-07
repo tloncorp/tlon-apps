@@ -3220,7 +3220,7 @@
     ::  consider it uninitialized.
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates ?~(error | &))
+    (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
   ++  go-lost-admin
