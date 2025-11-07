@@ -5,6 +5,8 @@ import JavaScriptCore
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
+    
+    private let userDefaults = UserDefaults.forDefaultAppGroup
 
     private func applyNotif(_ rawActivityEvent: Any, uid: String, notification: UNMutableNotificationContent) async -> UNNotificationContent {
         do {
@@ -150,6 +152,15 @@ class NotificationService: UNNotificationServiceExtension {
               var notifContent = bestAttemptContent ?? UNNotificationContent()
               let notification = notifContent.mutableCopy() as! UNMutableNotificationContent
               print("[notifications] badge count \(notifContent.badge ?? NSNumber(0))")
+              let latestNotif = userDefaults.string(forKey: "latest-notification") ?? "0v0";
+              let latestBadge = userDefaults.integer(forKey: "latest-badge-count");
+              if latestNotif > uid {
+                  notification.badge = NSNumber(value: latestBadge)
+              } else {
+                  userDefaults.set(uid, forKey: "latest-notification");
+                  userDefaults.set(notifContent.badge?.intValue ?? 0, forKey: "latest-badge-count")
+              }
+              
               notifContent = await applyNotif(
                 event,
                 uid: uid,

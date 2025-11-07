@@ -511,6 +511,7 @@
     ^-  $-(json action:a)
     %-  of
     :~  add/add
+        clear-group-invites/ul
         del/source
         read/read
         adjust/adjust

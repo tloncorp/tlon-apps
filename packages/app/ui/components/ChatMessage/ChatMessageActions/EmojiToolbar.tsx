@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getNativeEmoji, useIsWindowNarrow } from '@tloncorp/ui';
+import { getNativeEmoji } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { SizableEmoji } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
@@ -26,7 +26,6 @@ export function EmojiToolbar({
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
-  const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = useOnEmojiSelect(post, onDismiss);
 
@@ -49,12 +48,15 @@ export function EmojiToolbar({
       : '🌀';
 
   const handleSheetOpen = useCallback(() => {
-    if (openExternalSheet && !isWindowNarrow) {
+    if (openExternalSheet) {
+      // Use external sheet (parent component manages the emoji picker)
+      // This avoids z-index conflicts by rendering outside ChatMessageActions
       openExternalSheet(true);
       return;
     }
+    // Fallback: use local sheet state (rare case when no external sheet provided)
     setSheetOpen(true);
-  }, [setSheetOpen, openExternalSheet, isWindowNarrow]);
+  }, [setSheetOpen, openExternalSheet]);
 
   return (
     <>

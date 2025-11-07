@@ -14,7 +14,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -416,18 +416,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const source = sourceIdToSource(sourceId);
 
           switch (source.type) {
-            // case 'base':
-            //   handler({
-            //     type: 'updateBaseUnread',
-            //     unread: {
-            //       id: BASE_UNREADS_SINGLETON_KEY,
-            //       count: summary.count,
-            //       notify: summary.notify,
-            //       notifyCount: summary['notify-count'],
-            //       updatedAt: summary.recency,
-            //     },
-            //   });
-            //   break;
+            case 'base':
+              handler({
+                type: 'updateBaseUnread',
+                unread: {
+                  id: BASE_UNREADS_SINGLETON_KEY,
+                  count: summary.count,
+                  notify: summary.notify,
+                  notifyCount: summary['notify-count'],
+                  updatedAt: summary.recency,
+                },
+              });
+              break;
             case 'group':
               handler({
                 type: 'updateGroupUnread',
@@ -595,6 +595,22 @@ export function activityAction(action: ub.ActivityAction) {
   };
 }
 
+export const readAll = async () => {
+  const action = activityAction({
+    read: {
+      source: { base: null },
+      action: { all: { time: null, deep: true } },
+    },
+  });
+  logger.log(`reading all activity`, action);
+
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000,
+    numOfAttempts: 4,
+  });
+};
+
 export const readGroup = async (group: db.Group, deep: boolean = false) => {
   const source: ub.Source = { group: group.id };
   const action = activityAction({
@@ -713,6 +729,22 @@ export const readThread = async ({
     numOfAttempts: 4,
   });
 };
+
+export function markInvitesRead() {
+  return backOff(
+    () =>
+      poke(
+        activityAction({
+          'clear-group-invites': null,
+        })
+      ),
+    {
+      delayFirstAttempt: false,
+      startingDelay: 2000,
+      numOfAttempts: 4,
+    }
+  );
+}
 
 // We need to pass a particular data structure to the backend when referencing
 // threads. It's subtly different depending on whether it's %chat or %channels based

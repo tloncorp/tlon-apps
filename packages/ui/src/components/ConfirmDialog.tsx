@@ -45,7 +45,16 @@ export function ConfirmDialog({
         },
       },
     ]);
-  }, [open, title, description, onConfirm, confirmText, cancelText, destructive, onOpenChange]);
+  }, [
+    open,
+    title,
+    description,
+    onConfirm,
+    confirmText,
+    cancelText,
+    destructive,
+    onOpenChange,
+  ]);
 
   // Web: use Tamagui Dialog
   if (Platform.OS === 'web') {
@@ -88,11 +97,13 @@ export function ConfirmDialog({
               <Button
                 minimal
                 onPress={() => {
-                  onOpenChange?.(false);
                   onConfirm();
+                  onOpenChange?.(false);
                 }}
               >
-                <Button.Text color={destructive ? '$negativeActionText' : undefined}>
+                <Button.Text
+                  color={destructive ? '$negativeActionText' : undefined}
+                >
                   {confirmText}
                 </Button.Text>
               </Button>

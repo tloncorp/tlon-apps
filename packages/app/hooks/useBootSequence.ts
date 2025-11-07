@@ -1,4 +1,5 @@
 import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -18,6 +19,9 @@ import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 20;
 const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
+
+const GETTING_STARTED_GROUP_ID = '~wittyr-witbes/v3s2kbd7';
+const TLON_STUDIO = '~tommur-dostyn/tlon-studio';
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -164,6 +168,11 @@ export function useBootSequence() {
     //
     // SCAFFOLDING WAYFINDING: make sure the starter group is created
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      if (lureMeta?.inviteType !== 'user') {
+        logger.trackEvent('Detected group invite, skipping scaffold');
+        return NodeBootPhase.CHECKING_FOR_INVITE;
+      }
+
       try {
         await store.scaffoldPersonalGroup();
 
@@ -263,19 +272,31 @@ export function useBootSequence() {
         store.joinGroup(invitedGroup);
       }
 
+      if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
+        api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
+          logger.trackError('failed to join getting started group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
+
+      // unconditionally attempt to leave Tlon Studio
+      store.leaveGroup(TLON_STUDIO).catch((e) => {
+        logger.trackError('failed to leave tlon studio group', {
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      });
+
       // give the joins some time to process, then resync & pin
       setTimeout(() => {
         if (invitedGroup && !invitedGroup.currentUserIsMember) {
           store.syncGroup(invitedGroup?.id, undefined, { force: true });
+          store.syncGroup(GETTING_STARTED_GROUP_ID, undefined, { force: true });
         }
         if (invitedDm && invitedDm.isDmInvite) {
           store.syncDms();
-        }
-        if (tlonTeamDM) {
-          store.pinChannel(tlonTeamDM);
-        }
-        if (personalGroup) {
-          store.pinGroup(personalGroup);
         }
       }, 5000);
 
