@@ -959,7 +959,6 @@ export async function summarizeMessages({
 
     logger.crumb('Sending to AI for summarization', {
       chars: combinedText.length,
-      preview: combinedText.substring(0, 500),
     });
   } else {
     throw new Error('Must provide either postId or (channelId + startTime)');
