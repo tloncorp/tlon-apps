@@ -3,6 +3,7 @@ import * as db from '../db';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { isGroupChannelId } from '../logic';
+import * as logic from '../logic';
 import * as ub from '../urbit';
 import { whomIsMultiDm } from '../urbit';
 
@@ -28,7 +29,10 @@ export async function muteChat(chat: db.Chat) {
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute chat', {
-      chatId: chat.id,
+      ...logic.getModelAnalytics({
+        channel: chat.type === 'channel' ? chat.channel : undefined,
+        group: chat.type === 'group' ? chat.group : undefined,
+      }),
       chatType: chat.type,
       muteLevel,
       errorMessage: e.message,
@@ -58,7 +62,10 @@ export async function unmuteChat(chat: db.Chat) {
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute chat', {
-      chatId: chat.id,
+      ...logic.getModelAnalytics({
+        channel: chat.type === 'channel' ? chat.channel : undefined,
+        group: chat.type === 'group' ? chat.group : undefined,
+      }),
       chatType: chat.type,
       errorMessage: e.message,
     });
@@ -98,8 +105,7 @@ export async function muteThread({
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute thread', {
-      channelId: channel.id,
-      threadId: thread.id,
+      ...logic.getModelAnalytics({ channel, post: thread }),
       errorMessage: e.message,
     });
     if (initialSettings) {
@@ -128,8 +134,7 @@ export async function unmuteThread({
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute thread', {
-      channelId: channel.id,
-      threadId: thread.id,
+      ...logic.getModelAnalytics({ channel, post: thread }),
       errorMessage: e.message,
     });
     if (initialSettings) {
@@ -154,6 +159,7 @@ export async function setDefaultNotificationLevel(
     logger.trackError(
       'ActivityAction: Failed to set default notification level',
       {
+        ...logic.getModelAnalytics({}),
         level,
         errorMessage: e.message,
       }
@@ -205,6 +211,7 @@ export async function setBaseVolumeLevel(params: {
     );
   } catch (e) {
     logger.trackError('ActivityAction: Failed to set base volume level', {
+      ...logic.getModelAnalytics({}),
       level: params.level,
       errorMessage: e.message,
     });
@@ -241,7 +248,7 @@ export async function setGroupVolumeLevel(params: {
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set group volume level', {
-      groupId: params.group.id,
+      ...logic.getModelAnalytics({ group: params.group }),
       level: params.level ?? 'removed',
       errorMessage: e.message,
     });
@@ -299,8 +306,7 @@ export async function setChannelVolumeLevel(params: {
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set channel volume level', {
-      channelId: params.channel.id,
-      channelType: params.channel.type,
+      ...logic.getModelAnalytics({ channel: params.channel }),
       level: params.level ?? 'removed',
       errorMessage: e.message,
     });
