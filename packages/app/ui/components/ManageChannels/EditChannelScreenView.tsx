@@ -709,6 +709,7 @@ export function RoleSelectionSheet({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      modal
     >
       <ActionSheet.SimpleHeader
         title="Search and add roles"
