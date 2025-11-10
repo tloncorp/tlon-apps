@@ -16,7 +16,8 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { TextInput as RNTextInput } from 'react-native';
+import { Platform, TextInput as RNTextInput } from 'react-native';
+import { NativeViewGestureHandler } from 'react-native-gesture-handler';
 import {
   ScrollView,
   Spinner,
@@ -120,6 +121,8 @@ const TextInputComponent = RawTextInput.styleable<{
 }>(
   ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
     const fieldContext = useContext(FieldContext);
+    const inputElement = <RawTextInput flex={1} ref={ref} {...props} />;
+
     return (
       <InputFrame
         accent={accent ?? fieldContext.accent}
@@ -130,7 +133,13 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        <RawTextInput flex={1} ref={ref} {...props} />
+        {Platform.OS === 'android' ? (
+          <NativeViewGestureHandler disallowInterruption>
+            {inputElement}
+          </NativeViewGestureHandler>
+        ) : (
+          inputElement
+        )}
         {props.rightControls}
       </InputFrame>
     );
