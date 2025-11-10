@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { Button, FormInput, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
-import { Alert, Switch } from 'react-native';
+import { Alert, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
@@ -242,6 +242,10 @@ export function PrivateChannelToggle({
   isPrivate: boolean;
   onTogglePrivate: (value: boolean) => void;
 }) {
+  const handleToggle = useCallback(() => {
+    onTogglePrivate(!isPrivate);
+  }, [isPrivate, onTogglePrivate]);
+
   return (
     <XStack
       padding="$xl"
@@ -258,11 +262,22 @@ export function PrivateChannelToggle({
           able to view this channel.
         </Text>
       </YStack>
-      <Switch
-        value={isPrivate}
-        onValueChange={onTogglePrivate}
-        testID="PrivateChannelToggle"
-      />
+      {Platform.OS === 'android' ? (
+        <Pressable
+          onPress={handleToggle}
+          testID="PrivateChannelTogglePressable"
+        >
+          <View pointerEvents="none">
+            <Switch value={isPrivate} testID="PrivateChannelToggle" />
+          </View>
+        </Pressable>
+      ) : (
+        <Switch
+          value={isPrivate}
+          onValueChange={onTogglePrivate}
+          testID="PrivateChannelToggle"
+        />
+      )}
     </XStack>
   );
 }
