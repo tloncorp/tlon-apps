@@ -170,8 +170,10 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onLeaveGroup = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
-  }, [navigationRef]);
+    const routeName = isWindowNarrow ? 'ChatList' : 'Home';
+    // @ts-expect-error - 'Home' is a valid route on desktop (RootDrawerParamList) but not in RootStackParamList
+    navigationRef.current.navigate(routeName);
+  }, [navigationRef, isWindowNarrow]);
 
   return {
     onPressChannelMembers,

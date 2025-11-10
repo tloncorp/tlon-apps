@@ -138,7 +138,12 @@ export const ChatOptionsProvider = ({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
-  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(null);
+  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
+    null
+  );
+  const [leaveChannelData, setLeaveChannelData] = useState<db.Channel | null>(
+    null
+  );
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
@@ -258,25 +263,27 @@ export const ChatOptionsProvider = ({
   }, [closeSheet, groupId, navigateOnLeave]);
 
   const onLeaveChannelConfirmed = useCallback(() => {
-    if (!channel) {
+    if (!leaveChannelData) {
       return;
     }
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
+    if (leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm') {
       store.respondToDMInvite({
-        channel,
+        channel: leaveChannelData,
         accept: false,
       });
       navigateOnLeave?.();
     } else {
-      store.leaveGroupChannel(channel.id);
+      store.leaveGroupChannel(leaveChannelData.id);
     }
+    setLeaveChannelData(null);
     closeSheet();
-  }, [channel, closeSheet, navigateOnLeave]);
+  }, [leaveChannelData, closeSheet, navigateOnLeave]);
 
   const leaveChannel = useCallback(() => {
     setLeaveChannelTitle(channelTitle);
+    setLeaveChannelData(channel ?? null);
     setLeaveChannelDialogOpen(true);
-  }, [channelTitle]);
+  }, [channelTitle, channel]);
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
@@ -482,6 +489,7 @@ export const ChatOptionsProvider = ({
           setLeaveChannelDialogOpen(open);
           if (!open) {
             setLeaveChannelTitle(null);
+            setLeaveChannelData(null);
           }
         }}
         title={`Leave ${leaveChannelTitle ?? 'channel'}?`}
