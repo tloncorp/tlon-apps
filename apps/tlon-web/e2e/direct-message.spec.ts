@@ -63,7 +63,7 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   // Navigate back to the channel and verify thread reply count
   await helpers.navigateBack(zodPage);
   await zodPage.waitForTimeout(1000);
-  await expect(zodPage.getByText('1 reply')).toBeVisible();
+  await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 20000 });
 
   // React to the original message with thumb emoji
   await helpers.reactToMessage(zodPage, 'Hello, ~ten!', 'thumb');

@@ -1068,6 +1068,9 @@ const handleActivityUpdate = async (
         case 'updateItemVolume':
           memo.volumeUpdates.push(event.volumeUpdate);
           break;
+        case 'removeItemVolume':
+          memo.volumeRemovals.push(event.itemId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1083,6 +1086,7 @@ const handleActivityUpdate = async (
       channelUnreads: [],
       threadUnreads: [],
       volumeUpdates: [],
+      volumeRemovals: [],
       activityEvents: [],
     } as api.ActivityUpdateQueue
   );
@@ -1104,6 +1108,14 @@ const handleActivityUpdate = async (
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+
+  if (activitySnapshot.volumeRemovals.length > 0) {
+    await db.removeVolumeLevels(
+      { itemIds: activitySnapshot.volumeRemovals },
+      ctx
+    );
+  }
+
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
 
   // if we inserted new activity, invalidate the activity page

@@ -416,18 +416,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const source = sourceIdToSource(sourceId);
 
           switch (source.type) {
-            // case 'base':
-            //   handler({
-            //     type: 'updateBaseUnread',
-            //     unread: {
-            //       id: BASE_UNREADS_SINGLETON_KEY,
-            //       count: summary.count,
-            //       notify: summary.notify,
-            //       notifyCount: summary['notify-count'],
-            //       updatedAt: summary.recency,
-            //     },
-            //   });
-            //   break;
+            case 'base':
+              handler({
+                type: 'updateBaseUnread',
+                unread: {
+                  id: BASE_UNREADS_SINGLETON_KEY,
+                  count: summary.count,
+                  notify: summary.notify,
+                  notifyCount: summary['notify-count'],
+                  updatedAt: summary.recency,
+                },
+              });
+              break;
             case 'group':
               handler({
                 type: 'updateGroupUnread',
@@ -594,6 +594,22 @@ export function activityAction(action: ub.ActivityAction) {
     json: action,
   };
 }
+
+export const readAll = async () => {
+  const action = activityAction({
+    read: {
+      source: { base: null },
+      action: { all: { time: null, deep: true } },
+    },
+  });
+  logger.log(`reading all activity`, action);
+
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000,
+    numOfAttempts: 4,
+  });
+};
 
 export const readGroup = async (group: db.Group, deep: boolean = false) => {
   const source: ub.Source = { group: group.id };
@@ -986,6 +1002,7 @@ export type ActivityUpdateQueue = {
   channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
   volumeUpdates: db.VolumeSettings[];
+  volumeRemovals: string[];
   activityEvents: db.ActivityEvent[];
 };
 

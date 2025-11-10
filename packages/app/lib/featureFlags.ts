@@ -18,6 +18,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable contacts tab',
   },
+  aiSummarization: {
+    default: false,
+    label: 'Enable AI-powered message and channel summarization',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;

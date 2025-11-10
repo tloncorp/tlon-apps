@@ -1479,10 +1479,22 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
-  await page.waitForTimeout(500);
+
+  // Wait for the confirmation dialog to appear
+  await expect(
+    page.getByRole('dialog').getByText('You will no longer receive updates from this channel.')
+  ).toBeVisible({ timeout: 5000 });
+
+  // Click the Leave button in the confirmation dialog
+  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
+
+  // Wait for dialog to close first
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+
+  // Then wait for channel to be removed from list with longer timeout for cross-ship sync
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
-  ).not.toBeVisible({ timeout: 15000 });
+  ).not.toBeVisible({ timeout: 20000 });
 }
 
 /**

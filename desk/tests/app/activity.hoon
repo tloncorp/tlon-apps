@@ -18,6 +18,7 @@
 ++  test-sync-reads-3
   =+  state-3:sync-reads
   (run-sync-reads pre-sync post-sync activity 9)
+::
 ++  run-sync-reads
   |=  [pre=indices:a post=indices:a =activity:a count=@ud]
   %-  eval-mare
@@ -49,6 +50,7 @@
     %+  ex-cards  caz
     :~  (ex-poke /adjust-old-default [~zod dap] noun+!>(%adjust-old-default))
         (ex-poke /fix-init-unreads [~zod dap] noun+!>(%fix-init-unreads))
+        (ex-fact-paths ~[/v4])
     ==
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
@@ -116,7 +118,8 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d4 ~])
-          grp(reads.index [d-1 ~])
+          :: d5 because of new clear-groups call
+          grp(reads.index [d5 ~])
           base(reads.index [d-1 ~])
       ==
     ++  activity
@@ -195,7 +198,8 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d3 ~])
-          grp(reads.index [d-1 ~])
+          :: d5 because of new clear-groups call
+          grp(reads.index [d5 ~])
           base(reads.index [d-1 ~])
       ==
     ++  activity
@@ -281,7 +285,8 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d3 ~])
-          grp(reads.index [d3 ~])
+          :: d5 because of new clear-groups call
+          grp(reads.index [d5 ~])
           base(reads.index [d3 ~])
       ==
     ++  activity
@@ -401,8 +406,9 @@
           thrd2-2
           chnl1(reads.index [d4 ~])
           chnl2
-          grp1(reads.index [d-1 ~])
-          grp2
+          :: d5 because of new clear-groups call
+          grp1(reads.index [d5 ~])
+          grp2(reads.index [(add d5 i1) ~])
           base(reads.index [d-1 ~])
       ==
     ++  activity

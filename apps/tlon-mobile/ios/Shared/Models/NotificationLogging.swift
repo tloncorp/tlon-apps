@@ -88,6 +88,7 @@ extension LogEvent {
 enum NotificationError: Error, LocalizedError {
     case activityEventFetchFailed(uid: String, underlyingError: Error? = nil)
     case activityEventMissing(uid: String, underlyingError: Error? = nil)
+    case badgeSettingFailed(uid: String, underlyingError: Error? = nil)
     case previewRenderFailed(uid: String, activityEvent: String, underlyingError: Error? = nil)
     case previewEmpty(uid: String, activityEvent: String, underlyingError: Error? = nil)
     case notificationDisplayFailed(uid: String, activityEvent: String? = nil, underlyingError: Error? = nil)
@@ -98,6 +99,7 @@ enum NotificationError: Error, LocalizedError {
         switch self {
         case .activityEventFetchFailed: return "Activity event fetch failed"
         case .activityEventMissing: return "Activity event is missing"
+        case .badgeSettingFailed: return "Setting badge from dismissal failed"
         case .previewRenderFailed: return "Preview render failed"
         case .previewEmpty: return "Preview is empty"
         case .notificationDisplayFailed: return "Notification display failed"
@@ -110,6 +112,7 @@ enum NotificationError: Error, LocalizedError {
         switch self {
         case .activityEventFetchFailed(let uid, _),
              .activityEventMissing(let uid, _),
+             .badgeSettingFailed(let uid, _),
              .previewRenderFailed(let uid, _, _),
              .previewEmpty(let uid, _, _),
              .notificationDisplayFailed(let uid, _, _),
@@ -123,6 +126,7 @@ enum NotificationError: Error, LocalizedError {
         switch self {
         case .activityEventFetchFailed(_, let underlyingError),
              .activityEventMissing(_, let underlyingError),
+             .badgeSettingFailed(_, let underlyingError),
              .previewRenderFailed(_, _, let underlyingError),
              .previewEmpty(_, _, let underlyingError),
              .notificationDisplayFailed(_, _, let underlyingError),
