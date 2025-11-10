@@ -20,8 +20,15 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
-import { Modal, Platform, useWindowDimensions } from 'react-native';
+import {
+  Keyboard,
+  Modal,
+  Platform,
+  type KeyboardEvent as RNKeyboardEvent,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
@@ -150,13 +157,62 @@ const ActionSheetComponent = ({
   // For popovers, use a more conservative max height to ensure it fits in viewport
   const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
 
+  // Android-specific: Track if we're waiting for keyboard to hide before closing
+  // This prevents the parent view from staying constrained after the sheet closes
+  const [isWaitingForKeyboardHide, setIsWaitingForKeyboardHide] =
+    useState(false);
+  const pendingCloseRef = useRef(false);
+
+  // Android-specific: Listen for keyboard hide event when waiting to close
+  // This ensures the window has fully resized before unmounting the sheet
+  useEffect(() => {
+    if (isWaitingForKeyboardHide) {
+      const subscription = Keyboard.addListener('keyboardDidHide', () => {
+        setIsWaitingForKeyboardHide(false);
+        if (pendingCloseRef.current) {
+          pendingCloseRef.current = false;
+          // Double requestAnimationFrame ensures proper timing:
+          // - First RAF: waits for Android to complete window resize after keyboard dismissal
+          // - Second RAF: waits for React Native's layout system to process the resize
+          // Without this delay, the parent view can remain constrained as if keyboard is still open
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              onOpenChange(false);
+            });
+          });
+        }
+      });
+      return () => subscription.remove();
+    }
+  }, [isWaitingForKeyboardHide, onOpenChange]);
+
+  // Wrap onOpenChange to wait for keyboard hide before closing on Android
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      if (
+        !newOpen &&
+        Platform.OS === 'android' &&
+        !isInsideSheet &&
+        !props.modal
+      ) {
+        // Dismiss keyboard and wait for keyboardDidHide event before closing
+        Keyboard.dismiss();
+        pendingCloseRef.current = true;
+        setIsWaitingForKeyboardHide(true);
+        return; // Don't call onOpenChange until keyboard is hidden
+      }
+      onOpenChange(newOpen);
+    },
+    [onOpenChange, isInsideSheet, props.modal]
+  );
+
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handleEscape = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
-          onOpenChange(false);
+          handleOpenChange(false);
         }
       };
       if (open) {
@@ -168,7 +224,7 @@ const ActionSheetComponent = ({
         window.removeEventListener('keydown', handleEscape);
       };
     }
-  }, [onOpenChange, open]);
+  }, [handleOpenChange, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -183,7 +239,7 @@ const ActionSheetComponent = ({
     return (
       <Popover
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={handleOpenChange}
         allowFlip
         placement="bottom-end"
         strategy="fixed"
@@ -211,7 +267,7 @@ const ActionSheetComponent = ({
 
   if (mode === 'dialog') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <Dialog.Portal>
           <VisuallyHidden>
             <Dialog.Title>{title}</Dialog.Title>
@@ -293,15 +349,22 @@ const ActionSheetComponent = ({
   const shouldUseModal =
     Platform.OS === 'android' && (isInsideSheet || props.modal);
 
+  // When using ModalLikeWrapper (Android non-modal path), we handle keyboard with
+  // manual keyboard listeners, so we need to strip moveOnKeyboardChange to prevent conflicts
+  const useModalLikeWrapper = Platform.OS === 'android' && !shouldUseModal;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { moveOnKeyboardChange: _moveOnKeyboardChange, ...restProps } = props;
+  const sheetProps = useModalLikeWrapper ? restProps : props;
+
   const sheetContent = (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       dismissOnSnapToBottom
       snapPointsMode="fit"
       animation="quick"
       handleDisableScroll
-      {...props}
+      {...sheetProps}
       modal={Platform.OS === 'ios' ? false : shouldUseModal}
     >
       <Sheet.Overlay animation="quick" />
@@ -332,7 +395,7 @@ const ActionSheetComponent = ({
       ) : (
         <Modal
           visible={open}
-          onRequestClose={() => onOpenChange(false)}
+          onRequestClose={() => handleOpenChange(false)}
           transparent
           animationType="none"
         >
@@ -343,8 +406,44 @@ const ActionSheetComponent = ({
   );
 };
 
+// Android-specific wrapper for non-modal sheets that handles keyboard avoidance
+// This is needed because Tamagui's modal prop uses React Native's Modal component,
+// which breaks context passing in some cases. ModalLikeWrapper provides modal-like
+// positioning while preserving context, and manually handles keyboard avoidance.
 const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
   const { width, height } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!props.visible) {
+      return;
+    }
+
+    // Track keyboard height to adjust sheet positioning
+    // We manually handle this because Tamagui's moveOnKeyboardChange conflicts
+    // with our absolute positioning in ModalLikeWrapper
+    const handleKeyboardShow = (e: RNKeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    };
+
+    const handleKeyboardHide = () => {
+      setKeyboardHeight(0);
+    };
+
+    const showSubscription = Keyboard.addListener(
+      'keyboardDidShow',
+      handleKeyboardShow
+    );
+    const hideSubscription = Keyboard.addListener(
+      'keyboardDidHide',
+      handleKeyboardHide
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [props.visible]);
 
   if (!props.visible) {
     return props.children;
@@ -358,8 +457,17 @@ const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
       left={0}
       width={width}
       height={height}
+      pointerEvents="box-none"
     >
-      {props.children}
+      <View
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={keyboardHeight} // Constrains sheet above keyboard, forcing it to resize/reposition
+      >
+        {props.children}
+      </View>
     </View>
   );
 };
