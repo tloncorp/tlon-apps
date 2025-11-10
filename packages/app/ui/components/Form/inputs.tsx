@@ -134,6 +134,10 @@ const TextInputComponent = RawTextInput.styleable<{
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
         {Platform.OS === 'android' ? (
+          // Android-specific: Wrap TextInput in NativeViewGestureHandler to prevent
+          // gesture conflicts with parent components (e.g., Sheet's pan gesture).
+          // disallowInterruption ensures TextInput gestures take priority, fixing
+          // focus issues in sheets on physical Android devices.
           <NativeViewGestureHandler disallowInterruption>
             {inputElement}
           </NativeViewGestureHandler>

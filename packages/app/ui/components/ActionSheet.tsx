@@ -157,19 +157,24 @@ const ActionSheetComponent = ({
   // For popovers, use a more conservative max height to ensure it fits in viewport
   const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
 
-  // Track if we're waiting for keyboard to hide before closing
+  // Android-specific: Track if we're waiting for keyboard to hide before closing
+  // This prevents the parent view from staying constrained after the sheet closes
   const [isWaitingForKeyboardHide, setIsWaitingForKeyboardHide] =
     useState(false);
   const pendingCloseRef = useRef(false);
 
-  // Listen for keyboard hide when waiting to close
+  // Android-specific: Listen for keyboard hide event when waiting to close
+  // This ensures the window has fully resized before unmounting the sheet
   useEffect(() => {
     if (isWaitingForKeyboardHide) {
       const subscription = Keyboard.addListener('keyboardDidHide', () => {
         setIsWaitingForKeyboardHide(false);
         if (pendingCloseRef.current) {
           pendingCloseRef.current = false;
-          // Wait for next frame after keyboard hide to ensure window resize completes
+          // Double requestAnimationFrame ensures proper timing:
+          // - First RAF: waits for Android to complete window resize after keyboard dismissal
+          // - Second RAF: waits for React Native's layout system to process the resize
+          // Without this delay, the parent view can remain constrained as if keyboard is still open
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               onOpenChange(false);
@@ -401,6 +406,10 @@ const ActionSheetComponent = ({
   );
 };
 
+// Android-specific wrapper for non-modal sheets that handles keyboard avoidance
+// This is needed because Tamagui's modal prop uses React Native's Modal component,
+// which breaks context passing in some cases. ModalLikeWrapper provides modal-like
+// positioning while preserving context, and manually handles keyboard avoidance.
 const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
   const { width, height } = useWindowDimensions();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -410,6 +419,9 @@ const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
       return;
     }
 
+    // Track keyboard height to adjust sheet positioning
+    // We manually handle this because Tamagui's moveOnKeyboardChange conflicts
+    // with our absolute positioning in ModalLikeWrapper
     const handleKeyboardShow = (e: RNKeyboardEvent) => {
       setKeyboardHeight(e.endCoordinates.height);
     };
@@ -452,7 +464,7 @@ const ModalLikeWrapper = (props: { visible: boolean; children: ReactNode }) => {
         top={0}
         left={0}
         right={0}
-        bottom={keyboardHeight}
+        bottom={keyboardHeight} // Constrains sheet above keyboard, forcing it to resize/reposition
       >
         {props.children}
       </View>

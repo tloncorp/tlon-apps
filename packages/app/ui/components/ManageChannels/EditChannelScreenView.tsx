@@ -263,6 +263,11 @@ export function PrivateChannelToggle({
         </Text>
       </YStack>
       {Platform.OS === 'android' ? (
+        // Android-specific: Wrap Switch in Pressable to handle tap gestures before
+        // they reach the Sheet's pan gesture handler. The Switch itself has
+        // pointerEvents="none" to make it purely visual, while Pressable handles
+        // all touch interaction. This fixes Switch tap detection issues in sheets
+        // on physical Android devices.
         <Pressable
           onPress={handleToggle}
           testID="PrivateChannelTogglePressable"
