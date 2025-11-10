@@ -11,11 +11,7 @@ function hideSplashScreen() {
     return;
   }
 
-  try {
-    SplashScreen.hideAsync();
-  } catch (e) {
-    // Splash screen may already be hidden
-  }
+  SplashScreen.hideAsync();
 }
 
 interface RootErrorBoundaryProps {
