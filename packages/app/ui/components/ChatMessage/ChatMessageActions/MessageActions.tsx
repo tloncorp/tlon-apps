@@ -1,15 +1,17 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ChannelAction } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCopy } from '@tloncorp/ui';
+import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
+import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
@@ -72,6 +74,8 @@ const ConnectedAction = memo(function ConnectedAction({
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
+  const showToast = useToast();
+  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -113,6 +117,13 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'visibility':
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
+      case 'summarize':
+        // only show if feature flag is enabled and message has text content
+        return (
+          aiSummarizationEnabled &&
+          !!post.textContent &&
+          post.textContent.length > 0
+        );
       default:
         return true;
     }
@@ -122,11 +133,13 @@ const ConnectedAction = memo(function ConnectedAction({
     post.parentId,
     post.authorId,
     post.reactions?.length,
+    post.textContent,
     currentUserId,
     channel.type,
     currentUserIsAdmin,
     action.isNetworkDependent,
     connectionStatus,
+    aiSummarizationEnabled,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
@@ -151,6 +164,7 @@ const ConnectedAction = memo(function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
+          showToast,
         })
       }
       key={actionId}
@@ -186,6 +200,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
+  showToast,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -198,6 +213,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  showToast?: (options: { message: string; duration?: number }) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -259,6 +275,44 @@ export async function handleAction({
       }
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
+    case 'summarize': {
+      if (!post.textContent) {
+        console.error('Cannot summarize: no text content');
+        break;
+      }
+
+      const hasReplies = post.replyCount && post.replyCount > 0;
+      const itemType = hasReplies ? 'conversation' : 'message';
+
+      showToast?.({
+        message: `Summarizing ${itemType}...`,
+        duration: 2000,
+      });
+
+      store
+        .summarizeMessages({
+          postId: post.id,
+          currentUserId: api.getCurrentUserId(),
+        })
+        .then(() => {
+          showToast?.({
+            message: 'Summary sent to your DMs',
+            duration: 2000,
+          });
+        })
+        .catch((error) => {
+          console.error('Error in summarize action:', error);
+          const message =
+            error.message === 'AI provider is rate-limited. Please try again in a few moments.'
+              ? error.message
+              : `Failed to summarize ${itemType}`;
+          showToast?.({
+            message,
+            duration: 3000,
+          });
+        });
+      break;
+    }
   }
 
   triggerHaptic('success');
@@ -361,12 +415,20 @@ export function useDisplaySpecForChannelActionId(
         const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
         return { label: post.hidden ? showMsg : hideMsg };
       }
+
+      case 'summarize': {
+        const hasReplies = post.replyCount && post.replyCount > 0;
+        return {
+          label: hasReplies ? 'Summarize conversation' : 'Summarize',
+        };
+      }
     }
   }, [
     id,
     postTerm,
     post.authorId,
     post.hidden,
+    post.replyCount,
     currentUserId,
     currentUserIsAdmin,
     isMuted,

@@ -2520,7 +2520,10 @@
   ::
   ++  di-rsvp
     |=  ok=?
-    =?  cor  &(=(our src):bowl (can-poke:neg bowl [ship dap.bowl]))
+    =?  cor  ?&  =(our src):bowl
+                 !=(ship our.bowl)  ::  avoid self-proxy infinite loop
+                 (can-poke:neg bowl [ship dap.bowl])
+             ==
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
@@ -2530,7 +2533,8 @@
         =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
         give-invites
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
-      ?:  =(src.bowl ship)
+      ::  preserve the dm if this is a true remote negative rsvp
+      ?:  &(!=(ship our.bowl) =(src.bowl ship))
         di-core
       di-core(gone &)
     =.  cor
