@@ -1232,6 +1232,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~|  `wire`pole
   =?  cor  !=(/logs pole)
     (emit (tell:plog %dbug ~[>[src.bowl (spat pole) -.sign]<] ~))
   ?+    pole  ~|(bad-agent-wire+pole !!)
