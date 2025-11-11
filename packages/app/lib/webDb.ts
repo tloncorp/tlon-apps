@@ -11,7 +11,7 @@ import { BaseDb, logger, useMigrations as useMigrationsBase } from './baseDb';
 import { TRIGGER_SETUP } from './triggers';
 import migrate from './webMigrator';
 
-const ENABLE_DB_FILE_LOAD = true;
+const ENABLE_DB_FILE_LOAD = false;
 const ENABLE_DB_FILE_SAVE = true;
 
 export class WebDb extends BaseDb {
