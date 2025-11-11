@@ -277,6 +277,7 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
+    log   ~(. logs [our.bowl /logs])
     ol    (kol gte)
 ++  abet  [(flop cards) state]
 ++  cor   .
@@ -960,14 +961,14 @@
     ?<  (~(has in blocked) ship)
     ?<  =(our.bowl ship)
     =.  blocked  (~(put in blocked) ship)
-    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
+    (emit %pass (weld di-area:di-core:cor /block) %agent [ship dap.bowl] %poke %chat-blocked !>(0))
   ::
   ++  unblock
     |=  =ship
     ^+  cor
     ?>  (~(has in blocked) ship)
     =.  blocked  (~(del in blocked) ship)
-    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
+    (emit %pass (weld di-area:di-core:cor /unblock) %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
   ::
   ++  toggle-message
     |=  toggle=message-toggle:c
@@ -2564,6 +2565,13 @@
       ?~  p.sign  di-core
       ::  TODO: handle?
       %-  (slog leaf/"Failed to add contact" u.p.sign)
+      di-core
+    ::
+        [?(%block %unblock) ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      =.  cor
+        (emit (fail:log %poke-ack [leaf+"failed to {(trip i.wire)}" u.p.sign] ~))
       di-core
     ::
         [%proxy *]
