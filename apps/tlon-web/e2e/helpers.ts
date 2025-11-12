@@ -142,23 +142,35 @@ export async function verifyGroupChannels(
 
   // Navigate to Channels
   await page.getByTestId('GroupChannels').getByText('Channels').click();
-  await expect(page.getByText('Manage channels')).toBeVisible({
+
+  // Verify we're on the Channels screen by checking for the Sort and New buttons
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByText('New', { exact: true })).toBeVisible({
     timeout: 5000,
   });
 
   // Verify the correct number of channels by checking the last one exists
   const lastChannel = expectedChannels[expectedChannels.length - 1];
   const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
-  await expect(page.getByTestId(lastChannelTestId)).toBeVisible({
-    timeout: 5000,
-  });
+  await expect(page.getByTestId(lastChannelTestId)).toBeVisible();
 
   // Verify each expected channel exists with correct title and type
+  // Use regex to match any index since order may vary
   for (const channel of expectedChannels) {
     // Capitalize the channel type for display (e.g., "chat" -> "Chat")
     const capitalizedType = capitalize(channel.type);
 
-    // Use the pattern from existing tests: check for a div containing both title and type
+    // Check that the channel exists (regardless of index)
+    const channelItem = page.getByTestId(
+      new RegExp(
+        `^ChannelItem-${channel.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`
+      )
+    );
+    await expect(channelItem).toBeVisible({ timeout: 5000 });
+
+    // Verify the channel type is displayed correctly within the channel item
     const channelPattern = new RegExp(`^${channel.title}${capitalizedType}$`);
     await expect(
       page.locator('div').filter({ hasText: channelPattern }).first()
@@ -615,7 +627,15 @@ export async function createChannel(
   // Ensure session is stable before creating channel
   await waitForSessionStability(page);
 
-  await page.getByText('New Channel').click();
+  // Click the "New" button in the header
+  await page.getByText('New', { exact: true }).click();
+
+  // Click "New channel" from the action sheet (use .first() to avoid strict mode violation)
+  await expect(page.getByText('New channel').first()).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('New channel').first().click();
+
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
@@ -627,7 +647,14 @@ export async function createChannel(
   }
 
   await page.getByText('Create channel').click();
-  await page.waitForTimeout(1000);
+
+  // Wait for the sheet to close
+  await expect(page.getByText('Create a new channel')).not.toBeVisible({
+    timeout: 5000,
+  });
+
+  // Wait a bit longer for the channel to be created on the backend
+  await page.waitForTimeout(2000);
 }
 
 /**
@@ -801,7 +828,15 @@ export async function createChannelSection(page: Page, sectionName: string) {
   // Ensure session is stable before creating channel section
   await waitForSessionStability(page);
 
-  await page.getByText('New Section').click();
+  // Click the "New" button in the header
+  await page.getByText('New', { exact: true }).click();
+
+  // Click "New section" from the action sheet (use .first() to avoid strict mode violation)
+  await expect(page.getByText('New section').first()).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('New section').first().click();
+
   await expect(page.getByText('Add section')).toBeVisible();
 
   await fillFormField(page, 'SectionNameInput', sectionName, true);
@@ -1482,7 +1517,9 @@ export async function leaveDM(page: Page, contactId: string) {
 
   // Wait for the confirmation dialog to appear
   await expect(
-    page.getByRole('dialog').getByText('You will no longer receive updates from this channel.')
+    page
+      .getByRole('dialog')
+      .getByText('You will no longer receive updates from this channel.')
   ).toBeVisible({ timeout: 5000 });
 
   // Click the Leave button in the confirmation dialog
