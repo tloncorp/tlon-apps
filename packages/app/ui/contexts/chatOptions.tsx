@@ -97,7 +97,11 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy?: (groupId: string) => void;
   onPressChannelMembers?: (channelId: string) => void;
   onPressChannelMeta?: (channelId: string) => void;
-  onPressEditChannel?: (channelId: string, groupId: string, fromChatDetails?: boolean) => void;
+  onPressEditChannel?: (
+    channelId: string,
+    groupId: string,
+    fromChatDetails?: boolean
+  ) => void;
   onPressChannelTemplate?: (channelId: string) => void;
   onPressRoles?: (groupId: string) => void;
   onPressChatDetails?: (chat: {
@@ -341,12 +345,15 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressEditChannel = useCallback((fromChatDetails?: boolean) => {
-    if (channelId && groupId) {
-      onPressEditChannel?.(channelId, groupId, fromChatDetails);
-      closeSheet();
-    }
-  }, [channelId, groupId, closeSheet, onPressEditChannel]);
+  const handlePressEditChannel = useCallback(
+    (fromChatDetails?: boolean) => {
+      if (channelId && groupId) {
+        onPressEditChannel?.(channelId, groupId, fromChatDetails);
+        closeSheet();
+      }
+    },
+    [channelId, groupId, closeSheet, onPressEditChannel]
+  );
 
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
