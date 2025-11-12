@@ -1064,7 +1064,7 @@
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-agent:(di-abed-soft:di-core ship) rest.pole sign)
+    di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
