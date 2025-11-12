@@ -1,5 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -61,6 +62,7 @@ const ChatMessage = ({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -68,6 +70,15 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  // Check if the author is blocked
+  const { data: blockedContacts } = store.useBlockedContacts();
+  const isAuthorBlocked = useMemo(() => {
+    if (!blockedContacts || !post.authorId) {
+      return false;
+    }
+    return blockedContacts.some((contact) => contact.id === post.authorId);
+  }, [blockedContacts, post.authorId]);
 
   const isNotice = post.type === 'notice';
 
@@ -170,6 +181,13 @@ const ChatMessage = ({
       <ErrorMessage
         testID="MessageHidden"
         message="Message hidden or flagged"
+      />
+    );
+  } else if (isAuthorBlocked && !showBlockedMessage) {
+    return (
+      <BlockedMessagePlaceholder
+        testID="MessageBlocked"
+        onShowAnyway={() => setShowBlockedMessage(true)}
       />
     );
   }
@@ -389,6 +407,41 @@ function ErrorMessage({
       <Text size="$label/m" color="$tertiaryText">
         {message}
       </Text>
+    </XStack>
+  );
+}
+
+function BlockedMessagePlaceholder({
+  testID,
+  onShowAnyway,
+}: {
+  testID?: string;
+  onShowAnyway: () => void;
+}) {
+  return (
+    <XStack
+      gap="$s"
+      paddingVertical="$xl"
+      justifyContent={'center'}
+      alignItems={'center'}
+      testID={testID}
+    >
+      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+      <Text size="$label/m" color="$tertiaryText">
+        Message from a blocked user.
+      </Text>
+      <Button
+        onPress={onShowAnyway}
+        size="$s"
+        backgroundColor="transparent"
+        borderWidth={0}
+        padding="$xs"
+        testID="ShowBlockedMessageButton"
+      >
+        <Text size="$label/m" color="$primaryActionText">
+          Show anyway
+        </Text>
+      </Button>
     </XStack>
   );
 }
