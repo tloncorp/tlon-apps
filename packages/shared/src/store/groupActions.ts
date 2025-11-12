@@ -2,7 +2,7 @@ import isEqual from 'lodash/isEqual';
 
 import * as api from '../api';
 import * as db from '../db';
-import { batchEffects } from '../db/query';
+import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -514,271 +514,16 @@ export async function addNavSection(
       groupId: group.id,
       navSection: newNavSection,
     });
+    logger.trackEvent(AnalyticsEvent.ActionAddedNavSection, {
+      groupId: group.id,
+    });
   } catch (e) {
-    logger.error('Failed to add nav section', e);
+    logger.trackError('Failed to add nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
       await db.deleteNavSection(groupNavSectionId);
     }
-  }
-}
-
-export async function updateNavSectionMeta(
-  group: db.Group,
-  navSection: db.GroupNavSection
-) {
-  logger.log('updating nav section', group.id, navSection.id);
-
-  const existingGroup = await db.getGroup({ id: group.id });
-
-  // optimistic update
-  await db.updateGroup({
-    ...group,
-    navSections: (group.navSections ?? []).map((section) =>
-      section.id === navSection.id ? navSection : section
-    ),
-  });
-
-  try {
-    await api.updateNavSection({
-      groupId: group.id,
-      navSection,
-    });
-  } catch (e) {
-    logger.error('Failed to update nav section', e);
-    // rollback optimistic update
-    if (existingGroup) {
-      await db.updateGroup(existingGroup);
-    }
-  }
-}
-
-export async function moveNavSection(
-  group: db.Group,
-  navSectionId: string,
-  newIndex: number
-) {
-  logger.log('moving nav section', group.id, navSectionId, newIndex);
-
-  const existingGroup = await db.getGroup({ id: group.id });
-
-  const navSections = group.navSections ?? [];
-  const currentIndex = navSections.findIndex(
-    (section) => section.sectionId === navSectionId
-  );
-
-  if (currentIndex === -1) {
-    logger.error('Section not found', navSectionId);
-    return;
-  }
-
-  if (currentIndex === newIndex) {
-    logger.log('Section already at target index', navSectionId, newIndex);
-    return;
-  }
-
-  // Move the section to the new position
-  const newNavSections = [...navSections];
-  const [movedSection] = newNavSections.splice(currentIndex, 1);
-  newNavSections.splice(newIndex, 0, movedSection);
-
-  // Update all section indices
-  const updatedNavSections = newNavSections.map((section, index) => ({
-    ...section,
-    sectionIndex: index,
-  }));
-
-  // Optimistic update
-  await batchEffects('moveNavSection', async (ctx) => {
-    await db.updateGroup(
-      {
-        id: group.id,
-        navSections: updatedNavSections,
-      },
-      ctx
-    );
-
-    for (const section of updatedNavSections) {
-      await db.updateNavSection(
-        {
-          ...section,
-          sectionIndex: section.sectionIndex ?? 0,
-        },
-        ctx
-      );
-    }
-  });
-
-  try {
-    await api.moveNavSection({
-      groupId: group.id,
-      navSectionId,
-      index: newIndex,
-    });
-    logger.log('successfully moved nav section');
-  } catch (e) {
-    logger.error('Failed to move nav section', e);
-    // Rollback optimistic update
-    if (existingGroup) {
-      await batchEffects('moveNavSection-rollback', async (ctx) => {
-        await db.updateGroup(existingGroup, ctx);
-
-        for (const [index, section] of navSections.entries()) {
-          await db.updateNavSection(
-            {
-              ...section,
-              sectionIndex: index,
-            },
-            ctx
-          );
-        }
-      });
-    }
-  }
-}
-
-export async function moveChannelToNavSection({
-  groupId,
-  channelId,
-  navSectionId,
-  index = 0,
-}: {
-  groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index?: number;
-}) {
-  logger.log(
-    'moving channel to nav section',
-    groupId,
-    channelId,
-    navSectionId,
-    index
-  );
-
-  const existingGroup = await db.getGroup({ id: groupId });
-  if (!existingGroup) {
-    logger.error('Group not found', groupId);
-    return;
-  }
-
-  const navSections = existingGroup.navSections ?? [];
-  const targetSection = navSections.find((s) => s.sectionId === navSectionId);
-  if (!targetSection && navSectionId !== 'default') {
-    logger.error('Nav section not found', navSectionId);
-    return;
-  }
-
-  const previousSection = navSections.find((section) =>
-    section.channels?.some((c) => c.channelId === channelId)
-  );
-
-  // Check if channel is already in the target section
-  if (previousSection?.sectionId === navSectionId) {
-    logger.log('Channel already in section', channelId, navSectionId);
-    return;
-  }
-
-  // Build updated navigation structure
-  const updatedNavSections = navSections.map((section) => {
-    // Remove channel from previous section
-    if (section.sectionId === previousSection?.sectionId) {
-      return {
-        ...section,
-        channels: (section.channels ?? []).filter(
-          (c) => c.channelId !== channelId
-        ),
-      };
-    }
-    // Add channel to target section at specified index
-    if (section.sectionId === navSectionId) {
-      const channels = [...(section.channels ?? [])];
-      channels.splice(index, 0, {
-        channelId,
-        groupNavSectionId: section.id,
-        channelIndex: index,
-      });
-      // Re-index all channels
-      return {
-        ...section,
-        channels: channels.map((c, i) => ({ ...c, channelIndex: i })),
-      };
-    }
-    return section;
-  });
-
-  const updatedGroup = { ...existingGroup, navSections: updatedNavSections };
-  const targetSectionFull = updatedNavSections.find(
-    (s) => s.sectionId === navSectionId
-  );
-
-  // Optimistic update
-  await batchEffects('moveChannelToNavSection', async (ctx) => {
-    if (previousSection) {
-      await db.deleteChannelFromNavSection(
-        { channelId, groupNavSectionId: previousSection.id },
-        ctx
-      );
-    }
-
-    await db.addChannelToNavSection(
-      {
-        channelId,
-        groupNavSectionId: `${groupId}-${navSectionId}`,
-        index,
-      },
-      ctx
-    );
-
-    // Update all channel indices in target section
-    if (targetSectionFull?.channels) {
-      for (const channel of targetSectionFull.channels) {
-        if (channel.channelId) {
-          await db.updateNavSectionChannel(
-            {
-              channelId: channel.channelId,
-              groupNavSectionId: targetSectionFull.id,
-              channelIndex: channel.channelIndex ?? 0,
-            },
-            ctx
-          );
-        }
-      }
-    }
-
-    await db.updateGroup({ id: groupId, navSections: updatedNavSections }, ctx);
-  });
-
-  try {
-    await updateGroupNavigationBatch({ group: updatedGroup });
-    logger.log('moved channel to nav section');
-  } catch (e) {
-    logger.error('Failed to move channel', e);
-    // Rollback optimistic update
-    await batchEffects('moveChannelToNavSection-rollback', async (ctx) => {
-      await db.deleteChannelFromNavSection(
-        { channelId, groupNavSectionId: `${groupId}-${navSectionId}` },
-        ctx
-      );
-
-      if (previousSection) {
-        const prevIndex =
-          previousSection.channels?.findIndex(
-            (c) => c.channelId === channelId
-          ) ?? 0;
-        await db.addChannelToNavSection(
-          {
-            channelId,
-            groupNavSectionId: previousSection.id,
-            index: prevIndex,
-          },
-          ctx
-        );
-      }
-
-      await db.updateGroup(existingGroup, ctx);
-    });
   }
 }
 
@@ -916,58 +661,6 @@ export async function updateChannelSections({
   }
 }
 
-export async function moveChannel({
-  groupId,
-  channelId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index: number;
-}): Promise<void> {
-  logger.log('moving channel', groupId, channelId, navSectionId, index);
-  const result = await updateChannelSections({
-    groupId,
-    navSectionId,
-    channelId,
-    index,
-  });
-
-  if (!result) {
-    logger.error('Failed to update channel sections');
-    return;
-  }
-
-  const { sectionChannels, group } = result;
-
-  try {
-    await api.moveChannel({
-      groupId: groupId,
-      channelId,
-      navSectionId,
-      index,
-    });
-  } catch (e) {
-    logger.error('Failed to move channel', e);
-    // rollback optimistic update
-    if (group) {
-      await db.updateGroup(group);
-
-      // Rollback channel indices
-      for (const channel of sectionChannels) {
-        if (!channel.channelId) continue;
-        await db.updateNavSectionChannel({
-          channelId: channel.channelId,
-          groupNavSectionId: navSectionId,
-          channelIndex: channel.channelIndex ?? 0,
-        });
-      }
-    }
-  }
-}
-
 function buildChannelToSectionMap(
   navSections: db.GroupNavSection[]
 ): Map<string, string> {
@@ -984,7 +677,7 @@ function buildChannelToSectionMap(
 
 async function updateSectionsAndChannels(
   navSections: db.GroupNavSection[],
-  ctx: any
+  ctx: QueryCtx
 ) {
   for (const section of navSections) {
     await db.updateNavSection(
@@ -1039,10 +732,7 @@ export async function updateGroupNavigationBatch({
       }
     }
 
-    await db.updateGroup(
-      { id: group.id, navSections: group.navSections },
-      ctx
-    );
+    await db.updateGroup({ id: group.id, navSections: group.navSections }, ctx);
 
     for (const section of group.navSections ?? []) {
       await db.updateNavSection(
@@ -1087,8 +777,12 @@ export async function updateGroupNavigationBatch({
       groupId: group.id,
       navSections: group.navSections ?? [],
     });
+    logger.trackEvent(AnalyticsEvent.ActionUpdatedGroupNavigation, {
+      groupId: group.id,
+      sectionCount: group.navSections?.length ?? 0,
+    });
   } catch (e) {
-    logger.error('Failed to update group navigation in batch', e);
+    logger.trackError('Failed to update group navigation in batch', e);
     await batchEffects('updateGroupNavigationBatch-rollback', async (ctx) => {
       for (const [channelId, oldSectionId] of oldChannelToSection) {
         const newSectionId = newChannelToSection.get(channelId);
@@ -1097,9 +791,8 @@ export async function updateGroupNavigationBatch({
             (s) => s.id === oldSectionId
           );
           const channelIndex =
-            oldSection?.channels?.findIndex(
-              (c) => c.channelId === channelId
-            ) ?? 0;
+            oldSection?.channels?.findIndex((c) => c.channelId === channelId) ??
+            0;
           await db.addChannelToNavSection(
             { channelId, groupNavSectionId: oldSectionId, index: channelIndex },
             ctx
@@ -1153,8 +846,11 @@ export async function updateNavSection({
       groupId: group.id,
       navSection,
     });
+    logger.trackEvent(AnalyticsEvent.ActionUpdatedNavSection, {
+      groupId: group.id,
+    });
   } catch (e) {
-    logger.error('Failed to update nav section', e);
+    logger.trackError('Failed to update nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -1193,8 +889,11 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
       groupId: group.id,
       sectionId: existingNavSection.sectionId,
     });
+    logger.trackEvent(AnalyticsEvent.ActionDeletedNavSection, {
+      groupId: group.id,
+    });
   } catch (e) {
-    logger.error('Failed to delete nav section', e);
+    logger.trackError('Failed to delete nav section', e);
     // rollback optimistic update
     await db.updateGroup({
       id: group.id,

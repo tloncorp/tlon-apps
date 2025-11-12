@@ -582,27 +582,6 @@ export const updateNavSection = async ({
   );
 };
 
-export const moveNavSection = async ({
-  groupId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  navSectionId: string;
-  index: number;
-}) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          mov: index,
-        },
-      },
-    })
-  );
-};
-
 export const addChannelToNavSection = async ({
   groupId,
   navSectionId,
@@ -700,32 +679,6 @@ export const deleteChannel = async ({
         nest: channelId,
         diff: {
           del: null,
-        },
-      },
-    })
-  );
-};
-
-export const moveChannel = async ({
-  groupId,
-  channelId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index: number;
-}) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          'mov-nest': {
-            nest: channelId,
-            idx: index,
-          },
         },
       },
     })
@@ -970,22 +923,6 @@ export type GroupNavSectionEdit = {
   clientMeta: db.ClientMeta;
 };
 
-export type GroupNavSectionMove = {
-  type: 'moveNavSection';
-  navSectionId: string;
-  sectionId: string;
-  index: number;
-};
-
-export type GroupnavSectionMoveChannel = {
-  type: 'moveChannel';
-  navSectionId: string;
-  sectionId: string;
-  groupId: string;
-  channelId: string;
-  index: number;
-};
-
 export type GroupAddMembers = {
   type: 'addGroupMembers';
   ships: string[];
@@ -1130,8 +1067,6 @@ export type GroupUpdate =
   | GroupNavSectionDelete
   | GroupNavSectionEdit
   | GroupNavSectionAdd
-  | GroupNavSectionMove
-  | GroupnavSectionMoveChannel
   | GroupAddMembers
   | GroupRemoveMembers
   | GroupAddMembersToRole
@@ -1395,26 +1330,6 @@ export const toGroupUpdate = (
         navSectionId,
         sectionId,
         clientMeta: toClientMeta(zoneDelta.edit),
-      };
-    }
-
-    if ('mov' in zoneDelta) {
-      return {
-        type: 'moveNavSection',
-        navSectionId,
-        sectionId,
-        index: zoneDelta.mov,
-      };
-    }
-
-    if ('mov-nest' in zoneDelta) {
-      return {
-        type: 'moveChannel',
-        navSectionId,
-        sectionId,
-        groupId,
-        channelId: zoneDelta['mov-nest'].nest,
-        index: zoneDelta['mov-nest'].idx,
       };
     }
   }
