@@ -8,6 +8,7 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   BlockData,
   BlockFromType,
@@ -79,6 +80,7 @@ export function GalleryPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
@@ -89,6 +91,15 @@ export function GalleryPost({
     () => JSONValue.asString(contentRendererConfiguration?.contentSize, '$s'),
     [contentRendererConfiguration]
   ) as '$s' | '$l';
+
+  // Check if the author is blocked
+  const { data: blockedContacts } = store.useBlockedContacts();
+  const isAuthorBlocked = useMemo(() => {
+    if (!blockedContacts || !post.authorId) {
+      return false;
+    }
+    return blockedContacts.some((contact) => contact.id === post.authorId);
+  }, [blockedContacts, post.authorId]);
 
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
@@ -134,6 +145,18 @@ export function GalleryPost({
 
   if (post.isDeleted) {
     return null;
+  }
+
+  if (isAuthorBlocked && !showBlockedMessage) {
+    return (
+      <Pressable flex={1} testID="Post">
+        <GalleryPostFrame>
+          <BlockedGalleryPlaceholder
+            onShowAnyway={() => setShowBlockedMessage(true)}
+          />
+        </GalleryPostFrame>
+      </Pressable>
+    );
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame
@@ -737,5 +760,39 @@ function firstBlockIsPreviewable(content: BlockData[]): boolean {
     (content[0].type === 'image' ||
       content[0].type === 'video' ||
       content[0].type === 'reference')
+  );
+}
+
+function BlockedGalleryPlaceholder({
+  onShowAnyway,
+}: {
+  onShowAnyway: () => void;
+}) {
+  return (
+    <View
+      flex={1}
+      justifyContent="center"
+      alignItems="center"
+      padding="$xl"
+      gap="$s"
+      minHeight={200}
+    >
+      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+      <Text size="$label/m" color="$tertiaryText" textAlign="center">
+        Post from a blocked user.
+      </Text>
+      <Button
+        onPress={onShowAnyway}
+        size="$s"
+        backgroundColor="transparent"
+        borderWidth={0}
+        padding="$xs"
+        testID="ShowBlockedPostButton"
+      >
+        <Text size="$label/m" color="$primaryActionText">
+          Show anyway
+        </Text>
+      </Button>
+    </View>
   );
 }

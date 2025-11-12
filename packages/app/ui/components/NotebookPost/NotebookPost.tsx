@@ -1,5 +1,6 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import {
   ComponentProps,
@@ -55,6 +56,7 @@ export function NotebookPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -62,6 +64,15 @@ export function NotebookPost({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  // Check if the author is blocked
+  const { data: blockedContacts } = store.useBlockedContacts();
+  const isAuthorBlocked = useMemo(() => {
+    if (!blockedContacts || !post.authorId) {
+      return false;
+    }
+    return blockedContacts.some((contact) => contact.id === post.authorId);
+  }, [blockedContacts, post.authorId]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -114,6 +125,14 @@ export function NotebookPost({
 
   if (!post || post.isDeleted) {
     return null;
+  }
+
+  if (isAuthorBlocked && !showBlockedMessage) {
+    return (
+      <BlockedNotebookPlaceholder
+        onShowAnyway={() => setShowBlockedMessage(true)}
+      />
+    );
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
@@ -397,3 +416,30 @@ export const NotebookPostTitle = styled(Text, {
     },
   } as const,
 });
+
+function BlockedNotebookPlaceholder({
+  onShowAnyway,
+}: {
+  onShowAnyway: () => void;
+}) {
+  return (
+    <XStack gap="$s" padding="$xl" justifyContent="center" alignItems="center">
+      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
+      <Text size="$label/m" color="$tertiaryText">
+        Post from a blocked user.
+      </Text>
+      <Button
+        onPress={onShowAnyway}
+        size="$s"
+        backgroundColor="transparent"
+        borderWidth={0}
+        padding="$xs"
+        testID="ShowBlockedPostButton"
+      >
+        <Text size="$label/m" color="$primaryActionText">
+          Show anyway
+        </Text>
+      </Button>
+    </XStack>
+  );
+}
