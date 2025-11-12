@@ -11,12 +11,6 @@ import { useStore } from '../contexts';
 
 const logger = createDevLogger('SystemNotices', false);
 
-const SystemNotices = {
-  ContactBookPrompt,
-  NotificationsPrompt,
-  JoinRequestNotice,
-};
-
 const NoticeFrame = styled(YStack, {
   backgroundColor: '$systemNoticeBackground',
   padding: '$2xl',
@@ -35,6 +29,15 @@ const NoticeTitle = styled(Text, {
   size: '$label/xl',
   fontWeight: '600',
 });
+
+const SystemNotices = {
+  ContactBookPrompt,
+  NotificationsPrompt,
+  JoinRequestNotice,
+  NoticeFrame,
+  NoticeBody,
+  NoticeTitle,
+};
 
 export default SystemNotices;
 
