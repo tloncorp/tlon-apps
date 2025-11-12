@@ -1,11 +1,11 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -62,7 +62,6 @@ const ChatMessage = ({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -71,14 +70,8 @@ const ChatMessage = ({
     [channel, canWrite]
   );
 
-  // Check if the author is blocked
-  const { data: blockedContacts } = store.useBlockedContacts();
-  const isAuthorBlocked = useMemo(() => {
-    if (!blockedContacts || !post.authorId) {
-      return false;
-    }
-    return blockedContacts.some((contact) => contact.id === post.authorId);
-  }, [blockedContacts, post.authorId]);
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const isNotice = post.type === 'notice';
 
@@ -183,11 +176,11 @@ const ChatMessage = ({
         message="Message hidden or flagged"
       />
     );
-  } else if (isAuthorBlocked && !showBlockedMessage) {
+  } else if (isAuthorBlocked && !showBlockedContent) {
     return (
       <BlockedMessagePlaceholder
         testID="MessageBlocked"
-        onShowAnyway={() => setShowBlockedMessage(true)}
+        onShowAnyway={handleShowAnyway}
       />
     );
   }

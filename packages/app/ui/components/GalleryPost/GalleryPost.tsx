@@ -8,7 +8,6 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import {
   BlockData,
   BlockFromType,
@@ -27,6 +26,7 @@ import {
 } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import {
   useChannelContext,
@@ -80,7 +80,6 @@ export function GalleryPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
@@ -92,14 +91,8 @@ export function GalleryPost({
     [contentRendererConfiguration]
   ) as '$s' | '$l';
 
-  // Check if the author is blocked
-  const { data: blockedContacts } = store.useBlockedContacts();
-  const isAuthorBlocked = useMemo(() => {
-    if (!blockedContacts || !post.authorId) {
-      return false;
-    }
-    return blockedContacts.some((contact) => contact.id === post.authorId);
-  }, [blockedContacts, post.authorId]);
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
@@ -134,10 +127,13 @@ export function GalleryPost({
     setIsHovered(false);
   }, []);
 
-  const handleOverflowPress = useCallback((e: any) => {
-    // Stop propagation to prevent parent onPress from firing
-    e.stopPropagation();
-  }, []);
+  const handleOverflowPress = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      // Stop propagation to prevent parent onPress from firing
+      e.stopPropagation();
+    },
+    []
+  );
 
   const handleEditPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -147,13 +143,11 @@ export function GalleryPost({
     return null;
   }
 
-  if (isAuthorBlocked && !showBlockedMessage) {
+  if (isAuthorBlocked && !showBlockedContent) {
     return (
       <Pressable flex={1} testID="Post">
         <GalleryPostFrame>
-          <BlockedGalleryPlaceholder
-            onShowAnyway={() => setShowBlockedMessage(true)}
-          />
+          <BlockedGalleryPlaceholder onShowAnyway={handleShowAnyway} />
         </GalleryPostFrame>
       </Pressable>
     );

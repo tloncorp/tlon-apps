@@ -1,6 +1,5 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import {
   ComponentProps,
@@ -18,6 +17,7 @@ import {
   styled,
 } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -56,7 +56,6 @@ export function NotebookPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [showBlockedMessage, setShowBlockedMessage] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -65,14 +64,8 @@ export function NotebookPost({
     [channel, canWrite]
   );
 
-  // Check if the author is blocked
-  const { data: blockedContacts } = store.useBlockedContacts();
-  const isAuthorBlocked = useMemo(() => {
-    if (!blockedContacts || !post.authorId) {
-      return false;
-    }
-    return blockedContacts.some((contact) => contact.id === post.authorId);
-  }, [blockedContacts, post.authorId]);
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -118,21 +111,20 @@ export function NotebookPost({
     setIsHovered(false);
   }, []);
 
-  const handleOverflowPress = useCallback((e: any) => {
-    // Stop propagation to prevent parent onPress from firing
-    e.stopPropagation();
-  }, []);
+  const handleOverflowPress = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      // Stop propagation to prevent parent onPress from firing
+      e.stopPropagation();
+    },
+    []
+  );
 
   if (!post || post.isDeleted) {
     return null;
   }
 
-  if (isAuthorBlocked && !showBlockedMessage) {
-    return (
-      <BlockedNotebookPlaceholder
-        onShowAnyway={() => setShowBlockedMessage(true)}
-      />
-    );
+  if (isAuthorBlocked && !showBlockedContent) {
+    return <BlockedNotebookPlaceholder onShowAnyway={handleShowAnyway} />;
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
