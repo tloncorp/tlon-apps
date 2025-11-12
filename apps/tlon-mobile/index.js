@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PlatformState from '@tloncorp/app';
+import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
 import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
-import { addCustomEnabledLoggers } from '@tloncorp/shared';
-import { useDebugStore } from '@tloncorp/shared';
+import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
@@ -37,7 +37,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-function Main(props) {
+function MainInner(props) {
   const [isDbReady, setIsDbReady] = useState(false);
   useEffect(() => {
     async function checkDb() {
@@ -60,6 +60,14 @@ function Main(props) {
     <TailwindProvider utilities={utilities}>
       {isDbReady ? <App {...props} /> : null}
     </TailwindProvider>
+  );
+}
+
+function Main(props) {
+  return (
+    <RootErrorBoundary>
+      <MainInner {...props} />
+    </RootErrorBoundary>
   );
 }
 
