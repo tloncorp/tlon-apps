@@ -29,6 +29,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const IMAGE_HEIGHT = 268;
@@ -124,7 +125,14 @@ export function NotebookPost({
   }
 
   if (isAuthorBlocked && !showBlockedContent) {
-    return <BlockedNotebookPlaceholder onShowAnyway={handleShowAnyway} />;
+    return (
+      <PostErrorMessage
+        message="Post from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedPostButton"
+      />
+    );
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
@@ -143,16 +151,7 @@ export function NotebookPost({
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
-          <XStack
-            gap="$s"
-            paddingVertical="$xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text color="$tertiaryText" size="$body">
-              You have hidden or reported this post.
-            </Text>
-          </XStack>
+          <PostErrorMessage message="You have hidden or reported this post." />
         ) : (
           <>
             <NotebookPostHeader
@@ -408,30 +407,3 @@ export const NotebookPostTitle = styled(Text, {
     },
   } as const,
 });
-
-function BlockedNotebookPlaceholder({
-  onShowAnyway,
-}: {
-  onShowAnyway: () => void;
-}) {
-  return (
-    <XStack gap="$s" padding="$xl" justifyContent="center" alignItems="center">
-      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-      <Text size="$label/m" color="$tertiaryText">
-        Post from a blocked user.
-      </Text>
-      <Button
-        onPress={onShowAnyway}
-        size="$s"
-        backgroundColor="transparent"
-        borderWidth={0}
-        padding="$xs"
-        testID="ShowBlockedPostButton"
-      >
-        <Text size="$label/m" color="$primaryActionText">
-          Show anyway
-        </Text>
-      </Button>
-    </XStack>
-  );
-}

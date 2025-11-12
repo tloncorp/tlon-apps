@@ -43,6 +43,7 @@ import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -145,11 +146,12 @@ export function GalleryPost({
 
   if (isAuthorBlocked && !showBlockedContent) {
     return (
-      <Pressable flex={1} testID="Post">
-        <GalleryPostFrame>
-          <BlockedGalleryPlaceholder onShowAnyway={handleShowAnyway} />
-        </GalleryPostFrame>
-      </Pressable>
+      <PostErrorMessage
+        message="Post from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedPostButton"
+      />
     );
   }
 
@@ -754,39 +756,5 @@ function firstBlockIsPreviewable(content: BlockData[]): boolean {
     (content[0].type === 'image' ||
       content[0].type === 'video' ||
       content[0].type === 'reference')
-  );
-}
-
-function BlockedGalleryPlaceholder({
-  onShowAnyway,
-}: {
-  onShowAnyway: () => void;
-}) {
-  return (
-    <View
-      flex={1}
-      justifyContent="center"
-      alignItems="center"
-      padding="$xl"
-      gap="$s"
-      minHeight={200}
-    >
-      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-      <Text size="$label/m" color="$tertiaryText" textAlign="center">
-        Post from a blocked user.
-      </Text>
-      <Button
-        onPress={onShowAnyway}
-        size="$s"
-        backgroundColor="transparent"
-        borderWidth={0}
-        padding="$xs"
-        testID="ShowBlockedPostButton"
-      >
-        <Text size="$label/m" color="$primaryActionText">
-          Show anyway
-        </Text>
-      </Button>
-    </View>
   );
 }
