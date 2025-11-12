@@ -388,6 +388,7 @@ export function ManageChannelsProvider({
               contentContainerStyle={{
                 alignItems: 'center',
                 paddingBottom: bottom,
+                minHeight: '100%',
               }}
             >
               {children}

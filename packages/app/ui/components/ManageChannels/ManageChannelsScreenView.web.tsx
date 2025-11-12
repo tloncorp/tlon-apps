@@ -266,7 +266,7 @@ function ManageChannelsContent({
         items={draggableIds}
         strategy={verticalListSortingStrategy}
       >
-        <YStack width="100%" overflow="hidden" gap="$xs">
+        <YStack width="100%" flex={1} overflow="hidden" gap="$xs">
           {localItems.map((item) => {
             if (item.type === 'section-header') {
               return (
