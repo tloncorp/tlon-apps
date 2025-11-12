@@ -239,7 +239,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await page.waitForTimeout(1000);
 }
 
-export async function acceptGroupInvite(page: Page, groupName?: string) {
+export async function acceptGroupInvite(page: Page, _groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
@@ -1859,5 +1859,125 @@ export async function clearContactNickname(
 
     // Navigate back home
     await page.getByTestId('HomeNavIcon').click();
+  }
+}
+
+/**
+ * Blocks a user (automatically adds as contact first if needed)
+ * @param page - The page instance
+ * @param contactId - The ship ID to block (e.g., "~ten")
+ */
+export async function blockUser(page: Page, contactId: string) {
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Check if user is already a contact
+  const contactElement = page.locator(
+    `[aria-label="ContactListItem-${contactId}"]`
+  );
+  const isContact = await contactElement
+    .isVisible({ timeout: 2000 })
+    .catch(() => false);
+
+  if (!isContact) {
+    // Add user as a contact first
+    await page.getByTestId('ContactsAddButton').click();
+    await expect(page.getByText('Add Contacts')).toBeVisible({ timeout: 5000 });
+
+    // Search for the user
+    await page.getByPlaceholder('Filter by nickname, @p').fill(contactId);
+    await page.waitForTimeout(1000);
+
+    // Select the user from search results
+    await page.getByTestId('ContactRow').getByText(contactId).click();
+
+    // Add the contact
+    await page.getByText('Add 1 contact').click();
+    await page.waitForTimeout(2000);
+
+    // Navigate back to Contacts
+    await page.getByTestId('AvatarNavIcon').click();
+    await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+  }
+
+  // Click on the contact
+  await expect(contactElement).toBeVisible({ timeout: 5000 });
+  await contactElement.click();
+
+  // Wait for Profile to load
+  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+  // Click the "Block" button (directly visible on profile page)
+  await page.getByText('Block').click();
+
+  // Wait for block action to complete - button should change to "Unblock"
+  await expect(page.getByText('Unblock')).toBeVisible({ timeout: 5000 });
+
+  // Navigate back home
+  await page.getByTestId('HomeNavIcon').click();
+}
+
+/**
+ * Unblocks a user
+ * @param page - The page instance
+ * @param contactId - The ship ID to unblock (e.g., "~ten")
+ */
+export async function unblockUser(page: Page, contactId: string) {
+  try {
+    // Navigate to Contacts/Settings area
+    await page.getByTestId('AvatarNavIcon').click();
+
+    // Wait for navigation to complete
+    await page.waitForTimeout(1000);
+
+    // Check if we can see Settings - if not, we might already be in a different view
+    const settingsButton = page.getByText('Settings');
+    if (!(await settingsButton.isVisible({ timeout: 2000 }).catch(() => false))) {
+      // Try clicking AvatarNavIcon again in case we need to open the menu
+      await page.getByTestId('AvatarNavIcon').click();
+      await page.waitForTimeout(500);
+    }
+
+    // Verify Settings is visible, if not, skip unblocking (user might not be blocked)
+    if (!(await settingsButton.isVisible({ timeout: 2000 }).catch(() => false))) {
+      // Navigate back home and exit gracefully
+      await page.getByTestId('HomeNavIcon').click();
+      return;
+    }
+
+    // Click on Settings
+    await settingsButton.click();
+    await expect(page.getByText('App Settings')).toBeVisible({ timeout: 5000 });
+
+    // Click on "Blocked users"
+    await page.getByText('Blocked users').click();
+    await expect(page.getByText('Blocked users')).toBeVisible({ timeout: 5000 });
+
+    // Find and click on the blocked user
+    const blockedUserElement = page
+      .locator(`[aria-label="ContactListItem-${contactId}"]`)
+      .first();
+
+    if (await blockedUserElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await blockedUserElement.click();
+
+      // Confirm unblocking in dialog
+      await page.waitForTimeout(500);
+      await page.getByText('Unblock').click();
+
+      // Wait for unblock action to complete
+      await page.waitForTimeout(1000);
+    }
+
+    // Navigate back home
+    await page.getByTestId('HomeNavIcon').click();
+  } catch (error) {
+    // Silently fail and navigate home - user might not be blocked
+    try {
+      await page.getByTestId('HomeNavIcon').click();
+    } catch {
+      // Ignore if already at home
+    }
   }
 }
