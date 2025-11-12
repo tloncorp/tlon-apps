@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5d1914a4-563c-4a8d-b66b-5a6cdab85c4f",
+  "id": "38e7de70-1410-4670-88be-8a6c4bca67f0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -361,6 +361,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "notif_timestamp": {
+          "name": "notif_timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },

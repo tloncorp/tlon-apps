@@ -117,6 +117,7 @@ import {
   ThreadUnreadState,
   VolumeSettings,
 } from './types';
+import { ObservableField, notifyWriteObservers } from './writeObservers';
 
 const logger = createDevLogger('queries', false);
 
@@ -3108,6 +3109,9 @@ export const insertChanges = createWriteQuery(
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
         await insertThreadUnreads(input.unreads.threadActivity, ctx);
+        if (input.unreads.baseUnread) {
+          await insertBaseUnread(input.unreads.baseUnread, ctx);
+        }
       });
     } catch (e) {
       logger.trackError('failed to insert changes', {
@@ -4186,10 +4190,17 @@ export const insertBaseUnread = createWriteQuery(
   'insertBaseUnread',
   async (unread: BaseUnread, ctx: QueryCtx) => {
     logger.log('insertBaseUnread', unread);
-    return ctx.db.insert($baseUnreads).values([unread]).onConflictDoUpdate({
-      target: $baseUnreads.id,
-      set: unread,
-    });
+    const result = await ctx.db
+      .insert($baseUnreads)
+      .values([unread])
+      .onConflictDoUpdate({
+        target: $baseUnreads.id,
+        set: unread,
+      });
+
+    notifyWriteObservers(ObservableField.BaseUnread, unread);
+
+    return result;
   },
   ['baseUnreads']
 );

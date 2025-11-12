@@ -51,7 +51,8 @@ CREATE TABLE `base_unreads` (
 	`notify` integer,
 	`count` integer,
 	`notify_count` integer,
-	`updated_at` integer NOT NULL
+	`updated_at` integer NOT NULL,
+	`notif_timestamp` text
 );
 --> statement-breakpoint
 CREATE TABLE `channel_readers` (

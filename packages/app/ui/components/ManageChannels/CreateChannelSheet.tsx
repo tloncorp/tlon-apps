@@ -30,6 +30,8 @@ import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
 import { ListItem } from '../ListItem';
 import {
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
   PermissionTable,
   PrivateChannelToggle,
   RoleChip,
@@ -119,16 +121,33 @@ export function CreateChannelSheet({
 
   const handlePressSave = useCallback(
     async (data: CreateChannelFormSchema) => {
-      const readers = data.isPrivate ? data.readers : [];
-      const writers = data.isPrivate ? data.writers : [];
+      if (!data.isPrivate) {
+        createChannel({
+          groupId: group.id,
+          title: data.title,
+          channelType: data.channelType,
+          readers: [],
+          writers: [],
+        });
+      } else {
+        // If MEMBERS_MARKER is present, send empty array (everyone including admin has access)
+        // Otherwise, send the role IDs (admin should already be included in the arrays)
+        const readers = data.readers.includes(MEMBERS_MARKER)
+          ? []
+          : data.readers.filter((r) => r !== MEMBERS_MARKER);
 
-      createChannel({
-        groupId: group.id,
-        title: data.title,
-        channelType: data.channelType,
-        readers,
-        writers,
-      });
+        const writers = data.writers.includes(MEMBERS_MARKER)
+          ? []
+          : data.writers.filter((w) => w !== MEMBERS_MARKER);
+
+        createChannel({
+          groupId: group.id,
+          title: data.title,
+          channelType: data.channelType,
+          readers,
+          writers,
+        });
+      }
       onOpenChange(false);
     },
     [group.id, onOpenChange]
@@ -240,6 +259,7 @@ function PrivateChannelPermissionsView({
   const handleRemoveRole = useCallback(
     (roleId: string) => {
       if (roleId === 'admin') return;
+      const writers = watch('writers');
       setValue(
         'readers',
         readers.filter((r) => r !== roleId),
@@ -247,21 +267,34 @@ function PrivateChannelPermissionsView({
           shouldDirty: true,
         }
       );
+      // If removing Members, also remove from writers
+      if (roleId === MEMBERS_MARKER) {
+        setValue(
+          'writers',
+          writers.filter((w) => w !== roleId),
+          {
+            shouldDirty: true,
+          }
+        );
+      }
     },
-    [readers, setValue]
+    [readers, setValue, watch]
   );
 
-  const displayedRoles = useMemo(
-    () =>
-      allRoles
-        .filter((role) => readers.includes(role.value))
-        .map((role) => ({ label: role.label, value: role.value })),
-    [readers, allRoles]
-  );
+  const displayedRoles = useMemo(() => {
+    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
+    return rolesWithMembers
+      .filter((role) => readers.includes(role.value))
+      .filter((role) => role.value !== 'admin')
+      .map((role) => ({ label: role.label, value: role.value }));
+  }, [readers, allRoles]);
 
   const handleSaveRoles = useCallback(
     (roleIds: string[]) => {
-      setValue('readers', roleIds, { shouldDirty: true });
+      const readersWithAdmin = roleIds.includes('admin')
+        ? roleIds
+        : ['admin', ...roleIds];
+      setValue('readers', readersWithAdmin, { shouldDirty: true });
     },
     [setValue]
   );
