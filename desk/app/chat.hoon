@@ -2514,9 +2514,10 @@
              ==
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
+    =.  cor  (emit (initiate:neg [ship dap.bowl]))
     ::  TODO hook into archive
     ?.  ok
-      ::  When declining/leaving a DM, send updated invite list to subscribers
+      ::  when declining/leaving a DM, send updated invite list to subscribers
       =.  cor
         =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
         give-invites
