@@ -1238,6 +1238,7 @@ export function toPostData(
     replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
+    blob: post.essay.blob ?? null,
     ...flags,
   };
 }
