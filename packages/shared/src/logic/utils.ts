@@ -1,4 +1,4 @@
-import { render } from '@urbit/aura';
+import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
@@ -31,8 +31,91 @@ export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
+// Characters that look like tilde (~) and could be confusing
+export const SIG_LIKES = [
+  '\u007E', // ~ (tilde)
+  '\u02DC', // ˜ (small tilde)
+  '\u223C', // ∼ (tilde operator)
+  '\u301C', // 〜 (wave dash)
+  '\uFF5E', // ～ (fullwidth tilde)
+  '\u2053', // ⁓ (swung dash)
+  '\u2241', // ≁ (not tilde)
+];
+
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
+}
+
+export type NicknameValidationErrorType =
+  | 'confusable_characters'
+  | 'invalid_patp'
+  | 'wrong_user_id';
+
+export type NicknameValidationResult =
+  | { isValid: true }
+  | {
+      isValid: false;
+      errorType: NicknameValidationErrorType;
+    };
+
+/**
+ * Validates a nickname against several rules:
+ * - Cannot contain characters that look like ~ (confusable characters)
+ * - If it contains ~, it must be a valid patp
+ * - If it contains a patp, it must be the current user's ID
+ *
+ * Uses Unicode normalization (NFKC) to handle confusable characters before validation.
+ *
+ * @param nickname The nickname to validate
+ * @param currentUserId The current user's ID (patp)
+ * @returns A validation result object with isValid flag and optional errorType
+ */
+export function validateNickname(
+  nickname: string,
+  currentUserId: string
+): NicknameValidationResult {
+  if (!nickname || nickname.length === 0) {
+    return { isValid: true };
+  }
+
+  // Normalize unicode characters to handle confusables
+  const normalizedNickname = nickname.normalize('NFKC');
+
+  // Check for confusable characters (characters that look like ~)
+  for (let i = 0; i < normalizedNickname.length; i++) {
+    const char = normalizedNickname[i];
+    const isConfusable = SIG_LIKES.some((sig: string) => sig === char);
+
+    if (isConfusable && char !== '~') {
+      return {
+        isValid: false,
+        errorType: 'confusable_characters',
+      };
+    }
+  }
+
+  // Check for patps in the nickname (use normalized version)
+  if (normalizedNickname.includes('~')) {
+    const matches = normalizedNickname.match(new RegExp(PATP_REGEX, 'gi'));
+    if (matches) {
+      for (const match of matches) {
+        if (!valid('p', match)) {
+          return {
+            isValid: false,
+            errorType: 'invalid_patp',
+          };
+        }
+        if (match !== currentUserId) {
+          return {
+            isValid: false,
+            errorType: 'wrong_user_id',
+          };
+        }
+      }
+    }
+  }
+
+  return { isValid: true };
 }
 
 export async function asyncWithDefault<T>(

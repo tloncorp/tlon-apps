@@ -1,12 +1,12 @@
 /-  c=chat, cv=chat-ver, d=channels, g=groups
-/-  u=ui, e=epic, activity, s=story, meta
+/-  u=ui, e=epic, a=activity, s=story, meta
 /-  contacts-0
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
     em=emojimart
 /+  pac=dm
 /+  cc=chat-conv, chc=channel-conv
-/+  utils=channel-utils
+/+  utils=channel-utils, kol
 /+  volume
 /+  wood-lib=wood
 ::  performance, keep warm
@@ -60,7 +60,7 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
-            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)
+            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)  ::TODO  make strict
             ::  our previous mark version was actually incorrect so to
             ::  correct, we need to turn off checking here
             ::  TODO: flip back on next upgrade
@@ -202,7 +202,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %10
+    $:  %11
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -210,6 +210,7 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
+        last-updated=(list [=whom:c =time])  ::  newest first, one-per-whom
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
     ==
@@ -276,6 +277,7 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
+    ol    (kol gte)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -300,11 +302,16 @@
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
-  ?>  ?=(%10 -.old)
-  cor(state old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
+  =.  state  old
+  =.  cor
+    (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
+  rectify-club-state
   ::
   +$  versioned-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -426,7 +433,35 @@
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
     ==
-  +$  state-10  current-state
+  +$  state-10
+    $:  %10
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        pins=(list whom:c)
+        sends=(map whom:c (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
+        old-pins=(list whom:v2:cv)
+    ==
+  +$  state-11  current-state
+  ::
+  ++  state-10-to-11
+    |=  state-10
+    ^-  state-11
+    :*  %11
+        dms
+        clubs
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        last-updated=~
+        old-chats
+        old-pins
+    ==
   ::
   ++  state-9-to-10
     |=  state-9
@@ -1029,11 +1064,11 @@
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
+    di-abet:(di-agent:(di-abed-soft:di-core ship) rest.pole sign)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
+    cu-abet:(cu-agent:(cu-abed-hard:cu-core id) rest.pole sign)
   ==
 ++  give-kick
   |=  [pas=(list path) =cage]
@@ -1041,10 +1076,11 @@
   (give %kick ~ ~)
 ::
 ++  arvo
-  |=  [=wire sign=sign-arvo]
+  |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
-  ~&  arvo/wire
-  cor
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+    [%load %rectify-activity ~]  rectify-activity
+  ==
 ++  peek
   |=  =path
   ^-  (unit (unit cage))
@@ -1103,21 +1139,32 @@
   ::
       [%x %v3 %changes since=@ rest=*]
     =+  since=(slav %da i.t.t.t.path)
-    =/  changes=(map whom:c writs:c)
-      %-  ~(gas by *(map whom:c writs:c))
+    =/  changes=(map whom:c (unit writs:c))
+      %-  ~(gas by *(map whom:c (unit writs:c)))
       %+  weld
         %+  murn  ~(tap by dms)
         |=  [who=ship =dm:c]
-        ^-  (unit [whom:c writs:c])
+        ^-  (unit [whom:c (unit writs:c)])
         %+  bind
           (~(changes pac pact.dm) since)
-        (lead [%ship who])
+        (cork some (lead [%ship who]))
       %+  murn  ~(tap by clubs)
       |=  [=id:club:c =club:c]
-      ^-  (unit [whom:c writs:c])
+      ^-  (unit [whom:c (unit writs:c)])
       %+  bind
         (~(changes pac pact.club) since)
-      (lead [%club id])
+      (cork some (lead [%club id]))
+    =.  changes
+      %+  roll  (~(top ol last-updated) since)
+      |=  [[=whom:c @da] =_changes]
+      ?.  ?-  -.whom
+            %ship  (~(has by dms) p.whom)
+            %club  (~(has by clubs) p.whom)
+          ==
+        (~(put by changes) whom ~)  ::  include deletions
+      ?.  (~(has by changes) whom)
+        (~(put by changes) whom `~)  ::  include additions
+      changes
     ?+  t.t.t.t.path  [~ ~]
       ~  ``chat-changed-writs+!>(changes)
     ::
@@ -1126,8 +1173,9 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* w=writs:c] sum=@ud]
-      (add sum (wyt:on:writs:c w))
+      |=  [[* w=(unit writs:c)] sum=@ud]
+      ?~  w  sum
+      (add sum (wyt:on:writs:c u.w))
     ==
   ::
     ::  /init-posts:
@@ -1137,14 +1185,13 @@
       [%x %v3 %init-posts channels=@ context=@ ~]
     =+  channels=(slav %ud i.t.t.t.path)
     =+  context=(slav %ud i.t.t.t.t.path)
-    =*  a  activity
     =/  activity
       %-  ~(gas by *activity:a)
       .^  (list [source:a activity-summary:a])  %gx
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %chat-changed-writs
-    !>  %-  ~(gas by *(map whom:c writs:c))
+    !>  %-  ~(gas by *(map whom:c (unit writs:c)))
     =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
     %+  turn
       %+  scag  channels
@@ -1155,13 +1202,14 @@
         ?-(-.a %ship recency.remark.dm.a, %club recency.remark.club.a)
       ?-(-.b %ship recency.remark.dm.b, %club recency.remark.club.b)
     |=  arg=type
-    ^-  [whom:c writs:c]
+    ^-  [whom:c (unit writs:c)]
     =/  [=whom:c =pact:c]
       ?-  -.arg
         %ship  [[%ship who.arg] pact.dm.arg]
         %club  [[%club id.arg] pact.club.arg]
       ==
     :-  whom
+    %-  some
     %+  gas:on:writs:c  ~
     =/  around=(unit time)
       ?~  act=(~(get by activity) %dm whom)  ~
@@ -1262,7 +1310,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  activity
+  =,  a
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1294,8 +1342,8 @@
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:activity  [%dm-thread top.concern whom]
-    =/  =incoming-event:activity
+    =/  =source:a  [%dm-thread top.concern whom]
+    =/  =incoming-event:a
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)
@@ -1694,17 +1742,26 @@
       log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
+    =?  last-updated  |(gone !(~(has by clubs) id))
+      (~(put ol last-updated) [%club id] now.bowl)
     ::  shouldn't need cleaning, but just in case
     =.  cu-core  cu-clean
-    =.  clubs
-      ?:  gone
-        (~(del by clubs) id)
-      (~(put by clubs) id club)
-    cor
+    ?.  gone
+      =.  clubs  (~(put by clubs) id club)
+      cor
+    =.  clubs  (~(del by clubs) id)
+    ::  if we're leaving a DM we're in, make sure we delete the activity
+    =/  =action:a  [%del %dm %club id]
+    =/  =cage  activity-action+!>(action)
+    (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
     cu-core(id i, club (~(gut by clubs) i *club:c))
+  ++  cu-abed-hard
+    |=  i=id:club:c
+    ~|  no-club/i
+    cu-core(id i, club (~(got by clubs) i))
   ++  cu-clean
     =.  hive.crew.club
       %-  ~(rep in hive.crew.club)
@@ -1724,7 +1781,7 @@
     [uid cu-core(counter +(counter))]
   ::
   ++  cu-activity
-    =,  activity
+    =,  a
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key]
@@ -1850,6 +1907,7 @@
   ::
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
+    =.  last-updated  (~(put ol last-updated) [%club id] now.bowl)
     ::  generate a uid if we're hearing from a pre-upgrade ship or if we're sending
     =^  uid  cu-core
       ?:  |(from-self (lte uid club-eq))  cu-uid
@@ -1857,8 +1915,12 @@
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
-    =.  cor  (emil (gossip:cu-pass diff))
     =?  cu-core  !?=(%writ -.delta)  (cu-give-action [id diff])
+    :: we only gossip after processing the diff because we may have changed
+    :: the team, so we don't want to send gossip to people who have left
+    =;  nu-core
+      =.  cor  (emil (gossip:cu-pass diff))
+      nu-core
     ?-    -.delta
     ::
         %meta
@@ -1989,7 +2051,7 @@
       =/  loyal  (~(has in team.crew.club) ship)
       ?:  &(!ok.delta loyal)
         ?.  =(our src):bowl
-          cu-core
+          cu-core(team.crew.club (~(del in team.crew.club) ship))
         cu-core(gone &)
       ?:  &(ok.delta loyal)  cu-core
       ?.  (~(has in hive.crew.club) ship)
@@ -2212,10 +2274,16 @@
       log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
-    =.  dms
-      ?:  gone  (~(del by dms) ship)
-      (~(put by dms) ship dm)
-    cor
+    =?  last-updated  |(gone !(~(has by dms) ship))
+      (~(put ol last-updated) [%ship ship] now.bowl)
+    ?.  gone
+      =.  dms  (~(put by dms) ship dm)
+      cor
+    =.  dms  (~(del by dms) ship)
+    ::  if we're leaving a DM we're in, make sure we delete the activity
+    =/  =action:a  [%del %dm %ship ship]
+    =/  =cage  activity-action+!>(action)
+    (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  di-abed
     |=  s=@p
     di-core(ship s, dm (~(got by dms) s))
@@ -2242,10 +2310,10 @@
   ++  di-activity
     |=  $:  $=  concern
             $%  [%invite ~]
-                [%post key=message-key:activity]
-                [%delete-post key=message-key:activity]
-                [%reply key=message-key:activity top=message-key:activity]
-                [%delete-reply key=message-key:activity top=message-key:activity]
+                [%post key=message-key:a]
+                [%delete-post key=message-key:a]
+                [%reply key=message-key:a top=message-key:a]
+                [%delete-reply key=message-key:a top=message-key:a]
             ==
             content=story:d
             mention=?
@@ -2317,6 +2385,7 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
     =?  net.dm  &(?=(%inviting net.dm) !from-self)  %done
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  contact-action+!>(`action-0:contacts-0`[%heed ~[ship]])
@@ -2439,7 +2508,10 @@
   ::
   ++  di-rsvp
     |=  ok=?
-    =?  cor  &(=(our src):bowl (can-poke:neg bowl [ship dap.bowl]))
+    =?  cor  ?&  =(our src):bowl
+                 !=(ship our.bowl)  ::  avoid self-proxy infinite loop
+                 (can-poke:neg bowl [ship dap.bowl])
+             ==
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
@@ -2449,7 +2521,8 @@
         =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
         give-invites
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
-      ?:  =(src.bowl ship)
+      ::  preserve the dm if this is a true remote negative rsvp
+      ?:  &(!=(ship our.bowl) =(src.bowl ship))
         di-core
       di-core(gone &)
     =.  cor
@@ -2664,4 +2737,40 @@
       (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
     --
   --
+::  a bug caused us to hear one last gossip about a club we left. this
+::  leaves us in a bad state where we have a club, but we're not in it.
+::  to fix we simply remove any invalid clubs
+::
+++  rectify-club-state
+  =;  clubs=(list [id:club:c club:c])
+    cor(clubs (malt clubs))
+  %+  skim
+    ~(tap by clubs)
+  |=  [=id:club:c =club:c]
+  (~(has in team.crew.club) our.bowl)
+++  rectify-activity
+  ?.  .^(? %gu (scry-path %activity /$))
+    cor
+  =+  .^(full-info:a %gx (scry-path %activity /v4/noun))
+  %-  emil
+  %+  roll
+    ~(tap by indices)
+  |=  [[=source:a *] caz=(list card)]
+  ?.  ?=(%dm -.source)
+    caz
+  ?:  ?=(%club -.whom.source)
+    =*  id  p.whom.source
+    ::  only remove activity if club is gone
+    ?:  (~(has by clubs) id)  caz
+    =/  =action:a  [%del %dm %club id]
+    =/  =cage  activity-action+!>(action)
+    :_  caz
+    [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  =*  ship  p.whom.source
+  ::  only remove activity if dm is gone
+  ?:  (~(has by dms) ship)  caz
+  =/  =action:a  [%del %dm %ship ship]
+  =/  =cage  activity-action+!>(action)
+  :_  caz
+  [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 --

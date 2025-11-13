@@ -158,14 +158,14 @@ function GroupRolesScreenView({
                 borderRadius="$2xl"
                 testID={`GroupRole-${role.title}`}
               >
-                <ActionSheet.MainContent>
+                <ActionSheet.ActionContent>
                   <ActionSheet.ActionTitle>
                     {role.title}
                   </ActionSheet.ActionTitle>
                   {role.description && (
                     <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                   )}
-                </ActionSheet.MainContent>
+                </ActionSheet.ActionContent>
               </ListItem>
             ) : (
               <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
@@ -176,14 +176,14 @@ function GroupRolesScreenView({
                   borderRadius="$2xl"
                   testID={`GroupRole-${role.title}`}
                 >
-                  <ActionSheet.MainContent>
+                  <ActionSheet.ActionContent>
                     <ActionSheet.ActionTitle>
                       {role.title}
                     </ActionSheet.ActionTitle>
                     {role.description && (
                       <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                     )}
-                  </ActionSheet.MainContent>
+                  </ActionSheet.ActionContent>
 
                   <ListItem.EndContent
                     flexDirection="row"
@@ -205,9 +205,9 @@ function GroupRolesScreenView({
               backgroundColor={'$background'}
               borderRadius="$2xl"
             >
-              <ActionSheet.MainContent>
+              <ActionSheet.ActionContent>
                 <ActionSheet.ActionTitle>Add role</ActionSheet.ActionTitle>
-              </ActionSheet.MainContent>
+              </ActionSheet.ActionContent>
               <ListItem.EndContent
                 flexDirection="row"
                 gap="$xl"

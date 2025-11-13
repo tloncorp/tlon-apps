@@ -29,10 +29,10 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as ub from '@tloncorp/shared/urbit';
 import {
   Inline,
   JSONContent,
-  Story,
   citeToPath,
   isInline,
   pathToCite,
@@ -298,11 +298,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
               resetAttachments(attachments);
 
-              const tiptapContent = tiptap.diaryMixedToJSON(
-                story?.filter(
-                  (c) => !('type' in c) && !('block' in c && 'image' in c.block)
-                ) as Story
-              );
+              // Filter story to only include Verses (not ContentReferences) for diaryMixedToJSON
+              const storyVerses = story
+                ? story.filter((item): item is ub.Verse => !('type' in item))
+                : [];
+              const tiptapContent =
+                storyVerses.length > 0
+                  ? tiptap.diaryMixedToJSON(storyVerses)
+                  : null;
               messageInputLogger.log(
                 'Setting content with edit post content',
                 tiptapContent
@@ -419,6 +422,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         !json.content[0].content
       ) {
         clearDraft(draftType);
+        return; // Don't store empty draft after clearing!
       }
 
       messageInputLogger.log('Storing draft', json);

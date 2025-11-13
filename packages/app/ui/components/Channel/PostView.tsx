@@ -83,7 +83,7 @@ export const PostView: RenderItemType = (props) => {
     <SpecificPostComponent
       contentRendererConfiguration={contentRendererConfiguration}
       {...props}
-      {...standardConfig}
+      {...(standardConfig ?? {})}
     />
   );
 };

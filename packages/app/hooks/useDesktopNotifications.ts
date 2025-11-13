@@ -66,17 +66,11 @@ export default function useDesktopNotifications(isClientReady: boolean) {
 
         if (!channel) return;
 
-        let title = channel.title
-          ? channel.title
-          : contact?.nickname
-            ? contact.nickname
-            : contactId || 'New message';
+        // Use nickname if available, otherwise use contactId
+        // This matches the logic in ContactNameV2
+        const contactName = contact?.nickname ?? contactId ?? 'Unknown';
 
-        const contactName = contact?.peerNickname
-          ? contact.peerNickname
-          : contact?.customNickname
-            ? contact.customNickname
-            : contactId;
+        let title = channel.title ? channel.title : contactName;
 
         if (activityEvent.groupId) {
           const group = await db.getGroup({ id: activityEvent.groupId });

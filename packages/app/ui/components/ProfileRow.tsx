@@ -3,6 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
+import { ContactName } from './ContactNameV2';
 
 export default function ProfileRow({
   contactId,
@@ -15,6 +16,7 @@ export default function ProfileRow({
   debugMessage?: string;
 }) {
   const color = dark ? '$primaryText' : '$white';
+  const hasNickname = contact?.nickname;
 
   return (
     <XStack
@@ -26,18 +28,18 @@ export default function ProfileRow({
     >
       <ContactAvatar size="$5xl" borderRadius={'$xl'} contactId={contactId} />
       <YStack flex={1} gap="$l" justifyContent="center">
-        {contact?.nickname ? (
+        {hasNickname ? (
           <>
             <Text color={color} size="$label/2xl">
-              {contact.nickname}
+              <ContactName contactId={contactId} mode="nickname" />
             </Text>
             <Text color={color} opacity={dark ? 0.5 : 0.7} size="$label/xl">
-              {contact.id}
+              <ContactName contactId={contactId} mode="contactId" expandLongIds />
             </Text>
           </>
         ) : (
           <Text color={color} size="$label/3xl">
-            {contactId}
+            <ContactName contactId={contactId} mode="contactId" expandLongIds />
           </Text>
         )}
       </YStack>

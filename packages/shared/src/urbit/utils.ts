@@ -307,7 +307,7 @@ export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
 }
 
 export function extractGroupPrivacy(
-  preview: ubg.GroupPreview | ubg.Group | null,
+  preview: ubg.GroupPreview | ubg.GroupPreviewV7 | ubg.Group | null,
   claim?: ubg.GroupClaim
 ): GroupPrivacy {
   if (!preview) {
@@ -321,6 +321,12 @@ export function extractGroupPrivacy(
     return 'private';
   }
 
+  // v7 preview has privacy field directly
+  if ('privacy' in preview) {
+    return preview.privacy;
+  }
+
+  // v6 and earlier preview has cordon and secret fields
   return preview.secret
     ? 'secret'
     : preview.cordon && 'shut' in preview.cordon

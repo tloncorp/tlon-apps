@@ -94,6 +94,7 @@ import {
   Channel,
   ChannelUnread,
   Chat,
+  ChatMember,
   ClientMeta,
   Contact,
   ContactAttestation,
@@ -931,6 +932,32 @@ export const getChats = createReadQuery(
   ]
 );
 
+export const insertMembers = createWriteQuery(
+  'insertMembers',
+  async (params: { members: ChatMember[] }, ctx: QueryCtx) => {
+    const batchSize = 200;
+    for (let i = 0; i < params.members.length; i += batchSize) {
+      const batch = params.members.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($chatMembers)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$chatMembers.chatId, $chatMembers.contactId],
+            set: conflictUpdateSetAll($chatMembers),
+          });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorDatabaseQuery, {
+          context: 'failed to insert chat members batch',
+          count: batch.length,
+        });
+      }
+    }
+  },
+  ['groups', 'chatMembers']
+);
+
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (
@@ -1100,13 +1127,7 @@ export const insertGroups = createWriteQuery(
         }
         if (group.members?.length) {
           logger.log('insertGroups: inserting members', group.members);
-          await txCtx.db
-            .insert($chatMembers)
-            .values(group.members)
-            .onConflictDoUpdate({
-              target: [$chatMembers.chatId, $chatMembers.contactId],
-              set: conflictUpdateSetAll($chatMembers),
-            });
+          await insertMembers({ members: group.members }, txCtx);
 
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
@@ -2144,10 +2165,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       await ctx.db
         .delete($chatMembers)
         .where(eq($chatMembers.chatId, channel.id));
-      await ctx.db
-        .insert($chatMembers)
-        .values(channel.members)
-        .onConflictDoNothing();
+      await insertMembers({ members: channel.members }, ctx);
     }
   }
   await setLastPosts(null, ctx);
@@ -2340,14 +2358,28 @@ export const addChannelToNavSection = createWriteQuery(
     ctx: QueryCtx
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
-    return ctx.db
-      .insert($groupNavSectionChannels)
-      .values({
-        channelId,
-        groupNavSectionId,
-        channelIndex: index,
-      })
-      .onConflictDoNothing();
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .update($groupNavSectionChannels)
+        .set({
+          channelIndex: sql`${$groupNavSectionChannels.channelIndex} + 1`,
+        })
+        .where(
+          and(
+            eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+            gte($groupNavSectionChannels.channelIndex, index)
+          )
+        );
+
+      return txCtx.db
+        .insert($groupNavSectionChannels)
+        .values({
+          channelId,
+          groupNavSectionId,
+          channelIndex: index,
+        })
+        .onConflictDoNothing();
+    });
   },
   ['groupNavSectionChannels', 'groups']
 );
@@ -3045,6 +3077,7 @@ export const insertChanges = createWriteQuery(
         await insertChannelPosts({ posts: input.posts }, txCtx);
         await insertGroups({ groups: input.groups }, txCtx);
         await insertContacts(input.contacts, txCtx);
+        await deleteChannels(input.deletedChannelIds, txCtx);
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
         await insertThreadUnreads(input.unreads.threadActivity, ctx);
@@ -4911,6 +4944,29 @@ function conflictUpdateSet(...columns: Column[]) {
     })
   );
 }
+
+export const getChannelPostsByTimeRange = createReadQuery(
+  'getChannelPostsByTimeRange',
+  async (
+    {
+      channelId,
+      startTime,
+      limit = 500,
+    }: { channelId: string; startTime: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        gte($posts.sentAt, startTime),
+        isNull($posts.deliveryStatus)
+      ),
+      orderBy: [asc($posts.sentAt)],
+      limit,
+    });
+  },
+  ['posts']
+);
 
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(

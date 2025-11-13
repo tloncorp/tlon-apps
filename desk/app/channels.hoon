@@ -12,7 +12,7 @@
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
-    sparse, imp=import-aid
+    sparse, kol, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber,
     em=emojimart, ccv=channel-conv
 ::  performance, keep warm
@@ -69,7 +69,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
+        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)  ::TODO  make strict
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
@@ -143,6 +143,7 @@
     :~  [/x/$/$/$/perm %channel-perm]
         [/x/$/$/$/posts %channel-posts]
         [/x/$/$/$/search %channel-scan]
+        [/x/$/$/$/search/bounded %channel-scam]
         [/x/$/init %noun]
         [/x/channels %channels]
         [/x/init %noun]
@@ -210,11 +211,12 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %15
+    $:  %16
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
         debounce=(jug nest:c @da)  ::  temporary bandaid
+        last-updated=(list [=nest:c =time])  ::  newest first, one-per-nest
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
@@ -283,6 +285,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  ol    (kol gte)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  plog  ~(. logs [our.bowl /logs])
@@ -354,7 +357,8 @@
   =.  cor  (emil caz-12)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
-  ?>  ?=(%15 -.old)
+  =?  old  ?=(%15 -.old)  (state-15-to-16 old)
+  ?>  ?=(%16 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -362,7 +366,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-15
+    $%  state-16
+        state-15
         state-14
         state-13
         state-12
@@ -379,7 +384,17 @@
         state-1
         state-0
     ==
-  +$  state-15  current-state
+  +$  state-16  current-state
+  +$  state-15
+    $:  %15
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+        debounce=(jug nest:c @da)
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-14  _%*(. *state-15 - %14)
   +$  state-13  _%*(. *state-14 - %13)
   +$  state-12  _%*(. *state-13 - %12)
@@ -449,6 +464,11 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-15-to-16
+    |=  state-15
+    ^-  state-16
+    [%16 v-channels voc hidden-posts debounce last-updated=~ pending-ref-edits subs pimp]
   ::
   ++  state-14-to-15
     |=  s=state-14
@@ -1189,12 +1209,12 @@
       %^  give  %fact
         ~[v2+path v3+suffix]
       ?~  got  cage.sign
-      channel-said-1+!>(u.got)
+      channel-said-1+!>((v8:said:v9:ccv u.got))
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(u.got)
+      channel-said-2+!>(`said:v9:c`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
@@ -1370,10 +1390,10 @@
       [%x %v5 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     =/  changes
-      %-  ~(gas by *(map nest:c v-posts:c))
+      %-  ~(gas by *(map nest:c (unit v-posts:c)))
       %+  murn  ~(tap by v-channels)
       |=  [=nest:c ch=v-channel:c]
-      ^-  (unit [nest:c v-posts:c])
+      ^-  (unit [nest:c (unit v-posts:c)])
       ?:  (gte since key:(fall (ram:updated-on:c last-updated.ch) [key=since ~]))
         ~
       ?~  posts.ch  ~
@@ -1384,18 +1404,26 @@
       %-  some
       :-  nest
       ::NOTE  slightly faster than +put-ing continuously
-      =-  (gas:on-v-posts:c ~ -)
+      =-  `(gas:on-v-posts:c ~ -)
       %+  roll  updated
       |=  [[@da changed=id-post:c] out=(list [id-post:c (may:c v-post:c)])]
       ?~  post=(get:on-v-posts:c posts.ch changed)
         out
       [[changed u.post] out]
+    =.  changes
+      %+  roll  (~(top ol last-updated) since)
+      |=  [[=nest:c @da] =_changes]
+      ?.  (~(has by v-channels) nest)
+        (~(put by changes) nest ~)  ::  include deletions
+      ?.  (~(has by changes) nest)
+        (~(put by changes) nest `~)  ::  include additions
+      changes
     ?+  rest.pole  [~ ~]
         ~
       :^  ~  ~
         %channel-changed-posts
-      !>  ^-  (map nest:c posts:c)
-      (~(run by changes) uv-posts-3:utils)
+      !>  ^-  (map nest:c (unit posts:c))
+      (~(run by changes) (curr bind uv-posts-3:utils))
     ::
         [%count ~]
       ::REVIEW  really necessary?
@@ -1403,8 +1431,9 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* p=v-posts:c] sum=@ud]
-      (add sum (wyt:on-v-posts:c p))
+      |=  [[* p=(unit v-posts:c)] sum=@ud]
+      ?~  p  sum
+      (add sum (wyt:on-v-posts:c u.p))
     ==
   ::
     ::  /init-posts:
@@ -1421,15 +1450,16 @@
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %channel-changed-posts
-    !>  %-  ~(gas by *(map nest:c posts:c))
+    !>  %-  ~(gas by *(map nest:c (unit posts:c)))
     %+  turn
       %+  scag  channels
       %+  sort  ~(tap by v-channels)
       |=  [[* a=v-channel:c] [* b=v-channel:c]]
       (gth recency.remark.a recency.remark.b)
     |=  [=nest:c chan=v-channel:c]
-    ^-  [_nest posts:c]
+    ^-  [_nest (unit posts:c)]
     :-  nest
+    %-  some
     %-  uv-posts-3:utils
     %+  gas:on-v-posts:c  ~
     =/  around=(unit id-post:c)
@@ -1596,6 +1626,8 @@
     |=  [=wire =dock]
     ca-core(cor (^unsubscribe wire dock))
   ++  ca-abet
+    =?  last-updated  |(gone !(~(has by v-channels) nest))
+      (~(put ol last-updated) nest now.bowl)
     %_    cor
         v-channels
       ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest channel))
@@ -1961,6 +1993,8 @@
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
+    =?  last-updated  ?=(%fact -.sign)
+      (~(put ol last-updated) nest now.bowl)
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
         ~
       ?>  ?=(%poke-ack -.sign)

@@ -117,10 +117,15 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Change channel permissions to use the role
   await page.getByTestId('GroupChannels').click();
-  await expect(page.getByText('Manage channels')).toBeVisible();
 
-  // Edit the first channel (General)
-  await page.getByTestId('EditChannelButton').first().click();
+  // Verify we're on the Channels screen by checking for the Sort and New buttons
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible();
+  await expect(page.getByText('New', { exact: true })).toBeVisible();
+
+  // Edit the first channel (General) - find it by name using regex
+  const generalChannel = page.getByTestId(/^ChannelItem-General-/);
+  await expect(generalChannel).toBeVisible({ timeout: 5000 });
+  await generalChannel.getByTestId('EditChannelButton').first().click();
   await expect(page.getByText('Channel settings')).toBeVisible();
 
   // Set channel permissions

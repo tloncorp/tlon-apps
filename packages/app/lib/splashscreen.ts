@@ -1,5 +1,8 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { ProgressManager } from '@tloncorp/shared/utils';
 import { Platform } from 'react-native';
+
+const logger = createDevLogger('splashProgress', false);
 
 export enum SplashScreenTask {
   loadTheme = 'loadTheme',
@@ -27,3 +30,7 @@ export const splashScreenProgress = (() => {
 
   return progressManager;
 })();
+
+splashScreenProgress.emitter.on('complete', () => {
+  logger.trackEvent('SplashScreen progress complete');
+});

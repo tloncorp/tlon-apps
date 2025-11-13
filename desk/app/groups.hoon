@@ -3,7 +3,7 @@
 ::  groups agent can act both as a group server and
 ::  as a subscriber to remote groups. unlike channels, this agent is
 ::  not separated into two distinct subscriber and server agents, but
-::  rather achieves this separation with two distinct cores:
+::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
 /-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
@@ -305,7 +305,7 @@
     ==
     ::
         %group-command
-      =+  !<(=c-groups:v7:gv vase)
+      =+  !<(=c-groups:v8:gv vase)
       ?-    -.c-groups
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
@@ -339,7 +339,7 @@
       ==
     ::
         %group-action-4
-      =+  !<(=a-groups:v7:gv vase)
+      =+  !<(=a-groups:v8:gv vase)
       ?>  from-self
       ?-    -.a-groups
           %group
@@ -348,7 +348,7 @@
       ::
           %invite
         =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-a-invite:group-core a-invite.a-groups)
+        go-abet:(go-a-invite:group-core [ships a-invite]:a-groups)
       ::
           %leave
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -371,13 +371,13 @@
         ?:  p.diff
           ::  enable group secrecy
           ::
-          =/  =a-groups:v7:gv  [%group flag [%entry %privacy %secret]]
+          =/  =a-groups:v8:gv  [%group flag [%entry %privacy %secret]]
           $(+< group-action-4+!>(a-groups))
         ::  disable group secrecy
         ::
         ?:  ?=(?(%public %private) privacy.admissions.group)  cor
         ::  group is secret, make it private
-        =/  =a-groups:v7:gv  [%group flag [%entry %privacy %private]]
+        =/  =a-groups:v8:gv  [%group flag [%entry %privacy %private]]
         $(+< group-action-4+!>(a-groups))
       ::  translate the shut cordon poke:
       ::  1. pending operations translate into entry pending commands.
@@ -393,14 +393,14 @@
               %ask
             ::  only allow client ask requests
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:gv
+            =/  =a-foreigns:v8:gv
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
               %pending
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %pending q.cordon-diff %add ~]
-            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v8:gv`[%group flag a-group]))
           ==
         ::
             %del-ships
@@ -409,27 +409,27 @@
             ?:  =(q.cordon-diff (silt our.bowl ~))
               ::  client: cancel our own ask request
               ::
-              =/  =a-foreigns:v7:gv
+              =/  =a-foreigns:v8:gv
               [%foreign flag %cancel ~]
               $(+< group-foreign-1+!>(a-foreigns))
             ::  admin: deny ask requests
             ::
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %ask q.cordon-diff %deny]
             $(+< group-action-4+!>([%group flag a-group]))
           ::
               %pending
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %pending q.cordon-diff %del ~]
-            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v8:gv`[%group flag a-group]))
           ==
         ==
-      =/  a-group-list=(list a-group:v7:gv)
+      =/  a-group-list=(list a-group:v8:gv)
         (a-group:v7:diff:v2:gc diff)
       ?:  =(~ a-group-list)  cor
       %+  roll  a-group-list
-      |=  [=a-group:v7:gv =_cor]
-      =/  =a-groups:v7:gv  [%group flag a-group]
+      |=  [=a-group:v8:gv =_cor]
+      =/  =a-groups:v8:gv  [%group flag a-group]
       ^$(+< group-action-4+!>(a-groups))
     ::
         ::  deprecated
@@ -510,8 +510,10 @@
       :: inviter
       ::
       ?>  (~(has by groups) p.invite-0)
-      =/  =a-invite:v7:gv  [q.invite-0 ~ ~]
-      $(+< group-action-4+!>(`a-groups:v7:gv`[%invite p.invite-0 a-invite]))
+      =/  =a-invite:v8:gv  [~ ~]
+      =/  =a-groups:v8:gv
+        [%invite p.invite-0 (sy q.invite-0 ~) a-invite]
+      $(+< group-action-4+!>(a-groups))
     ::
         %invite-decline
       =+  !<(=flag:g vase)
@@ -974,26 +976,26 @@
     ::  server paths
     ::
   ::
-      [%server %groups ship=@ name=@ rest=*]
-    =+  ship=(slav %p ship.pole)
-    ?>  =(our.bowl ship)
-    =/  se-core  (se-abed:se-core [our.bowl name.pole])
-    ~|  %se-is-banned
-    ?<  (se-is-banned:se-core src.bowl)
-    se-abet:(se-watch:se-core rest.pole)
-  ::
       [%server %groups ship=@ name=@ %preview ~]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
     ?:  (~(has by groups) our.bowl name.pole)
       =/  se-core  (se-abed:se-core [our.bowl name.pole])
-      ~|  %se-is-banned
-      ?<  (se-is-banned:se-core src.bowl)
+      ?:  (se-is-banned:se-core src.bowl)
+        ~|(%se-is-banned !!)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:v7:gv  ~
     =.  cor
       (emit %give %fact ~ group-preview-3+!>(preview-update))
     (emit %give %kick ~ ~)
+  ::
+      [%server %groups ship=@ name=@ rest=*]
+    =+  ship=(slav %p ship.pole)
+    ?>  =(our.bowl ship)
+    =/  se-core  (se-abed:se-core [our.bowl name.pole])
+    ?:  (se-is-banned:se-core src.bowl)
+      ~|(%se-is-banned !!)
+    se-abet:(se-watch:se-core rest.pole)
   ::
     [%server %groups %index ~]  server-watch-index
   ::
@@ -1992,6 +1994,10 @@
       ?>  se-src-is-admin
       (se-c-section [section-id c-section]:c-group)
     ::
+        %section-order
+      ?>  se-src-is-admin
+      (se-c-section-order order.c-group)
+    ::
         %flag-content
       ?>  se-src-is-member
       (se-c-flag-content [nest plan src]:c-group)
@@ -2740,6 +2746,68 @@
         (~(into of order.section) [idx nest]:c-section)
       =.  sections.group  (~(put by sections.group) section-id section)
       (se-update %section section-id [%move-nest [nest idx]:c-section])
+    ::
+        ::
+        :: order channels in the section to achieve the target order
+        %set
+      ?~  sec=(~(get by sections.group) section-id)  se-core
+      =*  section  u.sec
+      :: to achieve desired order, we perform the following steps:
+      :: 1. prune non-existent nests
+      :: 2. for those channels which exists in the target order, but
+      ::    not in the source, assign them to the section.
+      :: 3. for those channels which exists in the source order, but
+      ::    not in the target, assign them to the %default section
+      :: 4. move nests one by one to achieve the desired order
+      ::
+      :: this algorithm is sure to achieve the target ordering: to see this,
+      :: consider that after step (2) all channels of the target order
+      :: are present in the source order. after step (3), all channels of the
+      :: source order are present in the target order, and thus these two sets
+      :: of channels are equal. after moving each channel to its
+      :: position in step (4), we are sure that the section is in the target order.
+      ::
+      ::
+      =*  order  order.c-section
+      ::  prune non-existent nests
+      =.  order  (skim order ~(has by channels.group))
+      ::  assign all channels in the target order to the section
+      ::
+      =.  se-core
+        %+  roll  order
+        |=  [=nest:g =_se-core]
+        =+  chan=(~(got by channels.group) nest)
+        ?:  =(section.chan section-id)  se-core
+        (se-c-channel:se-core nest [%section section-id])
+      ::  assign all channels not found in the target order
+      ::  to the default section.
+      ::
+      =.  se-core
+        %+  roll  order.section
+        |=  [=nest:g =_se-core]
+        ?:  (~(has of order) nest)  se-core
+        (se-c-channel nest [%section %default])
+      ::  order all channels
+      =|  idx=@ud
+      |-
+      ?~  order  se-core
+      %=  $
+        order  t.order
+        idx  +(idx)
+        se-core  (se-c-section section-id [%move-nest i.order idx])
+      ==
+    ==
+  ++  se-c-section-order
+    |=  order=(list section-id:g)
+    =.  order
+      (skim order ~(has by sections.group))
+    =|  idx=@ud
+    |-
+    ?~  order  se-core
+    %=  $
+      order  t.order
+      idx  +(idx)
+      se-core  (se-c-section i.order [%move idx])
     ==
   ++  se-c-flag-content
     |=  [=nest:g =plan:g src=ship]
@@ -3211,8 +3279,11 @@
   ::  +go-a-invite: send an invite
   ::
   ++  go-a-invite
-    |=  =a-invite:g
-    ?:  =(ship.a-invite src.bowl)  go-core
+    |=  [ships=(set ship) =a-invite:g]
+    %+  roll
+      ~(tap in ships)
+    |=  [=ship =_go-core]
+    ?:  =(ship src.bowl)  go-core
     ::TODO prevent inviting banned, here and in +se-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
@@ -3220,7 +3291,7 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  go-core  (emit (request-token:go-pass ship.a-invite))
+      =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
       go-core
     =/  =invite:v8:gv
       :*  flag
@@ -3231,7 +3302,7 @@
           go-preview
           &  :: valid
       ==
-    (go-send-invite ship.a-invite invite)
+    (go-send-invite:go-core ship invite)
   ::  +go-send-invite: invite a ship with token and record
   ::
   ::  if a ship had been previously invited, we first
@@ -3276,6 +3347,8 @@
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
+    ?:  ?=(%navigation -.a-group)
+      (go-a-navigation a-navigation.a-group)
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
@@ -3285,6 +3358,38 @@
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
     (emit %pass wire %agent [p.flag server] %poke cage)
+  ::  +go-a-navigation: process navigation action
+  ::
+  ++  go-a-navigation
+    |=  =a-navigation:g
+    ^+  go-core
+    =*  sections  sections.a-navigation
+    ::  update sections
+    ::
+    =.  go-core
+      %+  roll  ~(tap by sections)
+      |=  [[=section-id:g =section:g] =_go-core]
+      =/  section-old
+        (~(gut by sections.group) section-id *section:g)
+      ::  create a section if it does not exist
+      ::
+      =+  exists=(~(has by sections.group) section-id)
+      =?  go-core  !exists
+        %+  go-send-command:go-core  /command/section
+        [%section section-id %add meta.section]
+      ::  update metadata
+      ::
+      =?  go-core  &(exists !=(meta.section-old meta.section))
+        %+  go-send-command:go-core  /command/section
+        [%section section-id %edit meta.section]
+      ::  assign and order channels
+      ::
+      %+  go-send-command:go-core  /command/section
+      [%section section-id %set order.section]
+    ::  order sections
+    ::
+    %+  go-send-command:go-core  /command/section-order
+    [%section-order order.a-navigation]
   ::  +go-watch: handle group watch request
   ::
   ++  go-watch
@@ -3396,7 +3501,7 @@
         ?>  ?=(%group-token p.cage)
         =+  !<(tok=(unit token:g) q.cage)
         =+  ship=(slav %p i.t.wire)
-        (go-a-invite ship tok ~)
+        (go-a-invite (sy ship ~) [tok ~])
       ==
     ::
         ::  joined or left channels
@@ -3694,7 +3799,7 @@
     |=  =u-ask:g
     ^+  go-core
     =.  go-core  (go-response [%entry %ask u-ask])
-    =?  go-core  ?=(%add -.u-ask)
+    =?  go-core  &(?=(%add -.u-ask) (go-is-admin our.bowl))
       (go-activity %ask ship.u-ask)
     ?:  go-our-host  go-core
     ?-    -.u-ask
@@ -4402,6 +4507,9 @@
     =.  token  tok
     =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-ask: ask to join the group
   ::
@@ -4519,6 +4627,9 @@
     =.  invites
       %+  skip  invites
       |=(=invite:g =(token.invite tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-watch: handle watch request
   ::

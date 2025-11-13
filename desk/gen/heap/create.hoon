@@ -10,6 +10,6 @@
     name
     title
     description
-    *(set sect:g)
-    *(set sect:g)
+    *(set role-id:g)
+    *(set role-id:g)
 ==

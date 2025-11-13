@@ -1,19 +1,16 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { ConnectionStatus } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import { triggerHaptic, useGroupTitle } from '../utils';
-import {
-  ActionGroup,
-  ActionSheet,
-  SimpleActionSheetHeader,
-  createActionGroup,
-  createActionGroups,
-} from './ActionSheet';
+import { ActionSheet } from './ActionSheet';
+import { Badge, BadgeType } from './Badge';
+import { ContactName as ContactNameV2 } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
 const logger = createDevLogger('GroupPreviewSheet', true);
@@ -23,6 +20,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
+  hostStatus?: ConnectionStatus | null;
 }
 
 interface JoinStatus {
@@ -36,10 +34,28 @@ interface JoinStatus {
 
 export type GroupPreviewAction = 'goTo' | 'joined' | 'other';
 
+type GroupActionButton = {
+  title: string;
+  accent?:
+    | 'hero'
+    | 'heroPositive'
+    | 'positive'
+    | 'negative'
+    | 'heroDestructive'
+    | 'secondary'
+    | 'disabled'
+    | 'minimal';
+  onPress?: () => void;
+  description?: string;
+  disabled?: boolean;
+  testID?: string;
+};
+
 function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
+  hostStatus,
   onActionComplete,
 }: Props) {
   useEffect(() => {
@@ -63,9 +79,11 @@ function GroupPreviewSheetComponent({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <ActionSheet.Content>
-          <GroupPreviewPane group={group} onActionComplete={actionHandler} />
-        </ActionSheet.Content>
+        <GroupPreviewPane
+          group={group}
+          hostStatus={hostStatus}
+          onActionComplete={actionHandler}
+        />
       ) : (
         <LoadingSpinner />
       )}
@@ -75,9 +93,11 @@ function GroupPreviewSheetComponent({
 
 export function GroupPreviewPane({
   group,
+  hostStatus,
   onActionComplete,
 }: {
   group: db.Group;
+  hostStatus?: ConnectionStatus | null;
   onActionComplete: (
     action: GroupPreviewAction,
     updatedGroup: db.Group
@@ -104,41 +124,47 @@ export function GroupPreviewPane({
     ]
   );
 
-  const respondToInvite = (accepted: boolean) => {
-    if (!group) {
-      return;
-    }
+  const respondToInvite = useCallback(
+    (accepted: boolean) => {
+      if (!group) {
+        return;
+      }
 
-    if (accepted) {
-      setIsJoining(true);
-      store.acceptGroupInvitation(group);
-    } else {
-      store.rejectGroupInvitation(group);
-      onActionComplete('other', group);
-    }
-  };
+      if (accepted) {
+        setIsJoining(true);
+        store.acceptGroupInvitation(group);
+      } else {
+        store.rejectGroupInvitation(group);
+        onActionComplete('other', group);
+      }
+    },
+    [group, onActionComplete]
+  );
 
-  const requestInvite = () => {
+  const requestInvite = useCallback(() => {
     store.requestGroupInvitation(group);
     onActionComplete('other', group);
-  };
-  const rescindInvite = () => {
+  }, [group, onActionComplete]);
+
+  const rescindInvite = useCallback(() => {
     store.rescindGroupInvitationRequest(group);
     onActionComplete('other', group);
-  };
-  const joinGroup = () => {
+  }, [group, onActionComplete]);
+
+  const joinGroup = useCallback(() => {
     store.joinGroup(group);
     setIsJoining(true);
-  };
-  const cancelJoin = () => {
+  }, [group]);
+
+  const cancelJoin = useCallback(() => {
     store.cancelGroupJoin(group);
     setIsJoining(false);
     onActionComplete('other', group);
-  };
+  }, [group, onActionComplete]);
 
-  const goToGroup = () => {
+  const goToGroup = useCallback(() => {
     onActionComplete('goTo', group);
-  };
+  }, [group, onActionComplete]);
 
   // Dismiss sheet once the group join is complete
   useEffect(() => {
@@ -166,26 +192,173 @@ export function GroupPreviewPane({
 
   const title = useGroupTitle(group);
 
+  const truncatedDescription = useMemo(() => {
+    if (!group.description) {
+      return undefined;
+    }
+
+    if (group.description.length <= 256) {
+      return group.description;
+    }
+
+    return `${group.description.slice(0, 256).trimEnd()}...`;
+  }, [group.description]);
+
+  const privacyLabel = useMemo(() => {
+    switch (group.privacy) {
+      case 'public':
+        return 'Public Group';
+      case 'private':
+        return 'Private Group';
+      case 'secret':
+        return 'Secret Group';
+      default:
+        return undefined;
+    }
+  }, [group.privacy]);
+
+  const actionButtons = useMemo(
+    () =>
+      getActionGroups(status, {
+        respondToInvite,
+        requestInvite,
+        rescindInvite,
+        joinGroup,
+        goToGroup,
+        cancelJoin,
+      }),
+    [
+      status,
+      respondToInvite,
+      requestInvite,
+      rescindInvite,
+      joinGroup,
+      goToGroup,
+      cancelJoin,
+    ]
+  );
+
+  const isNarrow = useIsWindowNarrow();
+
+  const hostConnectionStatus = useMemo(() => {
+    if (!group.hostUserId) {
+      return null;
+    }
+
+    if (!hostStatus) {
+      return { label: 'Checking host status...', type: 'tertiary' };
+    }
+
+    if (!hostStatus.complete) {
+      switch (hostStatus.status) {
+        case 'setting-up':
+          return { label: 'Setting up...', type: 'tertiary' };
+        case 'trying-dns':
+        case 'trying-sponsor':
+          return { label: 'Checking network...', type: 'tertiary' };
+        default:
+          return { label: 'Checking host status...', type: 'tertiary' };
+      }
+    } else {
+      switch (hostStatus.status) {
+        case 'yes':
+          return { label: 'Online', type: 'positive' };
+        default:
+          return { label: 'Offline', type: 'warning' };
+      }
+    }
+  }, [hostStatus, group.hostUserId]);
+
   return (
-    <>
-      <SimpleActionSheetHeader
-        title={title}
-        subtitle={group.description ?? undefined}
-        icon={<ListItem.GroupIcon model={group} />}
-      />
-      <YStack>
-        <ActionSheet.SimpleActionGroupList
-          actionGroups={getActionGroups(status, {
-            respondToInvite,
-            requestInvite,
-            rescindInvite,
-            joinGroup,
-            goToGroup,
-            cancelJoin,
+    <ActionSheet.Content>
+      <YStack
+        paddingHorizontal="$xl"
+        paddingTop="$xl"
+        gap="$xl"
+        paddingBottom={!isNarrow ? '$xl' : null}
+      >
+        <YStack
+          alignItems="center"
+          padding="$xl"
+          borderRadius="$xl"
+          borderWidth={1}
+          borderColor="$border"
+          backgroundColor="$background"
+          gap="$xl"
+        >
+          <ListItem.GroupIcon model={group} size="$9xl" />
+          <Text size="$label/3xl" textAlign="center">
+            {title ?? 'Untitled group'}
+          </Text>
+          {group.hostUserId ? (
+            <Text size="$label/m" color="$tertiaryText">
+              <ContactNameV2 contactId={group.hostUserId} mode="contactId" />
+            </Text>
+          ) : null}
+          <XStack gap="$s" alignItems="center">
+            {privacyLabel ? (
+              <XStack gap="$s">
+                <Badge text={privacyLabel} type="neutral" />
+              </XStack>
+            ) : null}
+            {hostConnectionStatus ? (
+              <Badge
+                text={hostConnectionStatus.label}
+                type={hostConnectionStatus.type as BadgeType}
+              />
+            ) : null}
+          </XStack>
+        </YStack>
+
+        {truncatedDescription ? (
+          <YStack
+            padding="$xl"
+            borderRadius="$xl"
+            borderWidth={1}
+            borderColor="$border"
+            backgroundColor="$background"
+            gap="$xl"
+          >
+            <Text size="$label/m" color="$tertiaryText">
+              Description
+            </Text>
+            <Text size="$body">{truncatedDescription}</Text>
+          </YStack>
+        ) : null}
+
+        <YStack gap="$m">
+          {actionButtons.map((action) => {
+            return (
+              <YStack key={`${action.accent}-${action.title}`} gap="$xs">
+                <Button
+                  hero={action.accent === 'hero'}
+                  heroPositive={action.accent === 'heroPositive'}
+                  positive={action.accent === 'positive'}
+                  negative={action.accent === 'negative'}
+                  secondary={action.accent === 'secondary'}
+                  minimal={action.accent === 'minimal'}
+                  disabled={action.disabled}
+                  onPress={action.onPress}
+                  testID={action.testID ?? `ActionButton-${action.title}`}
+                  alignSelf="stretch"
+                >
+                  <Button.Text>{action.title}</Button.Text>
+                </Button>
+                {action.description ? (
+                  <Text
+                    size="$label/m"
+                    color="$tertiaryText"
+                    textAlign="center"
+                  >
+                    {action.description}
+                  </Text>
+                ) : null}
+              </YStack>
+            );
           })}
-        />
+        </YStack>
       </YStack>
-    </>
+    </ActionSheet.Content>
   );
 }
 
@@ -201,88 +374,81 @@ export function getActionGroups(
     goToGroup: () => void;
     cancelJoin: () => void;
   }
-): ActionGroup[] {
+): GroupActionButton[] {
   if (status.isMember) {
-    // If user is a member, always allow navigation to the group
-    // The group view will handle showing appropriate loading states
-    return createActionGroups([
-      'positive',
+    return [
       {
         title: 'Go to group',
-        action: actions.goToGroup,
+        accent: 'heroPositive',
+        onPress: actions.goToGroup,
       },
-    ]);
-  } else if (status.isJoining) {
-    // Only show "Joining" state when not yet a member
-    return createActionGroups(
-      [
-        'disabled',
-        {
-          title: 'Joining, please wait...',
-          disabled: true,
-        },
-      ],
-      [
-        'negative',
-        {
-          title: 'Cancel join',
-          action: actions.cancelJoin,
-        },
-      ]
-    );
-  } else if (status.isErrored) {
-    return createActionGroups([
-      'negative',
+    ];
+  }
+  if (status.isJoining) {
+    return [
+      {
+        title: 'Joining, please wait...',
+        accent: 'minimal',
+        disabled: true,
+      },
       {
         title: 'Cancel join',
-        description: 'Group joining failed or timed out',
-        action: actions.cancelJoin,
+        accent: 'negative',
+        onPress: actions.cancelJoin,
       },
-    ]);
-  } else if (status.hasInvite) {
-    return createActionGroups(
-      [
-        'positive',
-        {
-          title: 'Accept invite',
-          action: () => actions.respondToInvite(true),
-        },
-      ],
-      [
-        'negative',
-        {
-          title: 'Reject invite',
-          action: () => actions.respondToInvite(false),
-        },
-      ]
-    );
-  } else if (status.needsInvite && !status.hasInvite) {
+    ];
+  }
+  if (status.isErrored) {
+    return [
+      {
+        title: 'Cancel join',
+        accent: 'negative',
+        onPress: actions.cancelJoin,
+      },
+    ];
+  }
+  if (status.hasInvite) {
+    return [
+      {
+        title: 'Accept invite',
+        accent: 'hero',
+        onPress: () => actions.respondToInvite(true),
+      },
+      {
+        title: 'Reject invite',
+        accent: 'secondary',
+        onPress: () => actions.respondToInvite(false),
+      },
+    ];
+  }
+  if (status.needsInvite && !status.hasInvite) {
     if (status.requestedInvite) {
-      return createActionGroups(
-        ['disabled', { title: 'Invite requested' }],
-        [
-          'negative',
-          {
-            title: 'Cancel request',
-            action: actions.rescindInvite,
-          },
-        ]
-      );
-    } else {
       return [
-        createActionGroup('positive', {
-          title: 'Request invite',
-          action: actions.requestInvite,
-        }),
+        {
+          title: 'Invite requested',
+          accent: 'secondary',
+          disabled: true,
+        },
+        {
+          title: 'Cancel request',
+          accent: 'negative',
+          onPress: actions.rescindInvite,
+        },
       ];
     }
-  } else {
-    return createActionGroups([
-      'positive',
+    return [
       {
-        title: 'Join group',
-        action: actions.joinGroup,
+        title: 'Request invite',
+        accent: 'hero',
+        onPress: actions.requestInvite,
       },
-    ]);
+    ];
   }
+  return [
+    {
+      title: 'Join group',
+      accent: 'heroPositive',
+      onPress: actions.joinGroup,
+    },
+  ];
 }

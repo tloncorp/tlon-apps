@@ -506,9 +506,9 @@ export const contactToClientProfile = (
   return {
     id: userId,
     peerNickname: base.nickname?.value ?? null,
-    customNickname: overrides.nickname?.value,
+    customNickname: overrides?.nickname?.value,
     peerAvatarImage: base.avatar?.value ?? null,
-    customAvatarImage: overrides.avatar?.value,
+    customAvatarImage: overrides?.avatar?.value,
     status: base.status?.value ?? null,
     bio: base.bio?.value ?? null,
     coverImage: base.cover?.value ?? null,
@@ -519,7 +519,7 @@ export const contactToClientProfile = (
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
-    isContact: true,
+    isContact: !!overrides,
     isContactSuggestion: false,
   };
 };

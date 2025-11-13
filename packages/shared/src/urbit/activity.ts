@@ -1,10 +1,10 @@
 import { parse, da } from '@urbit/aura';
 import _ from 'lodash';
 
+import type { UnionToIntersection } from '../utils';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
-import type { UnionToIntersection } from '../utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -290,6 +290,7 @@ export type ActivityAction =
   | { del: Source }
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction }
+  | { 'clear-group-invites': null }
   | { 'allow-notifications': PushNotificationsSetting };
 
 export interface ActivitySummaryUpdate {
@@ -693,6 +694,10 @@ export function getSourceForEvent(event: ActivityEvent): Source {
         group: event.reply.group,
       },
     };
+  }
+
+  if ('dm-invite' in event) {
+    return { dm: event['dm-invite'] };
   }
 
   if ('dm-post' in event) {
