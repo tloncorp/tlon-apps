@@ -203,12 +203,22 @@
         [%move-nest =nest idx=@ud]
         [%set order=(list nest)]
     ==
-  ::  $a-groups: depends on $a-group
+  ::  $a-groups: modified, depends on $a-group
+  ::
+  ::  %invite variant changed to include set of ships
   ::
   +$  a-groups
     $%  [%group =flag =a-group]
-        [%invite =flag =a-invite]
+        [%invite =flag ships=(set ship) =a-invite]
         [%leave =flag]
+    ==
+  ::  $a-invite: modified
+  ::
+  ::  .ship field removed
+  ::
+  +$  a-invite
+    $:  token=(unit token)
+        note=(unit story:s)
     ==
   ::  $a-group: modified
   ::
