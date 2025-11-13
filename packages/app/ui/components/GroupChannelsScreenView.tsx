@@ -1,16 +1,9 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
 import { SectionListHeader, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
