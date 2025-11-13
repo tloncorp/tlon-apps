@@ -111,9 +111,13 @@ export const AttachmentProvider = ({
       if (!x.needsUpload) {
         return;
       }
+      if (assetUploadStates[Attachment.UploadIntent.extractKey(x)] != null) {
+        // already uploading
+        return;
+      }
       uploadAsset(x, isWeb);
     });
-  }, [attachments, uploadAsset]);
+  }, [attachments, uploadAsset, assetUploadStates]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
     setState((prev) => [...prev, attachment]);
