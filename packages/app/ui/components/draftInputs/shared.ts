@@ -63,7 +63,8 @@ export interface DraftInputContext {
   sendPost: (
     content: Story,
     channelId: string,
-    metadata?: db.PostMetadata
+    metadata?: db.PostMetadata,
+    blob?: string
   ) => Promise<void>;
   sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;

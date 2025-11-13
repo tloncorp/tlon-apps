@@ -67,7 +67,7 @@ export function finalizePostDraftUsingLocalAttachments(
 export function finalizePostDraftUsingLocalAttachments(
   draft: domain.PostDataDraft
 ): domain.PostDataFinalized {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: finalizeAttachmentsLocal(draft.attachments),
   });
@@ -75,6 +75,7 @@ export function finalizePostDraftUsingLocalAttachments(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
   if (draft.isEdit) {
     return {
