@@ -360,7 +360,7 @@
   ::  invite ~fun to a public group
   ::
   ;<  caz=(list card)  bind:m
-    (do-a-groups [%invite my-flag ~fun ~ ~])
+    (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~])
   ::  verify both old and new invites are sent
   ::
   ;<  =bowl  bind:m  get-bowl
@@ -397,7 +397,7 @@
   ::  repeat the invite
   ::
   ;<  caz=(list card)  bind:m
-    (do-a-groups [%invite my-flag ~fun ~ ~])
+    (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~])
   ;<  =^bowl  bind:m  get-bowl
   ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
   =+  preview=!<(preview:g q.peek)
@@ -451,7 +451,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -491,7 +491,7 @@
     =/  =update:g
       [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ;<  caz=(list card)  bind:m
     (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %fact group-token+!>(`0v125))
   ;<  *  bind:m
@@ -533,7 +533,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -593,7 +593,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -652,7 +652,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m

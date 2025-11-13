@@ -3,7 +3,7 @@
 ::  groups agent can act both as a group server and
 ::  as a subscriber to remote groups. unlike channels, this agent is
 ::  not separated into two distinct subscriber and server agents, but
-::  rather achieves this separation with two distinct cores:
+::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
 /-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
@@ -359,7 +359,7 @@
       ::
           %invite
         =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-a-invite:group-core a-invite.a-groups)
+        go-abet:(go-a-invite:group-core [ships a-invite]:a-groups)
       ::
           %leave
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -382,13 +382,13 @@
         ?:  p.diff
           ::  enable group secrecy
           ::
-          =/  =a-groups:v7:gv  [%group flag [%entry %privacy %secret]]
+          =/  =a-groups:v8:gv  [%group flag [%entry %privacy %secret]]
           $(+< group-action-4+!>(a-groups))
         ::  disable group secrecy
         ::
         ?:  ?=(?(%public %private) privacy.admissions.group)  cor
         ::  group is secret, make it private
-        =/  =a-groups:v7:gv  [%group flag [%entry %privacy %private]]
+        =/  =a-groups:v8:gv  [%group flag [%entry %privacy %private]]
         $(+< group-action-4+!>(a-groups))
       ::  translate the shut cordon poke:
       ::  1. pending operations translate into entry pending commands.
@@ -404,14 +404,14 @@
               %ask
             ::  only allow client ask requests
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:gv
+            =/  =a-foreigns:v8:gv
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
               %pending
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %pending q.cordon-diff %add ~]
-            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v8:gv`[%group flag a-group]))
           ==
         ::
             %del-ships
@@ -420,27 +420,27 @@
             ?:  =(q.cordon-diff (silt our.bowl ~))
               ::  client: cancel our own ask request
               ::
-              =/  =a-foreigns:v7:gv
+              =/  =a-foreigns:v8:gv
               [%foreign flag %cancel ~]
               $(+< group-foreign-1+!>(a-foreigns))
             ::  admin: deny ask requests
             ::
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %ask q.cordon-diff %deny]
             $(+< group-action-4+!>([%group flag a-group]))
           ::
               %pending
-            =/  =a-group:v7:gv
+            =/  =a-group:v8:gv
               [%entry %pending q.cordon-diff %del ~]
-            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v8:gv`[%group flag a-group]))
           ==
         ==
-      =/  a-group-list=(list a-group:v7:gv)
+      =/  a-group-list=(list a-group:v8:gv)
         (a-group:v7:diff:v2:gc diff)
       ?:  =(~ a-group-list)  cor
       %+  roll  a-group-list
-      |=  [=a-group:v7:gv =_cor]
-      =/  =a-groups:v7:gv  [%group flag a-group]
+      |=  [=a-group:v8:gv =_cor]
+      =/  =a-groups:v8:gv  [%group flag a-group]
       ^$(+< group-action-4+!>(a-groups))
     ::
         ::  deprecated
@@ -525,8 +525,10 @@
       :: inviter
       ::
       ?>  (~(has by groups) p.invite-0)
-      =/  =a-invite:v7:gv  [q.invite-0 ~ ~]
-      $(+< group-action-4+!>(`a-groups:v7:gv`[%invite p.invite-0 a-invite]))
+      =/  =a-invite:v8:gv  [~ ~]
+      =/  =a-groups:v8:gv
+        [%invite p.invite-0 (sy q.invite-0 ~) a-invite]
+      $(+< group-action-4+!>(a-groups))
     ::
         %invite-decline
       =+  !<(=flag:g vase)
@@ -3307,8 +3309,11 @@
   ::  +go-a-invite: send an invite
   ::
   ++  go-a-invite
-    |=  =a-invite:g
-    ?:  =(ship.a-invite src.bowl)  go-core
+    |=  [ships=(set ship) =a-invite:g]
+    %+  roll
+      ~(tap in ships)
+    |=  [=ship =_go-core]
+    ?:  =(ship src.bowl)  go-core
     ::TODO prevent inviting banned, here and in +se-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
@@ -3316,7 +3321,7 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  go-core  (emit (request-token:go-pass ship.a-invite))
+      =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
       go-core
     =/  =invite:v8:gv
       :*  flag
@@ -3327,7 +3332,7 @@
           go-preview
           &  :: valid
       ==
-    (go-send-invite ship.a-invite invite)
+    (go-send-invite:go-core ship invite)
   ::  +go-send-invite: invite a ship with token and record
   ::
   ::  if a ship had been previously invited, we first
@@ -3525,7 +3530,7 @@
         ?>  ?=(%group-token p.cage)
         =+  !<(tok=(unit token:g) q.cage)
         =+  ship=(slav %p i.t.wire)
-        (go-a-invite ship tok ~)
+        (go-a-invite (sy ship ~) [tok ~])
       ==
     ::
         ::  joined or left channels
@@ -3829,7 +3834,7 @@
     |=  =u-ask:g
     ^+  go-core
     =.  go-core  (go-response [%entry %ask u-ask])
-    =?  go-core  ?=(%add -.u-ask)
+    =?  go-core  &(?=(%add -.u-ask) (go-is-admin our.bowl))
       (go-activity %ask ship.u-ask)
     ?:  go-our-host  go-core
     ?-    -.u-ask
@@ -4559,6 +4564,9 @@
     =.  token  tok
     =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-ask: ask to join the group
   ::
@@ -4683,6 +4691,9 @@
     =.  invites
       %+  skip  invites
       |=(=invite:g =(token.invite tok))
+    =.  cor
+      %-  submit-activity
+      [%read [%group flag] %all ~ |]
     fi-core
   ::  +fi-watch: handle watch request
   ::

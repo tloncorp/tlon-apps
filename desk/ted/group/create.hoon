@@ -67,10 +67,7 @@
     /[kind.channel-id]/(scot %p ship.channel-id)/[name.channel-id]
   ;<  exists=?  bind:n
     (scry:io ? (weld /gu/channels/v1 nest-path))
-  ::  create the channel if it does not exist
-  ::
-  ;<  ~  bind:n
-    ?:  exists  (pure:n ~)
+  ?.  exists
     =/  =create-channel:c
       =,  create-channel
       :*  kind.channel-id
@@ -83,8 +80,9 @@
           ~
       ==
     =/  =a-channels:c  [%create create-channel]
-    (poke:io [our.bowl %channels] channel-action-1+!>(a-channels))
-  ::  register the channel with %groups
+    ;<  ~  bind:n
+      (poke:io [our.bowl %channels] channel-action-1+!>(a-channels))
+    $(channels t.channels)
   ;<  ~  bind:n
     =/  =channel:v2:gv
       :-  [title.meta description.meta '' '']:create-channel
@@ -93,6 +91,8 @@
       [group-id.create now.bowl %channel channel-id.create-channel %add channel]
     (poke:io [our.bowl %groups] group-action-3+!>(action))
   $(channels t.channels)
+::  skip a beat to allow channels to register
+;<  ~  bind:m  (sleep:io ~s0)
 ;<  group-ui-5=group-ui:v5:gv  bind:m
   %+  scry:io  group-ui:v5:gv
   /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun

@@ -224,7 +224,7 @@ async function getLinkFromInviteService({
   data: DeepLinkData;
 }): Promise<string> {
   const env = getConstants();
-  const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
+  const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/inviteLink`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -251,12 +251,7 @@ async function getLinkFromInviteService({
 
 export async function checkInviteServiceLinkExists(inviteId: string) {
   const env = getConstants();
-  // hack to avoid shuffling env vars around
-  const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
-    0,
-    env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
-  );
-  const response = await fetch(`${serverlessInfraUrl}/checkLink`, {
+  const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/checkLink`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

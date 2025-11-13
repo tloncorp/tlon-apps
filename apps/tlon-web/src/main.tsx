@@ -9,20 +9,17 @@
 // This was most likely caused by a recent dependency change.
 import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
+import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
-import {
-  AnalyticsEvent,
-  addCustomEnabledLoggers,
-  createDevLogger,
-} from '@tloncorp/shared';
+import { addCustomEnabledLoggers, createDevLogger } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { PostHogProvider } from 'posthog-js/react';
 import { createRoot } from 'react-dom/client';
 
 import App from './app';
 import { isElectron } from './electron-bridge';
-import { analyticsClient, captureError } from './logic/analytics';
+import { analyticsClient } from './logic/analytics';
 import './styles/index.css';
 
 const logger = createDevLogger('main.tsx', false);
@@ -63,11 +60,13 @@ setupDb().then(() => {
   root.render(
     // Strict mode disabled as it breaks react-navigation on web
     // <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <PostHogProvider client={analyticsClient}>
-        <App />
-      </PostHogProvider>
-    </QueryClientProvider>
+    <RootErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <PostHogProvider client={analyticsClient}>
+          <App />
+        </PostHogProvider>
+      </QueryClientProvider>
+    </RootErrorBoundary>
     // </React.StrictMode>
   );
 });

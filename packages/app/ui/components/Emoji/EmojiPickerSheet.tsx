@@ -1,25 +1,15 @@
-import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
-  KeyboardAvoidingView,
-  Sheet,
   SizableEmoji,
   getNativeEmoji,
   searchEmojis,
-  useIsWindowNarrow,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
-import React, {
-  ComponentProps,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { FlatList, Keyboard, Modal } from 'react-native';
-import { Dialog, View, VisuallyHidden } from 'tamagui';
+import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { FlatList } from 'react-native';
 
+import { ActionSheet } from '../ActionSheet';
 import { SearchBar } from '../SearchBar';
 
 const EMOJI_SIZE = 32;
@@ -47,11 +37,10 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
 });
 
 export function EmojiPickerSheet(
-  props: ComponentProps<typeof Sheet> & {
+  props: ComponentProps<typeof ActionSheet> & {
     onEmojiSelect: (value: string) => void;
   }
 ) {
-  const [scrolling, setIsScrolling] = useState(false);
   const [snapToLarge, setSnapToLarge] = useState(false);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
@@ -71,15 +60,6 @@ export function EmojiPickerSheet(
     setSnapToLarge(true);
   }, []);
 
-  const handleDismiss = useCallback(() => {
-    setQuery('');
-    setIsScrolling(false);
-    setSnapToLarge(false);
-    setTimeout(() => {
-      props.onOpenChange?.(false);
-    }, 100);
-  }, [props]);
-
   const handleEmojiSelect = useCallback(
     (shortCode: string) => {
       const nativeEmoji = getNativeEmoji(shortCode);
@@ -94,11 +74,6 @@ export function EmojiPickerSheet(
     [onEmojiSelect, props]
   );
 
-  const onTouchStart = useCallback(() => {
-    setIsScrolling(true);
-  }, []);
-  const onTouchEnd = useCallback(() => setIsScrolling(false), []);
-
   const renderItem = useCallback(
     ({ item }: { item: string }) => (
       <MemoizedEmojiButton item={item} onSelect={handleEmojiSelect} />
@@ -106,107 +81,49 @@ export function EmojiPickerSheet(
     [handleEmojiSelect]
   );
 
-  const isWindowNarrow = useIsWindowNarrow();
-
   const keyExtractor = useCallback((item: string) => item, []);
 
-  const hasOpened = useRef(props.open);
-  if (!hasOpened.current && props.open) {
-    hasOpened.current = true;
-  }
-
-  // Sheets are heavy; we don't want to render until we need to
-  if (!hasOpened.current) return null;
-
-  if (!isWindowNarrow) {
-    return (
-      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-        <Dialog.Portal>
-          <Dialog.Overlay
-            backgroundColor="$overlayBackground"
-            key="overlay"
-            opacity={0.4}
-          />
-          <Dialog.Content
-            borderWidth={1}
-            borderColor="$border"
-            padding="$m"
-            height={600}
-            width={350}
-            key="content"
-          >
-            <VisuallyHidden>
-              <Dialog.Title>Emoji Picker</Dialog.Title>
-            </VisuallyHidden>
-            <View width="100%" marginBottom="$xl">
-              <SearchBar
-                debounceTime={300}
-                marginHorizontal="$m"
-                onChangeQuery={handleQueryChange}
-                inputProps={{ spellCheck: false, autoComplete: 'off' }}
-              />
-            </View>
-            <FlashList
-              onTouchStart={onTouchStart}
-              onTouchEnd={onTouchEnd}
-              data={listData}
-              keyExtractor={keyExtractor}
-              numColumns={6}
-              removeClippedSubviews
-              renderItem={renderItem}
-              estimatedItemSize={48}
-            />
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog>
-    );
-  }
-
   return (
-    <Modal transparent visible={props.open} onDismiss={handleDismiss}>
-      <Sheet
-        snapPointsMode="percent"
-        snapPoints={[snapToLarge ? 80 : 60]}
-        {...rest}
-        dismissOnSnapToBottom
-        dismissOnOverlayPress
-        animation="quick"
-        disableDrag={scrolling}
-      >
-        <Sheet.Overlay zIndex="$modalSheet" />
-        <Sheet.Frame
-          zIndex="$modalSheet"
-          padding="$xl"
-          alignItems="center"
-          flex={1}
-        >
-          <KeyboardAvoidingView style={{ flex: 1, width: '100%' }}>
-            <Sheet.Handle paddingBottom="$xl" />
-            <View width="100%" marginBottom="$xl">
-              <SearchBar
-                debounceTime={300}
-                marginHorizontal="$m"
-                onChangeQuery={handleQueryChange}
-                onFocus={handleInputFocus}
-                inputProps={{ spellCheck: false, autoComplete: 'off' }}
-              />
-            </View>
-            <View onTouchStart={() => Keyboard.dismiss()}>
-              <FlatList
-                style={{ width: '100%' }}
-                horizontal={false}
-                contentContainerStyle={{ flexGrow: 1 }}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                data={listData}
-                keyExtractor={keyExtractor}
-                numColumns={6}
-                renderItem={renderItem}
-              />
-            </View>
-          </KeyboardAvoidingView>
-        </Sheet.Frame>
-      </Sheet>
-    </Modal>
+    <ActionSheet
+      title="Emoji Picker"
+      snapPointsMode="percent"
+      snapPoints={[snapToLarge ? 80 : 60]}
+      dialogContentProps={{
+        width: 350,
+        height: 600,
+        padding: '$m',
+      }}
+      dismissOnSnapToBottom
+      dismissOnOverlayPress
+      animation="quick"
+      modal
+      {...rest}
+    >
+      <ActionSheet.Content padding="$m" flex={1}>
+        <SearchBar
+          debounceTime={300}
+          marginHorizontal="$m"
+          onChangeQuery={handleQueryChange}
+          onFocus={handleInputFocus}
+          inputProps={{ spellCheck: false, autoComplete: 'off' }}
+        />
+        <FlatList
+          style={{ width: '100%' }}
+          horizontal={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+          data={listData}
+          keyExtractor={keyExtractor}
+          numColumns={6}
+          renderItem={renderItem}
+          renderScrollComponent={(props) => (
+            <ActionSheet.ScrollableContent
+              {...(props as ComponentProps<
+                typeof ActionSheet.ScrollableContent
+              >)}
+            />
+          )}
+        />
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }

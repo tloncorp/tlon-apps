@@ -1285,7 +1285,7 @@
       ^-  $-(json a-groups:v8:gv)
       %-  of
       :~  group+(ot flag+flag a-group+a-group ~)
-          invite+(ot flag+flag a-invite+a-invite:v7 ~)
+          invite+(ot flag+flag ships+(as ship) a-invite+a-invite ~)
           leave+flag
       ==
     ++  a-group
@@ -1311,6 +1311,12 @@
       %-  ot
       :~  meta+meta
           order+(ar nest)
+      ==
+    ++  a-invite
+      ^-  $-(json a-invite:v8:gv)
+      %-  ot
+      :~  token+(mu (se %uv))
+          note+(mu story:dejs:sj)
       ==
     --
   ++  v7

@@ -143,6 +143,7 @@
     :~  [/x/$/$/$/perm %channel-perm]
         [/x/$/$/$/posts %channel-posts]
         [/x/$/$/$/search %channel-scan]
+        [/x/$/$/$/search/bounded %channel-scam]
         [/x/$/init %noun]
         [/x/channels %channels]
         [/x/init %noun]

@@ -22,7 +22,7 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { Session, getSession, updateSession } from './session';
+import { Session, getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -1068,6 +1068,9 @@ const handleActivityUpdate = async (
         case 'updateItemVolume':
           memo.volumeUpdates.push(event.volumeUpdate);
           break;
+        case 'removeItemVolume':
+          memo.volumeRemovals.push(event.itemId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1083,6 +1086,7 @@ const handleActivityUpdate = async (
       channelUnreads: [],
       threadUnreads: [],
       volumeUpdates: [],
+      volumeRemovals: [],
       activityEvents: [],
     } as api.ActivityUpdateQueue
   );
@@ -1104,6 +1108,14 @@ const handleActivityUpdate = async (
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+
+  if (activitySnapshot.volumeRemovals.length > 0) {
+    await db.removeVolumeLevels(
+      { itemIds: activitySnapshot.volumeRemovals },
+      ctx
+    );
+  }
+
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
 
   // if we inserted new activity, invalidate the activity page
@@ -1707,13 +1719,21 @@ export const clearSyncQueue = () => {
   make sure our local data remains up to date. For now, this focuses on immediate
   concerns and punts on full correctness.
 */
-export const handleDiscontinuity = async () => {
+export const handleDiscontinuity = async (config: {
+  retainChannelStatus?: boolean;
+}) => {
   logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
   if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
   }
-  updateSession(null);
+
+  const session = getSession();
+  if (session?.channelStatus && config.retainChannelStatus) {
+    setSession({ channelStatus: session?.channelStatus });
+  } else {
+    updateSession(null);
+  }
 
   // drop potentially outdated newest post markers
   channelCursors.clear();

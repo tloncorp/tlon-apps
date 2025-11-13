@@ -1,3 +1,4 @@
+import { Story } from './channel';
 import { Metadata } from './meta';
 
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
@@ -501,4 +502,33 @@ export interface ChannelPreview {
 
 export function isGroup(obj: any): obj is Group {
   return 'fleet' in obj && 'cabals' in obj;
+}
+
+export interface GroupInviteAction {
+  token: string | null;
+  note: Story | null;
+}
+
+export type GroupActionV4 = {
+  invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
+};
+
+// Types for batch navigation updates (group-action-4)
+export interface GroupNavigationSectionData {
+  meta: GroupMeta;
+  order: string[];
+}
+
+export interface GroupNavigationUpdate {
+  sections: Record<string, GroupNavigationSectionData>;
+  order: string[];
+}
+
+export interface GroupNavigationBatchUpdate {
+  group: {
+    flag: string;
+    'a-group': {
+      navigation: GroupNavigationUpdate;
+    };
+  };
 }
