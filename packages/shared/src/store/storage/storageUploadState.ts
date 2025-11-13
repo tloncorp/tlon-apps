@@ -4,10 +4,8 @@ import { createDevLogger } from '../../debug';
 import {
   Attachment,
   FinalizedAttachment,
-  ImageAttachment,
   UploadState,
   UploadStateError,
-  UploadedImageAttachment,
 } from '../../domain';
 
 const logger = createDevLogger('uploadState', false);
