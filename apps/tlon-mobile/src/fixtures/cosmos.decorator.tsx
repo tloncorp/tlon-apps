@@ -1,22 +1,8 @@
 import { group } from '@tloncorp/app/fixtures/fakeData';
 import { StoreProvider, TamaguiProvider, config } from '@tloncorp/app/ui';
+import { spyOn } from '@tloncorp/shared';
 import React, { useMemo } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
-function spyOn<T extends object, MethodName extends keyof T>(
-  base: T,
-  method: MethodName,
-  fn: T[MethodName]
-) {
-  return new Proxy(base, {
-    get(target, prop) {
-      if (prop === method) {
-        return fn;
-      }
-      return target[prop as keyof T];
-    },
-  });
-}
 
 // eslint-disable-next-line
 export default ({ children }: { children: React.ReactNode }) => {
