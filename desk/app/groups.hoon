@@ -453,7 +453,7 @@
     ::  foreign group interface  v2
     ::
         %group-foreign-2
-    =+  !<(=a-foreigns:v8:gv vase)
+    =+  !<(=a-foreigns:v9:gv vase)
       ?-    -.a-foreigns
           %foreign
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
@@ -466,6 +466,10 @@
           %revoke
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
         fi-abet:(fi-revoke:foreign-core token.a-foreigns)
+      ::
+          %reject
+        =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
+        fi-abet:fi-reject:foreign-core
       ==
     ::
     ::  foreign groups interface v1
@@ -1700,9 +1704,9 @@
   ++  se-pass
     |%
     ++  send-invite
-      |=  [=ship =invite:v8:gv]
+      |=  [=ship =invite:v9:gv]
       =/  =wire  (weld se-area /invite/send/(scot %p ship))
-      =/  =a-foreigns:v8:gv
+      =/  =a-foreigns:v9:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  send-old-invite
@@ -1714,8 +1718,12 @@
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       =/  =wire  (weld se-area /invite/revoke/(scot %p ship))
-      =/  =a-foreigns:v8:gv
-        [%revoke flag tok]
+      =/  =a-foreigns:v9:gv  [%revoke flag tok]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  reject-ask
+      |=  =ship
+      =/  =wire  (weld se-area /ask/reject/(scot %p ship))
+      =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     --
   ::  +se-is-joined: check if the ship has already joined the group
@@ -2355,9 +2363,9 @@
         |=  [=ship =_se-core]
         =.  requests.admissions.group.se-core
           (~(del by requests.admissions.group.se-core) ship)
-        =.  se-core
-          (give:se-core %kick ~[(weld se-area /ask/(scot %p ship))] ~)
-        se-core
+        =?  se-core  (can-poke:neg bowl ship %groups)
+          (emit:se-core (reject-ask:se-pass ship))
+        (give:se-core %kick ~[(weld se-area /ask/(scot %p ship))] ~)
       (se-update [%entry %ask %del reqs])
     ==
   ::  +se-c-seat: execute a seat command
@@ -2970,11 +2978,11 @@
   ::  +se-agent: handle server signs
   ::
   ++  se-agent
-    |=  [=path =sign:agent:gall]
+    |=  [=wire =sign:agent:gall]
     ^+  se-core
-    ?+    path  ~|(se-agent-bad-path+path !!)
+    ?+    wire  ~|(se-agent-bad+wire !!)
         [%invite %send ship=@ ~]
-      =+  ship=(slav %p i.t.t.path)
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -2982,7 +2990,7 @@
       se-core
     ::
         [%invite %send ship=@ %old ~]
-      =+  ship=(slav %p i.t.t.path)
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -2990,11 +2998,19 @@
       se-core
     ::
         [%invite %revoke ship=@ ~]
-      =+  ship=(slav %p i.t.t.path)
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
           [leaf+"failed to revoke invite for {<ship>}" u.p.sign]
+      se-core
+    ::
+        [%ask %reject ship=@ ~]
+      =+  ship=(slav %p i.t.t.wire)
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  se-core
+      =.  cor  %+  ~(tell l ~)  %crit
+          [leaf+"failed to signal ask rejection to {<ship>}" u.p.sign]
       se-core
     ==
   --
@@ -3469,6 +3485,7 @@
         ::  invited a ship to the group
         ::
         [%invite %send ship=@ ~]
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
@@ -3477,6 +3494,7 @@
         ::  invited a ship to the group (backcompat)
         ::
         [%invite %send ship=@ %old ~]
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
@@ -3484,6 +3502,7 @@
         ::  revoked invitation
         ::
         [%invite %revoke ship=@ ~]
+      =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
@@ -4492,7 +4511,7 @@
     ::
     ++  leave-ask
       ^-  card
-      =/  =wire  (weld fi-area /join/ask)
+      =/  =wire  (weld fi-area /ask)
       [%pass wire %agent [p.flag server] %leave ~]
     ::
     ++  get-index
@@ -4591,6 +4610,7 @@
     ?-    u.pro
         %ask
       =.  cor  (emit leave-ask:fi-pass)
+      =.  cor  (emit leave-group:fi-pass)
       =.  progress  ~
       fi-core
     ::
@@ -4649,6 +4669,12 @@
       ?.  =(src.bowl from.invite)  invite
       invite(valid |)
     ==
+  ::  +fi-reject: handle ask request rejection
+  ::
+  ++  fi-reject
+    ^+  fi-core
+    ?.  ?=([~ %ask] progress)  fi-core
+    fi-cancel
   ::  +fi-decline: reject a group invitation
   ::
   ++  fi-decline
@@ -4751,15 +4777,17 @@
         fi-core
       ::
           %kick
-        =.  cor  (tell:log %warn 'group ask kicked' ~)
-        =.  progress  `%error
+        =.  cor  (tell:log %warn 'group ask kicked, retrying' ~)
+        =/  =wire  (weld fi-area /ask)
+        =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
+        =.  cor
+          ((safe-watch wire [p.flag server] path) &)
         fi-core
       ::
           %watch-ack
-        ?^  p.sign
-          =.  cor  (fail:log 'group ask watch' u.p.sign)
-          =.  progress  `%error
-          fi-core
+        ?~  p.sign  fi-core
+        =.  cor  (fail:log 'group ask watch' u.p.sign)
+        =.  progress  `%error
         fi-core
       ::
           %fact

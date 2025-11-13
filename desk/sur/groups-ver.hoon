@@ -143,6 +143,16 @@
     ::  $net-groups: depends on $group and $net
     +$  net-groups
       (map flag [net group])
+    ::  $a-foreigns: modified
+    ::
+    ::  %reject: ask request rejection
+    ::
+    +$  a-foreigns
+      $%  [%foreign =flag =a-foreign]
+          [%invite =invite]
+          [%revoke =flag token=(unit token)]
+          [%reject =flag]
+      ==
     ::  $init: depends on $group
     +$  init  [=time =group]
     ::  $log: depends on $u-group

@@ -582,14 +582,13 @@
 +$  r-section  u-section
 ::  $a-foreigns: foreign action
 ::
-::  %foreign: a foreign group action
-::  %invite: receive an .invite
-::  %revoke: accept revocation
+::  %reject: ask request rejection
 ::
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
       [%invite =invite]
       [%revoke =flag token=(unit token)]
+      [%reject =flag]
   ==
 ::  $a-foreign: foreign group action
 ::
