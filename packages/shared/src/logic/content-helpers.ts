@@ -593,6 +593,12 @@ export function toPostData({
               blob,
               attachment.uploadState.remoteUri
             );
+          } else if (attachment.uploadState.status === 'uploading') {
+            // necessary for optimistic preview
+            blob = appendFileUploadToPostBlob(
+              blob,
+              attachment.uploadState.localUri
+            );
           }
           break;
         }
