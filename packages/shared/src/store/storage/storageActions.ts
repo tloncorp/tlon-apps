@@ -4,16 +4,13 @@ import { deSig, unixToDa } from '@urbit/aura';
 import { formatDa } from '@urbit/aura';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
-import { ImagePickerAsset } from 'expo-image-picker';
 
 import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { Attachment } from '../../domain/attachment';
-import { DisposableObjectURL } from '../../utils';
 import { setUploadState } from './storageUploadState';
 import {
-  fetchFileFromUri,
   getExtensionFromMimeType,
   getMemexUpload,
   hasCustomS3Creds,
@@ -41,74 +38,51 @@ function getSaveFormat(mimeType?: string): SaveFormat {
 }
 
 export async function uploadAsset(
-  asset: Attachment.UploadIntent,
+  intent: Attachment.UploadIntent,
   isWeb = false
 ) {
-  switch (asset.type) {
+  switch (intent.type) {
     case 'image': {
-      await uploadImageAsset(asset, isWeb);
+      const asset = intent.asset;
+      if (asset.uri === PLACEHOLDER_ASSET_URI) {
+        logger.log('placeholder image, skipping upload');
+        return;
+      }
+      await uploadImageAsset(intent, isWeb);
       break;
     }
 
     case 'file': {
-      using objectUrl = new DisposableObjectURL(asset.file);
-      await performUpload(
-        {
-          uri: objectUrl.value,
-          mimeType: undefined, // TODO
+      await uploadAssetWithLifecycle(intent, isWeb, {
+        async prepareAsset() {
+          return intent.file;
         },
-        isWeb
-      );
+      });
       break;
     }
   }
 }
 
-const uploadImageAsset = async (
-  uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
-  isWeb = false
-) => {
-  const asset = uploadIntent.asset;
-  if (asset.uri === PLACEHOLDER_ASSET_URI) {
-    logger.log('placeholder image, skipping upload');
-    return;
+async function uploadAssetWithLifecycle(
+  uploadIntent: Attachment.UploadIntent,
+  isWeb = false,
+  callbacks: {
+    willUpload?: () => void;
+    prepareAsset: () => Promise<
+      (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string }) | File
+    >;
   }
+) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
-  logger.crumb(
-    'uploading asset',
-    asset.mimeType,
-    asset.fileSize,
-    'isWeb',
-    isWeb
-  );
-  logger.log('full asset', asset);
+  callbacks.willUpload?.();
+
   setUploadState(uploadKey, {
     status: 'uploading',
-    localUri: asset.uri,
+    localUri: Attachment.UploadIntent.createLocalUri(uploadIntent),
   });
   try {
-    logger.log('resizing asset', asset.uri);
-    let resizedAsset = asset;
-    const originalMimeType = asset.mimeType;
-    // avoid resizing gifs
-    if (!asset.mimeType?.includes('gif')) {
-      const format = getSaveFormat(asset.mimeType);
-      resizedAsset = await manipulateAsync(
-        asset.uri,
-        [
-          {
-            resize:
-              asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-          },
-        ],
-        {
-          compress: 0.75,
-          format,
-        }
-      );
-    }
     const remoteUri = await performUpload(
-      { ...resizedAsset, mimeType: originalMimeType },
+      await callbacks.prepareAsset(),
       isWeb
     );
     logger.crumb('upload succeeded');
@@ -119,13 +93,63 @@ const uploadImageAsset = async (
     console.error(e);
     setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
   }
-};
+}
+
+async function uploadImageAsset(
+  uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
+  isWeb = false
+) {
+  uploadAssetWithLifecycle(uploadIntent, isWeb, {
+    willUpload() {
+      const asset = uploadIntent.asset;
+      logger.crumb(
+        'uploading asset',
+        asset.mimeType,
+        asset.fileSize,
+        'isWeb',
+        isWeb
+      );
+      logger.log('full asset', asset);
+    },
+    async prepareAsset() {
+      const asset = uploadIntent.asset;
+      logger.log('resizing asset', asset.uri);
+      let resizedAsset = asset;
+      const originalMimeType = asset.mimeType;
+      // avoid resizing gifs
+      if (!asset.mimeType?.includes('gif')) {
+        const format = getSaveFormat(asset.mimeType);
+        resizedAsset = await manipulateAsync(
+          asset.uri,
+          [
+            {
+              resize:
+                asset.width > asset.height ? { width: 1200 } : { height: 1200 },
+            },
+          ],
+          {
+            compress: 0.75,
+            format,
+          }
+        );
+      }
+      return {
+        ...resizedAsset,
+        mimeType: originalMimeType,
+      };
+    },
+  });
+}
 
 export const performUpload = async (
-  params: Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string },
+  params:
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | File,
   isWeb = false
 ) => {
-  logger.log('performing upload', params.uri, 'isWeb', isWeb);
+  if (!(params instanceof File)) {
+    logger.log('performing upload', params.uri, 'isWeb', isWeb);
+  }
   const [config, credentials] = await Promise.all([
     db.storageConfiguration.getValue(),
     db.storageCredentials.getValue(),
@@ -135,18 +159,39 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const file = await fetchFileFromUri(params.uri, params.height, params.width);
-  logger.log('fetched file', file);
-  if (!file) {
-    throw new Error('unable to fetch image from uri');
-  }
+  const { blob, fileName, contentType, sourceUri } = await (async () => {
+    if (params instanceof File) {
+      return {
+        blob: params,
+        fileName: params.name,
+        contentType: params.type,
+        sourceUri: URL.createObjectURL(params),
+      };
+    } else {
+      const response = await fetch(params.uri);
+      const blob = await response.blob();
 
-  const contentType = file.type;
-  const baseFileName = params.uri.split('/').pop()?.split('?')[0] || 'image';
-  const extension = getExtensionFromMimeType(params.mimeType || contentType);
-  const fileName = baseFileName.includes('.')
-    ? baseFileName
-    : `${baseFileName}${extension}`;
+      const contentType = blob.type;
+      const baseFileName =
+        params.uri.split('/').pop()?.split('?')[0] || 'image';
+      const extension = getExtensionFromMimeType(
+        params.mimeType || contentType
+      );
+      const fileName = baseFileName.includes('.')
+        ? baseFileName
+        : `${baseFileName}${extension}`;
+
+      return {
+        blob,
+        fileName,
+        contentType,
+        sourceUri: params.uri,
+      };
+    }
+  })();
+
+  logger.log('fetched file', fileName, contentType, blob.size);
+
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
   )}-${fileName}`;
@@ -154,13 +199,13 @@ export const performUpload = async (
 
   if (hasHostingUploadCreds(config, credentials)) {
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      contentLength: file.blob.size,
+      contentLength: blob.size,
       contentType,
       fileName: fileKey,
     });
     await uploadFile(
       uploadUrl,
-      params.uri,
+      sourceUri,
       {
         'Cache-Control': 'public, max-age=3600',
         'Content-Type': contentType,
@@ -208,7 +253,7 @@ export const performUpload = async (
 
     await uploadFile(
       signedUrl,
-      params.uri,
+      sourceUri,
       isDigitalOcean ? headers : undefined,
       isWeb
     );

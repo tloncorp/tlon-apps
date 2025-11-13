@@ -126,6 +126,15 @@ export namespace Attachment {
       };
     }
 
+    export function createLocalUri(uploadIntent: UploadIntent): string {
+      switch (uploadIntent.type) {
+        case 'image':
+          return uploadIntent.asset.uri;
+        case 'file':
+          return URL.createObjectURL(uploadIntent.file);
+      }
+    }
+
     /** Used when keying a 'file'-type UploadIntent. Memoized so that
      * equivalent `File`s yield the same ID. */
     const fileKey = memoize((file: File): string => uniqueId('File'));
