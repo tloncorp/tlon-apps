@@ -164,6 +164,7 @@ async function _sendPost({
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
+    blob: optimisticPostData.blob,
   });
 
   let group: null | db.Group = null;
@@ -197,6 +198,7 @@ async function _sendPost({
           content: finalizedPostData.content,
           metadata: finalizedPostData.metadata,
           deliveryStatus: 'pending',
+          blob: finalizedPostData.blob,
         }),
       });
       logger.crumb('sending post to API');
@@ -311,8 +313,7 @@ export async function retrySendPost({
           channelId: post.channelId,
           authorId: post.authorId,
           content: story,
-          // TODO: do we not store `blob`?
-          // blob: post.blob || undefined,
+          blob: post.blob || undefined,
           metadata:
             post.image || post.title
               ? {
@@ -488,6 +489,7 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
+    blob: optimisticPostData.blob,
     ...flags,
   });
   logger.log('editPost optimistic update done');
