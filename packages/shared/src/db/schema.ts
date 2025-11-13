@@ -1119,6 +1119,8 @@ export const posts = sqliteTable(
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.
     backendTime: text('backend_time'),
+    /** freeform data associated with this post */
+    blob: text('blob'),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(

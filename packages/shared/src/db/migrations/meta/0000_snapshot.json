@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e18c0ac2-ca5d-4de8-b4c6-ef72695d9807",
+  "id": "f1e20e36-c29b-4008-a4c7-2dec4746d32f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -22,7 +22,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "activity_event_contact_groups_activity_event_id_index": {
+          "name": "activity_event_contact_groups_activity_event_id_index",
+          "columns": [
+            "activity_event_id"
+          ],
+          "isUnique": false
+        },
+        "activity_event_contact_groups_group_id_index": {
+          "name": "activity_event_contact_groups_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "activity_event_contact_group_pins_activity_event_id_activity_events_id_fk": {
           "name": "activity_event_contact_group_pins_activity_event_id_activity_events_id_fk",
@@ -295,7 +310,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "attestations_contact_id_index": {
+          "name": "attestations_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -365,7 +388,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "channel_readers_channel_id_index": {
+          "name": "channel_readers_channel_id_index",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        },
+        "channel_readers_role_id_index": {
+          "name": "channel_readers_role_id_index",
+          "columns": [
+            "role_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "channel_readers_channel_id_role_id_pk": {
@@ -439,7 +477,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "channel_unreads_channel_id_index": {
+          "name": "channel_unreads_channel_id_index",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -463,7 +509,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "channel_writers_channel_id_index": {
+          "name": "channel_writers_channel_id_index",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        },
+        "channel_writers_role_id_index": {
+          "name": "channel_writers_role_id_index",
+          "columns": [
+            "role_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "channel_writers_channel_id_role_id_pk": {
@@ -685,6 +746,20 @@
             "last_post_at"
           ],
           "isUnique": false
+        },
+        "channels_group_id_index": {
+          "name": "channels_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "channels_contact_id_index": {
+          "name": "channels_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -731,7 +806,29 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chat_member_roles_group_id_index": {
+          "name": "chat_member_roles_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "chat_member_roles_contact_id_index": {
+          "name": "chat_member_roles_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        },
+        "chat_member_roles_role_id_index": {
+          "name": "chat_member_roles_role_id_index",
+          "columns": [
+            "role_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "chat_member_roles_group_id_groups_id_fk": {
           "name": "chat_member_roles_group_id_groups_id_fk",
@@ -799,7 +896,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_members_chat_id_index": {
+          "name": "group_members_chat_id_index",
+          "columns": [
+            "chat_id"
+          ],
+          "isUnique": false
+        },
+        "group_members_contact_id_index": {
+          "name": "group_members_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "group_members_chat_id_contact_id_pk": {
@@ -831,7 +943,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "contact_attestations_contact_id_index": {
+          "name": "contact_attestations_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        },
+        "contact_attestations_attestation_id_index": {
+          "name": "contact_attestations_attestation_id_index",
+          "columns": [
+            "attestation_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "contact_attestations_contact_id_contacts_id_fk": {
           "name": "contact_attestations_contact_id_contacts_id_fk",
@@ -890,7 +1017,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "contact_group_pins_contact_id_index": {
+          "name": "contact_group_pins_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        },
+        "contact_group_pins_group_id_index": {
+          "name": "contact_group_pins_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "contact_group_pins_contact_id_contacts_id_fk": {
           "name": "contact_group_pins_contact_id_contacts_id_fk",
@@ -1048,7 +1190,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "contacts_system_contact_id_index": {
+          "name": "contacts_system_contact_id_index",
+          "columns": [
+            "systemContactId"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -1093,7 +1243,36 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_flagged_posts_group_id_index": {
+          "name": "group_flagged_posts_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "group_flagged_posts_post_id_index": {
+          "name": "group_flagged_posts_post_id_index",
+          "columns": [
+            "post_id"
+          ],
+          "isUnique": false
+        },
+        "group_flagged_posts_channel_id_index": {
+          "name": "group_flagged_posts_channel_id_index",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        },
+        "group_flagged_posts_flagged_by_contact_id_index": {
+          "name": "group_flagged_posts_flagged_by_contact_id_index",
+          "columns": [
+            "flagged_by_contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_flagged_posts_group_id_groups_id_fk": {
           "name": "group_flagged_posts_group_id_groups_id_fk",
@@ -1146,7 +1325,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_join_requests_group_id_index": {
+          "name": "group_join_requests_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "group_join_requests_contact_id_index": {
+          "name": "group_join_requests_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_join_requests_group_id_groups_id_fk": {
           "name": "group_join_requests_group_id_groups_id_fk",
@@ -1199,7 +1393,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_member_bans_group_id_index": {
+          "name": "group_member_bans_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "group_member_bans_contact_id_index": {
+          "name": "group_member_bans_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_member_bans_group_id_groups_id_fk": {
           "name": "group_member_bans_group_id_groups_id_fk",
@@ -1252,7 +1461,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_member_invites_group_id_index": {
+          "name": "group_member_invites_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        },
+        "group_member_invites_contact_id_index": {
+          "name": "group_member_invites_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_member_invites_group_id_groups_id_fk": {
           "name": "group_member_invites_group_id_groups_id_fk",
@@ -1305,7 +1529,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_nav_section_channels_group_nav_section_id_index": {
+          "name": "group_nav_section_channels_group_nav_section_id_index",
+          "columns": [
+            "group_nav_section_id"
+          ],
+          "isUnique": false
+        },
+        "group_nav_section_channels_channel_id_index": {
+          "name": "group_nav_section_channels_channel_id_index",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_nav_section_channels_group_nav_section_id_group_nav_sections_id_fk": {
           "name": "group_nav_section_channels_group_nav_section_id_group_nav_sections_id_fk",
@@ -1420,7 +1659,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_nav_sections_group_id_index": {
+          "name": "group_nav_sections_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_nav_sections_group_id_groups_id_fk": {
           "name": "group_nav_sections_group_id_groups_id_fk",
@@ -1465,7 +1712,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_rank_bans_group_id_index": {
+          "name": "group_rank_bans_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_rank_bans_group_id_groups_id_fk": {
           "name": "group_rank_bans_group_id_groups_id_fk",
@@ -1553,7 +1808,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "group_roles_group_id_index": {
+          "name": "group_roles_group_id_index",
+          "columns": [
+            "group_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "group_roles_group_id_groups_id_fk": {
           "name": "group_roles_group_id_groups_id_fk",
@@ -1840,7 +2103,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "post_images_post_id_index": {
+          "name": "post_images_post_id_index",
+          "columns": [
+            "post_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "post_images_post_id_posts_id_fk": {
           "name": "post_images_post_id_posts_id_fk",
@@ -1893,7 +2164,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "post_reactions_contact_id_index": {
+          "name": "post_reactions_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        },
+        "post_reactions_post_id_index": {
+          "name": "post_reactions_post_id_index",
+          "columns": [
+            "post_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "post_reactions_post_id_posts_id_fk": {
           "name": "post_reactions_post_id_posts_id_fk",
@@ -2177,6 +2463,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "blob": {
+          "name": "blob",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -2203,6 +2496,20 @@
           "columns": [
             "group_id",
             "id"
+          ],
+          "isUnique": false
+        },
+        "posts_author_id_index": {
+          "name": "posts_author_id_index",
+          "columns": [
+            "author_id"
+          ],
+          "isUnique": false
+        },
+        "posts_parent_id_index": {
+          "name": "posts_parent_id_index",
+          "columns": [
+            "parent_id"
           ],
           "isUnique": false
         }
@@ -2423,7 +2730,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "system_contact_sent_invites_system_contact_id_index": {
+          "name": "system_contact_sent_invites_system_contact_id_index",
+          "columns": [
+            "system_contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "system_contact_sent_invites_invited_to_system_contact_id_pk": {
@@ -2483,7 +2798,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "system_contacts_contact_id_index": {
+          "name": "system_contacts_contact_id_index",
+          "columns": [
+            "contact_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -2581,7 +2904,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "volume_settings_item_id_index": {
+          "name": "volume_settings_item_id_index",
+          "columns": [
+            "item_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
