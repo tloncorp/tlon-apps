@@ -81,9 +81,14 @@ export async function finalizeAttachments(
     .map((x) => Attachment.toUploadIntent(x))
     .map((uploadIntent) => {
       if (uploadIntent.needsUpload) {
+        const upload =
+          completedUploads[Attachment.UploadIntent.extractKey(uploadIntent)];
+        if (upload == null) {
+          throw new Error(`No upload found for upload intent: ${uploadIntent}`);
+        }
         const finalized = Attachment.UploadIntent.toFinalizedAttachment(
           uploadIntent,
-          completedUploads[Attachment.UploadIntent.extractKey(uploadIntent)]
+          upload
         );
         if (finalized == null) {
           throw new Error('Attachment is not an uploaded image attachment');
