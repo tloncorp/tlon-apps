@@ -24,7 +24,6 @@ test('should test DM thread creation and initial interactions', async ({
   }
 
   // ~ten receives the DM and accepts it
-  await tenPage.reload();
   // Wait for DM to appear after reload - deterministic wait
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible({
     timeout: 15000,
