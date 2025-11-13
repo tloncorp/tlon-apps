@@ -1928,7 +1928,6 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     return undefined;
   }
   switch (foreign.progress) {
-    case 'ask':
     case 'join':
     case 'watch':
       return 'joining';
