@@ -547,13 +547,17 @@ export function toPostData({
   image?: string;
   isEdit?: boolean;
 }): { story: Story; metadata: PostMetadata } {
-  const blocks = attachments
+  const blocks: Block[] = [];
+  attachments
     .filter((attachment) => attachment.type !== 'text')
-    .flatMap((attachment): Block[] => {
+    .forEach((attachment) => {
       switch (attachment.type) {
         case 'reference': {
           const block = createReferenceBlock(attachment);
-          return block ? [block] : [];
+          if (block) {
+            blocks.push(block);
+          }
+          break;
         }
 
         case 'image': {
@@ -564,17 +568,15 @@ export function toPostData({
               isEdit &&
               channelType === 'gallery')
           ) {
-            return [createImageBlock(attachment)];
-          } else {
-            return [];
+            blocks.push(createImageBlock(attachment));
           }
+          break;
         }
 
         case 'link': {
-          return [createLinkBlock(attachment)];
+          blocks.push(createLinkBlock(attachment));
+          break;
         }
-        default:
-          return [];
       }
     });
 
