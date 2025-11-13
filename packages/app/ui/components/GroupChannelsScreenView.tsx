@@ -87,17 +87,6 @@ export const GroupChannelsScreenView = React.memo(
 
     const title = useGroupTitle(group);
 
-    const hasJoinRequests = useMemo(
-      () => (group?.joinRequests?.length ?? 0) > 0,
-      [group?.joinRequests?.length]
-    );
-
-    useEffect(() => {
-      if (group && hasJoinRequests) {
-        store.markGroupRead(group.id, false);
-      }
-    }, [group, hasJoinRequests]);
-
     const titleWidth = useCallback(() => {
       if (isGroupAdmin) {
         return 55;
@@ -313,12 +302,10 @@ export const GroupChannelsScreenView = React.memo(
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
           <YStack flex={1}>
-            {hasJoinRequests && (
-              <SystemNotices.JoinRequestNotice
-                onViewRequests={onGoToGroupMembers}
-                onDismiss={() => {}}
-              />
-            )}
+            <SystemNotices.ConnectedJoinRequestNotice
+              group={group}
+              onViewRequests={onGoToGroupMembers}
+            />
             <FlashList
               data={listItems}
               renderItem={renderItem}

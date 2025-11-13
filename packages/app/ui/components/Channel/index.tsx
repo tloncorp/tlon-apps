@@ -201,32 +201,32 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       }
     }, [hasUnreads, hasLoaded, inView, markRead]);
 
-    const hasJoinRequests = useMemo(() => {
-      if (group && group.joinRequests && group.joinRequests.length > 0) {
-        const dismissedAt = group.pendingMembersDismissedAt ?? 0;
-        return group.joinRequests.some((jr) => {
-          const requestedAt =
-            jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
-          return requestedAt > dismissedAt;
-        });
-      }
-      return false;
-    }, [group]);
+    // const hasJoinRequests = useMemo(() => {
+    //   if (group && group.joinRequests && group.joinRequests.length > 0) {
+    //     const dismissedAt = group.pendingMembersDismissedAt ?? 0;
+    //     return group.joinRequests.some((jr) => {
+    //       const requestedAt =
+    //         jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
+    //       return requestedAt > dismissedAt;
+    //     });
+    //   }
+    //   return false;
+    // }, [group]);
 
-    const handleDismissJoinRequests = useCallback(() => {
-      if (group) {
-        store.updatePendingMemberDismissal({
-          groupId: group.id,
-          dismissedAt: Date.now(),
-        });
-      }
-    }, [group]);
+    // const handleDismissJoinRequests = useCallback(() => {
+    //   if (group) {
+    //     store.updatePendingMemberDismissal({
+    //       groupId: group.id,
+    //       dismissedAt: Date.now(),
+    //     });
+    //   }
+    // }, [group]);
 
-    useEffect(() => {
-      if (group && hasJoinRequests) {
-        store.markGroupRead(group.id, false);
-      }
-    }, [group, hasJoinRequests]);
+    // useEffect(() => {
+    //   if (group && hasJoinRequests) {
+    //     store.markGroupRead(group.id, false);
+    //   }
+    // }, [group, hasJoinRequests]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -370,6 +370,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const channelProviderValue = useMemo(() => ({ channel }), [channel]);
 
+    const includeJoinRequestNotice = useMemo(() => {
+      // we want to avoid duplicating the notice on both the channels list and inline here
+
+      // if group is multi-channel, skip
+      const validGroup = group && (group.channels?.length ?? 0) === 1;
+
+      // skip web since currently all groups show the channel sidebar
+      const validPlatform = Platform.OS !== 'web';
+
+      return validGroup && validPlatform;
+    }, [group]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
@@ -421,10 +433,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                         />
                         <YStack alignItems="stretch" flex={1}>
-                          {hasJoinRequests && Platform.OS !== 'web' && (
-                            <SystemNotices.JoinRequestNotice
+                          {includeJoinRequestNotice && (
+                            <SystemNotices.ConnectedJoinRequestNotice
+                              group={group}
                               onViewRequests={goToGroupSettings}
-                              onDismiss={handleDismissJoinRequests}
                             />
                           )}
                           <AnimatePresence>
