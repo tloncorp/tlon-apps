@@ -532,11 +532,43 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
-function appendFileUploadToPostBlob(blob: string | undefined, fileUri: string) {
-  if (!blob) {
-    return fileUri;
+type PostBlobData = { fileUri: string }[];
+
+export function appendFileUploadToPostBlob(
+  blob: string | undefined,
+  fileUri: string
+) {
+  // TODO: saner encoding
+  const data: PostBlobData = (() => {
+    if (!blob) {
+      return [];
+    }
+    try {
+      const arr: PostBlobData = JSON.parse(blob);
+      if (Array.isArray(arr)) {
+        return arr;
+      }
+    } catch {
+      // swallow parse error
+    }
+    return [];
+  })();
+  data.push({ fileUri });
+  return JSON.stringify(data);
+}
+
+export function parsePostBlob(blob: string): PostBlobData {
+  try {
+    const arr: PostBlobData = JSON.parse(blob);
+    if (Array.isArray(arr)) {
+      // This looks like an identity, but it's actually a very bad way to
+      // validate the PostBlobData.
+      return arr.map(({ fileUri }) => ({ fileUri }));
+    }
+  } catch {
+    // swallow parse error
   }
-  return `${blob}\n${fileUri}`;
+  return [];
 }
 
 export function toPostData({

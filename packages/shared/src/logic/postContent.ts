@@ -2,6 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
+import { parsePostBlob } from './content-helpers';
 import { isTrustedEmbed } from './embed';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
@@ -331,12 +332,15 @@ export function convertContent(
   const out: PostContent = [];
 
   if (blob != null) {
-    out.push({
-      type: 'link',
-      url: blob,
-      title: 'Attachment',
-      description: 'Press to download',
-    });
+    const blobData = parsePostBlob(blob);
+    for (const { fileUri } of blobData) {
+      out.push({
+        type: 'link',
+        url: fileUri,
+        title: 'Attachment',
+        description: 'Press to download',
+      });
+    }
   }
 
   if (!input) {
