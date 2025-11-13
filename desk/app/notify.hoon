@@ -204,16 +204,15 @@
       ?.  (lth -.old-state %7)  ~
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
-    :_  this(state migrated)
-    ?:  ?&  (~(has by wex.bowl) [/activity our.bowl %activity])
-            (~(has by wex.bowl) [/reads our.bowl %activity])
-        ==
-      caz
-    :*  (~(watch-our pass:io /activity) %activity /notifications)
-        (~(watch-our pass:io /reads) %activity /v4/reads)
-        ?.  =(~rivfur-livmet our.bowl)  caz
-        [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
-    ==
+    =?  caz  !(~(has by wex.bowl) [/activity our.bowl %activity])
+      :-  (~(watch-our pass:io /activity) %activity /notifications)
+      ?.  =(~rivfur-livmet our.bowl)  caz
+      :_  caz
+      [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
+    =?  caz  !(~(has by wex.bowl) [/reads our.bowl %activity])
+      :_  caz
+      (~(watch-our pass:io /reads) %activity /v4/reads)
+    [caz this(state migrated)]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -479,7 +478,7 @@
         =/  [v0-paths=(list path) v1-paths=(list path)]
           %+  roll  ~(tap by sup.bowl)
           |=  [[duct ship =path] v0=(list path) v1=(list path)]
-          ?:  ?=(%notify -.path)  [[path v0] v1]
+          ?:  ?=([%notify *] path)  [[path v0] v1]
           [v0 [path v1]]
         :_  this(notifications (~(put by notifications) time-id [event ~]))
         =/  update-0=update:v0  [`@`time-id %notify]
@@ -487,8 +486,11 @@
           [notify-count `@`time-id %notify ~]
         ::NOTE  this used to try to inject the notification into %hark too,
         ::      but we now no longer do so.
-        :~  (fact:io notify-update-1+!>(update) v1-paths)
-            (fact:io notify-update+!>(update-0) v0-paths)
+        =-  (murn - same)
+        :~  ?~  v1-paths  ~
+            `(fact:io notify-update-1+!>(update) v1-paths)
+            ?~  v0-paths  ~
+            `(fact:io notify-update+!>(update-0) v0-paths)
         ==
       ::
           %kick
@@ -515,8 +517,9 @@
         =/  v1-paths
           %+  murn  ~(tap by sup.bowl)
           |=  [duct ship =path]
-          ?:  ?=(%notify -.path)  ~
+          ?:  ?=([%notify *] path)  ~
           `path
+        ?~  v1-paths  ~
         =/  source=@t  (string-source:enjs:aj source.update)
         =/  =update:v1
           ::  the "newest" item in a recently read activity source

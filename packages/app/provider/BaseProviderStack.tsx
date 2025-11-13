@@ -1,6 +1,8 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
@@ -62,11 +64,15 @@ function UIProviderStack({
   return (
     <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme}>
       <SafeAreaProvider>
-        {/* 
-          Android mobile does not proxy portal contexts, so any providers 
-          used by portaled components must be *above* the PortalProvider
-        */}
-        <PortalProvider>{children}</PortalProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <BottomSheetModalProvider>
+            {/*
+              Android mobile does not proxy portal contexts, so any providers
+              used by portaled components must be *above* the PortalProvider
+            */}
+            <PortalProvider>{children}</PortalProvider>
+          </BottomSheetModalProvider>
+        </GestureHandlerRootView>
       </SafeAreaProvider>
     </TamaguiProvider>
   );

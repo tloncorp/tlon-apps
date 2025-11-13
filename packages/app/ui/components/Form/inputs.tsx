@@ -1,4 +1,9 @@
-import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  VariantsFromValues,
+  useIsWindowNarrow,
+  useToast,
+} from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -17,8 +22,8 @@ import {
 } from 'react';
 import React from 'react';
 import { Platform, TextInput as RNTextInput } from 'react-native';
-import { NativeViewGestureHandler } from 'react-native-gesture-handler';
 import {
+  GetProps,
   ScrollView,
   Spinner,
   View,
@@ -34,6 +39,7 @@ import {
   useMappedImageAttachments,
 } from '../../contexts';
 import AttachmentSheet from '../AttachmentSheet';
+import { BottomSheetTextInput } from '../BottomSheetWrapper';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { FieldContext } from './Field';
@@ -42,39 +48,56 @@ import {
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
 
+// Common text input styling configuration
+// Only contains style properties and Tamagui-specific config (name, variants, media queries)
+const textInputStyleConfig = {
+  name: 'RawTextInput',
+  ...mobileTypeStyles['$label/xl'],
+  lineHeight: 'unset',
+  context: FieldContext,
+  color: '$primaryText',
+  fontFamily: '$body',
+  textAlignVertical: 'top' as const,
+  paddingVertical: '$l',
+  '$platform-web': { outlineStyle: 'none' },
+  $gtSm: desktopTypeStyles['$label/xl'],
+  variants: {
+    accent: {
+      negative: {
+        color: '$negativeActionText',
+      },
+      positive: {
+        color: '$positiveActionText',
+      },
+    },
+  } as const,
+} as const;
+
+// Default props for TextInput components (not style properties)
+const textInputDefaultProps = {
+  numberOfLines: 1,
+  placeholderTextColor: '$tertiaryText',
+} as const;
+
+const textInputAcceptProps = {
+  isInput: true,
+  accept: {
+    placeholderTextColor: 'color',
+    selectionColor: 'color',
+  } as const,
+};
+
 export const RawTextInput = styled(
   RNTextInput,
-  {
-    name: 'RawTextInput',
-    ...mobileTypeStyles['$label/xl'],
-    lineHeight: 'unset',
-    context: FieldContext,
-    color: '$primaryText',
-    placeholderTextColor: '$tertiaryText',
-    fontFamily: '$body',
-    textAlignVertical: 'top',
-    paddingVertical: '$l',
-    numberOfLines: 1,
-    '$platform-web': { outlineStyle: 'none' },
-    $gtSm: desktopTypeStyles['$label/xl'],
-    variants: {
-      accent: {
-        negative: {
-          color: '$negativeActionText',
-        },
-        positive: {
-          color: '$positiveActionText',
-        },
-      },
-    } as const,
-  },
-  {
-    isInput: true,
-    accept: {
-      placeholderTextColor: 'color',
-      selectionColor: 'color',
-    } as const,
-  }
+  textInputStyleConfig,
+  textInputAcceptProps
+);
+
+// Styled version of BottomSheetTextInput for use in ActionSheets on mobile
+export const RawBottomSheetTextInput = styled(
+  BottomSheetTextInput,
+  textInputStyleConfig,
+  textInputAcceptProps
 );
 
 // Text input
@@ -121,7 +144,20 @@ const TextInputComponent = RawTextInput.styleable<{
 }>(
   ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
     const fieldContext = useContext(FieldContext);
-    const inputElement = <RawTextInput flex={1} ref={ref} {...props} />;
+    const actionSheetContext = useContext(ActionSheetContext);
+
+    // Use BottomSheetTextInput when inside an ActionSheet on mobile platforms
+    const shouldUseBottomSheetInput =
+      actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
+
+    // Shared props for both input components
+    // Type cast needed because Tamagui's styled() wrapper adds broader types (like boxShadow: array)
+    // that don't exactly match TextInput's narrower prop types (boxShadow: string only)
+    const sharedInputProps = {
+      flex: 1,
+      ...textInputDefaultProps,
+      ...props,
+    } as GetProps<typeof RawTextInput>;
 
     return (
       <InputFrame
@@ -133,16 +169,13 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        {Platform.OS === 'android' ? (
-          // Android-specific: Wrap TextInput in NativeViewGestureHandler to prevent
-          // gesture conflicts with parent components (e.g., Sheet's pan gesture).
-          // disallowInterruption ensures TextInput gestures take priority, fixing
-          // focus issues in sheets on physical Android devices.
-          <NativeViewGestureHandler disallowInterruption>
-            {inputElement}
-          </NativeViewGestureHandler>
+        {shouldUseBottomSheetInput ? (
+          <RawBottomSheetTextInput
+            ref={ref}
+            {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
+          />
         ) : (
-          inputElement
+          <RawTextInput ref={ref} {...sharedInputProps} />
         )}
         {props.rightControls}
       </InputFrame>

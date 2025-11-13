@@ -38,6 +38,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const hostConnectionStatus = useConnectionStatus(
+    selectedGroup?.hostUserId ?? ''
+  );
   const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
@@ -136,6 +139,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
+            hostStatus={hostConnectionStatus}
             onActionComplete={handleGroupAction}
           />
         </AttachmentProvider>

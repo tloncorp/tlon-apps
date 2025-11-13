@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
 import { ActionSheet, createActionGroups } from './ActionSheet';
+import { useContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
 export function GroupJoinRequestSheet({
@@ -23,13 +24,15 @@ export function GroupJoinRequestSheet({
   onPressReject: () => void;
   onPressGoToProfile: (contactId: string) => void;
 }) {
+  const contactName = useContactName(contactId);
+
   const profileActionGroup = useMemo(
     () =>
       createActionGroups([
         'neutral',
         {
-          title: contact?.nickname ?? contactId,
-          description: `View ${contact?.nickname ?? contactId}'s profile`,
+          title: contactName,
+          description: `View ${contactName}'s profile`,
           action: () => {
             onPressGoToProfile?.(contactId);
             onOpenChange(false);
@@ -38,7 +41,7 @@ export function GroupJoinRequestSheet({
           endIcon: 'ChevronRight',
         },
       ]),
-    [contact?.nickname, contactId, onPressGoToProfile, onOpenChange]
+    [contactName, contactId, onPressGoToProfile, onOpenChange]
   );
 
   const adminActionGroups = useMemo(
@@ -75,9 +78,12 @@ export function GroupJoinRequestSheet({
     [profileActionGroup, adminActionGroups]
   );
 
-  const subtitle = `From ${
-    contact?.nickname ? `${contact.nickname} (${contactId})` : contactId
-  }`;
+  const subtitle = useMemo(() => {
+    if (contact?.nickname) {
+      return `From ${contact.nickname} (${contactId})`;
+    }
+    return `From ${contactId}`;
+  }, [contact?.nickname, contactId]);
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>

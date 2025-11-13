@@ -1,4 +1,5 @@
 /-  *contacts, c0=contacts-0
+/+  unicode
 |%
 ::
 +|  %contact
@@ -177,7 +178,7 @@
 ::  - groups must be a %set of %flags
 ::
 ++  sane-contact
-  |=  con=contact
+  |=  [src=(unit @p) con=contact]
   ^-  ?
   ?~  ((soft contact) con)
     |
@@ -195,7 +196,9 @@
   ?.  (~(typ cy con) %nickname %text)  |
   =+  nickname=(~(get cy con) %nickname %text)
   ?:  ?&  ?=(^ nickname)
-          (gth (met 3 u.nickname) 64)
+          ?|  (gth (met 3 u.nickname) 64)
+              !(sane-nickname src u.nickname)
+          ==
       ==
     |
   ?.  (~(typ cy con) %bio %text)  |
@@ -227,6 +230,50 @@
       ==
     |
   &
+::  +sane-nickname: validate a nickname against network id
+::
+++  sane-nickname
+  |=  [src=(unit @p) txt=@t]
+  ^-  ?
+  ?~  src  &
+  =+  nom=(norm-p:confusable:unicode txt)
+  ::  TODO for better performance, should probably operate on
+  ::  tapes.
+  |-
+  ?:  =('' nom)  &
+  =+  len=(teff nom)
+  =*  next  $(nom (rsh [3 len] nom))
+  =+  c=(end [3 len] nom)
+  ?.  =('~' c)  next
+  ::  could be the beginning of a pat-p, attempt to parse
+  ::
+  =/  vex  (;~(pfix sig fed:ag) [[1 1] (trip nom)])
+  ?~  q.vex  next
+  =/  ship=@p  p.u.q.vex
+  ?.  =(ship u.src)  |
+  =+  pos=q.p.vex
+  $(nom (rsh [3 (dec pos)] nom))
+  ::  q.p.vex
+::  +sani-nickname: sanitize a nickname
+::
+::  assume nickname is insane and delete all characters
+::  that normalize to a sig.
+::
+++  sani-nickname
+  |=  txt=@t
+  ^-  @t
+  =|  norm=@t
+  |-
+  ?:  =('' txt)  norm
+  =+  len=(teff txt)
+  =+  c=(end [3 len] txt)
+  =*  next
+    $(norm (cat 3 norm c), txt (rsh [3 len] txt))
+  =*  skip
+    $(txt (rsh [3 len] txt))
+  ?:  (~(has in con-sig:confusable:unicode) c)
+    skip
+  next
 ::  +do-edit: edit contact
 ::
 ::  edit .con with .mod contact map.
