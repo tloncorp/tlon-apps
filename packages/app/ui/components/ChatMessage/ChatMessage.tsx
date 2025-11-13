@@ -263,6 +263,7 @@ const ChatMessage = ({
                   channelId: post.channelId,
                   authorId: post.authorId,
                   deliveryStatus: post.deliveryStatus,
+                  blob: post.blob,
                 },
                 null,
                 2
