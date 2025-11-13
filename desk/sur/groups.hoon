@@ -273,6 +273,47 @@
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
+::
++$  request-id  @uv
++$  action
+  $:  =request-id
+      =a-groups
+  ==
++$  command
+  $:  =request-id
+      =c-groups
+  ==
+::
++$  requests
+  $:  outgoing=(set request-id)
+      incoming=(map [=ship id=request-id] incoming-request)
+  ==
++$  incoming-request
+  $:  id=request-id
+      from=ship
+      :: if null, means in progress
+      result=(unit response-body)
+  ==
++$  response
+  $:  id=request-id
+      body=response-body
+  ==
++$  action-error
+  $?  %not-authorized
+      %not-found
+      %invalid-token
+      %invalid-path
+      %invalid-name
+      %invalid-permissions
+      %request-too-large
+      %is-banned
+      %unknown-error
+  ==
++$  response-body
+  $%  [%ok =r-groups]
+      [%error type=action-error message=tang]
+  ==
+::
 ::  %groups acur interface
 ::
 ::  a-* actions

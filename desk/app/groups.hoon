@@ -172,10 +172,11 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %9
         groups=net-groups:v7:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
+        =requests:v9:gv
         =^subs:s
         =pimp:imp
     ==
@@ -305,41 +306,40 @@
     ==
     ::
         %group-command
-      =+  !<(=c-groups:v8:gv vase)
-      ?-    -.c-groups
-          %create
+      =+  !<(command:v9:gv vase)
+      =/  request=incoming-request:v9:gv
+        (~(gut by incoming.requests) request-id [request-id src.bowl ~])
+      ?>  =(request.ship src.bowl)
+      =.  incoming.requests
+        (~(put by incoming.requests) [request-id src.bowl] request)
+      ?:  ?=(%create -.c-groups)
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
-        =.  cor  se-abet:(se-c-create:se-core flag create-group.c-groups)
+        =.  cor  se-abet:(se-c-create:se-core(request-id request-id) flag create-group.c-groups)
         fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
-      ::
+      =/  se-core  (se-abed:se-core flag.c-groups request-id)
+      ?:  (se-is-banned:se-core src.bowl)
+        %-  se-give-response
+        :*  %error
+            %not-authorized
+            ~['Banned from the group']
+        ==
+      ?-    -.c-groups
           %group
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
         se-abet:(se-c-group:se-core c-group.c-groups)
       ::
           %join
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
         se-abet:(se-c-join:se-core token.c-groups)
       ::
           %ask
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
         se-abet:(se-c-ask:se-core story.c-groups)
       ::
           %leave
-        =/  se-core  (se-abed:se-core flag.c-groups)
-        ~|  %se-is-banned
-        ?<  (se-is-banned:se-core src.bowl)
         se-abet:se-c-leave:se-core
       ==
     ::
         %group-action-4
-      =+  !<(=a-groups:v8:gv vase)
+      =+  !<(action:v9:gv vase)
       ?>  from-self
       ?-    -.a-groups
           %group
@@ -1578,7 +1578,7 @@
 ::
 ++  size-limit  256.000  :: 256KB
 ++  se-core
-  |_  [=flag:g =log:g =group:g gone=_|]
+  |_  [=flag:g =log:g =group:g =request-id gone=_|]
   ::
   +*  ad  admissions.group
   ::
@@ -1588,9 +1588,10 @@
   ::  +se-abed: init
   ::
   ++  se-abed
-    |=  =flag:g
+    |=  [=flag:g id=request-id]
     ^+  se-core
     ?>  =(p.flag our.bowl)
+    =.  request-id  id
     ~|  flag=flag
     =+  gru=(~(get by groups) flag)
     ?~  gru  ~|(%se-abed-group-not-found !!)
@@ -1624,6 +1625,7 @@
   ++  se-area  `path`/server/groups/(scot %p p.flag)/[q.flag]
   ::  +se-sub-path: group updates path
   ++  se-sub-path  `path`(weld se-area /updates)
+  ::  +se-request-path: incoming request path for response
   ::
   ++  se-subscription-paths
     ^-  (list path)
@@ -1654,6 +1656,7 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
+    =.  se-core  (se-give-response %ok flag u-group)
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
@@ -1703,8 +1706,8 @@
     ?:  =(~ (~(int in roles.seat) admins.group))
       out
     (~(put in out) who)
- ::
- ++  se-is-banned
+  ::
+  ++  se-is-banned
     |=  =ship
     ?:  =(our.bowl ship)  |
     =*  banned  banned.admissions.group
@@ -1725,6 +1728,12 @@
   ::  +se-is-member: check whether the ship has a seat
   ::
   ++  se-is-member  ~(has by seats.group)
+  ::  +se-give-response: send a response to an open request
+  ++  se-give-response
+  |=  body=response-body:g
+  ^+  se-core
+  =/  paths  ~[`path`(weld se-area /request/(scot %uv request-id))]
+  (give %fact paths group-response+!>([request-id body]))
   ::  +se-give-update: send an update to subscribers
   ::
   ++  se-give-update
@@ -1743,9 +1752,24 @@
   ::
   ++  se-c-create
     |=  [=flag:g create=create-group:g]
-    ?>  from-self
-    ?>  ((sane %tas) name.create)
-    ?>  (lte (met 3 (jam create)) size-limit)
+    ?.  from-self
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Foreign ships cannot create groups']
+      ==
+    ?.  ((sane %tas) name.create)
+      %-  se-give-response
+      :*  %error
+          %invalid-name
+          ~['Group name contains invalid characters']
+      ==
+    ?.  (lte (met 3 (jam create)) size-limit)
+      %-  se-give-response
+      :*  %error
+          %request-too-large
+          ~['Group creation data exceeds size limit']
+      ==
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -1829,6 +1853,8 @@
       %+  roll  ~(tap by invited.ad)
       |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
       (emit:se-core (revoke-invite:se-pass ship tok))
+    =.  se-core
+      (se-give-response:se-core %ok flag %delete ~)
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -1846,9 +1872,19 @@
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
-    ~|  %se-c-join-access-denied
-    ?>  access
-    ?:  (se-is-joined src.bowl)  se-core
+    ?.  access
+      ::  TODO log?
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Do not have permission to join group']
+      ==
+    ?:  (se-is-joined src.bowl)
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Already a member of the group']
+      ==
     (se-c-seat (sy src.bowl ~) [%add ~])
   ::  +se-c-ask: handle a group ask request
   ::
@@ -1862,9 +1898,24 @@
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
-    ?<  ?=(%secret privacy.ad)
-    ?>  (lte (met 3 (jam story)) size-limit)
-    ?:  (se-is-joined src.bowl)  se-core
+    ?:  ?=(%secret privacy.ad)
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Unable to ask to join secret group']
+      ==
+    ?.  (lte (met 3 (jam story)) size-limit)
+      %-  se-give-response
+      :*  %error
+          %request-too-large
+          ~['Note exceeds size limit']
+      ==
+    ?:  (se-is-joined src.bowl)
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Already a member of the group']
+      ==
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
       se-core
@@ -1966,46 +2017,49 @@
     =*  se-src-is-admin   (se-is-admin src.bowl)
     =*  se-src-is-member  (se-is-member src.bowl)
     ::
+    ?:  ?=(%delete -.c-group)
+      ?.  from-self
+        %-  se-give-response
+        :*  %error
+            %not-authorized
+            ~['Only the group host can delete the group']
+        ==
+      se-c-delete
+    ?:  ?=(%flag-content -.c-group)
+      ?.  se-src-is-member
+        %-  se-give-response
+        :*  %error
+            %not-authorized
+            ~['Only group members can flag content']
+        ==
+      (se-c-flag-content [nest plan src]:c-group)
+    ?.  se-src-is-admin
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Only admins can execute this command']
+      ==
     ?-    -.c-group
+      %entry          (se-c-entry c-entry.c-group)
+      %seat           (se-c-seat [ships c-seat]:c-group)
+      %role           (se-c-role [roles c-role]:c-group)
+      %channel        (se-c-channel [nest c-channel]:c-group)
+      %section        (se-c-section [section-id c-section]:c-group)
+      %section-order  (se-c-section-order order.c-group)
+    ::
         %meta
-      ?>  se-src-is-admin
-      ?>  (lte (met 3 (jam meta.c-group)) size-limit)
-      ?:  =(meta.group meta.c-group)  se-core
+      ?.  (lte (met 3 (jam meta.c-group)) size-limit)
+        %-  se-give-response
+        :*  %error
+            %request-too-large
+            ~['Metadata exceeds size limit']
+        ==
+      ?:  =(meta.group meta.c-group)
+        ::  make sure we give a response back to caller
+        (se-give-response %ok flag c-group)
       =.  meta.group  meta.c-group
       (se-update %meta meta.group)
-    ::
-        %entry
-      ?>  se-src-is-admin
-      (se-c-entry c-entry.c-group)
-    ::
-        %seat
-      ?>  se-src-is-admin
-      (se-c-seat [ships c-seat]:c-group)
-    ::
-        %role
-      ?>  se-src-is-admin
-      (se-c-role [roles c-role]:c-group)
-    ::
-        %channel
-      ?>  se-src-is-admin
-      (se-c-channel [nest c-channel]:c-group)
-    ::
-        %section
-      ?>  se-src-is-admin
-      (se-c-section [section-id c-section]:c-group)
-    ::
-        %section-order
-      ?>  se-src-is-admin
-      (se-c-section-order order.c-group)
-    ::
-        %flag-content
-      ?>  se-src-is-member
-      (se-c-flag-content [nest plan src]:c-group)
-    ::
-        %delete
-      ?>  from-self
-      se-c-delete
-  ==
+    ==
   ::  +se-c-entry: execute an entry command
   ::
   ++  se-c-entry
@@ -2044,15 +2098,20 @@
     |=  =c-ban:g
     ^+  se-core
     ::  disallow operations affecting the host
-    ?<  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
+    ?:  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
                 (~(has in ships.c-ban) our.bowl)
             ==
             ?&  ?=(%set -.c-ban)
                 (~(has in ships.c-ban) our.bowl)
             ==
         ==
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Cannot ban or unban the group host']
+      ==
     ::  disallow operations on admins unless executed by the host
-    ?>  ?|  =(p.flag src.bowl)
+    ?.  ?|  =(p.flag src.bowl)
         ?!  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
                 !=(~ (~(int in se-admins) ships.c-ban))
                 ==
@@ -2061,6 +2120,11 @@
                 ==
             ==
         ==
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Cannot ban or unban an admin ship']
+      ==
     =*  banned  banned.ad
     ?-    -.c-ban
         %set
@@ -2234,9 +2298,14 @@
   ++  se-c-entry-pending
     |=  [ships=(set ship) =c-pending:g]
     ^+  se-core
-    ?<  ?&  ?=(%add -.c-pending)
+    ?:  ?&  ?=(%add -.c-pending)
             (~(any in ships) se-is-banned)
         ==
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Cannot add banned ships to pending list']
+      ==
     ?-    -.c-pending
         %add
       =.  ad
@@ -2287,11 +2356,16 @@
   ++  se-c-entry-ask
     |=  [ships=(set ship) c-ask=?(%approve %deny)]
     ^+  se-core
+    =/  reqs=(set ship)
+        (~(int in ~(key by requests.ad)) ships)
+    ?:  =(~ reqs)
+      %-  se-give-response
+      :*  %error
+          %not-found
+          ~['No matching ask requests found']
+      ==
     ?-    c-ask
         %approve
-      =/  reqs=(set ship)
-        (~(int in ~(key by requests.ad)) ships)
-      ?:  =(~ reqs)  se-core
       =.  se-core
         %+  roll  ~(tap in reqs)
         |=  [=ship =_se-core]
@@ -2307,9 +2381,6 @@
       (se-update [%entry %ask %del reqs])
     ::
         %deny
-      =/  reqs=(set ship)
-        (~(int in ~(key by requests.ad)) ships)
-      ?:  =(~ reqs)  se-core
       =.  se-core
         %+  roll  ~(tap in reqs)
         |=  [=ship =_se-core]
@@ -2383,10 +2454,14 @@
       se-core
     ::
         %del
-      ~|  %se-c-seat-delete-channel-host
-      ?<  ?|  (~(has in ships) our.bowl)
+      ?.  ?|  (~(has in ships) our.bowl)
               !=(~ (~(int in ships) se-channel-hosts))
           ==
+        %-  se-give-response
+        :*  %error
+            %not-authorized
+            ~['Cannot delete seat of channel hosts']
+        ==
       ::  clean up ask and pending record
       ::
       =.  pending.ad   (~(del by pending.ad) ship)
@@ -2418,7 +2493,12 @@
         %add-roles
       =.  roles.c-seat
         (~(int in ~(key by roles.group)) roles.c-seat)
-      ?:  =(~ roles.c-seat)  se-core
+      ?:  =(~ roles.c-seat)
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['No valid roles specified to add']
+        ==
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
@@ -2545,13 +2625,23 @@
     |=  [roles=(set role-id:g) =c-role:g]
     ^+  se-core
     ::  forbid duplicate roles
-    ?<  ?&  ?=(%add -.c-role)
+    ?:  ?&  ?=(%add -.c-role)
             =(roles (~(int in ~(key by roles.group)) roles))
         ==
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Roles cannot be duplicated']
+      ==
     ::  forbid anyone but the group host to change admin roles
-    ?<  ?&  !=(p.flag src.bowl)
+    ?:  ?&  !=(p.flag src.bowl)
             ?=(?(%set-admin %del-admin) -.c-role)
         ==
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Only the group host can change admin roles']
+      ==
     ?-    -.c-role
         %add
       =/  =role:g
@@ -2612,10 +2702,20 @@
     ::     this should be an assertion, but is currently triggered on
     ::     wayfinding group creation.
     ::
-    ?:  &(?=(%add -.c-channel) (has:by-ch nest))  se-core
+    ?:  &(?=(%add -.c-channel) (has:by-ch nest))
+      %-  se-give-response
+      :*  %error
+          %not-authorized
+          ~['Channel already exists']
+      ==
     ?-    -.c-channel
         %add
-      ?>  (lte (met 3 (jam chan)) size-limit)
+      ?.  (lte (met 3 (jam chan)) size-limit)
+        %-  se-give-response
+        :*  %error
+            %request-too-large
+            ~['Channel metadata exceeds size limit']
+        ==
       =.  added.chan  now.bowl
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
@@ -2624,8 +2724,13 @@
       (se-update %channel nest [%add chan])
     ::
         %edit
-      ?>  (lte (met 3 (jam chan)) size-limit)
-      =/  old=channel:g  (got:by-ch nest)
+      ?.  (lte (met 3 (jam chan)) size-limit)
+        %-  se-give-response
+        :*  %error
+            %request-too-large
+            ~['Channel metadata exceeds size limit']
+        ==
+      =/  =channel:g  (got:by-ch nest)
       ::  preserve original timestamp
       =.  added.chan  added.old
       =.  sections.group  (se-section-add-channel nest chan)
@@ -2647,7 +2752,12 @@
         %add-readers
       ::  forbid adding non-existent roles as readers
       ::
-      ?>  =(~ (~(dif in roles.c-channel) ~(key by roles.group)))
+      ?.  =(~ (~(dif in roles.c-channel) ~(key by roles.group)))
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['Cannot add non-existent roles as channel readers']
+        ==
       =/  =channel:g  (got:by-ch nest)
       =.  readers.channel  (~(uni in readers.channel) roles.c-channel)
       =.  channels.group  (put:by-ch nest channel)
@@ -2659,7 +2769,12 @@
     ::
         %section
       =/  =channel:g  (got:by-ch nest)
-      ?>  (~(has by sections.group) section-id.c-channel)
+      ?.  (~(has by sections.group) section-id.c-channel)
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['Section does not exist']
+        ==
       =.  sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
@@ -2703,14 +2818,24 @@
     ^+  se-core
     ?-    -.c-section
         %add
-      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
+      ?.  (lte (met 3 (jam meta.c-section)) size-limit)
+        %-  se-give-response
+        :*  %error
+            %request-too-large
+            ~['Section metadata exceeds size limit']
+        ==
       =/  =section:g  [meta.c-section ~]
       =.  sections.group  (~(put by sections.group) section-id section)
       =.  section-order.group  (~(push of section-order.group) section-id)
       (se-update %section section-id [%add meta.c-section])
     ::
         %edit
-      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
+      ?.  (lte (met 3 (jam meta.c-section)) size-limit)
+        %-  se-give-response
+        :*  %error
+            %request-too-large
+            ~['Section metadata exceeds size limit']
+        ==
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g
@@ -2718,7 +2843,12 @@
       (se-update %section section-id [%edit meta.c-section])
     ::
         %del
-      ?<  =(%default section-id)
+      ?.  =(%default section-id)
+        %-  se-give-response
+        :*  %error
+            %not-authorized
+            ~['Cannot delete default section']
+        ==
       =.  sections.group
         (~(del by sections.group) section-id)
       =.  section-order.group
@@ -2739,9 +2869,19 @@
       (se-update %section section-id [%move idx.c-section])
     ::
         %move-nest
-      ?.  (~(has by sections.group) section-id)  se-core
+      ?.  (~(has by sections.group) section-id)
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['Section does not exist']
+        ==
       =/  =section:g  (~(got by sections.group) section-id)
-      ?.  (~(has of order.section) nest.c-section)  se-core
+      ?.  (~(has of order.section) nest.c-section)
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['Channel does not exist in section']
+        ==
       =.  order.section
         (~(into of order.section) [idx nest]:c-section)
       =.  sections.group  (~(put by sections.group) section-id section)
@@ -2750,7 +2890,12 @@
         ::
         :: order channels in the section to achieve the target order
         %set
-      ?~  sec=(~(get by sections.group) section-id)  se-core
+      ?~  sec=(~(get by sections.group) section-id)
+        %-  se-give-response
+        :*  %error
+            %not-found
+            ~['Section does not exist']
+        ==
       =*  section  u.sec
       :: to achieve desired order, we perform the following steps:
       :: 1. prune non-existent nests
@@ -2824,6 +2969,14 @@
     |=  =path
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
+        [%request id=@ ~]
+      =/  id=request-id  (slav %uv i.t.path)
+      =/  request=(~(gut by incoming.requests) [id src.bowl] [id src.bowl ~])
+      =.  incoming.requests
+          (~(put by incoming.requests) [id src.bowl] request)
+      ?>  =(request.ship src.bowl)
+      se-core
+    ::
         ::  receive updates since .after time
         ::
         [%updates ship=@ after=@ ~]
