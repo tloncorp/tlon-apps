@@ -532,6 +532,13 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
+function appendFileUploadToPostBlob(blob: string | undefined, fileUri: string) {
+  if (!blob) {
+    return fileUri;
+  }
+  return `${blob}\n${fileUri}`;
+}
+
 export function toPostData({
   attachments,
   content,
@@ -546,8 +553,10 @@ export function toPostData({
   title?: string;
   image?: string;
   isEdit?: boolean;
-}): { story: Story; metadata: PostMetadata } {
+}): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
+  let blob: string | undefined = undefined;
+
   attachments
     .filter((attachment) => attachment.type !== 'text')
     .forEach((attachment) => {
@@ -575,6 +584,16 @@ export function toPostData({
 
         case 'link': {
           blocks.push(createLinkBlock(attachment));
+          break;
+        }
+
+        case 'file': {
+          if (attachment.uploadState.status === 'success') {
+            blob = appendFileUploadToPostBlob(
+              blob,
+              attachment.uploadState.remoteUri
+            );
+          }
           break;
         }
       }
@@ -608,7 +627,7 @@ export function toPostData({
     metadata.image = null;
   }
 
-  return { story, metadata };
+  return { story, metadata, blob };
 }
 
 function createImageBlock(attachment: UploadedImageAttachment): Block {
