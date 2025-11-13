@@ -324,19 +324,34 @@ export function plaintextPreviewOfInline(
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(input: unknown): PostContent {
+export function convertContent(
+  input: unknown,
+  blob: string | undefined | null
+): PostContent {
+  const out: PostContent = [];
+
+  if (blob != null) {
+    out.push({
+      type: 'link',
+      url: blob,
+      title: 'Attachment',
+      description: 'Press to download',
+    });
+  }
+
   if (!input) {
-    return [];
+    return out;
   }
 
   const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
-    return [];
+    return out;
   }
 
-  return convertContentSafe(story);
+  out.push(...convertContentSafe(story));
+  return out;
 }
 
 /**
