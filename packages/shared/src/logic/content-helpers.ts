@@ -550,24 +550,32 @@ export function toPostData({
   const blocks = attachments
     .filter((attachment) => attachment.type !== 'text')
     .flatMap((attachment): Block[] => {
-      if (attachment.type === 'reference') {
-        const block = createReferenceBlock(attachment);
-        return block ? [block] : [];
+      switch (attachment.type) {
+        case 'reference': {
+          const block = createReferenceBlock(attachment);
+          return block ? [block] : [];
+        }
+
+        case 'image': {
+          if (
+            !image ||
+            attachment.file.uri !== image ||
+            (attachment.file.uri === image &&
+              isEdit &&
+              channelType === 'gallery')
+          ) {
+            return [createImageBlock(attachment)];
+          } else {
+            return [];
+          }
+        }
+
+        case 'link': {
+          return [createLinkBlock(attachment)];
+        }
+        default:
+          return [];
       }
-      if (
-        attachment.type === 'image' &&
-        (!image ||
-          attachment.file.uri !== image ||
-          (attachment.file.uri === image &&
-            isEdit &&
-            channelType === 'gallery'))
-      ) {
-        return [createImageBlock(attachment)];
-      }
-      if (attachment.type === 'link') {
-        return [createLinkBlock(attachment)];
-      }
-      return [];
     });
 
   const story = constructStory(content);
