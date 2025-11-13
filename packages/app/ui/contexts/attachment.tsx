@@ -75,15 +75,22 @@ export const AttachmentProvider = ({
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
 
   const assetUploadStates = useUploadStates(
-    state.flatMap((a) => {
-      const x = Attachment.toUploadIntent(a);
-      if (x.needsUpload) {
-        return [Attachment.UploadIntent.extractKey(x)];
-      } else {
-        return [];
-      }
-    })
+    useMemo(
+      () =>
+        state.flatMap((a) => {
+          const x = Attachment.toUploadIntent(a);
+          if (x.needsUpload) {
+            return [Attachment.UploadIntent.extractKey(x)];
+          } else {
+            return [];
+          }
+        }),
+      [state]
+    )
   );
+  useEffect(() => {
+    console.log('assetUploadStates change');
+  }, [assetUploadStates]);
 
   const attachments = useMemo(() => {
     return state.map((a) => {
