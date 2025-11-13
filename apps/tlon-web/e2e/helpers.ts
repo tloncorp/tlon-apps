@@ -255,6 +255,9 @@ export async function acceptGroupInvite(page: Page, _groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
+  // Wait for the invitation to appear before clicking
+  await expect(page.getByText('Group invitation')).toBeVisible({ timeout: 60000 });
+
   // Click on the invitation
   await page.getByText('Group invitation').click();
   await page.waitForTimeout(1000);

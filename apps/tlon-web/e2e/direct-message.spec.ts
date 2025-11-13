@@ -28,7 +28,10 @@ test('should test comprehensive direct message functionality between ~zod and ~t
 
   // ~ten receives the DM and accepts it
   await tenPage.reload();
-  await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
+  // Wait for DM to sync from ~zod to ~ten
+  await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible({
+    timeout: 15000,
+  });
   await tenPage.getByTestId('ChannelListItem-~zod').click();
 
   await tenPage.waitForTimeout(1000);
