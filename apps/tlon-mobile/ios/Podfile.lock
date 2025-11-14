@@ -301,28 +301,8 @@ PODS:
     - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
-  - EXSplashScreen (0.28.5):
-    - DoubleConversion
+  - ExpoSplashScreen (0.29.24):
     - ExpoModulesCore
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.10.14.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - Yoga
   - EXStructuredHeaders (4.0.0)
   - EXTaskManager (12.0.6):
     - ExpoModulesCore
@@ -2525,7 +2505,7 @@ DEPENDENCIES:
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
-  - EXSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
+  - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - EXStructuredHeaders (from `../../../node_modules/expo-structured-headers/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
   - EXUpdates (from `../../../node_modules/expo-updates/ios`)
@@ -2729,7 +2709,7 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-secure-store/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
-  EXSplashScreen:
+  ExpoSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
   EXStructuredHeaders:
     :path: "../../../node_modules/expo-structured-headers/ios"
@@ -2950,7 +2930,7 @@ SPEC CHECKSUMS:
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
-  EXSplashScreen: 419db19fd1ef50bc384db3ad8553d230a31e5f3b
+  ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
   EXStructuredHeaders: 09c70347b282e3d2507e25fb4c747b1b885f87f6
   EXTaskManager: 0dcaa9b4b058b435f4e5bff4919c863f4f46badc
   EXUpdates: cea6e50606b6e036b7c66a3ca7b06f31edca3d44
