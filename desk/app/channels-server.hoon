@@ -53,7 +53,7 @@
 %-  %-  agent:neg
     :+  notify=|
       [~.channels^%3 ~ ~]
-    (my %groups^[~.groups^%1 ~ ~] ~)
+    (my %groups^[~.groups^%2 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
 ::
@@ -690,7 +690,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v7:gv q.cage.sign))
+      (take-groups !<(r-groups:v9:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -739,7 +739,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
@@ -895,7 +895,7 @@
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:v7:gv
+        .^  groups:v9:gv
           %gx
           /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
         ==
@@ -1322,14 +1322,14 @@
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  bowl:h
-  =/  group=(unit group:v7:gv)
+  =/  group=(unit group:v9:gv)
     ?~  channel  ~
     =*  flag  group.perm.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
+    ?.  .^(? %gu (scry-path %groups /$))  *group:v9:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
-      *group:v7:gv
-    .^(group:v7:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
+      *group:v9:gv
+    .^(group:v9:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
   :*  channel
       group
       v-channels
