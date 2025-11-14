@@ -110,8 +110,9 @@ export type FinalizedAttachment =
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Attachment {
+  type ImageUploadIntent = { type: 'image'; asset: ImagePickerAsset };
   export type UploadIntent =
-    | { type: 'image'; asset: ImagePickerAsset }
+    | ImageUploadIntent
     | { type: 'fileUri'; localUri: string }
     | { type: 'file'; file: File };
 
@@ -138,6 +139,14 @@ export namespace Attachment {
         case 'fileUri':
           return uploadIntent.localUri;
       }
+    }
+
+    export function extractImagePickerAssets(
+      xs: UploadIntent[]
+    ): ImageUploadIntent[] {
+      return xs
+        .filter((x): x is ImageUploadIntent => x.type === 'image')
+        .map((x) => x.asset);
     }
 
     /** Used when keying a 'file'-type UploadIntent. Memoized so that

@@ -1,3 +1,4 @@
+import { Attachment } from '@tloncorp/shared/domain';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
 
@@ -42,8 +43,8 @@ export default function AddGalleryPost({
   ];
 
   const handleImageSet = useCallback(
-    (assets: ImagePickerAsset[]) => {
-      onSetImage(assets);
+    (assets: Attachment.UploadIntent[]) => {
+      onSetImage(Attachment.UploadIntent.extractImagePickerAssets(assets));
     },
     [onSetImage]
   );

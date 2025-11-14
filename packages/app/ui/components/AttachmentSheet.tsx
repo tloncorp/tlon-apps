@@ -32,7 +32,7 @@ export default function AttachmentSheet({
   showClearOption?: boolean;
   onClearAttachments?: () => void;
   onOpenChange: (open: boolean) => void;
-  onAttach?: (assets: ImagePicker.ImagePickerAsset[]) => void;
+  onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
@@ -82,14 +82,16 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
-        // TODO: we're doing two layers of conversion here - and
-        // createImageAssetFromClipboardData in particular lies about the
-        // image's dimensions. could probably remove one layer.
+        // TODO: we're doing two layers of conversion here:
+        //   clipboardData -> ImagePickerAsset -> UploadIntent
+        // `createImageAssetFromClipboardData` in particular lies about the
+        // image's dimensions - we should probably remove one layer
         const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
-        attachAssets([
+        const atts = [
           Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
-        ]);
-        onAttach?.([clipboardAsset]);
+        ];
+        attachAssets(atts);
+        onAttach?.(atts);
       } catch (error) {
         logger.trackError('Error pasting from clipboard', { error });
       }
@@ -154,10 +156,11 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([
+          const atts = [
             Attachment.UploadIntent.fromImagePickerAsset(realAsset),
-          ]);
-          onAttach?.(result.assets);
+          ];
+          attachAssets(atts);
+          onAttach?.(atts);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -214,10 +217,11 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([
+          const atts = [
             Attachment.UploadIntent.fromImagePickerAsset(realAsset),
-          ]);
-          onAttach?.(result.assets);
+          ];
+          attachAssets(atts);
+          onAttach?.(atts);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -265,8 +269,9 @@ export default function AttachmentSheet({
       });
 
       attachAssets(uploadIntents);
+      onAttach?.(uploadIntents);
     }
-  }, [attachAssets, onOpenChange]);
+  }, [attachAssets, onOpenChange, onAttach]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>

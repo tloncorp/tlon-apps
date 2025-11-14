@@ -1,9 +1,9 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { Attachment } from '@tloncorp/shared/domain';
 import { Icon } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { ImageBackground } from 'expo-image';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
   useCallback,
@@ -102,7 +102,10 @@ export function EditablePofileImages({
   }, []);
 
   const handleAssetsSelected = useCallback(
-    (assets: ImagePickerAsset[]) => {
+    (intents: Attachment.UploadIntent[]) => {
+      // We only allow image uploads, so we can simplify and only handle images
+      // here.
+      const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
       if (attachingTo === 'cover') {
         setLocalCoverUrl(assets[0].uri);
       } else if (attachingTo === 'icon') {

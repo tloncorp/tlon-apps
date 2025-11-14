@@ -18,7 +18,6 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -278,15 +277,24 @@ export function BigInput({
   }, []);
 
   // Handle selecting a new header image
-  const handleImageSelect = useCallback((assets: ImagePickerAsset[]) => {
-    if (assets.length > 0) {
-      setImageUri(assets[0].uri);
-    }
-    setShowAttachmentSheet(false);
-  }, []);
+  const handleImageSelect = useCallback(
+    (intents: Attachment.UploadIntent[]) => {
+      // We only allow image uploads, so we can simplify and only handle images
+      // here.
+      const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
+      if (assets.length > 0) {
+        setImageUri(assets[0].uri);
+      }
+      setShowAttachmentSheet(false);
+    },
+    []
+  );
 
   const handleInlineImageSelect = useCallback(
-    async (assets: ImagePickerAsset[]) => {
+    async (intents: Attachment.UploadIntent[]) => {
+      // We only allow image uploads, so we can simplify and only handle images
+      // here.
+      const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
       if (assets.length > 0 && editorRef.current?.editor) {
         const asset = assets[0];
 
