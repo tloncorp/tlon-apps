@@ -992,6 +992,7 @@ export const channels = sqliteTable(
     contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),
+    autoJoin: boolean('auto_join'),
     currentUserIsHost: boolean('current_user_is_host'),
     postCount: integer('post_count'),
     unreadCount: integer('unread_count'),
