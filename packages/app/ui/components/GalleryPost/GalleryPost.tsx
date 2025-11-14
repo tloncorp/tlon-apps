@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import {
   useChannelContext,
@@ -42,6 +43,7 @@ import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -90,6 +92,9 @@ export function GalleryPost({
     [contentRendererConfiguration]
   ) as '$s' | '$l';
 
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
+
   const handleRetryPressed = useCallback(() => {
     onPressRetry?.(post);
     setShowRetrySheet(false);
@@ -123,10 +128,13 @@ export function GalleryPost({
     setIsHovered(false);
   }, []);
 
-  const handleOverflowPress = useCallback((e: any) => {
-    // Stop propagation to prevent parent onPress from firing
-    e.stopPropagation();
-  }, []);
+  const handleOverflowPress = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      // Stop propagation to prevent parent onPress from firing
+      e.stopPropagation();
+    },
+    []
+  );
 
   const handleEditPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -134,6 +142,17 @@ export function GalleryPost({
 
   if (post.isDeleted) {
     return null;
+  }
+
+  if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        message="Post from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedPostButton"
+      />
+    );
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame
