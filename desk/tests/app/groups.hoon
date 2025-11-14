@@ -119,7 +119,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-foreign-2+!>(`a-foreigns:v8:gv`a-foreigns))
+  (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  do-a-foreign
   |=  =a-foreign:g
@@ -127,7 +127,7 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-foreigns:g  [%foreign my-flag a-foreign]
-  (do-poke group-foreign-2+!>(`a-foreigns:v8:gv`a-foreigns))
+  (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
   |=  [caz=(list card) rs-groups=(list r-groups:v9:gv)]

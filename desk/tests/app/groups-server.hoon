@@ -16,6 +16,7 @@
   ^-  (unit vase)
   ?+    path  ~
     [%gu ship=@ %activity now=@ rest=*]  `!>(|)
+    [%gx ship=@ %groups now=@ %~.~ %negotiate %status *]  `!>(%match)
   ==
 ::
 ++  get-invite
@@ -494,9 +495,11 @@
   ::
   ;<  caz=(list card)  bind:m  (do-c-group [%entry %ban %add-ships (sy ~fun ~)])
   ;<  =bowl:gall  bind:m  get-bowl
+  =/  reject-wire=wire  (weld se-area /ask/reject/~fun)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-card [%give %kick ~[ask-path] ~])
+    :~  (ex-poke reject-wire [~fun %groups] group-foreign-2+!>([%reject my-flag]))
+        (ex-card [%give %kick ~[ask-path] ~])
         (ex-update now.bowl [%entry %ask %del (sy ~fun ~)])
         (ex-update (add now.bowl tick) [%entry %ban %add-ships (sy ~fun ~)])
     ==
