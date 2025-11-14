@@ -88,9 +88,6 @@ export const AttachmentProvider = ({
       [state]
     )
   );
-  useEffect(() => {
-    console.log('assetUploadStates change');
-  }, [assetUploadStates]);
 
   const attachments = useMemo(() => {
     return state.map((a) => {
