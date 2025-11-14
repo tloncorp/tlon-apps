@@ -209,6 +209,7 @@ export const editPost = async ({
   content,
   parentId,
   metadata,
+  blob,
 }: {
   channelId: string;
   postId: string;
@@ -217,6 +218,7 @@ export const editPost = async ({
   content: Story;
   parentId?: string;
   metadata?: db.PostMetadata;
+  blob?: string;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -260,6 +262,7 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
+    blob,
     metadata: metadata
       ? {
           title: metadata.title || '',
