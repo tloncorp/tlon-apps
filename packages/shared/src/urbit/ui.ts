@@ -55,7 +55,7 @@ export interface ChangesV7 {
   groups: GroupsV7;
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;
-  contacts: Record<string, ContactBookProfile>;
+  contacts: Record<string, ContactBookEntry>;
   activity: Activity;
 }
 
