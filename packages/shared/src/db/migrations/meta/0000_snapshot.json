@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "69ab8122-fcb8-4da4-ae7c-09eeec6bc701",
+  "id": "38e7de70-1410-4670-88be-8a6c4bca67f0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2028,6 +2028,13 @@
         },
         "synced_at": {
           "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pending_members_dismissed_at": {
+          "name": "pending_members_dismissed_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
