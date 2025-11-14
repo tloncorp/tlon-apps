@@ -118,6 +118,24 @@ export function validateNickname(
   return { isValid: true };
 }
 
+/**
+ * Returns a user-friendly error message for a nickname validation error.
+ * @param errorType The type of validation error
+ * @returns A human-readable error message
+ */
+export function getNicknameErrorMessage(
+  errorType: NicknameValidationErrorType
+): string {
+  switch (errorType) {
+    case 'confusable_characters':
+      return 'Nickname cannot contain characters that look like ~';
+    case 'invalid_patp':
+      return 'You can only use your own ID in your nickname';
+    case 'wrong_user_id':
+      return 'You can only use your own ID in your nickname';
+  }
+}
+
 export async function asyncWithDefault<T>(
   cb: () => Promise<T>,
   def: T

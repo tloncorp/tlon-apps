@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import {
-  NicknameValidationErrorType,
+  getNicknameErrorMessage,
   validateNickname,
 } from '@tloncorp/shared/logic';
 import {
@@ -34,19 +34,6 @@ interface Props {
   userId: string;
   onGoBack: () => void;
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
-}
-
-function getNicknameErrorMessage(
-  errorType: NicknameValidationErrorType
-): string {
-  switch (errorType) {
-    case 'confusable_characters':
-      return 'Nickname cannot contain characters that look like ~';
-    case 'invalid_patp':
-      return 'You can only use your own ID in your nickname';
-    case 'wrong_user_id':
-      return 'You can only use your own ID in your nickname';
-  }
 }
 
 export function EditProfileScreenView(props: Props) {
