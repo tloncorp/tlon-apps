@@ -1984,6 +1984,7 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
+    autoJoin: channel.join,
   };
 }
 
