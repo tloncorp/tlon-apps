@@ -151,7 +151,7 @@ export namespace Attachment {
 
     /** Used when keying a 'file'-type UploadIntent. Memoized so that
      * equivalent `File`s yield the same ID. */
-    const fileKey = memoize((file: File): string => uniqueId('File'));
+    const fileKey = memoize((_file: File): string => uniqueId('File'));
 
     export function extractKey(uploadIntent: UploadIntent): UploadIntent.Key {
       const rawValue: string = (() => {
