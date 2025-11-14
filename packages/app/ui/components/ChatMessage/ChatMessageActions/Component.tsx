@@ -193,7 +193,13 @@ export function ChatMessageActions({
             paddingHorizontal="$xl"
           >
             <YStack gap="$xs">
-              {canWrite && <EmojiToolbar post={post} onDismiss={onDismiss} />}
+              {canWrite && (
+                <EmojiToolbar
+                  post={post}
+                  onDismiss={onDismiss}
+                  openExternalSheet={onShowEmojiPicker}
+                />
+              )}
               <MessageContainer post={post} />
               <MessageActions
                 post={post}

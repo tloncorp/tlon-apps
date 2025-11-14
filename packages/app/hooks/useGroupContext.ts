@@ -5,15 +5,9 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';
 
-export const useGroupContext = ({
-  groupId,
-  isFocused,
-}: {
-  groupId: string;
-  isFocused?: boolean;
-}) => {
+export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
-  
+
   const groupQuery = store.useGroup({
     id: groupId,
   });
@@ -61,6 +55,12 @@ export const useGroupContext = ({
         .filter((channel) =>
           section.channels.map((c) => c.channelId).includes(channel.id)
         )
+        .map((c) => ({
+          ...c,
+          index:
+            section.channels.find((ch) => ch.channelId === c.id)
+              ?.channelIndex ?? 0,
+        }))
         .sort((a, b) => {
           const aIndex =
             section.channels.find((c) => c.channelId === a.id)?.channelIndex ??
@@ -81,15 +81,6 @@ export const useGroupContext = ({
           ...group,
           ...metadata,
         });
-      }
-    },
-    [group]
-  );
-
-  const moveNavSection = useCallback(
-    async (navSectionId: string, newIndex: number) => {
-      if (group) {
-        await store.moveNavSection(group, navSectionId, newIndex);
       }
     },
     [group]
@@ -161,40 +152,53 @@ export const useGroupContext = ({
     [group]
   );
 
-  const moveChannel = useCallback(
-    async (channelId: string, navSectionId: string, index: number) => {
-      if (group) {
-        await store.moveChannel({
-          groupId: group.id,
-          channelId,
-          navSectionId,
-          index,
-        });
-      }
-    },
-    [group]
-  );
-
-  const moveChannelToNavSection = useCallback(
-    async (channelId: string, navSectionId: string) => {
-      if (!group) return;
-
-      // Find current section for the channel
-      const currentSection = group.navSections?.find((section) =>
-        section.channels?.some((channel) => channel.channelId === channelId)
-      );
-
-      if (!currentSection) {
-        console.error('Channel not found in any section');
+  const updateGroupNavigation = useCallback(
+    async (
+      navSections: Array<{
+        sectionId: string;
+        sectionIndex: number;
+        channels: Array<{ channelId: string; channelIndex: number }>;
+      }>
+    ) => {
+      if (!group) {
         return;
       }
 
-      // Use addChannelToNavSection which handles both adding to new section
-      // and removing from the previous section
-      await store.addChannelToNavSection({
-        groupId: group.id,
-        channelId,
-        navSectionId,
+      // Preserve existing section metadata while applying new structure
+      const updatedNavSections: (db.GroupNavSection | null)[] = navSections.map(
+        (newSection) => {
+          const existingSection = group.navSections?.find(
+            (s) => s.sectionId === newSection.sectionId
+          );
+
+          if (!existingSection) {
+            console.error(
+              `Section ${newSection.sectionId} not found in group navSections`
+            );
+            return null;
+          }
+
+          return {
+            ...existingSection,
+            sectionIndex: newSection.sectionIndex,
+            channels: newSection.channels.map((chan) => ({
+              channelId: chan.channelId,
+              groupNavSectionId: existingSection.id,
+              channelIndex: chan.channelIndex,
+            })),
+          } as db.GroupNavSection;
+        }
+      );
+
+      const validNavSections = updatedNavSections.filter(
+        (s): s is db.GroupNavSection => s !== null
+      );
+
+      await store.updateGroupNavigationBatch({
+        group: {
+          ...group,
+          navSections: validNavSections,
+        },
       });
     },
     [group]
@@ -413,9 +417,7 @@ export const useGroupContext = ({
     createNavSection,
     deleteNavSection,
     updateNavSection,
-    moveNavSection,
-    moveChannel,
-    moveChannelToNavSection,
+    updateGroupNavigation,
     inviteUsers,
     getPublicInviteUrl,
     createGroupRole,

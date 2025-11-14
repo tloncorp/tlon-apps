@@ -295,7 +295,7 @@
           [%group-join group=flag:g =ship]
           [%group-invite group=flag:g =ship]
           [%chan-init channel=nest:c group=flag:g]
-          [%group-role group=flag:g =ship roles=(set sect:g)]
+          [%group-role group=flag:g =ship roles=(set role-id:g)]
           [%flag-post key=message-key channel=nest:c group=flag:g]
           [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
       ==

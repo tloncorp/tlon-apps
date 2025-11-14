@@ -1,4 +1,3 @@
-import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -33,9 +32,8 @@ export function GroupChannelsScreenContent({
   groupId: string;
   focusedChannelId?: string;
 }) {
-  const isFocused = useIsFocused();
   const isWindowNarrow = useIsWindowNarrow();
-  const { group } = useGroupContext({ groupId: id, isFocused });
+  const { group } = useGroupContext({ groupId: id });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
@@ -101,11 +99,13 @@ export function GroupChannelsScreenContent({
     [isWindowNarrow, navigation]
   );
 
+  const chatSettingsNav = useChatSettingsNavigation();
+
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
       initialChat={{ type: 'group', id }}
-      {...useChatSettingsNavigation()}
+      {...chatSettingsNav}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
         <GroupChannelsScreenView
@@ -113,6 +113,7 @@ export function GroupChannelsScreenContent({
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
           onGoToGroupMembers={handleGoToGroupMembers}
+          onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

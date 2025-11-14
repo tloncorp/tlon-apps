@@ -39,6 +39,7 @@ type GroupChannelsScreenViewProps = {
   onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
   onGoToGroupMembers: () => void;
+  onPressManageChannels: (groupId: string, fromChatDetails?: boolean) => void;
 };
 
 export const GroupChannelsScreenView = React.memo(
@@ -49,6 +50,7 @@ export const GroupChannelsScreenView = React.memo(
     onJoinChannel,
     onBackPressed,
     onGoToGroupMembers,
+    onPressManageChannels,
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -264,10 +266,13 @@ export const GroupChannelsScreenView = React.memo(
           rightControls={
             <>
               {isGroupAdmin && (
-                <ScreenHeader.IconButton
-                  type="Add"
-                  onPress={() => setShowCreateChannel(true)}
-                />
+                <ScreenHeader.TextButton
+                  onPress={() =>
+                    group && onPressManageChannels(group.id, false)
+                  }
+                >
+                  Edit
+                </ScreenHeader.TextButton>
               )}
               {!isWindowNarrow && group ? (
                 <ChatOptionsSheet

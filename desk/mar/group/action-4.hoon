@@ -9,6 +9,6 @@
 ++  grab
   |%
   ++  noun  a-groups:v8:gv
-  ++  json  a-groups:dejs:j
+  ++  json  a-groups:v8:dejs:j
   --
 --

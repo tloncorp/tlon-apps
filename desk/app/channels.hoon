@@ -143,6 +143,7 @@
     :~  [/x/$/$/$/perm %channel-perm]
         [/x/$/$/$/posts %channel-posts]
         [/x/$/$/$/search %channel-scan]
+        [/x/$/$/$/search/bounded %channel-scam]
         [/x/$/init %noun]
         [/x/channels %channels]
         [/x/init %noun]
@@ -1034,14 +1035,15 @@
     =.  pending-ref-edits
       (~(del by pending-ref-edits) host)
     %-  emil
-    %+  turn  ~(tap by u.pend)
+    %+  murn  ~(tap by u.pend)
     |=  [=kind:c name=term]
-    ^-  card
+    ^-  (unit card)
+    ::NOTE  to migrate other olds agents (heap, diary), use 828f5ed or earlier
+    ?.  ?=(%chat kind)  ~
+    %-  some
     :+  %pass   /migrate
-    :+  %agent  [our.bowl kind]
-    :+  %poke
-      ::NOTE  %chat-migrate-refs, etc
-      (cat 3 kind '-migrate-refs')
+    :+  %agent  [our.bowl %chat]
+    :+  %poke   %chat-migrate-refs
     !>([host name])
   ::
       %egg-any
@@ -1208,12 +1210,12 @@
       %^  give  %fact
         ~[v2+path v3+suffix]
       ?~  got  cage.sign
-      channel-said-1+!>(u.got)
+      channel-said-1+!>((v8:said:v9:ccv u.got))
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(u.got)
+      channel-said-2+!>(`said:v9:c`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can

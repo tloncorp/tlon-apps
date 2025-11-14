@@ -94,6 +94,39 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
+  const renderFooter = useCallback(() => {
+    if (!selectedChannel) {
+      return null;
+    }
+    return (
+      <YStack
+        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+        paddingHorizontal="$xl"
+      >
+        <Button
+          hero
+          onPress={handleSendItem}
+          disabled={isSending || !!errorMessage}
+        >
+          <Button.Text>
+            {isSending
+              ? 'Forwarding...'
+              : errorMessage
+                ? errorMessage
+                : `Forward to ${selectedChannelTitle}`}
+          </Button.Text>
+        </Button>
+      </YStack>
+    );
+  }, [
+    handleSendItem,
+    insets.bottom,
+    isSending,
+    errorMessage,
+    selectedChannelTitle,
+    selectedChannel,
+  ]);
+
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardPostSheetContext.Provider value={contextValue}>
@@ -101,46 +134,28 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
       <ActionSheet
         open={isOpen}
         onOpenChange={setIsOpen}
-        snapPoints={[90]}
-        snapPointsMode="percent"
+        snapPointsMode="fit"
+        footerComponent={renderFooter}
       >
-        <ActionSheet.SimpleHeader title={'Forward to channel'} />
-        <XStack paddingHorizontal="$xl">
-          <SearchBar
-            placeholder="Search channels"
-            onChangeQuery={handleQueryChanged}
-          ></SearchBar>
-        </XStack>
+        <ActionSheet.Content flex={1} paddingBottom="$s">
+          <ActionSheet.SimpleHeader title={'Forward to channel'} />
+          <XStack paddingHorizontal="$xl">
+            <SearchBar
+              placeholder="Search channels"
+              onChangeQuery={handleQueryChanged}
+            ></SearchBar>
+          </XStack>
 
-        {isOpen && (
-          <FilteredChatList
-            ref={chatListRef}
-            listType="channels"
-            searchQuery={query}
-            onPressItem={handleItemSelected}
-            listProps={listProps}
-          />
-        )}
-        {selectedChannel && (
-          <YStack
-            padding="$xl"
-            paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
-          >
-            <Button
-              hero
-              onPress={handleSendItem}
-              disabled={isSending || !!errorMessage}
-            >
-              <Button.Text>
-                {isSending
-                  ? `Forwarding...`
-                  : errorMessage
-                    ? errorMessage
-                    : `Forward to ${selectedChannelTitle}`}
-              </Button.Text>
-            </Button>
-          </YStack>
-        )}
+          {isOpen && (
+            <FilteredChatList
+              ref={chatListRef}
+              listType="channels"
+              searchQuery={query}
+              onPressItem={handleItemSelected}
+              listProps={listProps}
+            />
+          )}
+        </ActionSheet.Content>
       </ActionSheet>
     </ForwardPostSheetContext.Provider>
   );

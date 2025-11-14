@@ -1,3 +1,15 @@
+/**
+ * @deprecated This component is kept only for matchText (search highlighting) functionality.
+ * For general contact name display, use ContactNameV2 instead.
+ *
+ * This component should only be used in:
+ * - MentionPopup (for highlighting matched text during mentions)
+ * - ContactListItem (for search result highlighting)
+ * - Other search/autocomplete UIs that require match highlighting
+ *
+ * For all other use cases, import from './ContactNameV2' instead.
+ */
+
 import { escapeRegExp } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';

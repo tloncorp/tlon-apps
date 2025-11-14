@@ -7,21 +7,34 @@ import { useMemo } from 'react';
 import { useCalm } from '../contexts/appDataContext';
 import { formatUserId } from './user';
 
+/**
+ * Get the display name for a channel member.
+ * Uses the same logic as ContactNameV2 for consistency.
+ * @param member - The chat member
+ * @param disableNicknames - Whether nicknames are disabled (from Calm mode)
+ * @returns The display name (nickname if available and not disabled, otherwise formatted userId)
+ */
 export function getChannelMemberName(
   member: db.ChatMember,
   disableNicknames: boolean
-) {
-  if (disableNicknames) {
-    return formatUserId(member.contactId)?.display;
+): string {
+  const hasNickname = member.contact?.nickname && !disableNicknames;
+  if (hasNickname) {
+    return member.contact!.nickname!;
   }
-  return member.contact?.nickname
-    ? member.contact.nickname
-    : formatUserId(member.contactId)?.display;
+  return formatUserId(member.contactId)?.display ?? member.contactId;
 }
 
-export function useChannelMemberName(member: db.ChatMember) {
+/**
+ * Hook to get the display name for a channel member.
+ * Respects the current Calm mode settings.
+ */
+export function useChannelMemberName(member: db.ChatMember): string {
   const { disableNicknames } = useCalm();
-  return getChannelMemberName(member, disableNicknames);
+  return useMemo(
+    () => getChannelMemberName(member, disableNicknames),
+    [member, disableNicknames]
+  );
 }
 
 export function getChannelTitle({

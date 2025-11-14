@@ -13,6 +13,10 @@ import {
   useTheme,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import {
+  getNicknameErrorMessage,
+  validateNickname,
+} from '@tloncorp/shared/logic';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -41,6 +45,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     formState: { errors, isValid },
     setValue,
   } = useForm<FormData>({
+    mode: 'onChange',
     defaultValues: {
       nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
       notificationToken: undefined,
@@ -112,6 +117,17 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
             minLength: {
               value: 1,
               message: 'Please enter a nickname.',
+            },
+            maxLength: {
+              value: 30,
+              message: 'Your nickname is limited to 30 characters',
+            },
+            validate: (value) => {
+              const result = validateNickname(value ?? '', '');
+              if (!result.isValid) {
+                return getNicknameErrorMessage(result.errorType);
+              }
+              return true;
             },
           }}
           render={({ field: { onChange, onBlur, value } }) => (

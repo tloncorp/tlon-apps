@@ -51,6 +51,24 @@ function groupAction4(action: ub.GroupActionV4) {
   };
 }
 
+function groupNavigationBatchUpdate(
+  flag: string,
+  navigation: ub.GroupNavigationUpdate
+): Poke<ub.GroupNavigationBatchUpdate> {
+  return {
+    app: 'groups',
+    mark: 'group-action-4',
+    json: {
+      group: {
+        flag,
+        'a-group': {
+          navigation,
+        },
+      },
+    },
+  };
+}
+
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
     app: 'groups-ui',
@@ -564,27 +582,6 @@ export const updateNavSection = async ({
   );
 };
 
-export const moveNavSection = async ({
-  groupId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  navSectionId: string;
-  index: number;
-}) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          mov: index,
-        },
-      },
-    })
-  );
-};
-
 export const addChannelToNavSection = async ({
   groupId,
   navSectionId,
@@ -688,30 +685,38 @@ export const deleteChannel = async ({
   );
 };
 
-export const moveChannel = async ({
+export const updateGroupNavigation = async ({
   groupId,
-  channelId,
-  navSectionId,
-  index,
+  navSections,
 }: {
   groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index: number;
+  navSections: db.GroupNavSection[];
 }) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          'mov-nest': {
-            nest: channelId,
-            idx: index,
-          },
-        },
+  const sections: Record<string, ub.GroupNavigationSectionData> = {};
+
+  for (const section of navSections) {
+    sections[section.sectionId] = {
+      meta: {
+        title: section.title ?? '',
+        description: section.description ?? '',
+        image: section.iconImage ?? section.coverImageColor ?? '',
+        cover: section.coverImage ?? section.coverImageColor ?? '',
       },
-    })
-  );
+      order: (section.channels ?? [])
+        .sort((a, b) => (a.channelIndex ?? 0) - (b.channelIndex ?? 0))
+        .map((c) => c.channelId)
+        .filter((id): id is string => !!id),
+    };
+  }
+
+  const navigation: ub.GroupNavigationUpdate = {
+    sections,
+    order: navSections
+      .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
+      .map((s) => s.sectionId),
+  };
+
+  return await poke(groupNavigationBatchUpdate(groupId, navigation));
 };
 
 export const addGroupRole = async ({
@@ -821,6 +826,27 @@ export const removeMembersFromRole = async ({
         ships,
         diff: {
           'del-sects': [roleId],
+        },
+      },
+    })
+  );
+};
+
+export const removeAllRolesFromMembers = async ({
+  groupId,
+  contactIds,
+  roleIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+  roleIds: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships: contactIds,
+        diff: {
+          'del-sects': roleIds,
         },
       },
     })

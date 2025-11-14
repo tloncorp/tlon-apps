@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   ReactNode,
   createContext,
@@ -12,8 +12,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
-import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../components/InviteUsersSheet';
@@ -139,6 +137,10 @@ export const ChatOptionsProvider = ({
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
+  const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
+  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
+    null
+  );
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
@@ -274,26 +276,9 @@ export const ChatOptionsProvider = ({
   }, [channel, closeSheet, navigateOnLeave]);
 
   const leaveChannel = useCallback(() => {
-    if (isWeb) {
-      return onLeaveChannelConfirmed();
-    }
-    Alert.alert(
-      `Leave ${channelTitle}?`,
-      'You will no longer receive updates from this channel.',
-      [
-        {
-          text: 'Cancel',
-          onPress: () => console.log('Cancel Pressed'),
-          style: 'cancel',
-        },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: onLeaveChannelConfirmed,
-        },
-      ]
-    );
-  }, [channelTitle, onLeaveChannelConfirmed]);
+    setLeaveChannelTitle(channelTitle);
+    setLeaveChannelDialogOpen(true);
+  }, [channelTitle]);
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
@@ -493,6 +478,20 @@ export const ChatOptionsProvider = ({
           />
         </>
       )}
+      <ConfirmDialog
+        open={leaveChannelDialogOpen && !!leaveChannelTitle}
+        onOpenChange={(open) => {
+          setLeaveChannelDialogOpen(open);
+          if (!open) {
+            setLeaveChannelTitle(null);
+          }
+        }}
+        title={`Leave ${leaveChannelTitle ?? 'channel'}?`}
+        description="You will no longer receive updates from this channel."
+        confirmText="Leave"
+        destructive
+        onConfirm={onLeaveChannelConfirmed}
+      />
     </ChatOptionsContext.Provider>
   );
 };

@@ -544,3 +544,23 @@ export interface GroupInviteAction {
 export type GroupActionV4 = {
   invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
 };
+
+// Types for batch navigation updates (group-action-4)
+export interface GroupNavigationSectionData {
+  meta: GroupMeta;
+  order: string[];
+}
+
+export interface GroupNavigationUpdate {
+  sections: Record<string, GroupNavigationSectionData>;
+  order: string[];
+}
+
+export interface GroupNavigationBatchUpdate {
+  group: {
+    flag: string;
+    'a-group': {
+      navigation: GroupNavigationUpdate;
+    };
+  };
+}

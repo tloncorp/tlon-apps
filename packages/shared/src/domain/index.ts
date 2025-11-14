@@ -2,6 +2,7 @@ export * from './analytics';
 export * from './attachment';
 export * from './attestations';
 export * from './constants';
+export * from './groupTemplates';
 export * from './hosting';
 export * from './invite.types';
 export * from './onboarding';
