@@ -15,7 +15,7 @@ function createNoOpFunction(key: string): NoOpFunction {
   }) as unknown as NoOpFunction;
 }
 
-function createNoOpStore(): StoreType {
+export function createNoOpStore(): StoreType {
   return new Proxy({} as StoreType, {
     get: (target, prop) => {
       logger.log('Mocked store call', prop.toString());
