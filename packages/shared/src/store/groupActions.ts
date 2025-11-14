@@ -156,6 +156,7 @@ export async function createGroupFromTemplate(
       title: channelTemplate.title,
       description: channelTemplate.description,
       lastPostSequenceNum: 0,
+      currentUserIsMember: true,
     };
   });
 
