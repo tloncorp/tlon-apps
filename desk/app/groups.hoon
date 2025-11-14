@@ -1321,12 +1321,10 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ::  ignore responses after we have left the group
+    ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=(%kick -.sign)
-                ?=(%fact -.sign)
-                ?=([%command %leave ~] rest.pole)
+            ?|  ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
         ==
@@ -1339,14 +1337,6 @@
   ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    ::  ignore the following for a deleted foreign group
-    ::
-    ?:  ?&  !(~(has by foreigns) ship name.pole)
-            ?|  ?=(%kick -.sign)            :: ignore kicks
-                ?=([%preview ~] rest.pole)  :: ignore preview signs
-            ==
-        ==
-      cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
       [%chan app=@ ship=@ name=@ rest=*]
@@ -3260,7 +3250,7 @@
     ::  consider it uninitialized.
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates ?~(error | &))
+    (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
   ++  go-lost-admin
@@ -4455,8 +4445,16 @@
     ^+  cor
     =+  old-foreign=(~(get by foreigns) flag)
     =.  foreigns  (~(put by foreigns) flag foreign)
-    =?  foreigns  ?=([~ %done] progress)
+    =+  done=?=([~ %done] progress)
+    =?  foreigns  done
       (~(del by foreigns) flag)
+    ::  cancel a possible preview
+    ::
+    =?  cor  done
+      =^  caz=(list card)  subs
+        =/  =dock  [p.flag dap.bowl]
+        (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
+      (emil caz)
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
       fi-give-update
     cor
