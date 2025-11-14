@@ -1,5 +1,3 @@
-import { preSig } from '@urbit/aura';
-
 import * as api from '../../api';
 import {
   RNFile,

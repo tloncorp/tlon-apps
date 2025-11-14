@@ -1,4 +1,4 @@
-import { daToUnix, parseUd } from '@urbit/aura';
+import { parse, da } from '@urbit/aura';
 import _ from 'lodash';
 
 import type { UnionToIntersection } from '../utils';
@@ -773,7 +773,7 @@ export function getIdParts(id: string): { author: string; sent: number } {
   const [author, sentStr] = id.split('/');
   return {
     author,
-    sent: daToUnix(parseUd(sentStr)),
+    sent: da.toUnix(parse('ud', sentStr)),
   };
 }
 

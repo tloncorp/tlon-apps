@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/aura';
+import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
@@ -104,7 +104,7 @@ export async function getPagedActivityByBucket({
     `fetching next activity page for bucket ${bucket} with cursor`,
     cursor
   );
-  const urbitCursor = formatUd(unixToDa(cursor).toString());
+  const urbitCursor = formatUd(da.fromUnix(cursor).toString());
   const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
   const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',

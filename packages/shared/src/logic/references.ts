@@ -1,10 +1,10 @@
-import { parseUd } from '@urbit/aura';
+import { parse } from '@urbit/aura';
 
 import * as db from '../db';
 import { ContentReference } from '../domain';
 
 function formatId(id: string) {
-  return parseUd(id).toString();
+  return parse('ud', id).toString();
 }
 
 export function getPostReferencePath(post: db.Post) {
