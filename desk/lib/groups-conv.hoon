@@ -1,6 +1,6 @@
 ::  groups-conv: groups types conversions
 ::
-/-  gv=groups-ver, meta, epic
+/-  gv=groups-ver, meta
 /+  neg=negotiate
 ::
 =,  gv

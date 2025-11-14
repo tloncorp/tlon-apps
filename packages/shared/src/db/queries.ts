@@ -2358,14 +2358,28 @@ export const addChannelToNavSection = createWriteQuery(
     ctx: QueryCtx
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
-    return ctx.db
-      .insert($groupNavSectionChannels)
-      .values({
-        channelId,
-        groupNavSectionId,
-        channelIndex: index,
-      })
-      .onConflictDoNothing();
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .update($groupNavSectionChannels)
+        .set({
+          channelIndex: sql`${$groupNavSectionChannels.channelIndex} + 1`,
+        })
+        .where(
+          and(
+            eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+            gte($groupNavSectionChannels.channelIndex, index)
+          )
+        );
+
+      return txCtx.db
+        .insert($groupNavSectionChannels)
+        .values({
+          channelId,
+          groupNavSectionId,
+          channelIndex: index,
+        })
+        .onConflictDoNothing();
+    });
   },
   ['groupNavSectionChannels', 'groups']
 );
