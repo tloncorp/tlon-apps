@@ -2278,7 +2278,6 @@
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
-      di-hark  ~(. hark-dm:ch [now.bowl ship])
   ++  di-core  .
   ++  di-abet
     =?  last-updated  |(gone !(~(has by dms) ship))
