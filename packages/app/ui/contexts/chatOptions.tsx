@@ -108,6 +108,7 @@ type ChatOptionsProviderProps = {
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  onLeaveChannel?: (groupId: string) => void;
   onPressConfigureChannel?: () => void;
   onPressDeleteGroup?: () => void;
   initialChat?: {
@@ -133,6 +134,7 @@ export const ChatOptionsProvider = ({
   onPressRoles,
   onPressChatDetails = noop,
   onLeaveGroup: navigateOnLeave,
+  onLeaveChannel: navigateToGroupOnLeave,
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -266,18 +268,28 @@ export const ChatOptionsProvider = ({
     if (!leaveChannelData) {
       return;
     }
-    if (leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm') {
+    const isDm =
+      leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm';
+
+    if (isDm) {
+      // Leaving a DM - navigate to Messages tab
       store.respondToDMInvite({
         channel: leaveChannelData,
         accept: false,
       });
       navigateOnLeave?.();
-    } else {
+    } else if (leaveChannelData.groupId) {
+      // Leaving a channel in a group - navigate to the group
       store.leaveGroupChannel(leaveChannelData.id);
+      navigateToGroupOnLeave?.(leaveChannelData.groupId);
+    } else {
+      // Fallback
+      store.leaveGroupChannel(leaveChannelData.id);
+      navigateOnLeave?.();
     }
     setLeaveChannelData(null);
     closeSheet();
-  }, [leaveChannelData, closeSheet, navigateOnLeave]);
+  }, [leaveChannelData, closeSheet, navigateOnLeave, navigateToGroupOnLeave]);
 
   const leaveChannel = useCallback(() => {
     setLeaveChannelTitle(channelTitle);
