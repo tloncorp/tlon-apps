@@ -2358,14 +2358,28 @@ export const addChannelToNavSection = createWriteQuery(
     ctx: QueryCtx
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
-    return ctx.db
-      .insert($groupNavSectionChannels)
-      .values({
-        channelId,
-        groupNavSectionId,
-        channelIndex: index,
-      })
-      .onConflictDoNothing();
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .update($groupNavSectionChannels)
+        .set({
+          channelIndex: sql`${$groupNavSectionChannels.channelIndex} + 1`,
+        })
+        .where(
+          and(
+            eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+            gte($groupNavSectionChannels.channelIndex, index)
+          )
+        );
+
+      return txCtx.db
+        .insert($groupNavSectionChannels)
+        .values({
+          channelId,
+          groupNavSectionId,
+          channelIndex: index,
+        })
+        .onConflictDoNothing();
+    });
   },
   ['groupNavSectionChannels', 'groups']
 );
@@ -4930,6 +4944,29 @@ function conflictUpdateSet(...columns: Column[]) {
     })
   );
 }
+
+export const getChannelPostsByTimeRange = createReadQuery(
+  'getChannelPostsByTimeRange',
+  async (
+    {
+      channelId,
+      startTime,
+      limit = 500,
+    }: { channelId: string; startTime: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        gte($posts.sentAt, startTime),
+        isNull($posts.deliveryStatus)
+      ),
+      orderBy: [asc($posts.sentAt)],
+      limit,
+    });
+  },
+  ['posts']
+);
 
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(

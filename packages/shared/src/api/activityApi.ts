@@ -1002,6 +1002,7 @@ export type ActivityUpdateQueue = {
   channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
   volumeUpdates: db.VolumeSettings[];
+  volumeRemovals: string[];
   activityEvents: db.ActivityEvent[];
 };
 

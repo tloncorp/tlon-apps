@@ -1,8 +1,6 @@
 :~  %logs
     %groups
     %chat
-    %heap
-    %diary
     %notify
     %grouper
     %groups-ui

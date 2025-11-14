@@ -51,6 +51,7 @@ jobs:
       VITE_INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
       VITE_INVITE_SERVICE_ENDPOINT: ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
+      VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
   glob:
     runs-on: ubuntu-latest
     name: "Make a glob"

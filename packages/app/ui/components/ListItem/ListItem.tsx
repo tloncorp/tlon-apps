@@ -257,16 +257,6 @@ export const ListItemPostPreview = ({
 
 ListItemPostPreview.displayName = 'ListItemPostPreview';
 
-const Dragger = () => {
-  return (
-    <YStack alignItems="center" justifyContent="center">
-      <Icon type="Dragger" width="$2xl" height="$2xl" />
-    </YStack>
-  );
-};
-
-Dragger.displayName = 'Dragger';
-
 const ListItemEndContent = styled(YStack, {
   name: 'ListItemEndContent',
   paddingTop: '$xs',
@@ -286,7 +276,6 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   ContactIcon: ListItemContactIcon,
   SystemIcon: ListItemSystemIcon,
   ImageIcon: ListItemImageIcon,
-  Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,
   Title: ListItemTitle,
