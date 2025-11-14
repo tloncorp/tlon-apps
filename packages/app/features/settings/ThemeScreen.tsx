@@ -16,6 +16,7 @@ import {
   RadioControl,
   ScreenHeader,
   View,
+  useIsWindowNarrow,
 } from '../../ui';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
 
@@ -65,11 +66,17 @@ export function ThemeScreen(props: Props) {
     }
   }, [storedTheme, isLoading]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
       <ScreenHeader
         title="Theme"
-        backAction={() => props.navigation.goBack()}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
       />
       <ScrollView
         flex={1}
