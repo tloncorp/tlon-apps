@@ -108,7 +108,7 @@ type ChatOptionsProviderProps = {
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
-  onLeaveChannel?: (groupId: string) => void;
+  onLeaveChannel?: (groupId: string, channelId: string) => void;
   onPressConfigureChannel?: () => void;
   onPressDeleteGroup?: () => void;
   initialChat?: {
@@ -264,7 +264,7 @@ export const ChatOptionsProvider = ({
     closeSheet();
   }, [closeSheet, groupId, navigateOnLeave]);
 
-  const onLeaveChannelConfirmed = useCallback(() => {
+  const onLeaveChannelConfirmed = useCallback(async () => {
     if (!leaveChannelData) {
       return;
     }
@@ -279,9 +279,9 @@ export const ChatOptionsProvider = ({
       });
       navigateOnLeave?.();
     } else if (leaveChannelData.groupId) {
-      // Leaving a channel in a group - navigate to the group
+      // Leaving a channel in a group - navigate to the first available channel
       store.leaveGroupChannel(leaveChannelData.id);
-      navigateToGroupOnLeave?.(leaveChannelData.groupId);
+      await navigateToGroupOnLeave?.(leaveChannelData.groupId, leaveChannelData.id);
     } else {
       // Fallback
       store.leaveGroupChannel(leaveChannelData.id);

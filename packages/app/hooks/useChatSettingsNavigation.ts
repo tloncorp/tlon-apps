@@ -1,6 +1,7 @@
 import { NavigatorScreenParams, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';
@@ -46,6 +47,7 @@ export const useChatSettingsNavigation = () => {
     navigateToGroup,
     navigateToChatVolume: rootNavigateToChatVolume,
     resetToGroup,
+    resetToChannel,
   } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -179,10 +181,31 @@ export const useChatSettingsNavigation = () => {
   }, [navigationRef, isWindowNarrow]);
 
   const onLeaveChannel = useCallback(
-    (groupId: string) => {
-      resetToGroup(groupId);
+    async (groupId: string, leavingChannelId: string) => {
+      const group = await db.getGroup({ id: groupId });
+
+      if (!group?.channels || group.channels.length === 0) {
+        // No channels left - go to group view
+        resetToGroup(groupId);
+        return;
+      }
+
+      // Find first channel that isn't the one being left
+      const nextChannel = group.channels.find(
+        (ch) => ch.id !== leavingChannelId
+      );
+
+      if (nextChannel) {
+        // Navigate to the first available channel
+        resetToChannel(nextChannel.id, {
+          groupId,
+        });
+      } else {
+        // All channels filtered out - go to group view
+        resetToGroup(groupId);
+      }
     },
-    [resetToGroup]
+    [resetToGroup, resetToChannel]
   );
 
   return {
