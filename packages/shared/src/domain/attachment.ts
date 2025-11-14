@@ -71,12 +71,14 @@ export namespace UploadedImageAttachment {
 
 export type FileAttachment = {
   type: 'file';
-  localFile: File;
+  // File or local URI string
+  localFile: File | string;
 };
 
 export type UploadedFileAttachment = {
   type: 'file';
-  localFile: File;
+  // File or local URI string
+  localFile: File | string;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -110,6 +112,7 @@ export type FinalizedAttachment =
 export namespace Attachment {
   export type UploadIntent =
     | { type: 'image'; asset: ImagePickerAsset }
+    | { type: 'fileUri'; localUri: string }
     | { type: 'file'; file: File };
 
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -132,6 +135,8 @@ export namespace Attachment {
           return uploadIntent.asset.uri;
         case 'file':
           return URL.createObjectURL(uploadIntent.file);
+        case 'fileUri':
+          return uploadIntent.localUri;
       }
     }
 
@@ -146,6 +151,8 @@ export namespace Attachment {
             return uploadIntent.asset.uri;
           case 'file':
             return fileKey(uploadIntent.file);
+          case 'fileUri':
+            return uploadIntent.localUri;
         }
       })();
       // cast to branded type
@@ -161,6 +168,8 @@ export namespace Attachment {
           return a.asset.uri === (b as typeof a).asset.uri;
         case 'file':
           return a.file === (b as typeof a).file;
+        case 'fileUri':
+          return a.localUri === (b as typeof a).localUri;
       }
     }
 
@@ -183,6 +192,13 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.file,
+            uploadState,
+          };
+
+        case 'fileUri':
+          return {
+            type: 'file',
+            localFile: uploadIntent.localUri,
             uploadState,
           };
       }
@@ -214,6 +230,16 @@ export namespace Attachment {
               localUri: URL.createObjectURL(uploadIntent.file),
             },
           };
+
+        case 'fileUri':
+          return {
+            type: 'file',
+            localFile: uploadIntent.localUri,
+            uploadState: {
+              status: 'uploading',
+              localUri: uploadIntent.localUri,
+            },
+          };
       }
     }
   }
@@ -231,11 +257,19 @@ export namespace Attachment {
           asset: attachment.file,
         };
       case 'file':
-        return {
-          needsUpload: true,
-          type: 'file',
-          file: attachment.localFile,
-        };
+        if (attachment.localFile instanceof File) {
+          return {
+            needsUpload: true,
+            type: 'file',
+            file: attachment.localFile,
+          };
+        } else {
+          return {
+            needsUpload: true,
+            type: 'fileUri',
+            localUri: attachment.localFile,
+          };
+        }
       case 'text':
       // fallthrough
       case 'link':
@@ -252,6 +286,9 @@ export namespace Attachment {
       }
       case 'file': {
         return { type: 'file', localFile: uploadIntent.file };
+      }
+      case 'fileUri': {
+        return { type: 'file', localFile: uploadIntent.localUri };
       }
     }
   }
@@ -277,6 +314,13 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.file,
+            uploadState,
+          };
+
+        case 'fileUri':
+          return {
+            type: 'file',
+            localFile: uploadIntent.localUri,
             uploadState,
           };
       }

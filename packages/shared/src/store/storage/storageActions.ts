@@ -60,6 +60,15 @@ export async function uploadAsset(
       });
       break;
     }
+
+    case 'fileUri': {
+      await uploadAssetWithLifecycle(intent, isWeb, {
+        async prepareAsset() {
+          return { uri: intent.localUri };
+        },
+      });
+      break;
+    }
   }
 }
 
