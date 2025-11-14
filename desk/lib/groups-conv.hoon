@@ -1,7 +1,7 @@
 ::  groups-conv: groups types conversions
 ::
-/-  gv=groups-ver, meta, epic
-/+  neg=negotiate, mp=mop-extensions
+/-  gv=groups-ver, meta
+/+  neg=negotiate
 ::
 =,  gv
 |%

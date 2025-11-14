@@ -1035,14 +1035,15 @@
     =.  pending-ref-edits
       (~(del by pending-ref-edits) host)
     %-  emil
-    %+  turn  ~(tap by u.pend)
+    %+  murn  ~(tap by u.pend)
     |=  [=kind:c name=term]
-    ^-  card
+    ^-  (unit card)
+    ::NOTE  to migrate other olds agents (heap, diary), use 828f5ed or earlier
+    ?.  ?=(%chat kind)  ~
+    %-  some
     :+  %pass   /migrate
-    :+  %agent  [our.bowl kind]
-    :+  %poke
-      ::NOTE  %chat-migrate-refs, etc
-      (cat 3 kind '-migrate-refs')
+    :+  %agent  [our.bowl %chat]
+    :+  %poke   %chat-migrate-refs
     !>([host name])
   ::
       %egg-any

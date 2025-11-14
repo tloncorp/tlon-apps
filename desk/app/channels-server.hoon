@@ -421,14 +421,10 @@
   ^+  cor
   =.  cor
     %-  emil
-    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
-        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
-        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+    :~  [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
         ::NOTE  we do these here and not in /app/channels, because it's
         ::      important that the server migration happens first, so that
         ::      the client migration may successfully establish subscriptions.
-        [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
-        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
         [%pass /migrate/final %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
