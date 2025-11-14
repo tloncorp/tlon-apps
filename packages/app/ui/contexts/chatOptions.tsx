@@ -138,7 +138,9 @@ export const ChatOptionsProvider = ({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
-  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(null);
+  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
+    null
+  );
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
