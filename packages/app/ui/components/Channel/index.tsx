@@ -38,6 +38,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -45,7 +46,6 @@ import {
   useCurrentUserId,
 } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
@@ -204,33 +204,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         markRead();
       }
     }, [hasUnreads, hasLoaded, inView, markRead]);
-
-    // const hasJoinRequests = useMemo(() => {
-    //   if (group && group.joinRequests && group.joinRequests.length > 0) {
-    //     const dismissedAt = group.pendingMembersDismissedAt ?? 0;
-    //     return group.joinRequests.some((jr) => {
-    //       const requestedAt =
-    //         jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
-    //       return requestedAt > dismissedAt;
-    //     });
-    //   }
-    //   return false;
-    // }, [group]);
-
-    // const handleDismissJoinRequests = useCallback(() => {
-    //   if (group) {
-    //     store.updatePendingMemberDismissal({
-    //       groupId: group.id,
-    //       dismissedAt: Date.now(),
-    //     });
-    //   }
-    // }, [group]);
-
-    // useEffect(() => {
-    //   if (group && hasJoinRequests) {
-    //     store.markGroupRead(group.id, false);
-    //   }
-    // }, [group, hasJoinRequests]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
