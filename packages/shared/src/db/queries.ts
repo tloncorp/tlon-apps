@@ -2196,7 +2196,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
         ...channel,
         // When we're inserting a new channel, assume it's joined if the
         // autoJoin flag is set
-        currentUserIsMember: !!channel.autoJoin,
+        currentUserIsMember: channel.autoJoin ?? null,
       }))
     )
     .onConflictDoUpdate({
