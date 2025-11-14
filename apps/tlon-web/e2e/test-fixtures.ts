@@ -32,10 +32,6 @@ async function performCleanup(page: Page, shipName: string) {
     }
 
     if (shipName === 'zod') {
-      // Unblock any blocked users
-      await helpers.unblockUser(page, '~ten');
-      await helpers.unblockUser(page, '~bus');
-
       if (await page.getByTestId('ChannelListItem-~ten').isVisible()) {
         await helpers.leaveDM(page, '~ten');
       }
@@ -51,20 +47,12 @@ async function performCleanup(page: Page, shipName: string) {
       await helpers.cleanupExistingGroup(page, 'Basic Group');
       await helpers.cleanupExistingGroup(page, 'Book Club');
     } else if (shipName === 'ten') {
-      // Unblock any blocked users
-      await helpers.unblockUser(page, '~zod');
-      await helpers.unblockUser(page, '~bus');
-
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
         await helpers.leaveDM(page, '~zod');
       }
       await helpers.rejectGroupInvite(page);
       await helpers.leaveGroup(page, '~ten, ~zod');
     } else if (shipName === 'bus') {
-      // Unblock any blocked users
-      await helpers.unblockUser(page, '~zod');
-      await helpers.unblockUser(page, '~ten');
-
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
         await helpers.leaveDM(page, '~zod');
       }
