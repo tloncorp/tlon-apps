@@ -540,6 +540,7 @@ export function BigInput({
           onAttach={handleImageSelect}
           showClearOption={!!imageUri}
           onClearAttachments={handleClearImage}
+          mediaType="image"
         />
       )}
 
@@ -549,6 +550,7 @@ export function BigInput({
           onOpenChange={setShowInlineImageSheet}
           onAttach={handleInlineImageSelect}
           showClearOption={false}
+          mediaType="image"
         />
       )}
     </KeyboardAvoidingView>

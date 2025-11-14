@@ -222,6 +222,7 @@ export function EditablePofileImages({
           (attachingTo === 'icon' && localIconUrl !== '')
         }
         onClearAttachments={handleAttachmentCleared}
+        mediaType="image"
       />
     </View>
   );

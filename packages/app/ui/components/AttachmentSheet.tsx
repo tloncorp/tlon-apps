@@ -26,12 +26,14 @@ export default function AttachmentSheet({
   showClearOption,
   onClearAttachments,
   onAttach,
+  mediaType,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
   onClearAttachments?: () => void;
   onOpenChange: (open: boolean) => void;
   onAttach?: (assets: ImagePicker.ImagePickerAsset[]) => void;
+  mediaType: 'image' | 'all';
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -278,7 +280,7 @@ export default function AttachmentSheet({
               : 'Choose a photo from your library',
             action: pickImage,
           },
-          {
+          mediaType === 'all' && {
             title: 'Upload a file',
             action: startFilePicker,
           },
@@ -311,6 +313,7 @@ export default function AttachmentSheet({
       takePicture,
       hasClipboardImage,
       createAssetFromClipboard,
+      mediaType,
     ]
   );
 

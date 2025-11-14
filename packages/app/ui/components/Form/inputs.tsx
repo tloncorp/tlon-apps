@@ -323,6 +323,7 @@ export const ImageInput = XStack.styleable<{
         onAttach={handleImageSelected}
         showClearOption={showClear && !!value}
         onClearAttachments={handleImageRemoved}
+        mediaType="image"
       />
     </>
   );

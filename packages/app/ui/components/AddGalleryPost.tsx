@@ -68,6 +68,7 @@ export default function AddGalleryPost({
         isOpen={route === 'add-attachment'}
         onOpenChange={onClose}
         onAttach={handleImageSet}
+        mediaType="image"
       />
     </>
   );
