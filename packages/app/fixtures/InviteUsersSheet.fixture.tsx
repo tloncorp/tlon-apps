@@ -1,27 +1,18 @@
-import * as baseStore from '@tloncorp/shared/store';
+import { spyOn } from '@tloncorp/shared';
 import { useMemo } from 'react';
 
-import { AppDataContextProvider, InviteUsersSheet, StoreProvider } from '../ui';
+import {
+  AppDataContextProvider,
+  InviteUsersSheet,
+  StoreProvider,
+  createNoOpStore,
+} from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group, initialContacts } from './fakeData';
 
-function spyOn<T extends object, MethodName extends keyof T>(
-  base: T,
-  method: MethodName,
-  fn: T[MethodName]
-) {
-  return new Proxy(base, {
-    get(target, prop) {
-      if (prop === method) {
-        return fn;
-      }
-      return target[prop as keyof T];
-    },
-  });
-}
-
 function InviteUsersSheetFixture() {
   const store = useMemo(() => {
+    const noOpStore = createNoOpStore();
     const mockUseGroup = () => ({
       data: group,
       isLoading: false,
@@ -29,7 +20,7 @@ function InviteUsersSheetFixture() {
     });
 
     // @ts-expect-error - fixture mock
-    return spyOn(baseStore, 'useGroup', mockUseGroup);
+    return spyOn(noOpStore, 'useGroup', mockUseGroup);
   }, []);
 
   return (

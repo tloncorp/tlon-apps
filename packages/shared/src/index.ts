@@ -41,3 +41,4 @@ export * from './perf';
 export * from './electrtonAuth';
 export * from '@urbit/aura';
 export * from './store/dbHooks';
+export * from './utils';

@@ -7,6 +7,7 @@ import {
   NativeSyntheticEvent,
   StyleSheet,
 } from 'react-native';
+import { Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
@@ -292,6 +293,10 @@ function ContentImage({
   uri: string;
   safeAreaEdges?: Edges;
 }) {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={safeAreaEdges}>
       <ImageZoom style={{ flex: 1 }} resizeMode="contain" uri={uri} />
