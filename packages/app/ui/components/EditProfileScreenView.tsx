@@ -1,5 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import {
+  NicknameValidationErrorType,
+  validateNickname,
+} from '@tloncorp/shared/logic';
+import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
@@ -30,6 +34,19 @@ interface Props {
   userId: string;
   onGoBack: () => void;
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
+}
+
+function getNicknameErrorMessage(
+  errorType: NicknameValidationErrorType
+): string {
+  switch (errorType) {
+    case 'confusable_characters':
+      return 'Nickname cannot contain characters that look like ~';
+    case 'invalid_patp':
+      return 'You can only use your own ID in your nickname';
+    case 'wrong_user_id':
+      return 'You can only use your own ID in your nickname';
+  }
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -260,6 +277,16 @@ export function EditProfileScreenView(props: Props) {
                     maxLength: {
                       value: 30,
                       message: 'Your nickname is limited to 30 characters',
+                    },
+                    validate: (value) => {
+                      if (!isCurrUser) {
+                        return true;
+                      }
+                      const result = validateNickname(value, currentUserId);
+                      if (!result.isValid) {
+                        return getNicknameErrorMessage(result.errorType);
+                      }
+                      return true;
                     },
                   }}
                 />

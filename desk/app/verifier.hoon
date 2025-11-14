@@ -28,7 +28,7 @@
 %-  %-  agent:negotiate
     [notify=| expose=[~.verifier^%0 ~ ~] expect=~]
 %-  agent:dbug
-%+  verb  |
+%^  verb  |  %warn
 ::
 =>
 |%

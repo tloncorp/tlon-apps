@@ -1,9 +1,12 @@
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -224,12 +227,8 @@ function ChatDetailsScreenContent({
       </ListItem>
 
       <YStack gap="$l">
-        {chatType === 'group' && <GroupQuickActions group={group} />}
-        {chatType === 'group' && group.description && (
-          <WidgetPane>
-            <WidgetPane.Title>Description</WidgetPane.Title>
-            <TlonText.Text size="$label/l">{group.description}</TlonText.Text>
-          </WidgetPane>
+        {chatType === 'group' && (
+          <GroupQuickActions group={group} canInvite={canInviteToGroup} />
         )}
         {chatType === 'group' && <GroupSettings group={group} />}
 
@@ -261,11 +260,34 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const { leaveGroup } = useChatOptions();
 
+  const handleLeaveGroupWithConfirm = useCallback(async () => {
+    const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+
+    if (isWeb) {
+      const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
+      if (confirmed) {
+        await leaveGroup();
+      }
+    } else {
+      Alert.alert(`Leave ${groupTitle}?`, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Leave Group',
+          style: 'destructive',
+          onPress: leaveGroup,
+        },
+      ]);
+    }
+  }, [groupTitle, leaveGroup]);
+
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
       title: 'Leave group',
-      action: leaveGroup,
+      action: handleLeaveGroupWithConfirm,
     },
     canDelete && {
       title: 'Delete group',
@@ -354,9 +376,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupPrivacy"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               gap="$xl"
@@ -381,9 +403,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupRoles"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               gap="$xl"
@@ -408,9 +430,9 @@ function GroupSettings({ group }: { group: db.Group }) {
             borderRadius="$2xl"
             testID="GroupChannels"
           >
-            <ActionSheet.MainContent>
+            <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
-            </ActionSheet.MainContent>
+            </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"
               alignItems="center"
@@ -435,9 +457,9 @@ function GroupSettings({ group }: { group: db.Group }) {
           alignItems="center"
           testID="GroupNotifications"
         >
-          <ActionSheet.MainContent>
+          <ActionSheet.ActionContent>
             <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
-          </ActionSheet.MainContent>
+          </ActionSheet.ActionContent>
           <ListItem.EndContent
             flexDirection="row"
             gap="$xl"
@@ -549,25 +571,42 @@ function ChatMembersList({
   );
 }
 
-function GroupQuickActions({ group }: { group: db.Group }) {
+function GroupQuickActions({
+  group,
+  canInvite,
+}: {
+  group: db.Group;
+  canInvite?: boolean;
+}) {
   const { markGroupRead, togglePinned } = useChatOptions();
   const forwardGroupSheet = useForwardGroupSheet();
-  const { doCopy } = useCopy(group.id);
-  const showToast = useToast();
-
+  const { onPressInvite } = useChatOptions();
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
+  const toast = useToast();
 
   const handleForwardGroup = useCallback(() => {
     forwardGroupSheet.open(group);
   }, [forwardGroupSheet, group]);
 
-  const handleCopyFlag = useCallback(async () => {
-    await doCopy();
-    showToast({ message: 'Group ID copied to clipboard' });
-  }, [doCopy, showToast]);
+  const handleCopyShortcode = useCallback(() => {
+    Clipboard.setString(group.id);
+    toast({ message: 'Copied!', duration: 1500 });
+  }, [group.id, toast]);
 
-  const actions = useMemo(
+  const heroActions = useMemo(
+    () =>
+      createActionGroup(
+        'neutral',
+        canInvite && {
+          title: 'Invite',
+          action: onPressInvite,
+        }
+      ),
+    [canInvite, onPressInvite]
+  );
+
+  const secondaryActions = useMemo(
     () =>
       createActionGroup(
         'neutral',
@@ -582,21 +621,21 @@ function GroupQuickActions({ group }: { group: db.Group }) {
           action: togglePinned,
         },
         {
-          title: 'Forward',
+          title: 'Forward reference',
           action: handleForwardGroup,
         },
         {
-          title: 'Copy ID',
-          action: handleCopyFlag,
+          title: 'Copy group ID',
+          action: handleCopyShortcode,
         }
       ),
     [
       canMarkRead,
-      markGroupRead,
       isPinned,
-      togglePinned,
-      handleCopyFlag,
+      handleCopyShortcode,
       handleForwardGroup,
+      markGroupRead,
+      togglePinned,
     ]
   );
 
@@ -606,7 +645,16 @@ function GroupQuickActions({ group }: { group: db.Group }) {
       showsHorizontalScrollIndicator={false}
       width={'100%'}
     >
-      {actions.actions.map((action, i) => (
+      {heroActions.actions.map((action, i) => (
+        <ProfileButton
+          key={i}
+          title={action.title}
+          onPress={action.action}
+          disabled={action.disabled}
+          hero
+        />
+      ))}
+      {secondaryActions.actions.map((action, i) => (
         <ProfileButton
           key={i}
           title={action.title}

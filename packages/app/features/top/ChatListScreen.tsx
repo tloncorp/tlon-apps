@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { markInvitesRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -16,6 +17,7 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { useConnectionStatus } from './useConnectionStatus';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
@@ -82,6 +84,9 @@ export function ChatListScreenView({
     previewGroupId ?? null
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
+  const hostConnectionStatus = useConnectionStatus(
+    selectedGroup?.hostUserId ?? ''
+  );
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
@@ -215,6 +220,12 @@ export function ChatListScreenView({
   }, [resolvedChats]);
 
   useEffect(() => {
+    if (isFocused) {
+      markInvitesRead();
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
     if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
       identifyTlonEmployee();
     }
@@ -341,6 +352,7 @@ export function ChatListScreenView({
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}
               group={selectedGroup ?? undefined}
+              hostStatus={hostConnectionStatus}
               onActionComplete={handleGroupAction}
             />
           </View>

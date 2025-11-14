@@ -1,5 +1,5 @@
 import { Button } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { ActionSheet } from '../ActionSheet';
@@ -23,6 +23,10 @@ export function EditSectionNameSheet({
       name: name ?? '',
     },
   });
+
+  useEffect(() => {
+    reset({ name: name ?? '' });
+  }, [name, reset]);
 
   const handlePressSave = useCallback(
     async (data: { name: string }) => {

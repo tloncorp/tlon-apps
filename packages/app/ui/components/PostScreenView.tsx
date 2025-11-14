@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -195,6 +196,9 @@ export function PostScreenView({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+  const hostConnectionStatus = useConnectionStatus(
+    groupPreview?.hostUserId ?? ''
+  );
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
   // If this screen is a carousel, this is the currently-focused post
@@ -270,9 +274,15 @@ export function PostScreenView({
       ? null
       : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
   );
+
+  const { attachAssets, clearAttachments } = useAttachmentContext();
+
   const handleGoBack = useCallback(() => {
     if (isEditingParent) {
       setEditingPost?.(undefined);
+      // Clear attachments when exiting edit mode to prevent them from
+      // appearing in the reply input
+      clearAttachments();
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
@@ -281,9 +291,14 @@ export function PostScreenView({
     } else {
       goBack?.();
     }
-  }, [channel.type, goBack, isEditingParent, setEditingPost, draftCallbacks]);
-
-  const { attachAssets } = useAttachmentContext();
+  }, [
+    channel.type,
+    goBack,
+    isEditingParent,
+    setEditingPost,
+    draftCallbacks,
+    clearAttachments,
+  ]);
 
   const { navigateToRef } = useChannelNavigation({
     channelId: channel.id,
@@ -359,6 +374,7 @@ export function PostScreenView({
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
                     onOpenChange={() => setGroupPreview(null)}
+                    hostStatus={hostConnectionStatus}
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
@@ -835,6 +851,9 @@ export function PresentationalCarouselPostScreenContent({
           windowSize: 3,
           keyboardShouldPersistTaps: 'handled',
           scrollEnabled: !channelContext.editingPost,
+          // Fix for: TextInput loses focus in FlatList on Android
+          // see: https://github.com/facebook/react-native/issues/23916#issuecomment-472854627
+          removeClippedSubviews: false,
         }}
       >
         {carouselChildren}

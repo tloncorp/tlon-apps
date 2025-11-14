@@ -18,14 +18,11 @@ export function AddContactsView(props: {
     props.goBack();
   }, [newContacts, props]);
 
+  const isWindowNarrow = useIsWindowNarrow();
   const { data: existingContacts } = store.useUserContacts();
   const existingIds = useMemo(() => {
     return existingContacts?.map((c) => c.id) ?? [];
   }, [existingContacts]);
-
-  console.log(`existingIds`, existingIds);
-
-  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <View backgroundColor="$background" flex={1}>

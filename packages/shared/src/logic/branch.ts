@@ -3,6 +3,7 @@ import { isValidPatp } from '@urbit/aura';
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('branch', false);
 
@@ -110,7 +111,9 @@ export function extractLureMetadata(branchParams: any) {
     inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
-    inviterColor: branchParams.inviterColor,
+    inviterColor: branchParams.inviteColor
+      ? normalizeUrbitColor(branchParams.inviterColor)
+      : undefined,
     invitedGroupId: branchParams.invitedGroupId ?? branchParams.group, // only fallback to key if invitedGroupId missing, not empty
     invitedGroupTitle: branchParams.invitedGroupTitle || branchParams.title,
     invitedGroupDescription: branchParams.invitedGroupDescription,
@@ -221,7 +224,7 @@ async function getLinkFromInviteService({
   data: DeepLinkData;
 }): Promise<string> {
   const env = getConstants();
-  const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
+  const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/inviteLink`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -248,12 +251,7 @@ async function getLinkFromInviteService({
 
 export async function checkInviteServiceLinkExists(inviteId: string) {
   const env = getConstants();
-  // hack to avoid shuffling env vars around
-  const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
-    0,
-    env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
-  );
-  const response = await fetch(`${serverlessInfraUrl}/checkLink`, {
+  const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/checkLink`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

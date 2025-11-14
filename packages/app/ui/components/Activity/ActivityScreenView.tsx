@@ -3,10 +3,12 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
+import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { NavigationProvider, useStore } from '../../contexts';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ActivityHeader } from './ActivityHeader';
@@ -203,6 +205,9 @@ export function ActivityScreenContent({
   subtitle?: string;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const hostConnectionStatus = useConnectionStatus(
+    selectedGroup?.hostUserId ?? ''
+  );
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       setSelectedGroup(null);
@@ -212,6 +217,12 @@ export function ActivityScreenContent({
     },
     [onGroupAction]
   );
+
+  const markAllRead = useCallback(async () => {
+    console.log('Marking all activity as read');
+    await setBadgeCountAsync(0);
+    await store.markAllRead();
+  }, []);
 
   const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
@@ -238,7 +249,11 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} subtitle={subtitle} />
+        <ActivityHeader
+          activeTab={activeTab}
+          onTabPress={onPressTab}
+          markAllRead={markAllRead}
+        />
         {events.length > 0 && (
           <FlatList
             data={events}
@@ -259,6 +274,7 @@ export function ActivityScreenContent({
           open={!!selectedGroup}
           onOpenChange={() => setSelectedGroup(null)}
           group={selectedGroup ?? undefined}
+          hostStatus={hostConnectionStatus}
           onActionComplete={handleGroupAction}
         />
       </View>

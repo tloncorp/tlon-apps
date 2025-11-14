@@ -1,7 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Icon, IconType } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Icon, IconType, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
   ColorProp,
@@ -258,16 +257,6 @@ export const ListItemPostPreview = ({
 
 ListItemPostPreview.displayName = 'ListItemPostPreview';
 
-const Dragger = () => {
-  return (
-    <YStack alignItems="center" justifyContent="center">
-      <Icon type="Dragger" width="$2xl" height="$2xl" />
-    </YStack>
-  );
-};
-
-Dragger.displayName = 'Dragger';
-
 const ListItemEndContent = styled(YStack, {
   name: 'ListItemEndContent',
   paddingTop: '$xs',
@@ -287,7 +276,6 @@ export const ListItem = withStaticProperties(ListItemFrame, {
   ContactIcon: ListItemContactIcon,
   SystemIcon: ListItemSystemIcon,
   ImageIcon: ListItemImageIcon,
-  Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,
   Title: ListItemTitle,

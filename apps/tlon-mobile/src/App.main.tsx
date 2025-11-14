@@ -29,10 +29,9 @@ import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
-import { setBadgeCountAsync } from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
-import { NativeModules, StatusBar } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
@@ -40,9 +39,12 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
-SplashScreen.preventAutoHideAsync().catch((err) => {
-  console.warn('Failed to prevent auto hide splash screen', err);
-});
+
+if (Platform.OS === 'ios') {
+  SplashScreen.preventAutoHideAsync().catch((err) => {
+    console.warn('Failed to prevent auto hide splash screen', err);
+  });
+}
 
 const useSplashHider = () => {
   const [splashHidden, setSplashHidden] = useState(
@@ -55,6 +57,7 @@ const useSplashHider = () => {
         withRetry(async () => {
           await SplashScreen.hideAsync();
           setSplashHidden(true);
+          splashscreenLogger.trackEvent('Splash screen hidden');
         });
       } catch (err) {
         splashscreenLogger.trackError('Failed to hide splash screen', {
@@ -140,8 +143,6 @@ const App = () => {
     return showAuthenticatedApp && needsSplashSequence;
   }, [showAuthenticatedApp, needsSplashSequence]);
 
-  useClearAppBadgeUnconditionally();
-
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -221,11 +222,3 @@ const DevTools = ({
   useReactNavigationDevTools(navigationContainerRef);
   return null;
 };
-
-function useClearAppBadgeUnconditionally() {
-  useEffect(() => {
-    setBadgeCountAsync(0).catch((err) => {
-      console.error('Failed to set badge count', err);
-    });
-  }, []);
-}

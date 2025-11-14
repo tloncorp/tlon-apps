@@ -21,7 +21,14 @@ export async function createGroup(page: Page) {
 
   await page.getByTestId('CreateChatSheetTrigger').click();
   await page.getByText('New group', { exact: true }).click();
-  await page.getByText('Select contacts to invite').click();
+
+  // Select "Quick group" from the GroupTypeSelectionSheet
+  await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Quick group').click();
+
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({
+    timeout: 5000,
+  });
   await page.getByText('Create group').click();
 
   // Wait for group creation to complete and navigate to group
@@ -48,12 +55,151 @@ export async function createGroup(page: Page) {
   }
 }
 
+/**
+ * Creates a group using a specific template or group type
+ */
+export async function createGroupWithTemplate(
+  page: Page,
+  groupType: 'quick' | 'basic' | string
+) {
+  // Ensure session is stable before creating group
+  await waitForSessionStability(page);
+
+  await page.getByTestId('CreateChatSheetTrigger').click();
+  await page.getByText('New group', { exact: true }).click();
+
+  // Wait for group type selection sheet
+  await expect(page.getByText('Create a group')).toBeVisible({ timeout: 5000 });
+
+  // Determine expected group title based on type
+  let expectedGroupTitle: string;
+
+  // Select the appropriate group type
+  if (groupType === 'quick') {
+    await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
+    await page.getByText('Quick group').click();
+    expectedGroupTitle = 'Untitled group'; // Quick groups have empty title
+  } else if (groupType === 'basic') {
+    await expect(page.getByText('Basic group')).toBeVisible({ timeout: 5000 });
+    await page.getByText('Basic group').click();
+
+    // Basic group requires title input
+    await expect(page.getByText('Name your group')).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByPlaceholder('Group name').fill('Basic Group');
+    await page.getByText('Next', { exact: true }).click();
+
+    expectedGroupTitle = 'Basic Group';
+  } else {
+    // For template groups, find and click by title
+    await expect(page.getByText(groupType)).toBeVisible({ timeout: 5000 });
+    await page.getByText(groupType).click();
+    expectedGroupTitle = groupType; // Template uses its title as group title
+  }
+
+  // Wait for contact selection
+  await expect(page.getByText('Select contacts to invite')).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('Create group').click();
+
+  // Wait for group creation to complete and navigate to group
+  const channelHeader = page.getByTestId('ChannelHeaderTitle');
+
+  try {
+    // Wait briefly to see if we're automatically navigated to the group
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    // Template groups don't show "Welcome to your group!" message
+    await page.waitForTimeout(1000);
+  } catch {
+    // If not automatically navigated, go to the group manually
+    await page.getByTestId('HomeNavIcon').click();
+    await expect(
+      page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
+    ).toBeVisible({ timeout: 10000 });
+    await page
+      .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
+      .click();
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(1000);
+  }
+}
+
+/**
+ * Verifies that a group has the expected channels
+ */
+export async function verifyGroupChannels(
+  page: Page,
+  expectedChannels: Array<{
+    title: string;
+    type: 'chat' | 'notebook' | 'gallery';
+  }>
+) {
+  // Navigate to group settings
+  await openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+
+  // Navigate to Channels
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+
+  // Verify we're on the Channels screen by checking for the Sort and New buttons
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByText('New', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify the correct number of channels by checking the last one exists
+  const lastChannel = expectedChannels[expectedChannels.length - 1];
+  const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
+  await expect(page.getByTestId(lastChannelTestId)).toBeVisible();
+
+  // Verify each expected channel exists with correct title and type
+  // Use regex to match any index since order may vary
+  for (const channel of expectedChannels) {
+    // Capitalize the channel type for display (e.g., "chat" -> "Chat")
+    const capitalizedType = capitalize(channel.type);
+
+    // Check that the channel exists (regardless of index)
+    const channelItem = page.getByTestId(
+      new RegExp(
+        `^ChannelItem-${channel.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`
+      )
+    );
+    await expect(channelItem).toBeVisible({ timeout: 5000 });
+
+    // Verify the channel type is displayed correctly within the channel item
+    const channelPattern = new RegExp(`^${channel.title}${capitalizedType}$`);
+    await expect(
+      page.locator('div').filter({ hasText: channelPattern }).first()
+    ).toBeVisible({ timeout: 5000 });
+  }
+}
+
+/**
+ * Capitalizes the first letter of a string
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export async function leaveGroup(page: Page, groupName: string) {
   await page.getByTestId('HomeNavIcon').click();
   if (await page.getByText(groupName).first().isVisible()) {
     await page.getByText(groupName).first().click();
     await openGroupSettings(page);
     await page.waitForSelector('text=Group Info');
+
+    // Set up dialog handler to accept the confirmation
+    page.once('dialog', async (dialog) => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Leave');
+      expect(dialog.message()).toContain('invalidate any invitations');
+      await dialog.accept();
+    });
+
     await page.getByText('Leave group').click();
   }
 }
@@ -380,6 +526,15 @@ export async function kickUserFromGroup(page: Page, memberName: string) {
   await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
 
   await expect(page.getByText('Kick User')).toBeVisible();
+
+  // Set up dialog handler to accept the confirmation
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain('Kick');
+    expect(dialog.message()).toContain('invalidate all the invitations');
+    await dialog.accept();
+  });
+
   await page.getByText('Kick User').click();
 
   await page.waitForTimeout(2000); // Wait for kick to complete
@@ -433,7 +588,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
   await waitForSessionStability(page);
 
   // Click the Forward button in group info
-  await page.getByText('Forward').click();
+  await page.getByText('Forward reference').click();
 
   // Verify forward sheet opened
   await expect(page.getByText('Forward group')).toBeVisible();
@@ -472,7 +627,15 @@ export async function createChannel(
   // Ensure session is stable before creating channel
   await waitForSessionStability(page);
 
-  await page.getByText('New Channel').click();
+  // Click the "New" button in the header
+  await page.getByText('New', { exact: true }).click();
+
+  // Click "New channel" from the action sheet (use .first() to avoid strict mode violation)
+  await expect(page.getByText('New channel').first()).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('New channel').first().click();
+
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
@@ -484,7 +647,14 @@ export async function createChannel(
   }
 
   await page.getByText('Create channel').click();
-  await page.waitForTimeout(1000);
+
+  // Wait for the sheet to close
+  await expect(page.getByText('Create a new channel')).not.toBeVisible({
+    timeout: 5000,
+  });
+
+  // Wait a bit longer for the channel to be created on the backend
+  await page.waitForTimeout(2000);
 }
 
 /**
@@ -504,7 +674,7 @@ export async function editChannel(
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   if (newTitle) {
     await fillFormField(page, 'ChannelTitleInput', newTitle, true);
@@ -532,7 +702,7 @@ export async function deleteChannel(
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
+  await expect(page.getByText('Channel settings')).toBeVisible();
 
   await page.getByText('Delete channel for everyone').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
@@ -547,23 +717,33 @@ export async function setChannelPermissions(
   readerRoles?: string[],
   writerRoles?: string[]
 ) {
-  // Change to custom permissions
-  await page.getByText('Custom', { exact: true }).click();
+  if (readerRoles && readerRoles.length > 0) {
+    const privateToggle = page.getByTestId('PrivateChannelToggle');
+    const isEnabled = await privateToggle.getAttribute('aria-checked');
 
-  if (readerRoles) {
-    await page.getByTestId('ReaderRoleSelector').click();
-    for (const role of readerRoles) {
-      await page.getByText(role).click();
+    if (isEnabled !== 'true') {
+      await privateToggle.click();
     }
-    await page.getByText('Readers').click();
+
+    await page.getByText('Add roles').click();
+    await expect(page.getByText('Search and add roles')).toBeVisible();
+
+    for (const role of readerRoles) {
+      if (role.toLowerCase() === 'admin') continue;
+      await page.getByTestId('RoleSearchInput').fill(role);
+      await page.getByText(role, { exact: true }).click();
+      await page.getByTestId('RoleSearchInput').fill('');
+    }
+    await page.getByTestId('RoleSelectionSaveButton').click();
   }
 
-  if (writerRoles) {
-    await page.getByTestId('WriterRoleSelector').click();
+  if (writerRoles && writerRoles.length > 0) {
     for (const role of writerRoles) {
-      await page.getByText(role).nth(1).click();
+      if (role.toLowerCase() === 'admin') continue;
+      const writeToggle = page.getByTestId(`WriteToggle-${role}`);
+      await expect(writeToggle).toBeVisible();
+      await writeToggle.click();
     }
-    await page.getByText('Writers').click();
   }
 }
 
@@ -648,7 +828,15 @@ export async function createChannelSection(page: Page, sectionName: string) {
   // Ensure session is stable before creating channel section
   await waitForSessionStability(page);
 
-  await page.getByText('New Section').click();
+  // Click the "New" button in the header
+  await page.getByText('New', { exact: true }).click();
+
+  // Click "New section" from the action sheet (use .first() to avoid strict mode violation)
+  await expect(page.getByText('New section').first()).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('New section').first().click();
+
   await expect(page.getByText('Add section')).toBeVisible();
 
   await fillFormField(page, 'SectionNameInput', sectionName, true);
@@ -1326,10 +1514,24 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
-  await page.waitForTimeout(500);
+
+  // Wait for the confirmation dialog to appear
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByText('You will no longer receive updates from this channel.')
+  ).toBeVisible({ timeout: 5000 });
+
+  // Click the Leave button in the confirmation dialog
+  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
+
+  // Wait for dialog to close first
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+
+  // Then wait for channel to be removed from list with longer timeout for cross-ship sync
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
-  ).not.toBeVisible();
+  ).not.toBeVisible({ timeout: 20000 });
 }
 
 /**
@@ -1544,12 +1746,12 @@ export async function getAllContacts(page: Page): Promise<string[]> {
       // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
       const shipId = ariaLabel.replace('ContactListItem-', '');
       if (shipId && shipId.startsWith('~')) {
-        // Skip own ship
-        const ownShip = page.url().includes('localhost:3000')
-          ? '~zod'
-          : page.url().includes('localhost:3002')
-            ? '~ten'
-            : '~bus';
+        // Skip own ship - determine by port pattern (works with sharding)
+        const urlMatch = page.url().match(/:(\d+)/);
+        const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+        const portMod = port % 10;
+        const ownShip =
+          portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
         if (shipId !== ownShip) {
           contacts.push(shipId);
         }
@@ -1633,8 +1835,11 @@ export async function removeAllContacts(page: Page) {
     if (contact.includes('You')) {
       continue;
     }
-    // Skip own ship (check if we're on zod or ten)
-    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    // Skip own ship - determine by port pattern (works with sharding)
+    const urlMatch = page.url().match(/:(\d+)/);
+    const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
+    const portMod = port % 10;
+    const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
     if (contact === ownShip || contact.includes(ownShip.substring(1))) {
       continue;
     }

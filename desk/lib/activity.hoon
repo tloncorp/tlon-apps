@@ -39,14 +39,24 @@
     |=  [=indices:a =source:a]
     ^-  (list source:a)
     ?:  ?=(?(%thread %dm-thread %contact) -.source)  ~
-    %+  skim
-      ~(tap in ~(key by indices))
-    |=  src=source:a
+    ::NOTE  +rep:by is ~4x faster than (skim (tap:in (key:by))), at least for
+    ::      larger inputs. .indices can get quite big, and we get-children
+    ::      very often, so it's important for this arm to be fast!
+    %-  ~(rep by indices)
+    ::NOTE  we eke out a tiny bit more perf by doing the -.source check
+    ::      early. making this prettier by functionalizing (ie injecting a
+    ::      checker gate into a generic "outer" gate) loses you some perf
+    ::      due to call overhead.
+    =*  s  source:a
     ?-  -.source
-        %base     ?=(?(%group %dm) -.src)
-        %group    &(?=(%channel -.src) =(flag.source group.src))
-        %channel  &(?=(%thread -.src) =(nest.source channel.src))
-        %dm       &(?=(%dm-thread -.src) =(whom.source whom.src))
+      %base     |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                ?=(?(%group %dm) -.src)
+      %group    |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                &(?=(%channel -.src) =(flag.source group.src))
+      %channel  |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                &(?=(%thread -.src) =(nest.source channel.src))
+      %dm       |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                &(?=(%dm-thread -.src) =(whom.source whom.src))
     ==
   ::
   ++  get-order
@@ -188,6 +198,9 @@
   ++  get-volume
     |=  [vs=volume-settings:a event=incoming-event:a]
     ^-  volume:a
+    ::  temporarily disabling group-ask notifs and unreads
+    ?:  ?=(%group-ask -.event)
+      [| |]
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
     (~(gut by loudness) (event-type event) [unreads=& notify=|])
@@ -207,6 +220,8 @@
       ::  we don't need to take child events into account when summarizing
       ::  the activity, so we filter them out
       ::  TODO: measure performance vs gas+murn+tap+lot
+      ::REVIEW  couldn't find/repro any cases where stream.index contains more
+      ::        than one item. so not worth optimizing for now?
       =-  ->
       %^    (dip:on-event:a @)
           (lot:on-event:a stream.index `floor.reads.index ~)
@@ -274,17 +289,23 @@
     =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
     =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
-    =*  is-group  ?=(%group-ask -<.event)
+    =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
     =*  supported  |(is-msg is-init is-flag is-group)
     ?.  supported  $(stream rest)
     =?  notified  &(notify.volume notified.event)  &
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
-    ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
+    ?.  ?&  unreads.volume
+            ::  temporarily disabling group-ask handling,
+            ::  add %group-ask back here when we're ready
+            ?=(?(%dm-post %dm-reply %post %reply) -<.event)
+        ==
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
     =?  main-notified  &(notify:volume notified.event)  &
+    :: ?:  ?=(%group-ask -<.event)
+    ::   $(stream rest)
     =.  last
       ?~  last  `key.event
       last

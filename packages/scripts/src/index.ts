@@ -7,6 +7,7 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/shared/urbit/activity';
+import { formatDa, unixToDa } from '@urbit/aura';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -111,7 +112,7 @@ export function renderActivityEventPreview({
     return {
       notification: {
         body: lit(contentSummary),
-        groupingKey: lit(sourceToString(source, true)),
+        groupingKey: lit(sourceToString(source)),
       },
       message: {
         timestamp: sent,
@@ -172,6 +173,7 @@ export function renderActivityEventPreview({
     case is(ev, 'dm-invite'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body:
             'ship' in ev['dm-invite']
               ? concat([
@@ -185,6 +187,7 @@ export function renderActivityEventPreview({
     case is(ev, 'group-invite'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             lit('You were invited to '),
             gangTitle(ev['group-invite'].group),
@@ -197,6 +200,7 @@ export function renderActivityEventPreview({
     case is(ev, 'group-ask'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-ask'].ship),
             lit(' asked to join '),
@@ -208,6 +212,7 @@ export function renderActivityEventPreview({
     case is(ev, 'group-join'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-join'].ship),
             lit(' joined '),
@@ -219,6 +224,7 @@ export function renderActivityEventPreview({
     case is(ev, 'group-kick'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-kick'].ship),
             lit(' left '),
@@ -230,6 +236,7 @@ export function renderActivityEventPreview({
     case is(ev, 'group-role'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-role'].ship),
             lit(` has a new role (${ev['group-role'].role}) in `),
@@ -241,6 +248,7 @@ export function renderActivityEventPreview({
     case is(ev, 'flag-post'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             lit('Someone flagged a post in '),
             groupTitle(ev['flag-post'].group),
@@ -251,6 +259,7 @@ export function renderActivityEventPreview({
     case is(ev, 'contact'):
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev.contact.who),
             lit(
@@ -264,6 +273,7 @@ export function renderActivityEventPreview({
       // fallback notification
       return {
         notification: {
+          groupingKey: lit(sourceToString(source)),
           body: lit('You received a notification'),
         },
       };
@@ -274,4 +284,8 @@ export function renderActivityEventPreview({
       })(ev);
     }
   }
+}
+
+export function formatUrbitDateString(timestamp: number): string {
+  return formatDa(unixToDa(timestamp));
 }

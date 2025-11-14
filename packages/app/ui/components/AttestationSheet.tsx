@@ -21,6 +21,7 @@ export function AttestationSheet(props: {
       onOpenChange={props.onOpenChange}
       snapPointsMode="percent"
       snapPoints={[80]}
+      modal
     >
       <ActionSheet.Content paddingVertical="$2xl">
         <AttestationPane

@@ -155,4 +155,5 @@ export interface ChangesResult {
   posts: Post[];
   contacts: Contact[];
   unreads: ActivityInit;
+  deletedChannelIds: string[];
 }

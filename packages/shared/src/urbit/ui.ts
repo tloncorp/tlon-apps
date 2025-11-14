@@ -1,8 +1,8 @@
 import { Activity } from './activity';
 import { ChannelHeadsResponse, Channels, Posts } from './channel';
-import { ContactBookProfile } from './contact';
+import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit, DMInit2, Writs } from './dms';
-import { Gangs, Groups } from './groups';
+import { Foreigns, Gangs, GroupV7, Groups } from './groups';
 
 // v4
 export interface GroupsInit {
@@ -26,6 +26,18 @@ export interface GroupsInit4 {
   chat: DMInit2;
 }
 
+export interface GroupsInit5 {
+  groups: Record<string, GroupV7>;
+  foreigns: Foreigns;
+  channel: {
+    channels: Channels;
+    'hidden-posts': string[];
+  };
+  activity: Activity;
+  pins: string[];
+  chat: DMInit2;
+}
+
 export interface CombinedHeads {
   dms: ChatHeadsResponse;
   channels: ChannelHeadsResponse;
@@ -35,6 +47,11 @@ export interface Changes {
   groups: Groups;
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;
-  contacts: Record<string, ContactBookProfile>;
+  contacts: Record<string, ContactBookEntry>;
   activity: Activity;
+}
+
+export interface PostsInit {
+  channels: Record<string, Posts | null>;
+  chat: Record<string, Writs | null>;
 }

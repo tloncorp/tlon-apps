@@ -7,15 +7,15 @@ onFlowComplete:
 
 # enter signup flow
 - tapOn: 'Sign up'
-- assertVisible: 'join.tlon.io/0v4.pca0n.evapv...'
+- assertVisible: 'TLON  or  join.tlon.io/0v4.pca...'
 
 # add invite link
-- tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
-- inputText: 'https://join.tlon.io/0v1.f8gid.4jcvs.56moq.0ij3u.tqamk' # ~pondus-watbel Bot Farm
+- tapOn: 'TLON  or  join.tlon.io/0v4.pca...'
+- inputText: 'https://join.tlon.io/0v7.mmmlk.5bold.rac1l.79r0m.93vef' # ~dozped-mogtec Bot Farm 2
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
-- tapOn: Or if you'd prefer, sign up with an email address
+- tapOn: .*sign up with an email address.*
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
@@ -26,6 +26,11 @@ onFlowComplete:
 # all at once causes flakiness. extendedWaitUntil calls are a
 # workaround to delay next digit insertion
 - assertVisible: Check your email for a confirmation code
+# add a short delay to allow the OTP email to arrive
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 3000
 - runScript: scripts/getEmailOtp.js
 
 - inputText: ${output.otpDigit1}
@@ -96,10 +101,9 @@ onFlowComplete:
 - tapOn: Finish
 
 # assert everything we expect to be there is
-- assertVisible: Tlon Support
-- assertVisible: E2E Tester's Group
-- assertVisible: Bot Farm
-- assertVisible: brian testing
-- assertVisible: Tlon Studio
+- assertVisible: '~wittyr-witbes' # Tlon Support
+- assertVisible: Bot Farm 2
+- assertVisible: shadow brian :)
+# - assertVisible: Tlon Studio
 
 - evalScript: ${output.didComplete = true}

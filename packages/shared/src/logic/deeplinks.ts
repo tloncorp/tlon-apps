@@ -2,6 +2,7 @@ import { createDevLogger } from '../debug';
 import { ContentReference, getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
@@ -121,7 +122,9 @@ export async function getMetadataFromInviteToken(token: string) {
     invitedGroupIconImageUrl: responseMeta.fields.invitedGroupIconImageUrl,
     inviterNickname: responseMeta.fields.inviterNickname,
     inviterAvatarImage: responseMeta.fields.inviterAvatarImage,
-    inviterColor: responseMeta.fields.inviterColor,
+    inviterColor: responseMeta.fields.inviterColor
+      ? normalizeUrbitColor(responseMeta.fields.inviterColor) ?? undefined
+      : undefined,
     inviteType: responseMeta.fields.inviteType,
   };
 
@@ -152,16 +155,16 @@ export async function getMetadataFromInviteToken(token: string) {
   return metadata;
 }
 
-export function createInviteLinkRegex(branchDomain: string) {
+export function createInviteLinkRegex() {
+  const env = getConstants();
   return new RegExp(
-    `^(https?://)?(${branchDomain}/|tlon\\.network/lure/)0v[^/]+$`
+    `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)0v[^/]+$`
   );
 }
 
 export function extractTokenFromInviteLink(url: string): string | null {
-  const env = getConstants();
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
+  const INVITE_LINK_REGEX = createInviteLinkRegex();
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
@@ -176,7 +179,7 @@ export function extractTokenFromInviteLink(url: string): string | null {
 export function extractNormalizedInviteLink(url: string): string | null {
   if (!url) return null;
   const env = getConstants();
-  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
+  const INVITE_LINK_REGEX = createInviteLinkRegex();
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {
@@ -187,5 +190,88 @@ export function extractNormalizedInviteLink(url: string): string | null {
     }
   }
 
+  return null;
+}
+
+interface ShortcodeInvite {
+  inviteId: string;
+  title: string;
+}
+
+export async function getInviteShortcode(
+  input: string,
+  context: { telemetryId?: string } = {}
+): Promise<ShortcodeInvite | null> {
+  const env = getConstants();
+
+  const normalizedInput = input.toLowerCase().trim();
+  const response = await fetch(
+    `${env.INVITE_SERVICE_ENDPOINT}/checkInviteShortcode`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        shortcode: normalizedInput,
+        telemetryId: context.telemetryId,
+      }),
+    }
+  );
+
+  if (response.ok) {
+    const payload = (await response.json()) as ShortcodeInvite;
+    return payload;
+  } else {
+    if (response.status !== 404) {
+      logger.trackError('checked shortcode, unexpected response', {
+        shortcode: normalizedInput,
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+  }
+
+  return null;
+}
+
+export async function checkInputForInvite(
+  input: string,
+  context: { telemetryId?: string } = {}
+): Promise<AppInvite | null> {
+  // first, check if it's an invite link
+  const extractedLink = extractNormalizedInviteLink(input);
+  if (extractedLink) {
+    const appInvite = await getInviteLinkMeta({ inviteLink: extractedLink });
+    if (appInvite) {
+      return appInvite;
+    } else {
+      logger.trackError('Failed to find invite for invite link regex match', {
+        input,
+        inviteLink: extractedLink,
+      });
+    }
+  } else if (input.length >= 4) {
+    logger.trackEvent('Checking user input for invite', { input });
+    // if not, check for valid shortcode
+    const normalizedShortcode = input.toLowerCase().trim();
+    const shortcodeInvite = await getInviteShortcode(
+      normalizedShortcode,
+      context
+    );
+    if (shortcodeInvite) {
+      const appInvite = await getMetadataFromInviteToken(
+        shortcodeInvite.inviteId
+      );
+      if (appInvite) {
+        return appInvite;
+      } else {
+        logger.trackError('Failed to find invite meta for shortcode', {
+          shortcode: normalizedShortcode,
+          inviteId: shortcodeInvite.inviteId,
+        });
+      }
+    }
+  }
   return null;
 }
