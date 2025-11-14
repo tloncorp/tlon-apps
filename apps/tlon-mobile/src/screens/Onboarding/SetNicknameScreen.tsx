@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import {
-  NicknameValidationErrorType,
+  getNicknameErrorMessage,
   validateNickname,
 } from '@tloncorp/shared/logic';
 import { useEffect } from 'react';
@@ -31,19 +31,6 @@ type FormData = {
 };
 
 const logger = createDevLogger('SetNicknameScreen', true);
-
-function getNicknameErrorMessage(
-  errorType: NicknameValidationErrorType
-): string {
-  switch (errorType) {
-    case 'confusable_characters':
-      return 'Nickname cannot contain characters that look like ~';
-    case 'invalid_patp':
-      return 'You can only use your own ID in your nickname';
-    case 'wrong_user_id':
-      return 'You can only use your own ID in your nickname';
-  }
-}
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
