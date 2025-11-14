@@ -278,6 +278,7 @@
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
     ol    (kol gte)
+    log      ~(. logs [our.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -737,6 +738,11 @@
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
+    =.  cor  (emit (tell:log %dbug ~['received dm rsvp' >rsvp<] ~))
+    ::  if this is a remote ship telling us no, that's not an invite. we
+    ::  use di-abed so that we don't accidentally create a new DM invite
+    ?:  &(!from-self !ok.rsvp)
+      di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
     ::  use soft abed since user could be in a state where they need to accept/decline
     ::  and the DM isn't actually in state
     di-abet:(di-rsvp:(di-abed-soft:di-core ship.rsvp) ok.rsvp)
@@ -792,6 +798,7 @@
   ::
       %chat-dm-action-1
     =+  !<(=action:dm:c vase)
+    =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%dm-action poke failed: only allowed from self" !!)
@@ -802,6 +809,7 @@
   ::
       %chat-dm-diff-1
     =+  !<(=diff:dm:c vase)
+    =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-club-create
@@ -1064,7 +1072,7 @@
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-agent:(di-abed-soft:di-core ship) rest.pole sign)
+    di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
@@ -1739,7 +1747,6 @@
 ++  cu-core
   |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
-      log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
     =?  last-updated  |(gone !(~(has by clubs) id))
@@ -2241,6 +2248,7 @@
 ::
 ++  give-invites
   =/  invites  ~(key by pending-dms)
+  =.  cor  (emit (tell:log %dbug ~['current invites:' >invites<] ~))
   (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
@@ -2271,7 +2279,6 @@
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
-      log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
     =?  last-updated  |(gone !(~(has by dms) ship))
@@ -2514,9 +2521,10 @@
              ==
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
+    =.  cor  (emit (initiate:neg [ship dap.bowl]))
     ::  TODO hook into archive
     ?.  ok
-      ::  When declining/leaving a DM, send updated invite list to subscribers
+      ::  when declining/leaving a DM, send updated invite list to subscribers
       =.  cor
         =.  dms  (~(del by dms) ship)  ::NOTE  reflect deletion eagerly for +give-invites
         give-invites
