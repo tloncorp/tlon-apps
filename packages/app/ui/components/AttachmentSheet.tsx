@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -238,6 +239,33 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const startFilePicker = useCallback(async () => {
+    onOpenChange(false);
+
+    const files = await pickFile();
+    if (files.length > 0) {
+      const uploadIntents = files.map((entry): Attachment.UploadIntent => {
+        switch (entry.type) {
+          case 'file': {
+            return {
+              type: 'file',
+              file: entry.file,
+            };
+          }
+
+          case 'uri': {
+            return {
+              type: 'fileUri',
+              localUri: entry.uri,
+            };
+          }
+        }
+      });
+
+      attachAssets(uploadIntents);
+    }
+  }, [attachAssets, onOpenChange]);
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -249,6 +277,10 @@ export default function AttachmentSheet({
               ? 'Upload an image from your computer'
               : 'Choose a photo from your library',
             action: pickImage,
+          },
+          {
+            title: 'Upload a file',
+            action: startFilePicker,
           },
           !isWeb && {
             title: 'Take a Photo',
@@ -274,6 +306,7 @@ export default function AttachmentSheet({
     [
       onClearAttachments,
       pickImage,
+      startFilePicker,
       showClearOption,
       takePicture,
       hasClipboardImage,

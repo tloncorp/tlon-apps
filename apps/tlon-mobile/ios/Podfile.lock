@@ -1778,6 +1778,27 @@ PODS:
     - React
   - react-native-cookies (6.2.1):
     - React-Core
+  - react-native-document-picker (11.0.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.10.14.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-get-random-values (1.11.0):
     - React-Core
   - react-native-netinfo (11.4.1):
@@ -2571,6 +2592,7 @@ DEPENDENCIES:
   - react-native-branch (from `../../../node_modules/react-native-branch`)
   - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
   - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
+  - "react-native-document-picker (from `../../../node_modules/@react-native-documents/picker`)"
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
@@ -2816,6 +2838,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-context-menu-view"
   react-native-cookies:
     :path: "../../../node_modules/@react-native-cookies/cookies"
+  react-native-document-picker:
+    :path: "../../../node_modules/@react-native-documents/picker"
   react-native-get-random-values:
     :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:
@@ -2978,7 +3002,7 @@ SPEC CHECKSUMS:
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
-  op-sqlite: 833d4789d2953bf0df4363d9294016c26a0f1b48
+  op-sqlite: 2087cc03c71aa3a62c2d0d8d7f7dbe04b118ac67
   PostHog: fcb0bc4425a69a2b0ee0ff5782b298a23aedcc83
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
@@ -3016,6 +3040,7 @@ SPEC CHECKSUMS:
   react-native-branch: 5d4ecda7bae040542f6c9f651a05d3df23d8b35a
   react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
+  react-native-document-picker: 8801b6b87c9c2f6b1fae4f4fa73989a57524171d
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-safe-area-context: 3ec0dbf4635e3344cb1303d15fcc4a22876b3e59
@@ -3070,7 +3095,7 @@ SPEC CHECKSUMS:
   sqlite3: 83105acd294c9137c026e2da1931c30b4588ab81
   tentap: 841beb2874a4215542ae389e2f0030779b0e5f6f
   UMAppLoader: 7e7e0eaa7854ffd652c00a68c443afb28c3bedba
-  Yoga: 1259c7a8cbaccf7b4c3ddf8ee36ca11be9dee407
+  Yoga: 8a9b4a239337975815ff5f0430a9cbd5957d00fd
 
 PODFILE CHECKSUM: 4cfd531bbf838f01a722fb92e52782ff853e6616
 
