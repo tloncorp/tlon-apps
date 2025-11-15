@@ -217,9 +217,25 @@ export function GroupPreviewPane({
     }
   }, [group.privacy]);
 
+  const hostConnectionState = useMemo(() => {
+    if (!group.hostUserId) {
+      return { canJoin: true, reason: null };
+    }
+
+    if (!hostStatus || !hostStatus.complete) {
+      return { canJoin: false, reason: 'checking' };
+    }
+
+    if (hostStatus.status === 'yes') {
+      return { canJoin: true, reason: null };
+    }
+
+    return { canJoin: false, reason: 'offline' };
+  }, [hostStatus, group.hostUserId]);
+
   const actionButtons = useMemo(
     () =>
-      getActionGroups(status, {
+      getActionGroups(status, hostConnectionState, {
         respondToInvite,
         requestInvite,
         rescindInvite,
@@ -229,6 +245,7 @@ export function GroupPreviewPane({
       }),
     [
       status,
+      hostConnectionState,
       respondToInvite,
       requestInvite,
       rescindInvite,
@@ -366,6 +383,7 @@ export const GroupPreviewSheet = React.memo(GroupPreviewSheetComponent);
 
 export function getActionGroups(
   status: JoinStatus,
+  hostConnectionState: { canJoin: boolean; reason: string | null },
   actions: {
     respondToInvite: (accepted: boolean) => void;
     requestInvite: () => void;
@@ -375,6 +393,17 @@ export function getActionGroups(
     cancelJoin: () => void;
   }
 ): GroupActionButton[] {
+  const getButtonText = (defaultText: string) => {
+    if (hostConnectionState.reason === 'checking') {
+      return 'Checking host connection...';
+    }
+    if (hostConnectionState.reason === 'offline') {
+      return 'Host is offline';
+    }
+    return defaultText;
+  };
+
+  const canJoin = hostConnectionState.canJoin;
   if (status.isMember) {
     return [
       {
@@ -410,9 +439,11 @@ export function getActionGroups(
   if (status.hasInvite) {
     return [
       {
-        title: 'Accept invite',
+        title: getButtonText('Accept invite'),
         accent: 'hero',
-        onPress: () => actions.respondToInvite(true),
+        onPress: canJoin ? () => actions.respondToInvite(true) : undefined,
+        disabled: !canJoin,
+        testID: 'AcceptInviteButton',
       },
       {
         title: 'Reject invite',
@@ -438,17 +469,21 @@ export function getActionGroups(
     }
     return [
       {
-        title: 'Request invite',
+        title: getButtonText('Request invite'),
         accent: 'hero',
-        onPress: actions.requestInvite,
+        onPress: canJoin ? actions.requestInvite : undefined,
+        disabled: !canJoin,
+        testID: 'RequestInviteButton',
       },
     ];
   }
   return [
     {
-      title: 'Join group',
+      title: getButtonText('Join group'),
       accent: 'heroPositive',
-      onPress: actions.joinGroup,
+      onPress: canJoin ? actions.joinGroup : undefined,
+      disabled: !canJoin,
+      testID: 'JoinGroupButton',
     },
   ];
 }
