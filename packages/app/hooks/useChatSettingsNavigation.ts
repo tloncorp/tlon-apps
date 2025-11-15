@@ -1,6 +1,7 @@
 import { NavigatorScreenParams, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';
@@ -42,8 +43,12 @@ export const useChatSettingsNavigation = () => {
 
   const { navigateToChatDetails } = useRootNavigation();
 
-  const { navigateToGroup, navigateToChatVolume: rootNavigateToChatVolume } =
-    useRootNavigation();
+  const {
+    navigateToGroup,
+    navigateToChatVolume: rootNavigateToChatVolume,
+    resetToGroup,
+    resetToChannel,
+  } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToGroupSettings = useCallback(
@@ -170,8 +175,38 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onLeaveGroup = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
-  }, [navigationRef]);
+    const routeName = isWindowNarrow ? 'ChatList' : 'Home';
+    // @ts-expect-error - 'Home' is a valid route on desktop (RootDrawerParamList) but not in RootStackParamList
+    navigationRef.current.navigate(routeName);
+  }, [navigationRef, isWindowNarrow]);
+
+  const onLeaveChannel = useCallback(
+    async (groupId: string, leavingChannelId: string) => {
+      const group = await db.getGroup({ id: groupId });
+
+      if (!group?.channels || group.channels.length === 0) {
+        // No channels left - go to group view
+        resetToGroup(groupId);
+        return;
+      }
+
+      // Find first channel that isn't the one being left
+      const nextChannel = group.channels.find(
+        (ch) => ch.id !== leavingChannelId
+      );
+
+      if (nextChannel) {
+        // Navigate to the first available channel
+        resetToChannel(nextChannel.id, {
+          groupId,
+        });
+      } else {
+        // All channels filtered out - go to group view
+        resetToGroup(groupId);
+      }
+    },
+    [resetToGroup, resetToChannel]
+  );
 
   return {
     onPressChannelMembers,
@@ -186,5 +221,6 @@ export const useChatSettingsNavigation = () => {
     onPressChatVolume,
     onPressRoles,
     onLeaveGroup,
+    onLeaveChannel,
   };
 };
