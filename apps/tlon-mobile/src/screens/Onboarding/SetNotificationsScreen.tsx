@@ -109,11 +109,14 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
         maxWidth={600}
         marginHorizontal="auto"
       >
-        <YStack gap="$l" paddingTop="$xl">
+        <YStack gap="$2xl" paddingVertical={'$2xl'}>
           <TlonText.Text size="$body">
-            Tlon has no attention traps or engagement bait. As a messenger, it
-            works best when you’re notified of messages—but you’re in control.
-            Customize these settings anytime for any group, channel, or DM.
+            <TlonText.Text fontWeight={'600'}>
+              Tlon has no attention traps or engagement bait.
+            </TlonText.Text>{' '}
+            As a messenger, it works best when you’re notified of messages—but
+            you’re in control. Customize these settings anytime for any group,
+            channel, or DM.
           </TlonText.Text>
           <TlonText.Text size="$body">
             Your device may also ask you to enable push notifications. If you
