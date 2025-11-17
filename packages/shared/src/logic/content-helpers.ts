@@ -539,7 +539,6 @@ export function appendFileUploadToPostBlob(
   blob: string | undefined,
   opts: { fileUri: string; name?: string }
 ) {
-  // TODO: saner encoding
   const data: PostBlobData = (() => {
     if (!blob) {
       return [];
