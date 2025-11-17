@@ -145,6 +145,8 @@ export namespace Attachment {
         case 'image':
           return uploadIntent.asset.uri;
         case 'file':
+          // TODO: URL.revokeObjectURL when no longer needed - shouldn't be
+          // an issue unless user uploads a *lot* of files
           return URL.createObjectURL(uploadIntent.file);
         case 'fileUri':
           return uploadIntent.localUri;
@@ -244,9 +246,7 @@ export namespace Attachment {
             localFile: uploadIntent.file,
             uploadState: {
               status: 'uploading',
-              // TODO: URL.revokeObjectURL when no longer needed - shouldn't be
-              // an issue unless user uploads a *lot* of files
-              localUri: URL.createObjectURL(uploadIntent.file),
+              localUri: createLocalUri(uploadIntent),
             },
           };
 
