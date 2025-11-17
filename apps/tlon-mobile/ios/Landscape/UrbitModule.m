@@ -13,7 +13,7 @@
 RCT_EXTERN_METHOD(setUrbit:(NSString *)shipName shipUrl:(NSString *)shipUrl authCookie:(NSString *)authCookie)
 RCT_EXTERN_METHOD(clearUrbit)
 RCT_EXTERN_METHOD(setPostHogApiKey:(NSString *)apiKey)
-
+RCT_EXTERN_METHOD(updateBadgeCount:(NSInteger)count uid:(NSString *)uid)
 + (BOOL)requiresMainQueueSetup
 {
   return NO;
