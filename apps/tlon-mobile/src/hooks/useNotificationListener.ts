@@ -1,4 +1,3 @@
-import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
@@ -19,11 +18,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
-import {
-  ActivityIncomingEvent,
-  whomIsDm,
-  whomIsMultiDm,
-} from '@tloncorp/shared/urbit';
+import { ActivityIncomingEvent } from '@tloncorp/shared/urbit';
 import { Notification, useLastNotificationResponse } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -38,16 +33,29 @@ type RouteStack = {
 interface BaseNotificationData {
   meta: { errorsFromExtension?: unknown };
 }
+interface PostInfo {
+  id: string;
+  authorId: string;
+  isDm: boolean;
+}
 interface MinimalNotificationData extends BaseNotificationData {
   type?: undefined;
   channelId: string;
-  postInfo: { id: string; authorId: string; isDm: boolean } | null;
+  postInfo: PostInfo | null;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
 }
 
-type NotificationData = MinimalNotificationData | UnrecognizedNotificationData;
+interface GroupJoinRequestNotificationData extends BaseNotificationData {
+  type: 'groupJoinRequest';
+  groupId: string;
+}
+
+type NotificationData =
+  | MinimalNotificationData
+  | GroupJoinRequestNotificationData
+  | UnrecognizedNotificationData;
 
 function payloadFromNotification(
   notification: Notification
@@ -119,6 +127,14 @@ function payloadFromNotification(
             },
     });
 
+    const groupAskTarget = (info: { group: string }): NotificationData => {
+      return {
+        ...baseNotificationData,
+        type: 'groupJoinRequest',
+        groupId: info.group,
+      };
+    };
+
     switch (true) {
       case is(ev, 'dm-post'):
         return dmTarget(ev['dm-post']);
@@ -132,9 +148,9 @@ function payloadFromNotification(
       case is(ev, 'reply'):
         return channelPostTarget(ev.reply, { parent: ev.reply.parent });
 
-      case is(ev, 'dm-invite'):
-      // fallthrough
       case is(ev, 'group-ask'):
+        return groupAskTarget(ev['group-ask']);
+      case is(ev, 'dm-invite'):
       // fallthrough
       case is(ev, 'group-join'):
       // fallthrough
@@ -169,8 +185,9 @@ export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
 
-  const [notifToProcess, setNotifToProcess] =
-    useState<MinimalNotificationData | null>(null);
+  const [notifToProcess, setNotifToProcess] = useState<
+    MinimalNotificationData | GroupJoinRequestNotificationData | null
+  >(null);
 
   // Start notifications prompt
   useEffect(() => {
@@ -216,101 +233,102 @@ export default function useNotificationListener() {
 
   const isDesktop = useIsWindowNarrow();
 
-  // If notification tapped, push channel on stack
+  // If notification tapped, navigate
   useEffect(() => {
-    if (notifToProcess && notifToProcess.channelId) {
-      const { channelId, postInfo } = notifToProcess;
-      const goToChannel = async () => {
-        const channel = await db.getChannelWithRelations({ id: channelId });
-        if (!channel) {
-          return false;
-        }
+    async function goToGroupMembers(groupId: string) {
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId },
+      });
+      setNotifToProcess(null);
+      return true;
+    }
 
-        logger.trackEvent(
-          AnalyticsEvent.ActionTappedPushNotif,
-          logic.getModelAnalytics({ channel })
+    async function gotToChannel(channelId: string, postInfo?: PostInfo | null) {
+      const channel = await db.getChannelWithRelations({ id: channelId });
+      if (!channel) {
+        return false;
+      }
+
+      logger.trackEvent(
+        AnalyticsEvent.ActionTappedPushNotif,
+        logic.getModelAnalytics({ channel })
+      );
+
+      const routeStack: RouteStack = [{ name: 'ChatList' }];
+      if (channel.groupId) {
+        const mainGroupRoute = await getMainGroupRoute(
+          channel.groupId,
+          isDesktop
         );
+        // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
+        routeStack.push(mainGroupRoute);
+      }
+      // Only push the channel if it wasn't already handled by the main group stack
+      if (routeStack[routeStack.length - 1].name !== 'Channel') {
+        const screenName = screenNameFromChannelId(channelId);
+        routeStack.push({
+          name: screenName,
+          params: { channelId: channel.id },
+        });
+      }
 
-        const routeStack: RouteStack = [{ name: 'ChatList' }];
-        if (channel.groupId) {
-          const mainGroupRoute = await getMainGroupRoute(
-            channel.groupId,
-            isDesktop
-          );
-          // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
-          routeStack.push(mainGroupRoute);
-        }
-        // Only push the channel if it wasn't already handled by the main group stack
-        if (routeStack[routeStack.length - 1].name !== 'Channel') {
-          const screenName = screenNameFromChannelId(channelId);
-          routeStack.push({
-            name: screenName,
-            params: { channelId: channel.id },
-          });
-        }
+      // if we have a post id, try to navigate to the thread
+      if (postInfo) {
+        let postToNavigateTo: {
+          id: string;
+          authorId: string;
+          channelId: string;
+        } | null = null;
 
-        // if we have a post id, try to navigate to the thread
-        if (postInfo) {
-          let postToNavigateTo: {
-            id: string;
-            authorId: string;
-            channelId: string;
-          } | null = null;
+        const post = await db.getPost({ postId: postInfo.id });
 
-          const post = await db.getPost({ postId: postInfo.id });
-
-          if (post) {
-            postToNavigateTo = post;
-          } else {
-            postToNavigateTo = { ...postInfo, channelId };
-          }
-
-          routeStack.push({
-            name: 'Post',
-            params: {
-              postId: postToNavigateTo.id,
-              authorId: postToNavigateTo.authorId,
-              channelId: postToNavigateTo.channelId,
-            },
-          });
+        if (post) {
+          postToNavigateTo = post;
+        } else {
+          postToNavigateTo = { ...postInfo, channelId };
         }
 
-        const typedReset = createTypedReset(navigation);
+        routeStack.push({
+          name: 'Post',
+          params: {
+            postId: postToNavigateTo.id,
+            authorId: postToNavigateTo.authorId,
+            channelId: postToNavigateTo.channelId,
+          },
+        });
+      }
 
-        typedReset(routeStack, 1);
-        setNotifToProcess(null);
-        return true;
-      };
+      const typedReset = createTypedReset(navigation);
+
+      typedReset(routeStack, 1);
+      setNotifToProcess(null);
+      return true;
+    }
+
+    if (notifToProcess) {
+      console.log(`bl: processing notification`, notifToProcess);
+      const handleNavigate =
+        notifToProcess.type === 'groupJoinRequest'
+          ? () => goToGroupMembers(notifToProcess.groupId)
+          : () =>
+              gotToChannel(notifToProcess.channelId, notifToProcess.postInfo);
 
       (async () => {
         // First check if we have this channel in local store
-        let didNavigate = await goToChannel();
+        let didNavigate = await handleNavigate();
 
         // If not, sync from source and try again
         if (!didNavigate) {
-          if (whomIsDm(channelId) || whomIsMultiDm(channelId)) {
-            await syncDms();
-          } else {
-            await syncGroups();
-          }
+          await Promise.all([syncDms(), syncGroups()]);
 
-          didNavigate = await goToChannel();
+          didNavigate = await handleNavigate();
 
           // If still not found, clear out the requested channel ID
           if (!didNavigate) {
             if (isTlonEmployee) {
-              crashlytics().log(`failed channel ID: ${channelId}`);
-              crashlytics().log(`failed post ID: ${postInfo?.id}`);
-              logger.trackEvent(
-                AnalyticsEvent.ErrorPushNotifNavigate,
-                logic.getModelAnalytics({ channel: { id: channelId } })
-              );
+              logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate);
             }
-            crashlytics().recordError(
-              new Error(
-                `Notification listener: failed to navigate to ${postInfo?.isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
-              )
-            );
             setNotifToProcess(null);
           }
         }
