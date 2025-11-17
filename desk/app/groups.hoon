@@ -1321,12 +1321,10 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ::  ignore responses after we have left the group
+    ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=(%kick -.sign)
-                ?=(%fact -.sign)
-                ?=([%command %leave ~] rest.pole)
+            ?|  ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
         ==
@@ -1339,14 +1337,6 @@
   ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    ::  ignore the following for a deleted foreign group
-    ::
-    ?:  ?&  !(~(has by foreigns) ship name.pole)
-            ?|  ?=(%kick -.sign)            :: ignore kicks
-                ?=([%preview ~] rest.pole)  :: ignore preview signs
-            ==
-        ==
-      cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
       [%chan app=@ ship=@ name=@ rest=*]
@@ -1688,15 +1678,23 @@
     =/  ship  (slav %p i.rest)
     ::XX cache this with ~+?
     (se-is-admin ship)
+  ::
+  ++  se-ships-subscription-paths
+    |=  ships=(list ship)
+    %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
+    |=  =path
+    =.  path  (slag ^~((lent se-sub-path)) path)
+    ?.  ?=([ship=@ time=@ ~] path)  |
+    ?=(^ (find [(slav %p i.path)]~ ships))
   ::  +se-update: record and send group update
   ::
   ++  se-update
     |=  =u-group:g
     ^+  se-core
-    =/  =time
+    =/  time
       |-
-      =/  reply  (get:log-on:g log now.bowl)
-      ?~  reply  now.bowl
+      =/  update  (get:log-on:g log now.bowl)
+      ?~  update  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
@@ -2463,20 +2461,34 @@
       ::  the subscription.
       ::
       =?  se-core  !=(~ kicks)  (emit [%give %kick kicks ~])
-      (se-update:se-core %seat ships [%del ~])
+      (se-update %seat ships [%del ~])
     ::
         %add-roles
       =.  roles.c-seat
         (~(int in ~(key by roles.group)) roles.c-seat)
       ?:  =(~ roles.c-seat)  se-core
-      =.  seats.group
+      ::  add roles to seats and determine the set of new admins
+      ::
+      =^  new-admins  seats.group
         %-  ~(rep in ships)
-        |=  [=ship =_seats.group]
+        |=  [=ship new-admins=(list ship) =_seats.group]
         =+  seat=(~(got by seats) ship)
+        =/  new-admin=?
+          &(!(se-is-admin ship) !=(~ (~(int in admins.group) roles.c-seat)))
         =.  seat
           seat(roles (~(uni in roles.seat) roles.c-seat))
-        (~(put by seats) ship seat)
-      (se-update:se-core %seat ships [%add-roles roles.c-seat])
+        :_  (~(put by seats) ship seat)
+        ?.  new-admin  new-admins
+        [ship new-admins]
+      =.  se-core  (se-update %seat ships [%add-roles roles.c-seat])
+      ?:  =(~ new-admins)  se-core
+      =+  paths=(se-ships-subscription-paths new-admins)
+      ?:  =(~ paths)  se-core
+      =/  time
+        ?~  update=(ram:log-on:g log)  now.bowl
+        -.u.update
+      =/  =update:g  [time %create group]
+      (give %fact paths group-update+!>(update))
     ::
         %del-roles
       =.  seats.group
@@ -2644,8 +2656,23 @@
       (se-update %role roles [%del ~])
     ::
         %set-admin
+      =/  new-admins=(list ship)
+        %+  roll  ~(tap by seats.group)
+        |=  [[=ship =seat:g] new-admins=(list ship)]
+        ?.  ?&  !(se-is-admin ship)
+                !=(~ (~(int in roles.seat) roles))
+            ==
+          new-admins
+        [ship new-admins]
       =.  admins.group  (~(uni in admins.group) roles)
-      (se-update %role roles [%set-admin ~])
+      =.  se-core  (se-update %role roles [%set-admin ~])
+      =+  paths=(se-ships-subscription-paths new-admins)
+      ?:  =(~ paths)  se-core
+      =/  time
+        ?~  update=(ram:log-on:g log)  now.bowl
+        -.u.update
+      =/  =update:g  [time %create group]
+      (give %fact paths group-update+!>(update))
     ::
         %del-admin
       =.  admins.group  (~(dif in admins.group) roles)
@@ -2846,14 +2873,14 @@
     |=  =path
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
-        ::  receive updates since .after time
+        ::  receive updates since .time
         ::
-        [%updates ship=@ after=@ ~]
+        [%updates ship=@ time=@ ~]
       =/  ship   (slav %p i.t.path)
-      =/  after  (slav %da i.t.t.path)
+      =/  time   (slav %da i.t.t.path)
       ?>  =(ship src.bowl)
       ?>  (se-is-member src.bowl)
-      (se-watch-updates ship after)
+      (se-watch-updates ship time)
     ::
       ::  fetch group preview
       ::
@@ -2885,9 +2912,7 @@
       =/  =group:g
         ?:  (se-is-admin ship)  group
         ::  only admins receive state updates regarding
-        ::  tokens, pending ships and requests. when a user
-        ::  becomes an admin, or looses admin rights, it is brought up
-        ::  to date by a subscription restart.
+        ::  tokens, pending ships and requests.
         ::
         %_  group
           tokens.admissions    ~
@@ -3260,12 +3285,11 @@
     ::  consider it uninitialized.
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates ?~(error | &))
+    (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
   ++  go-lost-admin
     %_  go-core
-        tokens.admissions.group    ~
         pending.admissions.group   ~
         requests.admissions.group  ~
     ==
@@ -3670,10 +3694,7 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    ::  nb: we don't send out a response here because
-    ::  a synthetic %create response is sent after
-    ::  the group log has been fully applied in +go-apply-log.
-    ::
+    =.  go-core  (go-response %create gr)
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
@@ -3905,7 +3926,6 @@
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
       ::
-      =+  was-admin=(go-is-admin our.bowl)
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
@@ -3914,8 +3934,6 @@
         =.  seat
           seat(roles (~(uni in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
-      ?:  !=(was-admin (go-is-admin our.bowl))
-        (go-restart-updates ~)
       go-core
     ::
         %del-roles
@@ -4025,10 +4043,7 @@
       =.  go-core  (go-response %role roles [%set-admin ~])
       ?:  go-our-host  go-core
       ::
-      =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(uni in admins.group) roles)
-      ?:  !=(was-admin (go-is-admin our.bowl))
-        (go-restart-updates ~)
       go-core
     ::
         %del-admin
@@ -4455,8 +4470,16 @@
     ^+  cor
     =+  old-foreign=(~(get by foreigns) flag)
     =.  foreigns  (~(put by foreigns) flag foreign)
-    =?  foreigns  ?=([~ %done] progress)
+    =+  done=?=([~ %done] progress)
+    =?  foreigns  done
       (~(del by foreigns) flag)
+    ::  cancel a possible preview
+    ::
+    =?  cor  done
+      =^  caz=(list card)  subs
+        =/  =dock  [p.flag dap.bowl]
+        (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
+      (emil caz)
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
       fi-give-update
     cor
