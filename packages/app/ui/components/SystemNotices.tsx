@@ -36,6 +36,7 @@ const SystemNotices = {
   NotificationsPrompt,
   JoinRequestNotice,
   ConnectedJoinRequestNotice,
+  NonHostAdminChannelNotice,
   NoticeFrame,
   NoticeBody,
   NoticeTitle,
@@ -331,5 +332,16 @@ export function ConnectedJoinRequestNotice({
       onViewRequests={onViewRequests}
       onDismiss={handleDismissJoinRequests}
     />
+  );
+}
+
+export function NonHostAdminChannelNotice() {
+  return (
+    <NoticeFrame>
+      <NoticeBody>
+        Note: You are not the host of this group. Channels you create will be
+        hosted on your node and will operate independently of the group host.
+      </NoticeBody>
+    </NoticeFrame>
   );
 }

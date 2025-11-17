@@ -26,9 +26,12 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
 import { ListItem } from '../ListItem';
+import SystemNotices from '../SystemNotices';
 import {
   MEMBERS_MARKER,
   MEMBER_ROLE_OPTION,
@@ -98,6 +101,10 @@ export function CreateChannelSheet({
   });
 
   const { control, handleSubmit, watch, setValue } = form;
+
+  const currentUserId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group.id, currentUserId);
+  const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
 
   const isPrivate = watch('isPrivate');
 
@@ -208,6 +215,11 @@ export function CreateChannelSheet({
                   name={'channelType'}
                 />
               </ActionSheet.FormBlock>
+              {isNonHostAdmin && (
+                <ActionSheet.FormBlock>
+                  <SystemNotices.NonHostAdminChannelNotice />
+                </ActionSheet.FormBlock>
+              )}
               <ActionSheet.FormBlock>
                 <Button
                   onPress={
