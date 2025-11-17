@@ -307,7 +307,6 @@ export default function useNotificationListener() {
     }
 
     if (notifToProcess) {
-      console.log(`bl: processing notification`, notifToProcess);
       const handleNavigate =
         notifToProcess.type === 'groupJoinRequest'
           ? () => goToGroupMembers(notifToProcess.groupId)
