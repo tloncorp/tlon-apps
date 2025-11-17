@@ -143,7 +143,7 @@ export namespace Attachment {
 
     export function extractImagePickerAssets(
       xs: UploadIntent[]
-    ): ImageUploadIntent[] {
+    ): ImagePickerAsset[] {
       return xs
         .filter((x): x is ImageUploadIntent => x.type === 'image')
         .map((x) => x.asset);
