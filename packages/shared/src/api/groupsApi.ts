@@ -1782,7 +1782,7 @@ export function toClientGroupV7(
           groupId: id,
           ...toClientMeta(zone.meta),
           sectionIndex: i,
-          channels: (zone.idx ?? []).map((channelId, ci) => {
+          channels: (zone.order ?? []).map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
               channelIndex: ci,
               channelId: channelId,
@@ -1985,7 +1985,7 @@ function toClientChannels({
   channels,
   groupId,
 }: {
-  channels: Record<string, ub.GroupChannel>;
+  channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
@@ -1999,7 +1999,7 @@ function toClientChannel({
   groupId,
 }: {
   id: string;
-  channel: ub.GroupChannel;
+  channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
 }): db.Channel {
   const { description, channelContentConfiguration } =

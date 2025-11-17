@@ -30,8 +30,20 @@ export interface GroupChannel {
   join: boolean;
 }
 
+export interface GroupChannelV7 {
+  added: number;
+  meta: GroupMeta;
+  section: string;
+  readers: string[];
+  join: boolean;
+}
+
 export interface Channels {
   [nest: string]: GroupChannel;
+}
+
+export interface GroupChannelsV7 {
+  [nest: string]: GroupChannelV7;
 }
 
 export type Zone = string;
@@ -41,6 +53,15 @@ export interface Zones {
     meta: GroupMeta;
     idx: string[];
   };
+}
+
+export interface SectionV7 {
+  meta: GroupMeta;
+  order: string[];
+}
+
+export interface SectionsV7 {
+  [key: string]: SectionV7;
 }
 
 export interface Vessel {
@@ -441,11 +462,13 @@ export interface GroupV7 {
   seats: Record<string, Seat>; // fleet in v6 is now seats in v7, uses 'roles' not 'sects'
   roles: Record<string, GroupMeta>; // v7 roles ARE the metadata, not Cabals with nested meta
   admins: string[]; // just an array of role-ids
-  channels: Channels;
+  channels: GroupChannelsV7;
   'active-channels': string[];
-  sections: Zones;
-  'section-order': Zone[];
+  sections: SectionsV7;
+  'section-order': string[];
   'flagged-content': FlaggedContent;
+  'member-count': number;
+  init: boolean;
 }
 
 export interface GroupIndex {
