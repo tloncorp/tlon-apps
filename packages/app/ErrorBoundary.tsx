@@ -29,7 +29,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     try {
+      // Capture component stack as breadcrumb for error tracking
+      logger.crumb(JSON.stringify(errorInfo));
+
       // Send to Sentry with React component stack context
+      // This provides more detailed stack traces than generic error logging
       Sentry.captureException(error, {
         contexts: {
           react: {
@@ -37,13 +41,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           },
         },
       });
-
-      // If was thrown from within AuthenticatedApp, use enhanced error reporting
-      // This will also send to Sentry via the logger integration in debug.ts
-      logger.crumb(JSON.stringify(errorInfo));
-      logger.trackError(error.message, error);
     } catch (e) {
-      // Otherwise fallback what we have at hand
+      // Fallback to Firebase Crashlytics if error tracking fails
       crashlytics().recordError(error);
       crashlytics().log(JSON.stringify(errorInfo));
     }

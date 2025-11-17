@@ -6,6 +6,7 @@ import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
 export type OnboardingProperties = {
@@ -38,7 +39,19 @@ posthogAsync?.then((client) => {
   const distinctId = client.getDistinctId();
 
   crashlytics().setAttribute('analyticsId', distinctId);
-  useDebugStore.getState().initializeErrorLogger(client);
+
+  // Create composite error logger that sends to both PostHog and Sentry
+  const sentryLogger = createSentryErrorLogger();
+  const compositeLogger = {
+    capture: (event: string, data: Record<string, unknown>) => {
+      // Send to PostHog
+      client.capture(event, data);
+      // Send to Sentry
+      sentryLogger.capture(event, data);
+    },
+  };
+
+  useDebugStore.getState().initializeErrorLogger(compositeLogger);
   posthog?.register({
     gitHash: GIT_HASH,
   });

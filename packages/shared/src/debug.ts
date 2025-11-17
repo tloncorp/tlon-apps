@@ -7,17 +7,6 @@ import { getStorageMethods } from './db/getStorageMethods';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
-// Conditional Sentry import for React Native only
-let Sentry: any = null;
-try {
-  // Only import Sentry in React Native environment
-  if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
-    Sentry = require('@sentry/react-native');
-  }
-} catch (e) {
-  // Sentry not available (e.g., in web environment)
-}
-
 const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
 const BREADCRUMB_LIMIT = 100;
 
@@ -273,7 +262,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
 
           const report = (debugInfo: any = undefined) => {
-            // Send to PostHog (existing behavior)
+            // Send to error logger (PostHog, Sentry, or both via composite logger)
             errorLogger?.capture('app_error', {
               debugInfo,
               message: errorMessage,
@@ -285,27 +274,6 @@ export function createDevLogger(tag: string, enabled: boolean) {
               logLevel: 'error',
               ...customProps,
             });
-
-            // Also send to Sentry if available
-            if (Sentry) {
-              Sentry.captureMessage(errorMessage, {
-                level: 'error',
-                extra: {
-                  tag,
-                  debugInfo,
-                  ...customProps,
-                },
-                contexts: {
-                  breadcrumbs: {
-                    values: breadcrumbs.map((crumb: string, index: number) => ({
-                      message: crumb,
-                      timestamp:
-                        Date.now() / 1000 - (breadcrumbs.length - index),
-                    })),
-                  },
-                },
-              });
-            }
           };
 
           getDebugInfo()
