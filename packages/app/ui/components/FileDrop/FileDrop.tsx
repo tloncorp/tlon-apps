@@ -1,17 +1,16 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import { ComponentProps, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
+import { useFeatureFlag } from '../../../lib/featureFlags';
+import { FileDropComponent } from './types';
 
-export function FileDrop({
+export const FileDrop: FileDropComponent = ({
   onAssetsDropped,
   children,
   ...props
-}: {
-  onAssetsDropped: (files: Attachment.UploadIntent[]) => void;
-} & ComponentProps<typeof View>) {
+}) => {
   const handleDrop = useCallback(
     async (files: File[]) => {
       onAssetsDropped(
@@ -58,7 +57,7 @@ export function FileDrop({
       {children}
     </View>
   );
-}
+};
 
 function getImageAsset(
   file: File
