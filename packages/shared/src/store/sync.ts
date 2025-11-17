@@ -320,11 +320,15 @@ export const syncLatestPosts = async (
 };
 
 export const syncSettings = async (ctx?: SyncCtx) => {
-  const settings = await syncQueue.add('settings', ctx, () =>
-    api.getSettings()
-  );
-  logger.log('got settings from api', settings);
-  return db.insertSettings(settings);
+  const result = await syncQueue.add('settings', ctx, () => api.getSettings());
+  logger.log('got settings from api', result);
+  await db.insertSettings(result.settings);
+
+  if (result.pendingMemberDismissals?.length) {
+    await db.insertPendingMemberDismissals({
+      dismissals: result.pendingMemberDismissals,
+    });
+  }
 };
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
@@ -778,13 +782,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       );
       break;
     case 'groupJoinRequest':
-      await db.addGroupJoinRequests(
-        {
-          groupId: update.groupId,
-          contactIds: update.ships,
-        },
-        ctx
-      );
+      await db.insertGroupJoinRequests([update.request], ctx);
       break;
     case 'revokeGroupJoinRequests':
       await db.deleteGroupJoinRequests(

@@ -3,7 +3,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -39,6 +39,15 @@ export function GroupChannelsScreenContent({
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+
+  const handleGoToGroupMembers = useCallback(() => {
+    if (group) {
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, navigation]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -103,6 +112,7 @@ export function GroupChannelsScreenContent({
           onChannelPressed={handleChannelSelected}
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
+          onGoToGroupMembers={handleGoToGroupMembers}
           onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
           unjoinedChannels={unjoinedChannels}

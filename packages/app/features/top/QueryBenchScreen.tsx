@@ -47,7 +47,7 @@ export function QueryBenchScreen() {
   }, []);
 
   const benchmarkData = useMemo(() => {
-    return toInitData(initResponse as unknown as ub.GroupsInit5);
+    return toInitData(initResponse as unknown as ub.GroupsInit6);
   }, []);
 
   const cases: BenchmarkCase[] = useMemo(() => {
