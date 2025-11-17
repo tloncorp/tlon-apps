@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
@@ -34,10 +35,17 @@ export const posthogAsync =
 
 posthogAsync?.then((client) => {
   posthog = client;
-  crashlytics().setAttribute('analyticsId', client.getDistinctId());
+  const distinctId = client.getDistinctId();
+
+  crashlytics().setAttribute('analyticsId', distinctId);
   useDebugStore.getState().initializeErrorLogger(client);
   posthog?.register({
     gitHash: GIT_HASH,
+  });
+
+  // Set Sentry user context with PostHog analytics ID
+  Sentry.setUser({
+    id: distinctId,
   });
 
   // Write PostHog API key to UserDefaults for iOS native access

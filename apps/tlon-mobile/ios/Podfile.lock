@@ -2385,6 +2385,29 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNSentry (7.6.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.10.14.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Sentry/HybridSDK (= 8.57.2)
+    - Yoga
   - RNSVG (15.8.0):
     - DoubleConversion
     - glog
@@ -2439,6 +2462,7 @@ PODS:
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
+  - Sentry/HybridSDK (8.57.2)
   - SocketRocket (0.7.1)
   - sqlite3 (3.50.3):
     - sqlite3/common (= 3.50.3)
@@ -2594,6 +2618,7 @@ DEPENDENCIES:
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
+  - "RNSentry (from `../../../node_modules/@sentry/react-native`)"
   - RNSVG (from `../../../node_modules/react-native-svg`)
   - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
@@ -2631,6 +2656,7 @@ SPEC REPOS:
     - SDWebImageAVIFCoder
     - SDWebImageSVGCoder
     - SDWebImageWebPCoder
+    - Sentry
     - SocketRocket
     - sqlite3
 
@@ -2882,6 +2908,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
+  RNSentry:
+    :path: "../../../node_modules/@sentry/react-native"
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
   tentap:
@@ -3041,11 +3069,13 @@ SPEC CHECKSUMS:
   RNGestureHandler: de2b7ccdbf18766609fb9490c7f11c18805705a3
   RNReanimated: 61b4e41a4d0a60c139342a670db67caed071321f
   RNScreens: 2fe3d999c2dee6ef1d5e863fec0fb6f7de60c45a
+  RNSentry: 974b21b0345c073586c22a3aaf77d69b3e47f63e
   RNSVG: d332ea2a8540218eadc5c8f31c2b58dfba6b14b5
   SDWebImage: 8a6b7b160b4d710e2a22b6900e25301075c34cb3
   SDWebImageAVIFCoder: 00310d246aab3232ce77f1d8f0076f8c4b021d90
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  Sentry: 83a3814c3ca042874b39c5c5bdffb6570d4d760e
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   sqlite3: 83105acd294c9137c026e2da1931c30b4588ab81
   tentap: 841beb2874a4215542ae389e2f0030779b0e5f6f

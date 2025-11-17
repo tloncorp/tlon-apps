@@ -58,6 +58,7 @@
     "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
+    "@sentry/react-native": "^7.6.0",
     "@shopify/flash-list": "1.7.3",
     "@shopify/react-native-skia": "1.5.0",
     "@tamagui/react-native-media-driver": "~1.126.12",
