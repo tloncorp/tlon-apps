@@ -334,12 +334,21 @@ export function convertContent(
   if (blob != null) {
     const blobData = parsePostBlob(blob);
     for (const { fileUri } of blobData) {
-      out.push({
-        type: 'link',
-        url: fileUri,
-        title: 'Attachment',
-        description: 'Press to download',
-      });
+      // Treat all blob entries as downloadable links
+      const isUploading = fileUri.startsWith('file://');
+      if (isUploading) {
+        out.push({
+          type: 'blockquote',
+          content: [{ type: 'text', text: 'Uploading attachment...' }],
+        });
+      } else {
+        out.push({
+          type: 'link',
+          url: fileUri,
+          title: 'Attachment',
+          description: 'Press to download',
+        });
+      }
     }
   }
 
