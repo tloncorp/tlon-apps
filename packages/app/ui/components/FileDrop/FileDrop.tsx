@@ -66,9 +66,11 @@ function getImageAsset(
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onerror = (e) => {
+      URL.revokeObjectURL(objectUrl);
       reject(e);
     };
     img.onload = function () {
+      URL.revokeObjectURL(objectUrl);
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;
