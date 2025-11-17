@@ -180,7 +180,9 @@ export function AttachmentPreview({
     default: {
       // this will raise type error if missing a case
       const _exhaustiveCheck: never = attachment;
-      return _exhaustiveCheck;
+      throw new Error(
+        'Unhandled attachment type: ' + JSON.stringify(_exhaustiveCheck)
+      );
     }
   }
 }
