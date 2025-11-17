@@ -1,5 +1,10 @@
 import * as Sentry from '@sentry/react-native';
-import { GIT_HASH, IGNORE_COSMOS, SENTRY_DSN } from '@tloncorp/app/constants';
+import {
+  APP_VARIANT,
+  GIT_HASH,
+  IGNORE_COSMOS,
+  SENTRY_DSN,
+} from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
 
 Sentry.init({
@@ -15,6 +20,13 @@ Sentry.init({
   // Set environment and release for better error tracking
   environment: __DEV__ ? 'development' : 'production',
   release: GIT_HASH,
+
+  // Tag errors with build variant for filtering in Sentry UI
+  initialScope: {
+    tags: {
+      buildVariant: APP_VARIANT,
+    },
+  },
 });
 
 loadConstants();
