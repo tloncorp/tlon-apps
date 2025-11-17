@@ -2914,9 +2914,7 @@
       =/  =group:g
         ?:  (se-is-admin ship)  group
         ::  only admins receive state updates regarding
-        ::  tokens, pending ships and requests. when a user
-        ::  becomes an admin, or looses admin rights, it is brought up
-        ::  to date by a subscription restart.
+        ::  tokens, pending ships and requests.
         ::
         %_  group
           tokens.admissions    ~
@@ -3294,7 +3292,6 @@
   ::
   ++  go-lost-admin
     %_  go-core
-        tokens.admissions.group    ~
         pending.admissions.group   ~
         requests.admissions.group  ~
     ==
