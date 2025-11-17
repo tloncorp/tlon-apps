@@ -257,13 +257,15 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
 
   // Click on the invitation
   await page.getByText('Group invitation').click();
-  await page.waitForTimeout(45000);
+
+  // Wait for the "Accept invite" button to become enabled
+  // The button may be disabled initially until connection is established
+  const acceptButton = page.getByText('Accept invite');
+  await expect(acceptButton).toBeVisible({ timeout: 60000 });
+  await expect(acceptButton).toBeEnabled({ timeout: 60000 });
 
   // Click accept
-  const acceptButton = page.getByText('Accept invite');
-  if (await acceptButton.isVisible()) {
-    await acceptButton.click();
-  }
+  await acceptButton.click();
 
   // Wait for joining to complete and "Go to group" button to appear
   await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
