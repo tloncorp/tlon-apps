@@ -31,4 +31,11 @@ class UrbitModule: NSObject {
     func setPostHogApiKey(apiKey: String) {
         UserDefaults.forDefaultAppGroup.set(apiKey, forKey: "postHogApiKey")
     }
+
+    @objc(updateBadgeCount:uid:)
+    func updateBadgeCount(count: Int, uid: String) {
+        Task {
+            await NotificationDismissHandler.shared.updateBadgeCountIfNeeded(newCount: count, uid: uid)
+        }
+    }
 }
