@@ -18,6 +18,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable contacts tab',
   },
+  fileUpload: {
+    default: false,
+    label: 'Enable uploading non-image files in chats',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;

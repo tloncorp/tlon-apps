@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
@@ -258,7 +259,6 @@ export default function AttachmentSheet({
               file: entry.file,
             };
           }
-
           case 'uri': {
             return {
               type: 'fileUri',
@@ -272,6 +272,7 @@ export default function AttachmentSheet({
       onAttach?.(uploadIntents);
     }
   }, [attachAssets, onOpenChange, onAttach]);
+  const [canUploadFiles] = useFeatureFlag('fileUpload');
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -285,10 +286,11 @@ export default function AttachmentSheet({
               : 'Choose a photo from your library',
             action: pickImage,
           },
-          mediaType === 'all' && {
-            title: 'Upload a file',
-            action: startFilePicker,
-          },
+          canUploadFiles &&
+            mediaType === 'all' && {
+              title: 'Upload a file',
+              action: startFilePicker,
+            },
           !isWeb && {
             title: 'Take a Photo',
             description: 'Use your camera to take a photo',
