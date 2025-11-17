@@ -48,6 +48,8 @@ jobs:
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           NOTIFY_PROVIDER: "binnec-dozzod-marnus"
           NOTIFY_SERVICE: "tlon-preview-release"
           VITE_INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
