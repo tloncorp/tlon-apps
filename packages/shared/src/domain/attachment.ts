@@ -110,7 +110,13 @@ export type FinalizedAttachment =
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Attachment {
-  type ImageUploadIntent = { type: 'image'; asset: ImagePickerAsset };
+  type ImageUploadIntent = {
+    type: 'image';
+    asset: Pick<
+      ImagePickerAsset,
+      'uri' | 'width' | 'height' | 'fileSize' | 'mimeType'
+    >;
+  };
   export type UploadIntent =
     | ImageUploadIntent
     | { type: 'fileUri'; localUri: string }
