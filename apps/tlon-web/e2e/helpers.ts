@@ -257,7 +257,7 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
 
   // Click on the invitation
   await page.getByText('Group invitation').click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(45000);
 
   // Click accept
   const acceptButton = page.getByText('Accept invite');
