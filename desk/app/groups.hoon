@@ -1691,16 +1691,14 @@
   ++  se-update
     |=  =u-group:g
     ^+  se-core
-    =/  =update:g  [se-time u-group]
+    =/  time
+      |-
+      =/  update  (get:log-on:g log now.bowl)
+      ?~  update  now.bowl
+      $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
+    =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
     (se-give-update update)
-  ::  +se-time: get next update time
-  ::
-  ++  se-time
-    |-
-    =/  update  (get:log-on:g log now.bowl)
-    ?~  update  now.bowl
-    $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
   ::  +se-pass: server cards core
   ::
   ++  se-pass
