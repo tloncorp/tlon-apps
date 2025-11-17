@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
-import { useRootNavigation } from '../navigation/utils';
+import { useRootNavigation, useTypedReset } from '../navigation/utils';
 import { useIsWindowNarrow } from '../ui';
 
 export const useHandleGoBack = (
@@ -49,6 +49,7 @@ export const useChatSettingsNavigation = () => {
     resetToGroup,
     resetToChannel,
   } = useRootNavigation();
+  const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToGroupSettings = useCallback(
@@ -175,10 +176,13 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onLeaveGroup = useCallback(() => {
-    const routeName = isWindowNarrow ? 'ChatList' : 'Home';
-    // @ts-expect-error - 'Home' is a valid route on desktop (RootDrawerParamList) but not in RootStackParamList
-    navigationRef.current.navigate(routeName);
-  }, [navigationRef, isWindowNarrow]);
+    if (isWindowNarrow) {
+      navigationRef.current.navigate('ChatList');
+    } else {
+      // Desktop: Reset navigation stack to clean Home state
+      reset([{ name: 'Home' }]);
+    }
+  }, [navigationRef, isWindowNarrow, reset]);
 
   const onLeaveChannel = useCallback(
     async (groupId: string, leavingChannelId: string) => {
