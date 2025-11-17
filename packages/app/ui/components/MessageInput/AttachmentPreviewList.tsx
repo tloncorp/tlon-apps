@@ -57,31 +57,6 @@ export function AttachmentPreview({
     setIsLoading(false);
   }, []);
 
-  if (error) {
-    return (
-      <View
-        height={128}
-        borderRadius="$m"
-        overflow="hidden"
-        aspectRatio={aspect}
-        backgroundColor="$secondaryBackground"
-        justifyContent="center"
-      >
-        <Text
-          color="$negativeActionText"
-          fontSize="$s"
-          textAlign="center"
-          paddingVertical="$s"
-          paddingHorizontal="$m"
-          fontWeight="$xl"
-        >
-          Attachment failed to load.
-        </Text>
-        <RemoveAttachmentButton attachment={attachment} />
-      </View>
-    );
-  }
-
   const Container = useCallback(
     ({
       children,
@@ -111,8 +86,33 @@ export function AttachmentPreview({
         )}
       </View>
     ),
-    []
+    [aspect, attachment]
   );
+
+  if (error) {
+    return (
+      <View
+        height={128}
+        borderRadius="$m"
+        overflow="hidden"
+        aspectRatio={aspect}
+        backgroundColor="$secondaryBackground"
+        justifyContent="center"
+      >
+        <Text
+          color="$negativeActionText"
+          fontSize="$s"
+          textAlign="center"
+          paddingVertical="$s"
+          paddingHorizontal="$m"
+          fontWeight="$xl"
+        >
+          Attachment failed to load.
+        </Text>
+        <RemoveAttachmentButton attachment={attachment} />
+      </View>
+    );
+  }
 
   switch (attachment.type) {
     case 'link': {
@@ -163,7 +163,11 @@ export function AttachmentPreview({
     case 'file': {
       return (
         <Container showSpinner={uploading}>
-          <Text>{attachment.localFile.name}</Text>
+          <Text>
+            {attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : 'File'}
+          </Text>
         </Container>
       );
     }
