@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f1e20e36-c29b-4008-a4c7-2dec4746d32f",
+  "id": "793a834e-2fcd-4601-99ec-bc8aede23daf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -361,6 +361,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "notif_timestamp": {
+          "name": "notif_timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },
@@ -2021,6 +2028,13 @@
         },
         "synced_at": {
           "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pending_members_dismissed_at": {
+          "name": "pending_members_dismissed_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

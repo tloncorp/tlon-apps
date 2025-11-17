@@ -51,6 +51,24 @@ function groupAction4(action: ub.GroupActionV4) {
   };
 }
 
+function groupNavigationBatchUpdate(
+  flag: string,
+  navigation: ub.GroupNavigationUpdate
+): Poke<ub.GroupNavigationBatchUpdate> {
+  return {
+    app: 'groups',
+    mark: 'group-action-4',
+    json: {
+      group: {
+        flag,
+        'a-group': {
+          navigation,
+        },
+      },
+    },
+  };
+}
+
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
     app: 'groups-ui',
@@ -425,10 +443,10 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/groups/${groupId}/v1`;
+  const path = `/v2/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.Group>({ app: 'groups', path });
-  return toClientGroup(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
+  return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async (
@@ -564,27 +582,6 @@ export const updateNavSection = async ({
   );
 };
 
-export const moveNavSection = async ({
-  groupId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  navSectionId: string;
-  index: number;
-}) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          mov: index,
-        },
-      },
-    })
-  );
-};
-
 export const addChannelToNavSection = async ({
   groupId,
   navSectionId,
@@ -688,30 +685,38 @@ export const deleteChannel = async ({
   );
 };
 
-export const moveChannel = async ({
+export const updateGroupNavigation = async ({
   groupId,
-  channelId,
-  navSectionId,
-  index,
+  navSections,
 }: {
   groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index: number;
+  navSections: db.GroupNavSection[];
 }) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          'mov-nest': {
-            nest: channelId,
-            idx: index,
-          },
-        },
+  const sections: Record<string, ub.GroupNavigationSectionData> = {};
+
+  for (const section of navSections) {
+    sections[section.sectionId] = {
+      meta: {
+        title: section.title ?? '',
+        description: section.description ?? '',
+        image: section.iconImage ?? section.coverImageColor ?? '',
+        cover: section.coverImage ?? section.coverImageColor ?? '',
       },
-    })
-  );
+      order: (section.channels ?? [])
+        .sort((a, b) => (a.channelIndex ?? 0) - (b.channelIndex ?? 0))
+        .map((c) => c.channelId)
+        .filter((id): id is string => !!id),
+    };
+  }
+
+  const navigation: ub.GroupNavigationUpdate = {
+    sections,
+    order: navSections
+      .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
+      .map((s) => s.sectionId),
+  };
+
+  return await poke(groupNavigationBatchUpdate(groupId, navigation));
 };
 
 export const addGroupRole = async ({
@@ -994,8 +999,7 @@ export type GroupRevokeMemberInvites = {
 
 export type GroupJoinRequest = {
   type: 'groupJoinRequest';
-  groupId: string;
-  ships: string[];
+  request: db.GroupJoinRequest;
 };
 
 export type GroupRevokeJoinRequests = {
@@ -1110,7 +1114,20 @@ export const subscribeGroups = async (
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
       logger.log('groupUpdateEvent', groupUpdateEvent);
-      eventHandler(toGroupUpdate(groupUpdateEvent));
+      const update = toGroupUpdate(groupUpdateEvent);
+      if (update) {
+        eventHandler(update);
+      }
+    }
+  );
+
+  subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v1/groups' },
+    (rawEvent) => {
+      const update = toV1GroupsUpdate(rawEvent);
+      if (update) {
+        eventHandler(update);
+      }
     }
   );
 
@@ -1123,9 +1140,35 @@ export const subscribeGroups = async (
   );
 };
 
+export const toV1GroupsUpdate = (
+  rawEvent: ub.V1GroupResponse
+): GroupUpdate | null => {
+  const groupId = rawEvent.flag;
+  const event = rawEvent['r-group'];
+
+  if ('entry' in event) {
+    if ('ask' in event.entry) {
+      const askData = event.entry.ask;
+      if ('add' in askData) {
+        const joinRequestData = askData.add;
+        return {
+          type: 'groupJoinRequest',
+          request: {
+            groupId,
+            requestedAt: joinRequestData.requestedAt,
+            contactId: joinRequestData.ship,
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
 export const toGroupUpdate = (
   groupUpdateEvent: ub.GroupAction
-): GroupUpdate => {
+): GroupUpdate | null => {
   const groupId = groupUpdateEvent.flag;
   const updateDiff = groupUpdateEvent.update.diff;
 
@@ -1183,14 +1226,16 @@ export const toGroupUpdate = (
   if ('cordon' in updateDiff) {
     if ('shut' in updateDiff.cordon) {
       if ('add-ships' in updateDiff.cordon.shut) {
-        return {
-          type:
-            updateDiff.cordon.shut['add-ships'].kind === 'pending'
-              ? 'inviteGroupMembers'
-              : 'groupJoinRequest',
-          ships: updateDiff.cordon.shut['add-ships'].ships,
-          groupId,
-        };
+        if (updateDiff.cordon.shut['add-ships'].kind === 'pending') {
+          return {
+            type: 'inviteGroupMembers',
+            ships: updateDiff.cordon.shut['add-ships'].ships,
+            groupId,
+          };
+        } else {
+          // no-op, requests to join a private group are handled by the new /v1/groups subscription
+          return null;
+        }
       }
 
       if ('del-ships' in updateDiff.cordon.shut) {
@@ -1645,9 +1690,10 @@ export function toClientGroupV7(
 
   // v7 uses admissions.requests instead of cordon.shut.ask
   const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
-    ? Object.keys(group.admissions.requests).map((ship) => ({
+    ? Object.entries(group.admissions.requests).map(([ship, request]) => ({
         contactId: ship,
         groupId: id,
+        requestedAt: request.requestedAt || null,
       }))
     : [];
 
@@ -1908,7 +1954,6 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     return undefined;
   }
   switch (foreign.progress) {
-    case 'ask':
     case 'join':
     case 'watch':
       return 'joining';

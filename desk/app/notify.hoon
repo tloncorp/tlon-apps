@@ -3,7 +3,6 @@
 /+  cu=channel-utils, logs, aj=activity-json,
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
-/$  hark-yarn-to-json       %hark-yarn       %json
 ::
 |%
 +$  card  card:agent:gall

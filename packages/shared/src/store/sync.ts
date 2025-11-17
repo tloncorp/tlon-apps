@@ -22,7 +22,7 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { Session, getSession, setSession, updateSession } from './session';
+import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -320,11 +320,15 @@ export const syncLatestPosts = async (
 };
 
 export const syncSettings = async (ctx?: SyncCtx) => {
-  const settings = await syncQueue.add('settings', ctx, () =>
-    api.getSettings()
-  );
-  logger.log('got settings from api', settings);
-  return db.insertSettings(settings);
+  const result = await syncQueue.add('settings', ctx, () => api.getSettings());
+  logger.log('got settings from api', result);
+  await db.insertSettings(result.settings);
+
+  if (result.pendingMemberDismissals?.length) {
+    await db.insertPendingMemberDismissals({
+      dismissals: result.pendingMemberDismissals,
+    });
+  }
 };
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
@@ -778,13 +782,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       );
       break;
     case 'groupJoinRequest':
-      await db.addGroupJoinRequests(
-        {
-          groupId: update.groupId,
-          contactIds: update.ships,
-        },
-        ctx
-      );
+      await db.insertGroupJoinRequests([update.request], ctx);
       break;
     case 'revokeGroupJoinRequests':
       await db.deleteGroupJoinRequests(
@@ -1068,6 +1066,9 @@ const handleActivityUpdate = async (
         case 'updateItemVolume':
           memo.volumeUpdates.push(event.volumeUpdate);
           break;
+        case 'removeItemVolume':
+          memo.volumeRemovals.push(event.itemId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1083,6 +1084,7 @@ const handleActivityUpdate = async (
       channelUnreads: [],
       threadUnreads: [],
       volumeUpdates: [],
+      volumeRemovals: [],
       activityEvents: [],
     } as api.ActivityUpdateQueue
   );
@@ -1104,6 +1106,14 @@ const handleActivityUpdate = async (
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+
+  if (activitySnapshot.volumeRemovals.length > 0) {
+    await db.removeVolumeLevels(
+      { itemIds: activitySnapshot.volumeRemovals },
+      ctx
+    );
+  }
+
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
 
   // if we inserted new activity, invalidate the activity page

@@ -318,6 +318,29 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
+export interface V1GroupResponse {
+  flag: string;
+  ['r-group']: GroupResponseData;
+}
+
+export type GroupResponseData = GroupResponseEntry;
+
+export interface GroupResponseEntry {
+  entry: GroupResponseEntryData;
+}
+
+export type GroupResponseEntryData = GroupResponseEntryJoinRequest;
+
+export interface GroupResponseEntryJoinRequest {
+  ask:
+    | {
+        add: { note: Story | null; requestedAt: number; ship: string };
+      }
+    | {
+        del: { ships: string[] };
+      };
+}
+
 export interface GroupAction {
   flag: string;
   update: GroupUpdate;
@@ -363,6 +386,10 @@ export interface Groups {
   [flag: string]: Group;
 }
 
+export interface GroupsV7 {
+  [flag: string]: GroupV7;
+}
+
 export interface GroupPreview {
   flag: string;
   meta: GroupMeta;
@@ -397,10 +424,15 @@ export interface Admissions {
     ranks: string[];
   };
   pending: Record<string, string[]>; // ship -> role-ids (jug ship role-id)
-  requests: Record<string, string | null>; // ship -> story (optional message with entry request)
+  requests: Record<string, AdmissionRequest>;
   tokens: Record<string, TokenMeta>; // token (@uv) -> token-meta
   referrals: Record<string, string[]>; // ship -> tokens (jug ship token)
   invited: Record<string, { at: number; token: string | null }>; // ship -> [at token]
+}
+
+export interface AdmissionRequest {
+  note?: Story | null; // optional request message for admins
+  requestedAt?: number;
 }
 
 export interface GroupV7 {
@@ -512,3 +544,23 @@ export interface GroupInviteAction {
 export type GroupActionV4 = {
   invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
 };
+
+// Types for batch navigation updates (group-action-4)
+export interface GroupNavigationSectionData {
+  meta: GroupMeta;
+  order: string[];
+}
+
+export interface GroupNavigationUpdate {
+  sections: Record<string, GroupNavigationSectionData>;
+  order: string[];
+}
+
+export interface GroupNavigationBatchUpdate {
+  group: {
+    flag: string;
+    'a-group': {
+      navigation: GroupNavigationUpdate;
+    };
+  };
+}

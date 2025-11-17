@@ -885,3 +885,116 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
     }
   }
 }
+
+/**
+ * Summarizes messages and sends the summary as a DM to the current user.
+ *
+ * For thread summarization: provide postId
+ * For channel time range summarization: provide channelId + startTime
+ */
+export async function summarizeMessages({
+  postId,
+  channelId,
+  startTime,
+  channelTitle,
+  timeLabel,
+  currentUserId,
+  limit = 500,
+  maxChars = 10000,
+}: {
+  postId?: string;
+  channelId?: string;
+  startTime?: number;
+  channelTitle?: string;
+  timeLabel?: string;
+  currentUserId: string;
+  limit?: number;
+  maxChars?: number;
+}): Promise<void> {
+  let combinedText: string;
+  let summaryPrefix: string;
+
+  // Reduce character limit for channel summaries to avoid overwhelming model
+  const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
+
+  // Thread summarization
+  if (postId) {
+    const post = await db.getPost({ postId });
+    if (!post || !post.textContent) {
+      throw new Error('Post not found or has no text content');
+    }
+
+    const hasReplies = post.replyCount && post.replyCount > 0;
+    if (!hasReplies) {
+      combinedText = post.textContent;
+    } else {
+      try {
+        const replies = await db.getThreadPosts({ parentId: post.id });
+        const allMessages = [
+          `${post.authorId}: ${post.textContent}`,
+          ...replies
+            .filter((reply) => reply.textContent)
+            .map((reply) => `${reply.authorId}: ${reply.textContent}`),
+        ];
+        combinedText = allMessages.join('\n\n');
+      } catch (error) {
+        logger.trackError('Error fetching thread for summarization', error);
+        combinedText = post.textContent;
+      }
+    }
+    summaryPrefix = 'AI Summary:';
+  }
+  // Channel time range summarization
+  else if (channelId && startTime !== undefined) {
+    const posts = await db.getChannelPostsByTimeRange({
+      channelId,
+      startTime,
+      limit,
+    });
+
+    if (posts.length === 0) {
+      throw new Error('No messages found in time range');
+    }
+
+    const allMessages = posts
+      .filter((post: db.Post) => post.textContent)
+      .map((post: db.Post) => {
+        return `${post.authorId}: ${post.textContent}`;
+      });
+
+    combinedText = allMessages.join('\n\n');
+    summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
+
+    logger.crumb('Sending to AI for summarization', {
+      chars: combinedText.length,
+    });
+  } else {
+    throw new Error('Must provide either postId or (channelId + startTime)');
+  }
+
+  // Apply character limit
+  if (combinedText.length > effectiveMaxChars) {
+    combinedText =
+      combinedText.substring(0, effectiveMaxChars) +
+      '\n\n[... conversation truncated ...]';
+  }
+
+  // Call AI API
+  const response = await api.summarizeMessage({ messageText: combinedText });
+
+  if (response.error || !response.summary) {
+    throw new Error(response.error || 'No summary returned');
+  }
+
+  // Send DM to self
+  await api.sendPost({
+    channelId: currentUserId,
+    authorId: currentUserId,
+    sentAt: Date.now(),
+    content: [
+      {
+        inline: [`${summaryPrefix}\n\n${response.summary}`],
+      },
+    ],
+  });
+}

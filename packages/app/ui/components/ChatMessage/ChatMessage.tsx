@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -14,6 +15,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
@@ -68,6 +70,9 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const isNotice = post.type === 'notice';
 
@@ -164,12 +169,24 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return <ErrorMessage testID="MessageDeleted" message="Message deleted" />;
+    return (
+      <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
+    );
   } else if (post.hidden) {
     return (
-      <ErrorMessage
+      <PostErrorMessage
         testID="MessageHidden"
         message="Message hidden or flagged"
+      />
+    );
+  } else if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        testID="MessageBlocked"
+        message="Message from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedMessageButton"
       />
     );
   }
@@ -370,29 +387,6 @@ const ChatContentRenderer = createContentRenderer({
     },
   },
 });
-
-function ErrorMessage({
-  message,
-  testID,
-}: {
-  message: string;
-  testID?: string;
-}) {
-  return (
-    <XStack
-      gap="$s"
-      paddingVertical="$xl"
-      justifyContent={'center'}
-      alignItems={'center'}
-      testID={testID}
-    >
-      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-      <Text size="$label/m" color="$tertiaryText">
-        {message}
-      </Text>
-    </XStack>
-  );
-}
 
 export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);

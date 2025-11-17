@@ -28,7 +28,7 @@ export function FeatureFlagScreen({ navigation }: Props) {
     () =>
       Object.entries(featureFlags.featureMeta)
         .filter(([name]) => {
-          if (name === 'customChannelCreation') {
+          if (name === 'customChannelCreation' || name === 'aiSummarization') {
             return isTlonEmployee;
           }
           return true;

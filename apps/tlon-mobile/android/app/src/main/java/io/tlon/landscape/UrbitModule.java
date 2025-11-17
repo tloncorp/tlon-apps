@@ -40,4 +40,9 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         SecureStorage.clear();
     }
 
+    @ReactMethod
+    public void updateBadgeCount(int count, String uid) {
+       // For now, no-op on Android
+    }
+
 }

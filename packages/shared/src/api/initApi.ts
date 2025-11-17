@@ -31,9 +31,9 @@ export interface InitData {
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit5>({
+  const response = await scry<ub.GroupsInit6>({
     app: 'groups-ui',
-    path: '/v5/init',
+    path: '/v6/init',
   });
 
   logger.crumb('got init data from api');
@@ -41,9 +41,9 @@ export const getInitData = async () => {
   return toInitData(response);
 };
 
-function isGroupsInit5(
-  response: ub.GroupsInit4 | ub.GroupsInit5
-): response is ub.GroupsInit5 {
+function isGroupsInit6(
+  response: ub.GroupsInit4 | ub.GroupsInit6
+): response is ub.GroupsInit6 {
   return 'foreigns' in response && !('gangs' in response);
 }
 
@@ -62,16 +62,16 @@ function extractChannelReadersFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit4 | ub.GroupsInit5
+  response: ub.GroupsInit4 | ub.GroupsInit6
 ): InitData => {
   logger.crumb('converting init data to client data');
   logger.log('response.groups:', response.groups);
 
   const pins = toClientPinnedItems(response.pins);
 
-  const isV5 = isGroupsInit5(response);
+  const isV6 = isGroupsInit6(response);
 
-  const channelReaders: Record<string, string[]> = isV5
+  const channelReaders: Record<string, string[]> = isV6
     ? extractChannelReadersFromV7Groups(
         response.groups as Record<string, ub.GroupV7>
       )
@@ -97,14 +97,14 @@ export const toInitData = (
 
   logger.crumb('converting groups to client data');
 
-  const groups = isV5
+  const groups = isV6
     ? toClientGroupsV7(response.groups as Record<string, ub.GroupV7>, true)
     : toClientGroups(response.groups as ub.Groups, true);
 
   logger.crumb('converting unjoined groups to client data');
 
-  const unjoinedGroups = isV5
-    ? toClientGroupsFromForeigns((response as ub.GroupsInit5).foreigns)
+  const unjoinedGroups = isV6
+    ? toClientGroupsFromForeigns((response as ub.GroupsInit6).foreigns)
     : toClientGroupsFromGangs((response as ub.GroupsInit4).gangs);
 
   logger.crumb('converting dm channels to client data');

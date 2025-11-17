@@ -200,13 +200,13 @@ test('syncs dms', async () => {
           membershipType: 'channel',
         })
         .add(
-          { contactId: '~finned-palmer', status: 'joined' },
-          { contactId: '~latter-bolden', status: 'invited' },
           { contactId: '~nocsyx-lassul', status: 'joined' },
-          { contactId: '~palfun-foslup', status: 'joined' },
-          { contactId: '~pondus-watbel', status: 'joined' },
           { contactId: '~rilfun-lidlen', status: 'joined' },
-          { contactId: '~solfer-magfed', status: 'joined' }
+          { contactId: '~pondus-watbel', status: 'joined' },
+          { contactId: '~solfer-magfed', status: 'joined' },
+          { contactId: '~finned-palmer', status: 'joined' },
+          { contactId: '~palfun-foslup', status: 'joined' },
+          { contactId: '~latter-bolden', status: 'invited' }
         )
         .build(),
     })
