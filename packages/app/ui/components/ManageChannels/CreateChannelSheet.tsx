@@ -11,7 +11,6 @@ import {
   allContentRenderers,
   allDraftInputs,
 } from '@tloncorp/shared/api';
-import { getCurrentUserId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import { Button, Icon, IconButton, Text } from '@tloncorp/ui';
@@ -27,6 +26,7 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
@@ -102,7 +102,7 @@ export function CreateChannelSheet({
 
   const { control, handleSubmit, watch, setValue } = form;
 
-  const currentUserId = getCurrentUserId();
+  const currentUserId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
 
