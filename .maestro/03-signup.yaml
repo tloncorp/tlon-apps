@@ -77,6 +77,11 @@ onFlowComplete:
 - assertVisible: Next
 - tapOn: Next
 
+# set notification preferences
+- assertVisible: Tlon has no attention traps or engagement bait
+- assertVisible: All group activity
+- tapOn: Next
+
 # wait until setup is complete
 - extendedWaitUntil:
     visible: Welcome to Tlon Messenger
