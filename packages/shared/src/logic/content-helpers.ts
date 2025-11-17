@@ -15,6 +15,7 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { fileFromPath } from '../utils/file';
 import { makeMention, makeParagraph, makeText } from './tiptap';
 
 const isBoldStart = (text: string): boolean => {
@@ -532,11 +533,11 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
-type PostBlobData = { fileUri: string }[];
+type PostBlobData = { fileUri: string; name?: string }[];
 
 export function appendFileUploadToPostBlob(
   blob: string | undefined,
-  fileUri: string
+  opts: { fileUri: string; name?: string }
 ) {
   // TODO: saner encoding
   const data: PostBlobData = (() => {
@@ -553,7 +554,10 @@ export function appendFileUploadToPostBlob(
     }
     return [];
   })();
-  data.push({ fileUri });
+  data.push({
+    fileUri: opts.fileUri,
+    name: opts.name,
+  });
   return JSON.stringify(data);
 }
 
@@ -563,7 +567,7 @@ export function parsePostBlob(blob: string): PostBlobData {
     if (Array.isArray(arr)) {
       // This looks like an identity, but it's actually a very bad way to
       // validate the PostBlobData.
-      return arr.map(({ fileUri }) => ({ fileUri }));
+      return arr.map(({ fileUri, name }) => ({ fileUri, name }));
     }
   } catch {
     // swallow parse error
@@ -620,17 +624,22 @@ export function toPostData({
         }
 
         case 'file': {
+          const name =
+            attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : fileFromPath(attachment.localFile, { decodeURI: true }) ??
+                undefined;
           if (attachment.uploadState.status === 'success') {
-            blob = appendFileUploadToPostBlob(
-              blob,
-              attachment.uploadState.remoteUri
-            );
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.remoteUri,
+              name,
+            });
           } else if (attachment.uploadState.status === 'uploading') {
             // necessary for optimistic preview
-            blob = appendFileUploadToPostBlob(
-              blob,
-              attachment.uploadState.localUri
-            );
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.localUri,
+              name,
+            });
           }
           break;
         }

@@ -333,7 +333,7 @@ export function convertContent(
 
   if (blob != null) {
     const blobData = parsePostBlob(blob);
-    for (const { fileUri } of blobData) {
+    for (const { fileUri, name } of blobData) {
       // Treat all blob entries as downloadable links
       const isUploading = fileUri.startsWith('file://');
       if (isUploading) {
@@ -345,7 +345,7 @@ export function convertContent(
         out.push({
           type: 'link',
           url: fileUri,
-          title: 'Attachment',
+          title: name ?? 'Attached file',
           description: 'Press to download',
         });
       }

@@ -1,4 +1,5 @@
 import * as domain from '@tloncorp/shared/domain';
+import { fileFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -163,10 +164,14 @@ export function AttachmentPreview({
     case 'file': {
       return (
         <Container showSpinner={uploading}>
-          <Text>
+          <Text
+            style={{ padding: 12, flex: 1 }}
+            backgroundColor="$secondaryBackground"
+          >
             {attachment.localFile instanceof File
               ? attachment.localFile.name
-              : 'File'}
+              : fileFromPath(attachment.localFile, { decodeURI: true }) ??
+                'Attachment'}
           </Text>
         </Container>
       );
