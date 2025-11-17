@@ -1,5 +1,4 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { ComponentProps, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
