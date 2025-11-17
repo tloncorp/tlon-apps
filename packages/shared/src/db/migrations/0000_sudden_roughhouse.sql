@@ -96,7 +96,6 @@ CREATE TABLE `channels` (
 	`contact_id` text,
 	`added_to_group_at` integer,
 	`current_user_is_member` integer,
-	`auto_join` integer,
 	`current_user_is_host` integer,
 	`post_count` integer,
 	`unread_count` integer,

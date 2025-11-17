@@ -168,7 +168,6 @@ test('syncs dms', async () => {
       title: '',
       description: '',
       lastPostSequenceNum: null,
-      autoJoin: null,
       currentUserIsMember: null,
       members: [
         {
@@ -196,7 +195,6 @@ test('syncs dms', async () => {
       // nb: we coerce empty description strings to null
       description: null,
       lastPostSequenceNum: null,
-      autoJoin: null,
       currentUserIsMember: null,
       members: db
         .buildChatMembers({

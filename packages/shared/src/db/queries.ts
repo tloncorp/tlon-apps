@@ -2191,14 +2191,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
 
   await ctx.db
     .insert($channels)
-    .values(
-      channels.map((channel) => ({
-        ...channel,
-        // When we're inserting a new channel, assume it's joined if the
-        // autoJoin flag is set
-        currentUserIsMember: channel.autoJoin ?? null,
-      }))
-    )
+    .values(channels)
     .onConflictDoUpdate({
       target: $channels.id,
       set: conflictUpdateSetAll($channels, [

@@ -2033,12 +2033,12 @@ function toClientChannel({
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
-  // Determine autoJoin based on read permissions
+  // Determine currentUserIsMember based on read permissions
   const isOpenChannel = channel.readers.length === 0;
   const userHasReadPermission = channel.readers.some((roleId) =>
     currentUserRoles.includes(roleId)
   );
-  const autoJoin = isOpenChannel || userHasReadPermission;
+  const currentUserIsMember = isOpenChannel || userHasReadPermission;
 
   return {
     id,
@@ -2051,7 +2051,7 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
-    autoJoin,
+    currentUserIsMember,
   };
 }
 
