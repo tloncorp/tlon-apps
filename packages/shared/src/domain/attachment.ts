@@ -136,6 +136,10 @@ export namespace Attachment {
       };
     }
 
+    export function fromFile(file: File): UploadIntent {
+      return { type: 'file', file };
+    }
+
     export function createLocalUri(uploadIntent: UploadIntent): string {
       switch (uploadIntent.type) {
         case 'image':

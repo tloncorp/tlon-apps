@@ -327,13 +327,7 @@ export function PostScreenView({
               paddingBottom={bottom}
               backgroundColor="$background"
               flex={1}
-              onAssetsDropped={(images) =>
-                attachAssets(
-                  images.map((x) =>
-                    Attachment.UploadIntent.fromImagePickerAsset(x)
-                  )
-                )
-              }
+              onAssetsDropped={attachAssets}
             >
               <KeyboardAvoidingView>
                 <YStack flex={1} backgroundColor={'$background'}>

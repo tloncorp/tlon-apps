@@ -1,3 +1,4 @@
+import { Attachment } from '@tloncorp/shared/domain';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { ComponentProps, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -8,28 +9,28 @@ export function FileDrop({
   children,
   ...props
 }: {
-  onAssetsDropped: (files: ImagePickerAsset[]) => void;
+  onAssetsDropped: (files: Attachment.UploadIntent[]) => void;
 } & ComponentProps<typeof View>) {
   const handleDrop = useCallback(
     async (files: File[]) => {
-      const measuredFiles = (
+      onAssetsDropped(
         await Promise.all(
           files.map(async (file) => {
-            try {
-              return await measureFile(file);
-            } catch (e) {
-              console.error('Error measuring file', e);
-              return null;
+            if (file.type.startsWith('image/')) {
+              const asset = await getImageAsset(file);
+              return {
+                type: 'image',
+                asset: {
+                  mimeType: file.type,
+                  fileSize: file.size,
+                  ...asset,
+                },
+              };
             }
+            return Attachment.UploadIntent.fromFile(file);
           })
         )
-      ).filter((f) => f !== null) as {
-        uri: string;
-        width: number;
-        height: number;
-        file: File;
-      }[];
-      onAssetsDropped(measuredFiles);
+      );
     },
     [onAssetsDropped]
   );
@@ -37,10 +38,6 @@ export function FileDrop({
   const { getInputProps, getRootProps } = useDropzone({
     onDrop: handleDrop,
     noClick: true,
-    accept: {
-      'image/*': [],
-      'video/*': [],
-    },
   });
 
   return (
@@ -60,15 +57,6 @@ export function FileDrop({
   );
 }
 
-async function measureFile(f: File) {
-  return {
-    file: f,
-    ...(f.type.startsWith('image')
-      ? await getImageAsset(f)
-      : await getVideoAsset(f)),
-  };
-}
-
 function getImageAsset(
   file: File
 ): Promise<{ uri: string; width: number; height: number }> {
@@ -82,25 +70,5 @@ function getImageAsset(
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;
-  });
-}
-
-function getVideoAsset(
-  file: File
-): Promise<{ uri: string; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const objectUrl = URL.createObjectURL(file);
-    video.onerror = (e) => {
-      reject(e);
-    };
-    video.onloadedmetadata = function () {
-      resolve({
-        uri: objectUrl,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      });
-    };
-    video.src = objectUrl;
   });
 }

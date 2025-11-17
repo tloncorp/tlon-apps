@@ -19,7 +19,6 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -225,10 +224,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const { uploadAssets, clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
-      async (assets: ImagePickerAsset[]) => {
-        const uploadIntents = assets.map((x) =>
-          Attachment.UploadIntent.fromImagePickerAsset(x)
-        );
+      async (uploadIntents: Attachment.UploadIntent[]) => {
         if (channel.type !== 'gallery') {
           attachAssets(uploadIntents);
           return;
