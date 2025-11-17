@@ -40,7 +40,7 @@ export function PostContentRenderer({
     }
     const content = convertContent(post.content, post.blob);
     return content;
-  }, [post.content]);
+  }, [post.content, post.blob]);
 
   return (
     <BlockRendererProvider>
