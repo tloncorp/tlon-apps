@@ -143,7 +143,7 @@ export class NativeDb extends BaseDb {
       return;
     }
 
-    const MIGRATION_TIMEOUT = 3000; // 3 seconds
+    const MIGRATION_TIMEOUT = 2000; // 2 seconds
 
     try {
       await Promise.race([
