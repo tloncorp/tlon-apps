@@ -200,7 +200,7 @@
     :+  notify=&
       [~.channels^%3 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%1 ~ ~]
+    :~  %groups^[~.groups^%2 ~ ~]
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
@@ -1233,6 +1233,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~|  `wire`pole
   =?  cor  !=(/logs pole)
     (emit (tell:plog %dbug ~[>[src.bowl (spat pole) -.sign]<] ~))
   ?+    pole  ~|(bad-agent-wire+pole !!)
@@ -1285,7 +1286,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(=r-groups:v7:gv q.cage.sign))
+      (take-groups !<(=r-groups:v9:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -1313,7 +1314,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -1768,7 +1769,7 @@
     |=  [n=nest:c group=flag:g]
     =.  nest  n
     =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
-    =+  .^(grp=group:v7:gv %gx path)
+    =+  .^(grp=group:v9:gv %gx path)
     =/  is-group-host=?  =(p.group src.bowl)
     =/  is-channel-host=?
       ?&  =(src.bowl ship.n)
@@ -3211,7 +3212,7 @@
     =/  =path
       %+  scry-path  %groups
       /v2/groups/(scot %p p.flag)/[q.flag]/noun
-    =+  .^(group=group:v7:gv %gx path)
+    =+  .^(group=group:v9:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]
