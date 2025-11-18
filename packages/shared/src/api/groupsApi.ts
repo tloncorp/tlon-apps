@@ -1617,6 +1617,10 @@ export function toClientGroup(
     rolesById[roleId] = data;
     return data;
   });
+
+  // Extract current user's roles from fleet for channel permission calculation
+  const currentUserRoles = group.fleet[currentUserId]?.sects ?? [];
+
   return {
     id,
     roles,
@@ -1659,7 +1663,11 @@ export function toClientGroup(
     bannedMembers,
     joinRequests,
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
+      ? toClientChannels({
+          channels: group.channels,
+          groupId: id,
+          currentUserRoles,
+        })
       : [],
   };
 }
@@ -1756,6 +1764,10 @@ export function toClientGroupV7(
     }
   );
 
+  // Extract current user's roles from seats for channel permission calculation
+  // v7 uses 'roles' instead of 'sects'
+  const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
+
   return {
     id,
     roles,
@@ -1798,7 +1810,11 @@ export function toClientGroupV7(
     bannedMembers,
     joinRequests,
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
+      ? toClientChannels({
+          channels: group.channels,
+          groupId: id,
+          currentUserRoles,
+        })
       : [],
   };
 }
@@ -1984,12 +2000,14 @@ function toClientGroupTitle(title: string) {
 function toClientChannels({
   channels,
   groupId,
+  currentUserRoles = [],
 }: {
   channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId })
+    toClientChannel({ id, channel, groupId, currentUserRoles })
   );
 }
 
@@ -1997,10 +2015,12 @@ function toClientChannel({
   id,
   channel,
   groupId,
+  currentUserRoles = [],
 }: {
   id: string;
   channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
@@ -2013,6 +2033,13 @@ function toClientChannel({
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
+  // Determine currentUserIsMember based on read permissions
+  const isOpenChannel = channel.readers.length === 0;
+  const userHasReadPermission = channel.readers.some((roleId) =>
+    currentUserRoles.includes(roleId)
+  );
+  const currentUserIsMember = isOpenChannel || userHasReadPermission;
+
   return {
     id,
     groupId,
@@ -2024,6 +2051,7 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
+    currentUserIsMember,
   };
 }
 
