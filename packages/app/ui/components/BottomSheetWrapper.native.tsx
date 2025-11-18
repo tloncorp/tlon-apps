@@ -121,6 +121,13 @@ export const BottomSheetWrapper = forwardRef<
   ) => {
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    /**
+     * Tracks whether the current sheet state change was triggered programmatically
+     * (via prop changes) vs user-initiated (via gestures). This prevents feedback
+     * loops where programmatic dismissals trigger onOpenChange callbacks during
+     * sheet transitions.
+     */
+    const isProgrammaticChange = useRef(false);
     const theme = useTheme();
 
     const backgroundColor = useMemo(
@@ -192,10 +199,12 @@ export const BottomSheetWrapper = forwardRef<
       if (open) {
         // Small delay to ensure modal is mounted before presenting
         const timer = setTimeout(() => {
+          isProgrammaticChange.current = true;
           bottomSheetModalRef.current?.present();
         }, 50);
         return () => clearTimeout(timer);
       } else {
+        isProgrammaticChange.current = true;
         bottomSheetModalRef.current?.dismiss();
       }
     }, [open, modal]);
@@ -204,6 +213,7 @@ export const BottomSheetWrapper = forwardRef<
     useEffect(() => {
       if (modal) return;
 
+      isProgrammaticChange.current = true;
       if (!open) {
         bottomSheetRef.current?.close();
       } else {
@@ -219,9 +229,18 @@ export const BottomSheetWrapper = forwardRef<
 
     const handleSheetChanges = useCallback(
       (index: number) => {
-        // When sheet is closed (index -1), notify parent
-        if (index === -1 && dismissOnSnapToBottom) {
-          onOpenChange(false);
+        // When sheet is closed (index -1), handle cleanup and callbacks
+        if (index === -1) {
+          // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
+          if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
+            onOpenChange(false);
+          }
+          // Reset flag when reaching closed state
+          isProgrammaticChange.current = false;
+        } else if (index >= 0) {
+          // Reset flag when sheet reaches any open snap point
+          // This ensures the flag only protects the specific operation that set it
+          isProgrammaticChange.current = false;
         }
       },
       [dismissOnSnapToBottom, onOpenChange]
