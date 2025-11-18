@@ -24,7 +24,7 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
-    "@react-native-documents/picker": "*",
+    "expo-document-picker": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "expo-blur": "*",

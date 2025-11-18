@@ -1,11 +1,18 @@
-import { pick } from '@react-native-documents/picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { PickFile } from './types';
 
 export const pickFile: PickFile = async () => {
-  const [first, ...rest] = await pick();
+  const results = await DocumentPicker.getDocumentAsync({
+    copyToCacheDirectory: true,
+    multiple: true,
+  });
 
-  return [first, ...rest].map((res) => ({
+  if (results.assets == null) {
+    return [];
+  }
+
+  return results.assets?.map((res) => ({
     type: 'uri',
     uri: res.uri,
   }));

@@ -245,6 +245,8 @@ PODS:
     - ExpoModulesCore
   - ExpoDevice (7.0.3):
     - ExpoModulesCore
+  - ExpoDocumentPicker (13.0.3):
+    - ExpoModulesCore
   - ExpoFileSystem (18.0.12):
     - ExpoModulesCore
   - ExpoFont (13.0.4):
@@ -1758,27 +1760,6 @@ PODS:
     - React
   - react-native-cookies (6.2.1):
     - React-Core
-  - react-native-document-picker (11.0.0):
-    - DoubleConversion
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.10.14.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - Yoga
   - react-native-get-random-values (1.11.0):
     - React-Core
   - react-native-netinfo (11.4.1):
@@ -2512,6 +2493,7 @@ DEPENDENCIES:
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoContacts (from `../../../node_modules/expo-contacts/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
+  - ExpoDocumentPicker (from `../../../node_modules/expo-document-picker/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../../../node_modules/expo-font/ios`)
   - ExpoHaptics (from `../../../node_modules/expo-haptics/ios`)
@@ -2572,7 +2554,6 @@ DEPENDENCIES:
   - react-native-branch (from `../../../node_modules/react-native-branch`)
   - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
   - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
-  - "react-native-document-picker (from `../../../node_modules/@react-native-documents/picker`)"
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
@@ -2703,6 +2684,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-contacts/ios"
   ExpoDevice:
     :path: "../../../node_modules/expo-device/ios"
+  ExpoDocumentPicker:
+    :path: "../../../node_modules/expo-document-picker/ios"
   ExpoFileSystem:
     :path: "../../../node_modules/expo-file-system/ios"
   ExpoFont:
@@ -2818,8 +2801,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-context-menu-view"
   react-native-cookies:
     :path: "../../../node_modules/@react-native-cookies/cookies"
-  react-native-document-picker:
-    :path: "../../../node_modules/@react-native-documents/picker"
   react-native-get-random-values:
     :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:
@@ -2940,6 +2921,7 @@ SPEC CHECKSUMS:
   ExpoClipboard: 44fd1c8959ee8f6175d059dc011b154c9709a969
   ExpoContacts: 98484e09e4caccd2daa6042f341dc2e62a29697e
   ExpoDevice: d36ab4186b6799a28fd449bb9a1c77455f23fd1a
+  ExpoDocumentPicker: 6d3d499cf15b692688a804f42927d0f35de5ebaa
   ExpoFileSystem: 42d363d3b96f9afab980dcef60d5657a4443c655
   ExpoFont: f354e926f8feae5e831ec8087f36652b44a0b188
   ExpoHaptics: 8d199b2f33245ea85289ff6c954c7ee7c00a5b5d
@@ -3020,7 +3002,6 @@ SPEC CHECKSUMS:
   react-native-branch: 5d4ecda7bae040542f6c9f651a05d3df23d8b35a
   react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
-  react-native-document-picker: 8801b6b87c9c2f6b1fae4f4fa73989a57524171d
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-safe-area-context: 3ec0dbf4635e3344cb1303d15fcc4a22876b3e59
