@@ -149,7 +149,9 @@ const ActionSheetComponent = ({
   footerComponent,
   ...props
 }: PropsWithChildren<
-  ActionSheetProps & SheetProps & BottomSheetWrapperProps
+  ActionSheetProps &
+    SheetProps &
+    Pick<BottomSheetWrapperProps, 'enableDynamicSizing'>
 >) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
