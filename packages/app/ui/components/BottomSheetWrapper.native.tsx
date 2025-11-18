@@ -280,6 +280,10 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle: {
           backgroundColor: backgroundColor,
         },
+        // Prevents pan gesture from being activated unless user has scrolled
+        // this much vertical distance. Important for nested horizontal
+        // scrollviews.
+        activeOffsetY: [-10, 10] as [number, number],
       }),
       [
         enablePanDownToClose,
