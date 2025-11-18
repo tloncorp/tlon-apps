@@ -229,14 +229,17 @@ export const BottomSheetWrapper = forwardRef<
 
     const handleSheetChanges = useCallback(
       (index: number) => {
-        // When sheet is closed (index -1), notify parent only if it's a user-initiated dismissal
-        // (not a programmatic change via the open prop)
-        if (index === -1 && dismissOnSnapToBottom) {
-          if (!isProgrammaticChange.current) {
+        // When sheet is closed (index -1), handle cleanup and callbacks
+        if (index === -1) {
+          // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
+          if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
             onOpenChange(false);
           }
-          // Only reset the flag when we've reached the closed state to ensure
-          // it stays true throughout the entire closing animation
+          // Reset flag when reaching closed state
+          isProgrammaticChange.current = false;
+        } else if (index >= 0) {
+          // Reset flag when sheet reaches any open snap point
+          // This ensures the flag only protects the specific operation that set it
           isProgrammaticChange.current = false;
         }
       },
