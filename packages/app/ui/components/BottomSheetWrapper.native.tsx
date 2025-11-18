@@ -121,6 +121,13 @@ export const BottomSheetWrapper = forwardRef<
   ) => {
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    /**
+     * Tracks whether the current sheet state change was triggered programmatically
+     * (via prop changes) vs user-initiated (via gestures). This prevents feedback
+     * loops where programmatic dismissals trigger onOpenChange callbacks during
+     * sheet transitions.
+     */
+    const isProgrammaticChange = useRef(false);
     const theme = useTheme();
 
     const backgroundColor = useMemo(
@@ -192,10 +199,12 @@ export const BottomSheetWrapper = forwardRef<
       if (open) {
         // Small delay to ensure modal is mounted before presenting
         const timer = setTimeout(() => {
+          isProgrammaticChange.current = true;
           bottomSheetModalRef.current?.present();
         }, 50);
         return () => clearTimeout(timer);
       } else {
+        isProgrammaticChange.current = true;
         bottomSheetModalRef.current?.dismiss();
       }
     }, [open, modal]);
@@ -204,6 +213,7 @@ export const BottomSheetWrapper = forwardRef<
     useEffect(() => {
       if (modal) return;
 
+      isProgrammaticChange.current = true;
       if (!open) {
         bottomSheetRef.current?.close();
       } else {
@@ -219,9 +229,15 @@ export const BottomSheetWrapper = forwardRef<
 
     const handleSheetChanges = useCallback(
       (index: number) => {
-        // When sheet is closed (index -1), notify parent
+        // When sheet is closed (index -1), notify parent only if it's a user-initiated dismissal
+        // (not a programmatic change via the open prop)
         if (index === -1 && dismissOnSnapToBottom) {
-          onOpenChange(false);
+          if (!isProgrammaticChange.current) {
+            onOpenChange(false);
+          }
+          // Only reset the flag when we've reached the closed state to ensure
+          // it stays true throughout the entire closing animation
+          isProgrammaticChange.current = false;
         }
       },
       [dismissOnSnapToBottom, onOpenChange]
