@@ -335,7 +335,8 @@ export function convertContent(
     const blobData = parsePostBlob(blob);
     for (const { fileUri, name } of blobData) {
       // Treat all blob entries as downloadable links
-      const isUploading = fileUri.startsWith('file://');
+      const isUploading =
+        fileUri.startsWith('file://') || fileUri.startsWith('blob:');
       if (isUploading) {
         out.push({
           type: 'blockquote',
