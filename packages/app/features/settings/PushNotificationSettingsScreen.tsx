@@ -14,8 +14,7 @@ import {
   ChatOptionsProvider,
   GroupListItem,
   ListItem,
-  RadioInput,
-  RadioInputOption,
+  NotificationLevelSelector,
   ScreenHeader,
   ScrollView,
   TlonText,
@@ -54,31 +53,6 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
     []
   );
 
-  const notificationOptions: RadioInputOption<ub.NotificationLevel>[] =
-    useMemo(() => {
-      return [
-        {
-          title: 'All group activity',
-          value: 'medium' as ub.NotificationLevel,
-          description:
-            'Notify for all posts, mentions, and replies in groups. Direct messages always notify unless muted.',
-        },
-        {
-          title: 'Mentions and replies only',
-          value: 'soft' as ub.NotificationLevel,
-          description:
-            'Notify only when someone mentions you or replies to your posts. Direct messages always notify unless muted.',
-        },
-        {
-          title: 'Nothing',
-          value: 'hush' as ub.NotificationLevel,
-          description: isNative
-            ? 'No notifications for anything, even if push notifications are enabled on your device.'
-            : 'No notifications for anything.',
-        },
-      ];
-    }, [isNative]);
-
   const insets = useSafeAreaInsets();
 
   return (
@@ -102,8 +76,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
             Configure what kinds of messages will send you
             {isNative ? ` device push notifications and ` : ' '}in-app alerts.
           </TlonText.Text>
-          <RadioInput
-            options={notificationOptions}
+          <NotificationLevelSelector
             value={baseVolumeSetting}
             onChange={setLevel}
           />

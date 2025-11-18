@@ -1,8 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import {
-  RadioInput,
-  RadioInputOption,
+  NotificationLevelSelector,
   ScreenHeader,
   ScrollView,
   TlonText,
@@ -11,8 +10,7 @@ import {
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as ub from '@tloncorp/shared/urbit';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupContext } from '../../lib/signupContext';
@@ -28,37 +26,11 @@ const logger = createDevLogger('SetNotificationsScreen', true);
 
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
-  const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
   const insets = useSafeAreaInsets();
 
   const [selectedLevel, setSelectedLevel] = useState<ub.NotificationLevel>(
     DEFAULT_NOTIFICATION_LEVEL
   );
-
-  const notificationOptions: RadioInputOption<ub.NotificationLevel>[] =
-    useMemo(() => {
-      return [
-        {
-          title: 'All group activity',
-          value: 'medium' as ub.NotificationLevel,
-          description:
-            'Notify for all posts, mentions, and replies in groups. Direct messages always notify unless muted.',
-        },
-        {
-          title: 'Mentions and replies only',
-          value: 'soft' as ub.NotificationLevel,
-          description:
-            'Notify only when someone mentions you or replies to your posts. Direct messages always notify unless muted.',
-        },
-        {
-          title: 'Nothing',
-          value: 'hush' as ub.NotificationLevel,
-          description: isNative
-            ? 'No notifications for anything, even if push notifications are enabled on your device.'
-            : 'No notifications for anything.',
-        },
-      ];
-    }, [isNative]);
 
   const handleNext = useCallback(async () => {
     let notificationToken: string | undefined;
@@ -124,8 +96,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
             when prompted.
           </TlonText.Text>
         </YStack>
-        <RadioInput
-          options={notificationOptions}
+        <NotificationLevelSelector
           value={selectedLevel}
           onChange={setSelectedLevel}
         />
