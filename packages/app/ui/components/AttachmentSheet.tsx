@@ -266,6 +266,7 @@ export default function AttachmentSheet({
             return {
               type: 'fileUri',
               localUri: entry.uri,
+              name: entry.name,
             };
           }
         }

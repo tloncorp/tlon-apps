@@ -624,10 +624,11 @@ export function toPostData({
 
         case 'file': {
           const name =
-            attachment.localFile instanceof File
+            attachment.name ??
+            (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true }) ??
-                undefined;
+              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+            undefined;
           if (attachment.uploadState.status === 'success') {
             blob = appendFileUploadToPostBlob(blob, {
               fileUri: attachment.uploadState.remoteUri,

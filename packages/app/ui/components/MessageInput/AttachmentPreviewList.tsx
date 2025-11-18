@@ -168,10 +168,11 @@ export function AttachmentPreview({
             style={{ padding: 12, flex: 1 }}
             backgroundColor="$secondaryBackground"
           >
-            {attachment.localFile instanceof File
-              ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true }) ??
-                'Attachment'}
+            {attachment.name ??
+              (attachment.localFile instanceof File
+                ? attachment.localFile.name
+                : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+              'Attachment'}
           </Text>
         </Container>
       );

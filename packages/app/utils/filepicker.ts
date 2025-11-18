@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 
 export async function pickFile(): Promise<
-  ({ type: 'uri'; uri: string } | { type: 'file'; file: File })[]
+  ({ type: 'uri'; name: string; uri: string } | { type: 'file'; file: File })[]
 > {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
@@ -17,6 +17,7 @@ export async function pickFile(): Promise<
     res.file == null
       ? {
           type: 'uri',
+          name: res.name,
           uri: res.uri,
         }
       : {

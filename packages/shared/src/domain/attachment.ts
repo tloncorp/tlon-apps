@@ -73,12 +73,14 @@ export type FileAttachment = {
   type: 'file';
   // File or local URI string
   localFile: File | string;
+  name?: string;
 };
 
 export type UploadedFileAttachment = {
   type: 'file';
   // File or local URI string
   localFile: File | string;
+  name?: string;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -119,7 +121,7 @@ export namespace Attachment {
   };
   export type UploadIntent =
     | ImageUploadIntent
-    | { type: 'fileUri'; localUri: string }
+    | { type: 'fileUri'; localUri: string; name?: string }
     | { type: 'file'; file: File };
 
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -220,6 +222,7 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.localUri,
+            name: uploadIntent.name,
             uploadState,
           };
       }
@@ -254,6 +257,7 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.localUri,
+            name: uploadIntent.name,
             uploadState: {
               status: 'uploading',
               localUri: uploadIntent.localUri,
@@ -287,6 +291,7 @@ export namespace Attachment {
             needsUpload: true,
             type: 'fileUri',
             localUri: attachment.localFile,
+            name: attachment.name,
           };
         }
       case 'text':
@@ -307,7 +312,11 @@ export namespace Attachment {
         return { type: 'file', localFile: uploadIntent.file };
       }
       case 'fileUri': {
-        return { type: 'file', localFile: uploadIntent.localUri };
+        return {
+          type: 'file',
+          localFile: uploadIntent.localUri,
+          name: uploadIntent.name,
+        };
       }
     }
   }
