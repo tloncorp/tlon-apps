@@ -2363,6 +2363,8 @@
       ?.  ?=(%reply -.q.diff)
         q.p.diff
       [[p.p q.p] q.id.q]:diff
+    =?  di-core  ?=(%invited net.dm)
+      (di-send-rsvp &)
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
@@ -2404,9 +2406,8 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    ^+  di-core
     =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
-    =?  net.dm  &(?=(%inviting net.dm) !from-self)  %done
-    =?  net.dm  &(?=(%invited net.dm) from-self)    %done
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  contact-action-1+!>(`action:contacts`[%meet ~[ship]])
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
@@ -2519,6 +2520,8 @@
   ++  di-take-counter
     |=  =diff:dm:c
     ?<  (~(has in blocked) ship)
+    =?  di-core  ?=(%inviting net.dm)
+      (di-receive-rsvp &)
     (di-ingest-diff diff)
   ::
   ++  di-post-notice
@@ -2577,14 +2580,6 @@
         =.  net.dm  %inviting
         (di-post-notice ' left the chat')
       di-core
-    ::TODO think about this scenario: we have invited someone,
-    ::     and exchange a bunch of messages. everyone is in the done
-    ::     state now. when a party leaves, the state remains unchanged,
-    ::     and we see 'left the chat' notice. however, if they come back
-    ::     to us, this means that we won't see a 'joined the chat'
-    ::     message. we should transition to %inviting state if someone
-    ::     leaves a dm with us.
-    ::
     ?.  ?=(%inviting net)  di-core
     ::  received rsvp accept: meet the ship, post a notice
     ::
