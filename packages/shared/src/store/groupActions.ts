@@ -156,6 +156,7 @@ export async function createGroupFromTemplate(
       title: channelTemplate.title,
       description: channelTemplate.description,
       lastPostSequenceNum: 0,
+      currentUserIsMember: true,
     };
   });
 
@@ -1171,9 +1172,10 @@ export async function acceptUserJoin({
     return;
   }
 
-  if (
-    !existingGroup.joinRequests.find((member) => member.contactId === contactId)
-  ) {
+  const existingJoinRequest = existingGroup.joinRequests.find(
+    (member) => member.contactId === contactId
+  );
+  if (!existingJoinRequest) {
     logger.error('User not found in join requests', groupId, contactId);
     return;
   }
@@ -1205,10 +1207,7 @@ export async function acceptUserJoin({
       contactIds: [contactId],
     });
 
-    await db.addGroupJoinRequests({
-      groupId,
-      contactIds: [contactId],
-    });
+    await db.insertGroupJoinRequests([existingJoinRequest]);
   }
 }
 
@@ -1238,9 +1237,10 @@ export async function rejectUserJoin({
     return;
   }
 
-  if (
-    !existingGroup.joinRequests.find((member) => member.contactId === contactId)
-  ) {
+  const existingRequest = existingGroup.joinRequests.find(
+    (member) => member.contactId === contactId
+  );
+  if (!existingRequest) {
     logger.error('User not found in join requests', groupId, contactId);
     return;
   }
@@ -1260,10 +1260,7 @@ export async function rejectUserJoin({
   } catch (e) {
     logger.error('Failed to accept user join request', e);
     // rollback optimistic update
-    await db.addGroupJoinRequests({
-      groupId,
-      contactIds: [contactId],
-    });
+    await db.insertGroupJoinRequests([existingRequest]);
   }
 }
 

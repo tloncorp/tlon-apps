@@ -443,10 +443,10 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/groups/${groupId}/v1`;
+  const path = `/v2/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.Group>({ app: 'groups', path });
-  return toClientGroup(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
+  return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async (
@@ -999,8 +999,7 @@ export type GroupRevokeMemberInvites = {
 
 export type GroupJoinRequest = {
   type: 'groupJoinRequest';
-  groupId: string;
-  ships: string[];
+  request: db.GroupJoinRequest;
 };
 
 export type GroupRevokeJoinRequests = {
@@ -1115,7 +1114,20 @@ export const subscribeGroups = async (
     { app: 'groups', path: '/groups/ui' },
     (groupUpdateEvent) => {
       logger.log('groupUpdateEvent', groupUpdateEvent);
-      eventHandler(toGroupUpdate(groupUpdateEvent));
+      const update = toGroupUpdate(groupUpdateEvent);
+      if (update) {
+        eventHandler(update);
+      }
+    }
+  );
+
+  subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v1/groups' },
+    (rawEvent) => {
+      const update = toV1GroupsUpdate(rawEvent);
+      if (update) {
+        eventHandler(update);
+      }
     }
   );
 
@@ -1128,9 +1140,35 @@ export const subscribeGroups = async (
   );
 };
 
+export const toV1GroupsUpdate = (
+  rawEvent: ub.V1GroupResponse
+): GroupUpdate | null => {
+  const groupId = rawEvent.flag;
+  const event = rawEvent['r-group'];
+
+  if ('entry' in event) {
+    if ('ask' in event.entry) {
+      const askData = event.entry.ask;
+      if ('add' in askData) {
+        const joinRequestData = askData.add;
+        return {
+          type: 'groupJoinRequest',
+          request: {
+            groupId,
+            requestedAt: joinRequestData.requestedAt,
+            contactId: joinRequestData.ship,
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
 export const toGroupUpdate = (
   groupUpdateEvent: ub.GroupAction
-): GroupUpdate => {
+): GroupUpdate | null => {
   const groupId = groupUpdateEvent.flag;
   const updateDiff = groupUpdateEvent.update.diff;
 
@@ -1188,14 +1226,16 @@ export const toGroupUpdate = (
   if ('cordon' in updateDiff) {
     if ('shut' in updateDiff.cordon) {
       if ('add-ships' in updateDiff.cordon.shut) {
-        return {
-          type:
-            updateDiff.cordon.shut['add-ships'].kind === 'pending'
-              ? 'inviteGroupMembers'
-              : 'groupJoinRequest',
-          ships: updateDiff.cordon.shut['add-ships'].ships,
-          groupId,
-        };
+        if (updateDiff.cordon.shut['add-ships'].kind === 'pending') {
+          return {
+            type: 'inviteGroupMembers',
+            ships: updateDiff.cordon.shut['add-ships'].ships,
+            groupId,
+          };
+        } else {
+          // no-op, requests to join a private group are handled by the new /v1/groups subscription
+          return null;
+        }
       }
 
       if ('del-ships' in updateDiff.cordon.shut) {
@@ -1577,6 +1617,10 @@ export function toClientGroup(
     rolesById[roleId] = data;
     return data;
   });
+
+  // Extract current user's roles from fleet for channel permission calculation
+  const currentUserRoles = group.fleet[currentUserId]?.sects ?? [];
+
   return {
     id,
     roles,
@@ -1619,7 +1663,11 @@ export function toClientGroup(
     bannedMembers,
     joinRequests,
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
+      ? toClientChannels({
+          channels: group.channels,
+          groupId: id,
+          currentUserRoles,
+        })
       : [],
   };
 }
@@ -1650,9 +1698,10 @@ export function toClientGroupV7(
 
   // v7 uses admissions.requests instead of cordon.shut.ask
   const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
-    ? Object.keys(group.admissions.requests).map((ship) => ({
+    ? Object.entries(group.admissions.requests).map(([ship, request]) => ({
         contactId: ship,
         groupId: id,
+        requestedAt: request.requestedAt || null,
       }))
     : [];
 
@@ -1715,6 +1764,10 @@ export function toClientGroupV7(
     }
   );
 
+  // Extract current user's roles from seats for channel permission calculation
+  // v7 uses 'roles' instead of 'sects'
+  const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
+
   return {
     id,
     roles,
@@ -1741,7 +1794,7 @@ export function toClientGroupV7(
           groupId: id,
           ...toClientMeta(zone.meta),
           sectionIndex: i,
-          channels: (zone.idx ?? []).map((channelId, ci) => {
+          channels: (zone.order ?? []).map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
               channelIndex: ci,
               channelId: channelId,
@@ -1757,7 +1810,11 @@ export function toClientGroupV7(
     bannedMembers,
     joinRequests,
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
+      ? toClientChannels({
+          channels: group.channels,
+          groupId: id,
+          currentUserRoles,
+        })
       : [],
   };
 }
@@ -1913,7 +1970,6 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     return undefined;
   }
   switch (foreign.progress) {
-    case 'ask':
     case 'join':
     case 'watch':
       return 'joining';
@@ -1944,12 +2000,14 @@ function toClientGroupTitle(title: string) {
 function toClientChannels({
   channels,
   groupId,
+  currentUserRoles = [],
 }: {
-  channels: Record<string, ub.GroupChannel>;
+  channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId })
+    toClientChannel({ id, channel, groupId, currentUserRoles })
   );
 }
 
@@ -1957,10 +2015,12 @@ function toClientChannel({
   id,
   channel,
   groupId,
+  currentUserRoles = [],
 }: {
   id: string;
-  channel: ub.GroupChannel;
+  channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
@@ -1973,6 +2033,13 @@ function toClientChannel({
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
+  // Determine currentUserIsMember based on read permissions
+  const isOpenChannel = channel.readers.length === 0;
+  const userHasReadPermission = channel.readers.some((roleId) =>
+    currentUserRoles.includes(roleId)
+  );
+  const currentUserIsMember = isOpenChannel || userHasReadPermission;
+
   return {
     id,
     groupId,
@@ -1984,6 +2051,7 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
+    currentUserIsMember,
   };
 }
 

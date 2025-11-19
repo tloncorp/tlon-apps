@@ -157,3 +157,10 @@ export interface ChangesResult {
   unreads: ActivityInit;
   deletedChannelIds: string[];
 }
+
+export interface PendingMemberDismissal {
+  groupId: string;
+  dismissedAt: number;
+}
+
+export type PendingMemberDismissals = PendingMemberDismissal[];

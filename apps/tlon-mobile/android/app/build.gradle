@@ -124,7 +124,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "7.1.0"
+        versionName "8.0.0"
     }
     signingConfigs {
         debug {

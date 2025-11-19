@@ -234,6 +234,7 @@ export interface ActivitySummary {
   'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
+  'recency-uv'?: string;
 }
 
 export interface ActivitySummaryFull extends ActivitySummary {

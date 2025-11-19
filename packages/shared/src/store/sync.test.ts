@@ -168,6 +168,7 @@ test('syncs dms', async () => {
       title: '',
       description: '',
       lastPostSequenceNum: null,
+      currentUserIsMember: null,
       members: [
         {
           chatId: '~solfer-magfed',
@@ -194,19 +195,20 @@ test('syncs dms', async () => {
       // nb: we coerce empty description strings to null
       description: null,
       lastPostSequenceNum: null,
+      currentUserIsMember: null,
       members: db
         .buildChatMembers({
           chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
           membershipType: 'channel',
         })
         .add(
-          { contactId: '~finned-palmer', status: 'joined' },
-          { contactId: '~latter-bolden', status: 'invited' },
           { contactId: '~nocsyx-lassul', status: 'joined' },
-          { contactId: '~palfun-foslup', status: 'joined' },
-          { contactId: '~pondus-watbel', status: 'joined' },
           { contactId: '~rilfun-lidlen', status: 'joined' },
-          { contactId: '~solfer-magfed', status: 'joined' }
+          { contactId: '~pondus-watbel', status: 'joined' },
+          { contactId: '~solfer-magfed', status: 'joined' },
+          { contactId: '~finned-palmer', status: 'joined' },
+          { contactId: '~palfun-foslup', status: 'joined' },
+          { contactId: '~latter-bolden', status: 'invited' }
         )
         .build(),
     })

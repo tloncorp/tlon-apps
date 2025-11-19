@@ -355,6 +355,7 @@ export const baseUnreads = sqliteTable('base_unreads', {
   count: integer('count'),
   notifyCount: integer('notify_count'),
   updatedAt: timestamp('updated_at').notNull(),
+  notifTimestamp: text('notif_timestamp'), // used for ordering against notification identifiers (uid)
 });
 
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
@@ -500,6 +501,7 @@ export const groups = sqliteTable('groups', {
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   syncedAt: timestamp('synced_at'),
+  pendingMembersDismissedAt: timestamp('pending_members_dismissed_at'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

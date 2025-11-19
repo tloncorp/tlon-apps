@@ -17,6 +17,7 @@ import {
   styled,
 } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -28,6 +29,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const IMAGE_HEIGHT = 268;
@@ -62,6 +64,9 @@ export function NotebookPost({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -107,13 +112,27 @@ export function NotebookPost({
     setIsHovered(false);
   }, []);
 
-  const handleOverflowPress = useCallback((e: any) => {
-    // Stop propagation to prevent parent onPress from firing
-    e.stopPropagation();
-  }, []);
+  const handleOverflowPress = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      // Stop propagation to prevent parent onPress from firing
+      e.stopPropagation();
+    },
+    []
+  );
 
   if (!post || post.isDeleted) {
     return null;
+  }
+
+  if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        message="Post from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedPostButton"
+      />
+    );
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
@@ -132,16 +151,7 @@ export function NotebookPost({
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
-          <XStack
-            gap="$s"
-            paddingVertical="$xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text color="$tertiaryText" size="$body">
-              You have hidden or reported this post.
-            </Text>
-          </XStack>
+          <PostErrorMessage message="You have hidden or reported this post." />
         ) : (
           <>
             <NotebookPostHeader

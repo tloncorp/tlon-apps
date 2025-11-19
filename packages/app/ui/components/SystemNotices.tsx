@@ -1,6 +1,7 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
@@ -10,11 +11,6 @@ import { useNotificationPermissions } from '../../lib/notifications';
 import { useStore } from '../contexts';
 
 const logger = createDevLogger('SystemNotices', false);
-
-const SystemNotices = {
-  ContactBookPrompt,
-  NotificationsPrompt,
-};
 
 const NoticeFrame = styled(YStack, {
   backgroundColor: '$systemNoticeBackground',
@@ -34,6 +30,17 @@ const NoticeTitle = styled(Text, {
   size: '$label/xl',
   fontWeight: '600',
 });
+
+const SystemNotices = {
+  ContactBookPrompt,
+  NotificationsPrompt,
+  JoinRequestNotice,
+  ConnectedJoinRequestNotice,
+  NonHostAdminChannelNotice,
+  NoticeFrame,
+  NoticeBody,
+  NoticeTitle,
+};
 
 export default SystemNotices;
 
@@ -230,6 +237,111 @@ export function ContactBookPrompt(props: {
           </Button>
         )}
       </YStack>
+    </NoticeFrame>
+  );
+}
+
+export function JoinRequestNotice(params: {
+  onViewRequests: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <NoticeFrame gap="$2xl">
+      <NoticeTitle>Pending Member Requests</NoticeTitle>
+      <XStack gap="$m" justifyContent="flex-end">
+        <Button
+          padding="$l"
+          paddingHorizontal="$2xl"
+          backgroundColor="$systemNoticeBackground"
+          borderColor="$positiveBorder"
+          borderWidth={1.6}
+          pressStyle={{
+            opacity: 0.7,
+            backgroundColor: '$systemNoticeBackground',
+          }}
+          onPress={params.onDismiss}
+        >
+          <Button.Text color="$systemNoticeText" fontWeight="500">
+            Dismiss
+          </Button.Text>
+        </Button>
+        <Button
+          backgroundColor="$systemNoticeText"
+          padding="$l"
+          paddingHorizontal="$2xl"
+          borderWidth={0}
+          pressStyle={{
+            opacity: 0.8,
+            backgroundColor: '$systemNoticeText',
+          }}
+          onPress={params.onViewRequests}
+        >
+          <Button.Text color="$systemNoticeBackground" fontWeight="500">
+            View Requests
+          </Button.Text>
+        </Button>
+      </XStack>
+    </NoticeFrame>
+  );
+}
+
+export function ConnectedJoinRequestNotice({
+  group,
+  onViewRequests,
+}: {
+  group?: db.Group | null;
+  onViewRequests: () => void;
+}) {
+  const store = useStore();
+
+  // see if we have any pending join requests that haven't been dismissed
+  const hasRelevantJoinRequests = useMemo(() => {
+    if (group && group.joinRequests && group.joinRequests.length > 0) {
+      const dismissedAt = group.pendingMembersDismissedAt ?? 0;
+      return group.joinRequests.some((jr) => {
+        const requestedAt = jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
+        return requestedAt > dismissedAt;
+      });
+    }
+    return false;
+  }, [group]);
+
+  // handler to dismiss join requests
+  const handleDismissJoinRequests = useCallback(() => {
+    if (group) {
+      store.updatePendingMemberDismissal({
+        groupId: group.id,
+        dismissedAt: Date.now(),
+      });
+    }
+  }, [group, store]);
+
+  // clear any unread counts for the join requests whenever displayed
+  useEffect(() => {
+    if (group && hasRelevantJoinRequests) {
+      store.markGroupRead(group.id, false);
+    }
+  }, [group, hasRelevantJoinRequests, store]);
+
+  if (!hasRelevantJoinRequests) {
+    return null;
+  }
+
+  return (
+    <SystemNotices.JoinRequestNotice
+      onViewRequests={onViewRequests}
+      onDismiss={handleDismissJoinRequests}
+    />
+  );
+}
+
+export function NonHostAdminChannelNotice() {
+  return (
+    <NoticeFrame>
+      <NoticeBody>
+        Note: You are not the host of this group. Channels you create will be
+        hosted on your node and will operate independently of the group host.
+      </NoticeBody>
     </NoticeFrame>
   );
 }

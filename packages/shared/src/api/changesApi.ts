@@ -4,7 +4,7 @@ import * as db from '../db';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
-import { toClientGroups } from './groupsApi';
+import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
 import { checkIsNodeBusy, scry } from './urbit';
 
@@ -15,9 +15,9 @@ export async function fetchChangesSince(
 > {
   const nodeIsBusy = checkIsNodeBusy();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  const response = await scry<ub.Changes>({
+  const response = await scry<ub.ChangesV7>({
     app: 'groups-ui',
-    path: `/v6/changes/${encodedTimestamp}`,
+    path: `/v7/changes/${encodedTimestamp}`,
   });
 
   const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
@@ -27,8 +27,8 @@ export async function fetchChangesSince(
   return { ...changes, nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.Changes): db.ChangesResult {
-  const groups = toClientGroups(input.groups, true);
+export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
+  const groups = toClientGroupsV7(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])

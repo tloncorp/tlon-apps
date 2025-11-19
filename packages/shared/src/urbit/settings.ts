@@ -70,7 +70,7 @@ export type GroupsSettings = {
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
   disableTlonInfraEnhancement?: boolean;
-};
+} & Record<string, unknown>;
 
 export type TalkSettings = {
   messagesFilter?: TalkSidebarFilter;
