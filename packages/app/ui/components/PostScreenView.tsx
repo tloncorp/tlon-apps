@@ -492,7 +492,16 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+
+  // Auto-scroll setup for gallery/notebook posts:
+  // Chat channels use an inverted Scroller component and don't need auto-scroll here.
+  // Gallery/notebook posts use a FlatList in DetailView with data: ['header', 'posts']
+  // where index 0 is the post header (gallery/notebook content) and index 1 is the entire
+  // replies section (Scroller container). Scrolling to index 1 shows new replies because
+  // they appear at the bottom of the inverted list inside the Scroller.
   const flatListRef = useRef<FlatList>(null);
+  const REPLIES_SECTION_INDEX = 1;
+
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
@@ -581,10 +590,15 @@ function SinglePostView({
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
-      // Scroll to show the new reply
-      flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+      // Scroll to show the new reply after the next frame to ensure it's rendered
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToIndex({
+          index: REPLIES_SECTION_INDEX,
+          animated: true,
+        });
+      });
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, REPLIES_SECTION_INDEX]
   );
 
   const sendReplyFromDraft = useCallback(
@@ -599,11 +613,16 @@ function SinglePostView({
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
         });
-        // Scroll to show the new reply
-        flatListRef.current?.scrollToIndex({ index: 1, animated: true });
+        // Scroll to show the new reply after the next frame to ensure it's rendered
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToIndex({
+            index: REPLIES_SECTION_INDEX,
+            animated: true,
+          });
+        });
       }
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, REPLIES_SECTION_INDEX]
   );
 
   const isChatLike = useMemo(
