@@ -698,6 +698,10 @@ export function getRandomId() {
   return id.replace(/\./g, '').slice(1);
 }
 
+export function getRequestId() {
+  return formatUv(Math.floor(Math.random() * 0xffffffff).toString());
+}
+
 /**
  * Simple one way transform for identifying distinct values while
  * obscuring sensitive information, eg ~latter-bolden/garden -> rfn4hj

@@ -60,6 +60,15 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
+  ++  tang
+    |=  t=^tang
+    :-  %s
+    %-  crip
+    %+  roll  t
+    |=  [tk=^tank tp=^tape]
+    ~!  tk
+    =/  next=^tape  ~(ram re tk)
+    (welp (snoc tp '\0a') next)
   ++  v8
     =,  v7
     |%
@@ -95,6 +104,28 @@
           preview+?~(preview ~ (^preview u.preview))
           progress+?~(progress ~ s+u.progress)
           token+?~(token ~ (^token u.token))
+      ==
+    ++  response
+      |=  =response:v8:gv
+      ^-  json
+      %-  pairs
+      :~  id+s+(scot %uv id.response)
+          body+(response-body body.response)
+      ==
+    ++  response-body
+      |=  body=response-body:v8:gv
+      ^-  json
+      %+  frond  -.body
+      ?-  -.body
+        %ok  (r-group r-group.body)
+        %error  (error +.body)
+      ==
+    ++  error
+      |=  [type=action-error:v8:gv message=^tang]
+      ^-  json
+      %-  pairs
+      :~  type+s+type
+          message+(tang message)
       ==
     --
   ::
@@ -1083,6 +1114,11 @@
   ::
   ++  v8
     |%
+    ++  action
+      %-  ot
+      :~  id+(se %uv)
+          a-groups+a-groups
+      ==
     ++  a-groups
       ^-  $-(json a-groups:v8:gv)
       %-  of

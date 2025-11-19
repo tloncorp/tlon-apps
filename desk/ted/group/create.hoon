@@ -44,8 +44,8 @@
          %+  turn  ~(tap in guests)
          |=(=ship ship^~)
      ==
-  =/  =c-groups:g  [%create create-group]
-  (poke:io [our.bowl %groups] group-command+!>(c-groups))
+  =/  =command:g  [`@uv`(end [3 8] eny.bowl) %create create-group]
+  (poke:io [our.bowl %groups] group-command+!>(command))
 ::  set metadata and cordon if the group exists
 ;<  ~  bind:m
   ?.  exists  (pure:n ~)

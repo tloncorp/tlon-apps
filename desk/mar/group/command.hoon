@@ -1,13 +1,13 @@
 /-  g=groups
 /+  j=groups-json
-|_  =c-groups:g
+|_  =command:g
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  c-groups
+  ++  noun  command
   --
 ++  grab
   |%
-  ++  noun  c-groups:g
+  ++  noun  command:g
   --
 --

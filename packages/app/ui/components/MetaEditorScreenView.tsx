@@ -139,12 +139,12 @@ export function MetaEditorScreenView({
                 testID: 'GroupDescriptionInput',
                 multiline: true,
               }}
-              rules={{
-                maxLength: {
-                  value: 300,
-                  message: 'Description is limited to 300 characters',
-                },
-              }}
+              // rules={{
+              //   maxLength: {
+              //     value: 300,
+              //     message: 'Description is limited to 300 characters',
+              //   },
+              // }}
             />
             {children}
           </FormFrame>

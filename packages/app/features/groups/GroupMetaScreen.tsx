@@ -17,6 +17,7 @@ import {
   MetaEditorScreenView,
   YStack,
   useGroupTitle,
+  useToast,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -36,6 +37,7 @@ export function GroupMetaScreen(props: Props) {
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const currentUserId = useCurrentUserId();
+  const toast = useToast();
 
   const navigateToHome = useCallback(() => {
     navigation.getParent()?.navigate('ChatList');
@@ -48,21 +50,29 @@ export function GroupMetaScreen(props: Props) {
   });
 
   const handleSubmit = useCallback(
-    (data: db.ClientMeta) => {
-      setGroupMetadata(data);
+    async (data: db.ClientMeta) => {
+      try {
+        await setGroupMetadata(data);
 
-      if (fromBlankChannel) {
-        navigation.goBack();
-      } else if (fromChatDetails) {
-        navigation.getParent()?.navigate('ChatDetails', {
-          chatType: 'group',
-          chatId: groupId,
+        if (fromBlankChannel) {
+          navigation.goBack();
+        } else if (fromChatDetails) {
+          navigation.getParent()?.navigate('ChatDetails', {
+            chatType: 'group',
+            chatId: groupId,
+          });
+        } else {
+          onPressChatDetails({ type: 'group', id: groupId });
+        }
+      } catch (e) {
+        toast({
+          message: e.message,
+          duration: 3000,
         });
-      } else {
-        onPressChatDetails({ type: 'group', id: groupId });
       }
     },
     [
+      toast,
       setGroupMetadata,
       groupId,
       onPressChatDetails,

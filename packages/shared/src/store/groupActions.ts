@@ -433,7 +433,7 @@ export async function updateGroupMeta(group: db.Group) {
   await db.updateGroup(group);
 
   try {
-    await api.updateGroupMeta({
+    const response = await api.updateGroupMeta({
       groupId: group.id,
       meta: {
         title: group.title ?? '',
@@ -442,12 +442,19 @@ export async function updateGroupMeta(group: db.Group) {
         image: group.iconImage ?? group.iconImageColor ?? '',
       },
     });
+
+    if ('error' in response.body) {
+      throw new Error(response.body.error.message);
+    }
+
+    return response.body.ok;
   } catch (e) {
     logger.error('Failed to update group', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
     }
+    throw new Error(e);
   }
 }
 

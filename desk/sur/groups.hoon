@@ -283,6 +283,22 @@
   $:  =request-id
       =c-groups
   ==
++$  response
+  $:  id=request-id
+      body=response-body
+  ==
++$  response-update
+  $:  id=request-id
+      body=response-update-body
+  ==
++$  response-body
+  $%  [%ok =r-group]
+      [%error type=action-error message=tang]
+  ==
++$  response-update-body
+  $%  [%ok =u-group]
+      [%error type=action-error message=tang]
+  ==
 ::
 +$  requests
   $:  outgoing=(set request-id)
@@ -294,10 +310,6 @@
       :: if null, means in progress
       result=(unit response-body)
   ==
-+$  response
-  $:  id=request-id
-      body=response-body
-  ==
 +$  action-error
   $?  %not-authorized
       %not-found
@@ -308,10 +320,6 @@
       %request-too-large
       %is-banned
       %unknown-error
-  ==
-+$  response-body
-  $%  [%ok =r-groups]
-      [%error type=action-error message=tang]
   ==
 ::
 ::  %groups acur interface

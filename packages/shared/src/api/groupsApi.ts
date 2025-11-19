@@ -5,6 +5,7 @@ import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import { getRequestId } from '../logic';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -18,6 +19,7 @@ import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   BadResponseError,
+  PokeParams,
   getCurrentUserId,
   poke,
   scry,
@@ -43,10 +45,10 @@ function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
   };
 }
 
-function groupAction4(action: ub.GroupActionV4) {
+function groupAction5(action: ub.GroupActionV5) {
   return {
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: action,
   };
 }
@@ -131,13 +133,16 @@ export function inviteGroupMembers({
   contactIds: string[];
 }) {
   return poke(
-    groupAction4({
-      invite: {
-        flag: groupId,
-        ships: contactIds,
-        'a-invite': {
-          token: null,
-          note: null,
+    groupAction5({
+      id: getRequestId(),
+      'a-groups': {
+        invite: {
+          flag: groupId,
+          ships: contactIds,
+          'a-invite': {
+            token: null,
+            note: null,
+          },
         },
       },
     })
@@ -445,6 +450,18 @@ export const getGroups = async (
   return toClientGroups(groupData, true);
 };
 
+async function requestResponse(id: string, flag: string, args: PokeParams) {
+  console.log('starting requestResponse', { id, flag, args });
+  const sub = subscribeOnce<ub.GroupActionResponseV5>({
+    app: 'groups',
+    path: `/v1/groups/${flag}/request/${id}`,
+  });
+  console.log('subscribed to response', { id, flag });
+  await poke(args);
+  console.log('poke sent, awaiting response', { id, flag });
+  return sub;
+}
+
 export const updateGroupMeta = async ({
   groupId,
   meta,
@@ -452,21 +469,40 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      meta,
-    }),
-    { app: 'groups', path: '/groups/ui' },
-    (event) => {
-      if (!('update' in event)) {
-        return false;
-      }
-
-      const { update } = event;
-      return 'meta' in update.diff && event.flag === groupId;
-    },
-    { tag: 'updateGroupMeta' }
+  const id = getRequestId();
+  const response = await requestResponse(
+    id,
+    groupId,
+    groupAction5({
+      id: id,
+      'a-groups': {
+        group: {
+          flag: groupId,
+          'a-group': {
+            meta,
+          },
+        },
+      },
+    })
   );
+
+  console.log('updateGroupMeta response', response);
+  return response;
+  // return await trackedPoke<ub.GroupAction>(
+  //   groupAction(groupId, {
+  //     meta,
+  //   }),
+  //   { app: 'groups', path: '/groups/ui' },
+  //   (event) => {
+  //     if (!('update' in event)) {
+  //       return false;
+  //     }
+
+  //     const { update } = event;
+  //     return 'meta' in update.diff && event.flag === groupId;
+  //   },
+  //   { tag: 'updateGroupMeta' }
+  // );
 };
 
 export const deleteGroup = async (groupId: string) => {

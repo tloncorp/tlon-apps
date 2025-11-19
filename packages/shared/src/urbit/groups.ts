@@ -509,6 +509,174 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-export type GroupActionV4 = {
-  invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
-};
+export interface GroupSectionV5 {
+  meta: GroupMeta;
+  order: string[];
+}
+
+export interface GroupActionInviteV5 {
+  invite: {
+    flag: string;
+    ships: string[];
+    'a-invite': GroupInviteAction;
+  };
+}
+
+export interface GroupPlanV5 {
+  post: string;
+  reply: string | null;
+}
+
+export type GroupEntryBanActionV5 =
+  | { set: { ships: string[]; ranks: string[] } }
+  | { 'add-ships': string[] }
+  | { 'del-ships': string[] }
+  | { 'add-ranks': string[] }
+  | { 'del-ranks': string[] };
+
+export type GroupEntryTokenActionV5 =
+  | { del: string }
+  | {
+      add: {
+        scheme: ClaimScheme;
+        expiry: string | null;
+        label: string | null;
+        referral: boolean;
+      };
+    };
+
+export type GroupEntryPendingActionV5 =
+  | { add: string[] }
+  | { edit: string[] }
+  | { del: null };
+
+export type GroupEntryActionV5 =
+  | { privacy: PrivacyType }
+  | { ban: GroupEntryBanActionV5 }
+  | { token: GroupEntryTokenActionV5 }
+  | { pending: { ships: string[]; 'a-pending': GroupEntryPendingActionV5 } }
+  | { ask: { ships: string[]; 'a-ask': 'approve' | 'deny' } };
+
+export type GroupSeatActionV5 =
+  | { add: null }
+  | { del: null }
+  | { 'add-roles': string[] }
+  | { 'del-roles': string[] };
+
+export type GroupRoleActionV5 =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { 'set-admin': null }
+  | { 'del-admin': null };
+
+export type GroupChannelActionV5 =
+  | { add: GroupChannel }
+  | { edit: GroupChannel }
+  | { del: null }
+  | { 'add-readers': string[] }
+  | { 'del-readers': string[] }
+  | { section: string }
+  | { join: boolean };
+
+export type GroupSectionActionV5 =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { move: number }
+  | { 'move-nest': { nest: string; idx: number } }
+  | { set: string[] };
+
+export interface GroupNavigationActionV5 {
+  sections: Record<string, GroupSectionV5>;
+  order: string[];
+}
+
+export type GroupSubActionV5 =
+  | { meta: GroupMeta }
+  | { entry: GroupEntryActionV5 }
+  | { seat: { ships: string[]; 'a-seat': GroupSeatActionV5 } }
+  | { role: { roles: string[]; 'a-role': GroupRoleActionV5 } }
+  | { channel: { nest: string; 'a-channel': GroupChannelActionV5 } }
+  | { section: { 'section-id': string; 'a-section': GroupSectionActionV5 } }
+  | { navigation: GroupNavigationActionV5 }
+  | { 'flag-content': { nest: string; plan: GroupPlanV5; src: string } };
+
+export interface GroupActionGroupV5 {
+  group: {
+    flag: string;
+    'a-group': GroupSubActionV5;
+  };
+}
+
+export interface GroupActionLeaveV5 {
+  leave: string;
+}
+
+export interface GroupActionV5 {
+  id: string;
+  'a-groups': GroupActionInviteV5 | GroupActionGroupV5 | GroupActionLeaveV5;
+}
+
+export type GroupResponseEntryBanV5 = GroupEntryBanActionV5;
+
+export type GroupResponseEntryTokenV5 =
+  | { add: { token: string; meta: TokenMeta } }
+  | { del: string };
+
+export type GroupResponseEntryPendingV5 =
+  | { add: { ships: string[]; roles: string[] } }
+  | { edit: { ships: string[]; roles: string[] } }
+  | { del: string[] };
+
+export type GroupResponseEntryAskV5 =
+  | { add: { ship: string; story: Story | null } }
+  | { del: string[] };
+
+export type GroupResponseEntryV5 =
+  | { privacy: PrivacyType }
+  | { ban: GroupResponseEntryBanV5 }
+  | { token: GroupResponseEntryTokenV5 }
+  | { pending: GroupResponseEntryPendingV5 }
+  | { ask: GroupResponseEntryAskV5 };
+
+export type GroupResponseSeatV5 =
+  | { add: { roles: string[]; joined: number } }
+  | { del: null }
+  | { 'add-roles': string[] }
+  | { 'del-roles': string[] };
+
+export type GroupResponseRoleV5 = GroupRoleActionV5;
+
+export type GroupResponseChannelV5 = GroupChannelActionV5;
+
+export type GroupResponseSectionV5 =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { move: number }
+  | { 'move-nest': { nest: string; idx: number } };
+
+export type GroupResponseV5 =
+  | { create: GroupV7 }
+  | { meta: GroupMeta }
+  | { entry: GroupResponseEntryV5 }
+  | { seat: { ships: string[]; 'r-seat': GroupResponseSeatV5 } }
+  | { role: { roles: string[]; 'r-role': GroupResponseRoleV5 } }
+  | { channel: { nest: string; 'r-channel': GroupResponseChannelV5 } }
+  | { section: { 'section-id': string; 'r-section': GroupResponseSectionV5 } }
+  | { navigation: GroupSectionV5 }
+  | { 'flag-content': { nest: string; plan: GroupPlanV5; src: string } }
+  | { delete: null };
+
+export interface GroupActionResponseV5 {
+  'request-id': string;
+  body:
+    | { ok: GroupResponseV5 }
+    | {
+        error: {
+          type: string;
+          message: string;
+        };
+      };
+}
