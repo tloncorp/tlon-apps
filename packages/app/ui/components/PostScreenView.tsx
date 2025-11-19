@@ -19,14 +19,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { FlatList, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useConnectionStatus } from '../../features/top/useConnectionStatus';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -491,6 +492,7 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+  const flatListRef = useRef<FlatList>(null);
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
@@ -579,6 +581,8 @@ function SinglePostView({
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
+      // Scroll to show the new reply
+      flatListRef.current?.scrollToIndex({ index: 1, animated: true });
     },
     [channel, parentPost, store]
   );
@@ -595,6 +599,8 @@ function SinglePostView({
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
         });
+        // Scroll to show the new reply
+        flatListRef.current?.scrollToIndex({ index: 1, animated: true });
       }
     },
     [channel, parentPost, store]
@@ -625,6 +631,7 @@ function SinglePostView({
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
           editorIsFocused={false}
+          flatListRef={flatListRef}
         />
       ) : null}
 
