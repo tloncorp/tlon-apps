@@ -1340,15 +1340,12 @@
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
       [%chan app=@ ship=@ name=@ rest=*]
-    =/  =ship  (slav %p ship.pole)
-    =/  =nest:g  [app.pole ship name.pole]
-    ?~  flag=(~(get by channels-index) nest)
-      ~|(channel-group-not-found+nest !!)
-    =/  =path
-      %+  weld
-        /v0/groups/(scot %p p.u.flag)/[q.u.flag]
-      `path`[%channels +.pole]
-    $(pole path)
+    ::  we got a sign on this old-style channel preview wire,
+    ::  likely indicating the last breath of a lingering preview sub.
+    ::  we could clean up but probably don't need to. no-op.
+    ::
+    ~&  [%groups-stale-preview `wire`pole -.sign]
+    (~(tell l ~) %info 'sign on old wire' >[wire=`wire`pole sign=-.sign]< ~)
   ::
       [%channels ~]
     (take-channels sign)
