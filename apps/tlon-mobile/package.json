@@ -26,7 +26,8 @@
     "test-ui": "jest",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
-    "eas-build-post-install": "pnpm -w run build:mobile-release"
+    "eas-build-post-install": "pnpm -w run build:mobile-release",
+    "test-android-resume": "./scripts/test-background-resume.sh"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
