@@ -39,6 +39,7 @@ export interface BottomSheetWrapperProps {
   keyboardBehavior?: 'interactive' | 'fillParent' | 'extend';
   android_keyboardInputMode?: 'adjustPan' | 'adjustResize';
   enableDynamicSizing?: boolean;
+  enableContentPanningGesture?: boolean;
 
   // Disable keyboard avoidance for sheets with inputs
   disableKeyboardAvoidance?: boolean;
