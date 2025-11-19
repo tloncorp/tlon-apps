@@ -739,6 +739,8 @@
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
+    ::NOTE  even though we "soft" here, nacks result in deletions of
+    ::      newly inserted dms.
     =/  di-core  (di-abed-soft:di-core ship.rsvp)
     =<  di-abet
     ?:  from-self
@@ -2545,9 +2547,10 @@
     =.  cor
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+!>([%meet ~[ship]])]
-    ?.  ?=(%invited net.dm)  di-core
+    ?.  =(%invited net.dm)  di-core
     ::  accept the invitation
     ::
+    =.  net.dm  %done
     =.  cor
       ::NOTE  reflect deletion eagerly for +give-invites
       =.  dms  (~(del by dms) ship)
@@ -2560,15 +2563,29 @@
     ^+  di-core
     ?<  from-self
     ?>  =(ship src.bowl)
+    =+  net=net.dm  ::TMI
     ?.  ok
-      ?:  ?=(%invited net.dm)
+      ?:  ?=(%invited net)
+        =.  cor
+          ::NOTE  reflect deletion eagerly for +give-invites
+          =.  dms  (~(del by dms) ship)
+          give-invites
         di-core(gone &)
-      ?:  ?=(%inviting net.dm)
+      ?:  ?=(%inviting net)
         (di-post-notice ' declined the invite')
-      ?:  ?=(%done net.dm)
+      ?:  ?=(%done net)
+        =.  net.dm  %inviting
         (di-post-notice ' left the chat')
       di-core
-    ?.  =(%inviting net.dm)  di-core
+    ::TODO think about this scenario: we have invited someone,
+    ::     and exchange a bunch of messages. everyone is in the done
+    ::     state now. when a party leaves, the state remains unchanged,
+    ::     and we see 'left the chat' notice. however, if they come back
+    ::     to us, this means that we won't see a 'joined the chat'
+    ::     message. we should transition to %inviting state if someone
+    ::     leaves a dm with us.
+    ::
+    ?.  ?=(%inviting net)  di-core
     ::  received rsvp accept: meet the ship, post a notice
     ::
     =.  cor
