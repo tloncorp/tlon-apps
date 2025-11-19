@@ -1436,16 +1436,16 @@ test_clear_cache() {
         sleep 1
 
         log_info "Clearing app cache..."
-        # Try pm clear --cache-only first (works on API 24+)
-        if ! adb shell pm clear --cache-only "$PACKAGE" 2>/dev/null; then
-            # Fallback: try run-as if app is debuggable
-            if [[ "$APP_IS_DEBUGGABLE" == "true" ]]; then
-                adb shell run-as "$PACKAGE" rm -rf cache/* 2>/dev/null || true
-            else
-                # Last resort: try to trim cache via am command
-                adb shell am send-trim-memory "$PACKAGE" COMPLETE 2>/dev/null || true
-                log_warn "Could not clear cache directly - used memory trim instead"
-            fi
+        # Clear cache directory - requires debuggable app or alternative method
+        if [[ "$APP_IS_DEBUGGABLE" == "true" ]]; then
+            # Direct cache deletion for debuggable apps
+            adb shell run-as "$PACKAGE" rm -rf ./cache/* 2>/dev/null || true
+            adb shell run-as "$PACKAGE" rm -rf ./code_cache/* 2>/dev/null || true
+        else
+            # For non-debuggable apps, use memory trim to simulate cache pressure
+            # This encourages the system to clear caches
+            adb shell am send-trim-memory "$PACKAGE" COMPLETE 2>/dev/null || true
+            log_info "Used memory trim to simulate cache pressure (no direct cache access)"
         fi
 
         sleep 2
