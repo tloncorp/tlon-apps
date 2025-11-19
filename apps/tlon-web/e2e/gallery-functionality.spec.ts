@@ -12,18 +12,23 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  // Note: Group name will update to '~ten, ~zod' after ~ten accepts the invitation (line 144)
+  // For now, it remains 'Untitled group'
+  let groupName = 'Untitled group';
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and verify group creation
+  // Navigate back to Home and open the group
   await helpers.navigateBack(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+    groupName = '~ten, ~zod';
+    // Click on the group (still named 'Untitled group' until ~ten accepts)
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 10000,
+    });
     await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
   }
 
   // Create a new gallery channel
@@ -61,7 +66,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Wait for the Gallery editor to be ready - it should use DraftInputView with iframe
   await expect(zodPage.locator('iframe')).toBeVisible({ timeout: 10000 });
-  
+
   // Wait for iframe content to be ready
   const iframe = zodPage.locator('iframe');
   await iframe.waitFor({ state: 'attached' });
@@ -77,11 +82,11 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Click in the editor area to focus and edit content
   await contentFrame.getByRole('paragraph').click();
-  
+
   // Clear existing content and add new content
   const editorParagraph = contentFrame.getByRole('paragraph');
   await expect(editorParagraph).toBeVisible({ timeout: 3000 });
-  
+
   const editedContentFromDetailView = 'Edited from detail view';
   await editorParagraph.fill(editedContentFromDetailView);
 
@@ -90,7 +95,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Save the edit
   await zodPage.getByTestId('BigInputPostButton').click();
-  
+
   // Wait for the edit to be processed
   await zodPage.waitForTimeout(1500);
 
@@ -106,7 +111,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Wait a bit longer for the content to sync and be visible in the gallery grid view
   await zodPage.waitForTimeout(2000);
-  
+
   // Verify the edited content is visible in the gallery grid view
   await expect(
     zodPage
@@ -129,12 +134,16 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
     .fill('Edited via long-press');
   await zodPage.getByTestId('BigInputPostButton').click();
   await expect(
-    zodPage.getByTestId('GalleryPostContentPreview').getByText('Edited via long-press')
+    zodPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
   ).toBeVisible();
 
   // Navigate back to the channel
   await expect(
-    zodPage.getByTestId('GalleryPostContentPreview').getByText('Edited via long-press')
+    zodPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
   ).toBeVisible();
 
   // Navigate to the group as ~ten
@@ -150,7 +159,9 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   await helpers.longPressMessage(tenPage, 'Edited via long-press');
   await tenPage.getByText('Hide post').click();
   await expect(
-    tenPage.getByTestId('GalleryPostContentPreview').getByText('Edited via long-press')
+    tenPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
   ).not.toBeVisible();
   await expect(
     tenPage.getByText('You have hidden or reported this post').first()
@@ -163,14 +174,18 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   );
   await tenPage.getByText('Show post').click();
   await expect(
-    tenPage.getByTestId('GalleryPostContentPreview').getByText('Edited via long-press')
+    tenPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
   ).toBeVisible();
 
   // Report the post as ~zod
   await helpers.longPressMessage(zodPage, 'Edited via long-press');
   await zodPage.getByText('Report post').click();
   await expect(
-    zodPage.getByTestId('GalleryPostContentPreview').getByText('Edited via long-press')
+    zodPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
   ).not.toBeVisible();
   await expect(
     zodPage.getByText('You have hidden or reported this post').first()

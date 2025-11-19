@@ -1,6 +1,6 @@
 /-  gv=groups-ver
 /+  j=groups-json
-|_  changes=(map flag:v6:gv group-ui:v6:gv)
+|_  changes=(map flag:v5:gv group-ui:v5:gv)
 ++  grad  %noun
 ++  grow
   |%
@@ -9,12 +9,12 @@
     ^-  ^json
     %-  pairs:enjs:format
     %+  turn  ~(tap by changes)
-    |=  [=flag:v6:gv =group-ui:v6:gv]
-    :-  (print-flag:v6:enjs:j flag)
-    (group-ui:v6:enjs:j group-ui)
+    |=  [=flag:v5:gv =group-ui:v5:gv]
+    :-  (print-flag:v5:enjs:j flag)
+    (group-ui:v5:enjs:j group-ui)
   --
 ++  grab
   |%
-  ++  noun  (map flag:v6:gv group-ui:v6:gv)
+  ++  noun  (map flag:v5:gv group-ui:v5:gv)
   --
 --

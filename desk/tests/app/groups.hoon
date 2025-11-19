@@ -104,7 +104,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-action-4+!>(`a-groups:v7:gv`a-groups))
+  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
 ::
 ++  do-a-group
   |=  =a-group:g
@@ -112,14 +112,14 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-groups:g  [%group my-flag a-group]
-  (do-poke group-action-4+!>(`a-groups:v7:gv`a-groups))
+  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
 ::
 ++  do-a-foreigns
   |=  =a-foreigns:g
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-foreign-2+!>(`a-foreigns:v8:gv`a-foreigns))
+  (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  do-a-foreign
   |=  =a-foreign:g
@@ -127,10 +127,10 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-foreigns:g  [%foreign my-flag a-foreign]
-  (do-poke group-foreign-2+!>(`a-foreigns:v8:gv`a-foreigns))
+  (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v7:gv)]
+  |=  [caz=(list card) rs-groups=(list r-groups:v9:gv)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
@@ -139,15 +139,15 @@
   =/  actions-2=(list action:v2:gv)
     %-  zing
     %+  turn  rs-groups
-    |=  =r-groups:v7:gv
+    |=  =r-groups:v9:gv
     %+  turn
-      (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
   %+  welp
     %+  turn  rs-groups
-    |=  =r-groups:v7:gv
+    |=  =r-groups:v9:gv
     %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
     group-response-1+!>(r-groups)
   %+  turn  actions-2
@@ -156,7 +156,7 @@
 ::
 ++  ex-cards-r-groups
   |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v7:gv))
+          exes=(list (each $-(card tang) r-groups:v9:gv))
       ==
   =/  m  (mare ,~)
   ^-  form:m
@@ -170,7 +170,7 @@
   %+  ex-cards  caz
   %-  flop
   %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v7:gv) out=(list $-(card tang))]
+  |=  [exe=(each $-(card tang) r-groups:v9:gv) out=(list $-(card tang))]
   ?:  ?=(%& -.exe)
     ::  expected card
     ::
@@ -180,7 +180,7 @@
   =*  r-groups  p.exe
   =/  actions-2=(list action:v2:gv)
     %+  turn
-      (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  welp
@@ -360,7 +360,7 @@
   ::  invite ~fun to a public group
   ::
   ;<  caz=(list card)  bind:m
-    (do-a-groups [%invite my-flag ~fun ~ ~])
+    (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~])
   ::  verify both old and new invites are sent
   ::
   ;<  =bowl  bind:m  get-bowl
@@ -397,7 +397,7 @@
   ::  repeat the invite
   ::
   ;<  caz=(list card)  bind:m
-    (do-a-groups [%invite my-flag ~fun ~ ~])
+    (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~])
   ;<  =^bowl  bind:m  get-bowl
   ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
   =+  preview=!<(preview:g q.peek)
@@ -451,7 +451,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -491,7 +491,7 @@
     =/  =update:g
       [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ;<  caz=(list card)  bind:m
     (do-agent (weld go-area /invite/~fun/token) [~zod my-agent] %fact group-token+!>(`0v125))
   ;<  *  bind:m
@@ -533,7 +533,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -593,7 +593,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m
@@ -652,7 +652,7 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ::  invite ~fun to a private group
   ::
-  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~]))
   ::  receive generated token
   ::
   ;<  *  bind:m

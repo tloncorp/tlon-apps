@@ -16,6 +16,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -28,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -36,6 +38,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -51,6 +54,7 @@ import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
+import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
@@ -165,6 +169,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [editingConfiguration, setEditingConfiguration] = useState(false);
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+    const hostConnectionStatus = useConnectionStatus(
+      groupPreview?.hostUserId ?? ''
+    );
     const title = utils.useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
@@ -340,6 +347,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const channelProviderValue = useMemo(() => ({ channel }), [channel]);
 
+    const includeJoinRequestNotice = useMemo(() => {
+      // we want to avoid duplicating the notice on both the channels list and inline here
+
+      // if group is multi-channel, skip
+      const validGroup = group && (group.channels?.length ?? 0) === 1;
+
+      // skip web since currently all groups show the channel sidebar
+      const validPlatform = Platform.OS !== 'web';
+
+      return validGroup && validPlatform;
+    }, [group]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
@@ -391,6 +410,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                         />
                         <YStack alignItems="stretch" flex={1}>
+                          {includeJoinRequestNotice && (
+                            <SystemNotices.ConnectedJoinRequestNotice
+                              group={group}
+                              onViewRequests={goToGroupSettings}
+                            />
+                          )}
                           <AnimatePresence>
                             {draftInputPresentationMode !== 'fullscreen' && (
                               <View flex={1}>
@@ -503,6 +528,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           group={groupPreview ?? undefined}
                           open={!!groupPreview}
                           onOpenChange={() => setGroupPreview(null)}
+                          hostStatus={hostConnectionStatus}
                           onActionComplete={handleGroupAction}
                         />
                       </>

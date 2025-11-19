@@ -86,7 +86,7 @@
   $:  =privacy
       =banned
       pending=(jug ship role-id)
-      requests=(map ship (unit story:s))
+      requests=(map ship [at=@da note=(unit story:s)])
       tokens=(map token token-meta)
       referrals=(jug ship token)
       invited=(map ship [at=@da token=(unit token)])
@@ -316,6 +316,7 @@
       [%role roles=(set role-id) =a-role]
       [%channel =nest =a-channel]
       [%section =section-id =a-section]
+      [%navigation =a-navigation]
       [%flag-content =nest =plan src=ship]
   ==
 ::  $a-invite: invite a ship
@@ -328,6 +329,20 @@
 +$  a-role  c-role
 +$  a-channel  c-channel
 +$  a-section  c-section
+::  $a-navigation: specify the group navigation
+::
+::  group navigation is determined by the order of sections,
+::  and, within each section, the order of channels.
+::
+::  the navigation structure supplied here can be partial, and will
+::  be applied as far as possible by the server. for instance,
+::  this action can be used to only modify a certain section by
+::  supplying it in .sections.
+::
++$  a-navigation
+  $:  sections=(map section-id section)
+      order=(list section-id)
+  ==
 ::  $c-groups: group commands
 ::
 ::   %create: create a new group
@@ -363,6 +378,7 @@
       [%role roles=(set role-id) =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -461,6 +477,7 @@
       [%del ~]
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
+      [%set order=(list nest)]
   ==
 +$  update  [=time =u-group]
 +$  u-group
@@ -471,6 +488,7 @@
       [%role roles=(set role-id) =u-role]
       [%channel =nest =u-channel]
       [%section =section-id =u-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -500,7 +518,7 @@
       [%del ships=(set ship)]
   ==
 +$  u-ask
-  $%  [%add =ship story=(unit story:s)]
+  $%  [%add =ship at=@da story=(unit story:s)]
       [%del ships=(set ship)]
   ==
 +$  u-role
@@ -531,6 +549,7 @@
       [%del ~]
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
+      [%set order=(list nest)]
   ==
 +$  r-groups  [=flag =r-group]
 +$  r-group
@@ -541,6 +560,7 @@
       [%role roles=(set role-id) =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
+      [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
@@ -561,13 +581,13 @@
 +$  r-section  u-section
 ::  $a-foreigns: foreign action
 ::
-::  %foreign: a foreign group action
-::  %invite: receive an .invite
+::  %reject: ask request rejection
 ::
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
       [%invite =invite]
       [%revoke =flag token=(unit token)]
+      [%reject =flag]
   ==
 ::  $a-foreign: foreign group action
 ::

@@ -1,10 +1,9 @@
-import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -33,14 +32,22 @@ export function GroupChannelsScreenContent({
   groupId: string;
   focusedChannelId?: string;
 }) {
-  const isFocused = useIsFocused();
   const isWindowNarrow = useIsWindowNarrow();
-  const { group } = useGroupContext({ groupId: id, isFocused });
+  const { group } = useGroupContext({ groupId: id });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+
+  const handleGoToGroupMembers = useCallback(() => {
+    if (group) {
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, navigation]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -92,17 +99,21 @@ export function GroupChannelsScreenContent({
     [isWindowNarrow, navigation]
   );
 
+  const chatSettingsNav = useChatSettingsNavigation();
+
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
       initialChat={{ type: 'group', id }}
-      {...useChatSettingsNavigation()}
+      {...chatSettingsNav}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
         <GroupChannelsScreenView
           onChannelPressed={handleChannelSelected}
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
+          onGoToGroupMembers={handleGoToGroupMembers}
+          onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

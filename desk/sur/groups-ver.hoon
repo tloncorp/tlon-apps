@@ -9,7 +9,275 @@
 ::
 ::  versions
 ::
-++  v8  g
+++  v9
+  =,  v8
+  |%
+  ::  $group: depends on $admisssions
+  ::
+  +$  group
+    $:  meta=data:meta
+      ::
+        =admissions
+        seats=(map ship seat)
+      ::
+        roles=(map role-id role)
+        =admins
+      ::
+        channels=(map nest channel)
+        active-channels=(set nest)
+      ::
+        sections=(map section-id section)
+        section-order=(list section-id)
+      ::
+        =flagged-content
+    ==
+  ::  $admissions: modified
+  ::
+  ::  .requests: record ask requests
+  ::
+  +$  admissions
+    $:  =privacy
+        =banned
+        pending=(jug ship role-id)
+        requests=(map ship [at=@da note=(unit story:s)])
+        tokens=(map token token-meta)
+        referrals=(jug ship token)
+        invited=(map ship [at=@da token=(unit token)])
+    ==
+    ::  $update: depends on $u-group
+    +$  update  [=time =u-group]
+    ::  $u-group: modified, depends on $u-entry, $group.
+    ::
+    ::  %section-order: set section order
+    ::
+    +$  u-group
+      $%  [%create =group]
+          [%meta =data:meta]
+          [%entry =u-entry]
+          [%seat ships=(set ship) =u-seat]
+          [%role roles=(set role-id) =u-role]
+          [%channel =nest =u-channel]
+          [%section =section-id =u-section]
+          [%section-order order=(list section-id)]
+          [%flag-content =nest =plan src=ship]
+          [%delete ~]
+      ==
+    ::  $u-section: modified
+    ::
+    ::  %set: set channel order
+    ::
+    +$  u-section
+      $%  [%add meta=data:meta]
+          [%edit meta=data:meta]
+          [%del ~]
+          [%move idx=@ud]
+          [%move-nest =nest idx=@ud]
+          [%set order=(list nest)]
+      ==
+    ::  $u-entry: depends on %u-ask
+    +$  u-entry
+      $%  [%privacy =privacy]
+          [%ban =u-ban]
+          [%token =u-token]
+          [%pending =u-pending]
+          [%ask =u-ask]
+      ==
+    ::  $u-ask: modified
+    ::
+    ::  %add: record ask request
+    ::
+    +$  u-ask
+      $%  [%add =ship at=@da note=(unit story:s)]
+          [%del ships=(set ship)]
+      ==
+    ::  $r-groups: depends on $r-group
+    +$  r-groups  [=flag =r-group]
+    ::  $r-group: modified
+    ::
+    ::  depends on $group, $r-entry, $r-section.
+    ::
+    ::  %section-order: set section order
+    ::
+    +$  r-group
+      $%  [%create =group]
+          [%meta meta=data:meta]
+          [%entry =r-entry]
+          [%seat ships=(set ship) =r-seat]
+          [%role roles=(set role-id) =r-role]
+          [%channel =nest =r-channel]
+          [%section =section-id =r-section]
+          [%section-order order=(list section-id)]
+          [%flag-content =nest =plan src=ship]
+          [%delete ~]
+      ==
+    :: $r-entry: depends on $r-ask
+    +$  r-entry
+      $%  [%privacy =privacy]
+          [%ban =r-ban]
+          [%token =r-token]
+          [%pending =r-pending]
+          [%ask =r-ask]
+      ==
+    ::  $r-ask: depends on $u-ask
+    +$  r-ask  u-ask
+    ::  $r-section: depends on $u-section
+    +$  r-section  u-section
+    ::  $group-ui: depends on $group
+    +$  group-ui
+      $:  =group
+          init=?
+          member-count=@ud
+      ==
+    ::  $net: depends on $log
+    +$  net
+      $~  [%pub ~]
+      $%  [%pub =log]
+          [%sub =time init=_|]
+      ==
+    ::  $groups-ui: depends on $group-ui
+    +$  groups-ui
+      (map flag group-ui)
+    ::  $groups: depends on $group
+    +$  groups
+      (map flag group)
+    ::  $net-groups: depends on $group and $net
+    +$  net-groups
+      (map flag [net group])
+    ::  $a-foreigns: modified
+    ::
+    ::  %reject: ask request rejection
+    ::
+    +$  a-foreigns
+      $%  [%foreign =flag =a-foreign]
+          [%invite =invite]
+          [%revoke =flag token=(unit token)]
+          [%reject =flag]
+      ==
+    ::  $init: depends on $group
+    +$  init  [=time =group]
+    ::  $log: depends on $u-group
+    +$  log  ((mop time u-group) lte)
+    ::  $log-on: depends on $u-group
+    ++  log-on  ((on time u-group) lte)
+  --
+++  v8
+  =,  v7
+  |%
+  ::  $c-groups: depends on $c-group
+  ::
+  +$  c-groups
+    $%  [%create =create-group]
+        [%group =flag =c-group]
+      ::
+        [%ask =flag story=(unit story:s)]
+        [%join =flag token=(unit token)]
+      ::
+        [%leave =flag]
+    ==
+  ::  $c-group: modified
+  ::
+  ::  depends on modified $c-section
+  ::
+  ::  %section-order: specify order of sections
+  ::
+  +$  c-group
+    $%  [%meta meta=data:meta]
+        [%entry =c-entry]
+        [%seat ships=(set ship) =c-seat]
+        [%role roles=(set role-id) =c-role]
+        [%channel =nest =c-channel]
+        [%section =section-id =c-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%delete ~]
+    ==
+  ::  $c-section: modified
+  ::
+  ::  %set: specify order of channels
+  ::
+  +$  c-section
+    $%  [%add meta=data:meta]
+        [%edit meta=data:meta]
+        [%del ~]
+        [%move idx=@ud]
+        [%move-nest =nest idx=@ud]
+        [%set order=(list nest)]
+    ==
+  ::  $a-groups: modified, depends on $a-group
+  ::
+  ::  %invite variant changed to include set of ships
+  ::
+  +$  a-groups
+    $%  [%group =flag =a-group]
+        [%invite =flag ships=(set ship) =a-invite]
+        [%leave =flag]
+    ==
+  ::  $a-invite: modified
+  ::
+  ::  .ship field removed
+  ::
+  +$  a-invite
+    $:  token=(unit token)
+        note=(unit story:s)
+    ==
+  ::  $a-group: modified
+  ::
+  ::  %navigation: specify group navigation
+  ::
+  +$  a-group
+    $%  [%meta meta=data:meta]
+        [%entry =a-entry]
+        [%seat ships=(set ship) =a-seat]
+        [%role roles=(set role-id) =a-role]
+        [%channel =nest =a-channel]
+        [%section =section-id =a-section]
+        [%navigation =a-navigation]
+        [%flag-content =nest =plan src=ship]
+    ==
+  ::  $a-section: depends on $c-section
+  +$  a-section  c-section
+  ::  $a-navigation: specify the group navigation
+  ::
+  +$  a-navigation
+    $:  sections=(map section-id section)
+        order=(list section-id)
+    ==
+  ::  $invite: modified
+  ::
+  ::  .valid: whether invitation is still valid
+  ::
+  +$  invite
+    $:  =flag
+        =time
+        from=ship
+        token=(unit token)
+        note=(unit story:s)
+        =preview
+        valid=?
+    ==
+  ::  $foreign: depends on $invite
+  ::
+  +$  foreign
+    $:  invites=(list invite)
+        lookup=(unit lookup)
+        preview=(unit preview)
+        progress=(unit progress)
+        token=(unit token)
+    ==
+  ::  $foreigns: depends on $foreign
+  +$  foreigns  (map flag foreign)
+  ::  $a-foreigns: modified
+  ::
+  ::  depends on $invite
+  ::
+  ::  %revoke: accept revocation
+  ::
+  +$  a-foreigns
+    $%  [%foreign =flag =a-foreign]
+        [%invite =invite]
+        [%revoke =flag token=(unit token)]
+    ==
+  --
 ++  v7
   =,  v6
   |%
@@ -497,7 +765,7 @@
         [%del ships=(set ship)]
     ==
   +$  u-ask
-    $%  [%add =ship story=(unit story:s)]
+    $%  [%add =ship note=(unit story:s)]
         [%del ships=(set ship)]
     ==
   +$  u-role

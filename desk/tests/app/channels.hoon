@@ -3,11 +3,12 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %15
+  $:  %16
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
       debounce=(jug nest:c @da)  ::  temporary bandaid
+      last-updated=(list [=nest:c =time])  ::  newest first, one-per-nest
     ::
       ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
       ::
@@ -31,7 +32,7 @@
   |=  =(pole knot)
   ?+  pole  ~|(`path`pole !!)
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
-    [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v7:gv)
+    [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v9:gv)
   ==
 ::
 ++  test-checkpoint-sub
@@ -203,7 +204,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -240,7 +241,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -309,7 +310,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -363,7 +364,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%15 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)

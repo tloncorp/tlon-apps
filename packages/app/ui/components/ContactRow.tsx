@@ -1,11 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { ListItemProps } from 'tamagui';
 import { Stack, View, XStack } from 'tamagui';
 
-import { getDisplayName, triggerHaptic } from '../utils';
+import { triggerHaptic } from '../utils';
+import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
 function ContactRowItemRaw({
@@ -24,8 +25,6 @@ function ContactRowItemRaw({
   selected?: boolean;
   immutable?: boolean;
 } & Omit<ListItemProps, 'onPress'>) {
-  const displayName = useMemo(() => getDisplayName(contact), [contact]);
-
   const handlePress = useCallback(
     (id: string) => () => {
       onPress(id);
@@ -47,9 +46,13 @@ function ContactRowItemRaw({
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
         <ListItem.MainContent>
-          <ListItem.Title>{displayName}</ListItem.Title>
+          <ListItem.Title>
+            <ContactName contactId={contact.id} mode="auto" />
+          </ListItem.Title>
           {contact?.nickname && (
-            <ListItem.Subtitle>{contact.id}</ListItem.Subtitle>
+            <ListItem.Subtitle>
+              <ContactName contactId={contact.id} mode="contactId" expandLongIds />
+            </ListItem.Subtitle>
           )}
         </ListItem.MainContent>
         {selectable && (

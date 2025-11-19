@@ -2,7 +2,7 @@ import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
@@ -652,6 +653,7 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -665,6 +667,7 @@ export function ChannelOptionsSheetContent({
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
+  const showToast = useToast();
 
   const handlePressChatDetails = useCallback(() => {
     if (!group) {
@@ -672,6 +675,49 @@ export function ChannelOptionsSheetContent({
     }
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group, onPressChatDetails]);
+
+  const handleSummarizeChannel = useCallback(
+    async (timeRange: 'day' | 'week') => {
+      const now = Date.now();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
+
+      showToast({
+        message: `Summarizing ${timeLabel}...`,
+        duration: 2000,
+      });
+
+      try {
+        await store.summarizeMessages({
+          channelId: channel.id,
+          startTime: timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay,
+          channelTitle: chatTitle,
+          timeLabel,
+          currentUserId,
+        });
+
+        showToast({
+          message: 'Summary sent to your DMs',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Error summarizing channel:', error);
+        let message: string;
+        if (error.message === 'No messages found in time range') {
+          message = `No messages found in ${timeLabel}`;
+        } else if (error.message === 'AI provider is rate-limited. Please try again in a few moments.') {
+          message = error.message;
+        } else {
+          message = `Failed to summarize ${timeLabel}`;
+        }
+        showToast({
+          message,
+          duration: 3000,
+        });
+      }
+    },
+    [channel.id, chatTitle, currentUserId, showToast]
+  );
 
   const wrappedAction = useCallback(
     (action: () => void) => {
@@ -706,6 +752,23 @@ export function ChannelOptionsSheetContent({
             title: 'Mark as read',
             action: wrappedAction.bind(null, () =>
               markChannelRead({ includeThreads: true })
+            ),
+          },
+        ],
+        aiSummarizationEnabled && [
+          'neutral',
+          {
+            title: 'Summarize last 24 hours',
+            description: 'Get AI summary of recent messages',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('day')
+            ),
+          },
+          {
+            title: 'Summarize last week',
+            description: 'Get AI summary of the past week',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('week')
             ),
           },
         ],
@@ -777,6 +840,8 @@ export function ChannelOptionsSheetContent({
       togglePinned,
       canMarkRead,
       markChannelRead,
+      aiSummarizationEnabled,
+      handleSummarizeChannel,
       onPressChannelMeta,
       onPressEditChannel,
       onPressChannelMembers,
@@ -839,12 +904,12 @@ export function ChatOptionsSheetContent({
       {isWindowNarrow && (
         <ActionSheet.Header>
           {icon}
-          <ActionSheet.MainContent>
+          <ActionSheet.ActionContent>
             <ListItem.Title>{title}</ListItem.Title>
             <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
               {subtitle}
             </ListItem.Subtitle>
-          </ActionSheet.MainContent>
+          </ActionSheet.ActionContent>
         </ActionSheet.Header>
       )}
       <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>

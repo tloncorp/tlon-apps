@@ -64,6 +64,7 @@ export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
+export const OPENROUTER_API_KEY = envVars.openRouterApiKey ?? '';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -96,4 +97,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
   AUTOMATED_TEST,
+  OPENROUTER_API_KEY,
 };

@@ -23,8 +23,6 @@ export function AddContactsView(props: {
     return existingContacts?.map((c) => c.id) ?? [];
   }, [existingContacts]);
 
-  console.log(`existingIds`, existingIds);
-
   return (
     <View backgroundColor="$background" flex={1}>
       <ScreenHeader

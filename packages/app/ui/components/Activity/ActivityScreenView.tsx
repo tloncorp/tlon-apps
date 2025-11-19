@@ -9,6 +9,7 @@ import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
 
 import { NavigationProvider, useStore } from '../../contexts';
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
@@ -199,6 +200,9 @@ export function ActivityScreenContent({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const hostConnectionStatus = useConnectionStatus(
+    selectedGroup?.hostUserId ?? ''
+  );
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       setSelectedGroup(null);
@@ -265,6 +269,7 @@ export function ActivityScreenContent({
           open={!!selectedGroup}
           onOpenChange={() => setSelectedGroup(null)}
           group={selectedGroup ?? undefined}
+          hostStatus={hostConnectionStatus}
           onActionComplete={handleGroupAction}
         />
       </View>

@@ -1,6 +1,7 @@
 import {
   AnyColumn,
   Column,
+  SQLChunk,
   SQLWrapper,
   Subquery,
   Table,
@@ -99,9 +100,11 @@ import {
   Contact,
   ContactAttestation,
   Group,
+  GroupJoinRequest,
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  PendingMemberDismissals,
   Pin,
   PinType,
   Post,
@@ -133,6 +136,38 @@ export interface GetGroupsOptions {
   includeUnreads?: boolean;
   includeLastPost?: boolean;
 }
+
+export const insertPendingMemberDismissals = createWriteQuery(
+  'insertPendingMemberDismissals',
+  async (params: { dismissals: PendingMemberDismissals }, ctx: QueryCtx) => {
+    if (params.dismissals.length === 0) {
+      return;
+    }
+
+    return batchAction(params.dismissals, async (subset) => {
+      if (subset.length === 0) return;
+
+      const sqlChunks: SQLChunk[] = [];
+      const groupIds = subset.map((d) => d.groupId);
+
+      sqlChunks.push(sql`(CASE`);
+      subset.forEach((dismissal) => {
+        sqlChunks.push(
+          sql` WHEN ${$groups.id} = ${dismissal.groupId} THEN ${dismissal.dismissedAt}`
+        );
+      });
+      sqlChunks.push(sql` END)`);
+
+      const statement = sql.join(sqlChunks, sql.raw(' '));
+
+      await ctx.db
+        .update($groups)
+        .set({ pendingMembersDismissedAt: statement })
+        .where(inArray($groups.id, groupIds));
+    });
+  },
+  ['groups']
+);
 
 export const insertSettings = createWriteQuery(
   'insertSettings',
@@ -366,6 +401,17 @@ export const getAnalyticsDigest = createReadQuery(
   },
   []
 );
+
+const BATCH_SIZE = 200;
+async function batchAction<T>(
+  items: T[],
+  handler: (subset: T[]) => Promise<void>
+) {
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    await handler(batch);
+  }
+}
 
 export const insertSystemContacts = createWriteQuery(
   'insertSystemContacts',
@@ -1176,13 +1222,14 @@ export const insertGroups = createWriteQuery(
           );
           await txCtx.db
             .insert($groupJoinRequests)
-            .values(
-              group.joinRequests.map((m) => ({
-                groupId: group.id,
-                contactId: m.contactId,
-              }))
-            )
-            .onConflictDoNothing();
+            .values(group.joinRequests)
+            .onConflictDoUpdate({
+              target: [
+                $groupJoinRequests.groupId,
+                $groupJoinRequests.contactId,
+              ],
+              set: conflictUpdateSetAll($groupJoinRequests),
+            });
         }
       }
       await setLastPosts(null, txCtx);
@@ -1540,22 +1587,17 @@ export const deleteGroupInvites = createWriteQuery(
   ['groupMemberInvites']
 );
 
-export const addGroupJoinRequests = createWriteQuery(
-  'addGroupJoinRequest',
-  async (
-    requests: { groupId: string; contactIds: string[] },
-    ctx: QueryCtx
-  ) => {
-    if (requests.contactIds.length === 0) return;
+export const insertGroupJoinRequests = createWriteQuery(
+  'insertGroupJoinRequests',
+  async (requests: GroupJoinRequest[], ctx: QueryCtx) => {
+    if (requests.length === 0) return;
     return ctx.db
       .insert($groupJoinRequests)
-      .values(
-        requests.contactIds.map((contactId) => ({
-          groupId: requests.groupId,
-          contactId,
-        }))
-      )
-      .onConflictDoNothing();
+      .values(requests)
+      .onConflictDoUpdate({
+        target: [$groupJoinRequests.groupId, $groupJoinRequests.contactId],
+        set: conflictUpdateSetAll($groupJoinRequests),
+      });
   },
   ['groupJoinRequests']
 );
@@ -2359,14 +2401,28 @@ export const addChannelToNavSection = createWriteQuery(
     ctx: QueryCtx
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
-    return ctx.db
-      .insert($groupNavSectionChannels)
-      .values({
-        channelId,
-        groupNavSectionId,
-        channelIndex: index,
-      })
-      .onConflictDoNothing();
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .update($groupNavSectionChannels)
+        .set({
+          channelIndex: sql`${$groupNavSectionChannels.channelIndex} + 1`,
+        })
+        .where(
+          and(
+            eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+            gte($groupNavSectionChannels.channelIndex, index)
+          )
+        );
+
+      return txCtx.db
+        .insert($groupNavSectionChannels)
+        .values({
+          channelId,
+          groupNavSectionId,
+          channelIndex: index,
+        })
+        .onConflictDoNothing();
+    });
   },
   ['groupNavSectionChannels', 'groups']
 );
@@ -3064,6 +3120,7 @@ export const insertChanges = createWriteQuery(
         await insertChannelPosts({ posts: input.posts }, txCtx);
         await insertGroups({ groups: input.groups }, txCtx);
         await insertContacts(input.contacts, txCtx);
+        await deleteChannels(input.deletedChannelIds, txCtx);
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
         await insertThreadUnreads(input.unreads.threadActivity, ctx);
@@ -4940,6 +4997,29 @@ function conflictUpdateSet(...columns: Column[]) {
     })
   );
 }
+
+export const getChannelPostsByTimeRange = createReadQuery(
+  'getChannelPostsByTimeRange',
+  async (
+    {
+      channelId,
+      startTime,
+      limit = 500,
+    }: { channelId: string; startTime: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        gte($posts.sentAt, startTime),
+        isNull($posts.deliveryStatus)
+      ),
+      orderBy: [asc($posts.sentAt)],
+      limit,
+    });
+  },
+  ['posts']
+);
 
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(
