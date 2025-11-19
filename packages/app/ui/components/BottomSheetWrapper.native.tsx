@@ -116,6 +116,7 @@ export const BottomSheetWrapper = forwardRef<
       snapPoints,
       footerComponent,
       hasScrollableContent = false,
+      enableContentPanningGesture,
     },
     ref
   ) => {
@@ -301,6 +302,12 @@ export const BottomSheetWrapper = forwardRef<
       ]
     );
 
+    const commonOverrides = useMemo(() => {
+      return {
+        enableContentPanningGesture,
+      };
+    }, [enableContentPanningGesture]);
+
     const nonModalProps = useMemo(
       () => ({
         ...commonProps,
@@ -320,7 +327,11 @@ export const BottomSheetWrapper = forwardRef<
 
     if (modal) {
       return (
-        <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
+        <BottomSheetModal
+          ref={bottomSheetModalRef}
+          {...commonProps}
+          {...commonOverrides}
+        >
           {/* BottomSheetView is only for simple static content. Use plain View for:
               - footerComponent: BottomSheetView interferes with gorhom's footer layout system
               - isNested: Avoids gesture conflicts between parent/child sheets

@@ -151,7 +151,10 @@ const ActionSheetComponent = ({
 }: PropsWithChildren<
   ActionSheetProps &
     SheetProps &
-    Pick<BottomSheetWrapperProps, 'enableDynamicSizing'>
+    Pick<
+      BottomSheetWrapperProps,
+      'enableDynamicSizing' | 'enableContentPanningGesture'
+    >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
@@ -346,6 +349,7 @@ const ActionSheetComponent = ({
       showOverlay={true}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
+      enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
       frameStyle={{}}
