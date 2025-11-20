@@ -6,7 +6,7 @@ import type * as ub from '../urbit';
 import { toInitData } from './initApi';
 
 const groupsInit4 = rawGroupsInit4 as unknown as ub.GroupsInit4;
-const groupsInit5 = rawGroupsInit5 as unknown as ub.GroupsInit5;
+const groupsInit6 = rawGroupsInit5 as unknown as ub.GroupsInit6;
 
 describe('toInitData', () => {
   describe('v4 format support', () => {
@@ -43,7 +43,7 @@ describe('toInitData', () => {
 
   describe('v5 format support', () => {
     test('processes v5 init with foreigns', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
 
       expect(result).toBeDefined();
       expect(result.groups).toBeDefined();
@@ -53,7 +53,7 @@ describe('toInitData', () => {
     });
 
     test('converts v7 groups correctly', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
 
       const groups = result.groups;
       expect(groups.length).toBeGreaterThan(0);
@@ -71,7 +71,7 @@ describe('toInitData', () => {
     });
 
     test('converts foreigns to unjoined groups', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
 
       expect(result.unjoinedGroups).toBeDefined();
       expect(result.unjoinedGroups.length).toBeGreaterThan(0);
@@ -84,7 +84,7 @@ describe('toInitData', () => {
     });
 
     test('extracts channel readers from v7 groups', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
 
       expect(result.channelPerms).toBeDefined();
       expect(result.channelPerms.length).toBeGreaterThan(0);
@@ -95,7 +95,7 @@ describe('toInitData', () => {
     });
 
     test('filters valid invites from foreigns', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
 
       const foreignGroup = result.unjoinedGroups[0];
       // Should have invite because valid=true in fixture
@@ -111,7 +111,7 @@ describe('toInitData', () => {
     });
 
     test('detects v5 format (has foreigns, no gangs)', () => {
-      const result = toInitData(groupsInit5);
+      const result = toInitData(groupsInit6);
       // Should work without errors
       expect(result.groups).toBeDefined();
     });
@@ -120,7 +120,7 @@ describe('toInitData', () => {
   describe('backward compatibility', () => {
     test('v4 and v5 produce compatible output structure', () => {
       const result4 = toInitData(groupsInit4);
-      const result5 = toInitData(groupsInit5);
+      const result5 = toInitData(groupsInit6);
 
       // Both should have same structure
       expect(result4).toHaveProperty('groups');

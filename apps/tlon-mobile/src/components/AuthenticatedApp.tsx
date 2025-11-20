@@ -24,6 +24,7 @@ import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
+import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
@@ -36,6 +37,7 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
+  useSyncAppBadge();
   const checkForCachedChanges = useCachedChanges();
 
   const handleAppStatusChange = useCallback(
@@ -98,6 +100,7 @@ export default function ConnectedAuthenticatedApp() {
           sync.syncInitialPosts({ syncSize });
         }
       });
+
       setClientReady(true);
     }
     setup();

@@ -31,7 +31,7 @@
         %+  sort  ~(tap by g)
         |=([[* a=@ud] [* b=@ud]] (gth a b))
       =<  title.meta
-      .^  group:v7:gv
+      .^  group:v9:gv
         %gx
         (scry-path %groups /v2/groups/(scot %p p.g)/[q.g]/noun)
       ==
@@ -128,13 +128,13 @@
   ::
   ::NOTE  in rare cases, we might not know of the existence of the associated
   ::      group. simply skip past it and try the next one...
-  =+  .^(=groups:v7:gv %gx (scry-path %groups /v2/groups/noun))
+  =+  .^(=groups:v9:gv %gx (scry-path %groups /v2/groups/noun))
   |-
   ?~  faz  ['???' '???']  ::TODO  better copy
   ~|  i.faz
   ?.  (~(has by groups) g.i.faz)
     $(faz t.faz)
-  =/  =group:v7:gv  (~(got by groups) g.i.faz)
+  =/  =group:v9:gv  (~(got by groups) g.i.faz)
   ?~  chat=(~(get by channels.group) n.i.faz)
     $(faz t.faz)
   [title.meta.group title.meta.u.chat]
