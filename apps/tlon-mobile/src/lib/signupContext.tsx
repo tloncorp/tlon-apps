@@ -86,6 +86,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
+        notificationLevel: values.notificationLevel,
         phoneNumber: values.phoneNumber,
         postHog,
       };
@@ -117,6 +118,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     values.nickname,
     values.telemetry,
     values.notificationToken,
+    values.notificationLevel,
     values.phoneNumber,
     values.userWasReadyAt,
     postHog,
@@ -168,6 +170,7 @@ async function runPostSignupActions(params: {
   telemetry?: boolean;
   phoneNumber?: string;
   notificationToken?: string;
+  notificationLevel?: string;
   postHog?: PostHog;
 }) {
   if (params.nickname) {
@@ -208,6 +211,17 @@ async function runPostSignupActions(params: {
       await connectNotifyProvider(params.notificationToken);
     } catch (e) {
       logger.trackError('post signup: failed to set notification token', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification level', {
         errorMessage: e.message,
         errorStack: e.stack,
       });
