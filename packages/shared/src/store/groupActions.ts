@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 
 import * as api from '../api';
@@ -8,6 +9,7 @@ import { AnalyticsEvent } from '../domain';
 import { GroupTemplateId, groupTemplatesById } from '../domain/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import type * as ub from '../urbit';
 import { createSectionId, getChannelKindFromType } from '../urbit';
 import { pinGroup } from './channelActions';
 
@@ -417,6 +419,51 @@ export async function updateGroupPrivacy(
   }
 }
 
+export function useUpdateGroupMeta() {
+  return useMutation<
+    ub.GroupResponseV5,
+    Error,
+    db.Group,
+    { existingGroup: db.Group | null }
+  >({
+    mutationFn: async (group: db.Group) => {
+      logger.log('updating group', group.id);
+      logger.trackEvent(AnalyticsEvent.ActionCustomizedGroup, {
+        ...logic.getModelAnalytics({ group }),
+        hasTitle: !!group.title,
+        hasDescription: !!group.description,
+        hasCoverImage: !!group.coverImage,
+        hasIconImage: !!group.iconImage,
+      });
+
+      const response = await api.updateGroupMeta({
+        groupId: group.id,
+        meta: {
+          title: group.title ?? '',
+          description: group.description ?? '',
+          cover: group.coverImage ?? group.coverImageColor ?? '',
+          image: group.iconImage ?? group.iconImageColor ?? '',
+        },
+      });
+
+      return response.ok;
+    },
+    onMutate: async (group) => {
+      const existingGroup = await db.getGroup({ id: group.id });
+      // optimistic update
+      await db.updateGroup(group);
+      return { existingGroup };
+    },
+    onError: async (error, group, context) => {
+      logger.error('Failed to update group', error);
+      // rollback optimistic update
+      if (context?.existingGroup) {
+        await db.updateGroup(context.existingGroup);
+      }
+    },
+  });
+}
+
 export async function updateGroupMeta(group: db.Group) {
   logger.log('updating group', group.id);
   logger.trackEvent(AnalyticsEvent.ActionCustomizedGroup, {
@@ -443,11 +490,7 @@ export async function updateGroupMeta(group: db.Group) {
       },
     });
 
-    if ('error' in response.body) {
-      throw new Error(response.body.error.message);
-    }
-
-    return response.body.ok;
+    return response.ok;
   } catch (e) {
     logger.error('Failed to update group', e);
     // rollback optimistic update

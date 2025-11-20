@@ -1521,6 +1521,15 @@
     =/  =flag:g  [ship name.pole]
     =/  =token:g  (slav %uv token.pole)
     se-abet:(se-expire-token:(se-abed:se-core flag) token)
+  ::
+      [%groups ship=@ name=@ %request id=@ ~]
+    ?>  ?=([%behn %wake ~] sign)
+    =+  id=(slav %uv id.pole)
+    ?~  request=(~(get by incoming.requests) [our.bowl id])
+      cor
+    =.  incoming.requests
+      (~(put by incoming.requests) [our.bowl id] id our.bowl `[%pending ~])
+    (give %fact ~[(welp /v1 pole)] group-response-2+!>([id %pending ~]))
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -3583,6 +3592,8 @@
     =.  cor  (tell:l %dbug ~['sending command' >request-id< 'to' >path<])
     =.  go-core
       (emit %pass req-wire %agent [p.flag server] %watch path)
+    =.  go-core
+      (emit %pass req-wire %arvo %b %wait (add now.bowl ~s5))
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`command:g`[request-id %group flag c-group])
     (emit %pass wire %agent [p.flag server] %poke cage)
@@ -3809,7 +3820,10 @@
         =/  =path  :(weld /v1 go-area /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
         =.  cor  (give %fact ~[path] group-response-2+!>(response))
-        go-core
+        ::  if we haven't heard a final response yet, keep sub open
+        ?:  ?=(%pending -.body.response)
+          go-core
+        (emit %pass (welp go-area wire) %agent [p.flag dap.bowl] %leave ~)
       ==
     ==
   ::

@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
+import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
 import {
   PropsWithChildren,
   useCallback,
@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import { ScrollView, View, XStack } from 'tamagui';
 
 import { capitalize } from '../utils';
 import {
@@ -29,12 +29,14 @@ export function MetaEditorScreenView({
   onSubmit,
   chat,
   currentUserId,
+  isPending,
 }: PropsWithChildren<{
   title: string;
   onSubmit: (meta: db.ClientMeta) => void;
   goBack: () => void;
   chat?: db.Group | db.Channel | null;
   currentUserId: string;
+  isPending: boolean;
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
@@ -80,13 +82,19 @@ export function MetaEditorScreenView({
           </ScreenHeader.TextButton>
         }
         rightControls={
-          <ScreenHeader.TextButton
-            onPress={runSubmit}
-            color="$positiveActionText"
-            disabled={!isValid}
-          >
-            Save
-          </ScreenHeader.TextButton>
+          isPending ? (
+            <XStack width="$3xl">
+              <LoadingSpinner size="small" color="$secondaryText" />
+            </XStack>
+          ) : (
+            <ScreenHeader.TextButton
+              onPress={runSubmit}
+              color="$positiveActionText"
+              disabled={!isValid}
+            >
+              Save
+            </ScreenHeader.TextButton>
+          )
         }
       />
       <KeyboardAvoidingView style={{ flex: 1 }}>

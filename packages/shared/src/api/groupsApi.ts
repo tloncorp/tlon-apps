@@ -27,6 +27,7 @@ import {
   subscribeOnce,
   thread,
   trackedPoke,
+  unsubscribe,
 } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
@@ -451,15 +452,35 @@ export const getGroups = async (
 };
 
 async function requestResponse(id: string, flag: string, args: PokeParams) {
-  console.log('starting requestResponse', { id, flag, args });
-  const sub = subscribeOnce<ub.GroupActionResponseV5>({
-    app: 'groups',
-    path: `/v1/groups/${flag}/request/${id}`,
+  return new Promise<ub.GroupResponseOKV5>((resolve, reject) => {
+    console.log('starting requestResponse', { id, flag, args });
+    const sub = subscribe<ub.GroupActionResponseV5>(
+      {
+        app: 'groups',
+        path: `/v1/groups/${flag}/request/${id}`,
+      },
+      (response) => {
+        console.log('received response', { id, flag, response });
+        if ('pending' in response.body) {
+          reject(new Error('Awaiting host confirmation'));
+          return;
+        }
+
+        // if we got a final response, unsubscribe
+        sub.then(unsubscribe);
+        if ('error' in response.body) {
+          reject(new Error(response.body.error.message));
+          return;
+        }
+
+        resolve(response.body);
+      }
+    );
+    console.log('subscribed to response', { id, flag });
+
+    poke(args);
+    console.log('poke sent, awaiting response', { id, flag });
   });
-  console.log('subscribed to response', { id, flag });
-  await poke(args);
-  console.log('poke sent, awaiting response', { id, flag });
-  return sub;
 }
 
 export const updateGroupMeta = async ({

@@ -119,6 +119,7 @@
       ?-  -.body
         %ok  (r-group r-group.body)
         %error  (error +.body)
+        %pending  ~
       ==
     ++  error
       |=  [type=action-error:v8:gv message=^tang]

@@ -49,27 +49,46 @@ export function GroupMetaScreen(props: Props) {
     fromBlankChannel,
   });
 
+  const { mutate, isPending } = store.useUpdateGroupMeta();
+
   const handleSubmit = useCallback(
     async (data: db.ClientMeta) => {
-      try {
-        await setGroupMetadata(data);
-
-        if (fromBlankChannel) {
-          navigation.goBack();
-        } else if (fromChatDetails) {
-          navigation.getParent()?.navigate('ChatDetails', {
-            chatType: 'group',
-            chatId: groupId,
-          });
-        } else {
-          onPressChatDetails({ type: 'group', id: groupId });
-        }
-      } catch (e) {
-        toast({
-          message: e.message,
-          duration: 3000,
-        });
+      if (!group) {
+        return;
       }
+
+      mutate(
+        { ...group, ...data },
+        {
+          onSuccess: () => {
+            if (fromBlankChannel) {
+              navigation.goBack();
+            } else if (fromChatDetails) {
+              navigation.getParent()?.navigate('ChatDetails', {
+                chatType: 'group',
+                chatId: groupId,
+              });
+            } else {
+              onPressChatDetails({ type: 'group', id: groupId });
+            }
+          },
+          onError: (error: Error) => {
+            toast({
+              message: error.message,
+              duration: 3000,
+            });
+          },
+        }
+      );
+      // try {
+      //   await setGroupMetadata(data);
+
+      // } catch (e) {
+      //   toast({
+      //     message: e.message,
+      //     duration: 3000,
+      //   });
+      // }
     },
     [
       toast,
@@ -97,6 +116,7 @@ export function GroupMetaScreen(props: Props) {
         goBack={handleGoBack}
         onSubmit={handleSubmit}
         currentUserId={currentUserId}
+        isPending={isPending}
       >
         <YStack flex={1} justifyContent="flex-end">
           <DeleteSheet

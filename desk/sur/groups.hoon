@@ -294,6 +294,7 @@
 +$  response-body
   $%  [%ok =r-group]
       [%error type=action-error message=tang]
+      [%pending ~]
   ==
 +$  response-update-body
   $%  [%ok =u-group]

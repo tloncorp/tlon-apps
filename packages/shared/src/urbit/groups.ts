@@ -669,10 +669,15 @@ export type GroupResponseV5 =
   | { 'flag-content': { nest: string; plan: GroupPlanV5; src: string } }
   | { delete: null };
 
+export interface GroupResponseOKV5 {
+  ok: GroupResponseV5;
+}
+
 export interface GroupActionResponseV5 {
   'request-id': string;
   body:
-    | { ok: GroupResponseV5 }
+    | GroupResponseOKV5
+    | { pending: null }
     | {
         error: {
           type: string;
