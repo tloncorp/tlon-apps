@@ -257,14 +257,16 @@ export function createDevLogger(tag: string, enabled: boolean) {
         if (prop === 'trackError') {
           const customProps =
             args[1] && typeof args[1] === 'object' ? args[1] : {};
-          const report = (debugInfo: any = undefined) =>
+          const errorMessage =
+            typeof args[0] === 'string' ? `[${tag}] ${args[0]}` : 'no message';
+          const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+
+          const report = (debugInfo: any = undefined) => {
+            // Send to error logger (PostHog, Sentry, or both via composite logger)
             errorLogger?.capture('app_error', {
               debugInfo,
-              message:
-                typeof args[0] === 'string'
-                  ? `[${tag}] ${args[0]}`
-                  : 'no message',
-              breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+              message: errorMessage,
+              breadcrumbs,
               errorMessage:
                 customProps instanceof Error ? customProps.message : undefined,
               errorStack:
@@ -272,6 +274,8 @@ export function createDevLogger(tag: string, enabled: boolean) {
               logLevel: 'error',
               ...customProps,
             });
+          };
+
           getDebugInfo()
             .then(report)
             .catch(() => report());
