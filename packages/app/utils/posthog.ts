@@ -44,10 +44,13 @@ posthogAsync?.then((client) => {
   const sentryLogger = createSentryErrorLogger();
   const compositeLogger = {
     capture: (event: string, data: Record<string, unknown>) => {
-      // Send to PostHog
+      // Always send to PostHog (analytics + errors)
       client.capture(event, data);
-      // Send to Sentry
-      sentryLogger.capture(event, data);
+
+      // Only send errors to Sentry (not general analytics events)
+      if (event === 'app_error' || event === 'Debug Logs') {
+        sentryLogger.capture(event, data);
+      }
     },
   };
 
@@ -107,5 +110,7 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  posthog.identify(UUID, { isTlonEmployee: true });
+  // Import at top of function to avoid circular dependency
+  const { identifyUser } = require('./identifyUser');
+  identifyUser(UUID, { isTlonEmployee: true });
 };

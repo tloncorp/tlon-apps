@@ -32,8 +32,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       // Capture component stack as breadcrumb for error tracking
       logger.crumb(JSON.stringify(errorInfo));
 
-      // Send to Sentry with React component stack context
-      // This provides more detailed stack traces than generic error logging
+      // Send to composite logger (PostHog + Sentry)
+      logger.trackError(error.message, error);
+
+      // Also send directly to Sentry with React-specific component stack context
+      // This provides more detailed React context than the generic error logging
       Sentry.captureException(error, {
         contexts: {
           react: {
