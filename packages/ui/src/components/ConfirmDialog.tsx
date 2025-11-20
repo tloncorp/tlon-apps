@@ -45,16 +45,9 @@ export function ConfirmDialog({
         },
       },
     ]);
-  }, [
-    open,
-    title,
-    description,
-    onConfirm,
-    confirmText,
-    cancelText,
-    destructive,
-    onOpenChange,
-  ]);
+    // Only run when open changes - not when callbacks are recreated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, title, description, confirmText, cancelText, destructive]);
 
   // Web: use Tamagui Dialog
   if (Platform.OS === 'web') {
