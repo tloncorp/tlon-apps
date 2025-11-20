@@ -48,7 +48,13 @@ posthogAsync?.then((client) => {
       client.capture(event, data);
 
       // Only send errors to Sentry (not general analytics events)
-      if (event === 'app_error' || event === 'Debug Logs') {
+      // Until logging is refactored to consistently use 'app_error',
+      // we also pass along any event with "Error" in the name
+      if (
+        event === 'app_error' ||
+        event === 'Debug Logs' ||
+        event.includes('Error')
+      ) {
         sentryLogger.capture(event, data);
       }
     },
