@@ -1,5 +1,4 @@
 import * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 
