@@ -1486,6 +1486,1007 @@ test_extended_background_pressure() {
     log_success "Extended background pressure test passed"
 }
 
+# Test: Resume while background task is still running
+test_resume_during_task() {
+    log_test "Resume App During Background Task Execution"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger background task
+        trigger_background_task
+
+        # Immediately resume (task likely still running)
+        sleep 0.5
+        resume_app
+        sleep 3
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - resume during task"
+            return 1
+        fi
+    done
+
+    log_success "Resume during task test passed"
+}
+
+# Test: Very rapid background/foreground with memory pressure
+test_rapid_pressure_cycling() {
+    log_test "Rapid Cycling with Memory Pressure"
+    local cycles=20
+
+    start_app
+    sleep 2
+
+    for i in $(seq 1 $cycles); do
+        log_info "Rapid pressure cycle $i/$cycles"
+        send_to_background
+        apply_memory_pressure "RUNNING_CRITICAL"
+        sleep 0.5
+        resume_app
+        sleep 0.5
+    done
+
+    if ! wait_and_check 5; then
+        log_error "Failed after rapid pressure cycling"
+        return 1
+    fi
+
+    log_success "Rapid pressure cycling test passed"
+}
+
+# Test: Screen off for extended period (different from just background)
+test_screen_off_extended() {
+    log_test "Extended Screen Off (2 minutes)"
+
+    start_app
+    sleep 2
+
+    # Turn screen off
+    log_info "Turning screen off..."
+    adb shell input keyevent KEYCODE_POWER
+
+    log_info "Waiting 2 minutes with screen off..."
+    sleep 120
+
+    # Turn screen on and unlock
+    log_info "Turning screen on..."
+    adb shell input keyevent KEYCODE_POWER
+    sleep 1
+    adb shell input swipe 540 1800 540 800
+    sleep 2
+
+    # Resume app
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after extended screen off"
+        return 1
+    fi
+
+    log_success "Extended screen off test passed"
+}
+
+# Test: Background task with screen off
+test_task_with_screen_off() {
+    log_test "Background Task With Screen Off"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+
+        # Turn screen off (not just background)
+        log_info "Turning screen off..."
+        adb shell input keyevent KEYCODE_POWER
+        sleep 2
+
+        # Trigger background task while screen is off
+        trigger_background_task
+        sleep 5
+
+        # Turn screen on
+        log_info "Turning screen on..."
+        adb shell input keyevent KEYCODE_POWER
+        sleep 1
+        adb shell input swipe 540 1800 540 800
+        sleep 2
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - task with screen off"
+            return 1
+        fi
+    done
+
+    log_success "Task with screen off test passed"
+}
+
+# Test: Multiple memory pressure levels in quick succession
+test_rapid_pressure_escalation() {
+    log_test "Rapid Memory Pressure Escalation"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Rapidly apply all pressure levels
+        log_info "Rapidly escalating memory pressure..."
+        apply_memory_pressure "RUNNING_MODERATE"
+        sleep 0.3
+        apply_memory_pressure "RUNNING_LOW"
+        sleep 0.3
+        apply_memory_pressure "RUNNING_CRITICAL"
+        sleep 0.3
+        apply_memory_pressure "MODERATE"
+        sleep 0.3
+        apply_memory_pressure "COMPLETE"
+        sleep 2
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - rapid pressure escalation"
+            return 1
+        fi
+    done
+
+    log_success "Rapid pressure escalation test passed"
+}
+
+# Test: Activity recreation (simulates config change)
+test_activity_recreation() {
+    log_test "Force Activity Recreation"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+
+        # Force activity to be recreated by changing locale temporarily
+        log_info "Forcing activity recreation..."
+
+        # Get current locale
+        local current_locale=$(adb shell getprop persist.sys.locale 2>/dev/null)
+
+        # Change to different locale to force recreation
+        adb shell setprop persist.sys.locale "es-ES"
+        sleep 1
+
+        # Change back
+        if [[ -n "$current_locale" ]]; then
+            adb shell setprop persist.sys.locale "$current_locale"
+        else
+            adb shell setprop persist.sys.locale "en-US"
+        fi
+        sleep 2
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i after activity recreation"
+            return 1
+        fi
+    done
+
+    log_success "Activity recreation test passed"
+}
+
+# Test: Background task queue overflow
+test_task_queue_overflow() {
+    log_test "Background Task Queue Overflow"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Queue many background tasks rapidly
+    log_info "Queuing 20 background tasks rapidly..."
+    for i in $(seq 1 20); do
+        trigger_background_task
+        sleep 0.1
+    done
+
+    # Wait for tasks to process
+    sleep 10
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after task queue overflow"
+        return 1
+    fi
+
+    log_success "Task queue overflow test passed"
+}
+
+# Test: Background with low memory simulation
+test_low_memory_simulation() {
+    log_test "Low Memory Simulation"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Simulate low memory by sending multiple trim levels
+        log_info "Simulating low memory conditions..."
+        apply_memory_pressure "COMPLETE"
+        sleep 1
+
+        # Also trigger the low memory callback
+        adb shell am send-trim-memory "$PACKAGE" RUNNING_LOW 2>/dev/null || true
+        sleep 2
+
+        # Try to trigger background task under memory pressure
+        trigger_background_task
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - low memory simulation"
+            return 1
+        fi
+    done
+
+    log_success "Low memory simulation test passed"
+}
+
+# Test: Rapid app switching (simulate user switching between apps)
+test_rapid_app_switching() {
+    log_test "Rapid App Switching Simulation"
+    local cycles=10
+
+    start_app
+    sleep 2
+
+    for i in $(seq 1 $cycles); do
+        log_info "Switch cycle $i/$cycles"
+
+        # Go to home
+        adb shell input keyevent KEYCODE_HOME
+        sleep 0.5
+
+        # Open recents
+        adb shell input keyevent KEYCODE_APP_SWITCH
+        sleep 0.5
+
+        # Go back to app
+        resume_app
+        sleep 0.5
+    done
+
+    sleep 2
+
+    if ! wait_and_check 5; then
+        log_error "Failed after rapid app switching"
+        return 1
+    fi
+
+    log_success "Rapid app switching test passed"
+}
+
+# Test: Background task interrupted by kill then immediate restart
+test_task_kill_rapid_restart() {
+    log_test "Background Task Kill with Rapid Restart"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger task
+        trigger_background_task
+        sleep 1
+
+        # Kill immediately
+        local pid=$(adb shell pidof "$PACKAGE")
+        if [[ -n "$pid" ]]; then
+            kill_process "$pid" 9
+        fi
+
+        # Immediate restart (no delay)
+        start_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - task kill rapid restart"
+            return 1
+        fi
+    done
+
+    log_success "Task kill rapid restart test passed"
+}
+
+# Test: Very long background with periodic tasks
+test_very_long_background_with_tasks() {
+    log_test "Very Long Background (5 min) with Periodic Tasks"
+
+    start_app
+    sleep 2
+    send_to_background
+
+    log_info "Running 5 minute background test with periodic tasks..."
+    for i in $(seq 1 10); do
+        log_info "Period $i/10 (30s each)"
+        sleep 25
+        trigger_background_task
+        sleep 5
+    done
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after very long background with tasks"
+        return 1
+    fi
+
+    log_success "Very long background with tasks test passed"
+}
+
+# Test: Split screen mode transitions
+test_split_screen() {
+    log_test "Split Screen Mode Transitions"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+
+        # Enter split screen (long press recents)
+        log_info "Entering split screen..."
+        adb shell input keyevent --longpress KEYCODE_APP_SWITCH
+        sleep 2
+
+        # Exit split screen
+        log_info "Exiting split screen..."
+        adb shell input keyevent KEYCODE_HOME
+        sleep 1
+
+        # Resume app
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - split screen"
+            return 1
+        fi
+    done
+
+    log_success "Split screen test passed"
+}
+
+# Test: Airplane mode toggle while backgrounded
+test_airplane_mode() {
+    log_test "Airplane Mode Toggle While Backgrounded"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Enable airplane mode
+        log_info "Enabling airplane mode..."
+        adb shell cmd connectivity airplane-mode enable 2>/dev/null || \
+        adb shell settings put global airplane_mode_on 1 2>/dev/null
+        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE 2>/dev/null || true
+        sleep 3
+
+        # Disable airplane mode
+        log_info "Disabling airplane mode..."
+        adb shell cmd connectivity airplane-mode disable 2>/dev/null || \
+        adb shell settings put global airplane_mode_on 0 2>/dev/null
+        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE 2>/dev/null || true
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - airplane mode"
+            # Ensure airplane mode is off
+            adb shell cmd connectivity airplane-mode disable 2>/dev/null || \
+            adb shell settings put global airplane_mode_on 0 2>/dev/null
+            return 1
+        fi
+    done
+
+    log_success "Airplane mode test passed"
+}
+
+# Test: Dark mode toggle
+test_dark_mode_toggle() {
+    log_test "Dark Mode Toggle"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    start_app
+    sleep 2
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+
+        # Toggle to dark mode
+        log_info "Switching to dark mode..."
+        adb shell cmd uimode night yes 2>/dev/null || true
+        sleep 2
+
+        # Toggle to light mode
+        log_info "Switching to light mode..."
+        adb shell cmd uimode night no 2>/dev/null || true
+        sleep 2
+
+        if ! wait_and_check 3; then
+            log_error "Failed at cycle $i - dark mode toggle"
+            return 1
+        fi
+    done
+
+    log_success "Dark mode toggle test passed"
+}
+
+# Test: Font scale change (accessibility)
+test_font_scale_change() {
+    log_test "Font Scale Change"
+
+    start_app
+    sleep 2
+
+    # Get current font scale
+    local original_scale=$(adb shell settings get system font_scale 2>/dev/null)
+    if [[ -z "$original_scale" ]]; then
+        original_scale="1.0"
+    fi
+
+    # Test various font scales
+    local scales=("0.85" "1.0" "1.15" "1.30" "1.0")
+
+    for scale in "${scales[@]}"; do
+        log_info "Setting font scale to $scale..."
+        adb shell settings put system font_scale "$scale"
+        sleep 2
+
+        if ! wait_and_check 3; then
+            log_error "Failed at font scale $scale"
+            adb shell settings put system font_scale "$original_scale"
+            return 1
+        fi
+    done
+
+    # Restore original
+    adb shell settings put system font_scale "$original_scale"
+
+    log_success "Font scale change test passed"
+}
+
+# Test: Battery saver mode
+test_battery_saver() {
+    log_test "Battery Saver Mode"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Enable battery saver
+        log_info "Enabling battery saver..."
+        adb shell settings put global low_power 1 2>/dev/null || \
+        adb shell cmd battery set level 5 2>/dev/null || true
+        sleep 3
+
+        # Trigger background task under battery saver
+        trigger_background_task
+        sleep 3
+
+        # Disable battery saver
+        log_info "Disabling battery saver..."
+        adb shell settings put global low_power 0 2>/dev/null || \
+        adb shell cmd battery reset 2>/dev/null || true
+        sleep 2
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - battery saver"
+            adb shell settings put global low_power 0 2>/dev/null
+            adb shell cmd battery reset 2>/dev/null
+            return 1
+        fi
+    done
+
+    log_success "Battery saver test passed"
+}
+
+# Test: Notification shade interaction during app use
+test_notification_shade() {
+    log_test "Notification Shade Interaction"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    start_app
+    sleep 2
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+
+        # Pull down notification shade
+        log_info "Opening notification shade..."
+        adb shell cmd statusbar expand-notifications
+        sleep 2
+
+        # Close notification shade
+        log_info "Closing notification shade..."
+        adb shell cmd statusbar collapse
+        sleep 1
+
+        if ! wait_and_check 3; then
+            log_error "Failed at cycle $i - notification shade"
+            adb shell cmd statusbar collapse
+            return 1
+        fi
+    done
+
+    log_success "Notification shade test passed"
+}
+
+# Test: Deep link resume
+test_deep_link_resume() {
+    log_test "Deep Link Resume"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 2
+
+        # Resume via deep link (adjust URL scheme for your app)
+        log_info "Resuming via deep link..."
+        adb shell am start -a android.intent.action.VIEW -d "tlon://groups" "$PACKAGE" 2>/dev/null || \
+        adb shell am start -n "$PACKAGE/$ACTIVITY" -a android.intent.action.VIEW 2>/dev/null || true
+        sleep 2
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - deep link resume"
+            return 1
+        fi
+    done
+
+    log_success "Deep link resume test passed"
+}
+
+# Test: Permission revocation while backgrounded
+test_permission_revocation() {
+    log_test "Permission Revocation While Backgrounded"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Revoke some permissions (this will kill the app on some Android versions)
+    log_info "Revoking permissions..."
+    adb shell pm revoke "$PACKAGE" android.permission.CAMERA 2>/dev/null || true
+    adb shell pm revoke "$PACKAGE" android.permission.READ_CONTACTS 2>/dev/null || true
+    sleep 2
+
+    # Re-grant permissions
+    log_info "Re-granting permissions..."
+    adb shell pm grant "$PACKAGE" android.permission.CAMERA 2>/dev/null || true
+    adb shell pm grant "$PACKAGE" android.permission.READ_CONTACTS 2>/dev/null || true
+    sleep 1
+
+    # Resume app
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after permission revocation"
+        return 1
+    fi
+
+    log_success "Permission revocation test passed"
+}
+
+# Test: Time/timezone change
+test_timezone_change() {
+    log_test "Timezone Change"
+
+    start_app
+    sleep 2
+
+    # Get current timezone
+    local original_tz=$(adb shell getprop persist.sys.timezone 2>/dev/null)
+    if [[ -z "$original_tz" ]]; then
+        original_tz="America/New_York"
+    fi
+
+    # Change timezone
+    local timezones=("America/Los_Angeles" "Europe/London" "Asia/Tokyo" "$original_tz")
+
+    for tz in "${timezones[@]}"; do
+        log_info "Setting timezone to $tz..."
+        adb shell setprop persist.sys.timezone "$tz"
+        adb shell am broadcast -a android.intent.action.TIMEZONE_CHANGED 2>/dev/null || true
+        sleep 2
+
+        if ! wait_and_check 3; then
+            log_error "Failed at timezone $tz"
+            adb shell setprop persist.sys.timezone "$original_tz"
+            return 1
+        fi
+    done
+
+    log_success "Timezone change test passed"
+}
+
+# Test: Rapid back button presses
+test_rapid_back_presses() {
+    log_test "Rapid Back Button Presses"
+
+    start_app
+    sleep 2
+
+    # Send rapid back presses
+    log_info "Sending 20 rapid back presses..."
+    for i in $(seq 1 20); do
+        adb shell input keyevent KEYCODE_BACK
+        sleep 0.1
+    done
+
+    sleep 2
+
+    # Restart app (it may have exited)
+    start_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after rapid back presses"
+        return 1
+    fi
+
+    log_success "Rapid back presses test passed"
+}
+
+# Test: Screenshot/screen recording during transitions
+test_screenshot_during_transition() {
+    log_test "Screenshot During Transitions"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 1
+
+        # Take screenshot while transitioning to background
+        send_to_background &
+        adb shell screencap /sdcard/test_screenshot.png
+        wait
+        sleep 1
+
+        # Take screenshot while resuming
+        resume_app &
+        adb shell screencap /sdcard/test_screenshot.png
+        wait
+        sleep 2
+
+        # Cleanup
+        adb shell rm /sdcard/test_screenshot.png 2>/dev/null
+
+        if ! wait_and_check 3; then
+            log_error "Failed at cycle $i - screenshot during transition"
+            return 1
+        fi
+    done
+
+    log_success "Screenshot during transition test passed"
+}
+
+# Test: Display density change
+test_display_density() {
+    log_test "Display Density Change"
+
+    start_app
+    sleep 2
+
+    # Get current density
+    local original_density=$(adb shell wm density 2>/dev/null | grep -oE '[0-9]+' | head -1)
+    if [[ -z "$original_density" ]]; then
+        original_density="420"
+    fi
+
+    # Test various densities
+    local densities=("320" "480" "560" "$original_density")
+
+    for density in "${densities[@]}"; do
+        log_info "Setting display density to $density..."
+        adb shell wm density "$density"
+        sleep 3
+
+        if ! wait_and_check 3; then
+            log_error "Failed at density $density"
+            adb shell wm density reset
+            return 1
+        fi
+    done
+
+    # Reset to default
+    adb shell wm density reset
+
+    log_success "Display density test passed"
+}
+
+# Test: Heavy memory allocation by other apps
+test_memory_competition() {
+    log_test "Memory Competition (Fill RAM)"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Try to allocate memory to pressure the app
+    log_info "Creating memory pressure by allocating RAM..."
+
+    # Create a large temp file to pressure memory
+    adb shell "dd if=/dev/zero of=/data/local/tmp/memtest bs=1M count=500" 2>/dev/null || true
+    sleep 3
+
+    # Apply additional memory pressure
+    apply_memory_pressure "COMPLETE"
+    sleep 2
+
+    # Trigger background task under memory pressure
+    trigger_background_task
+    sleep 3
+
+    # Clean up memory allocation
+    adb shell rm /data/local/tmp/memtest 2>/dev/null
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after memory competition"
+        return 1
+    fi
+
+    log_success "Memory competition test passed"
+}
+
+# Test: Sustained background task execution
+test_sustained_background_tasks() {
+    log_test "Sustained Background Task Execution (3 min)"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Continuously trigger background tasks
+    log_info "Triggering background tasks every 5 seconds for 3 minutes..."
+    for i in $(seq 1 36); do
+        trigger_background_task
+        sleep 5
+        log_info "Task trigger $i/36"
+    done
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after sustained background tasks"
+        return 1
+    fi
+
+    log_success "Sustained background tasks test passed"
+}
+
+# Test: Push notification while backgrounded
+test_push_notification() {
+    log_test "Push Notification While Backgrounded"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 2
+
+        # Simulate push notification receipt
+        log_info "Simulating push notification..."
+
+        # Method 1: Send FCM-style broadcast (for Firebase)
+        adb shell am broadcast \
+            -a com.google.android.c2dm.intent.RECEIVE \
+            -n "$PACKAGE/expo.modules.notifications.service.NotificationsService" \
+            --es "title" "Test Notification" \
+            --es "body" "Test message body" \
+            2>/dev/null || true
+
+        # Method 2: Post notification directly
+        adb shell cmd notification post -S bigtext \
+            -t "Test Notification" \
+            --package "$PACKAGE" \
+            "test_tag_$i" \
+            "Test notification message" \
+            2>/dev/null || true
+
+        sleep 3
+
+        # Click the notification to resume app
+        log_info "Clicking notification to resume..."
+        adb shell cmd notification cancel "$PACKAGE" "test_tag_$i" 2>/dev/null || true
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - push notification"
+            return 1
+        fi
+    done
+
+    log_success "Push notification test passed"
+}
+
+# Test: Multiple rapid push notifications
+test_rapid_push_notifications() {
+    log_test "Rapid Push Notifications"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Send many notifications rapidly
+    log_info "Sending 10 rapid notifications..."
+    for i in $(seq 1 10); do
+        adb shell cmd notification post -S bigtext \
+            -t "Notification $i" \
+            --package "$PACKAGE" \
+            "rapid_tag_$i" \
+            "Rapid notification $i" \
+            2>/dev/null || true
+        sleep 0.2
+    done
+
+    sleep 3
+    resume_app
+
+    # Clean up notifications
+    for i in $(seq 1 10); do
+        adb shell cmd notification cancel "$PACKAGE" "rapid_tag_$i" 2>/dev/null || true
+    done
+
+    if ! wait_and_check 5; then
+        log_error "Failed after rapid push notifications"
+        return 1
+    fi
+
+    log_success "Rapid push notifications test passed"
+}
+
+# Test: Push notification during background task
+test_push_during_task() {
+    log_test "Push Notification During Background Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger background task
+        trigger_background_task
+        sleep 1
+
+        # Send notification while task is running
+        log_info "Sending notification during background task..."
+        adb shell cmd notification post -S bigtext \
+            -t "Message" \
+            --package "$PACKAGE" \
+            "task_notif_$i" \
+            "New message received" \
+            2>/dev/null || true
+
+        sleep 3
+
+        # Resume app
+        resume_app
+
+        # Clean up
+        adb shell cmd notification cancel "$PACKAGE" "task_notif_$i" 2>/dev/null || true
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - push during task"
+            return 1
+        fi
+    done
+
+    log_success "Push during task test passed"
+}
+
+# Test: Notification click to resume from killed state
+test_notification_cold_start() {
+    log_test "Notification Resume from Killed State"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+
+        # Force stop (kill app completely)
+        force_stop
+        sleep 1
+
+        # Post notification
+        log_info "Posting notification to killed app..."
+        adb shell cmd notification post -S bigtext \
+            -t "New Message" \
+            --package "$PACKAGE" \
+            "cold_start_$i" \
+            "You have a new message" \
+            2>/dev/null || true
+
+        sleep 2
+
+        # Start app (simulates notification click)
+        start_app
+
+        # Clean up notification
+        adb shell cmd notification cancel "$PACKAGE" "cold_start_$i" 2>/dev/null || true
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - notification cold start"
+            return 1
+        fi
+    done
+
+    log_success "Notification cold start test passed"
+}
+
+# Test: App update simulation (clear + reinstall dalvik cache)
+test_dalvik_cache_clear() {
+    log_test "Dalvik Cache Clear"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Clear dalvik cache for the app (simulates update)
+    log_info "Clearing dalvik cache..."
+    adb shell cmd package compile --reset "$PACKAGE" 2>/dev/null || true
+    sleep 2
+
+    resume_app
+
+    if ! wait_and_check 10; then
+        log_error "Failed after dalvik cache clear"
+        return 1
+    fi
+
+    log_success "Dalvik cache clear test passed"
+}
+
 # Test 30: Combination stress test
 test_stress_combination() {
     log_test "Stress Combination Test"
@@ -1542,6 +2543,76 @@ test_stress_combination() {
 # MAIN
 # =============================================================================
 
+# Run only the new aggressive tests
+run_aggressive_tests() {
+    local failed=0
+    local passed=0
+    local tests=(
+        "test_resume_during_task"
+        "test_rapid_pressure_cycling"
+        "test_screen_off_extended"
+        "test_task_with_screen_off"
+        "test_rapid_pressure_escalation"
+        "test_activity_recreation"
+        "test_task_queue_overflow"
+        "test_low_memory_simulation"
+        "test_rapid_app_switching"
+        "test_task_kill_rapid_restart"
+        "test_very_long_background_with_tasks"
+        "test_split_screen"
+        "test_airplane_mode"
+        "test_dark_mode_toggle"
+        "test_font_scale_change"
+        "test_battery_saver"
+        "test_notification_shade"
+        "test_deep_link_resume"
+        "test_permission_revocation"
+        "test_timezone_change"
+        "test_rapid_back_presses"
+        "test_screenshot_during_transition"
+        "test_display_density"
+        "test_memory_competition"
+        "test_sustained_background_tasks"
+        "test_push_notification"
+        "test_rapid_push_notifications"
+        "test_push_during_task"
+        "test_notification_cold_start"
+        "test_dalvik_cache_clear"
+    )
+
+    TOTAL_TESTS=${#tests[@]}
+    CURRENT_TEST_NUM=0
+
+    for test in "${tests[@]}"; do
+        ((CURRENT_TEST_NUM++))
+
+        # Restart app before each test for clean state
+        log_info "Restarting app before test..."
+        force_stop
+        sleep 1
+
+        if $test; then
+            ((passed++))
+        else
+            ((failed++))
+            log_warn "Test $test failed - continuing..."
+        fi
+        sleep 2
+    done
+
+    # Reset tracking variables
+    CURRENT_TEST_NUM=""
+    TOTAL_TESTS=""
+
+    echo -e "\n${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}AGGRESSIVE TEST SUMMARY${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${GREEN}Passed: $passed${NC}"
+    echo -e "${RED}Failed: $failed${NC}"
+
+    return $failed
+}
+
 run_all_tests() {
     local failed=0
     local passed=0
@@ -1578,6 +2649,36 @@ run_all_tests() {
         "test_network_toggle"
         "test_clear_cache"
         "test_extended_background_pressure"
+        "test_resume_during_task"
+        "test_rapid_pressure_cycling"
+        "test_screen_off_extended"
+        "test_task_with_screen_off"
+        "test_rapid_pressure_escalation"
+        "test_activity_recreation"
+        "test_task_queue_overflow"
+        "test_low_memory_simulation"
+        "test_rapid_app_switching"
+        "test_task_kill_rapid_restart"
+        "test_very_long_background_with_tasks"
+        "test_split_screen"
+        "test_airplane_mode"
+        "test_dark_mode_toggle"
+        "test_font_scale_change"
+        "test_battery_saver"
+        "test_notification_shade"
+        "test_deep_link_resume"
+        "test_permission_revocation"
+        "test_timezone_change"
+        "test_rapid_back_presses"
+        "test_screenshot_during_transition"
+        "test_display_density"
+        "test_memory_competition"
+        "test_sustained_background_tasks"
+        "test_push_notification"
+        "test_rapid_push_notifications"
+        "test_push_during_task"
+        "test_notification_cold_start"
+        "test_dalvik_cache_clear"
         "test_stress_combination"
     )
 
@@ -1618,7 +2719,8 @@ show_usage() {
     echo "Usage: $0 [command] [options]"
     echo ""
     echo "Commands:"
-    echo "  all                    Run all tests"
+    echo "  all                    Run all tests (63 tests)"
+    echo "  aggressive             Run only new aggressive tests (30 tests)"
     echo "  simple [cycles] [delay] Run simple background/foreground test"
     echo "  moderate [cycles]      Run moderate memory pressure test"
     echo "  complete [cycles]      Run complete memory pressure test"
@@ -1683,6 +2785,9 @@ main() {
     case "${1:-all}" in
         all)
             run_all_tests
+            ;;
+        aggressive)
+            run_aggressive_tests
             ;;
         simple)
             test_simple_cycle "${2:-3}" "${3:-3}"
