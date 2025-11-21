@@ -1,4 +1,4 @@
-import { formatUv, isValidPatp } from '@urbit/aura';
+import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
@@ -99,7 +99,7 @@ export function validateNickname(
     const matches = normalizedNickname.match(new RegExp(PATP_REGEX, 'gi'));
     if (matches) {
       for (const match of matches) {
-        if (!isValidPatp(match)) {
+        if (!valid('p', match)) {
           return {
             isValid: false,
             errorType: 'invalid_patp',
@@ -712,7 +712,7 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
  * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb -> v2almibb
  */
 export function getRandomId() {
-  const id = formatUv(Math.floor(Math.random() * 0xffffffff).toString());
+  const id = render('uv', BigInt(Math.floor(Math.random() * 0xffffffff)));
   return id.replace(/\./g, '').slice(1);
 }
 

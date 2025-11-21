@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/aura';
+import { da } from '@urbit/aura';
 
 import * as api from '../api';
 import { getCanonicalPostId } from '../api/apiUtils';
@@ -178,7 +178,7 @@ export function buildPost({
   deliveryStatus?: db.PostDeliveryStatus;
 }): types.Post {
   const sentAt = Date.now();
-  const id = getCanonicalPostId(unixToDa(sentAt).toString());
+  const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
   const type = logic.getPostTypeFromChannelId({
     channelId: channel.id,
     parentId,

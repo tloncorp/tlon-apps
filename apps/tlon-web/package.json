@@ -98,7 +98,7 @@
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "@urbit/api": "^2.2.0",
-    "@urbit/aura": "^2.0.1",
+    "@urbit/aura": "^3.0.0",
     "@urbit/http-api": "3.2.0-dev",
     "@urbit/sigil-js": "^2.2.0",
     "any-ascii": "^0.3.1",
