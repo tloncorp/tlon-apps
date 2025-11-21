@@ -1,5 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import {
+  getNicknameErrorMessage,
+  validateNickname,
+} from '@tloncorp/shared/logic';
+import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
@@ -256,6 +260,16 @@ export function EditProfileScreenView(props: Props) {
                     maxLength: {
                       value: 30,
                       message: 'Your nickname is limited to 30 characters',
+                    },
+                    validate: (value) => {
+                      if (!isCurrUser) {
+                        return true;
+                      }
+                      const result = validateNickname(value, currentUserId);
+                      if (!result.isValid) {
+                        return getNicknameErrorMessage(result.errorType);
+                      }
+                      return true;
                     },
                   }}
                 />

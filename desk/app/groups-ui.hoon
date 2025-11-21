@@ -229,7 +229,7 @@
     ``ui-init-4+!>(init)
   ::
       [%x %v5 %init ~]
-    =+  .^([=groups-ui:v8:gv =foreigns:v8:gv] (scry %gx %groups /v2/init/noun))
+    =+  .^([=groups-ui:v7:gv =foreigns:v8:gv] (scry %gx %groups /v2/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
@@ -244,6 +244,23 @@
           profile
       ==
     ``ui-init-5+!>(init)
+  ::
+      [%x %v6 %init ~]
+    =+  .^([=groups-ui:v9:gv =foreigns:v8:gv] (scry %gx %groups /v3/init/noun))
+    =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-6:u
+      :*  groups-ui
+          foreigns
+          channel-8
+          activity
+          pins
+          chat
+          profile
+      ==
+    ``ui-init-6+!>(init)
   ::
       [%x %v5 %changes since=@ ~]
     =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
@@ -265,6 +282,21 @@
     =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
     =+  .^(chat=json (scry %gx %chat /v3/changes/[since.pole]/json))
     =+  .^(groups=json (scry %gx %groups /v1/changes/[since.pole]/json))
+    =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'activity'^activity
+        'channels'^channels
+        'chat'^chat
+        'groups'^groups
+        'contacts'^contacts
+    ==
+  ::
+      [%x %v7 %changes since=@ ~]
+    =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
+    =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v3/changes/[since.pole]/json))
+    =+  .^(groups=json (scry %gx %groups /v2/changes/[since.pole]/json))
     =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
     :^  ~  ~  %json
     !>  %-  pairs:enjs:format

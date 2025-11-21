@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { Button, FormInput, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
-import { Alert, Switch } from 'react-native';
+import { Alert, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
@@ -41,15 +41,35 @@ interface EditChannelScreenViewProps {
 
 const getDefaultFormValues = (
   channel?: db.Channel | null
-): ChannelFormSchema => ({
-  title: channel?.title,
-  description: channel?.description,
-  readers: channel?.readerRoles?.map((r) => r.roleId) ?? [],
-  writers: channel?.writerRoles?.map((r) => r.roleId) ?? [],
-  isPrivate:
-    (channel?.writerRoles?.length ?? 0) > 0 ||
-    (channel?.readerRoles?.length ?? 0) > 0,
-});
+): ChannelFormSchema => {
+  const readerRoles = channel?.readerRoles?.map((r) => r.roleId) ?? [];
+  const writerRoles = channel?.writerRoles?.map((r) => r.roleId) ?? [];
+  const isPrivate = readerRoles.length > 0 || writerRoles.length > 0;
+
+  const readers = isPrivate
+    ? readerRoles.length === 0
+      ? ['admin', MEMBERS_MARKER] // Empty readers means Members, but admin is always included
+      : readerRoles.includes('admin')
+        ? readerRoles
+        : ['admin', ...readerRoles] // Ensure admin is present
+    : [];
+
+  const writers = isPrivate
+    ? writerRoles.length === 0
+      ? ['admin', MEMBERS_MARKER] // Empty writers means Members, but admin is always included
+      : writerRoles.includes('admin')
+        ? writerRoles
+        : ['admin', ...writerRoles] // Ensure admin is present
+    : [];
+
+  return {
+    title: channel?.title,
+    description: channel?.description,
+    readers,
+    writers,
+    isPrivate,
+  };
+};
 
 export function EditChannelScreenView({
   goBack,
@@ -81,12 +101,24 @@ export function EditChannelScreenView({
       if (!title || typeof title !== 'string') {
         return;
       }
+
+      // If MEMBERS_MARKER is present, send empty array (everyone can access)
+      // Otherwise, ensure admin is included and send actual role IDs
+      const readers = data.readers.includes(MEMBERS_MARKER)
+        ? [] // Empty array means all members (including admin) can read
+        : data.readers.filter((r) => r !== MEMBERS_MARKER); // Admin should already be in the array
+
+      // Same for writers
+      const writers = data.writers.includes(MEMBERS_MARKER)
+        ? [] // Empty array means all members (including admin) can write
+        : data.writers.filter((w) => w !== MEMBERS_MARKER); // Admin should already be in the array
+
       const formData = {
         ...data,
         title,
         description: data.description ?? undefined,
       };
-      onSubmit(title, formData.readers, formData.writers, formData.description);
+      onSubmit(title, readers, writers, formData.description);
     },
     [onSubmit]
   );
@@ -193,6 +225,16 @@ export const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
     value: role.id ?? '',
   }));
 
+// Special marker for members without explicit roles
+// In the backend, an empty readers/writers array means "accessible by all group members"
+// We use null as a marker in the UI to represent this "Members" concept
+export const MEMBERS_MARKER = null as unknown as string;
+
+export const MEMBER_ROLE_OPTION: RoleOption = {
+  label: 'Members',
+  value: MEMBERS_MARKER,
+};
+
 export function PrivateChannelToggle({
   isPrivate,
   onTogglePrivate,
@@ -200,6 +242,10 @@ export function PrivateChannelToggle({
   isPrivate: boolean;
   onTogglePrivate: (value: boolean) => void;
 }) {
+  const handleToggle = useCallback(() => {
+    onTogglePrivate(!isPrivate);
+  }, [isPrivate, onTogglePrivate]);
+
   return (
     <XStack
       padding="$xl"
@@ -208,19 +254,36 @@ export function PrivateChannelToggle({
       gap="$xl"
       backgroundColor="$secondaryBackground"
       width="100%"
+      pointerEvents="auto"
     >
-      <YStack gap="$xl" flex={1}>
+      <YStack gap="$xl" flex={1} pointerEvents="auto">
         <Text size="$label/l">Private Channel</Text>
         <Text size="$label/s" color="$tertiaryText">
           By making a channel private, only select members and roles will be
           able to view this channel.
         </Text>
       </YStack>
-      <Switch
-        value={isPrivate}
-        onValueChange={onTogglePrivate}
-        testID="PrivateChannelToggle"
-      />
+      {Platform.OS === 'android' ? (
+        // Android-specific: Wrap Switch in Pressable to handle tap gestures before
+        // they reach the Sheet's pan gesture handler. The Switch itself has
+        // pointerEvents="none" to make it purely visual, while Pressable handles
+        // all touch interaction. This fixes Switch tap detection issues in sheets
+        // on physical Android devices.
+        <Pressable
+          onPress={handleToggle}
+          testID="PrivateChannelTogglePressable"
+        >
+          <View pointerEvents="none">
+            <Switch value={isPrivate} testID="PrivateChannelToggle" />
+          </View>
+        </Pressable>
+      ) : (
+        <Switch
+          value={isPrivate}
+          onValueChange={onTogglePrivate}
+          testID="PrivateChannelToggle"
+        />
+      )}
     </XStack>
   );
 }
@@ -269,14 +332,20 @@ export function ChannelPermissionsSelector({
     [readers, writers, setValue]
   );
 
-  const displayedRoles = useMemo(
-    () => (isPrivate ? mapRoleIdsToOptions(readers, allRoles) : []),
-    [isPrivate, readers, allRoles]
-  );
+  const displayedRoles = useMemo(() => {
+    if (!isPrivate) return [];
+    // Add Members option to the list of all roles for mapping
+    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
+    const mappedRoles = mapRoleIdsToOptions(readers, rolesWithMembers);
+    return mappedRoles.filter((role) => role.value !== 'admin');
+  }, [isPrivate, readers, allRoles]);
 
   const handleSaveRoles = useCallback(
     (roleIds: string[]) => {
-      setValue('readers', roleIds, { shouldDirty: true });
+      const readersWithAdmin = roleIds.includes('admin')
+        ? roleIds
+        : ['admin', ...roleIds];
+      setValue('readers', readersWithAdmin, { shouldDirty: true });
     },
     [setValue]
   );
@@ -394,26 +463,72 @@ export function PermissionTable({
   const readers = watch('readers');
   const writers = watch('writers');
 
-  const displayedRoles = useMemo(
-    () =>
-      groupRolesToOptions(groupRoles).filter((role) =>
-        readers.includes(role.value)
-      ),
-    [groupRoles, readers]
-  );
+  const displayedRoles = useMemo(() => {
+    // Get all group roles that are in the readers list
+    const regularRoles = groupRolesToOptions(groupRoles).filter((role) =>
+      readers.includes(role.value)
+    );
+
+    // Always show Members option if it's in readers
+    const hasMembersInReaders = readers.includes(MEMBERS_MARKER);
+
+    // Build the final list: Members first (if present), then regular roles
+    const roles = hasMembersInReaders
+      ? [MEMBER_ROLE_OPTION, ...regularRoles]
+      : regularRoles;
+
+    return roles;
+  }, [groupRoles, readers]);
 
   const handleToggleWriter = useCallback(
     (roleId: string) => {
       const isCurrentlyWriter = writers.includes(roleId);
-      setValue(
-        'writers',
-        isCurrentlyWriter
-          ? writers.filter((w) => w !== roleId)
-          : [...writers, roleId],
-        { shouldDirty: true }
-      );
+      const isCurrentlyReader = readers.includes(roleId);
+
+      if (isCurrentlyWriter) {
+        // Remove from writers
+        setValue(
+          'writers',
+          writers.filter((w) => w !== roleId),
+          { shouldDirty: true }
+        );
+      } else {
+        // Add to writers
+        setValue('writers', [...writers, roleId], { shouldDirty: true });
+
+        // For Members marker, also ensure it's in readers when enabling write
+        if (roleId === MEMBERS_MARKER && !isCurrentlyReader) {
+          setValue('readers', [...readers, roleId], { shouldDirty: true });
+        }
+      }
     },
-    [writers, setValue]
+    [writers, readers, setValue]
+  );
+
+  const handleToggleReader = useCallback(
+    (roleId: string) => {
+      // For Members marker, toggle it in/out of readers
+      if (roleId === MEMBERS_MARKER) {
+        const isCurrentlyReader = readers.includes(roleId);
+        if (isCurrentlyReader) {
+          // Remove from both readers and writers
+          setValue(
+            'readers',
+            readers.filter((r) => r !== roleId),
+            { shouldDirty: true }
+          );
+          setValue(
+            'writers',
+            writers.filter((w) => w !== roleId),
+            { shouldDirty: true }
+          );
+        } else {
+          // Add to readers
+          setValue('readers', [...readers, roleId], { shouldDirty: true });
+        }
+      }
+    },
+    [readers, writers, setValue]
   );
 
   if (!isPrivate || displayedRoles.length === 0) return null;
@@ -450,7 +565,9 @@ export function PermissionTable({
           >
             <PermissionTableRow
               role={role}
+              canRead={readers.includes(role.value)}
               canWrite={writers.includes(role.value)}
+              onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
             />
           </YStack>
@@ -482,14 +599,19 @@ function PermissionTableHeaderCell({
 
 function PermissionTableRow({
   role,
+  canRead,
   canWrite,
+  onToggleRead,
   onToggleWrite,
 }: {
   role: RoleOption;
+  canRead: boolean;
   canWrite: boolean;
+  onToggleRead: () => void;
   onToggleWrite: () => void;
 }) {
   const isAdmin = role.value === 'admin';
+  const isMember = role.value === MEMBERS_MARKER;
 
   return (
     <XStack width="100%" alignItems="stretch" flex={1} height={68}>
@@ -499,7 +621,13 @@ function PermissionTableRow({
         </Text>
       </YStack>
       <PermissionTableControlCell>
-        <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
+        {isMember ? (
+          <Pressable onPress={onToggleRead} testID={`ReadToggle-${role.label}`}>
+            <RadioControl checked={canRead} />
+          </Pressable>
+        ) : (
+          <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
+        )}
       </PermissionTableControlCell>
       <PermissionTableControlCell>
         {isAdmin ? (
@@ -571,11 +699,12 @@ export function RoleSelectionSheet({
 
   const filteredRoles = useMemo(() => {
     const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
+    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
     if (!searchQuery.trim()) {
-      return nonAdminRoles;
+      return rolesWithMembers;
     }
     const query = searchQuery.toLowerCase();
-    return nonAdminRoles.filter((role) =>
+    return rolesWithMembers.filter((role) =>
       role.label.toLowerCase().includes(query)
     );
   }, [allRoles, searchQuery]);
@@ -601,6 +730,7 @@ export function RoleSelectionSheet({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      modal
     >
       <ActionSheet.SimpleHeader
         title="Search and add roles"
@@ -624,7 +754,7 @@ export function RoleSelectionSheet({
         onScrollBeginDrag={() => setIsScrolling(true)}
         onScrollEndDrag={() => setIsScrolling(false)}
       >
-        <YStack gap="$m" paddingTop="$m">
+        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
           {filteredRoles.map((role) => (
             <SelectableRoleListItem
               key={role.value}
@@ -639,19 +769,19 @@ export function RoleSelectionSheet({
             </View>
           )}
         </YStack>
+        <View
+          paddingHorizontal="$l"
+          paddingTop="$m"
+          paddingBottom={insets.bottom}
+          backgroundColor="$background"
+          borderTopWidth={1}
+          borderTopColor="$border"
+        >
+          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
+            <Button.Text>Save</Button.Text>
+          </Button>
+        </View>
       </ActionSheet.ScrollableContent>
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$m"
-        paddingBottom={insets.bottom}
-        backgroundColor="$background"
-        borderTopWidth={1}
-        borderTopColor="$border"
-      >
-        <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-          <Button.Text>Save</Button.Text>
-        </Button>
-      </ActionSheet.Content>
     </ActionSheet>
   );
 }

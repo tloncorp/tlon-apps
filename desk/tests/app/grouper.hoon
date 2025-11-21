@@ -94,7 +94,7 @@
 
   ==
 ::  +test-personal-bite: test personal invite bite
-::  
+::
 ::  when a personal bite is received by the grouper agent it issues
 ::  a dm invitation.
 ::
@@ -126,7 +126,7 @@
 ::
 ::  when a group bite is received, a dm invitation is sent, followed
 ::  by the group invitation, provided the group has enabled invitations.
-::  
+::
 ++  test-group-bite
   %-  eval-mare
   =/  m  (mare ,~)
@@ -147,10 +147,10 @@
   =/  =action:dm:c
     :-  joiner
     [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
-  =/  =a-groups:v7:gv
+  =/  =a-groups:v8:gv
     =/  note=story:story
       ~[inline+~['lure invite ~.0v1']]
-    [%invite ~sampel-palnet^%sunrise [joiner ~ `note]]
+    [%invite ~sampel-palnet^%sunrise (sy joiner ~) [~ `note]]
   ;<  ~  bind:m
     %+  %*(. ex-cards drop-logs |)  caz
     :~  (ex-poke-wire /logs)

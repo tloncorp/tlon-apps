@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   ReactNode,
   createContext,
@@ -12,8 +12,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
-import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../components/InviteUsersSheet';
@@ -97,7 +95,11 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy?: (groupId: string) => void;
   onPressChannelMembers?: (channelId: string) => void;
   onPressChannelMeta?: (channelId: string) => void;
-  onPressEditChannel?: (channelId: string, groupId: string, fromChatDetails?: boolean) => void;
+  onPressEditChannel?: (
+    channelId: string,
+    groupId: string,
+    fromChatDetails?: boolean
+  ) => void;
   onPressChannelTemplate?: (channelId: string) => void;
   onPressRoles?: (groupId: string) => void;
   onPressChatDetails?: (chat: {
@@ -106,6 +108,7 @@ type ChatOptionsProviderProps = {
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  onLeaveChannel?: (groupId: string, channelId: string) => void;
   onPressConfigureChannel?: () => void;
   onPressDeleteGroup?: () => void;
   initialChat?: {
@@ -131,10 +134,18 @@ export const ChatOptionsProvider = ({
   onPressRoles,
   onPressChatDetails = noop,
   onLeaveGroup: navigateOnLeave,
+  onLeaveChannel: navigateToGroupOnLeave,
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
+  const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
+  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
+    null
+  );
+  const [leaveChannelData, setLeaveChannelData] = useState<db.Channel | null>(
+    null
+  );
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
@@ -253,43 +264,38 @@ export const ChatOptionsProvider = ({
     closeSheet();
   }, [closeSheet, groupId, navigateOnLeave]);
 
-  const onLeaveChannelConfirmed = useCallback(() => {
-    if (!channel) {
+  const onLeaveChannelConfirmed = useCallback(async () => {
+    if (!leaveChannelData) {
       return;
     }
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
+    const isDm =
+      leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm';
+
+    if (isDm) {
+      // Leaving a DM - navigate to Messages tab
       store.respondToDMInvite({
-        channel,
+        channel: leaveChannelData,
         accept: false,
       });
       navigateOnLeave?.();
+    } else if (leaveChannelData.groupId) {
+      // Leaving a channel in a group - navigate to the first available channel
+      store.leaveGroupChannel(leaveChannelData.id);
+      await navigateToGroupOnLeave?.(leaveChannelData.groupId, leaveChannelData.id);
     } else {
-      store.leaveGroupChannel(channel.id);
+      // Fallback
+      store.leaveGroupChannel(leaveChannelData.id);
+      navigateOnLeave?.();
     }
+    setLeaveChannelData(null);
     closeSheet();
-  }, [channel, closeSheet, navigateOnLeave]);
+  }, [leaveChannelData, closeSheet, navigateOnLeave, navigateToGroupOnLeave]);
 
   const leaveChannel = useCallback(() => {
-    if (isWeb) {
-      return onLeaveChannelConfirmed();
-    }
-    Alert.alert(
-      `Leave ${channelTitle}?`,
-      'You will no longer receive updates from this channel.',
-      [
-        {
-          text: 'Cancel',
-          onPress: () => console.log('Cancel Pressed'),
-          style: 'cancel',
-        },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: onLeaveChannelConfirmed,
-        },
-      ]
-    );
-  }, [channelTitle, onLeaveChannelConfirmed]);
+    setLeaveChannelTitle(channelTitle);
+    setLeaveChannelData(channel ?? null);
+    setLeaveChannelDialogOpen(true);
+  }, [channelTitle, channel]);
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
@@ -341,12 +347,15 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressEditChannel = useCallback((fromChatDetails?: boolean) => {
-    if (channelId && groupId) {
-      onPressEditChannel?.(channelId, groupId, fromChatDetails);
-      closeSheet();
-    }
-  }, [channelId, groupId, closeSheet, onPressEditChannel]);
+  const handlePressEditChannel = useCallback(
+    (fromChatDetails?: boolean) => {
+      if (channelId && groupId) {
+        onPressEditChannel?.(channelId, groupId, fromChatDetails);
+        closeSheet();
+      }
+    },
+    [channelId, groupId, closeSheet, onPressEditChannel]
+  );
 
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
@@ -486,6 +495,21 @@ export const ChatOptionsProvider = ({
           />
         </>
       )}
+      <ConfirmDialog
+        open={leaveChannelDialogOpen && !!leaveChannelTitle}
+        onOpenChange={(open) => {
+          setLeaveChannelDialogOpen(open);
+          if (!open) {
+            setLeaveChannelTitle(null);
+            setLeaveChannelData(null);
+          }
+        }}
+        title={`Leave ${leaveChannelTitle ?? 'channel'}?`}
+        description="You will no longer receive updates from this channel."
+        confirmText="Leave"
+        destructive
+        onConfirm={onLeaveChannelConfirmed}
+      />
     </ChatOptionsContext.Provider>
   );
 };

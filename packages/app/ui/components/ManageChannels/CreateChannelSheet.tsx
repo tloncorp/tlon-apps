@@ -26,10 +26,15 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
 import { ListItem } from '../ListItem';
+import SystemNotices from '../SystemNotices';
 import {
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
   PermissionTable,
   PrivateChannelToggle,
   RoleChip,
@@ -97,6 +102,10 @@ export function CreateChannelSheet({
 
   const { control, handleSubmit, watch, setValue } = form;
 
+  const currentUserId = useCurrentUserId();
+  const isGroupAdmin = useIsAdmin(group.id, currentUserId);
+  const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
+
   const isPrivate = watch('isPrivate');
 
   const handleTogglePrivate = useCallback(
@@ -119,16 +128,33 @@ export function CreateChannelSheet({
 
   const handlePressSave = useCallback(
     async (data: CreateChannelFormSchema) => {
-      const readers = data.isPrivate ? data.readers : [];
-      const writers = data.isPrivate ? data.writers : [];
+      if (!data.isPrivate) {
+        createChannel({
+          groupId: group.id,
+          title: data.title,
+          channelType: data.channelType,
+          readers: [],
+          writers: [],
+        });
+      } else {
+        // If MEMBERS_MARKER is present, send empty array (everyone including admin has access)
+        // Otherwise, send the role IDs (admin should already be included in the arrays)
+        const readers = data.readers.includes(MEMBERS_MARKER)
+          ? []
+          : data.readers.filter((r) => r !== MEMBERS_MARKER);
 
-      createChannel({
-        groupId: group.id,
-        title: data.title,
-        channelType: data.channelType,
-        readers,
-        writers,
-      });
+        const writers = data.writers.includes(MEMBERS_MARKER)
+          ? []
+          : data.writers.filter((w) => w !== MEMBERS_MARKER);
+
+        createChannel({
+          groupId: group.id,
+          title: data.title,
+          channelType: data.channelType,
+          readers,
+          writers,
+        });
+      }
       onOpenChange(false);
     },
     [group.id, onOpenChange]
@@ -155,57 +181,58 @@ export function CreateChannelSheet({
         {pane === 'initial' ? (
           <>
             <ActionSheet.SimpleHeader title="Create a new channel" />
-            <ActionSheet.ScrollableContent>
-              <ScrollWrapper>
-                <ActionSheet.FormBlock>
-                  <Form.ControlledTextField
-                    control={control}
-                    name="title"
-                    label="Title"
-                    inputProps={{
-                      placeholder: 'Channel title',
-                      testID: 'ChannelTitleInput',
-                    }}
-                    rules={{ required: 'Channel title is required' }}
+            <ActionSheet.Content>
+              <ActionSheet.FormBlock>
+                <Form.ControlledTextField
+                  control={control}
+                  name="title"
+                  label="Title"
+                  inputProps={{
+                    placeholder: 'Channel title',
+                    testID: 'ChannelTitleInput',
+                  }}
+                  rules={{ required: 'Channel title is required' }}
+                />
+              </ActionSheet.FormBlock>
+              <ActionSheet.FormBlock>
+                <YStack
+                  borderColor="$secondaryBorder"
+                  borderWidth={1}
+                  borderRadius="$m"
+                  overflow="hidden"
+                >
+                  <PrivateChannelToggle
+                    isPrivate={isPrivate}
+                    onTogglePrivate={handleTogglePrivate}
                   />
-                </ActionSheet.FormBlock>
+                </YStack>
+              </ActionSheet.FormBlock>
+              <ActionSheet.FormBlock>
+                <Form.ControlledListItemField
+                  label="Channel type"
+                  options={channelTypes}
+                  control={control}
+                  name={'channelType'}
+                />
+              </ActionSheet.FormBlock>
+              {isNonHostAdmin && (
                 <ActionSheet.FormBlock>
-                  <YStack
-                    borderColor="$secondaryBorder"
-                    borderWidth={1}
-                    borderRadius="$m"
-                    overflow="hidden"
-                  >
-                    <PrivateChannelToggle
-                      isPrivate={isPrivate}
-                      onTogglePrivate={handleTogglePrivate}
-                    />
-                  </YStack>
+                  <SystemNotices.NonHostAdminChannelNotice />
                 </ActionSheet.FormBlock>
-                <ActionSheet.FormBlock>
-                  <Form.ControlledListItemField
-                    label="Channel type"
-                    options={channelTypes}
-                    control={control}
-                    name={'channelType'}
-                  />
-                </ActionSheet.FormBlock>
-                <ActionSheet.FormBlock>
-                  <Button
-                    onPress={
-                      isPrivate
-                        ? handlePressNext
-                        : handleSubmit(handlePressSave)
-                    }
-                    hero
-                  >
-                    <Button.Text>
-                      {isPrivate ? 'Next' : 'Create channel'}
-                    </Button.Text>
-                  </Button>
-                </ActionSheet.FormBlock>
-              </ScrollWrapper>
-            </ActionSheet.ScrollableContent>
+              )}
+              <ActionSheet.FormBlock>
+                <Button
+                  onPress={
+                    isPrivate ? handlePressNext : handleSubmit(handlePressSave)
+                  }
+                  hero
+                >
+                  <Button.Text>
+                    {isPrivate ? 'Next' : 'Create channel'}
+                  </Button.Text>
+                </Button>
+              </ActionSheet.FormBlock>
+            </ActionSheet.Content>
           </>
         ) : (
           <PrivateChannelPermissionsView
@@ -240,6 +267,7 @@ function PrivateChannelPermissionsView({
   const handleRemoveRole = useCallback(
     (roleId: string) => {
       if (roleId === 'admin') return;
+      const writers = watch('writers');
       setValue(
         'readers',
         readers.filter((r) => r !== roleId),
@@ -247,21 +275,34 @@ function PrivateChannelPermissionsView({
           shouldDirty: true,
         }
       );
+      // If removing Members, also remove from writers
+      if (roleId === MEMBERS_MARKER) {
+        setValue(
+          'writers',
+          writers.filter((w) => w !== roleId),
+          {
+            shouldDirty: true,
+          }
+        );
+      }
     },
-    [readers, setValue]
+    [readers, setValue, watch]
   );
 
-  const displayedRoles = useMemo(
-    () =>
-      allRoles
-        .filter((role) => readers.includes(role.value))
-        .map((role) => ({ label: role.label, value: role.value })),
-    [readers, allRoles]
-  );
+  const displayedRoles = useMemo(() => {
+    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
+    return rolesWithMembers
+      .filter((role) => readers.includes(role.value))
+      .filter((role) => role.value !== 'admin')
+      .map((role) => ({ label: role.label, value: role.value }));
+  }, [readers, allRoles]);
 
   const handleSaveRoles = useCallback(
     (roleIds: string[]) => {
-      setValue('readers', roleIds, { shouldDirty: true });
+      const readersWithAdmin = roleIds.includes('admin')
+        ? roleIds
+        : ['admin', ...roleIds];
+      setValue('readers', readersWithAdmin, { shouldDirty: true });
     },
     [setValue]
   );
@@ -276,68 +317,66 @@ function PrivateChannelPermissionsView({
           <ListItem.Title>Channel permissions</ListItem.Title>
         </XStack>
       </ActionSheet.Header>
-      <ActionSheet.ScrollableContent>
-        <ScrollWrapper>
-          <ActionSheet.FormBlock>
-            <YStack
-              width="100%"
-              overflow="hidden"
-              borderRadius="$m"
-              borderWidth={1}
-              borderColor="$secondaryBorder"
-              padding="$xl"
-              gap="$2xl"
-            >
-              <XStack>
-                <Text size="$label/l" flex={1}>
-                  Who can access this channel?
-                </Text>
-                <XStack flex={1.5} justifyContent="flex-end">
-                  <Button
-                    width={120}
-                    onPress={() => setShowRoleSelector(true)}
-                    size={'$l'}
-                    backgroundColor="$positiveActionText"
-                    pressStyle={{
-                      backgroundColor: '$positiveActionText',
-                      opacity: 0.9,
-                    }}
-                    borderColor="$positiveActionText"
-                  >
-                    <Button.Text color="$positiveBackground">
-                      Add roles
-                    </Button.Text>
-                  </Button>
-                </XStack>
+      <ActionSheet.Content>
+        <ActionSheet.FormBlock>
+          <YStack
+            width="100%"
+            overflow="hidden"
+            borderRadius="$m"
+            borderWidth={1}
+            borderColor="$secondaryBorder"
+            padding="$xl"
+            gap="$2xl"
+          >
+            <XStack>
+              <Text size="$label/l" flex={1}>
+                Who can access this channel?
+              </Text>
+              <XStack flex={1.5} justifyContent="flex-end">
+                <Button
+                  width={120}
+                  onPress={() => setShowRoleSelector(true)}
+                  size={'$l'}
+                  backgroundColor="$positiveActionText"
+                  pressStyle={{
+                    backgroundColor: '$positiveActionText',
+                    opacity: 0.9,
+                  }}
+                  borderColor="$positiveActionText"
+                >
+                  <Button.Text color="$positiveBackground">
+                    Add roles
+                  </Button.Text>
+                </Button>
               </XStack>
-              <YStack gap="$l">
-                <Text size="$label/l">Roles</Text>
-                <XStack gap="$s" flexWrap="wrap" width="100%">
-                  {displayedRoles.map((role) => (
-                    <RoleChip
-                      key={role.value}
-                      role={role}
-                      onRemove={
-                        role.value !== 'admin'
-                          ? () => handleRemoveRole(role.value)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </XStack>
-              </YStack>
+            </XStack>
+            <YStack gap="$l">
+              <Text size="$label/l">Roles</Text>
+              <XStack gap="$s" flexWrap="wrap" width="100%">
+                {displayedRoles.map((role) => (
+                  <RoleChip
+                    key={role.value}
+                    role={role}
+                    onRemove={
+                      role.value !== 'admin'
+                        ? () => handleRemoveRole(role.value)
+                        : undefined
+                    }
+                  />
+                ))}
+              </XStack>
             </YStack>
-          </ActionSheet.FormBlock>
-          <ActionSheet.FormBlock>
-            <PermissionTable groupRoles={group.roles ?? []} />
-          </ActionSheet.FormBlock>
-          <ActionSheet.FormBlock>
-            <Button onPress={onPressSave} hero>
-              <Button.Text>Create channel</Button.Text>
-            </Button>
-          </ActionSheet.FormBlock>
-        </ScrollWrapper>
-      </ActionSheet.ScrollableContent>
+          </YStack>
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <PermissionTable groupRoles={group.roles ?? []} />
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Button onPress={onPressSave} hero>
+            <Button.Text>Create channel</Button.Text>
+          </Button>
+        </ActionSheet.FormBlock>
+      </ActionSheet.Content>
 
       <RoleSelectionSheet
         open={showRoleSelector}
@@ -348,13 +387,6 @@ function PrivateChannelPermissionsView({
       />
     </>
   );
-}
-
-/**
- * Hack: without this, scrolling doesn't work within the ScrollableContent
- */
-function ScrollWrapper(props: ComponentProps<typeof View>) {
-  return <View pressStyle={{ backgroundColor: '$background' }} {...props} />;
 }
 
 const options = {

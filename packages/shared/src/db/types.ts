@@ -155,4 +155,12 @@ export interface ChangesResult {
   posts: Post[];
   contacts: Contact[];
   unreads: ActivityInit;
+  deletedChannelIds: string[];
 }
+
+export interface PendingMemberDismissal {
+  groupId: string;
+  dismissedAt: number;
+}
+
+export type PendingMemberDismissals = PendingMemberDismissal[];

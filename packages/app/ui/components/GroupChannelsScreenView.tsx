@@ -22,6 +22,7 @@ import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
@@ -37,6 +38,8 @@ type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onJoinChannel: (channel: db.Channel) => void;
   onBackPressed: () => void;
+  onGoToGroupMembers: () => void;
+  onPressManageChannels: (groupId: string, fromChatDetails?: boolean) => void;
 };
 
 export const GroupChannelsScreenView = React.memo(
@@ -46,6 +49,8 @@ export const GroupChannelsScreenView = React.memo(
     onChannelPressed,
     onJoinChannel,
     onBackPressed,
+    onGoToGroupMembers,
+    onPressManageChannels,
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -261,10 +266,13 @@ export const GroupChannelsScreenView = React.memo(
           rightControls={
             <>
               {isGroupAdmin && (
-                <ScreenHeader.IconButton
-                  type="Add"
-                  onPress={() => setShowCreateChannel(true)}
-                />
+                <ScreenHeader.TextButton
+                  onPress={() =>
+                    group && onPressManageChannels(group.id, false)
+                  }
+                >
+                  Edit
+                </ScreenHeader.TextButton>
               )}
               {!isWindowNarrow && group ? (
                 <ChatOptionsSheet
@@ -291,19 +299,25 @@ export const GroupChannelsScreenView = React.memo(
             <LoadingSpinner />
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
-          <FlashList
-            data={listItems}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            getItemType={getItemType}
-            estimatedItemSize={sizeRefs.current.channelItem}
-            overrideItemLayout={handleOverrideLayout}
-            contentContainerStyle={{
-              paddingTop: getTokenValue('$l'),
-              paddingHorizontal: getTokenValue('$l'),
-              paddingBottom: insets.bottom,
-            }}
-          />
+          <YStack flex={1}>
+            <SystemNotices.ConnectedJoinRequestNotice
+              group={group}
+              onViewRequests={onGoToGroupMembers}
+            />
+            <FlashList
+              data={listItems}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              getItemType={getItemType}
+              estimatedItemSize={sizeRefs.current.channelItem}
+              overrideItemLayout={handleOverrideLayout}
+              contentContainerStyle={{
+                paddingTop: getTokenValue('$l'),
+                paddingHorizontal: getTokenValue('$l'),
+                paddingBottom: insets.bottom,
+              }}
+            />
+          </YStack>
         ) : group && group.channels && group.channels.length === 0 ? (
           // Only show "no channels" message when we're certain the group has fully synced
           <YStack

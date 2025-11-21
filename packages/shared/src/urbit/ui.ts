@@ -1,8 +1,8 @@
 import { Activity } from './activity';
 import { ChannelHeadsResponse, Channels, Posts } from './channel';
-import { ContactBookProfile } from './contact';
+import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit, DMInit2, Writs } from './dms';
-import { Foreigns, Gangs, GroupV7, Groups } from './groups';
+import { Foreigns, Gangs, GroupV7, Groups, GroupsV7 } from './groups';
 
 // v4
 export interface GroupsInit {
@@ -26,7 +26,7 @@ export interface GroupsInit4 {
   chat: DMInit2;
 }
 
-export interface GroupsInit5 {
+export interface GroupsInit6 {
   groups: Record<string, GroupV7>;
   foreigns: Foreigns;
   channel: {
@@ -47,7 +47,15 @@ export interface Changes {
   groups: Groups;
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;
-  contacts: Record<string, ContactBookProfile>;
+  contacts: Record<string, ContactBookEntry>;
+  activity: Activity;
+}
+
+export interface ChangesV7 {
+  groups: GroupsV7;
+  channels: Record<string, Posts | null>;
+  chat: Record<string, Writs | null>;
+  contacts: Record<string, ContactBookEntry>;
   activity: Activity;
 }
 

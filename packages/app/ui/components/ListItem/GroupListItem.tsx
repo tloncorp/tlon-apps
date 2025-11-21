@@ -138,7 +138,13 @@ export const GroupListItem = ({
         >
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
-            <ListItem.Title>{title}</ListItem.Title>
+            {isPending && model.hostUserId ? (
+              <ListItem.Title numberOfLines={1} ellipsizeMode="tail" flexShrink={1} maxWidth="100%">
+                New group by <ContactName contactId={model.hostUserId} mode="auto" maxWidth="70%" />
+              </ListItem.Title>
+            ) : (
+              <ListItem.Title>{title}</ListItem.Title>
+            )}
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (

@@ -143,6 +143,7 @@
     :~  [/x/$/$/$/perm %channel-perm]
         [/x/$/$/$/posts %channel-posts]
         [/x/$/$/$/search %channel-scan]
+        [/x/$/$/$/search/bounded %channel-scam]
         [/x/$/init %noun]
         [/x/channels %channels]
         [/x/init %noun]
@@ -199,7 +200,7 @@
     :+  notify=&
       [~.channels^%3 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%1 ~ ~]
+    :~  %groups^[~.groups^%2 ~ ~]
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
@@ -1034,14 +1035,15 @@
     =.  pending-ref-edits
       (~(del by pending-ref-edits) host)
     %-  emil
-    %+  turn  ~(tap by u.pend)
+    %+  murn  ~(tap by u.pend)
     |=  [=kind:c name=term]
-    ^-  card
+    ^-  (unit card)
+    ::NOTE  to migrate other olds agents (heap, diary), use 828f5ed or earlier
+    ?.  ?=(%chat kind)  ~
+    %-  some
     :+  %pass   /migrate
-    :+  %agent  [our.bowl kind]
-    :+  %poke
-      ::NOTE  %chat-migrate-refs, etc
-      (cat 3 kind '-migrate-refs')
+    :+  %agent  [our.bowl %chat]
+    :+  %poke   %chat-migrate-refs
     !>([host name])
   ::
       %egg-any
@@ -1208,12 +1210,12 @@
       %^  give  %fact
         ~[v2+path v3+suffix]
       ?~  got  cage.sign
-      channel-said-1+!>(u.got)
+      channel-said-1+!>((v8:said:v9:ccv u.got))
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(u.got)
+      channel-said-2+!>(`said:v9:c`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
@@ -1231,6 +1233,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~|  `wire`pole
   =?  cor  !=(/logs pole)
     (emit (tell:plog %dbug ~[>[src.bowl (spat pole) -.sign]<] ~))
   ?+    pole  ~|(bad-agent-wire+pole !!)
@@ -1283,7 +1286,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(=r-groups:v7:gv q.cage.sign))
+      (take-groups !<(=r-groups:v9:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -1311,7 +1314,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -1766,7 +1769,7 @@
     |=  [n=nest:c group=flag:g]
     =.  nest  n
     =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
-    =+  .^(grp=group:v7:gv %gx path)
+    =+  .^(grp=group:v9:gv %gx path)
     =/  is-group-host=?  =(p.group src.bowl)
     =/  is-channel-host=?
       ?&  =(src.bowl ship.n)
@@ -3209,7 +3212,7 @@
     =/  =path
       %+  scry-path  %groups
       /v2/groups/(scot %p p.flag)/[q.flag]/noun
-    =+  .^(group=group:v7:gv %gx path)
+    =+  .^(group=group:v9:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

@@ -95,6 +95,7 @@ function ActivityOverflowMenu({
   return (
     <ActionSheet
       mode={isWindowNarrow ? 'sheet' : 'popover'}
+      modal
       open={open}
       onOpenChange={onOpenChange}
       trigger={

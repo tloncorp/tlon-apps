@@ -3,8 +3,8 @@ import { formatDa, unixToDa } from '@urbit/aura';
 import * as db from '../db';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
-import { v1PeerToClientProfile } from './contactsApi';
-import { toClientGroups } from './groupsApi';
+import { contactToClientProfile } from './contactsApi';
+import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
 import { checkIsNodeBusy, scry } from './urbit';
 
@@ -15,9 +15,9 @@ export async function fetchChangesSince(
 > {
   const nodeIsBusy = checkIsNodeBusy();
   const encodedTimestamp = formatDa(unixToDa(timestamp));
-  const response = await scry<ub.Changes>({
+  const response = await scry<ub.ChangesV7>({
     app: 'groups-ui',
-    path: `/v5/changes/${encodedTimestamp}`,
+    path: `/v7/changes/${encodedTimestamp}`,
   });
 
   const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
@@ -27,24 +27,36 @@ export async function fetchChangesSince(
   return { ...changes, nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.Changes): db.ChangesResult {
-  const groups = toClientGroups(input.groups, true);
+export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
+  const groups = toClientGroupsV7(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
   );
+
+  const deletedChannelIds = Object.entries(input.channels).reduce<string[]>(
+    (accum, [channelId, data]) => {
+      if (data === null) {
+        accum.push(channelId);
+      }
+      return accum;
+    },
+    []
+  );
+
   const chatPosts = Object.entries(input.chat).flatMap(([chatId, posts]) =>
     posts ? toPostsData(chatId, posts).posts : []
   );
+
   const posts = [...channelPosts, ...chatPosts];
 
-  const contacts = Object.entries(input.contacts).map(([id, profile]) =>
-    v1PeerToClientProfile(id, profile)
-  );
+  const contacts = Object.entries(input.contacts)
+    .filter(([_id, entry]) => entry)
+    .map(([id, contactEntry]) => contactToClientProfile(id, contactEntry));
 
   const unreads = toClientUnreads(input.activity);
 
-  return { groups, posts, contacts, unreads };
+  return { groups, posts, contacts, unreads, deletedChannelIds };
 }
 
 // We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
