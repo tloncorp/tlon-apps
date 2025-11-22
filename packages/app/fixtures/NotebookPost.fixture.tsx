@@ -14,7 +14,7 @@ export default {
             marginTop="$-l"
             marginHorizontal="$-l"
             paddingHorizontal="$xl"
-            content={convertContent(post.content)}
+            content={convertContent(post.content, post.blob)}
           />
         </ScrollView>
       </FixtureWrapper>

@@ -4,19 +4,20 @@ import { createDevLogger } from '../../debug';
 import {
   Attachment,
   FinalizedAttachment,
-  ImageAttachment,
   UploadState,
   UploadStateError,
-  UploadedImageAttachment,
 } from '../../domain';
 
 const logger = createDevLogger('uploadState', false);
-let uploadStates: Record<string, UploadState> = {};
+let uploadStates: Record<Attachment.UploadIntent.Key, UploadState> = {};
 
 export type UploadStateListener = (state: UploadState) => void;
 const uploadStateListeners: UploadStateListener[] = [];
 
-export const setUploadState = (key: string, state: UploadState) => {
+export const setUploadState = (
+  key: Attachment.UploadIntent.Key,
+  state: UploadState
+) => {
   uploadStates = { ...uploadStates, [key]: state };
   logger.log('upload states changed', uploadStates);
   uploadStateListeners.forEach((listener) => listener(uploadStates[key]));
@@ -29,7 +30,7 @@ export function subscribeToUploadStates(listener: UploadStateListener) {
   };
 }
 
-export const useUploadStates = (keys: string[]) => {
+export const useUploadStates = (keys: Attachment.UploadIntent.Key[]) => {
   const states = useSyncExternalStore(
     subscribeToUploadStates,
     useCallback(() => {
@@ -37,30 +38,27 @@ export const useUploadStates = (keys: string[]) => {
     }, [])
   );
   return useMemo(() => {
-    return keys.reduce<Record<string, UploadState>>((memo, k) => {
-      return {
-        ...memo,
-        [k]: states[k],
-      };
-    }, {});
+    return keys.reduce(
+      (memo, k) => {
+        return {
+          ...memo,
+          [k]: states[k],
+        };
+      },
+      {} as Record<Attachment.UploadIntent.Key, UploadState>
+    );
   }, [states, keys]);
 };
-
-const isImageAttachment = (a: Attachment): a is ImageAttachment =>
-  a.type === 'image';
-const requiresUpload = isImageAttachment;
 
 export function finalizeAttachmentsLocal(
   attachments: Attachment[]
 ): FinalizedAttachment[] {
   return attachments.map((attachment) => {
-    if (requiresUpload(attachment)) {
-      return buildFinalizedImageAttachment(attachment, {
-        status: 'uploading',
-        localUri: attachment.file.uri,
-      });
+    const uploadIntent = Attachment.toUploadIntent(attachment);
+    if (uploadIntent.needsUpload) {
+      return Attachment.UploadIntent.toLocalFinalizedAttachment(uploadIntent)!;
     } else {
-      return attachment;
+      return uploadIntent.finalized;
     }
   });
 }
@@ -68,41 +66,39 @@ export function finalizeAttachmentsLocal(
 export async function finalizeAttachments(
   attachments: Attachment[]
 ): Promise<FinalizedAttachment[]> {
-  const assetAttachments = attachments.filter(requiresUpload);
-  const completedUploads = await waitForUploads(
-    assetAttachments.map((a) => a.file.uri)
-  );
-  return attachments.map((attachment) => {
-    if (requiresUpload(attachment)) {
-      return buildFinalizedImageAttachment(
-        attachment,
-        completedUploads[attachment.file.uri]
-      );
-    } else {
-      return attachment;
+  const assetAttachments: Attachment.UploadIntent[] = attachments.flatMap(
+    (x) => {
+      const uploadIntent = Attachment.toUploadIntent(x);
+      return uploadIntent.needsUpload ? uploadIntent : [];
     }
-  });
+  );
+  const completedUploads = await waitForUploads(
+    assetAttachments.map(Attachment.UploadIntent.extractKey)
+  );
+  return attachments
+    .map((x) => Attachment.toUploadIntent(x))
+    .map((uploadIntent) => {
+      if (uploadIntent.needsUpload) {
+        const upload =
+          completedUploads[Attachment.UploadIntent.extractKey(uploadIntent)];
+        if (upload == null) {
+          throw new Error(`No upload found for upload intent: ${uploadIntent}`);
+        }
+        const finalized = Attachment.UploadIntent.toFinalizedAttachment(
+          uploadIntent,
+          upload
+        );
+        if (finalized == null) {
+          throw new Error('Attachment is not an uploaded image attachment');
+        }
+        return finalized;
+      } else {
+        return uploadIntent.finalized;
+      }
+    });
 }
 
-function buildFinalizedImageAttachment(
-  attachment: ImageAttachment,
-  uploadState: UploadState
-): UploadedImageAttachment {
-  switch (uploadState.status) {
-    case 'error':
-      throw new Error('Attachment is not an uploaded image attachment');
-
-    case 'success':
-    // fallthrough
-    case 'uploading':
-      return {
-        ...attachment,
-        uploadState,
-      };
-  }
-}
-
-export const waitForUploads = async (keys: string[]) => {
+export const waitForUploads = async (keys: Attachment.UploadIntent.Key[]) => {
   return new Promise<Record<string, UploadState>>((resolve, reject) => {
     const unsubscribe = subscribeToUploadStates(() => checkUploads());
     const checkUploads = () => {

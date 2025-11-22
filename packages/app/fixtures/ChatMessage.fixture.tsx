@@ -249,7 +249,7 @@ const ScrollFixture = ({
                     >
                       <RawText>
                         {plaintextPreviewOf(
-                          convertContent(post.content),
+                          convertContent(post.content, post.blob),
                           plaintextPreviewConfig.inline
                             ? PlaintextPreviewConfig.inlineConfig
                             : PlaintextPreviewConfig.defaultConfig
