@@ -63,7 +63,7 @@ export function OTPInput({
               pointerEvents="none"
             >
               <Text fontSize="$2xl" fontWeight="600" color="$foreground">
-                {digit || (i === 0 && !fullValue ? '' : '')}
+                {digit}
               </Text>
             </View>
           );
