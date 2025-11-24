@@ -2286,6 +2286,7 @@
       %blockquote  `[-.i ^$(p.v p.i)]
     ==
   ==
+::  +di-core: direct messaging core
 ::
 ++  di-core
   |_  [=ship =dm:c gone=_|]
@@ -2343,6 +2344,7 @@
       di-core
     =.  cor  (pass-activity [%ship ship] concern content mention)
     di-core
+  ::  +di-proxy: send a message
   ::
   ++  di-proxy
     |=  =diff:dm:c
@@ -2550,7 +2552,7 @@
     =.  cor
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+!>([%meet ~[ship]])]
-    ?.  =(%invited net.dm)  di-core
+    ?.  =(%invited net.dm)  di-core  ::TMI
     ::  accept the invitation
     ::
     =.  net.dm  %done
@@ -2574,11 +2576,9 @@
           =.  dms  (~(del by dms) ship)
           give-invites
         di-core(gone &)
-      ?:  ?=(%inviting net)
-        (di-post-notice ' declined the invite')
       ?:  ?=(%done net)
         =.  net.dm  %inviting
-        (di-post-notice ' left the chat')
+        di-core
       di-core
     ?.  ?=(%inviting net)  di-core
     ::  received rsvp accept: meet the ship, post a notice
