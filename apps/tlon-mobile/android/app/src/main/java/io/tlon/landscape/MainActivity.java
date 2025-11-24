@@ -8,45 +8,24 @@ import android.util.Log;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.graphics.Insets;
-
 import com.facebook.react.ReactActivity;
 import com.posthog.PostHog;
 import com.posthog.android.PostHogAndroid;
 import com.posthog.android.PostHogAndroidConfig;
-
 import java.util.HashMap;
 import java.util.Map;
 import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactActivityDelegate;
-
 import expo.modules.ReactActivityDelegateWrapper;
 import expo.modules.constants.ConstantsService;
-
 import io.branch.rnbranch.*;
-
 import org.json.JSONObject;
 
 public class MainActivity extends ReactActivity {
 
   private static boolean isPostHogInitialized = false;
   private static final Object initLock = new Object();
-
-  /**
-   * Captures a lifecycle event via PostHog native SDK.
-   * This ensures events are captured even if the JS thread is locked.
-   */
-  private void captureLifecycleEvent(String eventName) {
-    try {
-      Map<String, Object> properties = new HashMap<>();
-      properties.put("source", "native_android");
-      properties.put("$lib", "android-native");
-      PostHog.Companion.capture(eventName, null, properties, null, null, null, null);
-      Log.i("PostHog", "Native " + eventName + " event captured");
-    } catch (Exception e) {
-      Log.e("PostHog", "Failed to capture " + eventName + " event: " + e.getMessage());
-    }
-  }
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -159,7 +138,23 @@ public class MainActivity extends ReactActivity {
     super.invokeDefaultOnBackPressed();
   }
 
-    /**
+  /**
+   * Captures a lifecycle event via PostHog native SDK.
+   * This ensures events are captured even if the JS thread is locked.
+   */
+  private void captureLifecycleEvent(String eventName) {
+    try {
+      Map<String, Object> properties = new HashMap<>();
+      properties.put("source", "native_android");
+      properties.put("$lib", "android-native");
+      PostHog.Companion.capture(eventName, null, properties, null, null, null, null);
+      Log.i("PostHog", "Native " + eventName + " event captured");
+    } catch (Exception e) {
+      Log.e("PostHog", "Failed to capture " + eventName + " event: " + e.getMessage());
+    }
+  }
+
+  /**
    * Initialize PostHog if not already initialized
    */
   private void ensurePostHogInitialized() {
