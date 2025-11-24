@@ -936,19 +936,18 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-3',
+    mark: 'group-action-4',
     json: {
-      flag: groupId,
-      update: {
-        time: '',
-        diff: {
+      group: {
+        flag: groupId,
+        'a-group': {
           'flag-content': {
             nest: channelId,
             src: currentUserId,
-            'post-key': {
-              post: post.parentId ? post.parentId : post.id,
-              reply: post.parentId ? post.id : null,
-            },
+            plan: [
+              parseInt(post.parentId ? post.parentId : post.id),
+              post.parentId ? parseInt(post.id) : null,
+            ],
           },
         },
       },

@@ -512,9 +512,7 @@ export const syncPinnedItems = async (ctx?: SyncCtx) => {
 };
 
 export const syncGroups = async (ctx?: SyncCtx) => {
-  const groups = await syncQueue.add('groups', ctx, () =>
-    api.getGroups({ includeMembers: false })
-  );
+  const groups = await syncQueue.add('groups', ctx, () => api.getGroups());
   await db.insertGroups({ groups: groups });
 };
 

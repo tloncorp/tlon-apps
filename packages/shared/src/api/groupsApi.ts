@@ -29,7 +29,7 @@ import {
 
 const logger = createDevLogger('groupsApi', false);
 
-function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
+function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupActionV3> {
   return {
     app: 'groups',
     mark: 'group-action-3',
@@ -99,12 +99,15 @@ export function acceptGroupJoin({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        shut: {
-          'add-ships': {
-            ships: contactIds,
-            kind: 'pending',
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ask: {
+              ships: contactIds,
+              'c-ask': 'approve',
+            },
           },
         },
       },
@@ -120,12 +123,15 @@ export function rejectGroupJoin({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        shut: {
-          'del-ships': {
-            ships: contactIds,
-            kind: 'ask',
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ask: {
+              ships: contactIds,
+              'c-ask': 'deny',
+            },
           },
         },
       },
@@ -179,11 +185,16 @@ export async function kickUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      fleet: {
-        ships: contactIds,
-        diff: {
-          del: null,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: contactIds,
+            'a-seat': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -198,10 +209,15 @@ export async function banUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        open: {
-          'add-ships': contactIds,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ban: {
+              'add-ships': contactIds,
+            },
+          },
         },
       },
     })
@@ -216,10 +232,15 @@ export async function unbanUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        open: {
-          'del-ships': contactIds,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ban: {
+              'del-ships': contactIds,
+            },
+          },
         },
       },
     })
@@ -248,40 +269,19 @@ export async function updateGroupPrivacy(params: {
   oldPrivacy: GroupPrivacy;
   newPrivacy: GroupPrivacy;
 }) {
-  if (params.newPrivacy === 'public') {
-    const action = groupAction(params.groupId, {
-      cordon: {
-        swap: {
-          open: {
-            ships: [],
-            ranks: [],
+  // In v8/v9, privacy is a single unified setting that includes secret/private/public
+  return poke(
+    groupAction4({
+      group: {
+        flag: params.groupId,
+        'a-group': {
+          entry: {
+            privacy: params.newPrivacy,
           },
         },
       },
-    });
-    await poke(action);
-  } else {
-    // Only swap if it's currently public. If moving between secret and private, we keep
-    // the existing cordon to avoid losing pending requests.
-    if (params.oldPrivacy === 'public') {
-      const cordonSwapAction = groupAction(params.groupId, {
-        cordon: {
-          swap: {
-            shut: {
-              pending: [],
-              ask: [],
-            },
-          },
-        },
-      });
-      await poke(cordonSwapAction);
-    }
-  }
-
-  const secretAction = groupAction(params.groupId, {
-    secret: params.newPrivacy === 'secret',
-  });
-  await poke(secretAction);
+    })
+  );
 }
 
 export const getPinnedItemType = (rawItem: string) => {
@@ -449,17 +449,12 @@ export const getGroup = async (groupId: string) => {
   return toClientGroupV7(groupId, groupData, true);
 };
 
-export const getGroups = async (
-  {
-    includeMembers,
-  }: {
-    includeMembers: boolean;
-  } = {
-    includeMembers: false,
-  }
-) => {
-  const path = includeMembers ? '/groups' : '/groups/light';
-  const groupData = await scry<ub.Groups>({ app: 'groups', path });
+export const getGroups = async () => {
+  // v2 scry path returns v9 format (with admissions/seats)
+  const groupData = await scry<ub.Groups>({
+    app: 'groups',
+    path: '/v2/groups',
+  });
   return toClientGroups(groupData, true);
 };
 
@@ -470,25 +465,30 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      meta,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          meta,
+        },
+      },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'meta' in update.diff && event.flag === groupId;
+      const rGroup = event['r-group'];
+      return 'meta' in rGroup && event.flag === groupId;
     },
     { tag: 'updateGroupMeta' }
   );
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.GroupAction>(
+  return await trackedPoke<ub.GroupActionV3>(
     groupAction(groupId, {
       del: null,
     }),
@@ -512,28 +512,34 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      zone: {
-        zone: navSection.sectionId,
-        delta: {
-          add: {
-            title: navSection.title ?? '',
-            description: navSection.description ?? '',
-            image: navSection.iconImage ?? navSection.coverImageColor ?? '',
-            cover: navSection.coverImage ?? navSection.coverImageColor ?? '',
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': navSection.sectionId,
+            'a-section': {
+              add: {
+                title: navSection.title ?? '',
+                description: navSection.description ?? '',
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
+              },
+            },
           },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'zone' in update.diff && event.flag === groupId;
+      const rGroup = event['r-group'];
+      return 'section' in rGroup && event.flag === groupId;
     },
     { tag: 'addNavSection' }
   );
@@ -547,11 +553,16 @@ export const deleteNavSection = async ({
   groupId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: sectionId,
-        delta: {
-          del: null,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': sectionId,
+            'a-section': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -566,15 +577,21 @@ export const updateNavSection = async ({
   navSection: db.GroupNavSection;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSection.sectionId,
-        delta: {
-          edit: {
-            title: navSection.title ?? '',
-            description: navSection.description ?? '',
-            image: navSection.iconImage ?? navSection.coverImageColor ?? '',
-            cover: navSection.coverImage ?? navSection.coverImageColor ?? '',
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': navSection.sectionId,
+            'a-section': {
+              edit: {
+                title: navSection.title ?? '',
+                description: navSection.description ?? '',
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
+              },
+            },
           },
         },
       },
@@ -592,23 +609,32 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          zone: navSectionId,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              section: navSectionId,
+            },
+          },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+      const rGroup = event['r-group'];
+      return (
+        'channel' in rGroup &&
+        rGroup.channel.nest === channelId &&
+        'section' in rGroup.channel['r-channel']
+      );
     },
     { tag: 'addChannelToNavSection' }
   );
@@ -623,23 +649,32 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          zone: sectionId,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              section: sectionId,
+            },
+          },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+      const rGroup = event['r-group'];
+      return (
+        'channel' in rGroup &&
+        rGroup.channel.nest === channelId &&
+        'section' in rGroup.channel['r-channel']
+      );
     },
     { tag: 'addChannelToGroup' }
   );
@@ -655,11 +690,16 @@ export const updateChannel = async ({
   channel: GroupChannel;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          edit: channel,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              edit: channel,
+            },
+          },
         },
       },
     })
@@ -674,11 +714,16 @@ export const deleteChannel = async ({
   channelId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          del: null,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -729,15 +774,20 @@ export const addGroupRole = async ({
   meta: db.ClientMeta;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          add: {
-            title: meta.title ?? '',
-            description: meta.description ?? '',
-            image: '',
-            cover: '',
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              add: {
+                title: meta.title ?? '',
+                description: meta.description ?? '',
+                image: '',
+                cover: '',
+              },
+            },
           },
         },
       },
@@ -753,11 +803,16 @@ export const deleteGroupRole = async ({
   roleId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          del: null,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -774,15 +829,20 @@ export const updateGroupRole = async ({
   meta: db.ClientMeta;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          edit: {
-            title: meta.title ?? '',
-            description: meta.description ?? '',
-            image: '',
-            cover: '',
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              edit: {
+                title: meta.title ?? '',
+                description: meta.description ?? '',
+                image: '',
+                cover: '',
+              },
+            },
           },
         },
       },
@@ -800,11 +860,16 @@ export const addMembersToRole = async ({
   ships: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships,
-        diff: {
-          'add-sects': [roleId],
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships,
+            'a-seat': {
+              'add-roles': [roleId],
+            },
+          },
         },
       },
     })
@@ -821,11 +886,16 @@ export const removeMembersFromRole = async ({
   ships: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships,
-        diff: {
-          'del-sects': [roleId],
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships,
+            'a-seat': {
+              'del-roles': [roleId],
+            },
+          },
         },
       },
     })
@@ -842,11 +912,16 @@ export const removeAllRolesFromMembers = async ({
   roleIds: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships: contactIds,
-        diff: {
-          'del-sects': roleIds,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: contactIds,
+            'a-seat': {
+              'del-roles': roleIds,
+            },
+          },
         },
       },
     })
@@ -1110,17 +1185,7 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  subscribe<ub.GroupAction>(
-    { app: 'groups', path: '/groups/ui' },
-    (groupUpdateEvent) => {
-      logger.log('groupUpdateEvent', groupUpdateEvent);
-      const update = toGroupUpdate(groupUpdateEvent);
-      if (update) {
-        eventHandler(update);
-      }
-    }
-  );
-
+  // Subscribe to v1/groups for all group updates (v9 response format)
   subscribe<ub.V1GroupResponse>(
     { app: 'groups', path: '/v1/groups' },
     (rawEvent) => {
@@ -1131,6 +1196,7 @@ export const subscribeGroups = async (
     }
   );
 
+  // Subscribe to v1/foreigns for foreign group updates
   subscribe(
     { app: 'groups', path: '/v1/foreigns' },
     (rawEvent: ub.Foreigns) => {
@@ -1146,9 +1212,162 @@ export const toV1GroupsUpdate = (
   const groupId = rawEvent.flag;
   const event = rawEvent['r-group'];
 
+  // Handle group creation
+  if ('create' in event) {
+    return {
+      type: 'addGroup',
+      group: toClientGroupV7(groupId, event.create, true),
+    };
+  }
+
+  // Handle group deletion
+  if ('delete' in event) {
+    return {
+      type: 'deleteGroup',
+      groupId,
+    };
+  }
+
+  // Handle metadata updates
+  if ('meta' in event) {
+    return {
+      type: 'editGroup',
+      meta: toClientMeta(event.meta),
+      groupId,
+    };
+  }
+
+  // Handle role operations
+  if ('role' in event) {
+    const roleData = event.role;
+    const roleId = roleData.roles[0]; // v9 uses array but typically single role
+    const rRole = roleData['r-role'];
+
+    if ('add' in rRole) {
+      return {
+        type: 'addRole',
+        roleId,
+        meta: rRole.add,
+        groupId,
+      };
+    }
+
+    if ('del' in rRole) {
+      return {
+        type: 'deleteRole',
+        roleId,
+        groupId,
+      };
+    }
+
+    if ('edit' in rRole) {
+      return {
+        type: 'editRole',
+        roleId,
+        meta: rRole.edit,
+        groupId,
+      };
+    }
+  }
+
+  // Handle member/seat operations
+  if ('seat' in event) {
+    const seatData = event.seat;
+    const ships = seatData.ships;
+    const rSeat = seatData['r-seat'];
+
+    if ('add' in rSeat) {
+      return {
+        type: 'addGroupMembers',
+        ships,
+        groupId,
+      };
+    }
+
+    if ('del' in rSeat) {
+      return {
+        type: 'removeGroupMembers',
+        ships,
+        groupId,
+      };
+    }
+
+    if ('add-roles' in rSeat) {
+      return {
+        type: 'addGroupMembersToRole',
+        ships,
+        roles: rSeat['add-roles'],
+        groupId,
+      };
+    }
+
+    if ('del-roles' in rSeat) {
+      return {
+        type: 'removeGroupMembersFromRole',
+        ships,
+        roles: rSeat['del-roles'],
+        groupId,
+      };
+    }
+  }
+
+  // Handle entry operations (privacy, bans, invitations, join requests)
   if ('entry' in event) {
-    if ('ask' in event.entry) {
-      const askData = event.entry.ask;
+    const entry = event.entry;
+
+    // Handle privacy changes
+    if ('privacy' in entry) {
+      const privacy = entry.privacy;
+      if (privacy === 'secret') {
+        return { type: 'setGroupAsSecret', groupId };
+      } else if (privacy === 'private') {
+        return { type: 'setGroupAsShut', groupId };
+      } else if (privacy === 'public') {
+        return { type: 'setGroupAsOpen', groupId };
+      }
+    }
+
+    // Handle ban operations
+    if ('ban' in entry) {
+      const ban = entry.ban;
+
+      if ('add-ships' in ban) {
+        return {
+          type: 'banGroupMembers',
+          ships: ban['add-ships'],
+          groupId,
+        };
+      }
+
+      if ('del-ships' in ban) {
+        return {
+          type: 'unbanGroupMembers',
+          ships: ban['del-ships'],
+          groupId,
+        };
+      }
+
+      if ('add-ranks' in ban) {
+        return {
+          type: 'banAzimuthRanks',
+          ranks: ban['add-ranks'] as Rank[],
+          groupId,
+        };
+      }
+
+      if ('del-ranks' in ban) {
+        return {
+          type: 'unbanAzimuthRanks',
+          ranks: ban['del-ranks'] as Rank[],
+          groupId,
+        };
+      }
+    }
+
+    // Handle join request operations
+    if ('ask' in entry) {
+      const askData = entry.ask;
+
       if ('add' in askData) {
         const joinRequestData = askData.add;
         return {
@@ -1160,14 +1379,162 @@ export const toV1GroupsUpdate = (
           },
         };
       }
+
+      if ('del' in askData) {
+        return {
+          type: 'revokeGroupJoinRequests',
+          ships: askData.del.ships,
+          groupId,
+        };
+      }
     }
+
+    // Handle pending invitations
+    if ('pending' in entry) {
+      const pending = entry.pending;
+
+      if ('add' in pending) {
+        return {
+          type: 'inviteGroupMembers',
+          ships: pending.add.ships,
+          groupId,
+        };
+      }
+
+      if ('del' in pending) {
+        return {
+          type: 'revokeGroupMemberInvites',
+          ships: pending.del.ships,
+          groupId,
+        };
+      }
+    }
+  }
+
+  // Handle channel operations
+  if ('channel' in event) {
+    const channelData = event.channel;
+    const channelId = channelData.nest;
+    const rChannel = channelData['r-channel'];
+
+    if ('add' in rChannel) {
+      return {
+        type: 'addChannel',
+        channel: toClientChannel({
+          id: channelId,
+          channel: rChannel.add,
+          groupId,
+        }),
+      };
+    }
+
+    if ('edit' in rChannel) {
+      return {
+        type: 'updateChannel',
+        channel: toClientChannel({
+          id: channelId,
+          channel: rChannel.edit,
+          groupId,
+        }),
+      };
+    }
+
+    if ('del' in rChannel) {
+      return { type: 'deleteChannel', channelId };
+    }
+
+    if ('join' in rChannel) {
+      const isJoined = rChannel.join;
+
+      if (!isJoined) {
+        return { type: 'leaveChannel', channelId };
+      }
+
+      return { type: 'joinChannel', channelId, groupId };
+    }
+
+    if ('section' in rChannel) {
+      const zoneId = rChannel.section;
+      return {
+        type: 'addChannelToNavSection',
+        channelId,
+        groupId,
+        navSectionId: `${groupId}-${zoneId}`,
+        sectionId: zoneId,
+      };
+    }
+  }
+
+  // Handle section/zone operations
+  if ('section' in event) {
+    const sectionData = event.section;
+    const sectionId = sectionData['section-id'];
+    const navSectionId = `${groupId}-${sectionId}`;
+    const rSection = sectionData['r-section'];
+
+    if ('add' in rSection) {
+      return {
+        type: 'addNavSection',
+        navSectionId,
+        sectionId,
+        groupId,
+        clientMeta: toClientMeta(rSection.add),
+      };
+    }
+
+    if ('del' in rSection) {
+      return { type: 'deleteNavSection', navSectionId };
+    }
+
+    if ('edit' in rSection) {
+      return {
+        type: 'editNavSection',
+        navSectionId,
+        sectionId,
+        clientMeta: toClientMeta(rSection.edit),
+      };
+    }
+
+    if ('move' in rSection) {
+      return {
+        type: 'moveNavSection',
+        navSectionId,
+        sectionId,
+        index: rSection.move.idx,
+      };
+    }
+
+    if ('move-nest' in rSection) {
+      return {
+        type: 'moveChannel',
+        navSectionId,
+        sectionId,
+        groupId,
+        channelId: rSection['move-nest'].nest,
+        index: rSection['move-nest'].idx,
+      };
+    }
+  }
+
+  // Handle flag-content operations
+  if ('flag-content' in event) {
+    const flagData = event['flag-content'];
+    return {
+      type: 'flagGroupPost',
+      groupId,
+      channelId: flagData.nest,
+      postId: flagData.plan[1]
+        ? flagData.plan[1].toString()
+        : flagData.plan[0].toString(),
+      flaggingUser: flagData.src,
+    };
   }
 
   return null;
 };
 
 export const toGroupUpdate = (
-  groupUpdateEvent: ub.GroupAction
+  groupUpdateEvent: ub.GroupActionV3
 ): GroupUpdate | null => {
   const groupId = groupUpdateEvent.flag;
   const updateDiff = groupUpdateEvent.update.diff;
