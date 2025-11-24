@@ -11,6 +11,8 @@ import androidx.core.graphics.Insets;
 
 import com.facebook.react.ReactActivity;
 import com.posthog.PostHog;
+import com.posthog.android.PostHogAndroid;
+import com.posthog.android.PostHogAndroidConfig;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,10 +21,16 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactActivityDelegate;
 
 import expo.modules.ReactActivityDelegateWrapper;
+import expo.modules.constants.ConstantsService;
 
 import io.branch.rnbranch.*;
 
+import org.json.JSONObject;
+
 public class MainActivity extends ReactActivity {
+
+  private static boolean isPostHogInitialized = false;
+  private static final Object initLock = new Object();
 
   /**
    * Captures a lifecycle event via PostHog native SDK.
@@ -33,7 +41,7 @@ public class MainActivity extends ReactActivity {
       Map<String, Object> properties = new HashMap<>();
       properties.put("source", "native_android");
       properties.put("$lib", "android-native");
-      PostHog.INSTANCE.capture(eventName, properties);
+      PostHog.Companion.capture(eventName, null, properties, null, null, null, null);
       Log.i("PostHog", "Native " + eventName + " event captured");
     } catch (Exception e) {
       Log.e("PostHog", "Failed to capture " + eventName + " event: " + e.getMessage());
@@ -47,6 +55,7 @@ public class MainActivity extends ReactActivity {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null);
+    ensurePostHogInitialized();
     captureLifecycleEvent("App Created");
 
     // Handle window insets for Android API 35+
@@ -148,6 +157,31 @@ public class MainActivity extends ReactActivity {
     // Use the default back button implementation on Android S
     // because it's doing more than {@link Activity#moveTaskToBack} in fact.
     super.invokeDefaultOnBackPressed();
+  }
+
+    /**
+   * Initialize PostHog if not already initialized
+   */
+  private void ensurePostHogInitialized() {
+    synchronized(initLock) {
+      if (!isPostHogInitialized) {
+        try {
+          ConstantsService cs = new ConstantsService(this);
+          JSONObject constants = new JSONObject((String) cs.getConstants().get("manifest"));
+          String key = constants.getJSONObject("extra").getString("postHogApiKey");
+          if (key == null || key.isEmpty()) {
+            Log.w("MainActivity", "PostHog API key is empty, skipping initialization");
+            return;
+          }
+          PostHogAndroidConfig config = new PostHogAndroidConfig(key, "https://eu.i.posthog.com");
+          PostHogAndroid.Companion.setup(getApplicationContext(), config);
+          isPostHogInitialized = true;
+          Log.d("MainActivity", "PostHog initialized in MainActivity");
+        } catch (Exception e) {
+          Log.e("MainActivity", "Failed to initialize PostHog in MainActivity", e);
+        }
+      }
+    }
   }
 
 }
