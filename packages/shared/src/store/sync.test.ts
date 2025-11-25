@@ -2,7 +2,7 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { StructuredChannelDescriptionPayload, toClientGroup } from '../api';
+import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '../api';
 import '../api/channelContentConfig';
 import {
   CollectionRendererId,
@@ -35,7 +35,7 @@ import {
   ContactBookScryResult1,
   Contact as UrbitContact,
 } from '../urbit/contact';
-import { Group as UrbitGroup } from '../urbit/groups';
+import { GroupV7 as UrbitGroup } from '../urbit/groups';
 import {
   syncContacts,
   syncDms,
@@ -219,7 +219,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
 const testGroupData: db.Group = {
-  ...toClientGroup(
+  ...toClientGroupV7(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true
