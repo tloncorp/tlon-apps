@@ -1440,7 +1440,7 @@
       ^-  $-(json channel:v7:gv)
       %-  ot
       :~  meta+meta
-          added+time
+          added+di
           section+so
           readers+roles
           join+bo

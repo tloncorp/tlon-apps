@@ -8,7 +8,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
-  GroupChannel,
+  GroupChannelV7,
   Rank,
   extractGroupPrivacy,
   getChannelType,
@@ -687,7 +687,7 @@ export const updateChannel = async ({
 }: {
   groupId: string;
   channelId: string;
-  channel: GroupChannel;
+  channel: GroupChannelV7;
 }) => {
   return await poke(
     groupAction4({

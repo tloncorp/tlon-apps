@@ -702,8 +702,8 @@ export type GroupRoleAction =
   | { 'del-admin': null };
 
 export type GroupChannelAction =
-  | { add: GroupChannel }
-  | { edit: GroupChannel }
+  | { add: GroupChannelV7 }
+  | { edit: GroupChannelV7 }
   | { del: null }
   | { 'add-readers': string[] } // role-ids
   | { 'del-readers': string[] } // role-ids
