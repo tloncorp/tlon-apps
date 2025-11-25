@@ -427,11 +427,6 @@ export type GroupResponseSection =
   | { 'move-nest': { idx: number; nest: string } }
   | { set: string[] };
 
-export interface GroupActionV3 {
-  flag: string;
-  update: GroupUpdate;
-}
-
 export interface GroupCreate extends GroupMeta {
   name: string;
   cordon: Cordon;

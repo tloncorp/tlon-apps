@@ -27,7 +27,7 @@ import {
 import rawGroupsInit2 from '../test/init.json';
 import {
   CombinedHeads,
-  GroupsInit,
+  GroupsInit6,
   PagedPosts,
   PostDataResponse,
 } from '../urbit';
@@ -56,8 +56,8 @@ const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
-const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
-const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 setupDatabaseTestSuite();

@@ -17,7 +17,7 @@ import {
   DmRsvp,
   WritDiff,
 } from '@tloncorp/shared/urbit/dms';
-import { GroupActionV3 } from '@tloncorp/shared/urbit/groups';
+import { GroupActionV4 } from '@tloncorp/shared/urbit/groups';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import _ from 'lodash';
@@ -149,13 +149,18 @@ const groups: Handler[] = [
   {
     action: 'poke',
     app: 'groups',
-    mark: 'group-action-2',
+    mark: 'group-action-4',
     returnSubscription: specificGroupSub,
-    dataResponder: (req: Message & Poke<GroupActionV3>) =>
-      createResponse(req, 'diff', {
-        ...req.json.update,
-        time: getNowUd(),
-      }),
+    dataResponder: (req: Message & Poke<GroupActionV4>) => {
+      if ('group' in req.json) {
+        return createResponse(req, 'diff', {
+          flag: req.json.group.flag,
+          ...req.json.group['a-group'],
+          time: getNowUd(),
+        });
+      }
+      return createResponse(req, 'diff', { time: getNowUd() });
+    },
   },
   {
     action: 'scry',
