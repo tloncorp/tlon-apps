@@ -52,7 +52,7 @@ export const DetailView = ({
     if (editorIsFocused && flatListRef) {
       flatListRef.current?.scrollToIndex({ index: 1, animated: true });
     }
-  }, [editorIsFocused, flatListRef]);
+  }, [editorIsFocused]);
 
   const containingProperties: any = useMemo(() => {
     return isChat
@@ -118,6 +118,12 @@ export const DetailView = ({
     <FlatList
       data={isChat ? ['posts'] : ['header', 'posts']}
       ref={flatListRef}
+      onScrollToIndexFailed={(info) => {
+        // Fallback: if scrollToIndex fails, wait briefly and scroll to end instead
+        setTimeout(() => {
+          flatListRef?.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }}
       renderItem={({ item }) => {
         if (item === 'header') {
           return (
