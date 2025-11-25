@@ -1237,7 +1237,11 @@ export const toV1GroupsUpdate = (
   // Handle role operations
   if ('role' in event) {
     const roleData = event.role;
-    const roleId = roleData.roles[0]; // v9 uses array but typically single role
+    const roleId = roleData.roles?.[0];
+    if (!roleId) {
+      logger.warn('Role event received with empty roles array', event);
+      return null;
+    }
     const rRole = roleData['r-role'];
 
     if ('add' in rRole) {
