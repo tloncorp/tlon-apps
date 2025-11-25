@@ -1301,6 +1301,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~|  commit
   ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take+pole !!)
       ~   cor
