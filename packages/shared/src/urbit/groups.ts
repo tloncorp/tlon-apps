@@ -357,7 +357,10 @@ export type GroupResponseData =
   | {
       'flag-content': {
         nest: string;
-        plan: [number, number | null];
+        'post-key': {
+          post: string;
+          reply: string | null;
+        };
         src: string;
       };
     }

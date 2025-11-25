@@ -1523,9 +1523,9 @@ export const toV1GroupsUpdate = (
       type: 'flagGroupPost',
       groupId,
       channelId: flagData.nest,
-      postId: flagData.plan[1]
-        ? flagData.plan[1].toString()
-        : flagData.plan[0].toString(),
+      postId: flagData['post-key'].reply
+        ? flagData['post-key'].reply
+        : flagData['post-key'].post,
       flaggingUser: flagData.src,
     };
   }

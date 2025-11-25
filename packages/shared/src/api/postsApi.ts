@@ -943,11 +943,11 @@ export async function reportPost(
         'a-group': {
           'flag-content': {
             nest: channelId,
+            'post-key': {
+              post: post.parentId ? post.parentId : post.id,
+              reply: post.parentId ? post.id : null,
+            },
             src: currentUserId,
-            plan: [
-              parseInt(post.parentId ? post.parentId : post.id),
-              post.parentId ? parseInt(post.id) : null,
-            ],
           },
         },
       },
