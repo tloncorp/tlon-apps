@@ -52,7 +52,7 @@ export const DetailView = ({
     if (editorIsFocused && flatListRef) {
       flatListRef.current?.scrollToIndex({ index: 1, animated: true });
     }
-  }, [editorIsFocused, flatListRef]);
+  }, [editorIsFocused]);
 
   const containingProperties: any = useMemo(() => {
     return isChat
