@@ -28,6 +28,7 @@ import {
   ScrollView,
   TlonText,
   View,
+  WidgetPane,
   XStack,
   YStack,
   createActionGroup,
@@ -35,6 +36,7 @@ import {
   pluralize,
   useChatOptions,
   useChatTitle,
+  useCopy,
   useCurrentUserId,
   useForwardGroupSheet,
   useGroupTitle,
@@ -129,6 +131,7 @@ export function ChatDetailsScreenView() {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backAction={handlePressBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
@@ -259,28 +262,24 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const handleLeaveGroupWithConfirm = useCallback(async () => {
     const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
-    
+
     if (isWeb) {
       const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
       if (confirmed) {
         await leaveGroup();
       }
     } else {
-      Alert.alert(
-        `Leave ${groupTitle}?`,
-        message,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Leave Group',
-            style: 'destructive',
-            onPress: leaveGroup,
-          },
-        ]
-      );
+      Alert.alert(`Leave ${groupTitle}?`, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Leave Group',
+          style: 'destructive',
+          onPress: leaveGroup,
+        },
+      ]);
     }
   }, [groupTitle, leaveGroup]);
 
