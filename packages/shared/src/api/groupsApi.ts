@@ -29,20 +29,6 @@ import {
 
 const logger = createDevLogger('groupsApi', false);
 
-function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupActionV3> {
-  return {
-    app: 'groups',
-    mark: 'group-action-3',
-    json: {
-      flag,
-      update: {
-        time: '',
-        diff,
-      },
-    },
-  };
-}
-
 function groupAction4(action: ub.GroupActionV4) {
   return {
     app: 'groups',
@@ -489,8 +475,13 @@ export const updateGroupMeta = async ({
 
 export const deleteGroup = async (groupId: string) => {
   return await trackedPoke<ub.V1GroupResponse>(
-    groupAction(groupId, {
-      del: null,
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          delete: null,
+        },
+      },
     }),
     { app: 'groups', path: '/v1/groups' },
     (event) => {

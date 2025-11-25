@@ -658,7 +658,8 @@ export type GroupAction =
         plan: [number, number | null]; // [post-time, reply-time?]
         src: string; // ship
       };
-    };
+    }
+  | { delete: null };
 
 export type GroupEntryAction =
   | { privacy: PrivacyType }

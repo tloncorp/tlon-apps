@@ -1299,6 +1299,7 @@
           section+(ot section-id+so a-section+a-section:v7 ~)
           navigation+a-navigation
           flag-content+flag-content
+          delete+ul
       ==
     ++  a-navigation
       ^-  $-(json a-navigation:v8:gv)
