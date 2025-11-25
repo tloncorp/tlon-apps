@@ -1,6 +1,7 @@
 import { usePostHog as useWebPosthog } from 'posthog-js/react';
 import { useMemo } from 'react';
 
+import { identifyUser } from '../utils/identifyUser.web';
 import { PosthogClient } from './usePosthog.base';
 
 export function usePosthog() {
@@ -16,7 +17,7 @@ export function usePosthog() {
         posthog?.opt_out_capturing();
       },
       identify: (userId, properties) => {
-        posthog?.identify(userId, properties);
+        identifyUser(userId, properties);
       },
       capture: (eventName, properties) =>
         posthog?.capture(eventName, properties),

@@ -1,14 +1,13 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
-const { getDefaultConfig } = require('expo/metro-config');
 const { mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
 const fs = require('fs');
 const connect = require('connect');
 const { spawn } = require('child_process');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
-const config = getDefaultConfig(projectRoot);
+const config = getSentryExpoConfig(projectRoot);
 
 module.exports = mergeConfig(config, {
   watchFolders: [workspaceRoot],
