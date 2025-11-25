@@ -15,6 +15,7 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { fileFromPath } from '../utils/file';
 import { makeMention, makeParagraph, makeText } from './tiptap';
 
 const isBoldStart = (text: string): boolean => {
@@ -532,6 +533,47 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
+type PostBlobData = { fileUri: string; name?: string }[];
+
+export function appendFileUploadToPostBlob(
+  blob: string | undefined,
+  opts: { fileUri: string; name?: string }
+) {
+  const data: PostBlobData = (() => {
+    if (!blob) {
+      return [];
+    }
+    try {
+      const arr: PostBlobData = JSON.parse(blob);
+      if (Array.isArray(arr)) {
+        return arr;
+      }
+    } catch {
+      // swallow parse error
+    }
+    return [];
+  })();
+  data.push({
+    fileUri: opts.fileUri,
+    name: opts.name,
+  });
+  return JSON.stringify(data);
+}
+
+export function parsePostBlob(blob: string): PostBlobData {
+  try {
+    const arr: PostBlobData = JSON.parse(blob);
+    if (Array.isArray(arr)) {
+      // This looks like an identity, but it's actually a very bad way to
+      // validate the PostBlobData.
+      return arr.map(({ fileUri, name }) => ({ fileUri, name }));
+    }
+  } catch {
+    // swallow parse error
+  }
+  return [];
+}
+
 export function toPostData({
   attachments,
   content,
@@ -546,28 +588,62 @@ export function toPostData({
   title?: string;
   image?: string;
   isEdit?: boolean;
-}): { story: Story; metadata: PostMetadata } {
-  const blocks = attachments
+}): { story: Story; metadata: PostMetadata; blob?: string } {
+  const blocks: Block[] = [];
+  let blob: string | undefined = undefined;
+
+  attachments
     .filter((attachment) => attachment.type !== 'text')
-    .flatMap((attachment): Block[] => {
-      if (attachment.type === 'reference') {
-        const block = createReferenceBlock(attachment);
-        return block ? [block] : [];
+    .forEach((attachment) => {
+      switch (attachment.type) {
+        case 'reference': {
+          const block = createReferenceBlock(attachment);
+          if (block) {
+            blocks.push(block);
+          }
+          break;
+        }
+
+        case 'image': {
+          if (
+            !image ||
+            attachment.file.uri !== image ||
+            (attachment.file.uri === image &&
+              isEdit &&
+              channelType === 'gallery')
+          ) {
+            blocks.push(createImageBlock(attachment));
+          }
+          break;
+        }
+
+        case 'link': {
+          blocks.push(createLinkBlock(attachment));
+          break;
+        }
+
+        case 'file': {
+          const name =
+            attachment.name ??
+            (attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+            undefined;
+          if (attachment.uploadState.status === 'success') {
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.remoteUri,
+              name,
+            });
+          } else if (attachment.uploadState.status === 'uploading') {
+            // necessary for optimistic preview
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.localUri,
+              name,
+            });
+          }
+          break;
+        }
       }
-      if (
-        attachment.type === 'image' &&
-        (!image ||
-          attachment.file.uri !== image ||
-          (attachment.file.uri === image &&
-            isEdit &&
-            channelType === 'gallery'))
-      ) {
-        return [createImageBlock(attachment)];
-      }
-      if (attachment.type === 'link') {
-        return [createLinkBlock(attachment)];
-      }
-      return [];
     });
 
   const story = constructStory(content);
@@ -598,7 +674,7 @@ export function toPostData({
     metadata.image = null;
   }
 
-  return { story, metadata };
+  return { story, metadata, blob };
 }
 
 function createImageBlock(attachment: UploadedImageAttachment): Block {

@@ -1,10 +1,16 @@
-import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
+import {
+  Attachment,
+  PLACEHOLDER_ASSET_URI,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
+import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -21,12 +27,14 @@ export default function AttachmentSheet({
   showClearOption,
   onClearAttachments,
   onAttach,
+  mediaType,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
   onClearAttachments?: () => void;
   onOpenChange: (open: boolean) => void;
-  onAttach?: (assets: ImagePicker.ImagePickerAsset[]) => void;
+  onAttach?: (assets: Attachment.UploadIntent[]) => void;
+  mediaType: 'image' | 'all';
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -75,28 +83,36 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
+        // TODO: we're doing two layers of conversion here:
+        //   clipboardData -> ImagePickerAsset -> UploadIntent
+        // `createImageAssetFromClipboardData` in particular lies about the
+        // image's dimensions - we should probably remove one layer
         const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
-        attachAssets([clipboardAsset]);
-        onAttach?.([clipboardAsset]);
+        const atts = [
+          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
+        ];
+        attachAssets(atts);
+        onAttach?.(atts);
       } catch (error) {
         logger.trackError('Error pasting from clipboard', { error });
       }
     }, 50);
   }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
 
-  const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
-    () => ({
-      assetId: 'placeholder-asset-id',
-      uri: PLACEHOLDER_ASSET_URI,
-      width: 300,
-      height: 300,
-      fileName: 'camera-image.jpg',
-      fileSize: 0,
-      type: 'image',
-      duration: undefined,
-      exif: undefined,
-      base64: undefined,
-    }),
+  const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
+    () =>
+      Attachment.UploadIntent.fromImagePickerAsset({
+        assetId: 'placeholder-asset-id',
+        uri: PLACEHOLDER_ASSET_URI,
+        width: 300,
+        height: 300,
+        fileName: 'camera-image.jpg',
+        fileSize: 0,
+        type: 'image',
+        duration: undefined,
+        exif: undefined,
+        base64: undefined,
+      }),
     []
   );
 
@@ -126,7 +142,7 @@ export default function AttachmentSheet({
         // Immediately set the placeholder attachment to show in the UI
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
         if (Platform.OS !== 'web') {
-          attachAssets([placeholderAsset]);
+          attachAssets([placeholderUploadIntent]);
         }
 
         const result = await ImagePicker.launchCameraAsync({
@@ -141,8 +157,11 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([realAsset]);
-          onAttach?.(result.assets);
+          const atts = [
+            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
+          ];
+          attachAssets(atts);
+          onAttach?.(atts);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -161,7 +180,7 @@ export default function AttachmentSheet({
     onOpenChange,
     cameraPermissionStatus,
     requestCameraPermission,
-    placeholderAsset,
+    placeholderUploadIntent,
     removePlaceholderAttachment,
   ]);
 
@@ -183,7 +202,7 @@ export default function AttachmentSheet({
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
         setTimeout(() => {
           if (Platform.OS !== 'web') {
-            attachAssets([placeholderAsset]);
+            attachAssets([placeholderUploadIntent]);
           }
         }, 200);
 
@@ -199,8 +218,11 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          attachAssets([realAsset]);
-          onAttach?.(result.assets);
+          const atts = [
+            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
+          ];
+          attachAssets(atts);
+          onAttach?.(atts);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -220,9 +242,41 @@ export default function AttachmentSheet({
     onOpenChange,
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
-    placeholderAsset,
+    placeholderUploadIntent,
     removePlaceholderAttachment,
   ]);
+
+  const startFilePicker = useCallback(async () => {
+    onOpenChange(false);
+
+    const files = await pickFile();
+    if (files.length > 0) {
+      const uploadIntents = files.map((entry): Attachment.UploadIntent => {
+        // We have the two `type`s here because web has `File`s (which are
+        // higher resolution and more efficient than URIs), and RN only has
+        // URIs.
+        switch (entry.type) {
+          case 'file': {
+            return {
+              type: 'file',
+              file: entry.file,
+            };
+          }
+          case 'uri': {
+            return {
+              type: 'fileUri',
+              localUri: entry.uri,
+              name: entry.name,
+            };
+          }
+        }
+      });
+
+      attachAssets(uploadIntents);
+      onAttach?.(uploadIntents);
+    }
+  }, [attachAssets, onOpenChange, onAttach]);
+  const [canUploadFiles] = useFeatureFlag('fileUpload');
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -236,6 +290,11 @@ export default function AttachmentSheet({
               : 'Choose a photo from your library',
             action: pickImage,
           },
+          canUploadFiles &&
+            mediaType === 'all' && {
+              title: 'Upload a file',
+              action: startFilePicker,
+            },
           !isWeb && {
             title: 'Take a Photo',
             description: 'Use your camera to take a photo',
@@ -260,10 +319,12 @@ export default function AttachmentSheet({
     [
       onClearAttachments,
       pickImage,
+      startFilePicker,
       showClearOption,
       takePicture,
       hasClipboardImage,
       createAssetFromClipboard,
+      mediaType,
     ]
   );
 
