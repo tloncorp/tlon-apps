@@ -137,6 +137,7 @@ sealed class PreviewContentNode {
     data class GroupTitle(val groupId: String) : PreviewContentNode()
     data class UserNickname(val ship: String) : PreviewContentNode()
     data class PostSource(val groupId: String, val channelId: String) : PreviewContentNode()
+    data class RoleTitle(val groupId: String, val roleId: String) : PreviewContentNode()
 
     companion object {
         fun parseFromJson(source: JSONObject): PreviewContentNode =
@@ -151,6 +152,7 @@ sealed class PreviewContentNode {
                 "groupTitle" -> GroupTitle(source.getString("groupId"))
                 "userNickname" -> UserNickname(source.getString("ship"))
                 "postSource" -> PostSource(source.getString("groupId"), source.getString("channelId"))
+                "roleTitle" -> RoleTitle(source.getString("groupId"), source.getString("roleId"))
                 else -> throw Error("Unrecognized PreviewContentNode from JS")
             }
     }
@@ -185,6 +187,7 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
                     )
                 }
             }
+            is PreviewContentNode.RoleTitle -> api.fetchRoleTitle(node.groupId, node.roleId) ?: node.roleId
         }
 }
 
@@ -215,6 +218,16 @@ private suspend fun TalkApi.fetchGangTitle(gangId: String): String? {
     return response
         ?.getJSONObject(gangId)
         ?.getJSONObject("preview")
+        ?.getJSONObject("meta")
+        ?.getString("title")
+}
+
+private suspend fun TalkApi.fetchRoleTitle(groupId: String, roleId: String): String? {
+    val response = suspendTalkObjectCallback { cb -> fetchGroups(cb) }
+    return response
+        ?.getJSONObject(groupId)
+        ?.getJSONObject("cabals")
+        ?.getJSONObject(roleId)
         ?.getJSONObject("meta")
         ?.getString("title")
 }
