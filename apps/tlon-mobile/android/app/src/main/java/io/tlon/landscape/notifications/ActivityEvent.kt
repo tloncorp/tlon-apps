@@ -161,7 +161,7 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
         when (node) {
             is StringLiteral -> node.content
             is ConcatenateStrings -> render(node.first) + render(node.second)
-            is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname ?: x.displayName ?: x.id }
+            is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname?.takeIf { it.isNotBlank() } ?: x.displayName ?: x.id }
             is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
             is PreviewContentNode.GangTitle -> api.fetchGangTitle(node.gangId) ?: node.gangId
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
