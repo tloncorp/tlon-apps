@@ -239,7 +239,7 @@ export function renderActivityEventPreview({
           groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-role'].ship),
-            lit(` has a new role (${ev['group-role'].role}) in `),
+            lit(` has a new role (${ev['group-role'].roles.join(', ')}) in `),
             groupTitle(ev['group-role'].group),
           ]),
         },
