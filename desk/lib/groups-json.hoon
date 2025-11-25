@@ -1346,7 +1346,7 @@
     ++  roles
       |=  =json
       ^-  (set role-id:v7:gv)
-      (sy ((ar role-id:v7:gv) json))
+      (sy ((ar so) json))
     ++  a-invite
       ^-  $-(json a-invite:v7:gv)
       %-  ot
