@@ -17,8 +17,13 @@ struct GroupChannel: Codable {
     let meta: GroupMeta
 }
 
+struct Cabal: Codable {
+    let meta: GroupMeta
+}
+
 struct Group: Codable {
     let channels: [String: GroupChannel]
+    let cabals: [String: Cabal]?
     let meta: GroupMeta
 }
 

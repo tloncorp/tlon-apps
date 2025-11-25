@@ -29,7 +29,8 @@ type PreviewContentNode =
       type: 'concatenateStrings';
       first: PreviewContentNode;
       second: PreviewContentNode;
-    };
+    }
+  | { type: 'roleTitle'; groupId: string; roleId: string };
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace PreviewContentNode {
@@ -71,6 +72,9 @@ namespace PreviewContentNode {
   export function gangTitle(gangId: string): PreviewContentNode {
     return { type: 'gangTitle', gangId };
   }
+  export function roleTitle(groupId: string, roleId: string): PreviewContentNode {
+    return { type: 'roleTitle', groupId, roleId };
+  }
 }
 
 interface PreviewContentPayload {
@@ -101,6 +105,7 @@ export function renderActivityEventPreview({
     userNickname,
     concatenateAll: concat,
     postSource,
+    roleTitle,
   } = PreviewContentNode;
   const source = getSourceForEvent(ev);
 
@@ -233,17 +238,31 @@ export function renderActivityEventPreview({
         },
       };
 
-    case is(ev, 'group-role'):
+    case is(ev, 'group-role'): {
+      const groupId = ev['group-role'].group;
+      const roles = ev['group-role'].roles;
+      // Build role titles with comma separators
+      const roleTitleNodes: PreviewContentNode[] = roles.flatMap(
+        (roleId, index) => {
+          const roleTitleNode = roleTitle(groupId, roleId);
+          return index < roles.length - 1
+            ? [roleTitleNode, lit(', ')]
+            : [roleTitleNode];
+        }
+      );
       return {
         notification: {
           groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-role'].ship),
-            lit(` has a new role (${ev['group-role'].roles.join(', ')}) in `),
-            groupTitle(ev['group-role'].group),
+            lit(' has a new role ('),
+            ...roleTitleNodes,
+            lit(') in '),
+            groupTitle(groupId),
           ]),
         },
       };
+    }
 
     case is(ev, 'flag-post'):
       return {
