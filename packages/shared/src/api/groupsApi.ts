@@ -451,11 +451,11 @@ export const getGroup = async (groupId: string) => {
 
 export const getGroups = async () => {
   // v2 scry path returns v9 format (with admissions/seats)
-  const groupData = await scry<ub.Groups>({
+  const groupData = await scry<ub.GroupsV7>({
     app: 'groups',
     path: '/v2/groups',
   });
-  return toClientGroups(groupData, true);
+  return toClientGroupsV7(groupData, true);
 };
 
 export const updateGroupMeta = async ({
@@ -488,18 +488,17 @@ export const updateGroupMeta = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.GroupActionV3>(
+  return await trackedPoke<ub.V1GroupResponse>(
     groupAction(groupId, {
       del: null,
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'del' in update.diff && event.flag === groupId;
+      return 'delete' in event['r-group'] && event.flag === groupId;
     },
     { tag: 'deleteGroup' }
   );
@@ -1014,6 +1013,12 @@ export type GroupnavSectionMoveChannel = {
   index: number;
 };
 
+export type GroupSectionOrderUpdate = {
+  type: 'updateSectionOrder';
+  groupId: string;
+  sectionIds: string[];
+};
+
 export type GroupAddMembers = {
   type: 'addGroupMembers';
   ships: string[];
@@ -1159,6 +1164,7 @@ export type GroupUpdate =
   | GroupNavSectionAdd
   | GroupNavSectionMove
   | GroupnavSectionMoveChannel
+  | GroupSectionOrderUpdate
   | GroupAddMembers
   | GroupRemoveMembers
   | GroupAddMembersToRole
@@ -1514,6 +1520,15 @@ export const toV1GroupsUpdate = (
         index: rSection['move-nest'].idx,
       };
     }
+  }
+
+  // Handle section-order (batch reordering of all sections)
+  if ('section-order' in event) {
+    return {
+      type: 'updateSectionOrder',
+      groupId,
+      sectionIds: event['section-order'].order,
+    };
   }
 
   // Handle flag-content operations

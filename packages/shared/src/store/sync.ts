@@ -1017,6 +1017,15 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
+    case 'updateSectionOrder':
+      await db.updateNavSectionOrder(
+        {
+          groupId: update.groupId,
+          sectionIds: update.sectionIds,
+        },
+        ctx
+      );
+      break;
     case 'moveChannel':
       logger.log('moving channel', update);
       await updateChannelSections({
