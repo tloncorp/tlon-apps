@@ -3233,12 +3233,14 @@
   ::
   ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.channel src.bowl))
   ::
-  ::  leave the subscription only
+  ::  leave the subscriptions only
   ::
   ++  ca-simple-leave
+    =.  ca-core
+      (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
     (unsubscribe ca-sub-wire [ship.nest server])
   ::
-  ::  Leave the subscription, tell people about it, and delete our local
+  ::  leave the subscription, tell people about it, and delete our local
   ::  state for the channel
   ::
   ++  ca-leave
