@@ -12,7 +12,6 @@ import {
   Rank,
   extractGroupPrivacy,
   getChannelType,
-  getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
@@ -396,18 +395,18 @@ export const createGroup = async ({
   };
 
   try {
-    const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
+    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
       desk: 'groups',
       inputMark: 'group-create-thread',
       threadName: 'group-create',
-      outputMark: 'group-ui-1',
+      outputMark: 'group-ui-2',
       body: payload,
     });
     logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroup(group.id, result, true);
+    return toClientGroupV7(group.id, result, true);
   } catch (err) {
     if (err instanceof BadResponseError) {
       logger.trackEvent('Create Group Error', {
@@ -1543,18 +1542,6 @@ export const toV1GroupsUpdate = (
   return null;
 };
 
-export const extractChannelReaders = (groups: ub.Groups) => {
-  const channelReaders: Record<string, string[]> = {};
-
-  Object.entries(groups).forEach(([_groupId, group]) => {
-    Object.entries(group.channels).forEach(([channelId, channel]) => {
-      channelReaders[channelId] = channel.readers ?? [];
-    });
-  });
-
-  return channelReaders;
-};
-
 const extractFlaggedPosts = (
   groupId: string,
   flaggedContent?: FlaggedContent
@@ -1973,34 +1960,10 @@ export function toClientGroupFromPreview(
   };
 }
 
-export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
-  return Object.entries(gangs).map(([id, gang]) => {
-    return toClientGroupFromGang(id, gang);
-  });
-}
-
 const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
   const groups = toClientGroupsFromForeigns(foreignsEvent);
   return { type: 'setUnjoinedGroups', groups };
 };
-
-export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
-  const currentUserId = getCurrentUserId();
-  const { host: hostUserId } = parseGroupId(id);
-  const privacy = extractGroupPrivacy(gang.preview, gang.claim ?? undefined);
-  const joinStatus = getJoinStatusFromGang(gang);
-  return {
-    id,
-    hostUserId,
-    privacy,
-    currentUserIsMember: false,
-    currentUserIsHost: hostUserId === currentUserId, // should always be false
-    haveInvite: !!gang.invite,
-    haveRequestedInvite: gang.claim?.progress === 'knocking',
-    joinStatus,
-    ...(gang.preview ? toClientGroupMeta(gang.preview.meta) : {}),
-  };
-}
 
 export function toClientGroupFromForeign(
   id: string,
