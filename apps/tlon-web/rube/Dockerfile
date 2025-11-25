@@ -58,9 +58,14 @@ COPY ../../../.npmrc* /workspace/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
+# Install Playwright browsers and dependencies (before source copy for better caching)
+WORKDIR /workspace/apps/tlon-web
+RUN pnpm exec playwright install --with-deps chromium
+
 # Pre-download and extract ships + Urbit binary in parallel
 # URLs must match those in shipManifest.json
 # NOTE: These URLs are automatically updated by archive-piers.sh when ship versions change
+WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
@@ -85,10 +90,6 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
-
-# Install Playwright browsers and dependencies
-WORKDIR /workspace/apps/tlon-web
-RUN pnpm exec playwright install --with-deps chromium
 
 # Build packages if needed
 WORKDIR /workspace
