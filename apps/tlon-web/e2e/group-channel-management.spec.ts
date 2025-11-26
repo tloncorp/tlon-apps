@@ -206,6 +206,51 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Exit sort mode
   await page.getByText('Done', { exact: true }).click();
 
+  // Test section name editing
+  // After reordering, "Testing section" is at position 0
+  await page
+    .getByTestId('NavSection-Testing section')
+    .getByTestId('SectionMenuButton')
+    .click();
+  await expect(page.getByText('Edit name')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Edit name').click();
+
+  // Wait for the edit sheet to open
+  await expect(page.getByText('Change section name')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByTestId('SectionNameInput')).toBeVisible();
+
+  // Clear the input and enter new name
+  await page.getByTestId('SectionNameInput').fill('Renamed section');
+  await page.getByText('Save', { exact: true }).click();
+
+  // Verify section was renamed
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('NavSection-Renamed section')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(
+    page.getByTestId('NavSection-Testing section')
+  ).not.toBeVisible();
+
+  // Test section deletion
+  // Open the section menu for "Renamed section"
+  await page
+    .getByTestId('NavSection-Renamed section')
+    .getByTestId('SectionMenuButton')
+    .click();
+  await expect(page.getByText('Delete section')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Delete section').click();
+
+  // Verify section was deleted
+  await page.waitForTimeout(500);
+  await expect(
+    page.getByTestId('NavSection-Renamed section')
+  ).not.toBeVisible();
+  // "Sectionless" should still exist
+  await expect(page.getByTestId('NavSection-Sectionless')).toBeVisible();
+
   await helpers.navigateBack(page);
 
   // Test notification settings (moved here as it's part of channel settings)
