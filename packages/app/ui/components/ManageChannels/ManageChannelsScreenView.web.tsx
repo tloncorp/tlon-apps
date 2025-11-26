@@ -146,7 +146,11 @@ function SortableSectionHeader({
           isDefault={item.isDefault}
           isEditMode={isEditMode}
           dragHandle={
-            <View {...dragHandleProps} cursor="grab">
+            <View
+              {...dragHandleProps}
+              cursor="grab"
+              testID={`SectionDragHandle-${item.sectionTitle}-${item.sectionIndex}`}
+            >
               <Icon color="$tertiaryText" type="Sorter" size="$m" />
             </View>
           }
@@ -227,16 +231,23 @@ function ManageChannelsContent({
 
       const reordered = arrayMove(localItems, activeIndex, overIndex);
 
-      // Recalculate channelIndex values based on new positions within each section
+      // Recalculate sectionIndex and channelIndex values based on new positions
+      let sectionCounter = 0;
       let channelCounter = 0;
       const reorderedWithUpdatedIndices = reordered.map((item) => {
         if (item.type === 'section-header') {
+          const updatedItem = {
+            ...item,
+            sectionIndex: sectionCounter,
+          };
+          sectionCounter++;
           channelCounter = 0;
-          return item;
+          return updatedItem;
         } else if (item.type === 'channel') {
           const updatedItem = {
             ...item,
             channelIndex: channelCounter,
+            sectionIndex: sectionCounter - 1, // belongs to previous section
           };
           channelCounter++;
           return updatedItem;

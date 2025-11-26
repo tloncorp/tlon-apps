@@ -156,6 +156,56 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Create channel section
   await helpers.createChannelSection(page, 'Testing section');
 
+  // Test section reordering
+  // Enter sort mode
+  await page.getByText('Sort', { exact: true }).click();
+  await page.waitForTimeout(500);
+
+  // Verify both sections visible with correct indices
+  // "Sectionless" is the default section name
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-0')).toBeVisible(
+    { timeout: 10000 }
+  );
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-1')
+  ).toBeVisible({ timeout: 10000 });
+
+  // Drag "Testing section" above "Sectionless"
+  const testingSectionHandle = page.getByTestId(
+    'SectionDragHandle-Testing section-1'
+  );
+  const sectionlessHandle = page.getByTestId('SectionDragHandle-Sectionless-0');
+
+  const testingBox = await testingSectionHandle.boundingBox();
+  const sectionlessBox = await sectionlessHandle.boundingBox();
+
+  if (testingBox && sectionlessBox) {
+    const startX = testingBox.x + testingBox.width / 2;
+    const startY = testingBox.y + testingBox.height / 2;
+    const endX = sectionlessBox.x + sectionlessBox.width / 2;
+    const endY = sectionlessBox.y - 20; // Drop above Sectionless
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.waitForTimeout(150);
+    await page.mouse.move(endX, endY, { steps: 15 });
+    await page.waitForTimeout(150);
+    await page.mouse.up();
+  }
+
+  await page.waitForTimeout(1000);
+
+  // Verify sections reordered
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-0')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-1')).toBeVisible(
+    { timeout: 10000 }
+  );
+
+  // Exit sort mode
+  await page.getByText('Done', { exact: true }).click();
+
   await helpers.navigateBack(page);
 
   // Test notification settings (moved here as it's part of channel settings)
