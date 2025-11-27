@@ -9,8 +9,8 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import expo.modules.notifications.service.ExpoFirebaseMessagingService
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import org.json.JSONObject
@@ -28,7 +28,7 @@ import io.tlon.landscape.utils.UvParser
 private const val TALK_MESSAGING_SERVICE = "talk-messaging-service"
 
 @SuppressLint("MissingFirebaseInstanceTokenRefresh")
-class TalkMessagingService : FirebaseMessagingService() {
+class TalkMessagingService : ExpoFirebaseMessagingService() {
 
     companion object {
         private var isPostHogInitialized = false
@@ -77,39 +77,69 @@ class TalkMessagingService : FirebaseMessagingService() {
      * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-            // Check if message contains a data payload.
+            // Delegate to Expo's default notification handling
+            super.onMessageReceived(remoteMessage)
+
             if (remoteMessage.data.isNotEmpty()) {
                 val data = remoteMessage.data
-                if (data["action"] == "notify") {
-                    try {
-                        data["uid"]?.let { uid ->
-                            data["id"]?.let { id ->
-                                processNotificationBlocking(this, uid, id)
-                            }
-                        }
-                    } catch (e: NotificationException) {
-                        NotificationLogger.logError(e)
-                        showFallbackNotification(this, e, remoteMessage)
+                when (data["action"]) {
+                    "notify" -> {
+                        // Show a basic notification without background API processing
+                        showBasicNotification(remoteMessage)
                     }
-                }
-
-                if (data["action"] == "dismiss") {
-                    try {
-                        data["dismissSource"]?.let { source ->
-                            data["id"]?.let { id ->
-                                dismissNotifications(this, source) { notification ->
-                                    val notifId = notification.notification.extras.getString("id", "0")
-                                    notification.notification.group == source && id >= notifId
+                    "dismiss" -> {
+                        try {
+                            data["dismissSource"]?.let { source ->
+                                data["id"]?.let { id ->
+                                    dismissNotifications(this, source) { notification ->
+                                        val notifId = notification.notification.extras.getString("id", "0")
+                                        notification.notification.group == source && id >= notifId
+                                    }
                                 }
                             }
-                        }
-                    } catch (e: Error) {
-                        data["uid"]?.let { uid ->
-                            NotificationLogger.logError(NotificationException("Dismiss source missing", uid, null, e))
+                        } catch (e: Error) {
+                            data["uid"]?.let { uid ->
+                                NotificationLogger.logError(NotificationException("Dismiss source missing", uid, null, e))
+                            }
                         }
                     }
                 }
             }
+    }
+
+    private fun showBasicNotification(remoteMessage: RemoteMessage) {
+        val data = remoteMessage.data
+        val uid = data["uid"] ?: return
+        val id = UvParser.getIntCompatibleFromUv(uid)
+
+        // Check permissions
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TALK_MESSAGING_SERVICE, "Cannot show notification - no permission")
+            return
+        }
+
+        val bundle = remoteMessage.toBasicBundle()
+        val title = bundle.getString("title") ?: "New message"
+        val body = bundle.getString("body") ?: "You have a new message"
+
+        val extras = Bundle()
+        extras.putString("uid", uid)
+
+        val builder = NotificationCompat.Builder(this, TalkNotificationManager.CHANNEL_ID)
+            .buildMessagingTappable(this, id, extras)
+            .setContentTitle(title)
+            .setContentText(body)
+
+        try {
+            NotificationManagerCompat.from(this).notify(id, builder.build())
+            Log.i(TALK_MESSAGING_SERVICE, "Showed basic notification for uid: $uid")
+        } catch (e: Exception) {
+            Log.e(TALK_MESSAGING_SERVICE, "Failed to display basic notification", e)
+        }
     }
 
     private fun dismissNotifications(
