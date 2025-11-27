@@ -27,6 +27,7 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
+import { useNotificationLevelOptions } from './NotificationLevelSelector';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -919,28 +920,6 @@ export function ChatOptionsSheetContent({
   );
 }
 
-export const notificationOptions: {
-  title: string;
-  value: ub.NotificationLevel;
-}[] = [
-  {
-    title: 'All activity',
-    value: 'loud',
-  },
-  {
-    title: 'Posts, mentions, and replies',
-    value: 'medium',
-  },
-  {
-    title: 'Mentions and replies',
-    value: 'soft',
-  },
-  {
-    title: 'Nothing',
-    value: 'hush',
-  },
-];
-
 function NotificationsSheetContent({
   chatTitle,
   onPressBack,
@@ -960,6 +939,12 @@ function NotificationsSheetContent({
     ? currentChannelVolume
     : currentGroupVolume;
 
+  // Use shared hook with 'loud' level for channel/group overrides
+  const notificationOptions = useNotificationLevelOptions({
+    includeLoud: true,
+    shortDescriptions: true,
+  });
+
   const notificationActions = useMemo(
     () =>
       createActionGroups([
@@ -978,7 +963,13 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [currentVolumeLevel, updateVolume, isWindowNarrow, onPressBack]
+    [
+      currentVolumeLevel,
+      updateVolume,
+      isWindowNarrow,
+      onPressBack,
+      notificationOptions,
+    ]
   );
   return (
     <ChatOptionsSheetContent

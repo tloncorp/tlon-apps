@@ -13,6 +13,7 @@ import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerif
 import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
+import { SetNotificationsScreen } from './screens/Onboarding/SetNotificationsScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
@@ -81,6 +82,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SetNickname"
         component={SetNicknameScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="SetNotifications"
+        component={SetNotificationsScreen}
       />
       <OnboardingStackNavigator.Screen
         name="SetTelemetry"

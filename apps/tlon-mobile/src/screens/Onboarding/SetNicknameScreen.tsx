@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
-import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import {
   Field,
   Image,
@@ -12,7 +11,6 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
-import { createDevLogger } from '@tloncorp/shared';
 import {
   getNicknameErrorMessage,
   validateNickname,
@@ -27,10 +25,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 
 type FormData = {
   nickname?: string;
-  notificationToken?: string | undefined;
 };
-
-const logger = createDevLogger('SetNicknameScreen', true);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
@@ -43,25 +38,22 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     control,
     handleSubmit,
     formState: { errors, isValid },
-    setValue,
   } = useForm<FormData>({
     mode: 'onChange',
     defaultValues: {
       nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
-      notificationToken: undefined,
     },
   });
 
   const signupContext = useSignupContext();
 
-  const onSubmit = handleSubmit(({ nickname, notificationToken }) => {
+  const onSubmit = handleSubmit(({ nickname }) => {
     signupContext.setOnboardingValues({
       nickname,
-      notificationToken,
       userWasReadyAt: Date.now(),
     });
 
-    navigation.push('ReserveShip');
+    navigation.push('SetNotifications');
   });
 
   // Disable back button
@@ -72,22 +64,6 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       }),
     [navigation]
   );
-
-  useEffect(() => {
-    async function getNotificationToken() {
-      let token: string | undefined;
-      try {
-        token = await requestNotificationToken();
-        setValue('notificationToken', token);
-      } catch (err) {
-        console.error('Error enabling notifications:', err);
-        if (err instanceof Error) {
-          logger.trackError('Error enabling notifications', err);
-        }
-      }
-    }
-    getNotificationToken();
-  }, [setValue]);
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
