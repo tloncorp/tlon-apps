@@ -1,109 +1,13 @@
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { Field, TextInput, XStack, useTheme } from '@tloncorp/app/ui';
+import { Field, useTheme } from '@tloncorp/app/ui';
 import { isValidPhoneNumber } from 'libphonenumber-js';
-import {
-  createRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
-import {
-  TextInput as RNTextInput,
-  TextInputKeyPressEventData,
-} from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
 
-export function OTPInput({
-  length,
-  value,
-  mode = 'email',
-  onChange,
-  error,
-}: {
-  length: number;
-  mode: 'email' | 'phone';
-  value: string[];
-  onChange?: (value: string[]) => void;
-  error?: string;
-}) {
-  const inputRefs = useMemo(
-    () => Array.from({ length }).map(() => createRef<RNTextInput>()),
-    [length]
-  );
-
-  const handleChangeText = useCallback(
-    (index: number, text: string) => {
-      const nextCode = [...value];
-      if (text.length === 0) {
-        nextCode[index] = '';
-      } else {
-        for (let i = 0; i < text.length; i += 1) {
-          nextCode[index + i] = text.charAt(i);
-        }
-      }
-      if (index < inputRefs.length - 1 && nextCode[index]) {
-        for (let i = index + 1; i < inputRefs.length; i += 1) {
-          if (!nextCode[i]) {
-            inputRefs[i].current?.focus();
-            break;
-          }
-        }
-      }
-      onChange?.(nextCode.slice(0, length));
-    },
-    [onChange, value, inputRefs, length]
-  );
-
-  const handleKeyPress = async (
-    index: number,
-    key: TextInputKeyPressEventData['key']
-  ) => {
-    if (key === 'Backspace' && !value[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    }
-  };
-
-  useEffect(() => {
-    setTimeout(() => {
-      inputRefs[0].current?.focus();
-    });
-  }, []);
-
-  return (
-    <Field
-      label={`Check your ${mode} for a confirmation code`}
-      error={error}
-      justifyContent="center"
-      alignItems="center"
-    >
-      <XStack gap="$s">
-        {Array.from({ length }).map((_, i) => (
-          <TextInput
-            textAlign="center"
-            key={i}
-            ref={inputRefs[i]}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-            placeholder="5"
-            onChangeText={(text) => handleChangeText(i, text)}
-            value={value.length > i ? value[i] : ''}
-            keyboardType="numeric"
-            frameStyle={{
-              width: '$4xl',
-              paddingLeft: 0,
-              paddingRight: 0,
-            }}
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-          />
-        ))}
-      </XStack>
-    </Field>
-  );
-}
+// Re-export OTPInput from the shared component
+export { OTPInput } from '@tloncorp/app/ui/components/Form/OTPInput';
 
 export function PhoneNumberInput({
   form,
@@ -123,6 +27,7 @@ export function PhoneNumberInput({
     if (shouldFocus) {
       phoneInputRef.current?.focus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
