@@ -50,7 +50,6 @@
     %+  ex-cards  caz
     :~  (ex-poke /adjust-old-default [~zod dap] noun+!>(%adjust-old-default))
         (ex-poke /fix-init-unreads [~zod dap] noun+!>(%fix-init-unreads))
-        (ex-fact-paths ~[/v4])
     ==
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
@@ -118,8 +117,7 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d4 ~])
-          :: d5 because of new clear-groups call
-          grp(reads.index [d5 ~])
+          grp(reads.index [d-1 ~])
           base(reads.index [d-1 ~])
       ==
     ++  activity
@@ -198,8 +196,7 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d3 ~])
-          :: d5 because of new clear-groups call
-          grp(reads.index [d5 ~])
+          grp(reads.index [d-1 ~])
           base(reads.index [d-1 ~])
       ==
     ++  activity
@@ -285,8 +282,7 @@
       :~  thrd1
           thrd2
           chnl(reads.index [d3 ~])
-          :: d5 because of new clear-groups call
-          grp(reads.index [d5 ~])
+          grp(reads.index [d3 ~])
           base(reads.index [d3 ~])
       ==
     ++  activity
@@ -406,9 +402,8 @@
           thrd2-2
           chnl1(reads.index [d4 ~])
           chnl2
-          :: d5 because of new clear-groups call
-          grp1(reads.index [d5 ~])
-          grp2(reads.index [(add d5 i1) ~])
+          grp1(reads.index [d-1 ~])
+          grp2
           base(reads.index [d-1 ~])
       ==
     ++  activity
