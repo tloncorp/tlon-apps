@@ -1,11 +1,11 @@
-import { formatUd, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
-import { stringToTa } from '../urbit/utils';
+import { encodeString } from '../urbit/utils';
 import { Stringified } from '../utils';
 import {
   getCanonicalPostId,
@@ -397,7 +397,7 @@ export const toChannelsUpdate = (
       const cacheId = channelEvent.response.pending.id;
       return {
         type: 'markPostSent',
-        cacheId: getCanonicalPostId(unixToDa(cacheId.sent).toString()),
+        cacheId: getCanonicalPostId(da.fromUnix(cacheId.sent).toString()),
       };
     }
   }
@@ -453,7 +453,7 @@ export const searchChannel = async (params: {
 }) => {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const isGroupChannel = isGroupChannelId(params.channelId);
-  const encodedQuery = stringToTa(params.query);
+  const encodedQuery = encodeString(params.query);
 
   let response;
   if (isGroupChannel) {
@@ -461,7 +461,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChannelScam>({
       app: 'channels',
       path: `/${params.channelId}/search/bounded/text/${
-        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
+        params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   } else {
@@ -470,7 +470,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChatScam>({
       app: 'chat',
       path: `/${type}/${params.channelId}/search/bounded/text/${
-        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
+        params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   }
