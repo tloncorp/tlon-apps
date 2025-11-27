@@ -1022,7 +1022,10 @@
     ?:  (~(has by groups) our.bowl name.pole)
       =/  se-core  (se-abed:se-core [our.bowl name.pole])
       ?:  (se-is-banned:se-core src.bowl)
-        ~|(%se-is-banned !!)
+        =/  =preview-update:v7:gv  ~
+        =.  cor
+          (emit %give %fact ~ group-preview-3+!>(preview-update))
+        (emit %give %kick ~ ~)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:v7:gv  ~
     =.  cor
