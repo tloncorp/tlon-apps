@@ -150,7 +150,7 @@ export const PostList: PostListComponent = React.forwardRef(
           (postsWithNeighbors?.length || 0) === 0 ? false : inverted
         }
         maxToRenderPerBatch={15}
-        windowSize={6}
+        windowSize={11}
         numColumns={numColumns}
         style={listStyle}
         onEndReached={onEndReached}
