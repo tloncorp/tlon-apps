@@ -35,7 +35,7 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: await finalizeAttachments(draft.attachments),
   });
@@ -44,6 +44,7 @@ export async function finalizePostDraft(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
 
   if (draft.isEdit) {
@@ -66,7 +67,7 @@ export function finalizePostDraftUsingLocalAttachments(
 export function finalizePostDraftUsingLocalAttachments(
   draft: domain.PostDataDraft
 ): domain.PostDataFinalized {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: finalizeAttachmentsLocal(draft.attachments),
   });
@@ -74,6 +75,7 @@ export function finalizePostDraftUsingLocalAttachments(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
   if (draft.isEdit) {
     return {
@@ -162,6 +164,7 @@ async function _sendPost({
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
+    blob: optimisticPostData.blob,
   });
 
   let group: null | db.Group = null;
@@ -195,6 +198,7 @@ async function _sendPost({
           content: finalizedPostData.content,
           metadata: finalizedPostData.metadata,
           deliveryStatus: 'pending',
+          blob: finalizedPostData.blob,
         }),
       });
       logger.crumb('sending post to API');
@@ -202,6 +206,7 @@ async function _sendPost({
         channelId: channel.id,
         authorId,
         content: finalizedPostData.content,
+        blob: finalizedPostData.blob,
         metadata: finalizedPostData.metadata,
         sentAt: cachePost.sentAt,
       });
@@ -308,6 +313,7 @@ export async function retrySendPost({
           channelId: post.channelId,
           authorId: post.authorId,
           content: story,
+          blob: post.blob || undefined,
           metadata:
             post.image || post.title
               ? {
@@ -483,6 +489,7 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
+    blob: optimisticPostData.blob,
     ...flags,
   });
   logger.log('editPost optimistic update done');
@@ -500,6 +507,7 @@ async function _editPost({
         postId: finalized.editTargetPostId,
         authorId: postBeforeEdit.authorId,
         sentAt: postBeforeEdit.sentAt,
+        blob: postBeforeEdit.blob ?? undefined, // NB: blob is not editable - so you can't e.g. change or remove a file attachment
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,

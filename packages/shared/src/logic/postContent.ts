@@ -2,6 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
+import { parsePostBlob } from './content-helpers';
 import { isTrustedEmbed } from './embed';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
@@ -324,19 +325,47 @@ export function plaintextPreviewOfInline(
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(input: unknown): PostContent {
+export function convertContent(
+  input: unknown,
+  blob: string | undefined | null
+): PostContent {
+  const out: PostContent = [];
+
+  if (blob != null) {
+    const blobData = parsePostBlob(blob);
+    for (const { fileUri, name } of blobData) {
+      // Treat all blob entries as downloadable links
+      const isUploading =
+        fileUri.startsWith('file://') || fileUri.startsWith('blob:');
+      if (isUploading) {
+        out.push({
+          type: 'blockquote',
+          content: [{ type: 'text', text: 'Uploading attachment...' }],
+        });
+      } else {
+        out.push({
+          type: 'link',
+          url: fileUri,
+          title: name ?? 'Attached file',
+          description: 'Press to download',
+        });
+      }
+    }
+  }
+
   if (!input) {
-    return [];
+    return out;
   }
 
   const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
-    return [];
+    return out;
   }
 
-  return convertContentSafe(story);
+  out.push(...convertContentSafe(story));
+  return out;
 }
 
 /**

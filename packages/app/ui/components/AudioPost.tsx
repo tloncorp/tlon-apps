@@ -9,12 +9,12 @@ import { AudioPlayer } from './Embed/AudioPlayer';
 
 export const AudioPost: RenderItemType = (props) => {
   const audioUrl = useMemo(() => {
-    const content = convertContent(props.post.content);
+    const content = convertContent(props.post.content, props.post.blob);
     if (content[0].type === 'image') {
       return content[0].src;
     }
     return null;
-  }, [props.post.content]);
+  }, [props.post.content, props.post.blob]);
 
   const playerRef = useRef<AudioPlayerHandle>(null);
 
