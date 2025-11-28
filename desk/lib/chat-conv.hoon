@@ -3,6 +3,27 @@
 |%
 ++  v6
   |%
+  ++  dm
+    |%
+    ++  v7
+      |=  dm:v6:cv
+      ^-  dm:v7:cv
+      =/  archive=?
+        ?=(%archive net)
+      =/  =net:dm:v7:cv
+        ::  we don't know what state a dm was in before
+        ::  it was archived, so in order not to lose a possible
+        ::  "joined the chat" message we put it into the inviting state.
+        ::
+        ?:  ?=(%archive net)  %inviting
+        net
+      :*  pact
+          remark
+          net
+          pin
+          archive
+      ==
+    --
   ++  writ
     |%
     ++  v5

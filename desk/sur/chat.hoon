@@ -245,8 +245,9 @@
         =remark
         =net
         pin=_|
+        archive=_|
     ==
-  +$  net       ?(%inviting %invited %archive %done)
+  +$  net       ?(%inviting %invited %done)
   +$  id        (pair ship time)
   +$  diff      diff:writs
   +$  action    (pair ship diff)

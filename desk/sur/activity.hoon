@@ -246,12 +246,12 @@
   %-  my
   :~  [%post & &]
       [%reply & |]
-      [%dm-reply & &]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
       [%dm-post & &]
       [%dm-post-mention & &]
+      [%dm-reply & &]
       [%dm-reply-mention & &]
       [%group-invite & &]
       [%group-ask & &]
