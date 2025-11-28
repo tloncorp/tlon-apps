@@ -202,7 +202,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %11
+    $:  %12
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -296,23 +296,25 @@
   |^  |=  =vase
   ^+  cor
   =+  !<([old=versioned-state cool=@ud] vase)
-  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
+  =?  old  ?=(%2 -.old)   (state-2-to-3 old)
+  =?  old  ?=(%3 -.old)   (state-3-to-4 old)
+  =?  old  ?=(%4 -.old)   (state-4-to-5 old)
+  =?  old  ?=(%5 -.old)   (state-5-to-6 old)
+  =?  old  ?=(%6 -.old)   (state-6-to-7 old)
+  =?  old  ?=(%7 -.old)   (state-7-to-8 old)
+  =?  old  ?=(%8 -.old)   (state-8-to-9 old)
+  =?  old  ?=(%9 -.old)   (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  ?>  ?=(%11 -.old)
+  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
+  ?>  ?=(%12 -.old)
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-11
+    $%  state-12
+        state-11
         state-10
         state-9
         state-8
@@ -437,17 +439,46 @@
     ==
   +$  state-10
     $:  %10
-        dms=(map ship dm:c)
-        clubs=(map id:club:c club:c)
-        pins=(list whom:c)
-        sends=(map whom:c (qeu sent-id))
+        dms=(map ship dm:v6:cv)
+        clubs=(map id:club:v6:cv club:v6:cv)
+        pins=(list whom:v6:cv)
+        sends=(map whom:v6:cv (qeu sent-id))
         blocked=(set ship)
         blocked-by=(set ship)
-        hidden-messages=(set id:c)
-        old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
+        hidden-messages=(set id:v6:cv)
+        old-chats=(map flag:v2:cv chat:v2:cv)  ::  for migration
         old-pins=(list whom:v2:cv)
     ==
-  +$  state-11  current-state
+  +$  state-11
+    $:  %11
+        dms=(map ship dm:v6:cv)
+        clubs=(map id:club:v6:cv club:v6:cv)
+        pins=(list whom:v6:cv)
+        sends=(map whom:v6:cv (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:v6:cv)
+        last-updated=(list [=whom:v6:cv =time])  ::  newest first, one-per-whom
+        old-chats=(map flag:v2:cv chat:v2:cv)    ::  for migration
+        old-pins=(list whom:v2:cv)
+    ==
+  +$  state-12  current-state
+  ::
+  ++  state-11-to-12
+    |=  state-11
+    ^-  state-12
+    :*  %12
+        (~(run by dms) v7:dm:v6:cc)
+        clubs
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        last-updated
+        old-chats
+        old-pins
+    ==
   ::
   ++  state-10-to-11
     |=  state-10
@@ -796,6 +827,11 @@
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
+      %chat-archive
+    =+  !<([=ship archive=?] vase)
+    ?>  =(src.bowl our.bowl)
+    di-abet:(di-archive:(di-abed:di-core ship) archive)
+  ::
       %chat-dm-action-1
     =+  !<(=action:dm:c vase)
     =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
@@ -915,6 +951,7 @@
             remark.hav
             net.hav
             |(pin.hav pin.dm)
+            archive.hav
         ==
       =.  clubs
         %+  roll  ~(tap by clubs:bak)
@@ -1286,9 +1323,12 @@
 ++  heads
   |=  since=(unit time)
   ^-  chat-heads:c
+  =/  dms
+    %+  skip  ~(tap by dms)
+    |=([=ship =dm:c] archive.dm)
   %+  murn
     %+  welp
-      (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
+      (turn dms |=([=@p dm:c] [ship+p pact remark]))
     (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
   |=  [=whom:c =pact:c =remark:c]
   ^-  (unit [_whom time (unit writ:c)])
@@ -1322,7 +1362,7 @@
   %+  murn  ~(tap in ~(key by dms))
   |=  =ship
   =/  di  (di-abed:di-core ship)
-  ?:  ?=(?(%invited %archive) net.dm.di)  ~
+  ?:  ?|(?=(%invited net.dm.di) archive.dm.di)  ~
   ?:  =([~ ~] pact.dm.di)  ~
   `[ship/ship di-unread:di]
 ++  give-unread
@@ -2248,7 +2288,10 @@
   (dms-by-net %inviting %done ~)
 ::
 ++  archived-dms
-  (dms-by-net %archive ~)
+  %-  ~(gas by *(map ship dm:c))
+  %+  skim  ~(tap by dms)
+  |=  [=ship =dm:c]
+  archive.dm
 ::
 ++  dms-by-net
   |=  nets=(list net:dm:c)
@@ -2256,7 +2299,9 @@
   %-  ~(gas by *(map ship dm:c))
   %+  skim  ~(tap by dms)
   |=  [=ship =dm:c]
-  (~(has in nets) net.dm)
+  ?&  !archive.dm
+      (~(has in nets) net.dm)
+  ==
 ::
 ++  give-invites
   =/  invites  ~(key by pending-dms)
@@ -2319,6 +2364,7 @@
           ?:  =(s our.bowl)  %done
           ?:(=(src our):bowl %inviting %invited)
           |
+          |
       ==
     =.  di-core  di-core(ship s, dm new)
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
@@ -2371,8 +2417,45 @@
     di-core
   ::
   ++  di-archive
-    =.  net.dm  %archive
-    (di-post-notice ' archived the channel')
+    |=  archive=?
+    ?:  archive
+      ?<  ?=(%invited net.dm)
+      =.  cor
+        =/  =action:a
+          [%adjust [%dm ship+ship] `di-archive-volumes]
+        =/  =cage
+          activity-action+!>(action)
+        (emit (pass:di-pass /activity [our.bowl %activity] %poke cage))
+      di-core(archive.dm &)
+    =.  cor
+      =/  =action:a
+        [%adjust [%dm ship+ship] `di-unarchive-volumes]
+      =/  =cage
+        activity-action+!>(action)
+      (emit (pass:di-pass /activity [our.bowl %activity] %poke cage))
+    di-core(archive.dm |)
+  ::
+  ++  di-archive-volumes
+    ^~
+    ^-  volume-map:a
+    %-  my
+    :~  [%dm-invite & |]
+        [%dm-post & |]
+        [%dm-post-mention & |]
+        [%dm-reply & |]
+        [%dm-reply-mention & |]
+    ==
+  ::
+  ++  di-unarchive-volumes
+    ^~
+    ^-  volume-map:a
+    %-  my
+    :~  [%dm-invite & &]
+        [%dm-post & &]
+        [%dm-post-mention & &]
+        [%dm-reply & &]
+        [%dm-reply-mention & &]
+    ==
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
@@ -2533,6 +2616,8 @@
   ::  +di-send-rsvp: send a dm rsvp
   ::
   ++  di-send-rsvp
+    ::  send a dm rsvp
+    ::
     |=  ok=?
     ^+  di-core
     ?>  from-self
@@ -2615,6 +2700,12 @@
         (emit (fail:log %poke-ack [leaf+"failed to {(trip i.wire)}" u.p.sign] ~))
       di-core
     ::
+        [%activity ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      =.  cor
+        (emit (fail:log %poke-ack ['failed to adjust activity' u.p.sign] ~))
+      di-core
         [%proxy *]
       ?>  ?=(%poke-ack -.sign)
       ::  for pokes whose id we care about, pop it from the queue
