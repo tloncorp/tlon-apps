@@ -339,33 +339,93 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
+// v9 Group Response (r-groups)
 export interface V1GroupResponse {
   flag: string;
   ['r-group']: GroupResponseData;
 }
 
-export type GroupResponseData = GroupResponseEntry;
-
-export interface GroupResponseEntry {
-  entry: GroupResponseEntryData;
-}
-
-export type GroupResponseEntryData = GroupResponseEntryJoinRequest;
-
-export interface GroupResponseEntryJoinRequest {
-  ask:
-    | {
-        add: { note: Story | null; requestedAt: number; ship: string };
-      }
-    | {
-        del: { ships: string[] };
+export type GroupResponseData =
+  | { create: GroupV7 }
+  | { meta: GroupMeta }
+  | { entry: GroupResponseEntry }
+  | { seat: { ships: string[]; 'r-seat': GroupResponseSeat } }
+  | { role: { roles: string[]; 'r-role': GroupResponseRole } }
+  | { channel: { nest: string; 'r-channel': GroupResponseChannel } }
+  | { section: { 'section-id': string; 'r-section': GroupResponseSection } }
+  | { 'section-order': { order: string[] } }
+  | {
+      'flag-content': {
+        nest: string;
+        'post-key': {
+          post: string;
+          reply: string | null;
+        };
+        src: string;
       };
-}
+    }
+  | { delete: null };
 
-export interface GroupAction {
-  flag: string;
-  update: GroupUpdate;
-}
+export type GroupResponseEntry =
+  | { privacy: PrivacyType }
+  | { ban: GroupResponseBan }
+  | { token: GroupResponseToken }
+  | { pending: GroupResponsePending }
+  | { ask: GroupResponseAsk };
+
+export type GroupResponseBan =
+  | { set: { ships: string[]; ranks: string[] } }
+  | { 'add-ships': string[] }
+  | { 'del-ships': string[] }
+  | { 'add-ranks': string[] }
+  | { 'del-ranks': string[] };
+
+export type GroupResponseToken =
+  | { add: { token: string; meta: TokenMeta } }
+  | { del: string }; // token
+
+export type GroupResponsePending =
+  | { add: { ships: string[]; roles: string[] } }
+  | { edit: { ships: string[]; roles: string[] } }
+  | { del: { ships: string[] } };
+
+export type GroupResponseAsk =
+  | {
+      add: { ship: string; requestedAt: number; note: Story | null };
+    }
+  | {
+      del: { ships: string[] };
+    };
+
+export type GroupResponseSeat =
+  | { add: Seat }
+  | { del: null }
+  | { 'add-roles': string[] }
+  | { 'del-roles': string[] };
+
+export type GroupResponseRole =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { 'set-admin': null }
+  | { 'del-admin': null };
+
+export type GroupResponseChannel =
+  | { add: GroupChannelV7 }
+  | { edit: GroupChannelV7 }
+  | { del: null }
+  | { 'add-readers': string[] }
+  | { 'del-readers': string[] }
+  | { section: string }
+  | { join: boolean };
+
+export type GroupResponseSection =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { move: { idx: number } }
+  | { 'move-nest': { idx: number; nest: string } }
+  | { set: string[] };
 
 export interface GroupCreate extends GroupMeta {
   name: string;
@@ -564,9 +624,126 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-export type GroupActionV4 = {
-  invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
+// v8/v9 Group Actions (a-groups)
+export type GroupActionV4 =
+  | {
+      group: {
+        flag: string;
+        'a-group': GroupAction;
+      };
+    }
+  | {
+      invite: { flag: string; ships: string[]; 'a-invite': GroupInviteAction };
+    }
+  | {
+      leave: string; // flag
+    };
+
+export type GroupAction =
+  | { meta: GroupMeta }
+  | { entry: GroupEntryAction }
+  | { seat: { ships: string[]; 'a-seat': GroupSeatAction } }
+  | { role: { roles: string[]; 'a-role': GroupRoleAction } }
+  | { channel: { nest: string; 'a-channel': GroupChannelAction } }
+  | { section: { 'section-id': string; 'a-section': GroupSectionAction } }
+  | { navigation: GroupNavigationAction }
+  | {
+      'flag-content': {
+        nest: string;
+        plan: [number, number | null]; // [post-time, reply-time?]
+        src: string; // ship
+      };
+    }
+  | { delete: null };
+
+export type GroupEntryAction =
+  | { privacy: PrivacyType }
+  | { ban: GroupBanAction }
+  | { token: GroupTokenAction }
+  | { pending: { ships: string[]; 'c-pending': GroupPendingAction } }
+  | { ask: { ships: string[]; 'c-ask': 'approve' | 'deny' } };
+
+export type GroupBanAction =
+  | { set: { ships: string[]; ranks: string[] } }
+  | { 'add-ships': string[] }
+  | { 'del-ships': string[] }
+  | { 'add-ranks': string[] }
+  | { 'del-ranks': string[] };
+
+export type GroupTokenAction = { add: GroupTokenAddAction } | { del: string }; // token
+
+export type GroupTokenAddAction = {
+  scheme: ClaimScheme;
+  expiry: number | null; // @dr duration
+  label: string | null;
+  referral: boolean;
 };
+
+export type GroupPendingAction =
+  | { add: string[] } // role-ids
+  | { edit: string[] } // role-ids
+  | { del: null };
+
+export type GroupSeatAction =
+  | { add: null }
+  | { del: null }
+  | { 'add-roles': string[] } // role-ids
+  | { 'del-roles': string[] }; // role-ids
+
+export type GroupRoleAction =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { 'set-admin': null }
+  | { 'del-admin': null };
+
+export type GroupChannelAction =
+  | { add: GroupChannelV7 }
+  | { edit: GroupChannelV7 }
+  | { del: null }
+  | { 'add-readers': string[] } // role-ids
+  | { 'del-readers': string[] } // role-ids
+  | { section: string }; // section-id
+
+export type GroupSectionAction =
+  | { add: GroupMeta }
+  | { edit: GroupMeta }
+  | { del: null }
+  | { move: number } // idx
+  | { 'move-nest': { nest: string; idx: number } }
+  | { set: string[] }; // order of nests
+
+export type GroupNavigationAction = {
+  sections: Record<string, GroupNavigationSectionData>;
+  order: string[];
+};
+
+// Foreign Group Actions (a-foreigns) - v9
+export type ForeignGroupActions =
+  | {
+      foreign: {
+        flag: string;
+        'a-foreign': ForeignGroupAction;
+      };
+    }
+  | {
+      invite: ForeignInvite;
+    }
+  | {
+      revoke: {
+        flag: string;
+        token: string | null;
+      };
+    }
+  | {
+      reject: string; // flag
+    };
+
+export type ForeignGroupAction =
+  | { join: { token: string | null } }
+  | { ask: { story: Story | null } }
+  | { cancel: null }
+  | { decline: { token: string | null } };
 
 // Types for batch navigation updates (group-action-4)
 export interface GroupNavigationSectionData {

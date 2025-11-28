@@ -93,7 +93,7 @@
   $(channels t.channels)
 ::  skip a beat to allow channels to register
 ;<  ~  bind:m  (sleep:io ~s0)
-;<  group-ui-5=group-ui:v5:gv  bind:m
-  %+  scry:io  group-ui:v5:gv
-  /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun
-(pure:m !>(group-ui-5))
+;<  group-ui-9=group-ui:v9:gv  bind:m
+  %+  scry:io  group-ui:v9:gv
+  /gx/groups/v2/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun
+(pure:m !>(group-ui-9))

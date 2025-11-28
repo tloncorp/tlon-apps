@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { v0PeersToClientProfiles } from '../api';
-import { toClientGroups } from '../api/groupsApi';
+import { toClientGroupsV7 } from '../api/groupsApi';
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
@@ -18,8 +18,8 @@ import type * as ub from '../urbit/groups';
 import * as queries from './queries';
 import { Post } from './types';
 
-const groupsData = toClientGroups(
-  groupsResponse as unknown as Record<string, ub.Group>,
+const groupsData = toClientGroupsV7(
+  groupsResponse as unknown as Record<string, ub.GroupV7>,
   true
 );
 

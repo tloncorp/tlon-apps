@@ -233,6 +233,7 @@
         [%section =section-id =a-section]
         [%navigation =a-navigation]
         [%flag-content =nest =plan src=ship]
+        [%delete ~]
     ==
   ::  $a-section: depends on $c-section
   +$  a-section  c-section
