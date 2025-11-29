@@ -101,6 +101,15 @@ function GroupRolesScreenView({
     [rolesByChannel, groupChannels]
   );
 
+  const getMemberCountForRole = useCallback(
+    (roleId: string) => {
+      return groupMembers.filter((member) =>
+        member.roles?.some((r) => r.roleId === roleId)
+      ).length;
+    },
+    [groupMembers]
+  );
+
   const handleSetEditRole = useCallback((role: db.GroupRole) => {
     setEditRole(role);
   }, []);
@@ -176,10 +185,9 @@ function GroupRolesScreenView({
             borderWidth: 0,
           }}
         >
-          {groupRoles.map((role) =>
-            role.title === 'Admin' ? (
+          {groupRoles.map((role) => (
+            <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
               <ListItem
-                key={role.id}
                 paddingHorizontal="$2xl"
                 backgroundColor={'$background'}
                 borderRadius="$2xl"
@@ -193,39 +201,24 @@ function GroupRolesScreenView({
                     <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                   )}
                 </ActionSheet.ActionContent>
-              </ListItem>
-            ) : (
-              <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
-                <ListItem
-                  key={role.id}
-                  paddingHorizontal="$2xl"
-                  backgroundColor={'$background'}
-                  borderRadius="$2xl"
-                  testID={`GroupRole-${role.title}`}
-                >
-                  <ActionSheet.ActionContent>
-                    <ActionSheet.ActionTitle>
-                      {role.title}
-                    </ActionSheet.ActionTitle>
-                    {role.description && (
-                      <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
-                    )}
-                  </ActionSheet.ActionContent>
 
-                  <ListItem.EndContent
-                    flexDirection="row"
-                    gap="$xl"
-                    alignItems="center"
-                  >
-                    <ActionSheet.ActionIcon
-                      type="ChevronRight"
-                      color="$tertiaryText"
-                    />
-                  </ListItem.EndContent>
-                </ListItem>
-              </Pressable>
-            )
-          )}
+                <ListItem.EndContent
+                  flexDirection="row"
+                  gap="$xl"
+                  alignItems="center"
+                >
+                  <ListItem.Count
+                    notified={false}
+                    count={getMemberCountForRole(role.id!)}
+                  />
+                  <ActionSheet.ActionIcon
+                    type="ChevronRight"
+                    color="$tertiaryText"
+                  />
+                </ListItem.EndContent>
+              </ListItem>
+            </Pressable>
+          ))}
           <Pressable onPress={() => setShowAddRole(true)}>
             <ListItem
               paddingHorizontal="$2xl"
