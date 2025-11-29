@@ -22,6 +22,7 @@ import {
   View,
   YStack,
 } from '../../ui';
+import { Badge } from '../../ui/components/Badge';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
@@ -166,7 +167,18 @@ function GroupRolesScreenView({
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title={'Group Roles'} />
+      <ScreenHeader
+        backAction={handleGoBack}
+        title={'Group Roles'}
+        rightControls={
+          <ScreenHeader.TextButton
+            color={'$positiveActionText'}
+            onPress={() => setShowAddRole(true)}
+          >
+            New
+          </ScreenHeader.TextButton>
+        }
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -207,10 +219,14 @@ function GroupRolesScreenView({
                   gap="$xl"
                   alignItems="center"
                 >
-                  <ListItem.Count
-                    notified={false}
-                    count={getMemberCountForRole(role.id!)}
-                  />
+                  {getMemberCountForRole(role.id) > 0 ? (
+                    <ListItem.Count
+                      notified={false}
+                      count={getMemberCountForRole(role.id!)}
+                    />
+                  ) : (
+                    <Badge text="Add" />
+                  )}
                   <ActionSheet.ActionIcon
                     type="ChevronRight"
                     color="$tertiaryText"
@@ -219,24 +235,6 @@ function GroupRolesScreenView({
               </ListItem>
             </Pressable>
           ))}
-          <Pressable onPress={() => setShowAddRole(true)}>
-            <ListItem
-              paddingHorizontal="$2xl"
-              backgroundColor={'$background'}
-              borderRadius="$2xl"
-            >
-              <ActionSheet.ActionContent>
-                <ActionSheet.ActionTitle>Add role</ActionSheet.ActionTitle>
-              </ActionSheet.ActionContent>
-              <ListItem.EndContent
-                flexDirection="row"
-                gap="$xl"
-                alignItems="center"
-              >
-                <ActionSheet.ActionIcon type="Add" color="$tertiaryText" />
-              </ListItem.EndContent>
-            </ListItem>
-          </Pressable>
         </ActionSheet.ActionGroup>
       </ScrollView>
       {!!editRole && (
@@ -327,7 +325,8 @@ function EditRoleSheet({
       .map((m) => m.contactId);
   }, [groupMembers, role.id]);
 
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(initialMembers);
+  const [selectedMembers, setSelectedMembers] =
+    useState<string[]>(initialMembers);
 
   const handleSave = useCallback(
     (data: { title: string; description: string }) => {
@@ -483,9 +482,13 @@ function EditRoleSheet({
                   <Button.Text>Delete role</Button.Text>
                 </Button>
                 {disableDelete && (
-                  <Text textAlign="center" fontSize="$s" color="$destructiveText">
-                    This role cannot be deleted, it is still in use for some users
-                    or channels.
+                  <Text
+                    textAlign="center"
+                    fontSize="$s"
+                    color="$destructiveText"
+                  >
+                    This role cannot be deleted, it is still in use for some
+                    users or channels.
                   </Text>
                 )}
               </YStack>
@@ -508,7 +511,11 @@ function AddRoleSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (data: { title: string; description: string; members: string[] }) => void;
+  onAdd: (data: {
+    title: string;
+    description: string;
+    members: string[];
+  }) => void;
   groupMembers: db.ChatMember[];
   groupRoles: db.GroupRole[];
   navigation: Props['navigation'];
