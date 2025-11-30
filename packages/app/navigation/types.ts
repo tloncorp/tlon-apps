@@ -203,6 +203,17 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     fromChatDetails?: boolean;
   };
+  EditRole: {
+    groupId: string;
+    roleId: string;
+    selectedMembers?: string[];
+    fromChatDetails?: boolean;
+  };
+  AddRole: {
+    groupId: string;
+    selectedMembers?: string[];
+    fromChatDetails?: boolean;
+  };
   SelectRoleMembers: {
     groupId: string;
     roleId?: string;

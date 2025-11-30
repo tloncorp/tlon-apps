@@ -4,7 +4,9 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 
+import { AddRoleScreen } from '../features/groups/AddRoleScreen';
 import { EditChannelScreen } from '../features/groups/EditChannelScreen';
+import { EditRoleScreen } from '../features/groups/EditRoleScreen';
 import { GroupMembersScreen } from '../features/groups/GroupMembersScreen';
 import { GroupMetaScreen } from '../features/groups/GroupMetaScreen';
 import { GroupPrivacyScreen } from '../features/groups/GroupPrivacyScreen';
@@ -58,6 +60,8 @@ export function GroupSettingsStack({
       <GroupSettings.Screen name="EditChannel" component={EditChannelScreen} />
       <GroupSettings.Screen name="Privacy" component={GroupPrivacyScreen} />
       <GroupSettings.Screen name="GroupRoles" component={GroupRolesScreen} />
+      <GroupSettings.Screen name="EditRole" component={EditRoleScreen} />
+      <GroupSettings.Screen name="AddRole" component={AddRoleScreen} />
       <GroupSettings.Screen
         name="SelectRoleMembers"
         component={SelectRoleMembersScreen}
