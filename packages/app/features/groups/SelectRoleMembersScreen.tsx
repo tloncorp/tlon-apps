@@ -1,11 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { Icon, SectionListHeader } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SectionList, SectionListRenderItemInfo } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, ListRenderItemInfo } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue, View } from 'tamagui';
+import { View, getTokenValue } from 'tamagui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
@@ -19,9 +19,8 @@ type Props = NativeStackScreenProps<
 export function SelectRoleMembersScreen({ navigation, route }: Props) {
   const { groupId, selectedMembers: initialSelected, onSave } = route.params;
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(
-    initialSelected
-  );
+  const [selectedMembers, setSelectedMembers] =
+    useState<string[]>(initialSelected);
   const { bottom } = useSafeAreaInsets();
 
   const { groupMembers, groupRoles } = useGroupContext({ groupId });
@@ -47,50 +46,33 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
   }, [groupMembers]);
 
   const filteredMembers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return groupMembers;
-    }
-    return fuse.search(searchQuery).map((result) => result.item);
+    const members = searchQuery.trim()
+      ? fuse.search(searchQuery).map((result) => result.item)
+      : groupMembers;
+
+    // Filter out invited members and sort alphabetically by nickname or id
+    return members
+      .filter((m) => m.status !== 'invited')
+      .sort((a, b) => {
+        const aName = a.contact?.nickname || a.contactId;
+        const bName = b.contact?.nickname || b.contactId;
+        return aName.localeCompare(bName);
+      });
   }, [groupMembers, searchQuery, fuse]);
 
-  const membersByRole = useMemo(
-    () =>
-      filteredMembers.reduce<Record<string, db.ChatMember[]>>((acc, m) => {
-        if (m.roles !== undefined && m.roles !== null && m.roles.length > 0) {
-          m.roles.forEach((role) => {
-            if (acc[role.roleId] === undefined) {
-              acc[role.roleId] = [];
-            }
-            acc[role.roleId].push(m);
-          });
-        }
-        return acc;
-      }, {}),
-    [filteredMembers]
-  );
-
-  const membersWithoutRoles = filteredMembers.filter(
-    (m) => m.status !== 'invited' && (m.roles?.length === 0 || m.roles === null)
-  );
-
-  const sectionedData = useMemo(
-    () =>
-      Object.keys(membersByRole)
-        .map((role) => ({
-          title: role,
-          data: membersByRole[role],
-        }))
-        .concat(
-          membersWithoutRoles.length > 0
-            ? [
-                {
-                  title: 'Members',
-                  data: membersWithoutRoles,
-                },
-              ]
-            : []
-        ),
-    [membersByRole, membersWithoutRoles]
+  const getRoleLabels = useCallback(
+    (member: db.ChatMember) => {
+      if (!member.roles || member.roles.length === 0) {
+        return 'No roles';
+      }
+      return member.roles
+        .map((role) => {
+          const foundRole = groupRoles.find((r) => r.id === role.roleId);
+          return foundRole?.title || role.roleId;
+        })
+        .join(', ');
+    },
+    [groupRoles]
   );
 
   const handleToggleMember = useCallback(
@@ -110,9 +92,16 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     navigation.goBack();
   }, [selectedMembers, onSave, navigation]);
 
+  const handleGoBack = useCallback(() => {
+    onSave(selectedMembers);
+    navigation.goBack();
+  }, [selectedMembers, onSave, navigation]);
+
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<db.ChatMember, { title: string }>) => {
+    ({ item }: ListRenderItemInfo<db.ChatMember>) => {
       const isSelected = selectedMembers.includes(item.contactId);
+      const roleLabels = getRoleLabels(item);
+
       return (
         <ContactList.Item
           contactId={item.contactId}
@@ -120,6 +109,7 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
           size="$4xl"
           onPress={() => handleToggleMember(item)}
           showEndContent
+          subtitle={roleLabels}
           endContent={
             isSelected ? (
               <Icon type="Checkmark" size="$l" color="$positiveActionText" />
@@ -137,28 +127,14 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
         />
       );
     },
-    [selectedMembers, handleToggleMember]
-  );
-
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: { title: string } }) => (
-      <SectionListHeader>
-        <SectionListHeader.Text>
-          {groupRoles.find((r) => r.id === section.title)?.title ??
-            section.title}
-        </SectionListHeader.Text>
-      </SectionListHeader>
-    ),
-    [groupRoles]
+    [selectedMembers, handleToggleMember, getRoleLabels]
   );
 
   const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader title="Select members" rightControls={
-        <ScreenHeader.TextButton onPress={handleSave}>Save</ScreenHeader.TextButton>
-      } />
+      <ScreenHeader backAction={handleGoBack} title="Select members" />
       <View paddingHorizontal="$l" paddingBottom="$s">
         <TextInput
           icon="Search"
@@ -170,20 +146,15 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
           autoCapitalize="none"
           rightControls={
             searchQuery !== '' ? (
-              <TextInput.InnerButton
-                label="Clear"
-                onPress={handlePressClear}
-              />
+              <TextInput.InnerButton label="Clear" onPress={handlePressClear} />
             ) : undefined
           }
         />
       </View>
-      <SectionList
-        sections={sectionedData}
+      <FlatList
+        data={filteredMembers}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        stickySectionHeadersEnabled={false}
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$l', 'size'),
           paddingBottom: bottom,
