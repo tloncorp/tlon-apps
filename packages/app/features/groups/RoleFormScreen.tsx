@@ -198,16 +198,15 @@ export function RoleFormScreen({ navigation, route }: Props) {
             description: data.description,
           });
 
-          // Add new members to the role
-          await Promise.all(
-            addMembers.map((contactId) => addUserToRole(contactId, role.id!))
-          );
-          // Remove members from the role
-          await Promise.all(
-            removeMembers.map((contactId) =>
+          // Add new members to and remove members from the role
+          await Promise.all([
+            ...addMembers.map((contactId) =>
+              addUserToRole(contactId, role.id!)
+            ),
+            ...removeMembers.map((contactId) =>
               removeUserFromRole(contactId, role.id!)
-            )
-          );
+            ),
+          ]);
         } else {
           // Create new role
           const newRoleId = generateSafeId(data.title, 'role');
