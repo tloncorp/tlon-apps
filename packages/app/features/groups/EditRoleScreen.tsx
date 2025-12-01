@@ -1,11 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
@@ -31,8 +30,9 @@ type RoleFormData = {
 };
 
 export function EditRoleScreen({ navigation, route }: Props) {
-  const { groupId, roleId, fromChatDetails } = route.params;
+  const { groupId, roleId } = route.params;
   const { bottom } = useSafeAreaInsets();
+  const isSavingRef = useRef(false);
 
   const {
     groupRoles,
@@ -55,7 +55,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
     reset,
     control,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
     trigger,
   } = useForm<RoleFormData>({
     defaultValues: {
@@ -86,10 +86,54 @@ export function EditRoleScreen({ navigation, route }: Props) {
     return unsubscribe;
   }, [navigation, route.params.selectedMembers]);
 
-  const handleGoBack = useHandleGoBack(navigation, {
-    groupId,
-    fromChatDetails,
-  });
+  // Check if there are unsaved changes
+  const hasMemberChanges = useMemo(() => {
+    const initialSet = new Set(initialMembers);
+    const currentSet = new Set(selectedMembers);
+
+    if (initialSet.size !== currentSet.size) return true;
+
+    for (const id of currentSet) {
+      if (!initialSet.has(id)) return true;
+    }
+
+    return false;
+  }, [initialMembers, selectedMembers]);
+
+  const hasUnsavedChanges = isDirty || hasMemberChanges;
+
+  // Intercept back navigation to prompt for unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If no unsaved changes or already saving, let navigation proceed
+      if (!hasUnsavedChanges || isSavingRef.current) {
+        return;
+      }
+
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+
+      // Prompt the user before leaving the screen
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. Are you sure you want to discard them?',
+        [
+          { text: "Don't leave", style: 'cancel', onPress: () => {} },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges]);
+
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
   const rolesWithMembers = useMemo(() => {
     return groupRoles.filter((r) => {
@@ -113,6 +157,8 @@ export function EditRoleScreen({ navigation, route }: Props) {
       if (!role) {
         return;
       }
+      isSavingRef.current = true;
+
       // Calculate which members to add/remove
       const addMembers = selectedMembers.filter(
         (id) => !initialMembers.includes(id)
@@ -163,6 +209,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
     if (!role?.id || role.title === 'Admin') {
       return;
     }
+    isSavingRef.current = true;
     await deleteGroupRole(role.id);
     navigation.goBack();
   }, [deleteGroupRole, role?.id, role?.title, navigation]);

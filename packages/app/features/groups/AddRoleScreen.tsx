@@ -1,11 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { generateSafeId } from '@tloncorp/shared/logic';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
@@ -30,8 +29,9 @@ type RoleFormData = {
 };
 
 export function AddRoleScreen({ navigation, route }: Props) {
-  const { groupId, fromChatDetails } = route.params;
+  const { groupId } = route.params;
   const { bottom } = useSafeAreaInsets();
+  const isSavingRef = useRef(false);
 
   const { createGroupRole, addUserToRole } = useGroupContext({
     groupId,
@@ -41,7 +41,7 @@ export function AddRoleScreen({ navigation, route }: Props) {
     reset,
     control,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
     trigger,
   } = useForm<RoleFormData>({
     defaultValues: {
@@ -64,16 +64,48 @@ export function AddRoleScreen({ navigation, route }: Props) {
     return unsubscribe;
   }, [navigation, route.params.selectedMembers]);
 
-  const handleGoBack = useHandleGoBack(navigation, {
-    groupId,
-    fromChatDetails,
-  });
+  const hasUnsavedChanges = isDirty || selectedMembers.length > 0;
+
+  // Intercept back navigation to prompt for unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If no unsaved changes or already saving, let navigation proceed
+      if (!hasUnsavedChanges || isSavingRef.current) {
+        return;
+      }
+
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+
+      // Prompt the user before leaving the screen
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved changes. Are you sure you want to discard them?',
+        [
+          { text: "Don't leave", style: 'cancel', onPress: () => {} },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges]);
+
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
   const handleSave = useCallback(
     async (data: { title: string; description: string }) => {
       if (!data.title) {
         return;
       }
+      isSavingRef.current = true;
+
       const roleId = generateSafeId(data.title, 'role');
       await createGroupRole({
         id: roleId,
