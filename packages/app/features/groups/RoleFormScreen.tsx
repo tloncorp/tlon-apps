@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared';
 import { generateSafeId } from '@tloncorp/shared/logic';
-import { ConfirmDialog } from '@tloncorp/ui';
+import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -48,6 +48,8 @@ export function RoleFormScreen({ navigation, route }: Props) {
     : undefined;
   const { bottom } = useSafeAreaInsets();
   const isSavingRef = useRef(false);
+  const toast = useToast();
+  const logger = createDevLogger('saveRole', true);
 
   const {
     groupRoles,
@@ -180,48 +182,63 @@ export function RoleFormScreen({ navigation, route }: Props) {
       }
       isSavingRef.current = true;
 
-      if (isEditMode && role) {
-        // Edit existing role
-        const addMembers = selectedMembers.filter(
-          (id) => !initialMembers.includes(id)
-        );
-        const removeMembers = initialMembers.filter(
-          (id) => !selectedMembers.includes(id)
-        );
+      try {
+        if (isEditMode && role) {
+          // Edit existing role
+          const addMembers = selectedMembers.filter(
+            (id) => !initialMembers.includes(id)
+          );
+          const removeMembers = initialMembers.filter(
+            (id) => !selectedMembers.includes(id)
+          );
 
-        await updateGroupRole({
-          ...role,
-          title: data.title,
-          description: data.description,
-        });
+          await updateGroupRole({
+            ...role,
+            title: data.title,
+            description: data.description,
+          });
 
-        // Add new members to the role
-        await Promise.all(
-          addMembers.map((contactId) => addUserToRole(contactId, role.id!))
-        );
-        // Remove members from the role
-        await Promise.all(
-          removeMembers.map((contactId) =>
-            removeUserFromRole(contactId, role.id!)
-          )
-        );
-      } else {
-        // Create new role
-        const newRoleId = generateSafeId(data.title, 'role');
-        await createGroupRole({
-          id: newRoleId,
-          title: data.title,
-          description: data.description,
-        });
-        // Add selected members to the role
-        for (const contactId of selectedMembers) {
-          await addUserToRole(contactId, newRoleId);
+          // Add new members to the role
+          await Promise.all(
+            addMembers.map((contactId) => addUserToRole(contactId, role.id!))
+          );
+          // Remove members from the role
+          await Promise.all(
+            removeMembers.map((contactId) =>
+              removeUserFromRole(contactId, role.id!)
+            )
+          );
+        } else {
+          // Create new role
+          const newRoleId = generateSafeId(data.title, 'role');
+          await createGroupRole({
+            id: newRoleId,
+            title: data.title,
+            description: data.description,
+          });
+          // Add selected members to the role
+          await Promise.all(
+            selectedMembers.map((contactId) =>
+              addUserToRole(contactId, newRoleId)
+            )
+          );
         }
-      }
 
-      reset();
-      setSelectedMembers([]);
-      navigation.goBack();
+        reset();
+        setSelectedMembers([]);
+        navigation.goBack();
+      } catch (error) {
+        logger.error('Failed to save role:', error);
+        toast({
+          message:
+            error instanceof Error
+              ? `Failed to save role: ${error.message}`
+              : 'An error occurred while saving the role. Please try again.',
+          duration: 4000,
+        });
+      } finally {
+        isSavingRef.current = false;
+      }
     },
     [
       isEditMode,
@@ -234,6 +251,8 @@ export function RoleFormScreen({ navigation, route }: Props) {
       removeUserFromRole,
       reset,
       navigation,
+      toast,
+      logger,
     ]
   );
 
@@ -250,9 +269,23 @@ export function RoleFormScreen({ navigation, route }: Props) {
       return;
     }
     isSavingRef.current = true;
-    await deleteGroupRole(role.id);
-    navigation.goBack();
-  }, [isEditMode, deleteGroupRole, role?.id, role?.title, navigation]);
+
+    try {
+      await deleteGroupRole(role.id);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Failed to delete role:', error);
+      toast({
+        message:
+          error instanceof Error
+            ? `Failed to delete role: ${error.message}`
+            : 'An error occurred while deleting the role. Please try again.',
+        duration: 4000,
+      });
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [isEditMode, deleteGroupRole, role?.id, role?.title, navigation, toast]);
 
   const handleNavigateToMemberSelector = useCallback(() => {
     navigation.navigate('SelectRoleMembers', {
