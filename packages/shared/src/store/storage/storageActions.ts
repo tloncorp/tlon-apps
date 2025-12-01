@@ -98,7 +98,12 @@ async function uploadAssetWithLifecycle(
     logger.log('final uri', remoteUri);
     setUploadState(uploadKey, { status: 'success', remoteUri });
   } catch (e) {
-    logger.crumb('upload failed');
+    logger.trackError('upload failed', {
+      error: e,
+      message: e.message,
+      uploadIntent: JSON.stringify(uploadIntent),
+      isWeb,
+    });
     console.error(e);
     setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
   }
