@@ -274,7 +274,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
       await deleteGroupRole(role.id);
       navigation.goBack();
     } catch (error) {
-      console.error('Failed to delete role:', error);
+      logger.error('Failed to delete role:', error);
       toast({
         message:
           error instanceof Error
