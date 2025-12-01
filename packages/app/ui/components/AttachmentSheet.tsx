@@ -249,29 +249,8 @@ export default function AttachmentSheet({
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const files = await pickFile();
-    if (files.length > 0) {
-      const uploadIntents = files.map((entry): Attachment.UploadIntent => {
-        // We have the two `type`s here because web has `File`s (which are
-        // higher resolution and more efficient than URIs), and RN only has
-        // URIs.
-        switch (entry.type) {
-          case 'file': {
-            return {
-              type: 'file',
-              file: entry.file,
-            };
-          }
-          case 'uri': {
-            return {
-              type: 'fileUri',
-              localUri: entry.uri,
-              name: entry.name,
-            };
-          }
-        }
-      });
-
+    const uploadIntents = await pickFile();
+    if (uploadIntents.length > 0) {
       attachAssets(uploadIntents);
       onAttach?.(uploadIntents);
     }

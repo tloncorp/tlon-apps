@@ -1,8 +1,7 @@
+import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 
-export async function pickFile(): Promise<
-  ({ type: 'uri'; name: string; uri: string } | { type: 'file'; file: File })[]
-> {
+export async function pickFile(): Promise<Attachment.UploadIntent[]> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
     multiple: true,
@@ -16,9 +15,9 @@ export async function pickFile(): Promise<
   return results.assets?.map((res) =>
     res.file == null
       ? {
-          type: 'uri',
+          type: 'fileUri',
           name: res.name,
-          uri: res.uri,
+          localUri: res.uri,
         }
       : {
           type: 'file',
