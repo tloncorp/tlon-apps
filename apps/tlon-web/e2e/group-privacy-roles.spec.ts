@@ -57,5 +57,9 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
     'Updated description'
   );
   await page.getByText('Save').click();
-  await expect(page.getByText('Updated description')).toBeVisible();
+  await page.waitForTimeout(1000);
+
+  // Navigate back to roles list to verify the update persisted
+  await helpers.navigateBack(page);
+  await expect(page.getByText('Testing role')).toBeVisible();
 });

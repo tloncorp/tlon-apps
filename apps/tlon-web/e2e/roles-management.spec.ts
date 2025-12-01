@@ -37,16 +37,24 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   // Verify Admin role is visible
   await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
 
-  // Try to click on Admin role - it should not open the edit sheet
+  // Click on Admin role - it should now open the edit screen (but fields are read-only)
   await page.getByTestId('GroupRole-Admin').click();
 
-  // Verify the edit sheet did not open (Edit role text should not be visible)
-  await expect(page.getByText('Edit role')).not.toBeVisible();
+  // Verify the edit screen opened
+  await expect(page.getByText('Edit role')).toBeVisible();
 
-  // Verify that Admin role doesn't have a chevron icon (indicating it's not clickable)
-  const adminRoleElement = page.getByTestId('GroupRole-Admin');
-  const chevronIcon = adminRoleElement.locator('[data-icon="ChevronRight"]');
-  await expect(chevronIcon).not.toBeVisible();
+  // Verify that title and description inputs are disabled for Admin role
+  const titleInput = page.getByTestId('RoleTitleInput');
+  const descriptionInput = page.getByTestId('RoleDescriptionInput');
+
+  await expect(titleInput).toBeDisabled();
+  await expect(descriptionInput).toBeDisabled();
+
+  // Verify Delete button is not visible for Admin role
+  await expect(page.getByText('Delete role')).not.toBeVisible();
+
+  // Navigate back to roles list
+  await helpers.navigateBack(page);
 
   // Create a regular role to verify that other roles still work
   await helpers.createRole(page, 'Regular role', 'This role can be edited');
@@ -55,10 +63,8 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   await page.getByText('Regular role').click();
   await expect(page.getByText('Edit role')).toBeVisible();
 
-  // Close the edit sheet by clicking Save button
-  await page.getByText('Save').click();
-  await page.waitForTimeout(1000);
-  await expect(page.getByText('Edit role')).not.toBeVisible();
+  // Navigate back to roles list
+  await helpers.navigateBack(page);
 });
 
 test('should manage roles lifecycle: create, assign, modify permissions, rename, and delete', async ({
@@ -156,17 +162,13 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByText('Testing role').click();
   await expect(page.getByText('Edit role')).toBeVisible();
 
-  // Verify the role cannot be deleted (should show warning message)
+  // Verify the role cannot be deleted (should show warning message and disabled button)
   const deleteButton = page.getByText('Delete role');
-  if (await deleteButton.isVisible()) {
-    // If delete button is visible, there should be a warning about not being able to delete
-    await expect(page.getByText(/This role cannot be deleted.*/)).toBeVisible();
-  } else {
-    // Or the delete button might not be visible at all when role is in use
-    await expect(deleteButton).not.toBeVisible();
-  }
+  await expect(deleteButton).toBeVisible();
+  await expect(deleteButton).toBeDisabled();
+  await expect(page.getByText(/This role cannot be deleted.*/)).toBeVisible();
 
-  await page.getByText('Save').click();
+  await helpers.navigateBack(page);
 
   // Rename the role
   await page.getByText('Testing role').click();
@@ -179,7 +181,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.waitForTimeout(2000);
   await expect(page.getByText('Renamed role')).toBeVisible();
 
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Remove role from user
   await page.getByTestId('GroupMembers').click();
