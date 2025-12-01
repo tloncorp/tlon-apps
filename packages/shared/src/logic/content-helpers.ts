@@ -581,19 +581,22 @@ export function appendFileUploadToPostBlob(
   return JSON.stringify(data);
 }
 
-export function parsePostBlob(blob: string): PostBlobData {
+/** Client-side parsed representation of PostBlob data */
+export type ClientPostBlobData = Array<PostBlobDataEntry | { type: 'unknown' }>;
+
+export function parsePostBlob(blob: string): ClientPostBlobData {
   const arr: PostBlobData = JSON.parse(blob);
   if (!Array.isArray(arr)) {
-    return [];
+    return [{ type: 'unknown' }];
   }
 
-  return arr.flatMap((entry) => {
+  return arr.map((entry) => {
     const { type, version, fileUri, name } = entry;
     if (type !== 'file' && version != 1) {
       logger.trackError('Failed to parse PostBlobDataEntry', { entry });
-      return [];
+      return { type: 'unknown' };
     }
-    return [{ type, version, fileUri, name }];
+    return { type, version, fileUri, name };
   });
 }
 

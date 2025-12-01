@@ -332,22 +332,37 @@ export function convertContent(
 
   if (blob != null) {
     const blobData = parsePostBlob(blob);
-    for (const { fileUri, name } of blobData) {
-      // Treat all blob entries as downloadable links
-      const isUploading =
-        fileUri.startsWith('file://') || fileUri.startsWith('blob:');
-      if (isUploading) {
-        out.push({
-          type: 'blockquote',
-          content: [{ type: 'text', text: 'Uploading attachment...' }],
-        });
-      } else {
-        out.push({
-          type: 'link',
-          url: fileUri,
-          title: name ?? 'Attached file',
-          description: 'Press to download',
-        });
+    for (const entry of blobData) {
+      switch (entry.type) {
+        case 'file': {
+          const { fileUri, name } = entry;
+          const isUploading =
+            fileUri.startsWith('file://') || fileUri.startsWith('blob:');
+          if (isUploading) {
+            out.push({
+              type: 'blockquote',
+              content: [{ type: 'text', text: 'Uploading attachment...' }],
+            });
+          } else {
+            out.push({
+              type: 'link',
+              url: fileUri,
+              title: name ?? 'Attached file',
+              description: 'Press to download',
+            });
+          }
+          break;
+        }
+
+        case 'unknown': {
+          out.push({
+            type: 'blockquote',
+            content: [
+              { type: 'text', text: 'Upgrade your app to see this post' },
+            ],
+          });
+          break;
+        }
       }
     }
   }
