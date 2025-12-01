@@ -162,7 +162,7 @@ export const sendPost = async ({
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: null,
+          blob: blob ?? null,
         },
         time: null,
       },
