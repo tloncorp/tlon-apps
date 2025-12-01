@@ -317,6 +317,7 @@ export default function AttachmentSheet({
         ]
       ),
     [
+      canUploadFiles,
       onClearAttachments,
       pickImage,
       startFilePicker,
