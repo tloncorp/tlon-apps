@@ -20,6 +20,7 @@ import {
   View,
   YStack,
 } from '../../ui';
+import { Badge } from '../../ui/components/Badge';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'AddRole'>;
 
@@ -158,13 +159,21 @@ export function AddRoleScreen({ navigation, route }: Props) {
             >
               <ListItem.MainContent>
                 <ListItem.Title>Members</ListItem.Title>
-                <ListItem.Subtitle>
-                  {selectedMembers.length === 0
-                    ? 'No members selected'
-                    : `${selectedMembers.length} member${selectedMembers.length === 1 ? '' : 's'} selected`}
-                </ListItem.Subtitle>
               </ListItem.MainContent>
-              <ListItem.EndContent>
+
+              <ListItem.EndContent
+                flexDirection="row"
+                gap="$xl"
+                alignItems="center"
+              >
+                {selectedMembers.length > 0 ? (
+                  <ListItem.Count
+                    notified={false}
+                    count={selectedMembers.length}
+                  />
+                ) : (
+                  <Badge text="Add" />
+                )}
                 <ActionSheet.ActionIcon
                   type="ChevronRight"
                   color="$tertiaryText"

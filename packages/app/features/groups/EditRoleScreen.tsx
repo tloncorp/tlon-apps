@@ -21,6 +21,7 @@ import {
   View,
   YStack,
 } from '../../ui';
+import { Badge } from '../../ui/components/Badge';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditRole'>;
 
@@ -183,7 +184,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title="Edit role" />
+      <ScreenHeader backAction={handleGoBack} title={`Edit ${role.title}`} />
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -254,19 +255,27 @@ export function EditRoleScreen({ navigation, route }: Props) {
           />
           <Pressable onPress={handleNavigateToMemberSelector}>
             <ListItem
-              paddingHorizontal="$xl"
+              paddingHorizontal="$2xl"
               backgroundColor="$background"
               borderRadius="$xl"
             >
               <ListItem.MainContent>
                 <ListItem.Title>Members</ListItem.Title>
-                <ListItem.Subtitle>
-                  {selectedMembers.length === 0
-                    ? 'No members selected'
-                    : `${selectedMembers.length} member${selectedMembers.length === 1 ? '' : 's'} selected`}
-                </ListItem.Subtitle>
               </ListItem.MainContent>
-              <ListItem.EndContent>
+              <ListItem.EndContent
+                flexDirection="row"
+                gap="$xl"
+                alignItems="center"
+              >
+                {selectedMembers.length > 0 ? (
+                  <ListItem.Count
+                    notified={false}
+                    count={selectedMembers.length}
+                  />
+                ) : (
+                  <Badge text="Add" />
+                )}
+
                 <ActionSheet.ActionIcon
                   type="ChevronRight"
                   color="$tertiaryText"
@@ -284,7 +293,9 @@ export function EditRoleScreen({ navigation, route }: Props) {
                 disabled={disableDelete}
                 onPress={handleDelete}
               >
-                <Button.Text color={'$negativeActionText'}>
+                <Button.Text
+                  color={disableDelete ? '$negativeActionText' : undefined}
+                >
                   Delete role
                 </Button.Text>
               </Button>

@@ -17,13 +17,19 @@ type Props = NativeStackScreenProps<
 >;
 
 export function SelectRoleMembersScreen({ navigation, route }: Props) {
-  const { groupId, selectedMembers: initialSelected, onSave } = route.params;
+  const { groupId, roleId, selectedMembers: initialSelected, onSave } = route.params;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialSelected);
   const { bottom } = useSafeAreaInsets();
 
   const { groupMembers, groupRoles } = useGroupContext({ groupId });
+
+  // Find the role being edited to display its title
+  const role = useMemo(
+    () => groupRoles.find((r) => r.id === roleId),
+    [groupRoles, roleId]
+  );
 
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
@@ -87,11 +93,6 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     [selectedMembers]
   );
 
-  const handleSave = useCallback(() => {
-    onSave(selectedMembers);
-    navigation.goBack();
-  }, [selectedMembers, onSave, navigation]);
-
   const handleGoBack = useCallback(() => {
     onSave(selectedMembers);
     navigation.goBack();
@@ -134,7 +135,10 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader backAction={handleGoBack} title="Select members" />
+      <ScreenHeader
+        backAction={handleGoBack}
+        title={role ? `Select members for ${role.title}` : 'Select members'}
+      />
       <View paddingHorizontal="$l" paddingBottom="$s">
         <TextInput
           icon="Search"
