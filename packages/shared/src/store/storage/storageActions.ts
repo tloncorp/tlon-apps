@@ -8,6 +8,7 @@ import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
+import { AnalyticsEvent } from '../../domain';
 import { Attachment } from '../../domain/attachment';
 import { setUploadState } from './storageUploadState';
 import {
@@ -95,7 +96,10 @@ async function uploadAssetWithLifecycle(
       isWeb
     );
     logger.crumb('upload succeeded');
-    logger.log('final uri', remoteUri);
+    logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
+      remoteUri,
+      isWeb,
+    });
     setUploadState(uploadKey, { status: 'success', remoteUri });
   } catch (e) {
     logger.trackError('upload failed', {
