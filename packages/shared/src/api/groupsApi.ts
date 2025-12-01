@@ -22,6 +22,7 @@ import {
   PokeParams,
   getCurrentUserId,
   poke,
+  request,
   scry,
   subscribe,
   subscribeOnce,
@@ -451,36 +452,41 @@ export const getGroups = async (
   return toClientGroups(groupData, true);
 };
 
-async function requestResponse(id: string, flag: string, args: PokeParams) {
-  return new Promise<ub.GroupResponseOKV5>((resolve, reject) => {
-    console.log('starting requestResponse', { id, flag, args });
-    const sub = subscribe<ub.GroupActionResponseV5>(
-      {
-        app: 'groups',
-        path: `/v1/groups/${flag}/request/${id}`,
-      },
-      (response) => {
-        console.log('received response', { id, flag, response });
-        if ('pending' in response.body) {
-          reject(new Error('Awaiting host confirmation'));
-          return;
-        }
-
-        // if we got a final response, unsubscribe
-        sub.then(unsubscribe);
-        if ('error' in response.body) {
-          reject(new Error(response.body.error.message));
-          return;
-        }
-
-        resolve(response.body);
-      }
-    );
-    console.log('subscribed to response', { id, flag });
-
-    poke(args);
-    console.log('poke sent, awaiting response', { id, flag });
+async function requestResponse(action: ub.GroupActionV5) {
+  return request<ub.GroupActionResponseV5>('/apps/groups/~/v1', {
+    method: 'POST',
+    body: JSON.stringify(action),
   });
+
+  // return new Promise<ub.GroupResponseOKV5>((resolve, reject) => {
+  //   console.log('starting requestResponse', { id, flag, args });
+  //   const sub = subscribe<ub.GroupActionResponseV5>(
+  //     {
+  //       app: 'groups',
+  //       path: `/v1/groups/${flag}/request/${id}`,
+  //     },
+  //     (response) => {
+  //       console.log('received response', { id, flag, response });
+  //       if ('pending' in response.body) {
+  //         reject(new Error('Awaiting host confirmation'));
+  //         return;
+  //       }
+
+  //       // if we got a final response, unsubscribe
+  //       sub.then(unsubscribe);
+  //       if ('error' in response.body) {
+  //         reject(new Error(response.body.error.message));
+  //         return;
+  //       }
+
+  //       resolve(response.body);
+  //     }
+  //   );
+  //   console.log('subscribed to response', { id, flag });
+
+  //   poke(args);
+  //   console.log('poke sent, awaiting response', { id, flag });
+  // });
 }
 
 export const updateGroupMeta = async ({
@@ -491,21 +497,25 @@ export const updateGroupMeta = async ({
   meta: ub.GroupMeta;
 }) => {
   const id = getRequestId();
-  const response = await requestResponse(
-    id,
-    groupId,
-    groupAction5({
-      id: id,
-      'a-groups': {
-        group: {
-          flag: groupId,
-          'a-group': {
-            meta,
-          },
+  const response = await requestResponse({
+    id: id,
+    'a-groups': {
+      group: {
+        flag: groupId,
+        'a-group': {
+          meta,
         },
       },
-    })
-  );
+    },
+  });
+
+  if ('error' in response.body) {
+    throw new Error(response.body.error.message);
+  }
+
+  if ('pending' in response.body) {
+    throw new Error('Awaiting host confirmation');
+  }
 
   console.log('updateGroupMeta response', response);
   return response;

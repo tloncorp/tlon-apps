@@ -305,10 +305,17 @@
   $:  outgoing=(set request-id)
       incoming=(map [=ship id=request-id] incoming-request)
   ==
+::  $incoming-request: a request coming into the agent
+::
+::  .id: request id
+::  .from: ship making the request
+::  .http-id: http request id, if any. means we should give a response
+::  .result: response body, if any. if null, means request is in progress
+::
 +$  incoming-request
   $:  id=request-id
       from=ship
-      :: if null, means in progress
+      http-id=(unit @ta)
       result=(unit response-body)
   ==
 +$  action-error

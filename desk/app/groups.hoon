@@ -9,9 +9,9 @@
 /-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
     activity
 /-  meta
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, hutils=http-utils
 /+  gc=groups-conv, v=volume, s=subscriber, imp=import-aid, logs,
-    t=contacts
+    t=contacts, gj=groups-json
 /+  of
 /+  neg=negotiate, discipline
 ::  performance, keep warm
@@ -43,6 +43,7 @@
 /%  m-channel-preview    %channel-preview
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
+/%  m-group-response-2   %group-response-2
 /%  m-group-action-3     %group-action-3
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
@@ -85,6 +86,7 @@
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
           :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          :+  %group-response-2   &  -:!>(*vale:m-group-response-2)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
@@ -95,12 +97,14 @@
     ::  facts
     ::
     :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
+        [/server/groups/$/$/request/$ %group-response-2 ~]
         [/server/groups/$/$/token/$ %group-token ~]
         [/server/groups/$/$/ask/$ %group-token ~]
         [/server/groups/$/$/preview %group-preview-3 ~]
         [/server/groups/index %group-previews-1 ~]
       ::
         [/v1/groups %group-response-1 ~]
+        [/v1/groups/$/$/request/$ %group-response-2 ~]
         [/groups/ui %group-action-3 ~]
       ::
         [/chan/$/$/$ %channel-preview ~]
@@ -113,6 +117,8 @@
         [/v1/foreigns %foreigns-1 ~]
         [/v1/foreigns/$/$/preview %group-preview-3 ~]
         [/v1/foreigns/index/$ %group-previews-1 ~]
+      ::
+        [/http-response/$ %http-response-header %http-response-data ~]
     ==
   ::  scries
   ::
@@ -309,7 +315,7 @@
       =+  !<(command:v8:gv vase)
       =.  cor  (tell:l %dbug ~['request-id: ' >request-id< ' command: ' >c-groups<])
       =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [src.bowl request-id] [request-id src.bowl ~])
+        (~(gut by incoming.requests) [src.bowl request-id] [request-id src.bowl ~ ~])
       ?>  =(from.request src.bowl)
       =.  incoming.requests
         (~(put by incoming.requests) [src.bowl request-id] request)
@@ -355,7 +361,7 @@
       =.  cor  (tell:l %dbug ~['request-id: ' >request-id< ' action: ' >a-groups<])
       ?>  from-self
       =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [our.bowl request-id] [request-id our.bowl ~])
+        (~(gut by incoming.requests) [our.bowl request-id] [request-id our.bowl ~ ~])
       ?>  =(from.request our.bowl)
       =.  incoming.requests
         (~(put by incoming.requests) [our.bowl request-id] request)
@@ -577,13 +583,29 @@
     ::  on the root path, making us act as a catch-all for http requests.
     ::  handle all requests that hit us by redirecting back into the web app.
     ::
-    =+  !<([id=@ta inbound-request:eyre] vase)
-    =/  pax=path                 /http-response/[id]
-    =/  pay=simple-payload:http  [[307 ['location' '/apps/groups/']~] ~]
-    %-  emil
-    :~  [%give %fact ~[pax] %http-response-header !>(response-header.pay)]
-        [%give %fact ~[pax] %http-response-data !>(data.pay)]
-        [%give %kick ~[pax] ~]
+    =+  !<(order:hutils vase)
+    =+  (purse:hutils url.request)
+    =*  not-found
+      (spout:hutils id [404 ~] `(as-octs:mimes:html 'bad path'))
+    ?+  site  (emil not-found)
+        [%apps %groups %~.~ %v1 ~]
+      ?+  method.request  (emil not-found)
+          %'GET'  !!
+      ::
+          %'POST'
+        ?>  from-self
+        ?~  body.request  (emil not-found)
+        ?~  json=(de:json:html q.u.body.request)  (emil not-found)
+        =/  =action:v8:gv  (action:v8:dejs:gj u.json)
+        =.  incoming.requests
+          %+  ~(put by incoming.requests)  [our.bowl request-id.action]
+          [request-id.action our.bowl `id ~]
+        $(+< group-action-5+!>(action))
+      ==
+    ::
+        [%apps %groups *]
+      %-  emil
+      (spout:hutils id [307 ['location' '/apps/groups/']~] ~)
     ==
   ==
 ::
@@ -1007,6 +1029,9 @@
   =.  cor  (watch-channels |)
   ::
   =.  cor
+    (emit [%pass /eyre/bind %arvo %e %connect [~ /apps/groups/~/v1] dap.bowl])
+  ::
+  =.  cor
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
@@ -1019,6 +1044,7 @@
   ~|  commit
   ~|  watch-path=`path`pole
   ?+  pole  ~|(bad-watch-path+pole !!)
+    [%http-response @ ~]  cor
   ::
     ::
     ::  server paths
@@ -1404,6 +1430,12 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
+      [%eyre %bind ~]
+    ?>  ?=(%bound +<.sign)
+    ?:  accepted.sign  cor
+    %-  (slog dap.bowl 'failed to eyre-bind' ~)
+    (tell:l %crit 'failed to eyre-bind' ~)
+  ::
       :: initialize .active-channels in $group
       ::
       [%load %active-channels ~]
@@ -1528,8 +1560,12 @@
     ?~  request=(~(get by incoming.requests) [our.bowl id])
       cor
     =.  incoming.requests
-      (~(put by incoming.requests) [our.bowl id] id our.bowl `[%pending ~])
-    (give %fact ~[(welp /v1 pole)] group-response-2+!>([id %pending ~]))
+      (~(put by incoming.requests) [our.bowl id] u.request(result `[%pending ~]))
+    =/  =response:v8:gv  [id %pending ~]
+    =.  cor
+      (give %fact ~[(welp /v1 pole)] group-response-2+!>(response))
+    ?~  http-id.u.request  cor
+    (give-http-response u.http-id.u.request response)
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -1648,6 +1684,13 @@
 ::  +se-core: group server core
 ::
 ++  size-limit  256.000  :: 256KB
+++  give-http-response
+  |=  [id=@ta =response:v8:gv]
+  =/  =json  (response:v8:enjs:gj response)
+  =/  body  (as-octs:mimes:html (en:json:html json))
+  %-  emil
+  %+  spout:hutils  id
+  [[200 ['content-type' 'application/json']~] `body]
 ++  se-core
   |_  [=flag:g =log:g =group:g =request-id:v8:gv gone=_|]
   ::
@@ -3046,7 +3089,7 @@
         [%request id=@ ~]
       =/  id=request-id:v8:gv  (slav %uv i.t.path)
       =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [src.bowl id] [id src.bowl ~])
+        (~(gut by incoming.requests) [src.bowl id] [id src.bowl ~ ~])
       =.  incoming.requests
           (~(put by incoming.requests) [src.bowl id] request)
       ?>  =(from.request src.bowl)
@@ -3642,7 +3685,7 @@
       =/  id=request-id:v8:gv  (slav %uv id.pole)
       =.  cor  (tell:l %dbug leaf+"+go-watch received request {<id>} from {<src.bowl>}" ~)
       =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [our.bowl id] [id our.bowl ~])
+        (~(gut by incoming.requests) [our.bowl id] [id our.bowl ~ ~])
       =.  incoming.requests
           (~(put by incoming.requests) [our.bowl id] request)
       go-core
@@ -3815,11 +3858,13 @@
         ?~  request=(~(get by incoming.requests) [our.bowl id])
           ~|(go-agent-bad-request+id !!)
         =.  incoming.requests
-            (~(put by incoming.requests) [our.bowl id] [id our.bowl `body.response])
+            (~(put by incoming.requests) [our.bowl id] u.request(result `body.response))
         ::  this should only ever be from ourselves
         =/  =path  :(weld /v1 go-area /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
         =.  cor  (give %fact ~[path] group-response-2+!>(response))
+        =?  cor  ?=(^ http-id.u.request)
+          (give-http-response u.http-id.u.request response)
         ::  if we haven't heard a final response yet, keep sub open
         ?:  ?=(%pending -.body.response)
           go-core

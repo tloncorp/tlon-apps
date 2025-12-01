@@ -182,7 +182,7 @@ export default ({ mode }: { mode: string }) => {
       //      proxy to "hide" the empty path segments, and then rewrite the
       //      path coming "out" of the proxy to obtain the original path.
       proxy: {
-        '/apps/groups/~/metagrab/': {
+        '^/apps/groups/~/.*': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
