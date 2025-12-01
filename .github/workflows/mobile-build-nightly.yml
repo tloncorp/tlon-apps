@@ -50,6 +50,8 @@ jobs:
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           APP_VARIANT: "preview"
           NOTIFY_PROVIDER: "binnec-dozzod-marnus"
           NOTIFY_SERVICE: "tlon-preview-release"
