@@ -153,7 +153,7 @@ export function AddRoleScreen({ navigation, route }: Props) {
           />
           <Pressable onPress={handleNavigateToMemberSelector}>
             <ListItem
-              paddingHorizontal="$l"
+              paddingHorizontal="$2xl"
               backgroundColor="$background"
               borderRadius="$xl"
             >
