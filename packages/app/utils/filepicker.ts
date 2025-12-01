@@ -12,16 +12,19 @@ export async function pickFile(): Promise<Attachment.UploadIntent[]> {
     return [];
   }
 
-  return results.assets?.map((res) =>
-    res.file == null
-      ? {
-          type: 'fileUri',
-          name: res.name,
-          localUri: res.uri,
-        }
-      : {
-          type: 'file',
-          file: res.file,
-        }
+  return results.assets?.map(
+    (res): Attachment.UploadIntent =>
+      res.file == null
+        ? {
+            type: 'fileUri',
+            name: res.name,
+            localUri: res.uri,
+            size: res.size ?? -1, // not sure when size would be undefined, but it's in the types...
+            mimeType: res.mimeType,
+          }
+        : {
+            type: 'file',
+            file: res.file,
+          }
   );
 }

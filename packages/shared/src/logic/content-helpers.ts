@@ -549,14 +549,26 @@ type BuildPostBlobDataEntry<
 type PostBlobDataEntry = BuildPostBlobDataEntry<
   'file',
   { version: 1 },
-  { fileUri: string; name?: string }
+  {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+  }
 >;
 
 type PostBlobData = PostBlobDataEntry[];
 
 export function appendFileUploadToPostBlob(
   blob: string | undefined,
-  opts: { fileUri: string; name?: string }
+  opts: {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+  }
 ) {
   const data: PostBlobData = (() => {
     if (!blob) {
@@ -579,6 +591,8 @@ export function appendFileUploadToPostBlob(
     version: 1,
     fileUri: opts.fileUri,
     name: opts.name,
+    mimeType: opts.mimeType,
+    size: opts.size,
   });
   return JSON.stringify(data);
 }
@@ -593,12 +607,11 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   }
 
   return arr.map((entry) => {
-    const { type, version, fileUri, name } = entry;
-    if (type !== 'file' && version != 1) {
+    if (entry.type !== 'file' && entry.version != 1) {
       logger.trackError('Failed to parse PostBlobDataEntry', { entry });
       return { type: 'unknown' };
     }
-    return { type, version, fileUri, name };
+    return entry;
   });
 }
 
@@ -661,12 +674,16 @@ export function toPostData({
             blob = appendFileUploadToPostBlob(blob, {
               fileUri: attachment.uploadState.remoteUri,
               name,
+              mimeType: attachment.type,
+              size: attachment.size,
             });
           } else if (attachment.uploadState.status === 'uploading') {
             // necessary for optimistic preview
             blob = appendFileUploadToPostBlob(blob, {
               fileUri: attachment.uploadState.localUri,
               name,
+              mimeType: attachment.type,
+              size: attachment.size,
             });
           }
           break;

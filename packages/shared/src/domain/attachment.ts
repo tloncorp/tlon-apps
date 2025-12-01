@@ -73,6 +73,9 @@ export type FileAttachment = {
   // File or local URI string
   localFile: File | string;
   name?: string;
+  /** in bytes */
+  size: number;
+  mimeType?: string;
 };
 
 export type UploadedFileAttachment = {
@@ -80,6 +83,9 @@ export type UploadedFileAttachment = {
   // File or local URI string
   localFile: File | string;
   name?: string;
+  /** in bytes */
+  size: number;
+  mimeType?: string;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -118,7 +124,14 @@ export namespace Attachment {
   };
   export type UploadIntent =
     | ImageUploadIntent
-    | { type: 'fileUri'; localUri: string; name?: string }
+    | {
+        type: 'fileUri';
+        localUri: string;
+        name?: string;
+        /** in bytes */
+        size: number;
+        mimeType?: string;
+      }
     | { type: 'file'; file: File };
 
   export namespace UploadIntent {
@@ -211,6 +224,9 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.file,
+            size: uploadIntent.file.size,
+            mimeType: uploadIntent.file.type,
+            name: uploadIntent.file.name,
             uploadState,
           };
 
@@ -219,6 +235,8 @@ export namespace Attachment {
             type: 'file',
             localFile: uploadIntent.localUri,
             name: uploadIntent.name,
+            size: uploadIntent.size,
+            mimeType: uploadIntent.type,
             uploadState,
           };
       }
@@ -243,6 +261,9 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.file,
+            size: uploadIntent.file.size,
+            mimeType: uploadIntent.file.type,
+            name: uploadIntent.file.name,
             uploadState: {
               status: 'uploading',
               localUri: createLocalUri(uploadIntent),
@@ -253,6 +274,8 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.localUri,
+            size: uploadIntent.size,
+            mimeType: uploadIntent.mimeType,
             name: uploadIntent.name,
             uploadState: {
               status: 'uploading',
@@ -288,6 +311,8 @@ export namespace Attachment {
             type: 'fileUri',
             localUri: attachment.localFile,
             name: attachment.name,
+            size: attachment.size,
+            mimeType: attachment.mimeType,
           };
         }
       case 'text':
@@ -305,13 +330,20 @@ export namespace Attachment {
         return { type: 'image', file: uploadIntent.asset };
       }
       case 'file': {
-        return { type: 'file', localFile: uploadIntent.file };
+        return {
+          type: 'file',
+          localFile: uploadIntent.file,
+          size: uploadIntent.file.size,
+          mimeType: uploadIntent.file.type,
+        };
       }
       case 'fileUri': {
         return {
           type: 'file',
           localFile: uploadIntent.localUri,
           name: uploadIntent.name,
+          size: uploadIntent.size,
+          mimeType: uploadIntent.mimeType,
         };
       }
     }
@@ -338,6 +370,9 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.file,
+            size: uploadIntent.file.size,
+            name: uploadIntent.file.name,
+            mimeType: uploadIntent.file.type,
             uploadState,
           };
 
@@ -345,6 +380,9 @@ export namespace Attachment {
           return {
             type: 'file',
             localFile: uploadIntent.localUri,
+            size: uploadIntent.size,
+            name: uploadIntent.name,
+            mimeType: uploadIntent.mimeType,
             uploadState,
           };
       }
