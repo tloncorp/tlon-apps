@@ -74,7 +74,7 @@ export function OTPInput({
           onChangeText={handleChangeText}
           keyboardType="number-pad"
           autoComplete="off"
-          caretHidden={false}
+          caretHidden={true}
           contextMenuHidden={false}
           selectionColor="transparent"
           style={{
