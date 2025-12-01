@@ -1,5 +1,4 @@
 import {
-  Attachment,
   DraftInputId,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
