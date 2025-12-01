@@ -133,7 +133,7 @@ sealed class PreviewContentNode {
     data class StringLiteral(val content: String) : PreviewContentNode()
     data class ConcatenateStrings(val first: PreviewContentNode, val second: PreviewContentNode) : PreviewContentNode()
     data class ChannelTitle(val channelId: String) : PreviewContentNode()
-    data class GangTitle(val gangId: String) : PreviewContentNode()
+    data class ForeignGroupTitle(val groupId: String) : PreviewContentNode()
     data class GroupTitle(val groupId: String) : PreviewContentNode()
     data class UserNickname(val ship: String) : PreviewContentNode()
     data class PostSource(val groupId: String, val channelId: String) : PreviewContentNode()
@@ -147,7 +147,7 @@ sealed class PreviewContentNode {
                     parseFromJson(source.getJSONObject("second"))
                 )
                 "channelTitle" -> ChannelTitle(source.getString("channelId"))
-                "gangTitle" -> GangTitle(source.getString("gangId"))
+                "foreignGroupTitle" -> ForeignGroupTitle(source.getString("groupId"))
                 "groupTitle" -> GroupTitle(source.getString("groupId"))
                 "userNickname" -> UserNickname(source.getString("ship"))
                 "postSource" -> PostSource(source.getString("groupId"), source.getString("channelId"))
@@ -163,7 +163,7 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
             is ConcatenateStrings -> render(node.first) + render(node.second)
             is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname ?: x.displayName ?: x.id }
             is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
-            is PreviewContentNode.GangTitle -> api.fetchGangTitle(node.gangId) ?: node.gangId
+            is PreviewContentNode.ForeignGroupTitle -> api.fetchForeignGroupTitle(node.groupId) ?: node.groupId
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
             is PreviewContentNode.PostSource -> {
                 val c = api.fetchGroupChannelCount(node.groupId)
@@ -210,10 +210,9 @@ private suspend fun TalkApi.fetchGroupTitle(groupId: String): String? {
         ?.getJSONObject("meta")
         ?.getString("title")
 }
-private suspend fun TalkApi.fetchGangTitle(gangId: String): String? {
-    val response = suspendTalkObjectCallback { cb -> fetchGangs(cb) }
+private suspend fun TalkApi.fetchForeignGroupTitle(groupId: String): String? {
+    val response = suspendTalkObjectCallback { cb -> fetchForeignGroup(groupId, cb) }
     return response
-        ?.getJSONObject(gangId)
         ?.getJSONObject("preview")
         ?.getJSONObject("meta")
         ?.getString("title")
