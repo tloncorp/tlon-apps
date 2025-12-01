@@ -1,5 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { generateSafeId } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Keyboard } from 'react-native';
@@ -22,15 +23,26 @@ import {
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
 
-type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditRole'>;
+type AddRoleProps = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'AddRole'
+>;
+type EditRoleProps = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'EditRole'
+>;
+
+type Props = AddRoleProps | EditRoleProps;
 
 type RoleFormData = {
   title: string;
   description: string;
 };
 
-export function EditRoleScreen({ navigation, route }: Props) {
-  const { groupId, roleId } = route.params;
+export function RoleFormScreen({ navigation, route }: Props) {
+  const isEditMode = route.name === 'EditRole';
+  const { groupId } = route.params;
+  const roleId = isEditMode ? (route as EditRoleProps).params.roleId : undefined;
   const { bottom } = useSafeAreaInsets();
   const isSavingRef = useRef(false);
 
@@ -38,6 +50,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
     groupRoles,
     groupChannels,
     groupMembers,
+    createGroupRole,
     updateGroupRole,
     deleteGroupRole,
     addUserToRole,
@@ -47,8 +60,8 @@ export function EditRoleScreen({ navigation, route }: Props) {
   });
 
   const role = useMemo(
-    () => groupRoles.find((r) => r.id === roleId),
-    [groupRoles, roleId]
+    () => (isEditMode ? groupRoles.find((r) => r.id === roleId) : undefined),
+    [isEditMode, groupRoles, roleId]
   );
 
   const {
@@ -64,12 +77,13 @@ export function EditRoleScreen({ navigation, route }: Props) {
     },
   });
 
-  // Get current members with this role
+  // Get current members with this role (for edit mode)
   const initialMembers = useMemo(() => {
+    if (!isEditMode || !roleId) return [];
     return groupMembers
       .filter((m) => m.roles?.some((r) => r.roleId === roleId))
       .map((m) => m.contactId);
-  }, [groupMembers, roleId]);
+  }, [isEditMode, groupMembers, roleId]);
 
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialMembers);
@@ -77,7 +91,6 @@ export function EditRoleScreen({ navigation, route }: Props) {
   // Update selectedMembers when returning from SelectRoleMembers screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // If we're returning from member selection, the route params will have updated selectedMembers
       if (route.params.selectedMembers) {
         setSelectedMembers(route.params.selectedMembers);
       }
@@ -88,6 +101,10 @@ export function EditRoleScreen({ navigation, route }: Props) {
 
   // Check if there are unsaved changes
   const hasMemberChanges = useMemo(() => {
+    if (!isEditMode) {
+      return selectedMembers.length > 0;
+    }
+
     const initialSet = new Set(initialMembers);
     const currentSet = new Set(selectedMembers);
 
@@ -98,7 +115,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
     }
 
     return false;
-  }, [initialMembers, selectedMembers]);
+  }, [isEditMode, initialMembers, selectedMembers]);
 
   const hasUnsavedChanges = isDirty || hasMemberChanges;
 
@@ -136,59 +153,77 @@ export function EditRoleScreen({ navigation, route }: Props) {
   }, [navigation]);
 
   const rolesWithMembers = useMemo(() => {
+    if (!isEditMode) return [];
     return groupRoles.filter((r) => {
       return groupMembers.some((member) =>
         member.roles.map((mr) => mr.roleId).includes(r.id!)
       );
     });
-  }, [groupRoles, groupMembers]);
+  }, [isEditMode, groupRoles, groupMembers]);
 
   const channelsCurrentlyInUse = useMemo(() => {
-    if (!role) return [];
+    if (!isEditMode || !role) return [];
     return groupChannels.filter((channel) => {
       const writers = channel.writerRoles.map((r) => r.roleId);
       const readers = channel.readerRoles.map((r) => r.roleId);
       return writers.includes(role.id!) || readers.includes(role.id!);
     });
-  }, [role, groupChannels]);
+  }, [isEditMode, role, groupChannels]);
 
   const handleSave = useCallback(
     async (data: { title: string; description: string }) => {
-      if (!role) {
+      if (!data.title) {
         return;
       }
       isSavingRef.current = true;
 
-      // Calculate which members to add/remove
-      const addMembers = selectedMembers.filter(
-        (id) => !initialMembers.includes(id)
-      );
-      const removeMembers = initialMembers.filter(
-        (id) => !selectedMembers.includes(id)
-      );
+      if (isEditMode && role) {
+        // Edit existing role
+        const addMembers = selectedMembers.filter(
+          (id) => !initialMembers.includes(id)
+        );
+        const removeMembers = initialMembers.filter(
+          (id) => !selectedMembers.includes(id)
+        );
 
-      await updateGroupRole({
-        ...role,
-        title: data.title,
-        description: data.description,
-      });
+        await updateGroupRole({
+          ...role,
+          title: data.title,
+          description: data.description,
+        });
 
-      // Add new members to the role
-      for (const contactId of addMembers) {
-        await addUserToRole(contactId, role.id!);
-      }
-      // Remove members from the role
-      for (const contactId of removeMembers) {
-        await removeUserFromRole(contactId, role.id!);
+        // Add new members to the role
+        for (const contactId of addMembers) {
+          await addUserToRole(contactId, role.id!);
+        }
+        // Remove members from the role
+        for (const contactId of removeMembers) {
+          await removeUserFromRole(contactId, role.id!);
+        }
+      } else {
+        // Create new role
+        const newRoleId = generateSafeId(data.title, 'role');
+        await createGroupRole({
+          id: newRoleId,
+          title: data.title,
+          description: data.description,
+        });
+        // Add selected members to the role
+        for (const contactId of selectedMembers) {
+          await addUserToRole(contactId, newRoleId);
+        }
       }
 
       reset();
+      setSelectedMembers([]);
       navigation.goBack();
     },
     [
+      isEditMode,
       role,
       selectedMembers,
       initialMembers,
+      createGroupRole,
       updateGroupRole,
       addUserToRole,
       removeUserFromRole,
@@ -198,40 +233,44 @@ export function EditRoleScreen({ navigation, route }: Props) {
   );
 
   const disableDelete = useMemo(() => {
-    if (!role?.id) return true;
+    if (!isEditMode || !role?.id) return true;
     return (
       rolesWithMembers.some((r) => r.id === role.id) ||
       channelsCurrentlyInUse.length > 0
     );
-  }, [role?.id, rolesWithMembers, channelsCurrentlyInUse]);
+  }, [isEditMode, role?.id, rolesWithMembers, channelsCurrentlyInUse]);
 
   const handleDelete = useCallback(async () => {
-    if (!role?.id || role.title === 'Admin') {
+    if (!isEditMode || !role?.id || role.title === 'Admin') {
       return;
     }
     isSavingRef.current = true;
     await deleteGroupRole(role.id);
     navigation.goBack();
-  }, [deleteGroupRole, role?.id, role?.title, navigation]);
+  }, [isEditMode, deleteGroupRole, role?.id, role?.title, navigation]);
 
   const handleNavigateToMemberSelector = useCallback(() => {
     navigation.navigate('SelectRoleMembers', {
       groupId,
-      roleId: role?.id ?? undefined,
+      roleId: isEditMode ? roleId : undefined,
       selectedMembers,
       onSave: (members: string[]) => {
         setSelectedMembers(members);
       },
     });
-  }, [navigation, groupId, role?.id, selectedMembers]);
+  }, [navigation, groupId, isEditMode, roleId, selectedMembers]);
 
-  if (!role) {
+  // For edit mode, don't render until role is loaded
+  if (isEditMode && !role) {
     return null;
   }
 
+  const screenTitle = isEditMode ? `Edit ${role?.title}` : 'Add role';
+  const isAdminRole = isEditMode && role?.title === 'Admin';
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title={`Edit ${role.title}`} />
+      <ScreenHeader backAction={handleGoBack} title={screenTitle} />
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -241,7 +280,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
         }}
       >
         <YStack gap="$l">
-          {channelsCurrentlyInUse.length > 0 && (
+          {isEditMode && channelsCurrentlyInUse.length > 0 && (
             <>
               <Text fontSize="$s" color="$tertiaryText">
                 This role is currently used in the following channels:
@@ -275,7 +314,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
                     Keyboard.dismiss();
                   }}
                   value={value}
-                  editable={role.title !== 'Admin'}
+                  editable={!isAdminRole}
                   testID="RoleTitleInput"
                 />
               </Field>
@@ -294,7 +333,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
                     Keyboard.dismiss();
                   }}
                   value={value}
-                  editable={role.title !== 'Admin'}
+                  editable={!isAdminRole}
                   testID="RoleDescriptionInput"
                 />
               </Field>
@@ -333,7 +372,7 @@ export function EditRoleScreen({ navigation, route }: Props) {
           <Button hero onPress={handleSubmit(handleSave)} disabled={!isValid}>
             <Button.Text>Save</Button.Text>
           </Button>
-          {role.title === 'Admin' ? null : (
+          {isEditMode && !isAdminRole && (
             <YStack gap="$l">
               <Button
                 heroDestructive
