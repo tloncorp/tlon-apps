@@ -50,16 +50,21 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
   // Edit existing role
   await page.getByTestId('GroupRoles').click();
   await page.getByTestId('GroupRole-Testing role').click();
-  await expect(page.getByText(/.*Description for test role.*/)).toBeVisible();
+  await expect(page.getByText('Edit Testing role')).toBeVisible();
+
+  // Verify the description is in the input field
+  const descriptionInput = page.getByTestId('RoleDescriptionInput');
+  await expect(descriptionInput).toHaveValue('Description for test role');
+
   await helpers.fillFormField(
     page,
     'RoleDescriptionInput',
     'Updated description'
   );
   await page.getByText('Save').click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2000);
 
-  // Navigate back to roles list to verify the update persisted
-  await helpers.navigateBack(page);
-  await expect(page.getByText('Testing role')).toBeVisible();
+  // Verify we're back on the Group Roles screen and the role still exists
+  await expect(page.getByText('Group Roles')).toBeVisible();
+  await expect(page.getByTestId('GroupRole-Testing role')).toBeVisible();
 });

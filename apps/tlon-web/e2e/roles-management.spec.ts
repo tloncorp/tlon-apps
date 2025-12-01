@@ -41,14 +41,15 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   await page.getByTestId('GroupRole-Admin').click();
 
   // Verify the edit screen opened
-  await expect(page.getByText('Edit role')).toBeVisible();
+  await expect(page.getByText('Edit Admin')).toBeVisible();
 
-  // Verify that title and description inputs are disabled for Admin role
+  // Verify that title and description inputs are read-only for Admin role
   const titleInput = page.getByTestId('RoleTitleInput');
   const descriptionInput = page.getByTestId('RoleDescriptionInput');
 
-  await expect(titleInput).toBeDisabled();
-  await expect(descriptionInput).toBeDisabled();
+  // Check that inputs have readonly attribute (editable={false} renders as readonly)
+  await expect(titleInput).toHaveAttribute('readonly');
+  await expect(descriptionInput).toHaveAttribute('readonly');
 
   // Verify Delete button is not visible for Admin role
   await expect(page.getByText('Delete role')).not.toBeVisible();
@@ -61,7 +62,7 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
 
   // Verify the regular role can be clicked and edited
   await page.getByText('Regular role').click();
-  await expect(page.getByText('Edit role')).toBeVisible();
+  await expect(page.getByText('Edit Regular role')).toBeVisible();
 
   // Navigate back to roles list
   await helpers.navigateBack(page);
@@ -160,19 +161,20 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Attempt to delete role that still has members/channels assigned
   await page.getByTestId('GroupRoles').click();
   await page.getByText('Testing role').click();
-  await expect(page.getByText('Edit role')).toBeVisible();
+  await expect(page.getByText('Edit Testing role')).toBeVisible();
 
   // Verify the role cannot be deleted (should show warning message and disabled button)
   const deleteButton = page.getByText('Delete role');
   await expect(deleteButton).toBeVisible();
-  await expect(deleteButton).toBeDisabled();
+  // Button with disabled prop renders as aria-disabled in the DOM
+  await expect(deleteButton).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByText(/This role cannot be deleted.*/)).toBeVisible();
 
   await helpers.navigateBack(page);
 
   // Rename the role
   await page.getByText('Testing role').click();
-  await expect(page.getByText('Edit role')).toBeVisible();
+  await expect(page.getByText('Edit Testing role')).toBeVisible();
 
   // Clear and rename the role
   await helpers.fillFormField(page, 'RoleTitleInput', 'Renamed role', true);
@@ -224,7 +226,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('GroupRoles').click();
   await expect(page.getByText('Renamed role')).toBeVisible();
   await page.getByText('Renamed role').click();
-  await expect(page.getByText('Edit role')).toBeVisible();
+  await expect(page.getByText('Edit Renamed role')).toBeVisible();
 
   // Now the role should be deletable
   await expect(page.getByText('Delete role', { exact: true })).toBeVisible();
