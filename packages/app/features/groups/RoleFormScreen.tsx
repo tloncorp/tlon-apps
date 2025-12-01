@@ -1,9 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { generateSafeId } from '@tloncorp/shared/logic';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Keyboard } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -42,7 +43,7 @@ type RoleFormData = {
 export function RoleFormScreen({ navigation, route }: Props) {
   const isEditMode = route.name === 'EditRole';
   const { groupId } = route.params;
-  const roleId = isEditMode ? (route as EditRoleProps).params.roleId : undefined;
+  const roleId = isEditMode ? (route.params as EditRoleProps['route']['params']).roleId : undefined;
   const { bottom } = useSafeAreaInsets();
   const isSavingRef = useRef(false);
 
@@ -87,6 +88,8 @@ export function RoleFormScreen({ navigation, route }: Props) {
 
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialMembers);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const pendingNavigationAction = useRef<any>(null);
 
   // Update selectedMembers when returning from SelectRoleMembers screen
   useEffect(() => {
@@ -130,23 +133,21 @@ export function RoleFormScreen({ navigation, route }: Props) {
       // Prevent default behavior of leaving the screen
       e.preventDefault();
 
-      // Prompt the user before leaving the screen
-      Alert.alert(
-        'Discard changes?',
-        'You have unsaved changes. Are you sure you want to discard them?',
-        [
-          { text: "Don't leave", style: 'cancel', onPress: () => {} },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-        ]
-      );
+      // Store the navigation action and show confirm dialog
+      pendingNavigationAction.current = e.data.action;
+      setDiscardDialogOpen(true);
     });
 
     return unsubscribe;
   }, [navigation, hasUnsavedChanges]);
+
+  const handleDiscardConfirm = useCallback(() => {
+    if (pendingNavigationAction.current) {
+      navigation.dispatch(pendingNavigationAction.current);
+      pendingNavigationAction.current = null;
+    }
+    setDiscardDialogOpen(false);
+  }, [navigation]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -395,6 +396,15 @@ export function RoleFormScreen({ navigation, route }: Props) {
           )}
         </YStack>
       </ScrollView>
+      <ConfirmDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+        title="Discard changes?"
+        description="You have unsaved changes. Are you sure you want to discard them?"
+        confirmText="Discard"
+        destructive
+        onConfirm={handleDiscardConfirm}
+      />
     </View>
   );
 }
