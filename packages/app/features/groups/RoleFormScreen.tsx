@@ -43,7 +43,9 @@ type RoleFormData = {
 export function RoleFormScreen({ navigation, route }: Props) {
   const isEditMode = route.name === 'EditRole';
   const { groupId } = route.params;
-  const roleId = isEditMode ? (route.params as EditRoleProps['route']['params']).roleId : undefined;
+  const roleId = isEditMode
+    ? (route.params as EditRoleProps['route']['params']).roleId
+    : undefined;
   const { bottom } = useSafeAreaInsets();
   const isSavingRef = useRef(false);
 
@@ -194,13 +196,15 @@ export function RoleFormScreen({ navigation, route }: Props) {
         });
 
         // Add new members to the role
-        for (const contactId of addMembers) {
-          await addUserToRole(contactId, role.id!);
-        }
+        await Promise.all(
+          addMembers.map((contactId) => addUserToRole(contactId, role.id!))
+        );
         // Remove members from the role
-        for (const contactId of removeMembers) {
-          await removeUserFromRole(contactId, role.id!);
-        }
+        await Promise.all(
+          removeMembers.map((contactId) =>
+            removeUserFromRole(contactId, role.id!)
+          )
+        );
       } else {
         // Create new role
         const newRoleId = generateSafeId(data.title, 'role');
