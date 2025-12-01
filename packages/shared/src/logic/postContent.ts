@@ -188,7 +188,6 @@ export interface PlaintextPreviewConfig {
   includeRefTag: boolean;
   indentDepth?: number;
 }
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace PlaintextPreviewConfig {
   export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
     blockSeparator: '\n',

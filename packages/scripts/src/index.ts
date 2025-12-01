@@ -31,7 +31,6 @@ type PreviewContentNode =
       second: PreviewContentNode;
     };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 namespace PreviewContentNode {
   export function stringLiteral(content: string): PreviewContentNode {
     return { type: 'stringLiteral', content };

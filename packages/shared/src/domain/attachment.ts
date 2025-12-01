@@ -57,7 +57,6 @@ export type UploadedImageAttachment = {
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UploadedImageAttachment {
   export function uri(attachment: UploadedImageAttachment): string {
     switch (attachment.uploadState.status) {
@@ -84,7 +83,6 @@ export type UploadedFileAttachment = {
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace UploadedFileAttachment {
   export function uri(attachment: UploadedFileAttachment): string {
     return uploadStateUri(attachment.uploadState);
@@ -110,7 +108,6 @@ export type FinalizedAttachment =
   | TextAttachment
   | LinkAttachment;
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Attachment {
   type ImageUploadIntent = {
     type: 'image';
@@ -124,7 +121,6 @@ export namespace Attachment {
     | { type: 'fileUri'; localUri: string; name?: string }
     | { type: 'file'; file: File };
 
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   export namespace UploadIntent {
     /** Branded type to avoid using wrong keys downstream */
     export type Key = string & { __brand: 'Attachment.UploadIntent.Key' };
