@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
 import { fileFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
@@ -7,6 +8,8 @@ import { ScrollView, Spinner, View, XStack, YStack, ZStack } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
+
+const logger = createDevLogger('AttachmentPreviewList', false);
 
 export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();
@@ -181,6 +184,9 @@ export function AttachmentPreview({
     default: {
       // this will raise type error if missing a case
       const _exhaustiveCheck: never = attachment;
+      logger.trackError('Unhandled attachment type', {
+        attachment,
+      });
       throw new Error(
         'Unhandled attachment type: ' + JSON.stringify(_exhaustiveCheck)
       );
