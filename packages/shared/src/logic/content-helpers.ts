@@ -1,6 +1,7 @@
 import isURL from 'validator/lib/isURL';
 
 import { ChannelType, PostMetadata } from '../db';
+import { createDevLogger } from '../debug';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -17,6 +18,8 @@ import {
 } from '../urbit';
 import { fileFromPath } from '../utils/file';
 import { makeMention, makeParagraph, makeText } from './tiptap';
+
+const logger = createDevLogger('content-helpers', false);
 
 const isBoldStart = (text: string): boolean => {
   return text.startsWith('**');
@@ -533,7 +536,23 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
-type PostBlobData = { fileUri: string; name?: string }[];
+/** helper to build similarly-shaped entry types */
+type BuildPostBlobDataEntry<
+  Type extends string,
+  Config extends { version: number },
+  Payload extends Record<string, unknown>,
+> = {
+  type: Type;
+  version: Config['version'];
+} & Payload;
+
+type PostBlobDataEntry = BuildPostBlobDataEntry<
+  'file',
+  { version: 1 },
+  { fileUri: string; name?: string }
+>;
+
+type PostBlobData = PostBlobDataEntry[];
 
 export function appendFileUploadToPostBlob(
   blob: string | undefined,
@@ -554,6 +573,8 @@ export function appendFileUploadToPostBlob(
     return [];
   })();
   data.push({
+    type: 'file',
+    version: 1,
     fileUri: opts.fileUri,
     name: opts.name,
   });
@@ -561,17 +582,19 @@ export function appendFileUploadToPostBlob(
 }
 
 export function parsePostBlob(blob: string): PostBlobData {
-  try {
-    const arr: PostBlobData = JSON.parse(blob);
-    if (Array.isArray(arr)) {
-      // This looks like an identity, but it's actually a very bad way to
-      // validate the PostBlobData.
-      return arr.map(({ fileUri, name }) => ({ fileUri, name }));
-    }
-  } catch {
-    // swallow parse error
+  const arr: PostBlobData = JSON.parse(blob);
+  if (!Array.isArray(arr)) {
+    return [];
   }
-  return [];
+
+  return arr.flatMap((entry) => {
+    const { type, version, fileUri, name } = entry;
+    if (type !== 'file' && version != 1) {
+      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+      return [];
+    }
+    return [{ type, version, fileUri, name }];
+  });
 }
 
 export function toPostData({
