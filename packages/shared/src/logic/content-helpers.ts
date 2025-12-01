@@ -568,7 +568,9 @@ export function appendFileUploadToPostBlob(
         return arr;
       }
     } catch {
-      // swallow parse error
+      logger.trackError('Failed to parse existing PostBlob data', { blob });
+      // once we track the error, just start over with an empty blob so we can
+      // respect the user's intent to add the file
     }
     return [];
   })();
