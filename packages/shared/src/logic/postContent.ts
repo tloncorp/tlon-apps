@@ -347,8 +347,9 @@ export function convertContent(
             out.push({
               type: 'link',
               url: fileUri,
-              title: name ?? 'Attached file',
+              siteName: name ?? 'Attached file',
               description: 'Press to download',
+              title: summarizeFilesize(entry.size),
             });
           }
           break;
@@ -777,4 +778,14 @@ export function getTextContent(
   return postContent == null
     ? null
     : plaintextPreviewOf(convertContentSafe(postContent), config);
+}
+
+function summarizeFilesize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  } else if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  } else {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 }
