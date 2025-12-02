@@ -21,7 +21,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Platform, TouchableOpacity } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';

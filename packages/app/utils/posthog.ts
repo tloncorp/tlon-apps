@@ -1,10 +1,12 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
 export type OnboardingProperties = {
@@ -34,10 +36,38 @@ export const posthogAsync =
 
 posthogAsync?.then((client) => {
   posthog = client;
-  crashlytics().setAttribute('analyticsId', client.getDistinctId());
-  useDebugStore.getState().initializeErrorLogger(client);
+  const distinctId = client.getDistinctId();
+
+  crashlytics().setAttribute('analyticsId', distinctId);
+
+  // Create composite error logger that sends to both PostHog and Sentry
+  const sentryLogger = createSentryErrorLogger();
+  const compositeLogger = {
+    capture: (event: string, data: Record<string, unknown>) => {
+      // Always send to PostHog (analytics + errors)
+      client.capture(event, data);
+
+      // Only send errors to Sentry (not general analytics events)
+      // Until logging is refactored to consistently use 'app_error',
+      // we also pass along any event with "Error" in the name
+      if (
+        event === 'app_error' ||
+        event === 'Debug Logs' ||
+        event.includes('Error')
+      ) {
+        sentryLogger.capture(event, data);
+      }
+    },
+  };
+
+  useDebugStore.getState().initializeErrorLogger(compositeLogger);
   posthog?.register({
     gitHash: GIT_HASH,
+  });
+
+  // Set Sentry user context with PostHog analytics ID
+  Sentry.setUser({
+    id: distinctId,
   });
 
   // Write PostHog API key to UserDefaults for iOS native access
@@ -86,5 +116,7 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  posthog.identify(UUID, { isTlonEmployee: true });
+  // Import at top of function to avoid circular dependency
+  const { identifyUser } = require('./identifyUser');
+  identifyUser(UUID, { isTlonEmployee: true });
 };

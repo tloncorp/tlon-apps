@@ -43,6 +43,7 @@ import {
   BottomSheetScrollView,
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
+import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -147,7 +148,14 @@ const ActionSheetComponent = ({
   closeButton,
   footerComponent,
   ...props
-}: PropsWithChildren<ActionSheetProps & SheetProps>) => {
+}: PropsWithChildren<
+  ActionSheetProps &
+    SheetProps &
+    Pick<
+      BottomSheetWrapperProps,
+      'enableDynamicSizing' | 'enableContentPanningGesture'
+    >
+>) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
@@ -340,6 +348,8 @@ const ActionSheetComponent = ({
       showHandle={true}
       showOverlay={true}
       enablePanDownToClose={true}
+      enableDynamicSizing={false}
+      enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
       frameStyle={{}}

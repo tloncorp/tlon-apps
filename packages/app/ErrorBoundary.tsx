@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import * as Sentry from '@sentry/react-native';
 import { createDevLogger } from '@tloncorp/shared';
 import { Component, ErrorInfo, ReactNode } from 'react';
 
@@ -28,11 +29,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     try {
-      // If was thrown from within AuthenticatedApp, use enhanced error reporting
+      // Capture component stack as breadcrumb for error tracking
       logger.crumb(JSON.stringify(errorInfo));
+
+      // Send to composite logger (PostHog + Sentry)
       logger.trackError(error.message, error);
+
+      // Also send directly to Sentry with React-specific component stack context
+      // This provides more detailed React context than the generic error logging
+      Sentry.captureException(error, {
+        contexts: {
+          react: {
+            componentStack: errorInfo.componentStack,
+          },
+        },
+      });
     } catch (e) {
-      // Otherwise fallback what we have at hand
+      // Fallback to Firebase Crashlytics if error tracking fails
       crashlytics().recordError(error);
       crashlytics().log(JSON.stringify(errorInfo));
     }

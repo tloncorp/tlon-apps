@@ -308,3 +308,8 @@ render.experimental.xml
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/react,reactnative,macos,visualstudiocode
+
+.env.local
+
+# Sentry
+**/sentry.properties
