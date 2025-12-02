@@ -1102,13 +1102,13 @@ export type GroupUnbanAzimuthRanks = {
   ranks: Rank[];
 };
 
-export type GroupSetAsOpen = {
-  type: 'setGroupAsOpen';
+export type GroupSetAsPublic = {
+  type: 'setGroupAsPublic';
   groupId: string;
 };
 
-export type GroupSetAsShut = {
-  type: 'setGroupAsShut';
+export type GroupSetAsPrivate = {
+  type: 'setGroupAsPrivate';
   groupId: string;
 };
 
@@ -1170,8 +1170,8 @@ export type GroupUpdate =
   | GroupUnbanMembers
   | GroupBanAzimuthRanks
   | GroupUnbanAzimuthRanks
-  | GroupSetAsOpen
-  | GroupSetAsShut
+  | GroupSetAsPublic
+  | GroupSetAsPrivate
   | GroupSetAsSecret
   | GroupSetAsNotSecret
   | GroupFlagContent
@@ -1321,9 +1321,9 @@ export const toV1GroupsUpdate = (
       if (privacy === 'secret') {
         return { type: 'setGroupAsSecret', groupId };
       } else if (privacy === 'private') {
-        return { type: 'setGroupAsShut', groupId };
+        return { type: 'setGroupAsPrivate', groupId };
       } else if (privacy === 'public') {
-        return { type: 'setGroupAsOpen', groupId };
+        return { type: 'setGroupAsPublic', groupId };
       }
     }
 

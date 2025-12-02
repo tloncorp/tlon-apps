@@ -847,10 +847,10 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'setGroupAsOpen':
+    case 'setGroupAsPublic':
       await db.updateGroup({ id: update.groupId, privacy: 'public' }, ctx);
       break;
-    case 'setGroupAsShut':
+    case 'setGroupAsPrivate':
       group = await db.getGroup({ id: update.groupId }, ctx);
 
       if (group?.privacy !== 'secret') {
