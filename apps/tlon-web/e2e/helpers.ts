@@ -405,8 +405,8 @@ export async function createRole(
   // Ensure session is stable before creating role
   await waitForSessionStability(page);
 
-  await page.getByText('Add Role').click();
-  await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
+  await page.getByText('New').click();
+  await expect(page.getByText('Add role')).toBeVisible();
 
   await fillFormField(page, 'RoleTitleInput', title);
   await fillFormField(page, 'RoleDescriptionInput', description);
