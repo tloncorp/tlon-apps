@@ -588,12 +588,22 @@
     =*  not-found
       (spout:hutils id [404 ~] `(as-octs:mimes:html 'bad path'))
     ?+  site  (emil not-found)
-        [%apps %groups %~.~ %v1 ~]
+        [%apps %groups %~.~ %v1 *]
+      ?>  from-self
+      =/  site=(list @t)  t.t.t.t.site  ::  tmi
       ?+  method.request  (emil not-found)
-          %'GET'  !!
+          %'GET'
+        ?>  ?=([%request @ ~] site)
+        =/  =request-id:v8:gv  (slav %uv i.t.site)
+        ?~  request=(~(get by incoming.requests) our.bowl request-id)
+          (emil not-found)
+        =/  =response:v8:gv
+          :-  request-id
+          ?~  result.u.request  [%pending ~]
+          u.result.u.request
+        (give-http-response id response)
       ::
           %'POST'
-        ?>  from-self
         ?~  body.request  (emil not-found)
         ?~  json=(de:json:html q.u.body.request)  (emil not-found)
         =/  =action:v8:gv  (action:v8:dejs:gj u.json)
