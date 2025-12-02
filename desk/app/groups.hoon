@@ -337,7 +337,7 @@
       ?:  (se-is-banned:se-core src.bowl)
         =;  co=_se-core
           se-abet:co
-        %-  se-give-response:se-core
+        %-  se-give-response-update:se-core
         :*  %error
             %not-authorized
             ~['Banned from the group']
@@ -1772,7 +1772,7 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
-    =.  se-core  (se-give-response %ok u-group)
+    =.  se-core  (se-give-response-update %ok u-group)
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
@@ -1845,12 +1845,12 @@
   ::
   ++  se-is-member  ~(has by seats.group)
   ::  +se-give-response: send a response to an open request
-  ++  se-give-response
-    |=  body=response-body:g
+  ++  se-give-response-update
+    |=  body=response-update-body:g
     ^+  se-core
     =/  paths  ~[`path`(weld se-area /request/(scot %uv request-id))]
     =.  cor  (tell:l %dbug ~['sending response' >request-id< >body<])
-    (give %fact paths group-response-2+!>([request-id body]))
+    (give %fact paths group-response-update-2+!>([request-id body]))
   ::  +se-give-update: send an update to subscribers
   ::
   ++  se-give-update
@@ -1870,19 +1870,19 @@
   ++  se-c-create
     |=  [=flag:g create=create-group:g]
     ?.  from-self
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Foreign ships cannot create groups']
       ==
     ?.  ((sane %tas) name.create)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %invalid-name
           ~['Group name contains invalid characters']
       ==
     ?.  (lte (met 3 (jam create)) size-limit)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %request-too-large
           ~['Group creation data exceeds size limit']
@@ -1971,7 +1971,7 @@
       |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
       (emit:se-core (revoke-invite:se-pass ship tok))
     =.  se-core
-      (se-give-response:se-core %ok %delete ~)
+      (se-give-response-update:se-core %ok %delete ~)
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -1991,13 +1991,13 @@
       (se-admit src.bowl tok)
     ?.  access
       ::  TODO log?
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Do not have permission to join group']
       ==
     ?:  (se-is-joined src.bowl)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Already a member of the group']
@@ -2016,19 +2016,19 @@
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
     ?:  ?=(%secret privacy.ad)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Unable to ask to join secret group']
       ==
     ?.  (lte (met 3 (jam story)) size-limit)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %request-too-large
           ~['Note exceeds size limit']
       ==
     ?:  (se-is-joined src.bowl)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Already a member of the group']
@@ -2136,7 +2136,7 @@
     ::
     ?:  ?=(%delete -.c-group)
       ?.  from-self
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-authorized
             ~['Only the group host can delete the group']
@@ -2144,14 +2144,14 @@
       se-c-delete
     ?:  ?=(%flag-content -.c-group)
       ?.  se-src-is-member
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-authorized
             ~['Only group members can flag content']
         ==
       (se-c-flag-content [nest plan src]:c-group)
     ?.  se-src-is-admin
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Only admins can execute this command']
@@ -2166,14 +2166,14 @@
     ::
         %meta
       ?.  (lte (met 3 (jam meta.c-group)) size-limit)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %request-too-large
             ~['Metadata exceeds size limit']
         ==
       ?:  =(meta.group meta.c-group)
         ::  make sure we give a response back to caller
-        (se-give-response %ok c-group)
+        (se-give-response-update %ok c-group)
       =.  meta.group  meta.c-group
       (se-update %meta meta.group)
     ==
@@ -2222,7 +2222,7 @@
                 (~(has in ships.c-ban) our.bowl)
             ==
         ==
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Cannot ban or unban the group host']
@@ -2237,7 +2237,7 @@
                 ==
             ==
         ==
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Cannot ban or unban an admin ship']
@@ -2418,7 +2418,7 @@
     ?:  ?&  ?=(%add -.c-pending)
             (~(any in ships) se-is-banned)
         ==
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Cannot add banned ships to pending list']
@@ -2476,7 +2476,7 @@
     =/  reqs=(set ship)
         (~(int in ~(key by requests.ad)) ships)
     ?:  =(~ reqs)
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-found
           ~['No matching ask requests found']
@@ -2574,7 +2574,7 @@
       ?.  ?|  (~(has in ships) our.bowl)
               !=(~ (~(int in ships) se-channel-hosts))
           ==
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-authorized
             ~['Cannot delete seat of channel hosts']
@@ -2611,7 +2611,7 @@
       =.  roles.c-seat
         (~(int in ~(key by roles.group)) roles.c-seat)
       ?:  =(~ roles.c-seat)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['No valid roles specified to add']
@@ -2745,7 +2745,7 @@
     ?:  ?&  ?=(%add -.c-role)
             =(roles (~(int in ~(key by roles.group)) roles))
         ==
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Roles cannot be duplicated']
@@ -2754,7 +2754,7 @@
     ?:  ?&  !=(p.flag src.bowl)
             ?=(?(%set-admin %del-admin) -.c-role)
         ==
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Only the group host can change admin roles']
@@ -2820,7 +2820,7 @@
     ::     wayfinding group creation.
     ::
     ?:  &(?=(%add -.c-channel) (has:by-ch nest))
-      %-  se-give-response
+      %-  se-give-response-update
       :*  %error
           %not-authorized
           ~['Channel already exists']
@@ -2828,7 +2828,7 @@
     ?-    -.c-channel
         %add
       ?.  (lte (met 3 (jam chan)) size-limit)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %request-too-large
             ~['Channel metadata exceeds size limit']
@@ -2842,7 +2842,7 @@
     ::
         %edit
       ?.  (lte (met 3 (jam chan)) size-limit)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %request-too-large
             ~['Channel metadata exceeds size limit']
@@ -2870,7 +2870,7 @@
       ::  forbid adding non-existent roles as readers
       ::
       ?.  =(~ (~(dif in roles.c-channel) ~(key by roles.group)))
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['Cannot add non-existent roles as channel readers']
@@ -2887,7 +2887,7 @@
         %section
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section-id.c-channel)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['Section does not exist']
@@ -2936,7 +2936,7 @@
     ?-    -.c-section
         %add
       ?.  (lte (met 3 (jam meta.c-section)) size-limit)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %request-too-large
             ~['Section metadata exceeds size limit']
@@ -2948,7 +2948,7 @@
     ::
         %edit
       ?.  (lte (met 3 (jam meta.c-section)) size-limit)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %request-too-large
             ~['Section metadata exceeds size limit']
@@ -2961,7 +2961,7 @@
     ::
         %del
       ?.  =(%default section-id)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-authorized
             ~['Cannot delete default section']
@@ -2987,14 +2987,14 @@
     ::
         %move-nest
       ?.  (~(has by sections.group) section-id)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['Section does not exist']
         ==
       =/  =section:g  (~(got by sections.group) section-id)
       ?.  (~(has of order.section) nest.c-section)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['Channel does not exist in section']
@@ -3008,7 +3008,7 @@
         :: order channels in the section to achieve the target order
         %set
       ?~  sec=(~(get by sections.group) section-id)
-        %-  se-give-response
+        %-  se-give-response-update
         :*  %error
             %not-found
             ~['Section does not exist']
@@ -3852,9 +3852,12 @@
         go-core
       ::
           %fact
-        =+  !<(=response:v8:gv q.cage.sign)
+        =+  !<(=response-update:v8:gv q.cage.sign)
         =/  id=request-id:v8:gv  (slav %uv i.t.wire)
-        =.  cor  (tell:l %dbug ~['+go-watch received response' >id< >response<])
+        ::  for now these are the same, but in the future we'd need to convert here
+        =/  =response:v8:gv  response-update
+        =.  cor  (tell:l %dbug ~['+go-watch received response update' >id< >response<])
+        ::
         ?~  request=(~(get by incoming.requests) [our.bowl id])
           ~|(go-agent-bad-request+id !!)
         =.  incoming.requests
