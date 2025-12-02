@@ -32,8 +32,8 @@ export function useNotificationLevelOptions(
     // 'medium' level is available for both base settings and overrides
     options.push({
       title: includeLoud
-        ? 'Posts, mentions, and replies'
-        : 'All group activity',
+        ? 'DMs, posts, mentions, and replies'
+        : 'All DMs and group posts',
       value: 'medium' as ub.NotificationLevel,
       description: shortDescriptions
         ? undefined
@@ -42,7 +42,9 @@ export function useNotificationLevelOptions(
 
     // 'soft' level is available for both base settings and overrides
     options.push({
-      title: includeLoud ? 'DMs, mentions, and replies' : 'DMs, mentions, and replies only',
+      title: includeLoud
+        ? 'DMs, mentions, and replies'
+        : 'DMs, mentions, and replies only',
       value: 'soft' as ub.NotificationLevel,
       description: shortDescriptions
         ? undefined
