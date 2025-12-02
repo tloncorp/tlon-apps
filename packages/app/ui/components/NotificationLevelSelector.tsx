@@ -42,7 +42,7 @@ export function useNotificationLevelOptions(
 
     // 'soft' level is available for both base settings and overrides
     options.push({
-      title: includeLoud ? 'Mentions and replies' : 'Mentions and replies only',
+      title: includeLoud ? 'DMs, mentions, and replies' : 'DMs, mentions, and replies only',
       value: 'soft' as ub.NotificationLevel,
       description: shortDescriptions
         ? undefined
