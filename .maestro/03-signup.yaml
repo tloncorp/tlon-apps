@@ -78,13 +78,11 @@ onFlowComplete:
 - tapOn: Next
 
 # set notification preferences
-- assertVisible: Tlon works best when you're notified of messages
-- assertVisible: All group activity
+- assertVisible: Tlon works best
 - tapOn: Next
 
 # allow notifications screen
-- assertVisible: On the next screen,
-- assertVisible: make sure you tap
+- assertVisible: On the next screen, make sure you tap
 - tapOn: Next
 
 # wait until setup is complete
