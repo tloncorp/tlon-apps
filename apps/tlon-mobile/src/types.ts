@@ -18,6 +18,7 @@ export type OnboardingStackParamList = {
   ReserveShip: undefined;
   SetNickname: undefined;
   SetNotifications: undefined;
+  AllowNotifications: undefined;
   SetTelemetry: undefined;
   TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
   TlonLoginLegacy: undefined;

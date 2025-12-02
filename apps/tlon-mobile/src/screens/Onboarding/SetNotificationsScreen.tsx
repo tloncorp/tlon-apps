@@ -1,14 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
 import {
+  Button,
   NotificationLevelSelector,
   ScreenHeader,
-  ScrollView,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { createDevLogger } from '@tloncorp/shared';
 import * as ub from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +20,6 @@ type Props = NativeStackScreenProps<
 >;
 
 const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
-const logger = createDevLogger('SetNotificationsScreen', true);
 
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
@@ -33,22 +30,12 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   );
 
   const handleNext = useCallback(async () => {
-    let notificationToken: string | undefined;
-
-    try {
-      notificationToken = await requestNotificationToken();
-    } catch (err) {
-      console.error('Error requesting notification permission:', err);
-      if (err instanceof Error) {
-        logger.trackError('Error requesting notification permission', err);
-      }
-    }
-
+    // Save the notification level, but don't request token yet
+    // That will happen in AllowNotificationsScreen
     signupContext.setOnboardingValues({
       notificationLevel: selectedLevel,
-      notificationToken,
     });
-    navigation.push('ReserveShip');
+    navigation.push('AllowNotifications');
   }, [selectedLevel, signupContext, navigation]);
 
   // Disable back button
@@ -66,41 +53,30 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       paddingBottom={insets.bottom}
       backgroundColor="$secondaryBackground"
     >
-      <ScreenHeader
-        title="Notifications"
-        showSessionStatus={false}
-        rightControls={
-          <ScreenHeader.TextButton onPress={handleNext}>
-            Next
-          </ScreenHeader.TextButton>
-        }
-      />
-      <ScrollView
+      <ScreenHeader title="Notifications" showSessionStatus={false} />
+      <View
         flex={1}
         paddingHorizontal="$2xl"
         maxWidth={600}
         marginHorizontal="auto"
+        alignContent="center"
       >
-        <YStack gap="$2xl" paddingVertical={'$2xl'}>
+        <YStack gap="$2xl" flex={1} justifyContent="center">
           <TlonText.Text size="$body">
-            <TlonText.Text fontWeight={'600'}>
-              Tlon has no attention traps or engagement bait.
-            </TlonText.Text>{' '}
-            As a messenger, it works best when you’re notified of messages—but
-            you’re in control. Customize these settings anytime for any group,
-            channel, or DM.
+            Tlon works best when you’re notified of messages–but you’re in
+            control. Customize these settings anytime for any group or DM.
           </TlonText.Text>
-          <TlonText.Text size="$body">
-            Your device may also ask you to enable push notifications. If you
-            want to receive notifications on your device, be sure to allow them
-            when prompted.
-          </TlonText.Text>
+
+          <NotificationLevelSelector
+            value={selectedLevel}
+            onChange={setSelectedLevel}
+            config={{ shortDescriptions: true }}
+          />
         </YStack>
-        <NotificationLevelSelector
-          value={selectedLevel}
-          onChange={setSelectedLevel}
-        />
-      </ScrollView>
+        <Button onPress={handleNext} hero shadow>
+          <Button.Text>Next</Button.Text>
+        </Button>
+      </View>
     </View>
   );
 };
