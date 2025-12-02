@@ -10,6 +10,7 @@ export const DEFAULT_BOTTOM_PADDING = 20;
 
 export * from './types';
 export * from './components/Button';
+export * as bv2 from './components/ButtonV2';
 export * from './components/Carousel';
 export * from './components/ConfirmDialog';
 export * from './components/Emoji/data';
