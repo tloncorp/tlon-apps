@@ -238,7 +238,7 @@ const CreateChatFormContent = ({
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          height={500}
+          height={isWindowNarrow ? 500 : undefined}
         />
         {chatType === 'group' && (
           <Button marginTop="$l" hero onPress={onCreateGroup}>
