@@ -7,10 +7,8 @@ import { Alert, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
 import { DeleteSheet } from '../DeleteSheet';
-import { RadioControl, TextInput } from '../Form';
-import { ListItem } from '../ListItem';
+import { RadioControl } from '../Form';
 import { ScreenHeader } from '../ScreenHeader';
 
 interface ChannelFormSchema {
@@ -319,7 +317,6 @@ export function ChannelPermissionsSelector({
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
 
   const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
 
@@ -362,16 +359,6 @@ export function ChannelPermissionsSelector({
     return mappedRoles.filter((role) => role.value !== 'admin');
   }, [isPrivate, readers, allRoles]);
 
-  const handleSaveRoles = useCallback(
-    (roleIds: string[]) => {
-      const readersWithAdmin = roleIds.includes('admin')
-        ? roleIds
-        : ['admin', ...roleIds];
-      setValue('readers', readersWithAdmin, { shouldDirty: true });
-    },
-    [setValue]
-  );
-
   return (
     <YStack
       width="100%"
@@ -384,48 +371,6 @@ export function ChannelPermissionsSelector({
         isPrivate={isPrivate}
         onTogglePrivate={handleTogglePrivate}
       />
-
-      {isPrivate && (
-        <YStack
-          padding="$xl"
-          gap="$2xl"
-          width="100%"
-          borderTopWidth={1}
-          borderTopColor="$secondaryBorder"
-        >
-          <XStack>
-            <Text size="$label/l" flex={1}>
-              Who can access this channel?
-            </Text>
-            <XStack flex={1.5} justifyContent="flex-end" gap="$m">
-              <Button
-                onPress={onCreateRole}
-                secondary
-              >
-                <Button.Text>Create new role</Button.Text>
-              </Button>
-            </XStack>
-          </XStack>
-          <YStack gap="$l">
-            <Text size="$label/l">Roles</Text>
-            <XStack gap="$s" flexWrap="wrap" width="100%">
-              {displayedRoles.map((role) => (
-                <RoleChip
-                  key={role.value}
-                  role={role}
-                  onRemove={
-                    role.value !== 'admin'
-                      ? () => handleRemoveRole(role.value)
-                      : undefined
-                  }
-                />
-              ))}
-            </XStack>
-          </YStack>
-        </YStack>
-      )}
-
-
     </YStack>
   );
 }
@@ -464,8 +409,14 @@ const checkboxColumnWidth = 100;
 
 export function PermissionTable({
   groupRoles,
+  onSelectRoles,
+  onCreateRole,
+  onRemoveRole,
 }: {
   groupRoles: db.GroupRole[];
+  onSelectRoles?: () => void;
+  onCreateRole?: () => void;
+  onRemoveRole?: (roleId: string) => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -540,7 +491,7 @@ export function PermissionTable({
     [readers, writers, setValue]
   );
 
-  if (!isPrivate || displayedRoles.length === 0) return null;
+  if (!isPrivate) return null;
 
   return (
     <YStack
@@ -578,9 +529,43 @@ export function PermissionTable({
               canWrite={writers.includes(role.value)}
               onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
+              onRemove={
+                role.value !== 'admin' && onRemoveRole
+                  ? () => onRemoveRole(role.value)
+                  : undefined
+              }
             />
           </YStack>
         ))}
+        {/* Add roles and Create new role row */}
+        {(onSelectRoles || onCreateRole) && (
+          <XStack
+            width="100%"
+            alignItems="center"
+            height={68}
+            borderTopWidth={displayedRoles.length > 0 ? 1 : 0}
+            borderTopColor="$secondaryBackground"
+            paddingHorizontal="$xl"
+            gap="$m"
+          >
+            {onSelectRoles && (
+              <Button onPress={onSelectRoles}>
+                <Button.Icon>
+                  <Icon type="Add" />
+                </Button.Icon>
+                <Button.Text>Add roles</Button.Text>
+              </Button>
+            )}
+            {onCreateRole && (
+              <Button onPress={onCreateRole}>
+                <Button.Icon>
+                  <Icon type="Add" />
+                </Button.Icon>
+                <Button.Text>Create new role</Button.Text>
+              </Button>
+            )}
+          </XStack>
+        )}
       </YStack>
     </YStack>
   );
@@ -612,12 +597,14 @@ function PermissionTableRow({
   canWrite,
   onToggleRead,
   onToggleWrite,
+  onRemove,
 }: {
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
   onToggleRead: () => void;
   onToggleWrite: () => void;
+  onRemove?: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
@@ -625,9 +612,16 @@ function PermissionTableRow({
   return (
     <XStack width="100%" alignItems="stretch" flex={1} height={68}>
       <YStack flex={1} justifyContent="center">
-        <Text size="$label/m" paddingVertical="$m" paddingHorizontal={'$xl'}>
-          {role.label}
-        </Text>
+        <XStack alignItems="center" gap="$m" paddingHorizontal="$xl">
+          <Text size="$label/m" paddingVertical="$m" flex={1}>
+            {role.label}
+          </Text>
+          {onRemove && (
+            <Pressable onPress={onRemove} testID={`RemoveRole-${role.label}`}>
+              <Icon type="Close" size="$s" color="$tertiaryText" />
+            </Pressable>
+          )}
+        </XStack>
       </YStack>
       <PermissionTableControlCell>
         {isMember ? (
@@ -674,43 +668,5 @@ function PermissionTableControlCell({
     >
       {children}
     </XStack>
-  );
-}
-
-
-
-function SelectableRoleListItem({
-  role,
-  isSelected,
-  onPress,
-}: {
-  role: RoleOption;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <ListItem
-        {...(isSelected
-          ? { backgroundColor: '$secondaryBackground' }
-          : { borderColor: '$secondaryBorder', borderWidth: 1 })}
-        borderRadius="$xl"
-        height={130}
-        paddingLeft="$3xl"
-        paddingRight="$2xl"
-        alignItems="center"
-      >
-        <ListItem.MainContent alignItems="center" justifyContent="center">
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <ListItem.Title>{role.label}</ListItem.Title>
-            <RadioControl checked={isSelected} />
-          </XStack>
-        </ListItem.MainContent>
-      </ListItem>
-    </Pressable>
   );
 }

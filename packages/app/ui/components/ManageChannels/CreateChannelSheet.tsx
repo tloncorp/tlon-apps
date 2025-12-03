@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   JSONValue,
   createChannel,
@@ -13,37 +15,26 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
-import { Button, Icon, IconButton, Text } from '@tloncorp/ui';
+import { Button, Icon, Text } from '@tloncorp/ui';
 import {
   ComponentProps,
   SetStateAction,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
-import { ListItem } from '../ListItem';
 import SystemNotices from '../SystemNotices';
-import {
-  MEMBERS_MARKER,
-  MEMBER_ROLE_OPTION,
-  PermissionTable,
-  PrivateChannelToggle,
-  RoleChip,
-  groupRolesToOptions,
-} from './EditChannelScreenView';
+import { MEMBERS_MARKER, PrivateChannelToggle } from './EditChannelScreenView';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {
@@ -182,11 +173,7 @@ export function CreateChannelSheet({
 
   return (
     <FormProvider {...form}>
-      <ActionSheet
-        open
-        onOpenChange={handleOpenChange}
-        snapPointsMode="fit"
-      >
+      <ActionSheet open onOpenChange={handleOpenChange} snapPointsMode="fit">
         <ActionSheet.SimpleHeader title="Create a new channel" />
         <ActionSheet.Content>
           <ActionSheet.FormBlock>
@@ -202,6 +189,14 @@ export function CreateChannelSheet({
             />
           </ActionSheet.FormBlock>
           <ActionSheet.FormBlock>
+            <Form.ControlledListItemField
+              label="Channel type"
+              options={channelTypes}
+              control={control}
+              name={'channelType'}
+            />
+          </ActionSheet.FormBlock>
+          <ActionSheet.FormBlock>
             <YStack
               borderColor="$secondaryBorder"
               borderWidth={1}
@@ -213,14 +208,6 @@ export function CreateChannelSheet({
                 onTogglePrivate={handleTogglePrivate}
               />
             </YStack>
-          </ActionSheet.FormBlock>
-          <ActionSheet.FormBlock>
-            <Form.ControlledListItemField
-              label="Channel type"
-              options={channelTypes}
-              control={control}
-              name={'channelType'}
-            />
           </ActionSheet.FormBlock>
           {isNonHostAdmin && (
             <ActionSheet.FormBlock>
@@ -234,144 +221,12 @@ export function CreateChannelSheet({
               }
               hero
             >
-              <Button.Text>
-                {isPrivate ? 'Next' : 'Create channel'}
-              </Button.Text>
+              <Button.Text>{isPrivate ? 'Next' : 'Create channel'}</Button.Text>
             </Button>
           </ActionSheet.FormBlock>
         </ActionSheet.Content>
       </ActionSheet>
     </FormProvider>
-  );
-}
-
-function PrivateChannelPermissionsView({
-  group,
-  onPressBack,
-  onPressSave,
-  onCreateRole,
-}: {
-  group: db.Group;
-  onPressBack: () => void;
-  onPressSave: () => void;
-  onCreateRole: () => void;
-}) {
-  const { watch, setValue } = useFormContext<CreateChannelFormSchema>();
-  const readers = watch('readers');
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
-
-  const allRoles = useMemo(
-    () => groupRolesToOptions(group.roles ?? []),
-    [group.roles]
-  );
-
-  const handleRemoveRole = useCallback(
-    (roleId: string) => {
-      if (roleId === 'admin') return;
-      const writers = watch('writers');
-      setValue(
-        'readers',
-        readers.filter((r) => r !== roleId),
-        {
-          shouldDirty: true,
-        }
-      );
-      // If removing Members, also remove from writers
-      if (roleId === MEMBERS_MARKER) {
-        setValue(
-          'writers',
-          writers.filter((w) => w !== roleId),
-          {
-            shouldDirty: true,
-          }
-        );
-      }
-    },
-    [readers, setValue, watch]
-  );
-
-  const displayedRoles = useMemo(() => {
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
-    return rolesWithMembers
-      .filter((role) => readers.includes(role.value))
-      .filter((role) => role.value !== 'admin')
-      .map((role) => ({ label: role.label, value: role.value }));
-  }, [readers, allRoles]);
-
-  const handleSaveRoles = useCallback(
-    (roleIds: string[]) => {
-      const readersWithAdmin = roleIds.includes('admin')
-        ? roleIds
-        : ['admin', ...roleIds];
-      setValue('readers', readersWithAdmin, { shouldDirty: true });
-    },
-    [setValue]
-  );
-
-  return (
-    <>
-      <ActionSheet.Header>
-        <XStack alignItems="center" gap="$m" width="100%">
-          <IconButton onPress={onPressBack} width="$4xl">
-            <Icon type="ChevronLeft" />
-          </IconButton>
-          <ListItem.Title>Channel permissions</ListItem.Title>
-        </XStack>
-      </ActionSheet.Header>
-      <ActionSheet.Content>
-        <ActionSheet.FormBlock>
-          <YStack
-            width="100%"
-            overflow="hidden"
-            borderRadius="$m"
-            borderWidth={1}
-            borderColor="$secondaryBorder"
-            padding="$xl"
-            gap="$2xl"
-          >
-            <XStack>
-              <Text size="$label/l" flex={1}>
-                Who can access this channel?
-              </Text>
-              <XStack flex={1.5} justifyContent="flex-end" gap="$m">
-                <Button
-                  onPress={onCreateRole}
-                  secondary
-                >
-                  <Button.Text>Create new role</Button.Text>
-                </Button>
-              </XStack>
-            </XStack>
-            <YStack gap="$l">
-              <Text size="$label/l">Roles</Text>
-              <XStack gap="$s" flexWrap="wrap" width="100%">
-                {displayedRoles.map((role) => (
-                  <RoleChip
-                    key={role.value}
-                    role={role}
-                    onRemove={
-                      role.value !== 'admin'
-                        ? () => handleRemoveRole(role.value)
-                        : undefined
-                    }
-                  />
-                ))}
-              </XStack>
-            </YStack>
-          </YStack>
-        </ActionSheet.FormBlock>
-        <ActionSheet.FormBlock>
-          <PermissionTable groupRoles={group.roles ?? []} />
-        </ActionSheet.FormBlock>
-        <ActionSheet.FormBlock>
-          <Button onPress={onPressSave} hero>
-            <Button.Text>Create channel</Button.Text>
-          </Button>
-        </ActionSheet.FormBlock>
-      </ActionSheet.Content>
-
-
-    </>
   );
 }
 
