@@ -1,6 +1,7 @@
 import isURL from 'validator/lib/isURL';
 
 import { ChannelType, PostMetadata } from '../db';
+import { createDevLogger } from '../debug';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -15,7 +16,10 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { fileFromPath } from '../utils/file';
 import { makeMention, makeParagraph, makeText } from './tiptap';
+
+const logger = createDevLogger('content-helpers', false);
 
 const isBoldStart = (text: string): boolean => {
   return text.startsWith('**');
@@ -532,6 +536,85 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
   };
 }
 
+/** helper to build similarly-shaped entry types */
+type BuildPostBlobDataEntry<
+  Type extends string,
+  Config extends { version: number },
+  Payload extends Record<string, unknown>,
+> = {
+  type: Type;
+  version: Config['version'];
+} & Payload;
+
+type PostBlobDataEntry = BuildPostBlobDataEntry<
+  'file',
+  { version: 1 },
+  {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+  }
+>;
+
+type PostBlobData = PostBlobDataEntry[];
+
+export function appendFileUploadToPostBlob(
+  blob: string | undefined,
+  opts: {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+  }
+) {
+  const data: PostBlobData = (() => {
+    if (!blob) {
+      return [];
+    }
+    try {
+      const arr: PostBlobData = JSON.parse(blob);
+      if (Array.isArray(arr)) {
+        return arr;
+      }
+    } catch {
+      logger.trackError('Failed to parse existing PostBlob data', { blob });
+      // once we track the error, just start over with an empty blob so we can
+      // respect the user's intent to add the file
+    }
+    return [];
+  })();
+  data.push({
+    type: 'file',
+    version: 1,
+    fileUri: opts.fileUri,
+    name: opts.name,
+    mimeType: opts.mimeType,
+    size: opts.size,
+  });
+  return JSON.stringify(data);
+}
+
+/** Client-side parsed representation of PostBlob data */
+export type ClientPostBlobData = Array<PostBlobDataEntry | { type: 'unknown' }>;
+
+export function parsePostBlob(blob: string): ClientPostBlobData {
+  const arr: PostBlobData = JSON.parse(blob);
+  if (!Array.isArray(arr)) {
+    return [{ type: 'unknown' }];
+  }
+
+  return arr.map((entry) => {
+    if (entry.type !== 'file' && entry.version != 1) {
+      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+      return { type: 'unknown' };
+    }
+    return entry;
+  });
+}
+
 export function toPostData({
   attachments,
   content,
@@ -546,28 +629,66 @@ export function toPostData({
   title?: string;
   image?: string;
   isEdit?: boolean;
-}): { story: Story; metadata: PostMetadata } {
-  const blocks = attachments
+}): { story: Story; metadata: PostMetadata; blob?: string } {
+  const blocks: Block[] = [];
+  let blob: string | undefined = undefined;
+
+  attachments
     .filter((attachment) => attachment.type !== 'text')
-    .flatMap((attachment): Block[] => {
-      if (attachment.type === 'reference') {
-        const block = createReferenceBlock(attachment);
-        return block ? [block] : [];
+    .forEach((attachment) => {
+      switch (attachment.type) {
+        case 'reference': {
+          const block = createReferenceBlock(attachment);
+          if (block) {
+            blocks.push(block);
+          }
+          break;
+        }
+
+        case 'image': {
+          if (
+            !image ||
+            attachment.file.uri !== image ||
+            (attachment.file.uri === image &&
+              isEdit &&
+              channelType === 'gallery')
+          ) {
+            blocks.push(createImageBlock(attachment));
+          }
+          break;
+        }
+
+        case 'link': {
+          blocks.push(createLinkBlock(attachment));
+          break;
+        }
+
+        case 'file': {
+          const name =
+            attachment.name ??
+            (attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+            undefined;
+          if (attachment.uploadState.status === 'success') {
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.remoteUri,
+              name,
+              mimeType: attachment.type,
+              size: attachment.size,
+            });
+          } else if (attachment.uploadState.status === 'uploading') {
+            // necessary for optimistic preview
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri: attachment.uploadState.localUri,
+              name,
+              mimeType: attachment.type,
+              size: attachment.size,
+            });
+          }
+          break;
+        }
       }
-      if (
-        attachment.type === 'image' &&
-        (!image ||
-          attachment.file.uri !== image ||
-          (attachment.file.uri === image &&
-            isEdit &&
-            channelType === 'gallery'))
-      ) {
-        return [createImageBlock(attachment)];
-      }
-      if (attachment.type === 'link') {
-        return [createLinkBlock(attachment)];
-      }
-      return [];
     });
 
   const story = constructStory(content);
@@ -598,7 +719,7 @@ export function toPostData({
     metadata.image = null;
   }
 
-  return { story, metadata };
+  return { story, metadata, blob };
 }
 
 function createImageBlock(attachment: UploadedImageAttachment): Block {

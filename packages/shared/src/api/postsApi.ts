@@ -127,7 +127,7 @@ function toPostReference(said: ub.Said) {
   }
 }
 
-export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   checkNest(nest);
 
   return channelAction(nest, {
@@ -140,12 +140,14 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  blob,
   metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  blob?: string;
   metadata?: db.PostMetadata;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
@@ -160,7 +162,7 @@ export const sendPost = async ({
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: null,
+          blob: blob ?? null,
         },
         time: null,
       },
@@ -177,6 +179,7 @@ export const sendPost = async ({
 
   const essay = toPostEssay({
     content,
+    blob,
     authorId,
     sentAt,
     channelType,
@@ -206,6 +209,7 @@ export const editPost = async ({
   content,
   parentId,
   metadata,
+  blob,
 }: {
   channelId: string;
   postId: string;
@@ -214,6 +218,7 @@ export const editPost = async ({
   content: Story;
   parentId?: string;
   metadata?: db.PostMetadata;
+  blob?: string;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -257,6 +262,7 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
+    blob,
     metadata: metadata
       ? {
           title: metadata.title || '',
@@ -1235,6 +1241,7 @@ export function toPostData(
     replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
+    blob: post.essay.blob ?? null,
     ...flags,
   };
 }
