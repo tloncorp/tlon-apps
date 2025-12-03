@@ -18,6 +18,7 @@ import {
   ComponentProps,
   SetStateAction,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -26,7 +27,10 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
@@ -38,7 +42,6 @@ import {
   PermissionTable,
   PrivateChannelToggle,
   RoleChip,
-  RoleSelectionSheet,
   groupRolesToOptions,
 } from './EditChannelScreenView';
 
@@ -85,11 +88,16 @@ interface CreateChannelFormSchema {
 export function CreateChannelSheet({
   onOpenChange,
   group,
+  createdRoleId,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
+  createdRoleId?: string;
 }) {
-  const [pane, setPane] = useState<'initial' | 'permissions'>('initial');
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<GroupSettingsStackParamList, 'ManageChannels'>
+    >();
   const form = useForm<CreateChannelFormSchema>({
     defaultValues: {
       title: '',
@@ -119,12 +127,17 @@ export function CreateChannelSheet({
   );
 
   const handlePressNext = useCallback(() => {
-    setPane('permissions');
-  }, []);
+    const title = watch('title');
+    const channelType = watch('channelType');
+    if (!title) return;
 
-  const handlePressBack = useCallback(() => {
-    setPane('initial');
-  }, []);
+    onOpenChange(false);
+    navigation.navigate('CreateChannelPermissions', {
+      groupId: group.id,
+      channelTitle: title,
+      channelType,
+    });
+  }, [watch, onOpenChange, navigation, group.id]);
 
   const handlePressSave = useCallback(
     async (data: CreateChannelFormSchema) => {
@@ -162,9 +175,6 @@ export function CreateChannelSheet({
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!open) {
-        setPane('initial');
-      }
       onOpenChange(open);
     },
     [onOpenChange]
@@ -175,72 +185,61 @@ export function CreateChannelSheet({
       <ActionSheet
         open
         onOpenChange={handleOpenChange}
-        snapPoints={pane === 'permissions' ? [85] : undefined}
-        snapPointsMode={pane === 'permissions' ? 'percent' : 'fit'}
+        snapPointsMode="fit"
       >
-        {pane === 'initial' ? (
-          <>
-            <ActionSheet.SimpleHeader title="Create a new channel" />
-            <ActionSheet.Content>
-              <ActionSheet.FormBlock>
-                <Form.ControlledTextField
-                  control={control}
-                  name="title"
-                  label="Title"
-                  inputProps={{
-                    placeholder: 'Channel title',
-                    testID: 'ChannelTitleInput',
-                  }}
-                  rules={{ required: 'Channel title is required' }}
-                />
-              </ActionSheet.FormBlock>
-              <ActionSheet.FormBlock>
-                <YStack
-                  borderColor="$secondaryBorder"
-                  borderWidth={1}
-                  borderRadius="$m"
-                  overflow="hidden"
-                >
-                  <PrivateChannelToggle
-                    isPrivate={isPrivate}
-                    onTogglePrivate={handleTogglePrivate}
-                  />
-                </YStack>
-              </ActionSheet.FormBlock>
-              <ActionSheet.FormBlock>
-                <Form.ControlledListItemField
-                  label="Channel type"
-                  options={channelTypes}
-                  control={control}
-                  name={'channelType'}
-                />
-              </ActionSheet.FormBlock>
-              {isNonHostAdmin && (
-                <ActionSheet.FormBlock>
-                  <SystemNotices.NonHostAdminChannelNotice />
-                </ActionSheet.FormBlock>
-              )}
-              <ActionSheet.FormBlock>
-                <Button
-                  onPress={
-                    isPrivate ? handlePressNext : handleSubmit(handlePressSave)
-                  }
-                  hero
-                >
-                  <Button.Text>
-                    {isPrivate ? 'Next' : 'Create channel'}
-                  </Button.Text>
-                </Button>
-              </ActionSheet.FormBlock>
-            </ActionSheet.Content>
-          </>
-        ) : (
-          <PrivateChannelPermissionsView
-            group={group}
-            onPressBack={handlePressBack}
-            onPressSave={handleSubmit(handlePressSave)}
-          />
-        )}
+        <ActionSheet.SimpleHeader title="Create a new channel" />
+        <ActionSheet.Content>
+          <ActionSheet.FormBlock>
+            <Form.ControlledTextField
+              control={control}
+              name="title"
+              label="Title"
+              inputProps={{
+                placeholder: 'Channel title',
+                testID: 'ChannelTitleInput',
+              }}
+              rules={{ required: 'Channel title is required' }}
+            />
+          </ActionSheet.FormBlock>
+          <ActionSheet.FormBlock>
+            <YStack
+              borderColor="$secondaryBorder"
+              borderWidth={1}
+              borderRadius="$m"
+              overflow="hidden"
+            >
+              <PrivateChannelToggle
+                isPrivate={isPrivate}
+                onTogglePrivate={handleTogglePrivate}
+              />
+            </YStack>
+          </ActionSheet.FormBlock>
+          <ActionSheet.FormBlock>
+            <Form.ControlledListItemField
+              label="Channel type"
+              options={channelTypes}
+              control={control}
+              name={'channelType'}
+            />
+          </ActionSheet.FormBlock>
+          {isNonHostAdmin && (
+            <ActionSheet.FormBlock>
+              <SystemNotices.NonHostAdminChannelNotice />
+            </ActionSheet.FormBlock>
+          )}
+          <ActionSheet.FormBlock>
+            <Button
+              onPress={
+                isPrivate ? handlePressNext : handleSubmit(handlePressSave)
+              }
+              hero
+            >
+              <Button.Text>
+                {isPrivate ? 'Next' : 'Create channel'}
+              </Button.Text>
+            </Button>
+          </ActionSheet.FormBlock>
+        </ActionSheet.Content>
       </ActionSheet>
     </FormProvider>
   );
@@ -250,10 +249,12 @@ function PrivateChannelPermissionsView({
   group,
   onPressBack,
   onPressSave,
+  onCreateRole,
 }: {
   group: db.Group;
   onPressBack: () => void;
   onPressSave: () => void;
+  onCreateRole: () => void;
 }) {
   const { watch, setValue } = useFormContext<CreateChannelFormSchema>();
   const readers = watch('readers');
@@ -332,21 +333,12 @@ function PrivateChannelPermissionsView({
               <Text size="$label/l" flex={1}>
                 Who can access this channel?
               </Text>
-              <XStack flex={1.5} justifyContent="flex-end">
+              <XStack flex={1.5} justifyContent="flex-end" gap="$m">
                 <Button
-                  width={120}
-                  onPress={() => setShowRoleSelector(true)}
-                  size={'$l'}
-                  backgroundColor="$positiveActionText"
-                  pressStyle={{
-                    backgroundColor: '$positiveActionText',
-                    opacity: 0.9,
-                  }}
-                  borderColor="$positiveActionText"
+                  onPress={onCreateRole}
+                  secondary
                 >
-                  <Button.Text color="$positiveBackground">
-                    Add roles
-                  </Button.Text>
+                  <Button.Text>Create new role</Button.Text>
                 </Button>
               </XStack>
             </XStack>
@@ -378,13 +370,7 @@ function PrivateChannelPermissionsView({
         </ActionSheet.FormBlock>
       </ActionSheet.Content>
 
-      <RoleSelectionSheet
-        open={showRoleSelector}
-        onOpenChange={setShowRoleSelector}
-        allRoles={allRoles}
-        selectedRoleIds={readers}
-        onSave={handleSaveRoles}
-      />
+
     </>
   );
 }

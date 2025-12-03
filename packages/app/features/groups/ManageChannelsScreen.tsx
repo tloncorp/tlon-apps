@@ -11,7 +11,7 @@ type Props = NativeStackScreenProps<
 >;
 
 export function ManageChannelsScreen(props: Props) {
-  const { groupId, fromChatDetails } = props.route.params;
+  const { groupId, fromChatDetails, createdRoleId } = props.route.params;
   const { navigation } = props;
 
   const {
@@ -54,6 +54,7 @@ export function ManageChannelsScreen(props: Props) {
       deleteNavSection={deleteNavSection}
       updateNavSection={updateNavSection}
       updateGroupNavigation={updateGroupNavigation}
+      createdRoleId={createdRoleId}
     />
   );
 }

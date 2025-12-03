@@ -37,6 +37,8 @@ interface EditChannelScreenViewProps {
     description?: string
   ) => void;
   onDeleteChannel: () => void;
+  createdRoleId?: string;
+  onCreateRole: () => void;
 }
 
 const getDefaultFormValues = (
@@ -77,6 +79,8 @@ export function EditChannelScreenView({
   onSubmit,
   channel,
   onDeleteChannel,
+  createdRoleId,
+  onCreateRole,
 }: EditChannelScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const form = useForm<ChannelFormSchema>({
@@ -89,7 +93,20 @@ export function EditChannelScreenView({
     reset,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = form;
+
+  useEffect(() => {
+    if (createdRoleId) {
+      const currentReaders = watch('readers');
+      if (!currentReaders.includes(createdRoleId)) {
+        setValue('readers', [...currentReaders, createdRoleId], {
+          shouldDirty: true,
+        });
+      }
+    }
+  }, [createdRoleId, setValue, watch]);
 
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? '',
@@ -180,7 +197,10 @@ export function EditChannelScreenView({
             )}
             {!!group && !!channel && (
               <>
-                <ChannelPermissionsSelector groupRoles={group.roles} />
+                <ChannelPermissionsSelector
+                  groupRoles={group.roles}
+                  onCreateRole={onCreateRole}
+                />
                 <PermissionTable groupRoles={group.roles} />
               </>
             )}
@@ -290,8 +310,10 @@ export function PrivateChannelToggle({
 
 export function ChannelPermissionsSelector({
   groupRoles,
+  onCreateRole,
 }: {
   groupRoles: db.GroupRole[];
+  onCreateRole?: () => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -375,19 +397,12 @@ export function ChannelPermissionsSelector({
             <Text size="$label/l" flex={1}>
               Who can access this channel?
             </Text>
-            <XStack flex={1.5} justifyContent="flex-end">
+            <XStack flex={1.5} justifyContent="flex-end" gap="$m">
               <Button
-                width={120}
-                onPress={() => setShowRoleSelector(true)}
-                size={'$l'}
-                backgroundColor="$positiveActionText"
-                pressStyle={{
-                  backgroundColor: '$positiveActionText',
-                  opacity: 0.9,
-                }}
-                borderColor="$positiveActionText"
+                onPress={onCreateRole}
+                secondary
               >
-                <Button.Text color="$positiveBackground">Add roles</Button.Text>
+                <Button.Text>Create new role</Button.Text>
               </Button>
             </XStack>
           </XStack>
@@ -410,13 +425,7 @@ export function ChannelPermissionsSelector({
         </YStack>
       )}
 
-      <RoleSelectionSheet
-        open={showRoleSelector}
-        onOpenChange={setShowRoleSelector}
-        allRoles={allRoles}
-        selectedRoleIds={readers}
-        onSave={handleSaveRoles}
-      />
+
     </YStack>
   );
 }
@@ -668,123 +677,7 @@ function PermissionTableControlCell({
   );
 }
 
-export function RoleSelectionSheet({
-  open,
-  onOpenChange,
-  allRoles,
-  selectedRoleIds,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  allRoles: RoleOption[];
-  selectedRoleIds: string[];
-  onSave: (roleIds: string[]) => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tempSelectedRoleIds, setTempSelectedRoleIds] =
-    useState<string[]>(selectedRoleIds);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (open) {
-      setTempSelectedRoleIds(selectedRoleIds);
-      setSearchQuery('');
-      setIsScrolling(false);
-    } else {
-      setIsScrolling(false);
-    }
-  }, [open, selectedRoleIds]);
-
-  const filteredRoles = useMemo(() => {
-    const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
-    if (!searchQuery.trim()) {
-      return rolesWithMembers;
-    }
-    const query = searchQuery.toLowerCase();
-    return rolesWithMembers.filter((role) =>
-      role.label.toLowerCase().includes(query)
-    );
-  }, [allRoles, searchQuery]);
-
-  const handleToggleRole = useCallback((roleId: string) => {
-    setTempSelectedRoleIds((prev) => {
-      if (prev.includes(roleId)) {
-        return prev.filter((id) => id !== roleId);
-      }
-      return [...prev, roleId];
-    });
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave(tempSelectedRoleIds);
-    onOpenChange(false);
-  }, [tempSelectedRoleIds, onSave, onOpenChange]);
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      snapPointsMode="percent"
-      disableDrag={isScrolling}
-      modal
-    >
-      <ActionSheet.SimpleHeader
-        title="Search and add roles"
-        subtitle="Select roles for this channel"
-      />
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$xl"
-        paddingBottom={0}
-      >
-        <TextInput
-          icon="Search"
-          placeholder="Search roles"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          testID="RoleSearchInput"
-        />
-      </ActionSheet.Content>
-      <ActionSheet.ScrollableContent
-        paddingHorizontal="$l"
-        onScrollBeginDrag={() => setIsScrolling(true)}
-        onScrollEndDrag={() => setIsScrolling(false)}
-      >
-        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
-          {filteredRoles.map((role) => (
-            <SelectableRoleListItem
-              key={role.value}
-              role={role}
-              isSelected={tempSelectedRoleIds.includes(role.value)}
-              onPress={() => handleToggleRole(role.value)}
-            />
-          ))}
-          {filteredRoles.length === 0 && (
-            <View paddingVertical="$2xl" alignItems="center">
-              <Text color="$tertiaryText">No roles found</Text>
-            </View>
-          )}
-        </YStack>
-        <View
-          paddingHorizontal="$l"
-          paddingTop="$m"
-          paddingBottom={insets.bottom}
-          backgroundColor="$background"
-          borderTopWidth={1}
-          borderTopColor="$border"
-        >
-          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-            <Button.Text>Save</Button.Text>
-          </Button>
-        </View>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
 
 function SelectableRoleListItem({
   role,

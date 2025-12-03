@@ -71,6 +71,17 @@ export function EditChannelScreen(props: Props) {
       channel={data}
       onDeleteChannel={handleDeleteChannel}
       onSubmit={handleSubmit}
+      createdRoleId={props.route.params.createdRoleId}
+      onCreateRole={() => {
+        navigation.navigate('AddRole', {
+          groupId,
+          returnScreen: 'EditChannel',
+          returnParams: {
+            groupId,
+            channelId,
+          },
+        });
+      }}
     />
   );
 }
