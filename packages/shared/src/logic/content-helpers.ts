@@ -146,7 +146,7 @@ const processLine = (line: Line): JSONContent => {
       : [];
   let index = 0;
   for (const [i, mention] of mentions.entries()) {
-    const nextSegment = text.slice(index, Math.max(mention.start - 1, 0));
+    const nextSegment = text.slice(index, mention.start);
     const parts: string[] = nextSegment === '' ? [] : nextSegment.split(' ');
     const partsUptoMention: LineNode[] = parts.map((word) => ({
       type: 'text',
@@ -160,7 +160,7 @@ const processLine = (line: Line): JSONContent => {
       mention,
     });
 
-    index = mention.end + 1;
+    index = mention.end;
 
     if (i === mentions.length - 1) {
       const lastSegment = text.slice(index);
@@ -179,7 +179,6 @@ const processLine = (line: Line): JSONContent => {
 
     if (node.type === 'mention') {
       parsedContent.push(makeMention(node.mention.id));
-      parsedContent.push(makeText(' '));
       return;
     }
 
