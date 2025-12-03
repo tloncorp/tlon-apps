@@ -2,13 +2,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/app/ui';
+import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
+import { AllowNotificationsScreen } from '../screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
@@ -19,6 +20,7 @@ import { PasteInviteLinkScreen } from '../screens/Onboarding/PasteInviteLinkScre
 import { RequestPhoneVerifyScreen } from '../screens/Onboarding/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from '../screens/Onboarding/ReserveShipScreen';
 import { SetNicknameScreen } from '../screens/Onboarding/SetNicknameScreen';
+import { SetNotificationsScreen } from '../screens/Onboarding/SetNotificationsScreen';
 import { SetTelemetryScreen } from '../screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from '../screens/Onboarding/SignupScreen';
@@ -190,6 +192,18 @@ export default {
     <SingleScreenFixture
       routeName="SetTelemetry"
       Component={SetTelemetryScreen}
+    />
+  ),
+  SetNotifications: (
+    <SingleScreenFixture
+      routeName="SetNotifications"
+      Component={SetNotificationsScreen}
+    />
+  ),
+  AllowNotifications: (
+    <SingleScreenFixture
+      routeName="AllowNotifications"
+      Component={AllowNotificationsScreen}
     />
   ),
   Welcome: (

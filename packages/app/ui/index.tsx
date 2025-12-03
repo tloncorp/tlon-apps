@@ -50,6 +50,7 @@ export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/MetaEditorScreenView';
 export * from './components/NavBar';
 export * from './components/NavBarView';
+export * from './components/NotificationLevelSelector';
 export * from './components/Onboarding';
 export * from './components/PersonalInviteSheet';
 export * from './components/PhoneAttestationPane';
