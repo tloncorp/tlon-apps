@@ -583,7 +583,7 @@ export function PermissionTable({
             gap="$m"
           >
             {onSelectRoles && (
-              <Button onPress={onSelectRoles}>
+              <Button onPress={onSelectRoles} testID="AddRolesButton">
                 <Button.Icon>
                   <Icon type="Add" />
                 </Button.Icon>
@@ -591,7 +591,7 @@ export function PermissionTable({
               </Button>
             )}
             {onCreateRole && (
-              <Button onPress={onCreateRole}>
+              <Button onPress={onCreateRole} testID="CreateRoleButton">
                 <Button.Icon>
                   <Icon type="Add" />
                 </Button.Icon>
