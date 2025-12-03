@@ -1646,6 +1646,13 @@
   ++  ca-activity
     =,  activity
     |%
+    ++  blocked
+      |=  who=ship
+      =;  blocks=(set ship)
+        (~(has in blocks) who)
+      =+  p=(scry-path %chat /blocked/ships)
+      =>  [p=p set=set]  ~+  ::  cache best we can
+      .^((set @p) %gx p)
     ++  on-post
       |=  v-post:c
       ^+  ca-core
@@ -1655,6 +1662,8 @@
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked author-ship)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
@@ -1688,6 +1697,8 @@
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked reply-author)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
