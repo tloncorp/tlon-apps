@@ -1,4 +1,4 @@
-import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
+import { render, valid, da } from '@urbit/aura';
 
 import { PostContent } from '../api';
 import { ChannelType } from '../db';
@@ -8,6 +8,7 @@ import { ContentReference } from '../domain';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';
+import { Atom } from '@urbit/nockjs';
 
 const logger = createDevLogger('urbitUtils', false);
 
@@ -126,50 +127,13 @@ export function pathToCite(path: string): ubc.Cite | undefined {
   return undefined;
 }
 
-//  encode the string into @ta-safe format, using logic from +wood.
+//  encode the string as @t into url-safe format, using logic from +wood.
 //  for example, 'some Chars!' becomes '~.some.~43.hars~21.'
 //  this is equivalent to (scot %t string), and is url-safe encoding for
 //  arbitrary strings.
 //
-//  TODO  should probably go into aura-js
-export function stringToTa(string: string) {
-  let out = '';
-  for (let i = 0; i < string.length; i += 1) {
-    const char = string[i];
-    let add = '';
-    switch (char) {
-      case ' ':
-        add = '.';
-        break;
-      case '.':
-        add = '~.';
-        break;
-      case '~':
-        add = '~~';
-        break;
-      default: {
-        const codePoint = string.codePointAt(i);
-        if (!codePoint) break;
-        //  js strings are encoded in UTF-16, so 16 bits per character.
-        //  codePointAt() reads a _codepoint_ at a character index, and may
-        //  consume up to two js string characters to do so, in the case of
-        //  16 bit surrogate pseudo-characters. here we detect that case, so
-        //  we can advance the cursor to skip past the additional character.
-        if (codePoint > 0xffff) i += 1;
-        if (
-          (codePoint >= 97 && codePoint <= 122) || // a-z
-          (codePoint >= 48 && codePoint <= 57) || // 0-9
-          char === '-'
-        ) {
-          add = char;
-        } else {
-          add = `~${codePoint.toString(16)}.`;
-        }
-      }
-    }
-    out += add;
-  }
-  return `~~${out}`;
+export function encodeString(string: string) {
+  return render('t', Atom.fromCord(string).number);
 }
 
 export function idIsNest(id: string) {
@@ -312,12 +276,12 @@ export function whomIsMultiDm(whom: string): boolean {
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
 export function whomIsFlag(whom: string): boolean {
   return (
-    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && valid('p', whom.split('/')[0])
   );
 }
 
 export function createMultiDmId(seed = Date.now()) {
-  return formatUv(unixToDa(seed));
+  return render('uv', da.fromUnix(seed));
 }
 
 export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
@@ -371,7 +335,7 @@ export function extractGroupPrivacy(
 }
 
 export function createSectionId() {
-  const idParts = formatUv(BigInt(Date.now())).split('.');
+  const idParts = render('uv', BigInt(Date.now())).split('.');
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;

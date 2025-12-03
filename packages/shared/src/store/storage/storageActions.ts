@@ -1,7 +1,9 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { deSig, unixToDa } from '@urbit/aura';
-import { formatDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
+//REVIEW  why doesn't this work here?
+// import { desig } from '@tloncorp/shared/urbit';
+import { desig } from '../../urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
@@ -210,8 +212,8 @@ export const performUpload = async (
 
   logger.log('fetched file', fileName, contentType, blob.size);
 
-  const fileKey = `${deSig(getCurrentUserId())}/${deSig(
-    formatDa(unixToDa(new Date().getTime()))
+  const fileKey = `${desig(getCurrentUserId())}/${desig(
+    render('da', da.fromUnix(new Date().getTime()))
   )}-${fileName}`;
   logger.log('asset key:', fileKey);
 

@@ -245,8 +245,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@urbit/aura':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^3.0.0
+        version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
         version: 3.2.0-dev
@@ -669,8 +669,8 @@ importers:
         specifier: 2.2.0
         version: 2.2.0
       '@urbit/aura':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^3.0.0
+        version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
         version: 3.2.0-dev
@@ -1090,8 +1090,8 @@ importers:
         specifier: 2.6.0
         version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
       '@urbit/aura':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^3.0.0
+        version: 3.0.0
       '@urbit/nockjs':
         specifier: ^1.6.0
         version: 1.6.0
@@ -6211,8 +6211,8 @@ packages:
   '@urbit/api@2.2.0':
     resolution: {integrity: sha512-W8kP9OT6yOK62n+4yCPO3i9QqU5xriLvZQ9WYW4SAV7ktbSrGuf2kmYbnoqfA/NybIs9Q/MbFkPewrz4XJ96Ag==}
 
-  '@urbit/aura@2.0.1':
-    resolution: {integrity: sha512-B1ZTwsEVqi/iybxjHlY3gBz7r4Xd7n9pwi9NY6V+7r4DksqBYBpfzdqWGUXgZ0x67IW8AOGjC73tkTOclNMhUg==}
+  '@urbit/aura@3.0.0':
+    resolution: {integrity: sha512-N8/FHc/lmlMDCumMuTXyRHCxlov5KZY6unmJ9QR2GOw+OpROZMBsXYGwE+ZMtvN21ql9+Xb8KhGNBj08IrG3Wg==}
     engines: {node: '>=16', npm: '>=8'}
 
   '@urbit/http-api@3.2.0-dev':
@@ -22069,7 +22069,7 @@ snapshots:
       immer: 9.0.21
       urbit-ob: 5.0.1
 
-  '@urbit/aura@2.0.1': {}
+  '@urbit/aura@3.0.0': {}
 
   '@urbit/http-api@3.2.0-dev':
     dependencies:
