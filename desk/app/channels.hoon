@@ -1653,11 +1653,16 @@
       =+  p=(scry-path %chat /blocked/ships)
       =>  [p=p set=set]  ~+  ::  cache best we can
       .^((set @p) %gx p)
+    ++  running
+      =+  p=(scry-path %activity /$)
+      =>  p=p  ~+
+      .^(? %gu p)
+    ::
     ++  on-post
       |=  v-post:c
       ^+  ca-core
       =*  author-ship  (get-author-ship:utils author)
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.channel]
@@ -1690,7 +1695,7 @@
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author)
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       =/  parent-key=message-key
         [[parent-author id.parent] id.parent]
@@ -1750,7 +1755,7 @@
     ++  send
       |=  actions=(list action)
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       %-  emil
       %+  turn  actions
