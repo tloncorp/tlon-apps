@@ -22,10 +22,10 @@ struct Group: Codable {
     let meta: GroupMeta
 }
 
-struct Gang: Codable {
-    let preview: GangPreview?
+struct ForeignGroup: Codable {
+    let preview: ForeignGroupPreview?
 }
 
-struct GangPreview: Codable {
+struct ForeignGroupPreview: Codable {
   let meta: GroupMeta
 }

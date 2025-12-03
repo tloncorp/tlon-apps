@@ -3,7 +3,7 @@ import Foundation
 public struct NotificationPreviewPayload: Decodable {
     public indirect enum ContentNode: Decodable {
         case channelTitle(channelId: String)
-        case gangTitle(gangId: String)
+        case foreignGroupTitle(groupId: String)
         case groupTitle(groupId: String)
         case userNickname(ship: String)
         case stringLiteral(content: String)
@@ -13,7 +13,6 @@ public struct NotificationPreviewPayload: Decodable {
         enum CodingKeys: String, CodingKey {
             case type
             case channelId
-            case gangId
             case groupId
             case content
             case first
@@ -23,7 +22,7 @@ public struct NotificationPreviewPayload: Decodable {
         
         enum NodeType: String, Decodable {
             case channelTitle
-            case gangTitle
+            case foreignGroupTitle
             case groupTitle
             case stringLiteral
             case concatenateStrings
@@ -40,9 +39,9 @@ public struct NotificationPreviewPayload: Decodable {
                 let channelId = try container.decode(String.self, forKey: .channelId)
                 self = .channelTitle(channelId: channelId)
                 
-            case .gangTitle:
-                let gangId = try container.decode(String.self, forKey: .gangId)
-                self = .gangTitle(gangId: gangId)
+            case .foreignGroupTitle:
+                let groupId = try container.decode(String.self, forKey: .groupId)
+                self = .foreignGroupTitle(groupId: groupId)
 
             case .groupTitle:
                 let groupId = try container.decode(String.self, forKey: .groupId)
@@ -102,8 +101,8 @@ public struct NotificationPreviewContentNodeRenderer {
             return (try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? channelId
         case let .groupTitle(groupId):
             return (try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.meta.title) ?? groupId
-        case let .gangTitle(gangId):
-            return (try? await GangStore.sharedInstance.getOrFetchItem(gangId)?.preview?.meta.title) ?? gangId
+        case let .foreignGroupTitle(groupId):
+            return (try? await ForeignGroupStore.sharedInstance.getOrFetchItem(groupId)?.preview?.meta.title) ?? groupId
         case let .concatenateStrings(first, second):
             return [await render(first), await render(second)].joined()
         case let .userNickname(ship):

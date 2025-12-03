@@ -22,7 +22,7 @@ type PreviewContentNode =
       channelId: string;
       groupId: string;
     }
-  | { type: 'gangTitle'; gangId: string }
+  | { type: 'foreignGroupTitle'; groupId: string }
   | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
   | {
@@ -68,8 +68,8 @@ namespace PreviewContentNode {
   export function groupTitle(groupId: string): PreviewContentNode {
     return { type: 'groupTitle', groupId };
   }
-  export function gangTitle(gangId: string): PreviewContentNode {
-    return { type: 'gangTitle', gangId };
+  export function foreignGroupTitle(groupId: string): PreviewContentNode {
+    return { type: 'foreignGroupTitle', groupId };
   }
 }
 
@@ -94,7 +94,7 @@ export function renderActivityEventPreview({
   event: ub.ActivityEvent;
 }): PreviewContentPayload | null {
   const {
-    gangTitle,
+    foreignGroupTitle,
     groupTitle,
     stringLiteral: lit,
     channelTitle,
@@ -190,7 +190,7 @@ export function renderActivityEventPreview({
           groupingKey: lit(sourceToString(source)),
           body: concat([
             lit('You were invited to '),
-            gangTitle(ev['group-invite'].group),
+            foreignGroupTitle(ev['group-invite'].group),
             lit(' by '),
             userNickname(ev['group-invite'].ship),
           ]),
