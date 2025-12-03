@@ -89,7 +89,7 @@ export interface GroupRoleEvent {
   'group-role': {
     ship: string;
     group: string;
-    role: string;
+    roles: string[];
   };
 }
 

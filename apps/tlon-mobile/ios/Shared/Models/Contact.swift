@@ -18,7 +18,7 @@ class Contact: Codable {
 
     var displayName: String {
         // Is user showing nicknames and does contact have a valid nickname?
-        if !SettingsStore.disableNicknames, let nickname {
+        if !SettingsStore.disableNicknames, let nickname, !nickname.isEmpty {
             return nickname
         }
 
