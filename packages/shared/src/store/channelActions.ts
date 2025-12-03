@@ -9,7 +9,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { GroupChannel, getChannelKindFromType } from '../urbit';
+import { GroupChannelV7, getChannelKindFromType } from '../urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -222,10 +222,13 @@ export async function updateChannel({
     channelContentConfiguration: channel.contentConfiguration ?? undefined,
   });
 
-  const groupChannel: GroupChannel = {
-    added: channel.addedToGroupAt ?? 0,
+  const addedTimestamp =
+    currentChannel?.addedToGroupAt ?? channel.addedToGroupAt ?? Date.now();
+
+  const groupChannel: GroupChannelV7 = {
+    added: addedTimestamp,
     readers,
-    zone: sectionId,
+    section: sectionId,
     join,
     meta: {
       title: channel.title ?? '',

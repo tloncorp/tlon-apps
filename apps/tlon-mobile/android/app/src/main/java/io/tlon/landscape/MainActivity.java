@@ -147,7 +147,7 @@ public class MainActivity extends ReactActivity {
       Map<String, Object> properties = new HashMap<>();
       properties.put("source", "native_android");
       properties.put("$lib", "android-native");
-      PostHog.Companion.capture(eventName, null, properties, null, null, null, null);
+      PostHog.Companion.capture(eventName, null, properties, null, null, null);
       Log.i("PostHog", "Native " + eventName + " event captured");
     } catch (Exception e) {
       Log.e("PostHog", "Failed to capture " + eventName + " event: " + e.getMessage());

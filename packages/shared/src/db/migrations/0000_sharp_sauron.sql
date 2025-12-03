@@ -366,7 +366,8 @@ CREATE TABLE `posts` (
 	`last_edit_image` text,
 	`sequence_number` integer,
 	`synced_at` integer,
-	`backend_time` text
+	`backend_time` text,
+	`blob` text
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`,`sequence_number`);--> statement-breakpoint

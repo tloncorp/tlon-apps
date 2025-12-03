@@ -24,12 +24,13 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "expo-document-picker": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "expo-blur": "*",
+    "expo-constants": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
-    "expo-constants": "*",
     "lodash": "^4.17.21",
     "react-native-device-info": "*",
     "react-native-email-link": "*",

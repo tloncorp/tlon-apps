@@ -58,16 +58,21 @@ COPY ../../../.npmrc* /workspace/
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
+# Install Playwright browsers and dependencies (before source copy for better caching)
+WORKDIR /workspace/apps/tlon-web
+RUN pnpm exec playwright install --with-deps chromium
+
 # Pre-download and extract ships + Urbit binary in parallel
 # URLs must match those in shipManifest.json
 # NOTE: These URLs are automatically updated by archive-piers.sh when ship versions change
+WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod20.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod21.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten20.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug20.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten21.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug21.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
@@ -85,10 +90,6 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
-
-# Install Playwright browsers and dependencies
-WORKDIR /workspace/apps/tlon-web
-RUN pnpm exec playwright install --with-deps chromium
 
 # Build packages if needed
 WORKDIR /workspace

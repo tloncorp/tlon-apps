@@ -100,7 +100,7 @@ export function useChannelOrdering({
           id: channel.id,
           channel,
           sectionId: section.id,
-          channelIndex: channel.index ?? channelIndex,
+          channelIndex: channelIndex,
           sectionIndex,
         });
       });
