@@ -885,7 +885,6 @@ export function getRelevancy(
   return 'involvedThread';
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ActivityIncomingEvent {
   /**
    * Helper for building exhaustive checks:

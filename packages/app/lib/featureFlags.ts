@@ -18,6 +18,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable contacts tab',
   },
+  fileUpload: {
+    default: false,
+    label: 'Enable uploading non-image files in chats',
+  },
   aiSummarization: {
     default: false,
     label: 'Enable AI-powered message and channel summarization',

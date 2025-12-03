@@ -291,6 +291,7 @@ const ActionSheetComponent = ({
             // prevent the modal from going off screen
             maxHeight={maxHeight}
             marginVertical="$2xl"
+            overflow="hidden"
             {...dialogContentProps}
           >
             {closeButton && (
@@ -310,9 +311,15 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ActionSheetContext.Provider value={actionSheetContextValue}>
-              {children}
-            </ActionSheetContext.Provider>
+            <ScrollView
+              flex={1}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ flexGrow: 1 }}
+            >
+              <ActionSheetContext.Provider value={actionSheetContextValue}>
+                {children}
+              </ActionSheetContext.Provider>
+            </ScrollView>
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
@@ -468,7 +475,7 @@ const useContentStyle = () => {
   return {
     paddingBottom: isWindowNarrow
       ? insets.bottom + getTokenValue('$2xl', 'size')
-      : 0,
+      : getTokenValue('$xl', 'size'),
   };
 };
 
