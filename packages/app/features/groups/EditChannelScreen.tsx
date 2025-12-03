@@ -9,7 +9,7 @@ import { EditChannelScreenView } from '../../ui';
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
 
 export function EditChannelScreen(props: Props) {
-  const { groupId, channelId, fromChatDetails } = props.route.params;
+  const { groupId, channelId, fromChatDetails, selectedRoleIds } = props.route.params;
   const { navigation } = props;
   const { updateChannel, deleteChannel } = useGroupContext({
     groupId,
@@ -64,6 +64,22 @@ export function EditChannelScreen(props: Props) {
     [data, updateChannel, handleGoBack]
   );
 
+  const handleSelectRoles = useCallback(() => {
+    const readers = data?.readerRoles?.map((r) => r.roleId) ?? [];
+    const selectedRoleIds =
+      readers.length === 0 ? ['admin'] : readers.includes('admin') ? readers : ['admin', ...readers];
+
+    navigation.navigate('SelectChannelRoles', {
+      groupId,
+      selectedRoleIds,
+      returnScreen: 'EditChannel',
+      returnParams: {
+        groupId,
+        channelId,
+      },
+    });
+  }, [navigation, groupId, channelId, data?.readerRoles]);
+
   return (
     <EditChannelScreenView
       goBack={handleGoBack}
@@ -72,6 +88,7 @@ export function EditChannelScreen(props: Props) {
       onDeleteChannel={handleDeleteChannel}
       onSubmit={handleSubmit}
       createdRoleId={props.route.params.createdRoleId}
+      selectedRoleIds={selectedRoleIds}
       onCreateRole={() => {
         navigation.navigate('AddRole', {
           groupId,
@@ -82,6 +99,7 @@ export function EditChannelScreen(props: Props) {
           },
         });
       }}
+      onSelectRoles={handleSelectRoles}
     />
   );
 }

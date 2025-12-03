@@ -36,7 +36,9 @@ interface EditChannelScreenViewProps {
   ) => void;
   onDeleteChannel: () => void;
   createdRoleId?: string;
+  selectedRoleIds?: string[];
   onCreateRole: () => void;
+  onSelectRoles?: () => void;
 }
 
 const getDefaultFormValues = (
@@ -78,7 +80,9 @@ export function EditChannelScreenView({
   channel,
   onDeleteChannel,
   createdRoleId,
+  selectedRoleIds,
   onCreateRole,
+  onSelectRoles,
 }: EditChannelScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const form = useForm<ChannelFormSchema>({
@@ -105,6 +109,12 @@ export function EditChannelScreenView({
       }
     }
   }, [createdRoleId, setValue, watch]);
+
+  useEffect(() => {
+    if (selectedRoleIds) {
+      setValue('readers', selectedRoleIds, { shouldDirty: true });
+    }
+  }, [selectedRoleIds, setValue]);
 
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? '',
@@ -150,6 +160,25 @@ export function EditChannelScreenView({
     }
     setShowDeleteSheet(true);
   }, [group?.channels?.length]);
+
+  const handleRemoveRole = useCallback(
+    (roleId: string) => {
+      if (roleId === 'admin') return;
+      const currentReaders = watch('readers');
+      const currentWriters = watch('writers');
+      setValue(
+        'readers',
+        currentReaders.filter((r) => r !== roleId),
+        { shouldDirty: true }
+      );
+      setValue(
+        'writers',
+        currentWriters.filter((w) => w !== roleId),
+        { shouldDirty: true }
+      );
+    },
+    [watch, setValue]
+  );
 
   useEffect(() => {
     if (channel) {
@@ -199,7 +228,12 @@ export function EditChannelScreenView({
                   groupRoles={group.roles}
                   onCreateRole={onCreateRole}
                 />
-                <PermissionTable groupRoles={group.roles} />
+                <PermissionTable
+                  groupRoles={group.roles}
+                  onSelectRoles={onSelectRoles}
+                  onCreateRole={onCreateRole}
+                  onRemoveRole={handleRemoveRole}
+                />
               </>
             )}
             <YStack gap="$2xl">
