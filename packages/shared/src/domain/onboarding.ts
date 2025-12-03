@@ -1,3 +1,5 @@
+import type { NotificationLevel } from '../urbit/activity';
+
 /*
  * Signup
  */
@@ -7,6 +9,7 @@ export interface SignupParams {
   password?: string;
   nickname?: string;
   notificationToken?: string;
+  notificationLevel?: NotificationLevel;
   telemetry?: boolean;
   didCompleteOnboarding?: boolean;
   reservedNodeId: string | null;

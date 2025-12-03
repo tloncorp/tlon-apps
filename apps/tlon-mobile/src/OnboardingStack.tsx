@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
+import { AllowNotificationsScreen } from './screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
@@ -13,6 +14,7 @@ import { RequestPhoneVerifyScreen } from './screens/Onboarding/RequestPhoneVerif
 import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
+import { SetNotificationsScreen } from './screens/Onboarding/SetNotificationsScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
@@ -81,6 +83,14 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SetNickname"
         component={SetNicknameScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="SetNotifications"
+        component={SetNotificationsScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="AllowNotifications"
+        component={AllowNotificationsScreen}
       />
       <OnboardingStackNavigator.Screen
         name="SetTelemetry"

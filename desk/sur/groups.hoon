@@ -318,6 +318,7 @@
       [%section =section-id =a-section]
       [%navigation =a-navigation]
       [%flag-content =nest =plan src=ship]
+      [%delete ~]
   ==
 ::  $a-invite: invite a ship
 +$  a-invite

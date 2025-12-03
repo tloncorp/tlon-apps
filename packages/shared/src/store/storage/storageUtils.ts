@@ -1,11 +1,5 @@
 import * as api from '../../api';
-import {
-  RNFile,
-  StorageConfiguration,
-  StorageCredentials,
-  client,
-  scry,
-} from '../../api';
+import { StorageConfiguration, StorageCredentials, scry } from '../../api';
 import { createDevLogger } from '../../debug';
 import { desig } from '../../urbit';
 
@@ -46,31 +40,6 @@ export function getExtensionFromMimeType(mimeType?: string): string {
 
   return mimeToExt[mimeType.toLowerCase()] || '.jpg';
 }
-
-export const fetchFileFromUri = async (
-  uri: string,
-  height?: number,
-  width?: number
-) => {
-  try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const name = uri.split('/').pop();
-
-    const file: RNFile = {
-      uri,
-      blob,
-      name: name ?? 'file',
-      type: blob.type,
-      height,
-      width,
-    };
-
-    return file;
-  } catch (e) {
-    console.error(e);
-  }
-};
 
 export type SizedImage = { uri: string; width: number; height: number };
 
