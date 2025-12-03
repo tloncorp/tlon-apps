@@ -309,10 +309,10 @@ export function PrivateChannelToggle({
       pointerEvents="auto"
     >
       <YStack gap="$xl" flex={1} pointerEvents="auto">
-        <Text size="$label/l">Private Channel</Text>
+        <Text size="$label/l">Advanced Permissions</Text>
         <Text size="$label/s" color="$tertiaryText">
-          By making a channel private, only select members and roles will be
-          able to view this channel.
+          Only select members and roles will be able to read or post in this
+          channel.
         </Text>
       </YStack>
       {Platform.OS === 'android' ? (
