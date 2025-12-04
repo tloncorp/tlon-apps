@@ -43,7 +43,7 @@ import {
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
-import { poke, scry, subscribeOnce } from './urbit';
+import { getCurrentUserId, poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -96,35 +96,55 @@ export async function getPostReference({
   postId: string;
   replyId?: string;
 }) {
-  const path = `/said/${channelId}/post/${postId}${
-    replyId ? '/' + replyId : ''
-  }`;
-  const data = await subscribeOnce<ub.Said>(
-    { app: 'channels', path },
-    3000,
-    undefined,
-    { tag: 'getPostReference' }
-  );
-  const post = toPostReference(data);
-  // The returned post id can be different than the postId we requested?? But the
-  // post is going to be requested by the original id, so set manually :/
-  post.id = postId;
-  return post;
+  const currentUserId = getCurrentUserId();
+  const replySuffix = replyId ? '/' + replyId : '';
+
+  // Try v4/said first to get the group info in the response
+  // Path format: /v4/said/{ask}/{kind}/{host}/{name}/post/{time}[/{reply}]
+  try {
+    const v4Path = `/v4/said/${currentUserId}/${channelId}/post/${postId}${replySuffix}`;
+    const data = await subscribeOnce<ub.Said>(
+      { app: 'channels', path: v4Path },
+      3000,
+      undefined,
+      { tag: 'getPostReference' }
+    );
+    const post = toPostReference(data);
+    post.id = postId;
+    return post;
+  } catch {
+    // Fallback to old /said endpoint for ships without v4 support
+    const fallbackPath = `/said/${channelId}/post/${postId}${replySuffix}`;
+    const data = await subscribeOnce<ub.Said>(
+      { app: 'channels', path: fallbackPath },
+      3000,
+      undefined,
+      { tag: 'getPostReference' }
+    );
+    const post = toPostReference(data);
+    post.id = postId;
+    return post;
+  }
 }
 
 function toPostReference(said: ub.Said) {
   const channelId = said.nest;
+  const groupId = said.group; // group flag from backend (e.g. "~zod/group-name")
+  let post: db.Post;
   if ('reply' in said.reference) {
-    return toPostReplyData(
+    post = toPostReplyData(
       channelId,
       said.reference.reply['id-post'],
       said.reference.reply.reply
     );
   } else if ('post' in said.reference) {
-    return toPostData(channelId, said.reference.post);
+    post = toPostData(channelId, said.reference.post);
   } else {
     throw new Error('invalid response' + JSON.stringify(said, null, 2));
   }
+  // Include the groupId from the Said response for navigation
+  post.groupId = groupId;
+  return post;
 }
 
 export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
@@ -1425,9 +1445,7 @@ export function contentReferenceToCite(reference: ContentReference): ub.Cite {
     return {
       chan: {
         nest: reference.channelId,
-        where: `/msg/${reference.postId}${
-          reference.replyId ? '/' + reference.replyId : ''
-        }`,
+        where: `/msg/${reference.postId}${reference.replyId ? '/' + reference.replyId : ''}`,
       },
     };
   } else if (reference.referenceType === 'group') {

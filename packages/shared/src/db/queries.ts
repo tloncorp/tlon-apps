@@ -3200,7 +3200,10 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     .values(
       posts.map((p) => ({
         ...p,
-        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+        // Use provided groupId if available (e.g. from /said endpoint), otherwise look up from channels table
+        groupId: p.groupId
+          ? p.groupId
+          : sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
       }))
     )
     .onConflictDoUpdate({

@@ -1,6 +1,10 @@
 import * as api from '../api';
 import { toPostContent } from '../api';
-import { PostContent, toUrbitStory } from '../api/postsApi';
+import {
+  PostContent,
+  contentReferenceToCite,
+  toUrbitStory,
+} from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
@@ -348,11 +352,10 @@ export async function forwardPost({
     return;
   }
 
-  const urbitReference = urbit.pathToCite(logic.getPostReferencePath(post));
-  if (!urbitReference) {
-    logger.trackError('Failed to forward post, unable to get reference path');
-    return;
-  }
+  // Use postToContentReference + contentReferenceToCite to include groupId
+  // This allows non-members to navigate to the group preview when clicking the reference
+  const [, reference] = logic.postToContentReference(post);
+  const urbitReference = contentReferenceToCite(reference);
 
   return sendPost({
     channelId,
