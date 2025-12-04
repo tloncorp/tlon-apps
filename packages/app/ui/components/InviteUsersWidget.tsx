@@ -35,15 +35,13 @@ const InviteUsersWidgetComponent = ({
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>
         <Button
-          hero
+          fill="solid"
+          type="primary"
           onPress={handleInvite}
           disabled={invitees.length === 0 || loading}
-          gap="$xl"
-        >
-          <Button.Text width="auto">
-            {loading ? 'Inviting...' : buttonText}
-          </Button.Text>
-        </Button>
+          label={loading ? 'Inviting...' : buttonText}
+          centered
+        />
       </ActionSheet.ContentBlock>
     </>
   );

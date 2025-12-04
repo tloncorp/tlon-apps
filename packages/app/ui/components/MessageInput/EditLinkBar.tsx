@@ -65,12 +65,13 @@ export const EditLinkBar = ({
         backgroundColor={bgColor}
       />
       <Button
+        fill="outline"
+        type="primary"
         onPress={() => {
           onEditLink(link);
         }}
-      >
-        <Button.Text>Insert</Button.Text>
-      </Button>
+        label="Insert"
+      />
     </View>
   );
 };

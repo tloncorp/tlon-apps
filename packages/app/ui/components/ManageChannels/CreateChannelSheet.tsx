@@ -222,15 +222,14 @@ export function CreateChannelSheet({
               )}
               <ActionSheet.FormBlock>
                 <Button
+                  fill="solid"
+                  type="primary"
                   onPress={
                     isPrivate ? handlePressNext : handleSubmit(handlePressSave)
                   }
-                  hero
-                >
-                  <Button.Text>
-                    {isPrivate ? 'Next' : 'Create channel'}
-                  </Button.Text>
-                </Button>
+                  label={isPrivate ? 'Next' : 'Create channel'}
+                  centered
+                />
               </ActionSheet.FormBlock>
             </ActionSheet.Content>
           </>
@@ -334,20 +333,12 @@ function PrivateChannelPermissionsView({
               </Text>
               <XStack flex={1.5} justifyContent="flex-end">
                 <Button
-                  width={120}
+                  fill="solid"
+                  type="positive"
+                  size="small"
                   onPress={() => setShowRoleSelector(true)}
-                  size={'$l'}
-                  backgroundColor="$positiveActionText"
-                  pressStyle={{
-                    backgroundColor: '$positiveActionText',
-                    opacity: 0.9,
-                  }}
-                  borderColor="$positiveActionText"
-                >
-                  <Button.Text color="$positiveBackground">
-                    Add roles
-                  </Button.Text>
-                </Button>
+                  label="Add roles"
+                />
               </XStack>
             </XStack>
             <YStack gap="$l">
@@ -372,9 +363,13 @@ function PrivateChannelPermissionsView({
           <PermissionTable groupRoles={group.roles ?? []} />
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
-          <Button onPress={onPressSave} hero>
-            <Button.Text>Create channel</Button.Text>
-          </Button>
+          <Button
+            fill="solid"
+            type="primary"
+            onPress={onPressSave}
+            label="Create channel"
+            centered
+          />
         </ActionSheet.FormBlock>
       </ActionSheet.Content>
 
@@ -536,9 +531,13 @@ export function UnconnectedChannelConfigurationBar({
           {...buildConfigInputProps('draftInput')}
         />
       </YStack>
-      <Button hero onPress={onPressDone}>
-        <Button.Text>Done</Button.Text>
-      </Button>
+      <Button
+        fill="solid"
+        type="primary"
+        onPress={onPressDone}
+        label="Done"
+        centered
+      />
     </YStack>
   );
 }
@@ -656,15 +655,15 @@ function ConfigInput<
         <Text size="$label/l" color="$tertiaryText" numberOfLines={1} flex={1}>
           {label}
         </Text>
-        <Button
+        <Button.Frame
           paddingVertical="$xl"
           minWidth={140}
           onPress={() => setSheetOpen(true)}
           {...props}
         >
           <Text size="$label/xl">{selectedOptionTitle ?? 'default'}</Text>
-        </Button>
-        <Button
+        </Button.Frame>
+        <Button.Frame
           onPress={() => setConfigurationOpen(true)}
           disabled={
             parametersSchema == null ||
@@ -673,7 +672,7 @@ function ConfigInput<
           disabledStyle={{ opacity: 0.5 }}
         >
           <Icon type="Settings" />
-        </Button>
+        </Button.Frame>
       </XStack>
 
       <SimpleActionSheet

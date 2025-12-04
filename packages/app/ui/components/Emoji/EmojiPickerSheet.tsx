@@ -23,7 +23,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
   onSelect: (shortCode: string) => void;
 }) {
   return (
-    <Button
+    <Button.Frame
       borderWidth={0}
       paddingHorizontal={0}
       flex={1 / 6}
@@ -32,7 +32,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
       alignItems="center"
     >
       <SizableEmoji emojiInput={item} fontSize={EMOJI_SIZE} />
-    </Button>
+    </Button.Frame>
   );
 });
 
