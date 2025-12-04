@@ -192,15 +192,14 @@ export function EditChannelScreenView({
             )}
             <YStack gap="$2xl">
               <Button
-                hero
+                fill="solid"
+                type="primary"
                 onPress={handleSubmit(handleSave)}
                 testID="ChannelSettingsSaveButton"
-              >
-                <Button.Text>Save</Button.Text>
-              </Button>
-              <Button heroDestructive onPress={handlePressDelete}>
-                <Button.Text>Delete channel for everyone</Button.Text>
-              </Button>
+                label="Save"
+                centered
+              />
+              <Button fill="solid" type="negative" onPress={handlePressDelete} label="Delete channel for everyone" centered />
             </YStack>
           </YStack>
         </ScrollView>
@@ -386,18 +385,12 @@ export function ChannelPermissionsSelector({
             </Text>
             <XStack flex={1.5} justifyContent="flex-end">
               <Button
-                width={120}
+                fill="solid"
+                type="positive"
+                size="small"
                 onPress={() => setShowRoleSelector(true)}
-                size={'$l'}
-                backgroundColor="$positiveActionText"
-                pressStyle={{
-                  backgroundColor: '$positiveActionText',
-                  opacity: 0.9,
-                }}
-                borderColor="$positiveActionText"
-              >
-                <Button.Text color="$positiveBackground">Add roles</Button.Text>
-              </Button>
+                label="Add roles"
+              />
             </XStack>
           </XStack>
           <YStack gap="$l">
@@ -786,9 +779,7 @@ export function RoleSelectionSheet({
           borderTopWidth={1}
           borderTopColor="$border"
         >
-          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button fill="solid" type="primary" onPress={handleSave} testID="RoleSelectionSaveButton" label="Save" centered />
         </View>
       </ActionSheet.ScrollableContent>
     </ActionSheet>

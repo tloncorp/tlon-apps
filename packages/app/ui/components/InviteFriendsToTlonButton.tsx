@@ -108,11 +108,25 @@ export function InviteFriendsToTlonButton({
   const linkFailed =
     linkIsDisabled || status === 'error' || status === 'unsupported';
 
+  const buttonLabel = didCopy
+    ? 'Copied'
+    : linkIsReady
+      ? 'Invite Friends'
+      : linkIsDisabled
+        ? 'Invite links are disabled'
+        : linkFailed
+          ? 'Error generating invite link'
+          : linkIsLoading
+            ? 'Generating invite link...'
+            : '';
+
   return (
-    <Button
-      secondary
+    <Button.Frame
+      fill="outline"
+      size="medium"
       disabled={!linkIsReady}
       onPress={handleInviteButtonPress}
+      borderColor="$shadow"
       {...props}
     >
       {linkIsReady ? (
@@ -130,19 +144,9 @@ export function InviteFriendsToTlonButton({
           size="$m"
         />
       ) : null}
-      <Button.Text color={textColor ?? 'unset'}>
-        {didCopy
-          ? 'Copied'
-          : linkIsReady
-            ? 'Invite Friends'
-            : linkIsDisabled
-              ? 'Invite links are disabled'
-              : linkFailed
-                ? 'Error generating invite link'
-                : linkIsLoading
-                  ? 'Generating invite link...'
-                  : null}
+      <Button.Text color={textColor ?? '$secondaryText'}>
+        {buttonLabel}
       </Button.Text>
-    </Button>
+    </Button.Frame>
   );
 }

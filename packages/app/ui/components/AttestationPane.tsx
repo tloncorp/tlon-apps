@@ -140,12 +140,8 @@ export function AttestationPane({
       <YStack marginTop="$xl" gap="$m">
         {attestation.type === 'twitter' && attestation.provingTweetId && (
           <>
-            <Button paddingVertical="$xl" onPress={handleViewTweet}>
-              <Button.Text fontWeight="500">View 𝕏 Post</Button.Text>
-            </Button>
-            <Button hero onPress={handleViewAccount}>
-              <Button.Text fontWeight="500">View 𝕏 Account</Button.Text>
-            </Button>
+            <Button fill="outline" type="primary" onPress={handleViewTweet} label="View 𝕏 Post" centered />
+            <Button fill="solid" type="primary" onPress={handleViewAccount} label="View 𝕏 Account" centered />
           </>
         )}
 

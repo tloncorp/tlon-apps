@@ -190,14 +190,14 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 </XStack>
               </YStack>
               <Button
-                secondary
+                type="secondary"
+                fill="outline"
                 pressStyle={{ backgroundColor: '$secondaryBorder' }}
                 backgroundColor="unset"
                 marginBottom="$l"
                 onPress={() => navigation.navigate('JoinWaitList', {})}
-              >
-                <Button.Text>No invite? Join waitlist</Button.Text>
-              </Button>
+                label="No invite? Join waitlist"
+              />
             </YStack>
           </YStack>
         </Pressable>

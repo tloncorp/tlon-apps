@@ -107,11 +107,13 @@ const SplashButton = ({
   }, [rest]);
 
   return (
-    <Button
-      hero
+    <Button.Frame
+      size="large"
       height={72}
       width={isWeb ? 300 : 'unset'}
       padding={isWeb ? 30 : 'unset'}
+      backgroundColor="$primaryText"
+      borderColor="$primaryText"
       {...rest}
       onPress={handlePress}
     >
@@ -120,6 +122,7 @@ const SplashButton = ({
           flexShrink={1}
           textAlign="left"
           marginLeft="$l"
+          color={textProps.color ?? '$background'}
           {...textProps}
         >
           {children}
@@ -129,7 +132,7 @@ const SplashButton = ({
           color={(textProps.color as ColorTokens) ?? '$background'}
         />
       </XStack>
-    </Button>
+    </Button.Frame>
   );
 };
 
@@ -457,7 +460,6 @@ export function InvitePane(props: { onActionPress: () => void }) {
           {shouldPromptForPermission && (
             <SplashButton
               marginTop="$l"
-              secondary
               textProps={{ color: '$secondaryText' }}
               backgroundColor="$background"
               disabled={isProcessing}

@@ -406,22 +406,26 @@ export function RoleFormScreen({ navigation, route }: Props) {
               </ListItem.EndContent>
             </ListItem>
           </Pressable>
-          <Button hero onPress={handleSubmit(handleSave)} disabled={!isValid}>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button
+            size="large"
+            fill="solid"
+            type="primary"
+            centered
+            onPress={handleSubmit(handleSave)}
+            disabled={!isValid}
+            label="Save"
+          />
           {isEditMode && !isAdminRole && (
             <YStack gap="$l">
               <Button
-                heroDestructive
+                size="large"
+                fill="solid"
+                type="negative"
+                centered
                 disabled={disableDelete}
                 onPress={handleDelete}
-              >
-                <Button.Text
-                  color={disableDelete ? '$negativeActionText' : undefined}
-                >
-                  Delete role
-                </Button.Text>
-              </Button>
+                label="Delete role"
+              />
               {disableDelete && (
                 <Text textAlign="center" fontSize="$s" color="$destructiveText">
                   This role cannot be deleted, it is still in use for some users

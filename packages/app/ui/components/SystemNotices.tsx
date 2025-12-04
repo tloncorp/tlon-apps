@@ -105,7 +105,7 @@ export function NotificationsPrompt() {
           </NoticeBody>
         </YStack>
         <XStack gap="$m" justifyContent="flex-end">
-          <Button
+          <Button.Frame
             padding="$xl"
             paddingHorizontal="$2xl"
             backgroundColor="$systemNoticeBackground"
@@ -117,11 +117,11 @@ export function NotificationsPrompt() {
             }}
             onPress={handleDismiss}
           >
-            <Button.Text color="$systemNoticeText" fontWeight="500">
+            <Button.Text color="$systemNoticeText">
               Not Now
             </Button.Text>
-          </Button>
-          <Button
+          </Button.Frame>
+          <Button.Frame
             backgroundColor="$systemNoticeText"
             padding="$xl"
             paddingHorizontal="$2xl"
@@ -132,10 +132,10 @@ export function NotificationsPrompt() {
             }}
             onPress={handlePrimaryAction}
           >
-            <Button.Text color="$systemNoticeBackground" fontWeight="500">
+            <Button.Text color="$systemNoticeBackground">
               {perms.canAskPermission ? 'Enable' : 'Settings'}
             </Button.Text>
-          </Button>
+          </Button.Frame>
         </XStack>
       </YStack>
     </NoticeFrame>
@@ -198,7 +198,7 @@ export function ContactBookPrompt(props: {
         </YStack>
         {props.status === 'undetermined' && (
           <XStack gap="$m" justifyContent="flex-end">
-            <Button
+            <Button.Frame
               padding="$xl"
               paddingHorizontal="$2xl"
               backgroundColor="$systemNoticeBackground"
@@ -210,11 +210,11 @@ export function ContactBookPrompt(props: {
               }}
               onPress={handleDismiss}
             >
-              <Button.Text color="$systemNoticeText" fontWeight="500">
+              <Button.Text color="$systemNoticeText">
                 Not Now
               </Button.Text>
-            </Button>
-            <Button
+            </Button.Frame>
+            <Button.Frame
               backgroundColor="$systemNoticeText"
               padding="$xl"
               paddingHorizontal="$2xl"
@@ -225,16 +225,14 @@ export function ContactBookPrompt(props: {
               }}
               onPress={handlePrimaryAction}
             >
-              <Button.Text color="$systemNoticeBackground" fontWeight="500">
+              <Button.Text color="$systemNoticeBackground">
                 Continue
               </Button.Text>
-            </Button>
+            </Button.Frame>
           </XStack>
         )}
         {props.status === 'denied' && (
-          <Button>
-            <Button.Text color="$systemNoticeText">Open Settings</Button.Text>
-          </Button>
+          <Button fill="outline" type="primary" label="Open Settings" />
         )}
       </YStack>
     </NoticeFrame>
@@ -249,7 +247,7 @@ export function JoinRequestNotice(params: {
     <NoticeFrame gap="$2xl">
       <NoticeTitle>Pending Member Requests</NoticeTitle>
       <XStack gap="$m" justifyContent="flex-end">
-        <Button
+        <Button.Frame
           padding="$l"
           paddingHorizontal="$2xl"
           backgroundColor="$systemNoticeBackground"
@@ -261,11 +259,11 @@ export function JoinRequestNotice(params: {
           }}
           onPress={params.onDismiss}
         >
-          <Button.Text color="$systemNoticeText" fontWeight="500">
+          <Button.Text color="$systemNoticeText">
             Dismiss
           </Button.Text>
-        </Button>
-        <Button
+        </Button.Frame>
+        <Button.Frame
           backgroundColor="$systemNoticeText"
           padding="$l"
           paddingHorizontal="$2xl"
@@ -276,10 +274,10 @@ export function JoinRequestNotice(params: {
           }}
           onPress={params.onViewRequests}
         >
-          <Button.Text color="$systemNoticeBackground" fontWeight="500">
+          <Button.Text color="$systemNoticeBackground">
             View Requests
           </Button.Text>
-        </Button>
+        </Button.Frame>
       </XStack>
     </NoticeFrame>
   );

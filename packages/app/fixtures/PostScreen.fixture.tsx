@@ -207,20 +207,22 @@ function useFixturePendingAction() {
               <View key={idx}>
                 <Text>{action.title}</Text>
                 <Button
+                  fill="outline"
+                  type="primary"
                   onPress={() => {
                     action.complete();
                     setPendingLoad((prev) => prev.filter((a) => a !== action));
                   }}
-                >
-                  <Text>Complete</Text>
-                </Button>
+                  label="Complete"
+                />
                 <Button
+                  fill="outline"
+                  type="primary"
                   onPress={() => {
                     setPendingLoad((prev) => prev.filter((a) => a !== action));
                   }}
-                >
-                  <Text>Cancel</Text>
-                </Button>
+                  label="Cancel"
+                />
               </View>
             ))}
           </SafeAreaView>

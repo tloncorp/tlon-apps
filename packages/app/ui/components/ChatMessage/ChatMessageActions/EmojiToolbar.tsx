@@ -92,9 +92,9 @@ export function EmojiToolbar({
           handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-last"
         />
-        <Button padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
+        <Button.Frame padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
           <Icon type="ChevronDown" size="$l" />
-        </Button>
+        </Button.Frame>
       </XStack>
       <EmojiPickerSheet
         open={sheetOpen}
@@ -117,7 +117,7 @@ function EmojiToolbarButton({
   testID: string;
 }) {
   return (
-    <Button
+    <Button.Frame
       padding="$xs"
       borderWidth={0}
       backgroundColor={
@@ -129,6 +129,6 @@ function EmojiToolbarButton({
       testID={testID}
     >
       <SizableEmoji emojiInput={shortCode} fontSize={32} />
-    </Button>
+    </Button.Frame>
   );
 }

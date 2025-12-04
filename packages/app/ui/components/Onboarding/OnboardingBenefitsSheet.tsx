@@ -85,12 +85,15 @@ export function OnboardingBenefitsSheet({
               </Text>
             </YStack>
           </XStack>
-          <Button
+          <Button.Frame
             onPress={() => onOpenChange(false)}
-            hero
+            size="medium"
+            fill="solid"
+            backgroundColor="$primaryText"
+            borderColor="$primaryText"
           >
             <Text fontSize={'$l'} color="$background">Continue</Text>
-          </Button>
+          </Button.Frame>
         </YStack>
       </ActionSheet.Content>
     </ActionSheet>

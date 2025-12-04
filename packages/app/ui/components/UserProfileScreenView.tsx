@@ -494,26 +494,28 @@ export function ProfileButton({
   title,
   onPress,
   hero,
+  secondary,
   ...props
 }: {
   title: string;
   onPress?: () => void;
   hero?: boolean;
-} & ComponentProps<typeof Button>) {
+  secondary?: boolean;
+} & ComponentProps<typeof Button.Frame>) {
   const handlePress = useCallback(() => {
     onPress?.();
     triggerHaptic('baseButtonClick');
   }, [onPress]);
 
   return (
-    <Button
+    <Button.Frame
       flex={1}
       borderWidth={0}
       paddingVertical="$xl"
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
-      hero={hero}
+      backgroundColor={hero ? '$primaryText' : secondary ? '$secondaryBackground' : undefined}
       marginHorizontal="$xs"
       {...props}
     >
@@ -526,6 +528,6 @@ export function ProfileButton({
       >
         {title}
       </Text>
-    </Button>
+    </Button.Frame>
   );
 }

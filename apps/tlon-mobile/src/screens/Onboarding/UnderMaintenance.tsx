@@ -2,7 +2,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
-  Button,
   OnboardingTextBlock,
   PrimaryButton,
   ScreenHeader,
@@ -76,8 +75,8 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
             Last checked at {logic.makePrettyTime(checkedAt)}
           </TlonText.Text>
         )}
-        <PrimaryButton hero loading={rechecking} onPress={handleRecheckStatus}>
-          <Button.Text>Check Again</Button.Text>
+        <PrimaryButton loading={rechecking} onPress={handleRecheckStatus}>
+          Check Again
         </PrimaryButton>
       </OnboardingTextBlock>
     </View>

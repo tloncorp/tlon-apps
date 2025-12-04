@@ -183,9 +183,7 @@ export function AppInfoScreen(props: Props) {
 
           {enabled && logs.length > 0 && (
             <Stack>
-              <Button onPress={onUploadLogs}>
-                <Text>Upload logs ({logs.length})</Text>
-              </Button>
+              <Button fill="outline" type="primary" onPress={onUploadLogs} label={`Upload logs (${logs.length})`} />
             </Stack>
           )}
           {enabled && logId && !hasClients && (

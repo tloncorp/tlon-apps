@@ -78,6 +78,8 @@ export default function CarouselFixture() {
         </Carousel>
         <View position="absolute" top={60} right={20}>
           <Button
+            fill="outline"
+            type="primary"
             onPress={() => {
               Alert.prompt('Go to index', undefined, (input: string) => {
                 try {
@@ -92,29 +94,30 @@ export default function CarouselFixture() {
                 }
               });
             }}
-          >
-            <Text>Showing index: {visibleIndex}</Text>
-          </Button>
+            label={`Showing index: ${visibleIndex}`}
+          />
           <Button
+            fill="outline"
+            type="primary"
             onPress={() => {
               setPageSeeds((prev) => {
                 const min = prev.length > 0 ? Math.min(...prev) : 0;
                 return [...range(min - 1, min - 5, -1).reverse(), ...prev];
               });
             }}
-          >
-            <Text>Load more at start</Text>
-          </Button>
+            label="Load more at start"
+          />
           <Button
+            fill="outline"
+            type="primary"
             onPress={() => {
               setPageSeeds((prev) => {
                 const max = prev.length > 0 ? Math.max(...prev) : 0;
                 return [...prev, ...range(max + 1, max + 5)];
               });
             }}
-          >
-            <Text>Load more at end</Text>
-          </Button>
+            label="Load more at end"
+          />
         </View>
       </View>
     </GestureHandlerRootView>

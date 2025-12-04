@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
 import { Dialog, XStack, YStack } from 'tamagui';
 
-import { Button } from './Button';
+import { Button } from './ButtonV2';
 import { Text } from './TextV2';
 
 interface ConfirmDialogProps {
@@ -83,23 +83,17 @@ export function ConfirmDialog({
             </YStack>
             <XStack gap="$m" justifyContent="flex-end">
               <Dialog.Close asChild>
-                <Button minimal>
-                  <Button.Text>{cancelText}</Button.Text>
-                </Button>
+                <Button fill="text" type="primary" label={cancelText} />
               </Dialog.Close>
               <Button
-                minimal
+                fill="text"
+                type={destructive ? 'negative' : 'primary'}
                 onPress={() => {
                   onConfirm();
                   onOpenChange?.(false);
                 }}
-              >
-                <Button.Text
-                  color={destructive ? '$negativeActionText' : undefined}
-                >
-                  {confirmText}
-                </Button.Text>
-              </Button>
+                label={confirmText}
+              />
             </XStack>
           </Dialog.Content>
         </Dialog.Portal>

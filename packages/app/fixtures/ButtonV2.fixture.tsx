@@ -1,8 +1,7 @@
-import { Text } from '@tloncorp/ui';
+import { Button, ButtonIntent, ButtonSize, ButtonStyle, Text } from '@tloncorp/ui';
 import { useSelect } from 'react-cosmos/client';
 import { XStack, YStack } from 'tamagui';
 
-import { bv2 } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 function ButtonRow({
@@ -13,9 +12,9 @@ function ButtonRow({
   loading = false,
   label = 'Label',
 }: {
-  size: bv2.ButtonSize;
-  styleVariant: bv2.ButtonStyle;
-  intent: bv2.ButtonRole;
+  size: ButtonSize;
+  styleVariant: ButtonStyle;
+  intent: ButtonIntent;
   disabled?: boolean;
   loading?: boolean;
   label?: string;
@@ -25,7 +24,7 @@ function ButtonRow({
   return (
     <XStack gap="$m" alignItems="center" flexWrap="wrap">
       {/* Text only */}
-      <bv2.Button
+      <Button
         fill={styleVariant}
         type={intent}
         size={size}
@@ -37,7 +36,7 @@ function ButtonRow({
       />
 
       {/* Trailing icon */}
-      <bv2.Button
+      <Button
         fill={styleVariant}
         type={intent}
         size={size}
@@ -49,7 +48,7 @@ function ButtonRow({
       />
 
       {/* Leading icon */}
-      <bv2.Button
+      <Button
         fill={styleVariant}
         type={intent}
         size={size}
@@ -61,7 +60,7 @@ function ButtonRow({
       />
 
       {/* Leading and trailing icons */}
-      <bv2.Button
+      <Button
         fill={styleVariant}
         type={intent}
         size={size}
@@ -74,7 +73,7 @@ function ButtonRow({
       />
 
       {/* Icon only */}
-      <bv2.Button
+      <Button
         fill={styleVariant}
         type={intent}
         size={size}
@@ -91,9 +90,9 @@ function SizeBlock({
   styleVariant,
   intent,
 }: {
-  size: bv2.ButtonSize;
-  styleVariant: bv2.ButtonStyle;
-  intent: bv2.ButtonRole;
+  size: ButtonSize;
+  styleVariant: ButtonStyle;
+  intent: ButtonIntent;
 }) {
   return (
     <YStack gap="$l">
@@ -140,16 +139,16 @@ function SizeBlock({
 }
 
 export default function ButtonV2Fixture() {
-  const [intent] = useSelect<bv2.ButtonRole>('Intent', {
+  const [intent] = useSelect<ButtonIntent>('Intent', {
     defaultValue: 'primary',
     options: ['primary', 'secondary', 'helper', 'positive', 'negative'],
   });
-  const [styleVariant] = useSelect<bv2.ButtonStyle>('Style', {
+  const [styleVariant] = useSelect<ButtonStyle>('Style', {
     defaultValue: 'solid',
     options: ['solid', 'outline', 'ghost', 'text'],
   });
 
-  const sizes: bv2.ButtonSize[] = ['large', 'medium', 'small'];
+  const sizes: ButtonSize[] = ['large', 'medium', 'small'];
 
   return (
     <FixtureWrapper fillWidth safeArea={false}>

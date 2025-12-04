@@ -420,7 +420,7 @@ export const ToggleGroupInput = ({
       : ['$secondaryBackground', '$background'];
 
   return (
-    <InputFrame>
+    <InputFrame paddingHorizontal={0}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -430,9 +430,12 @@ export const ToggleGroupInput = ({
       >
         <XStack minWidth="100%">
           {options.map((tab, index) => (
-            <Button
+            <Button.Frame
               flex={1}
               minWidth={75}
+              intent="secondary"
+              size="medium"
+              fill="outline"
               key={tab.value}
               onPress={() => onChange(tab.value)}
               padding="$xl"
@@ -444,11 +447,11 @@ export const ToggleGroupInput = ({
               }
             >
               {typeof tab.label === 'string' ? (
-                <Button.Text size="$l">{tab.label}</Button.Text>
+                <Button.Text textAlign="center">{tab.label}</Button.Text>
               ) : (
                 tab.label
               )}
-            </Button>
+            </Button.Frame>
           ))}
         </XStack>
       </ScrollView>
