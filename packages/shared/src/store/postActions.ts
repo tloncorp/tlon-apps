@@ -642,7 +642,15 @@ export async function deletePost({ post }: { post: db.Post }) {
   try {
     await db.updatePost({ id: post.id, deleteStatus: 'pending' });
     await sessionActionQueue.add(() =>
-      api.deletePost(post.channelId, post.id, post.authorId)
+      post.parentId
+        ? api.deleteReply({
+            channelId: post.channelId,
+            postId: post.id,
+            authorId: post.authorId,
+            parentId: post.parentId!,
+            parentAuthorId: post.parent?.authorId || '',
+          })
+        : api.deletePost(post.channelId, post.id, post.authorId)
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
