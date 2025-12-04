@@ -1310,7 +1310,13 @@ function isPostDataResponse(
 }
 
 function isPostTombstone(
-  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  post:
+    | ub.Post
+    | ub.PostTombstone
+    | ub.Writ
+    | ub.PostDataResponse
+    | ub.WritReply
+    | ub.Reply
 ): post is ub.PostTombstone {
   return 'type' in post && post.type === 'tombstone';
 }
@@ -1338,8 +1344,24 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply | ub.WritReply
+  reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
+  if (isPostTombstone(reply)) {
+    return {
+      id: getCanonicalPostId(reply.id),
+      parentId: getCanonicalPostId(postId),
+      authorId: reply.author,
+      channelId,
+      type: 'reply',
+      sentAt: getReceivedAtFromId(reply.id),
+      isDeleted: true,
+      deletedAt: reply['deleted-at'],
+      receivedAt: getReceivedAtFromId(reply.id),
+      sequenceNum: null,
+      syncedAt: Date.now(),
+    };
+  }
+
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =

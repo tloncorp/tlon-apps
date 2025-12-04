@@ -1,5 +1,6 @@
 import { parse } from '@urbit/aura';
-import bigInt, { BigInteger } from 'big-integer';  //REVIEW  non-native!
+import bigInt, { BigInteger } from 'big-integer';
+//REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -170,7 +171,7 @@ export interface Memo {
 export type ReplyMap = BTree<BigInteger, Reply>;
 
 export interface Replies {
-  [id: string]: Reply;
+  [id: string]: Reply | PostTombstone;
 }
 
 interface PostActionAdd {
