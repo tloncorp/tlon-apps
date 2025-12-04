@@ -56,9 +56,7 @@ export function EditSectionNameSheet({
           />
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
-          <Button hero onPress={handleSubmit(handlePressSave)}>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button fill="solid" type="primary" onPress={handleSubmit(handlePressSave)} label="Save" centered />
         </ActionSheet.FormBlock>
       </ActionSheet.Content>
     </ActionSheet>

@@ -13,6 +13,7 @@ import type { ColorProp } from '../ui';
 import {
   AppDataContextProvider,
   ChatOptionsProvider,
+  NavigationProvider,
   Theme,
   ToastProvider,
   View,
@@ -87,45 +88,47 @@ const InnerWrapper = ({
               disableNicknames: false,
             }}
           >
-            <ChatOptionsProvider {...useChatSettingsNavigation()}>
-              <Theme name={theme}>
-                <View
-                  flex={1}
-                  paddingBottom={safeArea ? insets.bottom : 0}
-                  paddingTop={safeArea ? insets.top : 0}
-                >
+            <NavigationProvider>
+              <ChatOptionsProvider {...useChatSettingsNavigation()}>
+                <Theme name={theme}>
                   <View
-                    backgroundColor={backgroundColor ?? '$secondaryBackground'}
                     flex={1}
-                    flexDirection="column"
-                    width={fillWidth ? '100%' : 'unset'}
-                    height={fillHeight ? '100%' : 'unset'}
-                    justifyContent={
-                      verticalAlign === 'top'
-                        ? 'flex-start'
-                        : verticalAlign === 'bottom'
-                          ? 'flex-end'
-                          : 'center'
-                    }
-                    alignItems={
-                      horizontalAlign === 'left'
-                        ? 'flex-start'
-                        : horizontalAlign === 'right'
-                          ? 'flex-end'
-                          : 'center'
-                    }
+                    paddingBottom={safeArea ? insets.bottom : 0}
+                    paddingTop={safeArea ? insets.top : 0}
                   >
                     <View
-                      backgroundColor={innerBackgroundColor ?? '$background'}
+                      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+                      flex={1}
+                      flexDirection="column"
                       width={fillWidth ? '100%' : 'unset'}
                       height={fillHeight ? '100%' : 'unset'}
+                      justifyContent={
+                        verticalAlign === 'top'
+                          ? 'flex-start'
+                          : verticalAlign === 'bottom'
+                            ? 'flex-end'
+                            : 'center'
+                      }
+                      alignItems={
+                        horizontalAlign === 'left'
+                          ? 'flex-start'
+                          : horizontalAlign === 'right'
+                            ? 'flex-end'
+                            : 'center'
+                      }
                     >
-                      {children}
+                      <View
+                        backgroundColor={innerBackgroundColor ?? '$background'}
+                        width={fillWidth ? '100%' : 'unset'}
+                        height={fillHeight ? '100%' : 'unset'}
+                      >
+                        {children}
+                      </View>
                     </View>
                   </View>
-                </View>
-              </Theme>
-            </ChatOptionsProvider>
+                </Theme>
+              </ChatOptionsProvider>
+            </NavigationProvider>
           </AppDataContextProvider>
         </BottomSheetModalProvider>
       </GestureHandlerRootView>

@@ -90,10 +90,10 @@ function BaseCardsPostCollection({
           alignItems="center"
           gap="$l"
         >
-          <Button onPress={() => jog(1)}>
-            <Button.Text>Older</Button.Text>
-          </Button>
+          <Button fill="outline" type="primary" onPress={() => jog(1)} label="Older" />
           <Button
+            fill="outline"
+            type="primary"
             onPress={() => {
               Alert.prompt(
                 'Go to post',
@@ -110,14 +110,9 @@ function BaseCardsPostCollection({
                 }
               );
             }}
-          >
-            <Button.Text>
-              {(displayedIndex ?? 0) + 1} / {posts.length}
-            </Button.Text>
-          </Button>
-          <Button onPress={() => jog(-1)}>
-            <Text>Newer</Text>
-          </Button>
+            label={`${(displayedIndex ?? 0) + 1} / ${posts.length}`}
+          />
+          <Button fill="outline" type="primary" onPress={() => jog(-1)} label="Newer" />
         </View>
       )}
     </View>

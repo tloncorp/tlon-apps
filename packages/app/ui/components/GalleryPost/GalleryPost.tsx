@@ -203,14 +203,13 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button
+                <Button.Frame
                   borderWidth="unset"
-                  size="$xs"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
-                </Button>
+                </Button.Frame>
               }
             />
           </Pressable>
