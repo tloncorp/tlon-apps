@@ -1,4 +1,4 @@
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
@@ -1007,6 +1007,60 @@ export async function deletePost(
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
+  return await poke(action);
+}
+
+export async function deleteReply(params: {
+  channelId: string;
+  parentId: string;
+  parentAuthorId: string;
+  postId: string;
+  authorId: string;
+}) {
+  let action = null;
+
+  if (isDmChannelId(params.channelId)) {
+    action = chatAction(
+      params.channelId,
+      `${params.parentAuthorId}/${params.parentId}`,
+      {
+        reply: {
+          id: `${params.authorId}/${params.postId}`,
+          meta: null,
+          delta: {
+            del: null,
+          },
+        },
+      }
+    );
+  } else if (isGroupDmChannelId(params.channelId)) {
+    action = multiDmAction(params.channelId, {
+      writ: {
+        id: `${params.parentAuthorId}/${params.parentId}`,
+        delta: {
+          reply: {
+            id: `${params.authorId}/${params.postId}`,
+            meta: null,
+            delta: {
+              del: null,
+            },
+          },
+        },
+      },
+    });
+  } else {
+    action = channelAction(params.channelId, {
+      post: {
+        reply: {
+          id: params.parentId,
+          action: {
+            del: params.postId,
+          },
+        },
+      },
+    });
+  }
+
   return await poke(action);
 }
 
