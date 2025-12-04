@@ -14,10 +14,7 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import {
-  registerBackgroundSyncTask,
-  removeLegacyTasks,
-} from '@tloncorp/app/lib/backgroundSync';
+import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';

@@ -124,7 +124,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
-        versionCode 109
+        versionCode 110
         versionName "8.0.0-syncenabled"
     }
     signingConfigs {
