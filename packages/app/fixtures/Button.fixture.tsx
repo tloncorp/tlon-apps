@@ -4,30 +4,22 @@ import { FixtureWrapper } from './FixtureWrapper';
 export default {
   primary: () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button>
-        <Button.Text>Primary</Button.Text>
-      </Button>
+      <Button fill="outline" type="primary" label="Primary" />
     </FixtureWrapper>
   ),
   text: () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button minimal>
-        <Button.Text>Text Button</Button.Text>
-      </Button>
+      <Button fill="text" type="primary" label="Text Button" />
     </FixtureWrapper>
   ),
   hero: () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button hero>
-        <Button.Text>Hero Button</Button.Text>
-      </Button>
+      <Button fill="solid" type="primary" label="Hero Button" centered />
     </FixtureWrapper>
   ),
   heroDisabled: () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button hero disabled>
-        <Button.Text>Hero Button</Button.Text>
-      </Button>
+      <Button fill="solid" type="primary" disabled label="Hero Button" centered />
     </FixtureWrapper>
   ),
 };

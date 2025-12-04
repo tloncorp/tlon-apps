@@ -18,17 +18,24 @@ export function PrimaryButton({
   loading?: boolean;
   textColor?: ColorTokens;
 }> &
-  ComponentProps<typeof Button>) {
+  ComponentProps<typeof Button.Frame>) {
   const handlePress = (args: any) => {
     onPress?.(args);
     triggerHaptic('baseButtonClick');
   };
 
   return (
-    <Button hero disabled={disabled || loading} {...rest} onPress={handlePress}>
+    <Button.Frame
+      size="medium"
+      disabled={disabled || loading}
+      backgroundColor="$primaryText"
+      borderColor="$primaryText"
+      {...rest}
+      onPress={handlePress}
+    >
       {/* Spacer */}
       <View width={30} paddingHorizontal="$2xl" />
-      <Button.Text width="auto" color={textColor ?? 'unset'}>
+      <Button.Text color={textColor ?? '$background'}>
         {children}
       </Button.Text>
       {loading ? (
@@ -38,6 +45,6 @@ export function PrimaryButton({
       ) : (
         <View width={30} paddingHorizontal="$2xl" />
       )}
-    </Button>
+    </Button.Frame>
   );
 }

@@ -6,13 +6,11 @@ export function TextButton({
   children,
   textProps,
   ...props
-}: ButtonProps & {
+}: Omit<ButtonProps, 'label'> & {
   textProps?: ComponentProps<typeof Button.Text>;
   children: string;
 }) {
   return (
-    <Button onPress={onPress} minimal {...props}>
-      <Button.Text {...textProps}>{children}</Button.Text>
-    </Button>
+    <Button fill="text" type="primary" onPress={onPress} label={children} {...props} />
   );
 }

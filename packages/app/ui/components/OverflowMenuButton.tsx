@@ -24,14 +24,13 @@ export function OverflowMenuButton({
       height={0}
       {...viewProps}
     >
-      <Button
+      <Button.Frame
         backgroundColor={backgroundColor}
         onPress={onPress}
         borderWidth="unset"
-        size="$l"
       >
         <Icon type="Overflow" />
-      </Button>
+      </Button.Frame>
     </View>
   );
 }

@@ -1,19 +1,18 @@
-import { ComponentProps, PropsWithChildren } from 'react';
+import { cloneElement, ComponentProps, isValidElement, PropsWithChildren } from 'react';
 import { ColorTokens, RadiusTokens, ThemeTokens } from 'tamagui';
 
-import { Button } from './Button';
+import { Button } from './ButtonV2';
 
 export type IconButtonProps = PropsWithChildren<{
   color?: ThemeTokens | ColorTokens;
   backgroundColorOnPress?: ThemeTokens | ColorTokens;
   radius?: RadiusTokens;
 }> &
-  ComponentProps<typeof Button>;
+  ComponentProps<typeof Button.Frame>;
 
 export function IconButton({
   children,
   onPress,
-  size = '$s',
   color = '$primaryText',
   backgroundColor = '$background',
   backgroundColorOnPress = '$secondaryBackground',
@@ -25,9 +24,13 @@ export function IconButton({
   width,
   ...rest
 }: IconButtonProps) {
+  // Clone the icon element and add color prop
+  const iconWithColor = isValidElement(children)
+    ? cloneElement(children as React.ReactElement, { color })
+    : children;
+
   return (
-    <Button
-      size={size}
+    <Button.Frame
       onPress={onPress}
       disabled={disabled}
       borderRadius={radius}
@@ -41,7 +44,7 @@ export function IconButton({
       borderWidth={borderWidth}
       {...rest}
     >
-      <Button.Icon color={color}>{children}</Button.Icon>
-    </Button>
+      {iconWithColor}
+    </Button.Frame>
   );
 }
