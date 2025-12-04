@@ -315,7 +315,7 @@
       =poke-status
       result=(unit response-body)
   ==
-+$  poke-status  ?(%sending %acked)
++$  poke-status  ?(%sending %acked %nacked)
 +$  action-error
   $?  %not-authorized
       %not-found

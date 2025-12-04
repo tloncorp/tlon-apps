@@ -510,6 +510,13 @@ export const updateGroupMeta = async ({
   });
 
   if ('error' in response.body) {
+    const { type, message } = response.body.error;
+    logger.trackError(message, {
+      type,
+    });
+    if (response.body.error.type === 'unknown') {
+      throw new Error('An unknown error occurred');
+    }
     throw new Error(response.body.error.message);
   }
 

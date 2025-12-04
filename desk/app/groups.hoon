@@ -87,7 +87,7 @@
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
           :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
-          :+  %group-response-2   &  -:!>(*vale:m-group-response-2)
+          :+  %group-response-2   |  -:!>(*vale:m-group-response-2)
           :+  %group-response-update-2   &  -:!>(*vale:m-group-response-update-2)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
@@ -1855,7 +1855,7 @@
   ++  se-give-response-update
     |=  body=response-update-body:g
     ^+  se-core
-    =/  paths  ~[`path`(weld se-area /request/(scot %uv request-id))]
+    =/  paths  ~[`path`(weld se-area /request/(scot %p src.bowl)/(scot %uv request-id))]
     =.  cor  (tell:l %dbug ~['sending response' >request-id< >body<])
     (give %fact paths group-response-update-2+!>([request-id body]))
   ::  +se-give-update: send an update to subscribers
@@ -3093,7 +3093,10 @@
     |=  =path
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
-        [%request id=@ ~]
+        [%request ship=@ id=@ ~]
+      ~&  ['receiving watch for' path]
+      =/  =ship  (slav %p i.t.path)
+      ?>  =(ship src.bowl)
       se-core
     ::
         ::  receive updates since .after time
@@ -3632,13 +3635,15 @@
     |=  [=wire =c-group:g]
     ^+  go-core
     =/  req-wire=^wire  (weld go-area /request/(scot %uv request-id))
-    =/  =path  (weld go-server-path /request/(scot %uv request-id))
+    =/  =path
+      %+  weld  go-server-path
+      /request/(scot %p our.bowl)/(scot %uv request-id)
     =.  cor  (tell:l %dbug ~['sending command' >request-id< 'to' >path<])
     =.  go-core
       (emit %pass req-wire %agent [p.flag server] %watch path)
     =.  go-core
       (emit %pass req-wire %arvo %b %wait (add now.bowl ~s5))
-    =/  =^wire  (weld go-area wire)
+    =/  =^wire  (weld go-area [(scot %uv request-id) wire])
     =/  =cage  group-command+!>(`command:g`[request-id %group flag c-group])
     (emit %pass wire %agent [p.flag server] %poke cage)
   ::  +go-a-navigation: process navigation action
@@ -3749,11 +3754,29 @@
     ::
         ::  poked group host with a command
         ::
-        [%command cmd=@t ~]
+        [id=@ %command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
-      go-core
+      =/  id=request-id:v8:gv  (slav %uv id.i.wire)
+      =/  request  (~(get by requests) id)
+      ~&  ['receiving cmd poke ack' id cmd.i.t.t.wire]
+      ?~  p.sign
+        ?~  request  go-core
+        =.  requests  (~(put by requests) id u.request(poke-status %acked))
+        go-core
+      =.  cor  (fail:l %poke-ack leaf+"group command {<cmd.i.t.t.wire>} failed" u.p.sign)
+      ?~  request  go-core
+      =/  body=response-body:v8:gv  [%error %unknown u.p.sign]
+      =.  requests
+        %+  ~(put by requests)  id
+        u.request(poke-status %nacked, result `body)
+      =/  =path  (weld [~.v1 go-area] /request/(scot %uv id))
+      =/  =response:v8:gv  [id body]
+      =.  cor
+        (give %fact ~[path] group-response-2+!>(response))
+      =?  cor  ?=(^ http-id.u.request)
+        (give-http-response u.http-id.u.request response)
+      =/  =^wire  (weld go-area /request/(scot %uv id))
+      (emit %pass wire %agent [p.flag dap.bowl] %leave ~)
     ::
         ::  invited a ship to the group
         ::
@@ -3863,7 +3886,6 @@
           ~|(go-agent-bad-request+id !!)
         =.  requests
             (~(put by requests) id u.request(result `body.response))
-        ::  this should only ever be from ourselves
         =/  =path  :(weld /v1 go-area /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
         =.  cor  (give %fact ~[path] group-response-2+!>(response))
