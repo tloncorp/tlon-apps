@@ -119,7 +119,7 @@ async function uploadImageAsset(
   uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
   isWeb = false
 ) {
-  uploadAssetWithLifecycle(uploadIntent, isWeb, {
+  await uploadAssetWithLifecycle(uploadIntent, isWeb, {
     willUpload() {
       const asset = uploadIntent.asset;
       logger.crumb(
