@@ -173,6 +173,16 @@ export function useBootSequence() {
         return NodeBootPhase.CHECKING_FOR_INVITE;
       }
 
+      if (lureMeta?.invitedGroupTitle) {
+        // workaround for our generic invites that boot you into empty state. Should be
+        // removed once a better backend solution is in place
+
+        logger.trackEvent(
+          'Detected generic workaround invite, skipping scaffold'
+        );
+        return NodeBootPhase.CHECKING_FOR_INVITE;
+      }
+
       try {
         await store.scaffoldPersonalGroup();
 
@@ -234,7 +244,7 @@ export function useBootSequence() {
     // ACCEPTING_INVITES [optional]: join the invited groups
     //
     if (bootPhase === NodeBootPhase.ACCEPTING_INVITES) {
-      const { invitedDm, invitedGroup, tlonTeamDM, personalGroup } =
+      const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       // if expected items aren't there, re-run this step

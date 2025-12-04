@@ -124,7 +124,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "8.0.0"
+        versionName "8.0.2"
     }
     signingConfigs {
         debug {
@@ -228,6 +228,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
     implementation("androidx.browser:browser:1.7.0")
 
-    // PostHog
-    implementation("com.posthog:posthog-android:3.+")
+    // PostHog - pinned to avoid constructor signature incompatibilities with newer versions
+    implementation("com.posthog:posthog-android:3.8.2")
 }
