@@ -677,7 +677,7 @@ export interface GroupActionResponseV5 {
   'request-id': string;
   body:
     | GroupResponseOKV5
-    | { pending: null }
+    | { pending: 'sending' | 'acked' }
     | {
         error: {
           type: string;

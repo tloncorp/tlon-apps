@@ -294,40 +294,34 @@
 +$  response-body
   $%  [%ok =r-group]
       [%error type=action-error message=tang]
-      [%pending ~]
+      [%pending status=poke-status]
   ==
 +$  response-update-body
   $%  [%ok =u-group]
       [%error type=action-error message=tang]
   ==
 ::
-+$  requests
-  $:  outgoing=(set request-id)
-      incoming=(map [=ship id=request-id] incoming-request)
-  ==
++$  requests  (map request-id incoming-request)
 ::  $incoming-request: a request coming into the agent
 ::
 ::  .id: request id
-::  .from: ship making the request
 ::  .http-id: http request id, if any. means we should give a response
+::  .poke-status: request status
 ::  .result: response body, if any. if null, means request is in progress
 ::
 +$  incoming-request
   $:  id=request-id
-      from=ship
       http-id=(unit @ta)
+      =poke-status
       result=(unit response-body)
   ==
++$  poke-status  ?(%sending %acked)
 +$  action-error
   $?  %not-authorized
       %not-found
-      %invalid-token
-      %invalid-path
       %invalid-name
-      %invalid-permissions
       %request-too-large
-      %is-banned
-      %unknown-error
+      %unknown
   ==
 ::
 ::  %groups acur interface

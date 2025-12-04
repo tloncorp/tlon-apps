@@ -44,6 +44,7 @@
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
 /%  m-group-response-2   %group-response-2
+/%  m-group-response-update-2   %group-response-update-2
 /%  m-group-action-3     %group-action-3
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
@@ -87,6 +88,7 @@
         ::
           :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
           :+  %group-response-2   &  -:!>(*vale:m-group-response-2)
+          :+  %group-response-update-2   &  -:!>(*vale:m-group-response-update-2)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
@@ -97,7 +99,7 @@
     ::  facts
     ::
     :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
-        [/server/groups/$/$/request/$ %group-response-2 ~]
+        [/server/groups/$/$/request/$ %group-response-update-2 ~]
         [/server/groups/$/$/token/$ %group-token ~]
         [/server/groups/$/$/ask/$ %group-token ~]
         [/server/groups/$/$/preview %group-preview-3 ~]
@@ -314,11 +316,6 @@
         %group-command
       =+  !<(command:v8:gv vase)
       =.  cor  (tell:l %dbug ~['request-id: ' >request-id< ' command: ' >c-groups<])
-      =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [src.bowl request-id] [request-id src.bowl ~ ~])
-      ?>  =(from.request src.bowl)
-      =.  incoming.requests
-        (~(put by incoming.requests) [src.bowl request-id] request)
       ?:  ?=(%create -.c-groups)
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
@@ -360,11 +357,10 @@
       =+  !<(action:v8:gv vase)
       =.  cor  (tell:l %dbug ~['request-id: ' >request-id< ' action: ' >a-groups<])
       ?>  from-self
-      =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [our.bowl request-id] [request-id our.bowl ~ ~])
-      ?>  =(from.request our.bowl)
-      =.  incoming.requests
-        (~(put by incoming.requests) [our.bowl request-id] request)
+      =/  =incoming-request:v8:gv
+        (~(gut by requests) request-id [request-id ~ %sending ~])
+      =.  requests
+        (~(put by requests) request-id incoming-request)
       =/  =flag:g
         ?-  -.a-groups
           %group   flag.a-groups
@@ -595,11 +591,11 @@
           %'GET'
         ?>  ?=([%request @ ~] site)
         =/  =request-id:v8:gv  (slav %uv i.t.site)
-        ?~  request=(~(get by incoming.requests) our.bowl request-id)
+        ?~  request=(~(get by requests) request-id)
           (emil not-found)
         =/  =response:v8:gv
           :-  request-id
-          ?~  result.u.request  [%pending ~]
+          ?~  result.u.request  [%pending poke-status.u.request]
           u.result.u.request
         (give-http-response id response)
       ::
@@ -607,9 +603,9 @@
         ?~  body.request  (emil not-found)
         ?~  json=(de:json:html q.u.body.request)  (emil not-found)
         =/  =action:v8:gv  (action:v8:dejs:gj u.json)
-        =.  incoming.requests
-          %+  ~(put by incoming.requests)  [our.bowl request-id.action]
-          [request-id.action our.bowl `id ~]
+        =.  requests
+          %+  ~(put by requests)  request-id.action
+          [request-id.action `id %sending ~]
         $(+< group-action-5+!>(action))
       ==
     ::
@@ -1026,7 +1022,7 @@
         groups
         channels-index
         foreigns
-        [~ ~]
+        ~
         subs
         pimp
     ==
@@ -1567,11 +1563,12 @@
       [%groups ship=@ name=@ %request id=@ ~]
     ?>  ?=([%behn %wake ~] sign)
     =+  id=(slav %uv id.pole)
-    ?~  request=(~(get by incoming.requests) [our.bowl id])
+    ?~  request=(~(get by requests) id)
       cor
-    =.  incoming.requests
-      (~(put by incoming.requests) [our.bowl id] u.request(result `[%pending ~]))
-    =/  =response:v8:gv  [id %pending ~]
+    =/  result=response-body:v8:gv  [%pending poke-status.u.request]
+    =.  requests
+      (~(put by requests) id u.request(result `result))
+    =/  =response:v8:gv  [id result]
     =.  cor
       (give %fact ~[(welp /v1 pole)] group-response-2+!>(response))
     ?~  http-id.u.request  cor
@@ -3097,12 +3094,6 @@
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
         [%request id=@ ~]
-      =/  id=request-id:v8:gv  (slav %uv i.t.path)
-      =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [src.bowl id] [id src.bowl ~ ~])
-      =.  incoming.requests
-          (~(put by incoming.requests) [src.bowl id] request)
-      ?>  =(from.request src.bowl)
       se-core
     ::
         ::  receive updates since .after time
@@ -3695,9 +3686,9 @@
       =/  id=request-id:v8:gv  (slav %uv id.pole)
       =.  cor  (tell:l %dbug leaf+"+go-watch received request {<id>} from {<src.bowl>}" ~)
       =/  request=incoming-request:v8:gv
-        (~(gut by incoming.requests) [our.bowl id] [id our.bowl ~ ~])
-      =.  incoming.requests
-          (~(put by incoming.requests) [our.bowl id] request)
+        (~(gut by requests) id [id ~ %sending ~])
+      =.  requests
+          (~(put by requests) id request)
       go-core
     ::
         [%channels app=@ ship=@ name=@ %preview ~]
@@ -3868,10 +3859,10 @@
         =/  =response:v8:gv  response-update
         =.  cor  (tell:l %dbug ~['+go-watch received response update' >id< >response<])
         ::
-        ?~  request=(~(get by incoming.requests) [our.bowl id])
+        ?~  request=(~(get by requests) id)
           ~|(go-agent-bad-request+id !!)
-        =.  incoming.requests
-            (~(put by incoming.requests) [our.bowl id] u.request(result `body.response))
+        =.  requests
+            (~(put by requests) id u.request(result `body.response))
         ::  this should only ever be from ourselves
         =/  =path  :(weld /v1 go-area /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
@@ -4779,7 +4770,6 @@
       =/  =wire  (weld fi-area /command/leave)
       =/  =dock  [p.flag server]
       =/  req-id  (end [3 8] eny.bowl)
-      =.  outgoing.requests  (~(put in outgoing.requests) req-id)
       [%pass wire %agent dock %poke group-command+!>(`command:g`[req-id %leave flag])]
     ::
     ++  join
@@ -4787,7 +4777,6 @@
       ^-  card
       =/  =wire  (weld fi-area /join/[?~(tok %public (scot %uv u.tok))])
       =/  req-id  (end [3 8] eny.bowl)
-      =.  outgoing.requests  (~(put in outgoing.requests) req-id)
       =/  =cage
         group-command+!>(`command:g`[req-id %join flag tok])
       [%pass wire %agent [p.flag server] %poke cage]
@@ -4798,7 +4787,6 @@
       =/  =wire  (weld fi-area /ask)
       =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
       =/  req-id  (end [3 8] eny.bowl)
-      =.  outgoing.requests  (~(put in outgoing.requests) req-id)
       =/  =cage
         group-command+!>(`command:g`[req-id %ask flag story])
       :~  [%pass wire %agent [p.flag server] %poke cage]
