@@ -1005,6 +1005,60 @@ export async function deletePost(
   return await poke(action);
 }
 
+export async function deleteReply(params: {
+  channelId: string;
+  parentId: string;
+  parentAuthorId: string;
+  postId: string;
+  authorId: string;
+}) {
+  let action = null;
+
+  if (isDmChannelId(params.channelId)) {
+    action = chatAction(
+      params.channelId,
+      `${params.parentAuthorId}/${params.parentId}`,
+      {
+        reply: {
+          id: `${params.authorId}/${params.postId}`,
+          meta: null,
+          delta: {
+            del: null,
+          },
+        },
+      }
+    );
+  } else if (isGroupDmChannelId(params.channelId)) {
+    action = multiDmAction(params.channelId, {
+      writ: {
+        id: `${params.parentAuthorId}/${params.parentId}`,
+        delta: {
+          reply: {
+            id: `${params.authorId}/${params.postId}`,
+            meta: null,
+            delta: {
+              del: null,
+            },
+          },
+        },
+      },
+    });
+  } else {
+    action = channelAction(params.channelId, {
+      post: {
+        reply: {
+          id: params.parentId,
+          action: {
+            del: params.postId,
+          },
+        },
+      },
+    });
+  }
+
+  return await poke(action);
+}
+
 export const getPostWithReplies = async ({
   postId,
   channelId,
@@ -1250,7 +1304,13 @@ function isPostDataResponse(
 }
 
 function isPostTombstone(
-  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  post:
+    | ub.Post
+    | ub.PostTombstone
+    | ub.Writ
+    | ub.PostDataResponse
+    | ub.WritReply
+    | ub.Reply
 ): post is ub.PostTombstone {
   return 'type' in post && post.type === 'tombstone';
 }
@@ -1278,8 +1338,24 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply | ub.WritReply
+  reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
+  if (isPostTombstone(reply)) {
+    return {
+      id: getCanonicalPostId(reply.id),
+      parentId: getCanonicalPostId(postId),
+      authorId: reply.author,
+      channelId,
+      type: 'reply',
+      sentAt: getReceivedAtFromId(reply.id),
+      isDeleted: true,
+      deletedAt: reply['deleted-at'],
+      receivedAt: getReceivedAtFromId(reply.id),
+      sequenceNum: null,
+      syncedAt: Date.now(),
+    };
+  }
+
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
