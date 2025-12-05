@@ -2,7 +2,7 @@ import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
-  Button,
+  Pressable,
   SizableEmoji,
   View,
   getNativeEmoji,
@@ -28,9 +28,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
   onSelect: (shortCode: string) => void;
 }) {
   return (
-    <Button.Frame
-      borderWidth={0}
-      paddingHorizontal={0}
+    <Pressable
       width="100%"
       height={EMOJI_ROW_HEIGHT}
       onPress={() => onSelect(item)}
@@ -38,7 +36,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
       alignItems="center"
     >
       <SizableEmoji emojiInput={item} fontSize={EMOJI_SIZE} />
-    </Button.Frame>
+    </Pressable>
   );
 });
 
