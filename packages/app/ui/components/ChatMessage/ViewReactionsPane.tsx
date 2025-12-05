@@ -1,8 +1,9 @@
+import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList } from 'react-native';
-import { View } from 'tamagui';
+import { FlatList, Platform } from 'react-native';
+import { View, getTokenValue } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
 import { useGroupedReactions } from '../../utils/postUtils';
@@ -11,13 +12,11 @@ import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../ListItem';
 
-export function ViewReactionsPane({
-  post,
-  setIsScrolling,
-}: {
-  post: db.Post;
-  setIsScrolling?: (isScrolling: boolean) => void;
-}) {
+// Use BottomSheetFlatList on native for proper gesture integration with bottom sheet
+// Use regular FlatList on web
+const ListComponent = Platform.OS === 'web' ? FlatList : BottomSheetFlatList;
+
+export function ViewReactionsPane({ post }: { post: db.Post }) {
   const groupedReactions = useGroupedReactions(post.reactions ?? []);
 
   const allReactions = useMemo(() => {
@@ -56,14 +55,6 @@ export function ViewReactionsPane({
     setCurrentTab(newTab);
   }, []);
 
-  const onTouchStart = useCallback(() => {
-    setIsScrolling?.(true);
-  }, [setIsScrolling]);
-  const onTouchEnd = useCallback(
-    () => setIsScrolling?.(false),
-    [setIsScrolling]
-  );
-
   const renderItem = useCallback(
     ({ reaction }: { reaction: { value: string; userId: string } }) => {
       return (
@@ -74,7 +65,9 @@ export function ViewReactionsPane({
           showUserId
           showEndContent
           endContent={
-            <Text size="$emoji/m">{getNativeEmoji(reaction.value) || '❓'}</Text>
+            <Text size="$emoji/m">
+              {getNativeEmoji(reaction.value) || '❓'}
+            </Text>
           }
         ></ContactListItem>
       );
@@ -83,27 +76,24 @@ export function ViewReactionsPane({
   );
 
   return (
-    <View flex={1}>
-      <ActionSheet.FormBlock paddingBottom={0}>
+    <ActionSheet.Content flex={1}>
+      <View paddingHorizontal="$xl" paddingTop="$xl">
         <ToggleGroupInput
           value={currentTab}
           onChange={handleTabPress}
           options={tabs}
         />
-      </ActionSheet.FormBlock>
-      <ActionSheet.Content paddingVertical="$xl" flex={1}>
-        <ActionSheet.FormBlock flex={1}>
-          <ActionSheet.ActionGroupContent borderWidth={0}>
-            <FlatList
-              data={tabData}
-              renderItem={({ item }) => renderItem({ reaction: item })}
-              keyExtractor={(item) => item.userId + item.value}
-              onTouchStart={onTouchStart}
-              onTouchEnd={onTouchEnd}
-            />
-          </ActionSheet.ActionGroupContent>
-        </ActionSheet.FormBlock>
-      </ActionSheet.Content>
-    </View>
+      </View>
+      <ListComponent
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: getTokenValue('$xl', 'space'),
+        }}
+        data={tabData}
+        renderItem={({ item }) => renderItem({ reaction: item })}
+        keyExtractor={(item) => item.userId + item.value}
+      />
+    </ActionSheet.Content>
   );
 }
