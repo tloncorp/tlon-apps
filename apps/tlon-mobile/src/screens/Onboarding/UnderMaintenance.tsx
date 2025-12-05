@@ -3,7 +3,6 @@ import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
   OnboardingTextBlock,
-  PrimaryButton,
   ScreenHeader,
   View,
   useStore,
@@ -13,6 +12,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { openComposer } from 'react-native-email-link';
 
@@ -84,13 +84,14 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
             Last checked at {logic.makePrettyTime(checkedAt)}
           </TlonText.Text>
         )}
-        <PrimaryButton loading={rechecking} onPress={handleRecheckStatus}>
-          Check Again
-        </PrimaryButton>
+        <Button
+          loading={rechecking}
+          onPress={handleRecheckStatus}
+          label="Check Again"
+          centered
+        />
         {checkedAt && (
-          <PrimaryButton onPress={handleEmailSupport}>
-            <Button.Text>Email Support</Button.Text>
-          </PrimaryButton>
+          <Button onPress={handleEmailSupport} label="Email Support" centered />
         )}
       </OnboardingTextBlock>
     </View>
