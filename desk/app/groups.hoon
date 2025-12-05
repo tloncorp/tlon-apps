@@ -1329,6 +1329,7 @@
     ?:  ?&  !(~(has by groups) ship name.pole)
             ?|  ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
+                ?=([%invite %revoke @ ~] rest.pole)
             ==
         ==
       cor
@@ -3489,6 +3490,11 @@
     =.  go-core  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
     =?  go-core  watch  (emit %give %kick ~[path-1] ~)
     go-core
+  ::  +go-agent: handle group response
+  ::
+  ::  when adding a new response, always consider
+  ::  whether the group ignore list in +agent needs to be updated.
+  ::
   ++  go-agent
     |=  [=wire =sign:agent:gall]
     ^+  go-core
