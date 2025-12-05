@@ -494,24 +494,18 @@ export function ProfileButton({
   title,
   onPress,
   hero,
-  secondary,
   ...props
 }: {
   title: string;
   onPress?: () => void;
   hero?: boolean;
-  secondary?: boolean;
 } & ComponentProps<typeof Button.Frame>) {
   const handlePress = useCallback(() => {
     onPress?.();
     triggerHaptic('baseButtonClick');
   }, [onPress]);
 
-  const color = hero
-    ? '$primaryText'
-    : secondary
-      ? '$secondaryBackground'
-      : '$background';
+  const color = hero ? '$primaryText' : '$background';
 
   return (
     <Button.Frame

@@ -184,7 +184,7 @@ export function EditChannelScreenView({
                 <PermissionTable groupRoles={group.roles} />
               </>
             )}
-            <YStack gap="$2xl">
+            <YStack gap="$xl" width={'100%'}>
               <Button
                 fill="solid"
                 type="primary"
@@ -193,7 +193,13 @@ export function EditChannelScreenView({
                 label="Save"
                 centered
               />
-              <Button fill="solid" type="negative" onPress={handlePressDelete} label="Delete channel for everyone" centered />
+              <Button
+                fill="solid"
+                type="negative"
+                onPress={handlePressDelete}
+                label="Delete channel for everyone"
+                centered
+              />
             </YStack>
           </YStack>
         </ScrollView>
@@ -770,7 +776,14 @@ export function RoleSelectionSheet({
           borderTopWidth={1}
           borderTopColor="$border"
         >
-          <Button fill="solid" type="primary" onPress={handleSave} testID="RoleSelectionSaveButton" label="Save" centered />
+          <Button
+            fill="solid"
+            type="primary"
+            onPress={handleSave}
+            testID="RoleSelectionSaveButton"
+            label="Save"
+            centered
+          />
         </View>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
