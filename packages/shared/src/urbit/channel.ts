@@ -1,9 +1,9 @@
-import { parse } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 //REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { parseIdNumber } from '../api/apiUtils';
 import { Stringified } from '../utils';
 import { Block, Image, Inline, isBlock, isImage } from './content';
 import { Flag } from './hark';
@@ -616,7 +616,7 @@ export function newPostTupleArray(
     data.pages
       .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [bigInt(parse('ud', k)), v] as PostTuple
+          ([k, v]) => [bigInt(parseIdNumber(k)), v] as PostTuple
         );
 
         return pagePosts;
