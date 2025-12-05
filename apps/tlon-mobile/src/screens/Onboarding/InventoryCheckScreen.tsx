@@ -2,7 +2,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import {
   Icon,
-  PrimaryButton,
   ScreenHeader,
   SizableText,
   Text,
@@ -10,6 +9,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
+import { Button } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { useState } from 'react';
 import { Image } from 'react-native';
@@ -125,9 +125,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
           </YStack>
         </XStack>
 
-        <PrimaryButton onPress={checkAvailability} disabled={isChecking}>
-          Get Started
-        </PrimaryButton>
+        <Button onPress={checkAvailability} disabled={isChecking} label="Get Started" centered />
       </YStack>
     </View>
   );
