@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { ActionSheet } from '../ActionSheet';
 import { ViewReactionsPane } from './ViewReactionsPane';
@@ -13,7 +13,6 @@ export function ViewReactionsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [isScrolling, setIsScrolling] = useState(false);
   const reactionCount = useMemo(
     () => post.reactions?.length ?? 0,
     [post.reactions]
@@ -25,14 +24,14 @@ export function ViewReactionsSheet({
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
       snapPoints={[70]}
-      disableDrag={isScrolling}
+      hasScrollableContent
     >
       <ActionSheet.SimpleHeader
         title="Reactions"
         subtitle={`${reactionCount} ${reactionCount === 1 ? 'person' : 'people'} reacted`}
       />
 
-      <ViewReactionsPane post={post} setIsScrolling={setIsScrolling} />
+      <ViewReactionsPane post={post} />
     </ActionSheet>
   );
 }
