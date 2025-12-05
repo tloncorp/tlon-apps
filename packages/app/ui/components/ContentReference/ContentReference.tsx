@@ -1,6 +1,7 @@
 // tamagui-ignore
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { getChannelType } from '@tloncorp/shared/urbit';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -87,11 +88,27 @@ export function PostReferenceLoader({
   const { data: channel } = useChannel({ id: channelId });
   const { data: group } = useGroup(channel?.groupId ?? '');
   const { onPressRef, onPressGroupRef } = useNavigation();
+
   const handlePress = useCallback(async () => {
-    if (channel && postQuery.data && group && group.currentUserIsMember) {
+    if (channel && postQuery.data && group?.currentUserIsMember) {
+      // Member: Navigate directly to the post
       onPressRef?.(channel, postQuery.data);
     } else if (group) {
+      // Non-member with group data loaded: Show group preview sheet
       onPressGroupRef?.(group);
+    } else {
+      // Fallback: fetch group preview using available groupId
+      const groupId = channel?.groupId ?? postQuery.data?.groupId;
+      if (groupId) {
+        try {
+          const [groupPreview] = await store.syncGroupPreviews([groupId]);
+          if (groupPreview) {
+            onPressGroupRef?.(groupPreview);
+          }
+        } catch (error) {
+          console.error('Failed to fetch group preview:', error);
+        }
+      }
     }
   }, [channel, onPressRef, postQuery.data, group, onPressGroupRef]);
 

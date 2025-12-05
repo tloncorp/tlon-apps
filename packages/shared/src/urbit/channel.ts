@@ -365,6 +365,7 @@ export type ReferenceResponse = ReplyReferenceResponse | PostReferenceResponse;
 export interface Said {
   nest: Nest;
   reference: ReferenceResponse;
+  group?: string; // group flag for navigation to group preview (v4/said only)
 }
 
 export interface Init {

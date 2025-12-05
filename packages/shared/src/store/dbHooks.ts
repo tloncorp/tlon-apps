@@ -472,11 +472,13 @@ export const usePostReference = ({
     queryKey: [['postReference', postId], deps],
     queryFn: async () => {
       const post = await db.getPostWithRelations({ id: postId });
-      if (post) {
+      // If post exists with groupId, return it. Otherwise, sync to get groupId
+      if (post && post.groupId) {
         return post;
       }
       await syncPostReference({ postId, channelId, replyId });
-      return db.getPostWithRelations({ id: postId });
+      const updatedPost = await db.getPostWithRelations({ id: postId });
+      return updatedPost;
     },
   });
   return postQuery;
