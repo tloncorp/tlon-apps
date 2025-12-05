@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Platform } from 'react-native';
-import { View } from 'tamagui';
+import { View, getTokenValue } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
 import { useGroupedReactions } from '../../utils/postUtils';
@@ -65,7 +65,9 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
           showUserId
           showEndContent
           endContent={
-            <Text size="$emoji/m">{getNativeEmoji(reaction.value) || '❓'}</Text>
+            <Text size="$emoji/m">
+              {getNativeEmoji(reaction.value) || '❓'}
+            </Text>
           }
         ></ContactListItem>
       );
@@ -84,7 +86,10 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
       </View>
       <ListComponent
         style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: getTokenValue('$xl', 'space'),
+        }}
         data={tabData}
         renderItem={({ item }) => renderItem({ reaction: item })}
         keyExtractor={(item) => item.userId + item.value}
