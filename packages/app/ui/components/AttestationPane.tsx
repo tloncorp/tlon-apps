@@ -14,7 +14,6 @@ import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts';
-import { PrimaryButton } from './Buttons';
 import { HiddenPhoneDisplay } from './Profile/ConnectedAccountsWidget';
 
 type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
@@ -146,17 +145,14 @@ export function AttestationPane({
         )}
 
         {attestation.contactId === currentUserId && (
-          <PrimaryButton
+          <Button
             onPress={handleRevoke}
             loading={revoking}
             disabled={revoking}
-            backgroundColor="$negativeBackground"
-            textColor="$negativeActionText"
-            borderColor="$negativeBorder"
-            disabledStyle={{ backgroundColor: '$negativeBackground' }}
-          >
-            Revoke
-          </PrimaryButton>
+            type="negative"
+            label="Revoke"
+            centered
+          />
         )}
       </YStack>
     </YStack>

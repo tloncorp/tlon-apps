@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import * as LibPhone from 'libphonenumber-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,7 +9,6 @@ import { View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
-import { PrimaryButton, TextButton } from './Buttons';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
 
@@ -131,16 +130,14 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
       <Text size="$label/s" color="$negativeActionText">
         {remoteError}
       </Text>
-      <PrimaryButton
+      <Button
         onPress={onSubmit}
         loading={isSubmitting}
         disabled={isSubmitting || !phoneForm.formState.isValid}
         marginTop="$2xl"
-      >
-        <Text color="$background" size="$label/l">
-          Connect Phone Number
-        </Text>
-      </PrimaryButton>
+        label="Connect Phone Number"
+        centered
+      />
     </YStack>
   );
 }
@@ -214,17 +211,14 @@ function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
             {error}
           </Text>
         )}
-        <TextButton
-          textProps={{
-            size: '$label/s',
-            color: '$tertiaryText',
-            textDecorationLine: 'underline',
-            textDecorationColor: '$tertiaryText',
-          }}
+        <Button
+          fill="text"
+          type="primary"
+          size="small"
+          centered
+          label="Wrong phone number?"
           onPress={handleRevoke}
-        >
-          Wrong phone number?
-        </TextButton>
+        />
       </YStack>
     </YStack>
   );

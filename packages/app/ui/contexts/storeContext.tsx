@@ -27,6 +27,9 @@ const HOOK_MOCKS: Record<string, unknown> = {
   usePost: {
     data: null,
   },
+  useContacts: {
+    data: [],
+  },
 };
 
 function createNoOpFunction(key: string): NoOpFunction {

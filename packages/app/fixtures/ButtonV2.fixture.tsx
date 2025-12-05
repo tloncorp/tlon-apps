@@ -1,6 +1,12 @@
-import { Button, ButtonIntent, ButtonSize, ButtonStyle, Text } from '@tloncorp/ui';
+import {
+  Button,
+  ButtonIntent,
+  ButtonSize,
+  ButtonStyle,
+  Text,
+} from '@tloncorp/ui';
 import { useSelect } from 'react-cosmos/client';
-import { XStack, YStack } from 'tamagui';
+import { ColorTokens, XStack, YStack } from 'tamagui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 
@@ -141,7 +147,14 @@ function SizeBlock({
 export default function ButtonV2Fixture() {
   const [intent] = useSelect<ButtonIntent>('Intent', {
     defaultValue: 'primary',
-    options: ['primary', 'secondary', 'helper', 'positive', 'negative'],
+    options: [
+      'primary',
+      'secondary',
+      'helper',
+      'positive',
+      'negative',
+      'notice',
+    ],
   });
   const [styleVariant] = useSelect<ButtonStyle>('Style', {
     defaultValue: 'solid',
@@ -150,8 +163,20 @@ export default function ButtonV2Fixture() {
 
   const sizes: ButtonSize[] = ['large', 'medium', 'small'];
 
+  // Notice intent is designed for dark backgrounds
+  const isNoticeIntent = intent === 'notice';
+
   return (
-    <FixtureWrapper fillWidth safeArea={false}>
+    <FixtureWrapper
+      fillWidth
+      safeArea={false}
+      backgroundColor={
+        isNoticeIntent ? ('$systemNoticeBackground' as ColorTokens) : undefined
+      }
+      innerBackgroundColor={
+        isNoticeIntent ? ('$systemNoticeBackground' as ColorTokens) : undefined
+      }
+    >
       <YStack gap="$2xl" padding="$l">
         {sizes.map((size) => (
           <SizeBlock

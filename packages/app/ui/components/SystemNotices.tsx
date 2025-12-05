@@ -105,37 +105,18 @@ export function NotificationsPrompt() {
           </NoticeBody>
         </YStack>
         <XStack gap="$m" justifyContent="flex-end">
-          <Button.Frame
-            padding="$xl"
-            paddingHorizontal="$2xl"
-            backgroundColor="$systemNoticeBackground"
-            borderColor="$positiveBorder"
-            borderWidth={1.6}
-            pressStyle={{
-              opacity: 0.7,
-              backgroundColor: '$systemNoticeBackground',
-            }}
+          <Button
+            type="notice"
+            fill="outline"
+            label="Not Now"
             onPress={handleDismiss}
-          >
-            <Button.Text color="$systemNoticeText">
-              Not Now
-            </Button.Text>
-          </Button.Frame>
-          <Button.Frame
-            backgroundColor="$systemNoticeText"
-            padding="$xl"
-            paddingHorizontal="$2xl"
-            borderWidth={0}
-            pressStyle={{
-              opacity: 0.8,
-              backgroundColor: '$systemNoticeText',
-            }}
+          />
+          <Button
+            type="notice"
+            fill="solid"
+            label={perms.canAskPermission ? 'Enable' : 'Settings'}
             onPress={handlePrimaryAction}
-          >
-            <Button.Text color="$systemNoticeBackground">
-              {perms.canAskPermission ? 'Enable' : 'Settings'}
-            </Button.Text>
-          </Button.Frame>
+          />
         </XStack>
       </YStack>
     </NoticeFrame>
@@ -198,37 +179,18 @@ export function ContactBookPrompt(props: {
         </YStack>
         {props.status === 'undetermined' && (
           <XStack gap="$m" justifyContent="flex-end">
-            <Button.Frame
-              padding="$xl"
-              paddingHorizontal="$2xl"
-              backgroundColor="$systemNoticeBackground"
-              borderColor="$positiveBorder"
-              borderWidth={1.6}
-              pressStyle={{
-                opacity: 0.7,
-                backgroundColor: '$systemNoticeBackground',
-              }}
+            <Button
+              type="notice"
+              fill="outline"
+              label="Not Now"
               onPress={handleDismiss}
-            >
-              <Button.Text color="$systemNoticeText">
-                Not Now
-              </Button.Text>
-            </Button.Frame>
-            <Button.Frame
-              backgroundColor="$systemNoticeText"
-              padding="$xl"
-              paddingHorizontal="$2xl"
-              borderWidth={0}
-              pressStyle={{
-                opacity: 0.8,
-                backgroundColor: '$systemNoticeText',
-              }}
+            />
+            <Button
+              type="notice"
+              fill="solid"
+              label="Continue"
               onPress={handlePrimaryAction}
-            >
-              <Button.Text color="$systemNoticeBackground">
-                Continue
-              </Button.Text>
-            </Button.Frame>
+            />
           </XStack>
         )}
         {props.status === 'denied' && (
@@ -247,37 +209,18 @@ export function JoinRequestNotice(params: {
     <NoticeFrame gap="$2xl">
       <NoticeTitle>Pending Member Requests</NoticeTitle>
       <XStack gap="$m" justifyContent="flex-end">
-        <Button.Frame
-          padding="$l"
-          paddingHorizontal="$2xl"
-          backgroundColor="$systemNoticeBackground"
-          borderColor="$positiveBorder"
-          borderWidth={1.6}
-          pressStyle={{
-            opacity: 0.7,
-            backgroundColor: '$systemNoticeBackground',
-          }}
+        <Button
+          type="notice"
+          fill="outline"
+          label="Dismiss"
           onPress={params.onDismiss}
-        >
-          <Button.Text color="$systemNoticeText">
-            Dismiss
-          </Button.Text>
-        </Button.Frame>
-        <Button.Frame
-          backgroundColor="$systemNoticeText"
-          padding="$l"
-          paddingHorizontal="$2xl"
-          borderWidth={0}
-          pressStyle={{
-            opacity: 0.8,
-            backgroundColor: '$systemNoticeText',
-          }}
+        />
+        <Button
+          type="notice"
+          fill="solid"
+          label="View Requests"
           onPress={params.onViewRequests}
-        >
-          <Button.Text color="$systemNoticeBackground">
-            View Requests
-          </Button.Text>
-        </Button.Frame>
+        />
       </XStack>
     </NoticeFrame>
   );

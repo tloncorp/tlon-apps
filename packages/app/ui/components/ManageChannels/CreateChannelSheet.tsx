@@ -655,15 +655,17 @@ function ConfigInput<
         <Text size="$label/l" color="$tertiaryText" numberOfLines={1} flex={1}>
           {label}
         </Text>
-        <Button.Frame
-          paddingVertical="$xl"
+        <Button
+          fill="outline"
+          type="secondary"
+          size="medium"
           minWidth={140}
           onPress={() => setSheetOpen(true)}
+          label={selectedOptionTitle ?? 'default'}
+          centered
           {...props}
-        >
-          <Text size="$label/xl">{selectedOptionTitle ?? 'default'}</Text>
-        </Button.Frame>
-        <Button.Frame
+        />
+        <IconButton
           onPress={() => setConfigurationOpen(true)}
           disabled={
             parametersSchema == null ||
@@ -672,7 +674,7 @@ function ConfigInput<
           disabledStyle={{ opacity: 0.5 }}
         >
           <Icon type="Settings" />
-        </Button.Frame>
+        </IconButton>
       </XStack>
 
       <SimpleActionSheet

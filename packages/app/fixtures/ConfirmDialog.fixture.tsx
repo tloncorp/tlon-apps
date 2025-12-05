@@ -7,10 +7,11 @@ import { FixtureWrapper } from './FixtureWrapper';
 
 export default function ConfirmDialogFixture() {
   const [open, setOpen] = useState(false);
-  const [destructive] = useSelect<boolean>('Destructive', {
-    defaultValue: false,
-    options: [true, false],
+  const [destructive] = useSelect('Destructive', {
+    defaultValue: 'no',
+    options: ['yes', 'no'],
   });
+  const isDestructive = destructive === 'yes';
 
   return (
     <FixtureWrapper fillWidth safeArea={false}>
@@ -35,9 +36,9 @@ export default function ConfirmDialogFixture() {
           onOpenChange={setOpen}
           title="Confirm Action"
           description="Are you sure you want to proceed with this action? This is a sample confirmation dialog."
-          confirmText={destructive ? 'Delete' : 'Confirm'}
+          confirmText={isDestructive ? 'Delete' : 'Confirm'}
           cancelText="Cancel"
-          destructive={destructive}
+          destructive={isDestructive}
           onConfirm={() => {
             console.log('Confirmed!');
           }}
