@@ -174,10 +174,25 @@ const ButtonFrame = styled(Pressable, {
     },
     intent: (
       val: ButtonIntent,
-      { props }: { props: { fill?: ButtonStyle; disabled?: boolean } }
+      {
+        props,
+      }: {
+        props: {
+          fill?: ButtonStyle;
+          disabled?: boolean;
+          backgroundColor?: unknown;
+          borderColor?: unknown;
+        };
+      }
     ) => {
       const c = resolveColors(val, props.fill ?? 'solid', !!props.disabled);
-      return { backgroundColor: c.background, borderColor: c.border };
+      return {
+        // Only apply variant colors if not explicitly overridden via props
+        ...(props.backgroundColor === undefined && {
+          backgroundColor: c.background,
+        }),
+        ...(props.borderColor === undefined && { borderColor: c.border }),
+      };
     },
     disabled: {
       true: {},
