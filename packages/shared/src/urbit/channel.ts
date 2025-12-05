@@ -1,12 +1,13 @@
-import bigInt, { BigInteger } from 'big-integer';  //REVIEW  non-native!
+import bigInt, { BigInteger } from 'big-integer';
+//REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { parseIdNumber } from '../api/apiUtils';
 import { Stringified } from '../utils';
 import { Block, Image, Inline, isBlock, isImage } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
-import { parseIdNumber } from '../api/apiUtils';
 
 export interface CacheId {
   author: string;
@@ -170,7 +171,7 @@ export interface Memo {
 export type ReplyMap = BTree<BigInteger, Reply>;
 
 export interface Replies {
-  [id: string]: Reply;
+  [id: string]: Reply | PostTombstone;
 }
 
 interface PostActionAdd {
