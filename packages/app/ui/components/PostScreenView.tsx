@@ -279,11 +279,11 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
+    // Always clear attachments when leaving thread to prevent them from
+    // appearing in the main chat input
+    clearAttachments();
     if (isEditingParent) {
       setEditingPost?.(undefined);
-      // Clear attachments when exiting edit mode to prevent them from
-      // appearing in the reply input
-      clearAttachments();
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
