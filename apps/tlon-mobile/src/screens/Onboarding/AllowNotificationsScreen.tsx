@@ -100,9 +100,15 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
               enable notifications.
             </TlonText.Text>
           </YStack>
-          <Button onPress={handleNext} hero shadow>
-            <Button.Text>Next</Button.Text>
-          </Button>
+          <Button
+            onPress={handleNext}
+            size="large"
+            fill="solid"
+            type="primary"
+            shadow
+            centered
+            label="Next"
+          />
         </YStack>
       </ImageBackground>
     </View>

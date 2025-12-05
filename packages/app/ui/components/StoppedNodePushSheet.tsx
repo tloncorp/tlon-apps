@@ -44,19 +44,21 @@ export function StoppedNodePushSheet({
               )}
             </Text>
             <Button
-              hero
+              size="large"
+              fill="solid"
+              type="primary"
+              centered
               onPress={
                 !notifPerms.hasPermission && !notifPerms.canAskPermission
                   ? notifPerms.openSettings
                   : notifPerms.requestPermissions
               }
-            >
-              <Button.Text>
-                {!notifPerms.hasPermission && !notifPerms.canAskPermission
+              label={
+                !notifPerms.hasPermission && !notifPerms.canAskPermission
                   ? `View notification settings`
-                  : `Notify me when it's ready`}
-              </Button.Text>
-            </Button>
+                  : `Notify me when it's ready`
+              }
+            />
             <Text size="$label/s" color="$secondaryText">
               Feel free to close the app while your node is waking up.
             </Text>

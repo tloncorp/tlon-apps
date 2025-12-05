@@ -499,33 +499,33 @@ export function ProfileButton({
   title: string;
   onPress?: () => void;
   hero?: boolean;
-} & ComponentProps<typeof Button>) {
+} & ComponentProps<typeof Button.Frame>) {
   const handlePress = useCallback(() => {
     onPress?.();
     triggerHaptic('baseButtonClick');
   }, [onPress]);
 
+  const color = hero ? '$primaryText' : '$background';
+
   return (
-    <Button
+    <Button.Frame
       flex={1}
-      borderWidth={0}
-      paddingVertical="$xl"
-      paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
-      hero={hero}
+      backgroundColor={color}
+      borderColor={color}
       marginHorizontal="$xs"
       {...props}
     >
-      <Text
-        size="$label/xl"
+      <Button.Text
         color={hero ? '$background' : '$primaryText'}
         textWrap="nowrap"
         wordWrap="unset"
         whiteSpace="nowrap"
+        trimmed={false}
       >
         {title}
-      </Text>
-    </Button>
+      </Button.Text>
+    </Button.Frame>
   );
 }
