@@ -31,7 +31,6 @@ import {
   XStack,
   YStack,
   createActionGroup,
-  notificationOptions,
   pluralize,
   useChatOptions,
   useChatTitle,
@@ -40,6 +39,7 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
+  useNotificationLevelOptions,
   useToast,
 } from '../../ui';
 
@@ -259,28 +259,24 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const handleLeaveGroupWithConfirm = useCallback(async () => {
     const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
-    
+
     if (isWeb) {
       const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
       if (confirmed) {
         await leaveGroup();
       }
     } else {
-      Alert.alert(
-        `Leave ${groupTitle}?`,
-        message,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Leave Group',
-            style: 'destructive',
-            onPress: leaveGroup,
-          },
-        ]
-      );
+      Alert.alert(`Leave ${groupTitle}?`, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Leave Group',
+          style: 'destructive',
+          onPress: leaveGroup,
+        },
+      ]);
     }
   }, [groupTitle, leaveGroup]);
 
@@ -343,6 +339,11 @@ function GroupSettings({ group }: { group: db.Group }) {
     onPressChatVolume,
     onPressRoles,
   } = useChatSettingsNavigation();
+
+  const notificationOptions = useNotificationLevelOptions({
+    includeLoud: true,
+    shortDescriptions: true,
+  });
 
   const handlePressGroupPrivacy = useCallback(() => {
     onPressGroupPrivacy?.(group.id);

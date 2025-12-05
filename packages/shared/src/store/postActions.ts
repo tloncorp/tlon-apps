@@ -632,6 +632,9 @@ export async function deletePost({ post }: { post: db.Post }) {
     logic.getModelAnalytics({ post })
   );
   const existingPost = await db.getPost({ postId: post.id });
+  const existingParent = existingPost?.parentId
+    ? await db.getPost({ postId: existingPost.parentId })
+    : null;
 
   // optimistic update
   deleteFromChannelPosts(post);
@@ -642,7 +645,16 @@ export async function deletePost({ post }: { post: db.Post }) {
   try {
     await db.updatePost({ id: post.id, deleteStatus: 'pending' });
     await sessionActionQueue.add(() =>
-      api.deletePost(post.channelId, post.id, post.authorId)
+      post.parentId
+        ? api.deleteReply({
+            channelId: post.channelId,
+            postId: post.id,
+            authorId: post.authorId,
+            parentId: post.parentId!,
+            parentAuthorId:
+              post.parent?.authorId || existingParent?.authorId || '',
+          })
+        : api.deletePost(post.channelId, post.id, post.authorId)
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {

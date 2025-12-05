@@ -170,7 +170,7 @@ export interface Memo {
 export type ReplyMap = BTree<BigInteger, Reply>;
 
 export interface Replies {
-  [id: string]: Reply;
+  [id: string]: Reply | PostTombstone;
 }
 
 interface PostActionAdd {
