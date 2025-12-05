@@ -5,7 +5,6 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -501,21 +500,26 @@ export function ProfileButton({
   onPress?: () => void;
   hero?: boolean;
   secondary?: boolean;
-} & ComponentProps<typeof Button.Frame>) {
+} & ComponentProps<typeof Pressable>) {
   const handlePress = useCallback(() => {
     onPress?.();
     triggerHaptic('baseButtonClick');
   }, [onPress]);
 
   return (
-    <Button.Frame
+    <Pressable
       flex={1}
-      borderWidth={0}
       paddingVertical="$xl"
       paddingHorizontal="$2xl"
       borderRadius="$2xl"
       onPress={handlePress}
-      backgroundColor={hero ? '$primaryText' : secondary ? '$secondaryBackground' : undefined}
+      backgroundColor={
+        hero
+          ? '$primaryText'
+          : secondary
+            ? '$secondaryBackground'
+            : '$background'
+      }
       marginHorizontal="$xs"
       {...props}
     >
@@ -525,9 +529,10 @@ export function ProfileButton({
         textWrap="nowrap"
         wordWrap="unset"
         whiteSpace="nowrap"
+        trimmed={false}
       >
         {title}
       </Text>
-    </Button.Frame>
+    </Pressable>
   );
 }
