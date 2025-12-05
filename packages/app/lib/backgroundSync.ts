@@ -95,23 +95,12 @@ export async function registerBackgroundSyncTask() {
 
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-      logger.trackEvent(`Running background task`);
+    async ({ error }) => {
+      logger.trackEvent(`Running dummy task`);
       if (error) {
         logger.trackError(`Failed background task`, {
           context: 'called with error',
           errorMessage: error.message,
-        });
-        return BackgroundTask.BackgroundTaskResult.Failed;
-      }
-
-      try {
-        await performSync();
-        return BackgroundTask.BackgroundTaskResult.Success;
-      } catch (err) {
-        logger.trackError('Failed background task', {
-          context: 'catch',
-          errorMessage: err instanceof Error ? err.message : err,
         });
         return BackgroundTask.BackgroundTaskResult.Failed;
       }

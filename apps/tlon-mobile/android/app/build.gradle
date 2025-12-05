@@ -124,8 +124,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
-        versionCode 110
-        versionName "8.0.0-syncenabled"
+        versionCode 111
+        versionName "8.0.0-emptybgtask"
     }
     signingConfigs {
         debug {
