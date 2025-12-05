@@ -194,6 +194,9 @@ const ChatMessage = ({
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
+  const shouldRenderReplySummary =
+    shouldRenderReplies || (!showAuthor && post.isEdited);
+
   return (
     <Pressable
       // avoid setting the top level press handler at all unless we need to
@@ -243,13 +246,6 @@ const ChatMessage = ({
           </View>
         ) : null}
 
-        {!showAuthor && post.isEdited ? (
-          <View position="absolute" right={12} top={8} zIndex={199}>
-            <Text size="$label/s" color="$tertiaryText">
-              Edited
-            </Text>
-          </View>
-        ) : null}
 
         {!showAuthor && deliveryFailed ? (
           <Pressable
@@ -306,14 +302,13 @@ const ChatMessage = ({
           </View>
         )}
 
-        {shouldRenderReplies ? (
+        {shouldRenderReplySummary ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-            {shouldRenderReplies ? (
-              <ChatMessageReplySummary
-                post={post}
-                onPress={handleRepliesPressed}
-              />
-            ) : null}
+            <ChatMessageReplySummary
+              post={post}
+              onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
+              showEditedIndicator={!showAuthor && !!post.isEdited}
+            />
           </XStack>
         ) : null}
         <SendPostRetrySheet
