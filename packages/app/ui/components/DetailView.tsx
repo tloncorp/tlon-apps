@@ -25,6 +25,9 @@ export interface DetailViewProps {
   activeMessage: db.Post | null;
   editorIsFocused: boolean;
   flatListRef?: React.RefObject<FlatList>;
+  scrollerRef?: React.RefObject<{
+    scrollToStart: (opts: { animated?: boolean }) => void;
+  }>;
 }
 
 export const DetailView = ({
@@ -41,6 +44,7 @@ export const DetailView = ({
   activeMessage,
   editorIsFocused,
   flatListRef,
+  scrollerRef,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
@@ -73,6 +77,7 @@ export const DetailView = ({
         flex={1}
       >
         <Scroller
+          ref={scrollerRef}
           inverted
           renderItem={ChatMessage}
           channel={channel}
@@ -110,6 +115,7 @@ export const DetailView = ({
     setActiveMessage,
     setEditingPost,
     channel,
+    scrollerRef,
   ]);
 
   return isChat ? (

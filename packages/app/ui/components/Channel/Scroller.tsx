@@ -170,8 +170,10 @@ const Scroller = forwardRef(
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: { index: number }) =>
+      scrollToIndex: (params: { index: number; animated?: boolean }) =>
         listRef.current?.scrollToIndex(params),
+      scrollToStart: (params: { animated?: boolean }) =>
+        listRef.current?.scrollToStart(params),
     }));
 
     const pressedGoToBottom = () => {
