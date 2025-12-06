@@ -1993,15 +1993,16 @@
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
-        =*  essay  essay.q.diff.delta
-        =?    last-read.remark.club
-            =((get-author-ship:utils author.essay) our.bowl)
+        =*  essay   essay.q.diff.delta
+        =/  author  (get-author-ship:utils author.essay)
+        =?  last-read.remark.club  =(author our.bowl)
           (add now.bowl (div ~s1 100))
-        =.  recency.remark.club  now.bowl
-        =.  cor  (give-unread club/id cu-unread)
-        =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.essay our.bowl ~)
-        =.  cu-core  (cu-activity concern content.essay mention)
+        =?  cu-core  !(~(has in blocked) author)
+          =.  recency.remark.club  now.bowl
+          =.  cor  (give-unread club/id cu-unread)
+          =/  concern  [%post p.diff.delta now.bowl]
+          =/  mention  (was-mentioned:utils content.essay our.bowl ~)
+          (cu-activity concern content.essay mention)
         (cu-give-writs-diff diff.delta)
       ::
           %del
@@ -2050,17 +2051,19 @@
         ::
             %add
           =*  memo  memo.delt
-          =?  last-read.remark.club  =(author.memo our.bowl)
+          =/  author  (get-author-ship:utils author.memo)
+          =?  last-read.remark.club  =(author our.bowl)
             (add now.bowl (div ~s1 100))
-          =?  unread-threads.remark.club  !=(our.bowl author.memo)
-            (~(put in unread-threads.remark.club) p.diff.delta)
-          =.  recency.remark.club  now.bowl
-          =.  cor  (give-unread club/id cu-unread)
-          =*  op  writ.u.entry
-          =/  top-con  [id time]:op
-          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl ~)
-          =.  cu-core  (cu-activity concern content.memo mention)
+          =?  cu-core  !(~(has in blocked) author)
+            =?  unread-threads.remark.club  !=(our.bowl author)
+              (~(put in unread-threads.remark.club) p.diff.delta)
+            =.  recency.remark.club  now.bowl
+            =.  cor  (give-unread club/id cu-unread)
+            =*  op  writ.u.entry
+            =/  top-con  [id time]:op
+            =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
+            =/  mention  (was-mentioned:utils content.memo our.bowl ~)
+            (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
