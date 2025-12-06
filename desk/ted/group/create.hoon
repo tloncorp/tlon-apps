@@ -1,7 +1,7 @@
 ::  create and preset a group
 ::
 ::  run via web with
-::  https://ship/spider/groups/group-create-thread/group-create/group-ui-1
+::  https://ship/spider/groups/group-create-thread/group-create/group-ui
 ::
 /-  spider
 /-  g=groups, gv=groups-ver, gt=groups-thread, c=channels, meta
