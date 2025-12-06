@@ -582,6 +582,7 @@
         [%channel =nest =a-channel]
         [%section =section-id =a-section]
         [%flag-content =nest =plan src=ship]
+        [%delete ~]
     ==
   ::  $a-invite: invite a ship
   +$  a-invite

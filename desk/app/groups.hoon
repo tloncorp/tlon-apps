@@ -1328,6 +1328,7 @@
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
             ?|  ?=([%command %leave ~] rest.pole)
+                ?=([%comand %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
             ==
