@@ -9,6 +9,60 @@
 ::
 ::  versions
 ::
+++  v10
+  =,  v9
+  |%
+  ::  $group-ui: modified
+  ::
+  ::  .conn field added
+  ::
+  +$  group-ui
+    $:  =group
+        init=?
+        =conn
+        member-count=@ud
+    ==
+  ::  $conn-ok: subscription status
+  +$  conn-ok     ?(%watch %done %stop)
+  ::  $conn-error: failed subscription status
+  +$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+  ::  $conn: subscription status
+  +$  conn  (each conn-ok conn-error)
+  ::  $net: modified
+  ::
+  ::  %sub: added .conn field
+  ::
+  +$  net
+    $~  [%pub ~]
+    $%  [%pub =log]
+        [%sub =time init=_| =conn]
+    ==
+  ::  $groups-ui: depends on $group-ui
+  +$  groups-ui
+    (map flag group-ui)
+  ::  $net-groups: depends on $net
+  +$  net-groups
+    (map flag [net group])
+  ::  $r-groups: depends on $r-group
+  +$  r-groups  [=flag =r-group]
+  ::  $r-group: modified
+  ::
+  ::  %connection variant added
+  ::
+  +$  r-group
+    $%  [%create =group]
+        [%meta meta=data:meta]
+        [%entry =r-entry]
+        [%seat ships=(set ship) =r-seat]
+        [%role roles=(set role-id) =r-role]
+        [%channel =nest =r-channel]
+        [%section =section-id =r-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%delete ~]
+        [%connection =conn]
+    ==
+  --
 ++  v9
   =,  v8
   |%

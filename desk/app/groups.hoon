@@ -183,8 +183,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %9
-        groups=net-groups:v9:gv
+    $:  %10
+        groups=net-groups:v10:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
         =^subs:s
@@ -378,7 +378,7 @@
           [%group flag [%delete ~]]
         $(+< group-command+!>(c-groups))
       ?:  ?=(%secret -.diff)
-        =/  =group:v9:gv  +:(~(got by groups) flag)
+        =/  =group:v10:gv  +:(~(got by groups) flag)
         ?:  p.diff
           ::  enable group secrecy
           ::
@@ -703,7 +703,8 @@
       (~(unsubscribe s [subs bowl]) /contact dock)
     (emil:cor caz)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
+  ?>  ?=(%10 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
@@ -756,7 +757,8 @@
   cor
   ::
   +$  any-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -860,8 +862,15 @@
         =^subs:s
         =pimp:imp
     ==
-  ::
-  +$  state-9  current-state
+  +$  state-9
+    $:  %9
+        groups=net-groups:v9:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =^subs:s
+        =pimp:imp
+    ==
+  +$  state-10  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -990,6 +999,11 @@
       -  %9
       groups  (~(run by groups.state-8) v9:net-group:v7:gc)
     ==
+  ::
+  ++  state-9-to-10
+    |=  =state-9
+    ^-  state-10
+    *state-10
   --
 ::
 ++  inflate-io
@@ -1037,7 +1051,9 @@
     ?>  =(our.bowl ship)
     =/  se-core  (se-abed:se-core [our.bowl name.pole])
     ?:  (se-is-banned:se-core src.bowl)
-      ~|(%se-is-banned !!)
+      =.  cor
+        (emit %give %fact ~ group-error+!>(|+%not-found))
+      (emit %give %kick ~ ~)
     se-abet:(se-watch:se-core rest.pole)
   ::
     [%server %groups %index ~]  server-watch-index
@@ -1122,11 +1138,11 @@
       [%x %init %v1 ~]
     =/  groups-light-ui-2
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v9:gc status net light-group)
+      (group-ui:v2:group:v10:gc status net light-group)
     ::  we filter out foreigns which are %done,
     ::  since completed gangs are removed after
     ::  the group join in old groups.
@@ -1148,9 +1164,9 @@
       [%x %v2 %init ~]
     =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
-      =+  (group-ui:v7:group:v9:gc net light-group)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:v7:group:v10:gc net light-group)
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
@@ -1159,46 +1175,58 @@
       [%x %v3 %init ~]
     =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
-      =+  (group-ui:group:v9:gc net light-group)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:v9:group:v10:gc net light-group)
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
     ``noun+!>([groups-light-ui-9 `foreigns:v8:gv`foreigns])
   ::
+      [%x %v4 %init ~]
+    =/  groups-light-ui-10=(map flag:v10:gv group-ui:v10:gv)
+      %-  ~(urn by groups)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:group:v10:gc net light-group)
+      ::  restore member count after dropping seats
+      ::
+      -(member-count ~(wyt by seats.group))
+    ``noun+!>([groups-light-ui-10 `foreigns:v8:gv`foreigns])
+  ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
-    =/  groups-9=groups:v9:gv  (~(run by groups) tail)
+    =/  groups-10=groups:v10:gv  (~(run by groups) tail)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+!>((~(run by groups-10) v2:group:v10:gc))
+        %v1  ``groups-1+!>((~(run by groups-10) v5:group:v10:gc))
+        %v2  ``groups-2+!>(groups-10)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
-    =/  groups-9=groups:v9:gv
+    =/  groups-10=groups:v10:gv
       %-  ~(run by groups)
-      |=  [=net:v9:gv =group:v9:gv]
-      (drop-seats:group:v9:gc group our.bowl)
+      |=  [=net:v10:gv =group:v10:gv]
+      (drop-seats:group:v10:gc group our.bowl)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+!>((~(run by groups-10) v2:group:v10:gc))
+        %v1  ``groups-1+!>((~(run by groups-10) v5:group:v10:gc))
+        %v2  ``groups-2+!>(groups-10)
     ==
   ::
-      [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
-    =/  net-groups-9=net-groups:v9:gv  groups
+      [%x ver=?(%v0 %v1 %v2 %v3) %ui %groups ~]
+    =/  net-groups-10=net-groups:v10:gv  groups
     ?-    ver.pole
         %v0
       =-  ``groups-ui+!>(-)
-      %-  ~(urn by net-groups-9)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
+      %-  ~(urn by net-groups-10)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v9:gc status net group)
+      (group-ui:v2:group:v10:gc status net group)
     ::
-      %v1  ``groups-ui-1+!>((~(run by net-groups-9) group-ui:v5:group:v9:gc))
-      %v2  ``groups-ui-2+!>((~(run by net-groups-9) group-ui:group:v9:gc))
+      %v1  ``groups-ui-1+!>((~(run by net-groups-10) group-ui:v5:group:v10:gc))
+      %v2  ``groups-ui-2+!>((~(run by net-groups-10) group-ui:v9:group:v10:gc))
+      %v3  ``groups-ui-3+!>(net-groups-10)
     ==
   ::
     ::  deprecated
@@ -1210,13 +1238,13 @@
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-1
-    !>((~(run by (changes since)) group-ui:v5:group:v9:gc))
+    !>((~(run by (changes since)) group-ui:v5:group:v10:gc))
   ::
       [%x %v2 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-2
-    !>((~(run by (changes since)) group-ui:group:v9:gc))
+    !>((~(run by (changes since)) group-ui:v9:group:v10:gc))
   ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1227,16 +1255,16 @@
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
         %v0
-      ``group+!>((v2:group:v9:gc +.u.net-group))
+      ``group+!>((v2:group:v10:gc +.u.net-group))
     ::
         %v1
-      ``group-1+!>((v5:group:v9:gc +.u.net-group))
+      ``group-1+!>((v5:group:v10:gc +.u.net-group))
     ::
         %v2
-      ``group-2+!>(`group:v9:gv`+.u.net-group)
+      ``group-2+!>((v9:group:v10:gc +.u.net-group))
     ==
   ::
-      [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
+      [%x ver=?(%v0 %v1 %v2 %v3) %ui %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     =+  net-group=(~(get by groups) flag)
@@ -1250,13 +1278,16 @@
         %v0
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      ``group-ui+!>((group-ui:v2:group:v9:gc status u.net-group))
+      ``group-ui+!>((group-ui:v2:group:v10:gc status u.net-group))
     ::
         %v1
-      ``group-ui-1+!>((group-ui:v5:group:v9:gc u.net-group))
+      ``group-ui-1+!>((group-ui:v5:group:v10:gc u.net-group))
     ::
         %v2
-      ``group-ui-2+!>((group-ui:group:v9:gc u.net-group))
+      ``group-ui-2+!>((group-ui:v9:group:v10:gc u.net-group))
+    ::
+        %v3
+      ``group-ui-3+!>((group-ui:group:v10:gc u.net-group))
     ==
   ::
       ::  deprecated
@@ -1284,11 +1315,11 @@
   ==
   ++  changes
     |=  since=time
-    ^-  (map flag:v9:gv [net:v9:gv group:v9:gv])
-    %-  ~(gas by *(map flag:v9:gv [net:v9:gv group:v9:gv]))
+    ^-  (map flag:v10:gv [net:v10:gv group:v10:gv])
+    %-  ~(gas by *(map flag:v10:gv [net:v10:gv group:v10:gv]))
     %+  murn  ~(tap in groups)
     |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:v9:gv [net:v9:gv group:v9:gv]])
+    ^-  (unit [flag:v10:gv [net:v10:gv group:v10:gv]])
     =/  fresh=?
       %+  lth  since
       ?-  -.net
@@ -1298,7 +1329,7 @@
     ?.  fresh  ~
     %-  some
     :-  flag
-    [net (drop-seats:group:v9:gc group our.bowl)]
+    [net (drop-seats:group:v10:gc group our.bowl)]
   --
 ::
 ++  agent
@@ -2881,7 +2912,10 @@
       =/  ship   (slav %p i.t.path)
       =/  time   (slav %da i.t.t.path)
       ?>  =(ship src.bowl)
-      ?>  (se-is-member src.bowl)
+      ?.  (se-is-member src.bowl)
+        =.  se-core
+          (emit %give %fact ~ group-error+!>(|+%not-authorized))
+        (emit %give %kick ~ ~)
       (se-watch-updates ship time)
     ::
       ::  fetch group preview
@@ -3241,8 +3275,13 @@
     |=  delay=?
     ^+  go-core
     =*  log  ~(. l `'group-join')
-    ?:  go-has-sub  go-core
+    ?:  go-has-sub
+      ?:  ?=(%sub -.net)
+        (go-u-conn &+%done)
+      go-core
     =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
+    =.  go-core
+      (go-u-conn &+%watch)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -3286,7 +3325,7 @@
     ::  since we are trying to re-establish group state from scratch,
     ::  consider it uninitialized.
     ::
-    =.  net  [%sub *@da |]
+    =.  net  [%sub *@da | &+%watch]
     (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
@@ -3607,7 +3646,16 @@
     |=  =sign:agent:gall
     ^+  go-core
     ?+   -.sign  ~|(go-take-update-bad+-.sign !!)
-      %kick  (go-safe-sub &)
+        %kick
+      ?.  ?=(%sub -.net)
+        (go-safe-sub &)
+      ::  nb: only attempt to resubscribe if the connection is active.
+      ::  othewise this would trigger when the group host sends an error
+      ::  fact that is followed by a kick closing the subscription.
+      ::
+      ?:  &(?=(%& -.conn.net) ?=(?(%watch %done) p.conn.net))
+        (go-safe-sub &)
+      go-core
     ::
         %watch-ack
       =*  log  ~(. l `'group-join')
@@ -3621,7 +3669,9 @@
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         ?.  &(?=(%sub -.net) init.net)
           (go-leave &)
-        go-core
+        (go-u-conn |+%fail)
+      ?:  ?=(%sub -.net)
+        (go-u-conn &+%done)
       go-core
     ::
         %fact
@@ -3629,6 +3679,7 @@
       ?+  p.cage  ~|(go-take-update-bad-fact+p.cage !!)
         %group-log     (go-apply-log !<(log:g q.cage))
         %group-update  (go-u-group !<(update:g q.cage))
+        %group-error   (go-u-error !<(conn-error:g q.cage))
       ==
     ==
   ::  +go-apply-log: apply group log
@@ -3642,7 +3693,7 @@
       |=  [=update:g =_go-core]
       (go-u-group:go-core update)
     =?  net  ?=(%sub -.net)
-      [%sub time.net &]
+      [%sub time.net & &+%done]
     =?  go-core  !was-init
       ::  initialize active-channels on group init
       ::
@@ -3682,7 +3733,7 @@
       (go-restart-updates `'update out of order')
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
-      [%sub time.update init.net]
+      net(time time.update)
     =*  u-group  u-group.update
     ?-  -.u-group
       %create         (go-u-create group.u-group)
@@ -3694,8 +3745,15 @@
       %section        (go-u-section [section-id u-section]:u-group)
       %section-order  (go-u-section-order order.u-group)
       %flag-content   (go-u-flag-content [nest plan src]:u-group)
-      %delete         (go-leave |)
+      %delete         (go-u-conn |+%not-found)
     ==
+  ::  +go-u-error: receive group connection error
+  ::
+  ++  go-u-error
+    |=  err=conn-error:g
+    ^+  go-core
+    ?>  ?=(%sub -.net)
+    (go-u-conn |+err)
   ::  +go-u-create: apply initial update
   ::
   ++  go-u-create
@@ -3914,12 +3972,13 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
-      ::  leave the group if our seat has been deleted, but
+      ::  mark the group as with no access if our seat has been deleted, but
       ::  only if the group has been already initialized.
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
-      =?  go-core  &(leave go-is-init)  (go-leave |)
+      ?:  &(leave go-is-init)
+        (go-u-conn |+%not-authorized)
       go-core
     ::
         %add-roles
@@ -4343,6 +4402,14 @@
             flag
         ==
     go-core
+  ::  +go-u-conn: update connection status
+  ::
+  ++  go-u-conn
+    |=  =conn:g
+    ^+  go-core
+    =.  go-core  (go-response %connection conn)
+    ?:  ?=(%& -.conn)  go-core
+    (emit [%pass go-sub-wire %agent [p.flag server] %leave ~])
   ::  +go-response: send response to our subscribers
   ::
   ++  go-response
@@ -4354,13 +4421,13 @@
     ?.  go-is-init  go-core
     ::  v1 response
     ::
-    =/  r-groups-9=r-groups:v9:gv  [flag r-group]
+    =/  r-groups-10=r-groups:v10:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
-    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
+    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-10))
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
-      (diff:v2:r-group:v9:gc r-group [seats admissions]:group)
+      (diff:v2:r-group:v10:gc r-group [seats admissions]:group)
     =.  cor
       %+  roll  diffs-2
       |=  [=diff:v2:gv =_cor]
@@ -4793,7 +4860,7 @@
         =.  cor
           go-abet:(go-safe-sub:(go-abed:go-core flag) |)
         fi-core
-      =/  =net:g  [%sub *@da |]
+      =/  =net:g  [%sub *@da | &+%watch]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
       ?<  (~(has by groups) flag)

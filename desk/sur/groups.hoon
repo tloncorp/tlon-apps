@@ -218,14 +218,21 @@
 +$  group-ui
   $:  =group
       init=?
+      =conn
       member-count=@ud
   ==
+::  $conn-ok: positive subscription status
++$  conn-ok     ?(%watch %done %stop)
+::  $conn-error: failed subscription status
++$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+::  $conn: subscription status
++$  conn  (each conn-ok conn-error)
 ::  $net: an indicator of whether we are a host or a subscriber
 ::
 +$  net
   $~  [%pub ~]
   $%  [%pub =log]
-      [%sub =time init=_|]
+      [%sub =time init=_| =conn]
   ==
 ::
 +$  groups-ui
@@ -564,6 +571,7 @@
       [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
       [%delete ~]
+      [%connection =conn]
   ==
 +$  r-entry
   $%  [%privacy =privacy]
