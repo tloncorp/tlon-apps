@@ -82,7 +82,7 @@ const useSplashHider = () => {
   return splashHidden;
 };
 
-registerBackgroundSyncTask();
+
 
 // Android notification tap handler passes initial params here
 const App = () => {
@@ -117,6 +117,10 @@ const App = () => {
     return () => {
       unsubscribeFromNetInfo();
     };
+  }, []);
+
+  useEffect(() => {
+    registerBackgroundSyncTask();
   }, []);
 
   const showAuthenticatedApp = useMemo(() => {

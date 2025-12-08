@@ -69,6 +69,31 @@ async function performSync() {
 
 const TASK_ID = 'tlon:backgroundSync:v2';
 
+TaskManager.defineTask<Record<string, unknown>>(
+  TASK_ID,
+  async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+    logger.trackEvent(`Running background task`);
+    if (error) {
+      logger.trackError(`Failed background task`, {
+        context: 'called with error',
+        errorMessage: error.message,
+      });
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
+
+    try {
+      await performSync();
+      return BackgroundTask.BackgroundTaskResult.Success;
+    } catch (err) {
+      logger.trackError('Failed background task', {
+        context: 'catch',
+        errorMessage: err instanceof Error ? err.message : err,
+      });
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
+  }
+);
+
 export async function removeLegacyTasks() {
   try {
     const registered = await TaskManager.getRegisteredTasksAsync();
@@ -92,31 +117,6 @@ export async function removeLegacyTasks() {
 
 export async function registerBackgroundSyncTask() {
   await removeLegacyTasks();
-
-  TaskManager.defineTask<Record<string, unknown>>(
-    TASK_ID,
-    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-      logger.trackEvent(`Running background task`);
-      if (error) {
-        logger.trackError(`Failed background task`, {
-          context: 'called with error',
-          errorMessage: error.message,
-        });
-        return BackgroundTask.BackgroundTaskResult.Failed;
-      }
-
-      try {
-        await performSync();
-        return BackgroundTask.BackgroundTaskResult.Success;
-      } catch (err) {
-        logger.trackError('Failed background task', {
-          context: 'catch',
-          errorMessage: err instanceof Error ? err.message : err,
-        });
-        return BackgroundTask.BackgroundTaskResult.Failed;
-      }
-    }
-  );
 
   (async () => {
     try {
