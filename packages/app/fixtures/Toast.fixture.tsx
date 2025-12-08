@@ -7,20 +7,21 @@ function ToastFixture() {
 
   return (
     <View flex={1} alignItems="center" justifyContent="center" gap="$l">
-      <Button onPress={() => showToast({ message: 'Info Toast' })}>
-        <Button.Text>Show toast</Button.Text>
-      </Button>
+      <Button fill="outline" type="primary" onPress={() => showToast({ message: 'Info Toast' })} label="Show toast" />
       <Button
+        fill="outline"
+        type="primary"
         onPress={() =>
           showToast({
             message:
               'This toast has a lot of content it really just keeps going on and on',
           })
         }
-      >
-        <Button.Text>Show long toast</Button.Text>
-      </Button>
+        label="Show long toast"
+      />
       <Button
+        fill="outline"
+        type="primary"
         onPress={() => {
           showToast({ message: 'First Toast', duration: 1500 });
           showToast({
@@ -32,9 +33,8 @@ function ToastFixture() {
             duration: 1500,
           });
         }}
-      >
-        <Button.Text>Enqueue 3 Toasts</Button.Text>
-      </Button>
+        label="Enqueue 3 Toasts"
+      />
     </View>
   );
 }

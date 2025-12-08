@@ -189,35 +189,32 @@ const InnerButton = ({
   onPress: onPress,
   ...props
 }: { label: string; onPress?: () => void } & ComponentProps<typeof View>) => {
+  const fieldContext = useContext(FieldContext);
+  const accentBackgrounds: Record<string, string> = {
+    negative: '$negativeBackground',
+    positive: '$positiveBackground',
+  };
+  const backgroundColor =
+    accentBackgrounds[fieldContext.accent ?? ''] ?? '$secondaryBackground';
+
   return (
     <View padding="$l" flexShrink={0} paddingRight={0} {...props}>
-      <TextInputButton onPress={onPress}>
-        <TextInputButtonText>{buttonText}</TextInputButtonText>
-      </TextInputButton>
+      <Pressable
+        onPress={onPress}
+        height="$3xl"
+        paddingHorizontal="$l"
+        borderRadius="$m"
+        backgroundColor={backgroundColor}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Text size="$label/m" color="$secondaryText">
+          {buttonText}
+        </Text>
+      </Pressable>
     </View>
   );
 };
-
-const TextInputButton = styled(Button, {
-  context: FieldContext,
-  backgroundColor: '$secondaryBackground',
-  borderRadius: '$m',
-  height: '$3xl',
-  paddingHorizontal: '$l',
-  variants: {
-    accent: {
-      negative: {
-        backgroundColor: '$negativeBackground',
-        borderColor: '$negativeBorder',
-      },
-      positive: {
-        backgroundColor: '$positiveBackground',
-        color: '$positiveActionText',
-      },
-    },
-    backgroundType: getBackgroundTypeVariantStyle,
-  } as const,
-});
 
 export const ImageInput = XStack.styleable<{
   buttonLabel?: string;
@@ -420,7 +417,7 @@ export const ToggleGroupInput = ({
       : ['$secondaryBackground', '$background'];
 
   return (
-    <InputFrame>
+    <InputFrame paddingHorizontal={0}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -430,9 +427,12 @@ export const ToggleGroupInput = ({
       >
         <XStack minWidth="100%">
           {options.map((tab, index) => (
-            <Button
+            <Button.Frame
               flex={1}
               minWidth={75}
+              intent="secondary"
+              size="medium"
+              fill="outline"
               key={tab.value}
               onPress={() => onChange(tab.value)}
               padding="$xl"
@@ -444,21 +444,17 @@ export const ToggleGroupInput = ({
               }
             >
               {typeof tab.label === 'string' ? (
-                <Button.Text size="$l">{tab.label}</Button.Text>
+                <Button.Text textAlign="center">{tab.label}</Button.Text>
               ) : (
                 tab.label
               )}
-            </Button>
+            </Button.Frame>
           ))}
         </XStack>
       </ScrollView>
     </InputFrame>
   );
 };
-
-const TextInputButtonText = styled(Text, {
-  size: '$label/m',
-});
 
 export const TextInput = withStaticProperties(TextInputComponent, {
   InnerButton,

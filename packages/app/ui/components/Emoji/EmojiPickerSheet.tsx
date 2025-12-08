@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import {
-  Button,
+  Pressable,
   SizableEmoji,
   getNativeEmoji,
   searchEmojis,
@@ -23,16 +23,15 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
   onSelect: (shortCode: string) => void;
 }) {
   return (
-    <Button
-      borderWidth={0}
-      paddingHorizontal={0}
+    <Pressable
+      paddingVertical={'$m'}
       flex={1 / 6}
       onPress={() => onSelect(item)}
       justifyContent="center"
       alignItems="center"
     >
       <SizableEmoji emojiInput={item} fontSize={EMOJI_SIZE} />
-    </Button>
+    </Pressable>
   );
 });
 

@@ -519,7 +519,7 @@ export function BigInput({
             </View>
           )}
           {isWindowNarrow && (
-            <Button
+            <Button.Frame
               position="absolute"
               bottom={insets.bottom + 16}
               right={16}
@@ -536,7 +536,7 @@ export function BigInput({
               ) : (
                 <Icon type="Italic" size="$l" color="$primaryText" />
               )}
-            </Button>
+            </Button.Frame>
           )}
         </>
       )}
