@@ -53,6 +53,11 @@ jobs:
       VITE_INVITE_SERVICE_ENDPOINT: ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
       VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      CI: true
   glob:
     runs-on: ubuntu-latest
     name: "Make a glob"

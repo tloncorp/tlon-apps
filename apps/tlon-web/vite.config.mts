@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -137,6 +138,16 @@ export default ({ mode }: { mode: string }) => {
           plugins: [reactNativeWeb()],
         },
       }),
+      // Sentry source map upload - only enabled in CI
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        disable: !process.env.CI,
+        sourcemaps: {
+          filesToDeleteAfterUpload: ['**/*.map'],
+        },
+      }),
     ];
   };
 
@@ -218,7 +229,7 @@ export default ({ mode }: { mode: string }) => {
     build:
       mode !== 'profile'
         ? {
-            sourcemap: false,
+            sourcemap: 'hidden', // Generates sourcemaps for Sentry but doesn't reference them in bundle
             rollupOptions,
             target: 'esnext',
           }
