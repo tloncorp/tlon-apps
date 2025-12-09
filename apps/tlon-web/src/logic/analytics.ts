@@ -28,11 +28,11 @@ const compositeLogger = {
 
     // Only send errors to Sentry (not general analytics events)
     // Until logging is refactored to consistently use 'app_error',
-    // we also pass along any event with "Error" in the name
+    // we also pass along any event with "error" in the name (case-insensitive)
     if (
       event === 'app_error' ||
       event === 'Debug Logs' ||
-      event.includes('Error')
+      /error/i.test(event)
     ) {
       sentryLogger.capture(event, data);
     }

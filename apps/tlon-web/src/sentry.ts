@@ -41,6 +41,9 @@ export function createSentryErrorLogger() {
     capture: (event: string, data: Record<string, unknown>) => {
       const { breadcrumbs, errorStack, errorMessage, ...extraData } = data;
 
+      // Convert breadcrumb strings to Sentry breadcrumb format.
+      // Timestamps are synthetic (derived from current time minus index) to preserve
+      // ordering in Sentry UI. Actual timestamps aren't stored in the debug store.
       const breadcrumbContext = breadcrumbs
         ? {
             breadcrumbs: {
