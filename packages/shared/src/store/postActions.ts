@@ -923,90 +923,178 @@ export async function summarizeMessages({
   limit?: number;
   maxChars?: number;
 }): Promise<void> {
-  let combinedText: string;
-  let summaryPrefix: string;
+  logger.crumb('summarizeMessages starting', {
+    postId,
+    channelId,
+    startTime,
+    limit,
+    maxChars,
+  });
 
-  // Reduce character limit for channel summaries to avoid overwhelming model
-  const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
+  try {
+    let combinedText: string;
+    let summaryPrefix: string;
 
-  // Thread summarization
-  if (postId) {
-    const post = await db.getPost({ postId });
-    if (!post || !post.textContent) {
-      throw new Error('Post not found or has no text content');
-    }
+    // Reduce character limit for channel summaries to avoid overwhelming model
+    const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
 
-    const hasReplies = post.replyCount && post.replyCount > 0;
-    if (!hasReplies) {
-      combinedText = post.textContent;
-    } else {
-      try {
-        const replies = await db.getThreadPosts({ parentId: post.id });
-        const allMessages = [
-          `${post.authorId}: ${post.textContent}`,
-          ...replies
-            .filter((reply) => reply.textContent)
-            .map((reply) => `${reply.authorId}: ${reply.textContent}`),
-        ];
-        combinedText = allMessages.join('\n\n');
-      } catch (error) {
-        logger.trackError('Error fetching thread for summarization', error);
-        combinedText = post.textContent;
+    // Thread summarization
+    if (postId) {
+      logger.crumb('thread summarization mode', { postId });
+      const post = await db.getPost({ postId });
+      if (!post || !post.textContent) {
+        const error = new Error('Post not found or has no text content');
+        logger.trackError('summarizeMessages: post fetch failed', {
+          postId,
+          postFound: !!post,
+          hasTextContent: post?.textContent ? 'yes' : 'no',
+        });
+        throw error;
       }
-    }
-    summaryPrefix = 'AI Summary:';
-  }
-  // Channel time range summarization
-  else if (channelId && startTime !== undefined) {
-    const posts = await db.getChannelPostsByTimeRange({
-      channelId,
-      startTime,
-      limit,
-    });
 
-    if (posts.length === 0) {
-      throw new Error('No messages found in time range');
+      const hasReplies = post.replyCount && post.replyCount > 0;
+      if (!hasReplies) {
+        combinedText = post.textContent;
+        logger.crumb('single post, no replies', {
+          textLength: combinedText.length,
+        });
+      } else {
+        try {
+          const replies = await db.getThreadPosts({ parentId: post.id });
+          logger.crumb('fetched thread replies', { count: replies.length });
+          const allMessages = [
+            `${post.authorId}: ${post.textContent}`,
+            ...replies
+              .filter((reply) => reply.textContent)
+              .map((reply) => `${reply.authorId}: ${reply.textContent}`),
+          ];
+          combinedText = allMessages.join('\n\n');
+          logger.crumb('combined thread messages', {
+            totalMessages: allMessages.length,
+            textLength: combinedText.length,
+          });
+        } catch (error) {
+          logger.trackError('Error fetching thread for summarization', error);
+          combinedText = post.textContent;
+        }
+      }
+      summaryPrefix = 'AI Summary:';
     }
-
-    const allMessages = posts
-      .filter((post: db.Post) => post.textContent)
-      .map((post: db.Post) => {
-        return `${post.authorId}: ${post.textContent}`;
+    // Channel time range summarization
+    else if (channelId && startTime !== undefined) {
+      logger.crumb('channel time range summarization mode', {
+        channelId,
+        startTime,
+        limit,
+      });
+      const posts = await db.getChannelPostsByTimeRange({
+        channelId,
+        startTime,
+        limit,
       });
 
-    combinedText = allMessages.join('\n\n');
-    summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
+      logger.crumb('fetched channel posts', { count: posts.length });
 
-    logger.crumb('Sending to AI for summarization', {
-      chars: combinedText.length,
+      if (posts.length === 0) {
+        const error = new Error('No messages found in time range');
+        logger.trackError('summarizeMessages: no posts in time range', {
+          channelId,
+          startTime,
+          limit,
+        });
+        throw error;
+      }
+
+      const allMessages = posts
+        .filter((post: db.Post) => post.textContent)
+        .map((post: db.Post) => {
+          return `${post.authorId}: ${post.textContent}`;
+        });
+
+      combinedText = allMessages.join('\n\n');
+      summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
+
+      logger.crumb('combined channel messages', {
+        totalMessages: allMessages.length,
+        textLength: combinedText.length,
+      });
+    } else {
+      const error = new Error(
+        'Must provide either postId or (channelId + startTime)'
+      );
+      logger.trackError('summarizeMessages: invalid parameters', {
+        hasPostId: !!postId,
+        hasChannelId: !!channelId,
+        hasStartTime: startTime !== undefined,
+      });
+      throw error;
+    }
+
+    // Apply character limit
+    const originalLength = combinedText.length;
+    if (combinedText.length > effectiveMaxChars) {
+      combinedText =
+        combinedText.substring(0, effectiveMaxChars) +
+        '\n\n[... conversation truncated ...]';
+      logger.crumb('text truncated', {
+        originalLength,
+        truncatedLength: combinedText.length,
+        effectiveMaxChars,
+      });
+    }
+
+    // Call AI API
+    logger.crumb('calling AI API for summarization', {
+      textLength: combinedText.length,
     });
-  } else {
-    throw new Error('Must provide either postId or (channelId + startTime)');
+    const response = await api.summarizeMessage({ messageText: combinedText });
+
+    logger.crumb('AI API response received', {
+      hasError: !!response.error,
+      hasSummary: !!response.summary,
+      summaryLength: response.summary?.length,
+    });
+
+    if (response.error || !response.summary) {
+      const errorMessage = response.error || 'No summary returned';
+      logger.trackError('summarizeMessages: AI API returned error', {
+        error: errorMessage,
+        responseError: response.error,
+        hasSummary: !!response.summary,
+      });
+      throw new Error(errorMessage);
+    }
+
+    // Send DM to self
+    logger.crumb('sending summary DM', {
+      summaryLength: response.summary.length,
+      currentUserId,
+    });
+    await api.sendPost({
+      channelId: currentUserId,
+      authorId: currentUserId,
+      sentAt: Date.now(),
+      content: [
+        {
+          inline: [`${summaryPrefix}\n\n${response.summary}`],
+        },
+      ],
+    });
+
+    logger.crumb('summarizeMessages completed successfully');
+  } catch (error) {
+    logger.trackError('summarizeMessages failed', {
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error?.constructor?.name,
+      errorStack: error instanceof Error ? error.stack : undefined,
+      postId,
+      channelId,
+      startTime,
+    });
+    logger.error('summarizeMessages error', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
-
-  // Apply character limit
-  if (combinedText.length > effectiveMaxChars) {
-    combinedText =
-      combinedText.substring(0, effectiveMaxChars) +
-      '\n\n[... conversation truncated ...]';
-  }
-
-  // Call AI API
-  const response = await api.summarizeMessage({ messageText: combinedText });
-
-  if (response.error || !response.summary) {
-    throw new Error(response.error || 'No summary returned');
-  }
-
-  // Send DM to self
-  await api.sendPost({
-    channelId: currentUserId,
-    authorId: currentUserId,
-    sentAt: Date.now(),
-    content: [
-      {
-        inline: [`${summaryPrefix}\n\n${response.summary}`],
-      },
-    ],
-  });
 }
