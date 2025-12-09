@@ -96,18 +96,6 @@ const capture = (event: string, properties?: { [key: string]: any }) => {
 export const trackOnboardingAction = (properties: OnboardingProperties) =>
   capture('Onboarding Action', properties);
 
-export const trackError = (
-  {
-    message,
-    properties,
-  }: {
-    message: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    properties?: { [key: string]: any };
-  },
-  event = 'app_error'
-) => capture(event, { message, properties });
-
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);
   if (!posthog) {

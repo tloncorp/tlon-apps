@@ -87,7 +87,7 @@ export function ChannelFromTemplateView({
         // navigate to channel
         navigateToChannel(newChannel);
       } catch (e) {
-        logger.trackError('Failed to setup channel template', { stack: e });
+        logger.trackError('Failed to setup channel template', e);
         deleteChannel({
           channelId: newChannel.id,
           groupId: newChannel.groupId ?? '',

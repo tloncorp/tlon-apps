@@ -43,11 +43,10 @@ export async function updateCalmSetting(
     });
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorCalmSettingsUpdate, {
+      error,
       calmKey,
       value,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: error.message,
-      errorStack: error.stack,
     });
     // rollback optimistic update
     await db.insertSettings({ [calmKey]: oldValue });
@@ -135,10 +134,9 @@ export async function updateTheme(theme: AppTheme) {
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, { theme });
   } catch (error) {
     logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
+      error,
       theme,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: error.message,
-      errorStack: error.stack,
     });
     await db.insertSettings({ theme: oldTheme });
     throw new Error('Failed to update theme setting');
@@ -155,10 +153,9 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
     await api.setSetting('disableTlonInfraEnhancement', disabled);
   } catch (e) {
     logger.trackError('Error updating disable tlon infra setting', {
+      error: e,
       disabled,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
   }
@@ -174,10 +171,9 @@ export async function updateEnableTelemetry(value: boolean) {
     await api.setSetting('enableTelemetry', value);
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
+      error: e,
       value,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     await db.insertSettings({ enableTelemetry: oldValue });
   }
@@ -198,10 +194,7 @@ export async function updatePendingMemberDismissal(
     const settingsKey = api.getPendingMemberDismissalKey(dismissal.groupId);
     await api.setSetting(settingsKey, dismissal.dismissedAt);
   } catch (e) {
-    logger.trackError('failed to set pending member dismissal', {
-      errorMessage: e.toString(),
-      errorStack: e.stack,
-    });
+    logger.trackError('failed to set pending member dismissal', e);
 
     // rollback optimistic update
     if (existing) {
