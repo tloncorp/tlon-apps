@@ -1,6 +1,7 @@
 import {
   render,
   parse,
+  tryParse,
   da
 } from '@urbit/aura';
 import bigInt from 'big-integer';
@@ -60,7 +61,18 @@ export function formatUd(ud: string) {  //REVIEW
 }
 
 export function udToDate(das: string) {
-  return da.toUnix(parse('ud', das));
+  return da.toUnix(parseIdNumber(das));
+}
+
+//  parses either a @ud-formatted string (dot-separated decimal) or a plain
+//  decimal number string (aka @ui without the prefix).
+//  we try both instead of being precise at the callsites, because historically
+//  we used a too-lenient @ud parser, which also accepted dotless
+//  representations, making it slightly unclear/ambiguous what we were actually
+//  *intending* to parse. the backend is wildly inconsistent, so this is easier
+//  and safer than figuring all that out. (we'll tighten things up Soon™.)
+export function parseIdNumber(id: string): bigint {
+  return tryParse('ud', id) || BigInt(id);
 }
 
 export function formatDateParam(date: Date) {
