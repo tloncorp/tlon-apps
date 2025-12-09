@@ -141,7 +141,7 @@ export default ({ mode }: { mode: string }) => {
       // Sentry source map upload - only enabled in CI
       sentryVitePlugin({
         org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
+        project: process.env.SENTRY_WEB_PROJECT,
         authToken: process.env.SENTRY_AUTH_TOKEN,
         disable: !process.env.CI,
         sourcemaps: {

@@ -55,7 +55,7 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_WEB_PROJECT: ${{ secrets.SENTRY_WEB_PROJECT }}
       CI: true
   glob:
     runs-on: ubuntu-latest
