@@ -1,20 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  Field,
   ScreenHeader,
-  TextInput,
   TlonText,
   View,
-  XStack,
   YStack,
   useStore,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import { createRef, useCallback, useMemo, useState } from 'react';
-import type { TextInputKeyPressEventData } from 'react-native';
-import { TextInput as RNTextInput } from 'react-native';
+import { useCallback, useState } from 'react';
 
+import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
@@ -99,11 +95,11 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
         isLoading={isSubmitting}
       />
       <YStack padding="$2xl" gap="$6xl">
-        <CodeInput
+        <OTPInput
           value={code}
           length={PHONE_CODE_LENGTH}
           onChange={handleCodeChanged}
-          isEmail={false}
+          mode="phone"
           error={error}
         />
         <TlonText.Text
@@ -118,87 +114,3 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
     </View>
   );
 };
-
-function CodeInput({
-  length,
-  value,
-  isEmail,
-  onChange,
-  error,
-}: {
-  length: number;
-  isEmail: boolean;
-  value: string[];
-  onChange?: (value: string[]) => void;
-  error?: string;
-}) {
-  const inputRefs = useMemo(
-    () => Array.from({ length }).map(() => createRef<RNTextInput>()),
-    [length]
-  );
-
-  const handleChangeText = useCallback(
-    (index: number, text: string) => {
-      const nextCode = [...value];
-      if (text.length === 0) {
-        nextCode[index] = '';
-      } else {
-        for (let i = 0; i < text.length; i += 1) {
-          nextCode[index + i] = text.charAt(i);
-        }
-      }
-      if (index < inputRefs.length - 1 && nextCode[index]) {
-        for (let i = index + 1; i < inputRefs.length; i += 1) {
-          if (!nextCode[i]) {
-            inputRefs[i].current?.focus();
-            break;
-          }
-        }
-      }
-      onChange?.(nextCode.slice(0, length));
-    },
-    [onChange, value, inputRefs, length]
-  );
-
-  const handleKeyPress = async (
-    index: number,
-    key: TextInputKeyPressEventData['key']
-  ) => {
-    if (key === 'Backspace' && !value[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    }
-  };
-
-  return (
-    <Field
-      label={`Check your ${isEmail ? 'email' : 'phone'} for a confirmation code`}
-      error={error}
-      justifyContent="center"
-      alignItems="center"
-    >
-      <XStack gap="$s">
-        {Array.from({ length }).map((_, i) => (
-          <TextInput
-            textAlign="center"
-            key={i}
-            ref={inputRefs[i]}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
-            placeholder="5"
-            onChangeText={(text) => handleChangeText(i, text)}
-            value={value.length > i ? value[i] : ''}
-            keyboardType="numeric"
-            paddingHorizontal="$xl"
-            paddingVertical="$xl"
-            width="$4xl"
-            textContentType={!isEmail ? 'oneTimeCode' : undefined}
-            frameStyle={{
-              width: '$4xl',
-              paddingLeft: 0,
-              paddingRight: 0,
-            }}
-          />
-        ))}
-      </XStack>
-    </Field>
-  );
-}
