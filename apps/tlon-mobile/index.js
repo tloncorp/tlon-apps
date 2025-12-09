@@ -37,6 +37,10 @@ configureReanimatedLogger({
   strict: false,
 });
 
+setInterval(() => {
+  console.debug('JS thread heartbeat');
+}, 1000);
+
 function MainInner(props) {
   const [isDbReady, setIsDbReady] = useState(false);
   useEffect(() => {
