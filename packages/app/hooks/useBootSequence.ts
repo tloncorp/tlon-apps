@@ -166,8 +166,25 @@ export function useBootSequence() {
     }
 
     //
-    // SCAFFOLDING WAYFINDING: make sure the starter group is created
+    // SCAFFOLDING: make sure Getting Started is pre-joined, Tlon Studio is left, and personal group
+    // is created if needed
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
+        api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
+          logger.trackError('failed to join getting started group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
+
+      store.leaveGroup(TLON_STUDIO).catch((e) => {
+        logger.trackError('failed to leave tlon studio group', {
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      });
+
       if (lureMeta?.inviteType !== 'user') {
         logger.trackEvent('Detected group invite, skipping scaffold');
         return NodeBootPhase.CHECKING_FOR_INVITE;
@@ -281,23 +298,6 @@ export function useBootSequence() {
         });
         store.joinGroup(invitedGroup);
       }
-
-      if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
-        api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
-          logger.trackError('failed to join getting started group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
-          });
-        });
-      }
-
-      // unconditionally attempt to leave Tlon Studio
-      store.leaveGroup(TLON_STUDIO).catch((e) => {
-        logger.trackError('failed to leave tlon studio group', {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
-      });
 
       // give the joins some time to process, then resync & pin
       setTimeout(() => {
