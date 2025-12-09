@@ -6,10 +6,10 @@ import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
-import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
-import { Badge, BadgeType } from './Badge';
+import { Badge } from './Badge';
+import ConnectionStatus from './ConnectionStatus';
 import { ContactName as ContactNameV2 } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
@@ -232,36 +232,6 @@ export function GroupPreviewPane({
 
   const isNarrow = useIsWindowNarrow();
 
-  const hostStatus = useShipConnectionStatus(group.hostUserId ?? '');
-  const hostConnectionStatus = useMemo(() => {
-    if (!group.hostUserId) {
-      return null;
-    }
-
-    if (!hostStatus) {
-      return { label: 'Checking host status...', type: 'tertiary' };
-    }
-
-    if (!hostStatus.complete) {
-      switch (hostStatus.status) {
-        case 'setting-up':
-          return { label: 'Setting up...', type: 'tertiary' };
-        case 'trying-dns':
-        case 'trying-sponsor':
-          return { label: 'Checking network...', type: 'tertiary' };
-        default:
-          return { label: 'Checking host status...', type: 'tertiary' };
-      }
-    } else {
-      switch (hostStatus.status) {
-        case 'yes':
-          return { label: 'Online', type: 'positive' };
-        default:
-          return { label: 'Offline', type: 'warning' };
-      }
-    }
-  }, [hostStatus, group.hostUserId]);
-
   return (
     <ActionSheet.Content>
       <YStack
@@ -294,12 +264,7 @@ export function GroupPreviewPane({
                 <Badge text={privacyLabel} type="neutral" />
               </XStack>
             ) : null}
-            {hostConnectionStatus ? (
-              <Badge
-                text={hostConnectionStatus.label}
-                type={hostConnectionStatus.type as BadgeType}
-              />
-            ) : null}
+            <ConnectionStatus contactId={group.hostUserId} type="badge" />
           </XStack>
         </YStack>
 

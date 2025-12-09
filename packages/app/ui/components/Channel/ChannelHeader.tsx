@@ -170,14 +170,17 @@ export function ChannelHeader({
           <XStack alignItems="center" gap="$m">
             <Pressable flex={1} onPress={goToChatDetails}>
               <ScreenHeader.Title testID="ChannelHeaderTitle">
-                {displayTitle}
+                <XStack alignItems="center">
+                  {channelHost && isWindowNarrow && (
+                    <ConnectionStatus
+                      contactId={channelHost}
+                      type="indicator"
+                    />
+                  )}
+                  {displayTitle}
+                </XStack>
               </ScreenHeader.Title>
             </Pressable>
-            {channelHost && (
-              <View opacity={connectionStatus === 'Connected' ? 1 : 0}>
-                <ConnectionStatus contactId={channelHost} />
-              </View>
-            )}
           </XStack>
         }
         titleWidth={titleWidth()}
@@ -186,6 +189,12 @@ export function ChannelHeader({
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>
+            {channelHost && !isWindowNarrow && (
+              <ConnectionStatus
+                contactId={channelHost}
+                type="indicator-with-text"
+              />
+            )}
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
