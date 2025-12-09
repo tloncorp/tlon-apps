@@ -1,4 +1,8 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import {
+  getNestParts,
+  useConnectionStatus,
+  useDebouncedValue,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -11,10 +15,12 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { View, XStack } from 'tamagui';
 
-import { useChatOptions } from '../../contexts';
+import { useChatOptions, useCurrentUserId } from '../../contexts';
 import { useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import ConnectionStatus from '../ConnectionStatus';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
@@ -106,6 +112,7 @@ export function ChannelHeader({
   const [openChatOptions, setOpenChatOptions] = useState(false);
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
+  const currentUserId = useCurrentUserId();
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -113,6 +120,20 @@ export function ChannelHeader({
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
+
+  const channelHost = useMemo(() => {
+    if (channel.type === 'dm') {
+      return channel.id;
+    }
+
+    if (channel.type === 'groupDm') {
+      return currentUserId;
+    }
+
+    const { ship } = getNestParts(channel.id);
+
+    return ship;
+  }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
     if (connectionStatus === 'Connected') {
@@ -146,11 +167,18 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={
-          <Pressable flex={1} onPress={goToChatDetails}>
-            <ScreenHeader.Title testID="ChannelHeaderTitle">
-              {displayTitle}
-            </ScreenHeader.Title>
-          </Pressable>
+          <XStack alignItems="center" gap="$m">
+            <Pressable flex={1} onPress={goToChatDetails}>
+              <ScreenHeader.Title testID="ChannelHeaderTitle">
+                {displayTitle}
+              </ScreenHeader.Title>
+            </Pressable>
+            {channelHost && (
+              <View opacity={connectionStatus === 'Connected' ? 1 : 0}>
+                <ConnectionStatus contactId={channelHost} />
+              </View>
+            )}
+          </XStack>
         }
         titleWidth={titleWidth()}
         showSessionStatus

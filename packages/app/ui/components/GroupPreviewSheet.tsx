@@ -1,5 +1,4 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { ConnectionStatus } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -7,6 +6,7 @@ import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { Badge, BadgeType } from './Badge';
@@ -20,7 +20,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
-  hostStatus?: ConnectionStatus | null;
 }
 
 interface JoinStatus {
@@ -55,7 +54,6 @@ function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
-  hostStatus,
   onActionComplete,
 }: Props) {
   useEffect(() => {
@@ -79,11 +77,7 @@ function GroupPreviewSheetComponent({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <GroupPreviewPane
-          group={group}
-          hostStatus={hostStatus}
-          onActionComplete={actionHandler}
-        />
+        <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (
         <LoadingSpinner />
       )}
@@ -93,11 +87,9 @@ function GroupPreviewSheetComponent({
 
 export function GroupPreviewPane({
   group,
-  hostStatus,
   onActionComplete,
 }: {
   group: db.Group;
-  hostStatus?: ConnectionStatus | null;
   onActionComplete: (
     action: GroupPreviewAction,
     updatedGroup: db.Group
@@ -240,6 +232,7 @@ export function GroupPreviewPane({
 
   const isNarrow = useIsWindowNarrow();
 
+  const hostStatus = useShipConnectionStatus(group.hostUserId ?? '');
   const hostConnectionStatus = useMemo(() => {
     if (!group.hostUserId) {
       return null;

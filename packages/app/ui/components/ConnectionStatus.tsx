@@ -1,208 +1,186 @@
-import {
-  ConnectionState,
-  ConnectionStatus as ConnectionStatusType,
-  checkConnectionStatus,
-  getLastConnectionStatus,
-} from '@tloncorp/shared/api';
-import { useCallback, useEffect, useState } from 'react';
+import { ConnectionState } from '@tloncorp/shared/api';
+import { Text } from '@tloncorp/ui';
+import { useMemo } from 'react';
 import { Pressable } from 'react-native';
-import { Spinner } from 'tamagui';
+import { ColorTokens, Spinner, XStack } from 'tamagui';
 
+import {
+  ConnectivityCheckOptions,
+  useShipConnectionStatus,
+} from '../../features/top/useShipConnectionStatus';
 import { Icon, IconType } from '../utils';
 import { ListItem } from './ListItem/ListItem';
 
 export interface ConnectionStatusProps {
   contactId: string;
-  autoCheck?: boolean;
-  mockStatus?: ConnectionStatusType;
+  options?: ConnectivityCheckOptions;
   onPress?: () => void;
 }
 
 export const getStatusLabels = (
   status: ConnectionState
-): { title: string; subtitle: string; icon?: IconType } => {
+): {
+  title: string;
+  subtitle: string;
+  color: ColorTokens | undefined;
+  icon?: IconType;
+} => {
   switch (status) {
     case 'yes':
       return {
         title: 'Connected',
         subtitle: 'Connected to peer node',
         icon: 'Checkmark',
+        color: 'green',
       };
     case 'crash':
       return {
         title: 'Failed',
         subtitle: 'Status checker failed',
         icon: 'Close',
+        color: 'red',
       };
     case 'no-data':
       return {
         title: 'Failed',
         subtitle: 'No data received from status checker',
         icon: 'Close',
+        color: '$gray300',
       };
     case 'no-dns':
       return {
         title: 'Failed',
         subtitle: 'DNS failed. Check your network connection',
         icon: 'Close',
+        color: 'red',
       };
     case 'no-our-planet':
       return {
         title: 'Disconnected',
         subtitle: 'Your moon is disconnected from your planet. Is it running?',
         icon: 'Close',
+        color: 'red',
       };
     case 'no-our-galaxy':
       return {
         title: 'Disconnected',
         subtitle: 'No connection to our root node',
         icon: 'Close',
+        color: 'red',
       };
     case 'no-sponsor-hit':
       return {
         title: 'Disconnected',
         subtitle: "No connection to peer's sponsor node",
         icon: 'Close',
+        color: 'red',
       };
     case 'no-sponsor-miss':
       return {
         title: 'Disconnected',
         subtitle: 'No connection between peer and their sponsor node',
         icon: 'Close',
+        color: 'red',
       };
     case 'no-their-galaxy':
       return {
         title: 'Disconnected',
         subtitle: "No connection to peer's root node",
         icon: 'Close',
+        color: 'red',
       };
     case 'setting-up':
       return {
         title: 'Connecting...',
         subtitle: 'Setting up...',
+        color: 'yellow',
       };
     case 'trying-dns':
       return {
         title: 'Connecting...',
         subtitle: 'Trying DNS...',
+        color: 'yellow',
       };
     case 'trying-local':
       return {
         title: 'Connecting...',
         subtitle: 'Trying our node...',
+        color: 'yellow',
       };
     case 'trying-target':
       return {
         title: 'Connecting...',
         subtitle: 'Trying peer node...',
         icon: 'EyeOpen',
+        color: 'yellow',
       };
     case 'trying-sponsor':
       return {
         title: 'Connecting...',
         subtitle: 'Trying sponsor node(s)...',
         icon: 'EyeOpen',
+        color: 'yellow',
       };
     default:
       return {
         title: 'Connecting...',
         subtitle: 'Connecting...',
+        color: 'yellow',
       };
   }
 };
 
 export const ConnectionStatus = ({
   contactId,
-  autoCheck = true,
-  mockStatus,
+  options,
   onPress,
 }: ConnectionStatusProps) => {
-  const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatusType | null>(mockStatus ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const connectionStatus = useShipConnectionStatus(contactId, options);
 
-  const loadMockData = useCallback((mockStatus: ConnectionStatusType) => {
-    setConnectionStatus(mockStatus);
-    setLoading(!mockStatus.complete);
-    setError(null);
-  }, []);
+  return (
+    <ConnectionIndicator status={connectionStatus.status} onPress={onPress} />
+  );
+};
 
-  const loadLastStatus = useCallback(async () => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, load the last known status
-    try {
-      setLoading(true);
-      setError(null);
-      const status = await getLastConnectionStatus(contactId);
-      setConnectionStatus(status);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to load last known status'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId, mockStatus, loadMockData]);
+export function ConnectionIndicator({
+  status,
+  onPress,
+}: {
+  status: ConnectionState;
+  onPress?: () => void;
+}) {
+  const labels = useMemo(() => getStatusLabels(status), [status]);
 
-  const runCheck = useCallback(async () => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, run the check
-    try {
-      setLoading(true);
-      setError(null);
-      await checkConnectionStatus(contactId, (status: ConnectionStatusType) => {
-        setConnectionStatus(status);
-        if (status.complete) {
-          setLoading(false);
-        }
-      });
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to check connection status'
-      );
-      setLoading(false);
-    }
-  }, [contactId, mockStatus, loadMockData]);
+  return (
+    <Pressable onPress={onPress} disabled={!onPress}>
+      <XStack alignItems="center">
+        {/* <Icon type={labels.icon || 'Bang'} color={labels.color} size="$l" /> */}
+        <Icon type="Record" color={labels.color} size="$l" />
+        <Text size="$label/m" color="$tertiaryText">
+          {labels.title}
+        </Text>
+      </XStack>
+    </Pressable>
+  );
+}
 
-  useEffect(() => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, run the check
-    if (autoCheck) {
-      runCheck();
-    } else {
-      loadLastStatus();
-    }
-  }, [autoCheck, mockStatus, runCheck, loadLastStatus, loadMockData]);
+export function ListItemConnectionIndicator({
+  status,
+  onPress,
+}: {
+  status: ConnectionState;
+  onPress?: () => void;
+}) {
+  const labels = useMemo(() => getStatusLabels(status), [status]);
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ListItem>
         <ListItem.MainContent>
-          {connectionStatus && (
-            <>
-              <ListItem.Title>
-                {getStatusLabels(connectionStatus.status)?.title}
-              </ListItem.Title>
-              <ListItem.Subtitle>
-                {error ?? getStatusLabels(connectionStatus.status)?.subtitle}
-              </ListItem.Subtitle>
-            </>
-          )}
+          <ListItem.Title>{labels.title}</ListItem.Title>
+          <ListItem.Subtitle>{labels.subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
-        {loading && (
+        {/* {loading && (
           <ListItem.EndContent>
             <Spinner size="small" />
           </ListItem.EndContent>
@@ -211,23 +189,13 @@ export const ConnectionStatus = ({
           <ListItem.EndContent>
             <Icon type="Close" />
           </ListItem.EndContent>
-        )}
-        {!loading && !error && connectionStatus && (
-          <ListItem.EndContent>
-            {getStatusLabels(connectionStatus.status).icon ? (
-              <Icon
-                type={
-                  getStatusLabels(connectionStatus.status).icon ?? 'Placeholder'
-                }
-              />
-            ) : (
-              <Spinner size="small" />
-            )}
-          </ListItem.EndContent>
-        )}
+        )} */}
+        <ListItem.EndContent>
+          {labels.icon ? <Icon type={labels.icon} /> : <Spinner size="small" />}
+        </ListItem.EndContent>
       </ListItem>
     </Pressable>
   );
-};
+}
 
 export default ConnectionStatus;
