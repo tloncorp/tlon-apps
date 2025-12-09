@@ -1061,6 +1061,11 @@ export async function summarizeMessages({
         error: errorMessage,
         responseError: response.error,
         hasSummary: !!response.summary,
+        // Include full error details from OpenRouter API
+        errorDetails: response.errorDetails,
+        responseStatus: response.errorDetails?.responseStatus,
+        responseData: response.errorDetails?.responseData,
+        responseHeaders: response.errorDetails?.responseHeaders,
       });
       throw new Error(errorMessage);
     }
