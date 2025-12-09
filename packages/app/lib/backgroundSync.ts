@@ -91,8 +91,23 @@ export async function removeLegacyTasks() {
 }
 
 export async function registerBackgroundSyncTask() {
+  // Check if native modules are ready before proceeding
+  try {
+    const status = await BackgroundTask.getStatusAsync();
+    if (status === BackgroundTask.BackgroundTaskStatus.Restricted) {
+      logger.trackEvent('Background tasks not available on this device');
+      return;
+    }
+  } catch (e) {
+    // Native modules not ready yet, retry after a delay
+    logger.trackEvent('Native modules not ready, retrying in 2s');
+    setTimeout(() => registerBackgroundSyncTask(), 2000);
+    return;
+  }
+
   await removeLegacyTasks();
 
+  // Define the task handler
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
     async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
@@ -118,29 +133,31 @@ export async function registerBackgroundSyncTask() {
     }
   );
 
-  (async () => {
-    try {
-      if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
-        logger.trackEvent('Background sync task is registered');
-      } else {
-        logger.trackEvent(
-          'Background sync task is not registered, registering now'
-        );
-        await BackgroundTask.registerTaskAsync(TASK_ID, {
-          // Uses expo-notification default - at time of writing, 10 minutes on
-          // Android, system minimum on iOS (10-15 minutes)
-          // minimumInterval: 15 * 60,
-        });
-        logger.trackEvent('Background sync task is registered');
-      }
-      const status = await TaskManager.getRegisteredTasksAsync();
-      logger.trackEvent('Current registered tasks:', {
-        tasks: status,
+  // Register with the native side
+  try {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(TASK_ID);
+
+    if (isRegistered) {
+      logger.trackEvent('Background sync task is registered');
+    } else {
+      logger.trackEvent(
+        'Background sync task is not registered, registering now'
+      );
+      await BackgroundTask.registerTaskAsync(TASK_ID, {
+        // Uses expo-notification default - at time of writing, 10 minutes on
+        // Android, system minimum on iOS (10-15 minutes)
+        // minimumInterval: 15 * 60,
       });
-    } catch (err) {
-      logger.trackError('Failed to register background task', {
-        errorMessage: err instanceof Error ? err.message : err,
-      });
+      logger.trackEvent('Background sync task is registered');
     }
-  })();
+
+    const registeredTasks = await TaskManager.getRegisteredTasksAsync();
+    logger.trackEvent('Current registered tasks:', {
+      tasks: registeredTasks,
+    });
+  } catch (err) {
+    logger.trackError('Failed to register background task', {
+      errorMessage: err instanceof Error ? err.message : err,
+    });
+  }
 }

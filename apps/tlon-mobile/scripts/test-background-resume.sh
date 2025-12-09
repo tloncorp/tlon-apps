@@ -2463,6 +2463,657 @@ test_notification_cold_start() {
     log_success "Notification cold start test passed"
 }
 
+# =============================================================================
+# NETWORK + BACKGROUND TASK INTERACTION TESTS
+# =============================================================================
+
+# Helper: Check network connectivity status
+check_network_status() {
+    local wifi_state=$(adb shell dumpsys wifi 2>/dev/null | grep "Wi-Fi is" | head -1)
+    local mobile_state=$(adb shell dumpsys telephony.registry 2>/dev/null | grep "mDataConnectionState" | head -1)
+
+    log_info "Network status:"
+    if [[ -n "$wifi_state" ]]; then
+        echo "  WiFi: $wifi_state"
+    fi
+    if [[ -n "$mobile_state" ]]; then
+        echo "  Mobile: $mobile_state"
+    fi
+}
+
+# Helper: Disable all network connectivity
+disable_all_network() {
+    log_info "Disabling all network connectivity..."
+    adb shell svc wifi disable 2>/dev/null || true
+    adb shell svc data disable 2>/dev/null || true
+    sleep 1
+}
+
+# Helper: Enable network connectivity
+enable_all_network() {
+    log_info "Enabling network connectivity..."
+    adb shell svc wifi enable 2>/dev/null || true
+    adb shell svc data enable 2>/dev/null || true
+    sleep 2
+}
+
+# Helper: Switch to wifi only
+wifi_only() {
+    log_info "Switching to WiFi only..."
+    adb shell svc data disable 2>/dev/null || true
+    adb shell svc wifi enable 2>/dev/null || true
+    sleep 2
+}
+
+# Helper: Switch to mobile data only
+mobile_only() {
+    log_info "Switching to mobile data only..."
+    adb shell svc wifi disable 2>/dev/null || true
+    adb shell svc data enable 2>/dev/null || true
+    sleep 2
+}
+
+# Test: Background task triggered with no network, then network restored
+test_task_no_network_then_restore() {
+    log_test "Background Task With No Network Then Restore"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Disable network before triggering task
+        disable_all_network
+        sleep 1
+
+        # Trigger background task with no network
+        log_info "Triggering background task with network disabled..."
+        trigger_background_task
+        sleep 3
+
+        # Re-enable network while task might still be processing
+        enable_all_network
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - task with no network then restore"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Task no network then restore test passed"
+}
+
+# Test: Network loss during active background task
+test_network_loss_during_task() {
+    log_test "Network Loss During Background Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Ensure network is enabled
+        enable_all_network
+        sleep 1
+
+        # Trigger background task
+        log_info "Triggering background task..."
+        trigger_background_task
+
+        # Immediately disable network (task likely mid-execution)
+        sleep 0.5
+        log_info "Cutting network during task execution..."
+        disable_all_network
+        sleep 3
+
+        # Re-enable network
+        enable_all_network
+        sleep 2
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - network loss during task"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Network loss during task test passed"
+}
+
+# Test: Wifi to mobile switch during background task
+test_wifi_to_mobile_during_task() {
+    log_test "WiFi to Mobile Switch During Background Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Start with wifi
+        wifi_only
+        sleep 1
+
+        # Trigger background task
+        log_info "Triggering background task on WiFi..."
+        trigger_background_task
+
+        # Switch to mobile during task
+        sleep 1
+        log_info "Switching to mobile data during task..."
+        mobile_only
+        sleep 3
+
+        # Back to wifi
+        wifi_only
+        sleep 2
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - wifi to mobile switch"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    enable_all_network
+    log_success "WiFi to mobile switch test passed"
+}
+
+# Test: Mobile to wifi switch during background task
+test_mobile_to_wifi_during_task() {
+    log_test "Mobile to WiFi Switch During Background Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Start with mobile
+        mobile_only
+        sleep 1
+
+        # Trigger background task
+        log_info "Triggering background task on mobile data..."
+        trigger_background_task
+
+        # Switch to wifi during task
+        sleep 1
+        log_info "Switching to WiFi during task..."
+        wifi_only
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - mobile to wifi switch"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    enable_all_network
+    log_success "Mobile to WiFi switch test passed"
+}
+
+# Test: Rapid network toggling during background task
+test_rapid_network_toggle_during_task() {
+    log_test "Rapid Network Toggle During Background Task"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Trigger background task
+    log_info "Triggering background task..."
+    trigger_background_task
+
+    # Rapidly toggle network
+    log_info "Rapidly toggling network during task..."
+    for i in $(seq 1 5); do
+        disable_all_network
+        sleep 0.5
+        enable_all_network
+        sleep 0.5
+    done
+
+    sleep 3
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after rapid network toggle during task"
+        enable_all_network
+        return 1
+    fi
+
+    log_success "Rapid network toggle during task test passed"
+}
+
+# Test: Multiple background tasks with intermittent connectivity
+test_tasks_intermittent_connectivity() {
+    log_test "Multiple Background Tasks with Intermittent Connectivity"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    log_info "Triggering tasks with intermittent connectivity..."
+    for i in $(seq 1 5); do
+        # Toggle network state
+        if [ $((i % 2)) -eq 0 ]; then
+            disable_all_network
+        else
+            enable_all_network
+        fi
+        sleep 0.5
+
+        # Trigger task
+        trigger_background_task
+        sleep 2
+    done
+
+    # Ensure network is back
+    enable_all_network
+    sleep 2
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after tasks with intermittent connectivity"
+        enable_all_network
+        return 1
+    fi
+
+    log_success "Tasks intermittent connectivity test passed"
+}
+
+# Test: Background task with airplane mode toggle
+test_task_airplane_toggle() {
+    log_test "Background Task with Airplane Mode Toggle"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger background task
+        log_info "Triggering background task..."
+        trigger_background_task
+        sleep 1
+
+        # Enable airplane mode during task
+        log_info "Enabling airplane mode during task..."
+        adb shell cmd connectivity airplane-mode enable 2>/dev/null || \
+        adb shell settings put global airplane_mode_on 1 2>/dev/null
+        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE 2>/dev/null || true
+        sleep 3
+
+        # Disable airplane mode
+        log_info "Disabling airplane mode..."
+        adb shell cmd connectivity airplane-mode disable 2>/dev/null || \
+        adb shell settings put global airplane_mode_on 0 2>/dev/null
+        adb shell am broadcast -a android.intent.action.AIRPLANE_MODE 2>/dev/null || true
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - task with airplane toggle"
+            # Ensure airplane mode is off
+            adb shell cmd connectivity airplane-mode disable 2>/dev/null || \
+            adb shell settings put global airplane_mode_on 0 2>/dev/null
+            return 1
+        fi
+    done
+
+    log_success "Task airplane toggle test passed"
+}
+
+# Test: Long running task with network flapping
+test_long_task_network_flapping() {
+    log_test "Long Running Task with Network Flapping (30s)"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Trigger background task
+    log_info "Triggering background task..."
+    trigger_background_task
+
+    # Flap network for 30 seconds
+    log_info "Flapping network for 30 seconds..."
+    for i in $(seq 1 10); do
+        log_info "Network flap cycle $i/10"
+        disable_all_network
+        sleep 1.5
+        enable_all_network
+        sleep 1.5
+    done
+
+    sleep 2
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after long task with network flapping"
+        enable_all_network
+        return 1
+    fi
+
+    log_success "Long task network flapping test passed"
+}
+
+# Test: Network change during memory pressure and background task
+test_network_change_pressure_task() {
+    log_test "Network Change + Memory Pressure + Background Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Apply memory pressure
+        apply_memory_pressure "COMPLETE"
+        sleep 1
+
+        # Trigger background task
+        trigger_background_task
+        sleep 1
+
+        # Disable network
+        disable_all_network
+        sleep 2
+
+        # Re-enable network
+        enable_all_network
+        sleep 2
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - network change + pressure + task"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Network change pressure task test passed"
+}
+
+# Test: Task retry after network failure
+test_task_retry_after_network_failure() {
+    log_test "Task Retry After Network Failure"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Disable network
+        disable_all_network
+        sleep 1
+
+        # Trigger task (should fail due to no network)
+        log_info "Triggering task with no network (expected to fail)..."
+        trigger_background_task
+        sleep 3
+
+        # Re-enable network
+        enable_all_network
+        sleep 2
+
+        # Trigger task again (should succeed now)
+        log_info "Triggering task with network restored..."
+        trigger_background_task
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - task retry after network failure"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Task retry after network failure test passed"
+}
+
+# Test: Network loss during task then kill then restart
+test_network_loss_task_kill_restart() {
+    log_test "Network Loss During Task Then Kill Then Restart"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger background task
+        trigger_background_task
+        sleep 1
+
+        # Disable network during task
+        disable_all_network
+        sleep 1
+
+        # Kill the app
+        local pid=$(adb shell pidof "$PACKAGE")
+        if [[ -n "$pid" ]]; then
+            log_info "Killing process $pid"
+            kill_process "$pid" 9
+        fi
+
+        sleep 1
+
+        # Re-enable network
+        enable_all_network
+        sleep 1
+
+        # Restart app
+        start_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - network loss + task + kill + restart"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Network loss task kill restart test passed"
+}
+
+# Test: Sustained background tasks with periodic network drops
+test_sustained_tasks_periodic_network_drops() {
+    log_test "Sustained Tasks with Periodic Network Drops (2 min)"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    log_info "Running 2 minute test with periodic network drops..."
+    for i in $(seq 1 8); do
+        log_info "Period $i/8 (15s each)"
+
+        # Trigger task
+        trigger_background_task
+        sleep 5
+
+        # Drop network
+        disable_all_network
+        sleep 5
+
+        # Restore network
+        enable_all_network
+        sleep 5
+    done
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after sustained tasks with periodic network drops"
+        enable_all_network
+        return 1
+    fi
+
+    log_success "Sustained tasks periodic network drops test passed"
+}
+
+# Test: Network type rapid switching (wifi <-> mobile) during task
+test_network_type_rapid_switch() {
+    log_test "Network Type Rapid Switch During Task"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Trigger background task
+        trigger_background_task
+
+        # Rapidly switch between wifi and mobile
+        log_info "Rapidly switching network types..."
+        for j in $(seq 1 5); do
+            wifi_only
+            sleep 0.5
+            mobile_only
+            sleep 0.5
+        done
+
+        # Restore both
+        enable_all_network
+        sleep 3
+
+        resume_app
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - network type rapid switch"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Network type rapid switch test passed"
+}
+
+# Test: Background task during doze with no network
+test_task_doze_no_network() {
+    log_test "Background Task During Doze with No Network"
+
+    start_app
+    sleep 2
+    send_to_background
+    sleep 1
+
+    # Disable network
+    disable_all_network
+    sleep 1
+
+    # Enable doze
+    log_info "Enabling doze mode..."
+    adb shell dumpsys deviceidle enable
+    adb shell dumpsys deviceidle force-idle
+    sleep 2
+
+    # Trigger background task
+    log_info "Triggering background task during doze with no network..."
+    trigger_background_task
+    sleep 5
+
+    # Disable doze
+    log_info "Disabling doze mode..."
+    adb shell dumpsys deviceidle unforce
+    adb shell dumpsys deviceidle disable
+    sleep 1
+
+    # Re-enable network
+    enable_all_network
+    sleep 2
+
+    resume_app
+
+    if ! wait_and_check 5; then
+        log_error "Failed after task during doze with no network"
+        enable_all_network
+        return 1
+    fi
+
+    log_success "Task doze no network test passed"
+}
+
+# Test: Network restored exactly when resuming from background
+test_network_restore_on_resume() {
+    log_test "Network Restore Exactly On Resume"
+    local cycles=${1:-$DEFAULT_CYCLES}
+
+    for i in $(seq 1 $cycles); do
+        log_info "Cycle $i/$cycles"
+        start_app
+        sleep 2
+        send_to_background
+        sleep 1
+
+        # Disable network
+        disable_all_network
+        sleep 1
+
+        # Trigger background task (will fail/be incomplete)
+        trigger_background_task
+        sleep 3
+
+        # Resume app AND restore network simultaneously
+        log_info "Resuming app while restoring network..."
+        resume_app &
+        enable_all_network &
+        wait
+        sleep 3
+
+        if ! wait_and_check 5; then
+            log_error "Failed at cycle $i - network restore on resume"
+            enable_all_network
+            return 1
+        fi
+    done
+
+    log_success "Network restore on resume test passed"
+}
+
 # Test: App update simulation (clear + reinstall dalvik cache)
 test_dalvik_cache_clear() {
     log_test "Dalvik Cache Clear"
@@ -2542,6 +3193,70 @@ test_stress_combination() {
 # =============================================================================
 # MAIN
 # =============================================================================
+
+# Run only the network + background task interaction tests
+run_network_tests() {
+    local failed=0
+    local passed=0
+    local tests=(
+        "test_task_no_network_then_restore"
+        "test_network_loss_during_task"
+        "test_wifi_to_mobile_during_task"
+        "test_mobile_to_wifi_during_task"
+        "test_rapid_network_toggle_during_task"
+        "test_tasks_intermittent_connectivity"
+        "test_task_airplane_toggle"
+        "test_long_task_network_flapping"
+        "test_network_change_pressure_task"
+        "test_task_retry_after_network_failure"
+        "test_network_loss_task_kill_restart"
+        "test_sustained_tasks_periodic_network_drops"
+        "test_network_type_rapid_switch"
+        "test_task_doze_no_network"
+        "test_network_restore_on_resume"
+    )
+
+    TOTAL_TESTS=${#tests[@]}
+    CURRENT_TEST_NUM=0
+
+    for test in "${tests[@]}"; do
+        ((CURRENT_TEST_NUM++))
+
+        # Restart app before each test for clean state
+        log_info "Restarting app before test..."
+        force_stop
+        sleep 1
+
+        # Ensure network is enabled before each test
+        enable_all_network
+        sleep 1
+
+        if $test; then
+            ((passed++))
+        else
+            ((failed++))
+            log_warn "Test $test failed - continuing..."
+            # Ensure network is restored after failure
+            enable_all_network
+        fi
+        sleep 2
+    done
+
+    # Reset tracking variables
+    CURRENT_TEST_NUM=""
+    TOTAL_TESTS=""
+
+    # Final network restore
+    enable_all_network
+
+    echo -e "\n${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}NETWORK TEST SUMMARY${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${GREEN}Passed: $passed${NC}"
+    echo -e "${RED}Failed: $failed${NC}"
+
+    return $failed
+}
 
 # Run only the new aggressive tests
 run_aggressive_tests() {
@@ -2678,6 +3393,21 @@ run_all_tests() {
         "test_rapid_push_notifications"
         "test_push_during_task"
         "test_notification_cold_start"
+        "test_task_no_network_then_restore"
+        "test_network_loss_during_task"
+        "test_wifi_to_mobile_during_task"
+        "test_mobile_to_wifi_during_task"
+        "test_rapid_network_toggle_during_task"
+        "test_tasks_intermittent_connectivity"
+        "test_task_airplane_toggle"
+        "test_long_task_network_flapping"
+        "test_network_change_pressure_task"
+        "test_task_retry_after_network_failure"
+        "test_network_loss_task_kill_restart"
+        "test_sustained_tasks_periodic_network_drops"
+        "test_network_type_rapid_switch"
+        "test_task_doze_no_network"
+        "test_network_restore_on_resume"
         "test_dalvik_cache_clear"
         "test_stress_combination"
     )
@@ -2719,8 +3449,9 @@ show_usage() {
     echo "Usage: $0 [command] [options]"
     echo ""
     echo "Commands:"
-    echo "  all                    Run all tests (63 tests)"
+    echo "  all                    Run all tests (78 tests)"
     echo "  aggressive             Run only new aggressive tests (30 tests)"
+    echo "  network                Run only network + background task tests (15 tests)"
     echo "  simple [cycles] [delay] Run simple background/foreground test"
     echo "  moderate [cycles]      Run moderate memory pressure test"
     echo "  complete [cycles]      Run complete memory pressure test"
@@ -2755,19 +3486,39 @@ show_usage() {
     echo "  task-doze              Background task during doze mode"
     echo "  task-standby           Background task with standby changes"
     echo "  rotation [cycles]      Screen rotation"
-    echo "  network [cycles]       Network connectivity toggle"
+    echo "  network-toggle [cycles] Network connectivity toggle"
     echo "  clear-cache [cycles]   Clear cache while backgrounded"
     echo "  extended-pressure      60s background with pressure cycles"
     echo "  stress                 Combination stress test"
+    echo ""
+    echo "Network + Background Task Interaction Tests:"
+    echo "  task-no-network [cycles]     Task with no network, then restore"
+    echo "  network-loss-task [cycles]   Network loss during active task"
+    echo "  wifi-to-mobile [cycles]      WiFi to mobile switch during task"
+    echo "  mobile-to-wifi [cycles]      Mobile to WiFi switch during task"
+    echo "  rapid-net-toggle             Rapid network toggle during task"
+    echo "  intermittent-net             Multiple tasks with intermittent connectivity"
+    echo "  task-airplane [cycles]       Task with airplane mode toggle"
+    echo "  net-flapping                 Long task with network flapping (30s)"
+    echo "  net-pressure-task [cycles]   Network change + memory pressure + task"
+    echo "  task-retry-net [cycles]      Task retry after network failure"
+    echo "  net-kill-restart [cycles]    Network loss + task + kill + restart"
+    echo "  sustained-net-drops          Sustained tasks with periodic network drops (2m)"
+    echo "  net-type-switch [cycles]     Rapid network type switch during task"
+    echo "  task-doze-no-net             Task during doze with no network"
+    echo "  net-restore-resume [cycles]  Network restore exactly on resume"
     echo ""
     echo "Utility Commands:"
     echo "  verify-task            Verify background task actually runs"
     echo "  monitor                Just monitor logs (Ctrl+C to stop)"
     echo ""
     echo "Examples:"
-    echo "  $0 all                 # Run all tests"
+    echo "  $0 all                 # Run all tests (78 tests)"
+    echo "  $0 network             # Run all network + task tests (15 tests)"
     echo "  $0 simple 5 5          # 5 cycles with 5s delay"
     echo "  $0 stop-during-task 5  # Test force stop during background task"
+    echo "  $0 network-loss-task 3 # Test network loss during background task"
+    echo "  $0 net-flapping        # Test network flapping during long task"
     echo "  $0 monitor             # Watch logs for issues"
 }
 
@@ -2879,8 +3630,11 @@ main() {
         rotation)
             test_rotation "${2:-3}"
             ;;
-        network)
+        network-toggle)
             test_network_toggle "${2:-3}"
+            ;;
+        network)
+            run_network_tests
             ;;
         clear-cache)
             test_clear_cache "${2:-3}"
@@ -2890,6 +3644,52 @@ main() {
             ;;
         stress)
             test_stress_combination
+            ;;
+        # Network + Background Task Interaction Tests
+        task-no-network)
+            test_task_no_network_then_restore "${2:-3}"
+            ;;
+        network-loss-task)
+            test_network_loss_during_task "${2:-3}"
+            ;;
+        wifi-to-mobile)
+            test_wifi_to_mobile_during_task "${2:-3}"
+            ;;
+        mobile-to-wifi)
+            test_mobile_to_wifi_during_task "${2:-3}"
+            ;;
+        rapid-net-toggle)
+            test_rapid_network_toggle_during_task
+            ;;
+        intermittent-net)
+            test_tasks_intermittent_connectivity
+            ;;
+        task-airplane)
+            test_task_airplane_toggle "${2:-3}"
+            ;;
+        net-flapping)
+            test_long_task_network_flapping
+            ;;
+        net-pressure-task)
+            test_network_change_pressure_task "${2:-3}"
+            ;;
+        task-retry-net)
+            test_task_retry_after_network_failure "${2:-3}"
+            ;;
+        net-kill-restart)
+            test_network_loss_task_kill_restart "${2:-3}"
+            ;;
+        sustained-net-drops)
+            test_sustained_tasks_periodic_network_drops
+            ;;
+        net-type-switch)
+            test_network_type_rapid_switch "${2:-3}"
+            ;;
+        task-doze-no-net)
+            test_task_doze_no_network
+            ;;
+        net-restore-resume)
+            test_network_restore_on_resume "${2:-3}"
             ;;
         verify-task)
             log_test "Verify Background Task Execution"

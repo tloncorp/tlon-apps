@@ -66,7 +66,7 @@ react {
     //   The list of variants to that are debuggable. For those we're going to
     //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
-    // debuggableVariants = ["liteDebug", "prodDebug"]
+    debuggableVariants = ["productionDebug", "previewDebug"]
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -138,8 +138,10 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            buildConfigField "boolean", "USE_DEV_SUPPORT", "true"
         }
         release {
+            buildConfigField "boolean", "USE_DEV_SUPPORT", "false"
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
@@ -147,6 +149,23 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+        releaseDebuggable {
+            initWith release
+            // Enable debuggable for run-as support in tests
+            // JS bundling still happens because this variant is NOT in debuggableVariants
+            debuggable true
+            // Also enable native debugging
+            jniDebuggable true
+            // Override dev support to false so app loads bundled JS, not from Metro
+            buildConfigField "boolean", "USE_DEV_SUPPORT", "false"
+            matchingFallbacks = ['release']
+            // Add debug symbols
+            packagingOptions {
+                jniLibs {
+                    keepDebugSymbols += ['**/*.so']
+                }
+            }
         }
     }
     packagingOptions {

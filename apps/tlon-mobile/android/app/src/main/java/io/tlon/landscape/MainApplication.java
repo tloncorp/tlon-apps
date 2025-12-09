@@ -34,7 +34,7 @@ public class MainApplication extends Application implements ReactApplication {
     new ReactNativeHostWrapper(this, new DefaultReactNativeHost(this) {
       @Override
       public boolean getUseDeveloperSupport() {
-        return BuildConfig.DEBUG;
+        return BuildConfig.USE_DEV_SUPPORT;
       }
 
       @Override

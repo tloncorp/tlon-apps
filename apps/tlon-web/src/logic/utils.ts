@@ -75,11 +75,11 @@ export function createDevLogger(tag: string, enabled: boolean) {
 }
 
 export function log(...args: any[]) {
-  if (import.meta.env.DEV) {
-    const { stack } = new Error();
-    const line = stack?.split('\n')[2].trim();
-    console.log(`${line}:`, ...args);
-  }
+  // if (import.meta.env.DEV) {
+  const { stack } = new Error();
+  const line = stack?.split('\n')[2].trim();
+  console.log(`${line}:`, ...args);
+  // }
 }
 
 /**
