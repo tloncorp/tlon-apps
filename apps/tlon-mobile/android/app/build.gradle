@@ -147,6 +147,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
+        releaseDebuggable {
+            // Like release but with debuggable=true for testing
+            initWith release
+            debuggable true
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
     }
     packagingOptions {
         jniLibs {

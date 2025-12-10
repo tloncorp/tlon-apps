@@ -38,4 +38,8 @@ class UrbitModule: NSObject {
             await NotificationDismissHandler.shared.updateBadgeCountIfNeeded(newCount: count, uid: uid)
         }
     }
+
+    @objc func signalJsReady() {
+        // No-op on iOS
+    }
 }
