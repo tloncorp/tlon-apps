@@ -289,6 +289,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       } else if (step === 'initial') {
         setStep('selectType');
       }
@@ -350,6 +351,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       },
     }),
     []
