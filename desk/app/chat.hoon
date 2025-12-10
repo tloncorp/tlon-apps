@@ -1,4 +1,4 @@
-/-  c=chat, cv=chat-ver, d=channels, g=groups
+/-  c=chat, cv=chat-ver, d=channels, dv=channels-ver, g=groups
 /-  u=ui, e=epic, a=activity, s=story, meta
 /-  contacts
 /+  default-agent, verb, dbug,
@@ -649,7 +649,7 @@
   ++  writ-4-to-5
     |=  [=time old=writ:v2:cv =replies:v3:cv]
     ^-  writ:v3:cv
-    =;  qm=reply-meta:v7:d
+    =;  qm=reply-meta:v7:dv
       :-  [id.old time feels.old replies qm]
       (essay-4-to-5 +.old)
     ::
@@ -675,7 +675,7 @@
   ::
   ++  memo-4-to-5
     |=  memo:v2:cv
-    ^-  memo:v7:old:d
+    ^-  memo:v7:dv
     [(story-4-to-5 author content) author sent]
   ::
   ++  essay-4-to-5
@@ -685,7 +685,7 @@
   ::
   ++  story-4-to-5
     |=  [=ship old=content:v2:cv]
-    ^-  story:v7:old:d
+    ^-  story:v7:dv
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
@@ -2685,10 +2685,10 @@
             [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
           =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
           =/  rid=time  (slav %ud i.t.t.t.wire)
-          =/  msg=(unit memo:v7:d)
+          =/  msg=(unit memo:v7:dv)
             %+  biff  (get:di-pact id)
             |=  [time writ=(may:c writ:c)]
-            ^-  (unit memo:v7:d)
+            ^-  (unit memo:v7:dv)
             ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
             ?:  ?=(%| -.writ)  ~
             ?~  rep=(get:on:replies:c replies.writ u.id)  ~

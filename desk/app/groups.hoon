@@ -6,7 +6,7 @@
 ::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
+/-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
     activity
 /-  meta
 /+  default-agent, verb, dbug
@@ -1595,7 +1595,7 @@
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
-    =+  !<(=r-channels:v7:old:d q.cage.sign)
+    =+  !<(=r-channels:v7:dv q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -1795,6 +1795,24 @@
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  delete-channels
+      |=  nests=(list nest:g)
+      ~>  %spin.['delete-channels']
+      ^-  (list card)
+      %+  murn
+          nests
+      |=  nes=nest:g
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
+      =/  =dock  [our.bowl %channels-server]
+      :: TODO: implement the channel deletion poke in channels-server
+      ::
+      :: =/  action=a-channels:d  [%channel nes %delete ~]
+      :: =/  =cage  channel-action-1+!>(action)
+      :: =/  =wire  (weld se-area /channel/delete)
+      :: `[%pass wire %agent dock %poke cage]
+      ~
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -3366,11 +3384,10 @@
     =*  log  ~(. l `'group-join')
     ?:  go-has-sub
       ?:  ?=(%sub -.net)
-        (go-u-conn &+%done)
+        (go-u-connection &+%done)
       go-core
     =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
-    =.  go-core
-      (go-u-conn &+%watch)
+    =.  go-core  (go-u-connection &+%watch)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -3772,9 +3789,9 @@
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         ?.  &(?=(%sub -.net) init.net)
           (go-leave &)
-        (go-u-conn |+%fail)
+        (go-u-connection |+%fail)
       ?:  ?=(%sub -.net)
-        (go-u-conn &+%done)
+        (go-u-connection &+%done)
       go-core
     ::
         %fact
@@ -3850,7 +3867,7 @@
       %section        (go-u-section [section-id u-section]:u-group)
       %section-order  (go-u-section-order order.u-group)
       %flag-content   (go-u-flag-content [nest plan src]:u-group)
-      %delete         (go-u-conn |+%not-found)
+      %delete         go-u-delete
     ==
   ::  +go-u-error: receive group connection error
   ::
@@ -3858,7 +3875,7 @@
     |=  err=conn-error:g
     ^+  go-core
     ?>  ?=(%sub -.net)
-    (go-u-conn |+err)
+    (go-u-connection |+err)
   ::  +go-u-create: apply initial update
   ::
   ++  go-u-create
@@ -4093,7 +4110,7 @@
       ::  would kick us out on a subsequent rejoin.
       ::
       ?:  &(leave go-is-init)
-        (go-u-conn |+%not-authorized)
+        (go-u-connection |+%not-authorized)
       go-core
     ::
         %add-roles
@@ -4289,7 +4306,6 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
-      =.  cor  (emil (leave-channels:go-pass nest ~))
       ::  NB: when a channel is deleted we must
       ::      update .active-channels manually without waiting
       ::      for leave response. this is because the channel
@@ -4524,14 +4540,24 @@
             flag
         ==
     go-core
-  ::  +go-u-conn: update connection status
+  ::  +go-u-connection: update connection status
   ::
-  ++  go-u-conn
+  ++  go-u-connection
     |=  =conn:g
     ^+  go-core
     =.  go-core  (go-response %connection conn)
     ?:  ?=(%& -.conn)  go-core
     (emit [%pass go-sub-wire %agent [p.flag server] %leave ~])
+  ::  +go-u-delete: handle group deletion
+  ::
+  ++  go-u-delete
+    ^+  go-core
+    ::TODO only enable when the client understands this is only
+    ::     a host-side event, and it should not delete the group until
+    ::     we %leave it.
+    ::
+    :: =.  go-core  (go-response %delete ~)
+    (go-u-connection |+%not-found)
   ::  +go-response: send response to our subscribers
   ::
   ++  go-response
@@ -4780,7 +4806,6 @@
     ^+  fi-core
     =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
-    =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)
