@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
@@ -63,7 +63,7 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %13
-        =v-channels:v9:c
+        =v-channels:v9:cv
         =hooks:h
         =pimp:imp
     ==
@@ -185,31 +185,31 @@
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
-        =v-channels:v9:c
+        =v-channels:v9:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-9
     $:  %9
-        =v-channels:v8:c
+        =v-channels:v8:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-8
     $:  %8
-        =v-channels:v8:c
+        =v-channels:v8:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-7
     $:  %7
-        =v-channels:v7:c
+        =v-channels:v7:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-6
     $:  %6
-      =v-channels:v7:c
+      =v-channels:v7:cv
       =pimp:imp
     ==
   ::
@@ -243,17 +243,17 @@
     ^-  state-9
     =-  s(- %9, v-channels -)
     %-  ~(run by v-channels.s)
-    |=  v=v-channel:v8:c
+    |=  v=v-channel:v8:cv
     ^+  v
-    %+  roll  (tap:log-on:v8:c log.v)
-    |=  $:  [t=time u=u-channel:v8:c]
+    %+  roll  (tap:log-on:v8:cv log.v)
+    |=  $:  [t=time u=u-channel:v8:cv]
             chan=_v
         ==
     ?.  ?=([%post * %set ~] u)  chan
-    ~?  ?=([~ ~ *] (get:on-v-posts:v8:c posts.chan id.u))
+    ~?  ?=([~ ~ *] (get:on-v-posts:v8:cv posts.chan id.u))
       %strange-existing-deleted-posts
     =-  chan(posts -)
-    (put:on-v-posts:v8:c posts.chan id.u ~)
+    (put:on-v-posts:v8:cv posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
     ~>  %spin.['state-7-to-8']
@@ -266,25 +266,25 @@
     [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
-        =v-channels:v6:c
+        =v-channels:v6:cv
         =pimp:imp
     ==
   ++  state-5-to-6
     |=  state-5
     ~>  %spin.['state-5-to-6']
     ^-  state-6
-    [%6 (v-channels-5-to-6 v-channels) pimp]
-  ++  v-channels-5-to-6
-    |=  vc=v-channels:v6:c
-    ~>  %spin.['v-channels-5-to-6']
-    ^-  v-channels:v7:c
+    [%6 (v-channels-6-to-7 v-channels) pimp]
+  ++  v-channels-6-to-7
+    |=  vc=v-channels:v6:cv
+    ~>  %spin.['v-channels-6-to-7']
+    ^-  v-channels:v7:cv
     %-  ~(run by vc)
-    |=  v=v-channel:v6:c
-    ^-  v-channel:v7:c
+    |=  v=v-channel:v6:cv
+    ^-  v-channel:v7:cv
     v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
-        =v-channels:v6:c
+        =v-channels:v6:cv
     ==
   ++  state-4-to-5
     |=  state-4
@@ -301,17 +301,17 @@
   ++  v-channel-2-to-3
     |=  v=v-channel-2
     ~>  %spin.['v-channel-2-to-3']
-    ^-  v-channel:v6:c
-    v(future [future.v *pending-messages:v7:c])
+    ^-  v-channel:v6:cv
+    v(future [future.v *pending-messages:v7:cv])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
-    |^  ,[global:v-channel:v7:c local]
+    |^  ,[global:v-channel:v7:cv local]
     +$  local
       $:  =net:c
-          =log:v7:c
+          =log:v7:cv
           =remark:c
           =window:v-channel:c
-          =future:v-channel:v7:c
+          =future:v-channel:v7:cv
       ==
     --
   ::
@@ -344,23 +344,23 @@
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
-  +$  u-channel-1     $%  $<(%post u-channel:v7:c)
+  +$  u-channel-1     $%  $<(%post u-channel:v7:cv)
                           [%post id=id-post:c u-post=u-post-1]
                       ==
-  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:c)
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:cv)
                           [%set post=(unit v-post-1)]
                           [%reply id=id-reply:c u-reply=u-reply-1]
                       ==
-  +$  u-reply-1       $%  $<(%set u-reply:v7:c)
+  +$  u-reply-1       $%  $<(%set u-reply:v7:cv)
                           [%set reply=(unit v-reply-1)]
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:v7:c)]
-  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:c]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:cv)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:cv]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:c memo:v7:c]
+  +$  v-reply-1       [v-reply-seal:v7:cv memo:v7:cv]
   ++  state-1-to-2
     |=  s=state-1
     ~>  %spin.['state-1-to-2']
@@ -382,18 +382,18 @@
   ++  u-channel-1-to-2
     |=  u=u-channel-1
     ~>  %spin.['u-channel-1-to-2']
-    ^-  u-channel:v7:c
+    ^-  u-channel:v7:cv
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
     ~>  %spin.['future-1-to-2']
-    ^-  future:v-channel:v7:c
+    ^-  future:v-channel:v7:cv
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
     ~>  %spin.['u-post-1-to-2']
-    ^-  u-post:v7:c
+    ^-  u-post:v7:cv
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
@@ -411,7 +411,7 @@
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
-    |=(r=v-reply-1 `v-reply:v7:c`[-.r 0 +.r])
+    |=(r=v-reply-1 `v-reply:v7:cv`[-.r 0 +.r])
   ::
   ::  %0 to %1
   ::
@@ -500,10 +500,10 @@
         ==
       :-  %noun
       !>  :+  %tombstones  nest
-      ^-  (list [id-post:v9:c tombstone:v9:c])
+      ^-  (list [id-post:v9:cv tombstone:v9:cv])
       %+  murn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(may:c v-post:c)]
-      ^-  (unit [id-post:v9:c tombstone:v9:c])
+      ^-  (unit [id-post:v9:cv tombstone:v9:cv])
       ?:(?=(%& -.p) ~ `[i +.p])
     ==
   ::
@@ -718,7 +718,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v9:gv q.cage.sign))
+      (take-groups !<(r-groups:v10:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -769,7 +769,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v9:gv
+  |=  =r-groups:v10:gv
   ~>  %spin.['take-groups']
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)

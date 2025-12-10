@@ -6,7 +6,7 @@
 ::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
+/-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
     activity
 /-  meta
 /+  default-agent, verb, dbug
@@ -1564,7 +1564,7 @@
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
-    =+  !<(=r-channels:v7:old:d q.cage.sign)
+    =+  !<(=r-channels:v7:dv q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -1764,6 +1764,24 @@
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  delete-channels
+      |=  nests=(list nest:g)
+      ~>  %spin.['delete-channels']
+      ^-  (list card)
+      %+  murn
+          nests
+      |=  nes=nest:g
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
+      =/  =dock  [our.bowl %channels-server]
+      :: TODO: implement the channel deletion poke in channels-server
+      ::
+      :: =/  action=a-channels:d  [%channel nes %delete ~]
+      :: =/  =cage  channel-action-1+!>(action)
+      :: =/  =wire  (weld se-area /channel/delete)
+      :: `[%pass wire %agent dock %poke cage]
+      ~
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -4230,7 +4248,6 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
-      =.  cor  (emil (leave-channels:go-pass nest ~))
       ::  NB: when a channel is deleted we must
       ::      update .active-channels manually without waiting
       ::      for leave response. this is because the channel
@@ -4713,7 +4730,6 @@
     ^+  fi-core
     =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
-    =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)

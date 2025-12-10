@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, gv=groups-ver, activity, story
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, activity, story
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -403,21 +403,21 @@
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
-        =v-channels:v9:c
-        voc=(map [nest:v9:c plan:v9:c] (unit said:v9:c))
-        hidden-posts=(set id-post:v9:c)
+        =v-channels:v9:cv
+        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
+        hidden-posts=(set id-post:v9:cv)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
-        pending-ref-edits=(jug ship [=kind:v9:c name=term])
+        pending-ref-edits=(jug ship [=kind:v9:cv name=term])
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
     ==
   +$  state-9
     $:  %9  ::NOTE  otherwise identical to state-8
-        =v-channels:v8:c
-        voc=(map [nest:c plan:c] (unit said:v8:c))
+        =v-channels:v8:cv
+        voc=(map [nest:c plan:c] (unit said:v8:cv))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -429,8 +429,8 @@
     ==
   +$  state-8
     $:  %8
-        =v-channels:v8:c
-        voc=(map [nest:c plan:c] (unit said:v8:c))
+        =v-channels:v8:cv
+        voc=(map [nest:c plan:c] (unit said:v8:cv))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -442,8 +442,8 @@
     ==
   +$  state-7
     $:  %7
-        =v-channels:v7:c
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        =v-channels:v7:cv
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -455,8 +455,8 @@
     ==
   +$  state-6
     $:  %6
-        =v-channels:v6:c
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        =v-channels:v6:cv
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -491,7 +491,7 @@
     |=  s=state-12
     ~>  %spin.['state-12-to-13']
     =-  s(- %13, v-channels (~(run by v-channels.s) -))
-    |=  v=v-channel:v9:c
+    |=  v=v-channel:v9:cv
     ^+  v
     v(posts (drop-bad-tombstones:utils posts.v))
   ::
@@ -517,7 +517,7 @@
     ::
         voc
       %-  ~(run by voc.s)
-      |=  s=(unit said:v8:c)
+      |=  s=(unit said:v8:cv)
       ?~(s ~ `(said-8-to-9:utils u.s))
     ==
   ::
@@ -533,7 +533,7 @@
     ^-  state-8
     %=  s  -  %8
       v-channels  (v-channels-7-to-8:utils v-channels.s)
-      voc  (~(run by voc.s) |=(s=(unit said:v7:c) ?~(s ~ `(said-7-to-8:utils u.s))))
+      voc  (~(run by voc.s) |=(s=(unit said:v7:cv) ?~(s ~ `(said-7-to-8:utils u.s))))
     ==
   ::
   ++  state-6-to-7
@@ -542,21 +542,17 @@
     ^-  state-7
     s(- %7, v-channels (v-channels-6-to-7 v-channels.s))
   ++  v-channels-6-to-7
-    |=  vc=v-channels:v6:c
+    |=  vc=v-channels:v6:cv
     ~>  %spin.['v-channels-6-to-7']
-    ^-  v-channels:v7:c
+    ^-  v-channels:v7:cv
     %-  ~(run by vc)
-    |=  v=v-channel:v6:c
+    |=  v=v-channel:v6:cv
     v(pending [pending.v *last-updated:c])
   ::
   +$  state-5
-    ::XX versioning: expose correct types
-    :: by stacking a number of =,
-    ::
-    :: =,  v5:old:c
     $:  %5
-        =v-channels:v6:c
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        =v-channels:v6:cv
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -574,8 +570,8 @@
   ::
   +$  state-4
     $:  %4
-        =v-channels:v6:c
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        =v-channels:v6:cv
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
         pending-ref-edits=(jug ship [=kind:c name=term])
@@ -591,7 +587,7 @@
   +$  state-3
     $:  %3
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -605,7 +601,7 @@
   +$  state-2
     $:  %2
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -616,7 +612,7 @@
   +$  state-1
     $:  %1
         v-channels=(map nest:c v-channel-1)
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -643,39 +639,39 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:v7:c =window =future]
+    +$  local     [=net:c log=log-1 =remark:v7:cv =window =future]
     --
   ::
   ++  v-channel-2
-    |^  ,[global:v-channel:v7:c local]
+    |^  ,[global:v-channel:v7:cv local]
     +$  local
       $:  =net:c
-          =log:v7:c
-          =remark:v7:c
+          =log:v7:cv
+          =remark:v7:cv
           =window:v-channel:c
-          =future:v-channel:v7:c
+          =future:v-channel:v7:cv
       ==
     --
   ::
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
-  +$  u-channel-1     $%  $<(%post u-channel:v7:c)
+  +$  u-channel-1     $%  $<(%post u-channel:v7:cv)
                           [%post id=id-post:c u-post=u-post-1]
                       ==
-  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:c)
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:cv)
                           [%set post=(unit v-post-1)]
                           [%reply id=id-reply:c u-reply=u-reply-1]
                       ==
-  +$  u-reply-1       $%  $<(%set u-reply:v7:c)
+  +$  u-reply-1       $%  $<(%set u-reply:v7:cv)
                           [%set reply=(unit v-reply-1)]
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:v7:c)]
-  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:c]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:cv)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:cv]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:c memo:v7:c]
+  +$  v-reply-1       [v-reply-seal:v7:cv memo:v7:cv]
   ++  state-1-to-2
     |=  s=state-1
     ~>  %spin.['state-1-to-2']
@@ -692,8 +688,8 @@
   ++  v-channel-2-to-3
     |=  v=v-channel-2
     ~>  %spin.['v-channel-2-to-3']
-    ^-  v-channel:v6:c
-    v(future [future.v *pending-messages:v7:c])
+    ^-  v-channel:v6:cv
+    v(future [future.v *pending-messages:v7:cv])
   ++  v-channel-1-to-2
     |=  v=v-channel-1
     ~>  %spin.['v-channel-1-to-2']
@@ -710,18 +706,18 @@
   ++  u-channel-1-to-2
     |=  u=u-channel-1
     ~>  %spin.['u-channel-1-to-2']
-    ^-  u-channel:v7:c
+    ^-  u-channel:v7:cv
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
     ~>  %spin.['future-1-to-2']
-    ^-  future:v-channel:v7:c
+    ^-  future:v-channel:v7:cv
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
     ~>  %spin.['u-post-1-to-2']
-    ^-  u-post:v7:c
+    ^-  u-post:v7:cv
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
@@ -739,14 +735,14 @@
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
-    |=(r=v-reply-1 `v-reply:v7:c`[-.r 0 +.r])
+    |=(r=v-reply-1 `v-reply:v7:cv`[-.r 0 +.r])
   ::
   ::  %0 to %1
   ::
   +$  state-0
     $:  %0
         v-channels=(map nest:c v-channel-0)
-        voc=(map [nest:c plan:c] (unit said:v7:c))
+        voc=(map [nest:c plan:c] (unit said:v7:cv))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -908,7 +904,7 @@
       cor
     ::
         [%tombstones * *]
-      =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] q.vase)
+      =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:cv tomb=tombstone:v9:cv])] q.vase)
       ?>  =(src.bowl ship.nest)
       =.  cor  (emit (tell:plog %info ~['receiving tombstones' >nest< >(lent tombs)<] ~))
       ?.  (~(has by v-channels) nest)  cor
@@ -932,7 +928,7 @@
     =/  =a-channels:c
       ?.  ?=(%channel-action mark)
         !<(a-channels:c vase)
-      =+  !<(old-a-channels=a-channels:v7:c vase)
+      =+  !<(old-a-channels=a-channels:v7:cv vase)
       ::  upconvert old %create action
       ?:  ?=([%create *] old-a-channels)
         :-  %create
@@ -1220,12 +1216,12 @@
           %channel-said
         %-  some
         %-  said-8-to-9:utils
-        (said-7-to-8:utils !<(=said:v7:c q.cage.sign))
+        (said-7-to-8:utils !<(=said:v7:cv q.cage.sign))
       ::
           %channel-said-1
-        `(said-8-to-9:utils !<(=said:v8:c q.cage.sign))
+        `(said-8-to-9:utils !<(=said:v8:cv q.cage.sign))
       ::
-        %channel-said-2  `!<(=said:v9:c q.cage.sign)
+        %channel-said-2  `!<(=said:v9:cv q.cage.sign)
       ==
     =.  voc
       %+  ~(put by voc)  [nest plan]
@@ -1251,7 +1247,7 @@
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(`said:v9:c`u.got)
+      channel-said-2+!>(`said:v9:cv`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
@@ -1323,7 +1319,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(=r-groups:v9:gv q.cage.sign))
+      (take-groups !<(=r-groups:v10:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -1351,7 +1347,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v9:gv
+  |=  =r-groups:v10:gv
   ~>  %spin.['take-groups']
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
@@ -1392,22 +1388,22 @@
     ::    /x/v/channels: get unversioned channels
     ::
       [%x ?(%v0 %v1) %channels ~]
-    ``channels+!>(`channels-0:c`(uv-channels-1:utils v-channels))
+    ``channels+!>(`channels-0:v7:cv`(uv-channels-1:utils v-channels))
     ::
       [%x %v2 %channels full=?(~ [%full ~])]
-    ``channels-2+!>(`channels:v1:c`(uv-channels:utils v-channels ?=(^ full.pole)))
+    ``channels-2+!>(`channels:v1:cv`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v3 %v-channels ~]
-    ``noun+!>(`v-channels:v8:c`(v8:v-channels:v9:ccv v-channels))
+    ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels))
     ::
       [%x %v4 %v-channels ~]
     ``noun+!>(v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
-    ``channels-3+!>(`channels:v8:c`(uv-channels-2:utils v-channels ?=(^ full.pole)))
+    ``channels-3+!>(`channels:v8:cv`(uv-channels-2:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v4 %channels full=?(~ [%full ~])]
-    ``channels-4+!>(`channels:v9:c`(uv-channels-3:utils v-channels ?=(^ full.pole)))
+    ``channels-4+!>(`channels:v9:cv`(uv-channels-3:utils v-channels ?=(^ full.pole)))
     ::
     ::  /x/v/init: get unreads and unversioned channels
     ::
@@ -1419,17 +1415,20 @@
     ::
       [%x %v3 %init ~]
     =/  init  [(uv-channels:utils v-channels |) hidden-posts]
-    ``noun+!>(`[channels:v1:c (set id-post:c)]`init)
+    ``noun+!>(`[channels:v1:cv (set id-post:c)]`init)
     ::
       [%x %v4 %init ~]
     =/  init  [(uv-channels-2:utils v-channels |) hidden-posts]
-    ``noun+!>(`[channels:v8:c (set id-post:c)]`init)
+    ``noun+!>(`[channels:v8:cv (set id-post:c)]`init)
     ::
       [%x %v5 %init ~]
     =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
-    ``noun+!>(`[channels:v9:c (set id-post:c)]`init)
+    ``noun+!>(`[channels:v9:cv (set id-post:c)]`init)
     ::
       [%x %v5 %changes since=@ rest=*]
+    ::TODO  since this is a scry endpoint, all relevant
+    ::      types should have a pinned version.
+    ::
     =+  since=(slav %da since.pole)
     =/  changes
       %-  ~(gas by *(map nest:c (unit v-posts:c)))
@@ -1529,9 +1528,9 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    =;  output=(unit (unit said:v8:c))
+    =;  output=(unit (unit said:v8:cv))
       ``noun+!>(output)
-    =/  said=(unit (unit said:v9:c))  (~(get by voc) nest plan)
+    =/  said=(unit (unit said:v9:cv))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
     ``(v8:said:v9:ccv u.u.said)
@@ -1540,7 +1539,7 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    ``noun+!>(`(unit (unit said:v9:c))`(~(get by voc) nest plan))
+    ``noun+!>(`(unit (unit said:v9:cv))`(~(get by voc) nest plan))
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
@@ -1560,20 +1559,20 @@
   ?-  ver
       %v2
     :-  %channel-heads
-    !>  ^-  channel-heads:v7:c
+    !>  ^-  channel-heads:v7:cv
     %+  turn  heads
-    |=  head=[=nest:c recency=time latest=(may:c post:v9:c)]
+    |=  head=[=nest:c recency=time latest=(may:c post:v9:cv)]
     head(latest ((may-bind:utils v7:post:v9:ccv) latest.head))
   ::
       %v3
     :-  %channel-heads-2
-    !>  ^-  channel-heads:v8:c
+    !>  ^-  channel-heads:v8:cv
     %+  turn  heads
-    |=  head=[=nest:c recency=time latest=(may:c post:v9:c)]
+    |=  head=[=nest:c recency=time latest=(may:c post:v9:cv)]
     head(latest ((may-bind:utils v8:post:v9:ccv) latest.head))
   ::
       %v4
-    channel-heads-3+!>(`channel-heads:v9:c`heads)
+    channel-heads-3+!>(`channel-heads:v9:cv`heads)
   ==
 ::
 ++  arvo
@@ -2531,12 +2530,12 @@
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
-      =/  rc=r-channels:v9:c  r-channels
+      =/  rc=r-channels:v9:cv  r-channels
       channel-response-4+!>(rc)
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
-      =/  rc=r-channels:v8:c
+      =/  rc=r-channels:v8:cv
         (v8:r-channels:v9:ccv r-channels)
       channel-response-3+!>(rc)
     ::
@@ -2546,7 +2545,7 @@
       %^  give  %fact
         ~[/v1 v1+ca-area]
       channel-response-2+!>((v7:r-channels:v9:ccv r-channels))
-    =;  r-simple=r-channels-simple-post:v7:c
+    =;  r-simple=r-channels-simple-post:v7:cv
       %^  give  %fact
         ~[/ ca-area /v0 v0+ca-area]
       channel-response+!>(r-simple)
@@ -2556,13 +2555,13 @@
       r-channel(posts (s-posts-1:utils posts.r-channel))
     ::
         [%post * %set *]
-      ^-  r-channel-simple-post:v7:c
+      ^-  r-channel-simple-post:v7:cv
       ?:  ?=(%| -.post.r-post.r-channel)
         r-channel(post.r-post ~)
       r-channel(post.r-post `(s-post-1:utils +.post.r-post.r-channel))
     ::
         [%post * %reply * * %set *]
-      ^-  r-channel-simple-post:v7:c
+      ^-  r-channel-simple-post:v7:cv
       %=    r-channel
           ::
           reply.r-reply.r-post
@@ -2666,9 +2665,9 @@
       :+  ~  ~
       =;  =scam:c
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scam+!>(`scam:v7:c`(v7:scam:v9:ccv scam))
-          %v3  channel-scam-2+!>(`scam:v8:c`(v8:scam:v9:ccv scam))
-          %v4  channel-scam-3+!>(`scam:v9:c`scam)
+          ?(%v0 %v1 %v2)  channel-scam+!>(`scam:v7:cv`(v7:scam:v9:ccv scam))
+          %v3  channel-scam-2+!>(`scam:v8:cv`(v8:scam:v9:ccv scam))
+          %v4  channel-scam-3+!>(`scam:v9:cv`scam)
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:ca-search
@@ -2686,9 +2685,9 @@
       :+  ~  ~
       =;  =scan:c
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:c`(v7:scan:v9:ccv scan))
-          %v3  channel-scan-2+!>(`scan:v8:c`(v8:scan:v9:ccv scan))
-          %v4  channel-scan-3+!>(`scan:v9:c`scan)
+          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
+          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
+          %v4  channel-scan-3+!>(`scan:v9:cv`scan)
         ==
       %^    text:hits-bound:ca-search
           (slav %ud skip.pole)
@@ -2699,9 +2698,9 @@
       :+  ~  ~
       =;  =scan:c
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:c`(v7:scan:v9:ccv scan))
-          %v3  channel-scan-2+!>(`scan:v8:c`(v8:scan:v9:ccv scan))
-          %v4  channel-scan-3+!>(`scan:v9:c`scan)
+          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
+          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
+          %v4  channel-scan-3+!>(`scan:v9:cv`scan)
         ==
       %^    mention:hits-bound:ca-search
           (slav %ud skip.pole)
@@ -2714,10 +2713,10 @@
     ~>  %spin.['give-posts-0']
     ^-  (unit (unit cage))
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
-    =;  paged-posts=paged-simple-posts:v7:c
+    =;  paged-posts=paged-simple-posts:v7:cv
       ``channel-simple-posts+!>(paged-posts)
-    ?:  =(0 (lent ls))  [*simple-posts:v7:c ~ ~ 0]
-    =/  posts=simple-posts:v7:c
+    ?:  =(0 (lent ls))  [*simple-posts:v7:cv ~ ~ 0]
+    =/  posts=simple-posts:v7:cv
       ?:  =(%post mode)  (suv-posts-1:utils posts)
       (suv-posts-without-replies-1:utils posts)
     =/  newer=(unit time)
@@ -2750,21 +2749,21 @@
     =/  count  (wyt:on-v-posts:c posts.channel)
     ?-  version
         %v1
-      =;  =paged-posts:v1:c
+      =;  =paged-posts:v1:cv
         ``channel-posts+!>(paged-posts)
       :_  [newer older count]
       ?:  =(%post mode)  (uv-posts:utils posts)
       (uv-posts-without-replies:utils posts)
     ::
         %v2
-      =;  =paged-posts:v7:c
+      =;  =paged-posts:v7:cv
         ``channel-posts-2+!>(paged-posts)
       :_  [newer older count]
       ?:  =(%post mode)  (uv-posts-1:utils posts)
       (uv-posts-without-replies-1:utils posts)
     ::
         %v3
-      =;  =paged-posts:v8:c
+      =;  =paged-posts:v8:cv
         ``channel-posts-3+!>(paged-posts)
       :_  [newer older (wyt:on-v-posts:c posts.channel)]
       ?:  =(%post mode)  (uv-posts-2:utils posts)
@@ -2894,17 +2893,17 @@
         ?-  version
         ::
             %v1
-          =/  =paged-posts:v1:c
+          =/  =paged-posts:v1:cv
             [(uv-posts:utils posts) newer older count]
           ``channel-posts+!>(paged-posts)
         ::
             %v2
-            =/  =paged-posts:v7:c
+            =/  =paged-posts:v7:cv
               [(uv-posts-1:utils posts) newer older count]
             ``channel-posts-2+!>(paged-posts)
         ::
             %v3
-            =/  =paged-posts:v8:c
+            =/  =paged-posts:v8:cv
               [(uv-posts-2:utils posts) newer older count]
             ``channel-posts-3+!>(paged-posts)
         ::
@@ -2984,10 +2983,10 @@
       ?~  post  ~
       ?:  ?=(%| -.u.post)  `~
       ?-  version
-        %v1  ``channel-post+!>(`post:v1:c`(uv-post:utils +.u.post))
-        %v2  ``channel-post-2+!>(`post:v7:c`(uv-post-1:utils +.u.post))
-        %v3  ``channel-post-3+!>(`post:v8:c`(uv-post-2:utils +.u.post))
-        %v4  ``channel-post-4+!>(`post:v9:c`(uv-post-3:utils +.u.post))
+        %v1  ``channel-post+!>(`post:v1:cv`(uv-post:utils +.u.post))
+        %v2  ``channel-post-2+!>(`post:v7:cv`(uv-post-1:utils +.u.post))
+        %v3  ``channel-post-3+!>(`post:v8:cv`(uv-post-2:utils +.u.post))
+        %v4  ``channel-post-4+!>(`post:v9:cv`(uv-post-3:utils +.u.post))
       ==
     ::
         [%post %id time=@ %replies rest=*]
@@ -3028,7 +3027,7 @@
       =/  reply  (get:on-v-replies:c replies `@da`time)
       ?~  reply  ~
       ?:  ?=(%| -.u.reply)  `~
-      ``channel-simple-reply+!>(`simple-reply:v7:c`(suv-reply-1:utils parent-id +.u.reply))
+      ``channel-simple-reply+!>(`simple-reply:v7:cv`(suv-reply-1:utils parent-id +.u.reply))
     ==
   ::
   ++  ca-peek-replies
@@ -3042,20 +3041,20 @@
       ?~  reply  ~
       ?:  ?=(%| -.u.reply)  `~
       ?:  ?=(%v1 version)
-        ``channel-reply+!>(`reply:v7:c`(uv-reply-1:utils parent-id +.u.reply))
-      ``channel-reply-2+!>(`reply:v8:c`(uv-reply-2:utils parent-id +.u.reply))
+        ``channel-reply+!>(`reply:v7:cv`(uv-reply-1:utils parent-id +.u.reply))
+      ``channel-reply-2+!>(`reply:v8:cv`(uv-reply-2:utils parent-id +.u.reply))
     =;  vr=(unit v-replies:c)
       ?~  vr  [~ ~]
       =*  id  parent-id
       ?-  version
           %v1
-        ``channel-replies+!>(`replies:v1:c`(uv-replies:utils id u.vr))
+        ``channel-replies+!>(`replies:v1:cv`(uv-replies:utils id u.vr))
           %v2
-        ``channel-replies-2+!>(`replies:v7:c`(uv-replies-1:utils id u.vr))
+        ``channel-replies-2+!>(`replies:v7:cv`(uv-replies-1:utils id u.vr))
           %v3
-        ``channel-replies-3+!>(`replies:v8:c`(uv-replies-2:utils id u.vr))
+        ``channel-replies-3+!>(`replies:v8:cv`(uv-replies-2:utils id u.vr))
           %v4
-        ``channel-replies-4+!>(`replies:v9:c`(uv-replies-3:utils id u.vr))
+        ``channel-replies-4+!>(`replies:v9:cv`(uv-replies-3:utils id u.vr))
       ==
     ?+    pole  ~
         [%all ~]  `replies

@@ -1,6 +1,6 @@
-/-  c=channels
+/-  cv=channels-ver
 /+  j=channel-json
-|_  =r-channels:v9:c
+|_  =r-channels:v9:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  r-channels:v9:c
-
+  ++  noun  r-channels:v9:cv
   --
 --
