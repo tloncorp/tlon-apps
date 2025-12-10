@@ -292,10 +292,10 @@ export async function deleteGroup(page: Page, groupName?: string) {
   });
 
   await page.getByTestId('GroupLeaveAction-Delete group').click();
-  await expect(
-    page.getByTestId('ActionSheetAction-Delete group').first()
-  ).toBeVisible({ timeout: 10000 });
-  await page.getByTestId('ActionSheetAction-Delete group').click();
+  await expect(page.getByText('This action cannot be undone.')).toBeVisible({
+    timeout: 10000,
+  });
+  await page.getByText('Delete group', { exact: true }).click();
   await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
     timeout: 20000,
   });
