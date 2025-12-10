@@ -54,12 +54,11 @@ export default function ProfileStatusSheet({
     <ActionSheet
       open={open}
       onOpenChange={handleClose}
-      // TODO: manually calculate keyboard + input height?
-      snapPointsMode="percent"
-      snapPoints={[60]}
+      enableDynamicSizing
+      modal
     >
-      <ActionSheet.Content flex={1} paddingBottom={0}>
-        <YStack flex={1} marginHorizontal="$2xl" gap="$l">
+      <ActionSheet.Content paddingBottom="$xl">
+        <YStack marginHorizontal="$2xl" gap="$l">
           <XStack gap="$m" alignItems="flex-end" width="100%">
             <ControlledTextField
               name="status"
