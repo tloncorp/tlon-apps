@@ -51,7 +51,6 @@ import * as fixture44 from './packages/app/fixtures/Activity.fixture';
 import * as fixture45 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture46 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
 import * as fixture47 from './packages/app/fixtures/DetailView/ChatDetailView.fixture';
-import * as fixture48 from './packages/app/fixtures/ActionSheet/SendPostRetrySheet.fixture';
 import * as fixture49 from './packages/app/fixtures/ActionSheet/ProfileSheet.fixture';
 import * as fixture50 from './packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture';
 import * as fixture51 from './packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
@@ -123,7 +122,6 @@ const fixtures = {
   'packages/app/fixtures/DetailView/NotebookDetailView.fixture.tsx': { module: fixture45 },
   'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': { module: fixture46 },
   'packages/app/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture47 },
-  'packages/app/fixtures/ActionSheet/SendPostRetrySheet.fixture.tsx': { module: fixture48 },
   'packages/app/fixtures/ActionSheet/ProfileSheet.fixture.tsx': { module: fixture49 },
   'packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': { module: fixture50 },
   'packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': { module: fixture51 },
