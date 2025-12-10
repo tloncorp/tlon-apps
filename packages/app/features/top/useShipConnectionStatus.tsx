@@ -6,7 +6,7 @@ import { debounce } from 'lodash';
 
 import { useCurrentUserId } from '../../ui';
 
-const logger = createDevLogger('useShipConnectionStatus', true);
+const logger = createDevLogger('useShipConnectionStatus', false);
 
 export interface ConnectivityCheckOptions {
   enabled?: boolean;
