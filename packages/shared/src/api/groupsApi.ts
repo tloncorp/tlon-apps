@@ -398,7 +398,7 @@ export const createGroup = async ({
     const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
       desk: 'groups',
       inputMark: 'group-create-thread',
-      threadName: 'group-create',
+      threadName: 'group-create-1',
       outputMark: 'group-ui-2',
       body: payload,
     });
