@@ -51,12 +51,7 @@ export default function ProfileStatusSheet({
   }, [handleClose, handleSubmit, isDirty, onUpdateStatus]);
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={handleClose}
-      enableDynamicSizing
-      modal
-    >
+    <ActionSheet open={open} onOpenChange={handleClose} modal>
       <ActionSheet.Content paddingBottom="$xl">
         <YStack marginHorizontal="$2xl" gap="$l">
           <XStack gap="$m" alignItems="flex-end" width="100%">
