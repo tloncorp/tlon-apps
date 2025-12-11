@@ -229,7 +229,8 @@ export default ({ mode }: { mode: string }) => {
     build:
       mode !== 'profile'
         ? {
-            sourcemap: 'hidden', // Generates sourcemaps for Sentry but doesn't reference them in bundle
+            // Only generate sourcemaps in CI for Sentry upload (avoids noisy warnings locally)
+            sourcemap: process.env.CI ? 'hidden' : false,
             rollupOptions,
             target: 'esnext',
           }
