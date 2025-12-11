@@ -11,11 +11,11 @@ import {
 import {
   Children,
   ComponentProps,
-  forwardRef,
   Fragment,
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -154,7 +154,7 @@ const ActionSheetComponent = ({
     SheetProps &
     Pick<
       BottomSheetWrapperProps,
-      'enableDynamicSizing' | 'enableContentPanningGesture' | 'hasScrollableContent'
+      'enableContentPanningGesture' | 'hasScrollableContent'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -361,7 +361,6 @@ const ActionSheetComponent = ({
       showHandle={true}
       showOverlay={true}
       enablePanDownToClose={true}
-      enableDynamicSizing={props.enableDynamicSizing ?? false}
       enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}

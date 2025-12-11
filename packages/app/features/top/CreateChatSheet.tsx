@@ -592,7 +592,6 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
-      enableDynamicSizing={false}
       enableContentPanningGesture={enableContentPanningGesture}
     >
       <CreateChatFormContent
