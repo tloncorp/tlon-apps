@@ -295,7 +295,10 @@ export async function deleteGroup(page: Page, groupName?: string) {
   await expect(page.getByText('This action cannot be undone.')).toBeVisible({
     timeout: 10000,
   });
-  await page.getByText('Delete group', { exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByText('Delete group', { exact: true })
+    .click();
   await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
     timeout: 20000,
   });
@@ -706,7 +709,10 @@ export async function deleteChannel(
 
   await page.getByText('Delete channel for everyone').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
-  await page.getByText('Delete channel', { exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByText('Delete channel', { exact: true })
+    .click();
 }
 
 /**
