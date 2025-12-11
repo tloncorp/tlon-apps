@@ -75,6 +75,7 @@
 +$  sect  term
 ++  ver
   |%
+  ++  v1  .
   ++  v0
     |% 
     +$  story  (list verse)

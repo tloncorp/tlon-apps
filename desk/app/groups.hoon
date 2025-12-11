@@ -6,7 +6,7 @@
 ::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
+/-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
     activity
 /-  meta
 /+  default-agent, verb, dbug
@@ -183,8 +183,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %9
-        groups=net-groups:v9:gv
+    $:  %10
+        groups=net-groups:v10:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
         =^subs:s
@@ -263,6 +263,7 @@
 ::
 ++  submit-activity
   |=  =action:activity
+  ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
@@ -275,18 +276,21 @@
   |_  flow=(unit @t)
   ++  fail
     |=  [desc=term =tang]
+    ~>  %spin.['fail']
     =/  =card
       (~(fail logs our.bowl /logs) desc tang deez)
     (emit card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs]
+    ~>  %spin.['tell']
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
     (emit card)
   ::  +deez: log message details
   ::
   ++  deez
+    ~>  %spin.['deez']
     ^-  (list (pair @t json))
     =;  l=(list (unit (pair @t json)))
       (murn l same)
@@ -295,6 +299,7 @@
   --
 ++  poke
   |=  [=mark =vase]
+  ~>  %spin.['poke']
   ^+  cor
   ~|  commit
   ?+    mark  ~|(bad-mark+mark !!)
@@ -378,7 +383,7 @@
           [%group flag [%delete ~]]
         $(+< group-command+!>(c-groups))
       ?:  ?=(%secret -.diff)
-        =/  =group:v9:gv  +:(~(got by groups) flag)
+        =/  =group:v10:gv  +:(~(got by groups) flag)
         ?:  p.diff
           ::  enable group secrecy
           ::
@@ -578,6 +583,7 @@
 ::
 ++  run-import
   |=  =egg-any:gall
+  ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
   ?-  -.egg-any
@@ -631,6 +637,7 @@
 ::
 ++  channels-scry
   |=  =nest:g
+  ~>  %spin.['channels-scry']
   ^-  path
   /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
@@ -639,12 +646,14 @@
 ::
 ++  reset-group-perms
   |=  core=_cor
+  ~>  %spin.['reset-group-perms']
   |=  [[=flag:g [=net:g =group:g]] cr=_core]
   ?.  =(our.bowl p.flag)  cr
   (~(rep by channels.group) (reset-channel-perms flag cr))
 ::
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
+  ~>  %spin.['reset-channel-perms']
   |=  [[=nest:g =channel:g] core=_cr]
   ?.  ?=(?(%diary %heap %chat) p.nest)  core
   =.  cards.core
@@ -703,7 +712,8 @@
       (~(unsubscribe s [subs bowl]) /contact dock)
     (emil:cor caz)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
+  ?>  ?=(%10 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
@@ -756,7 +766,8 @@
   cor
   ::
   +$  any-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -860,31 +871,43 @@
         =^subs:s
         =pimp:imp
     ==
-  ::
-  +$  state-9  current-state
+  +$  state-9
+    $:  %9
+        groups=net-groups:v9:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =^subs:s
+        =pimp:imp
+    ==
+  +$  state-10  current-state
   ::
   ++  state-0-to-1
     |=  state-0
+    ~>  %spin.['state-0-to-1']
     ^-  state-1
     [%1 groups [*level:v ~ ~] xeno shoal]
   ::
   ++  state-1-to-2
     |=  state-1
+    ~>  %spin.['state-1-to-2']
     ^-  state-2
     [%2 (v2:groups:v0:gc groups) volume xeno shoal]
   ::
   ++  state-2-to-3
     |=  state-2
+    ~>  %spin.['state-2-to-3']
     ^-  state-3
     [%3 groups volume xeno shoal *^subs:s]
   ::
   ++  state-3-to-4
     |=  state-3
+    ~>  %spin.['state-3-to-4']
     ^-  state-4
     [%4 groups volume xeno shoal subs ~]
   ::
   ++  state-4-to-5
     |=  state-4
+    ~>  %spin.['state-4-to-5']
     ^-  state-5
     :*  %5
         (~(run by groups) v5:net-group:v2:gc)
@@ -897,6 +920,7 @@
   ::
   ++  state-5-to-6
     |=  state-5
+    ~>  %spin.['state-5-to-6']
     ^-  state-6
     :*  %6
         groups
@@ -908,6 +932,7 @@
   ::
   ++  state-6-to-7
     |=  state-6
+    ~>  %spin.['state-6-to-7']
     ^-  (quip card state-7)
     ::  clean up old /cast subscriptions
     ::
@@ -977,6 +1002,7 @@
   ::
   ++  state-7-to-8
     |=  =state-7
+    ~>  %spin.['state-7-to-8']
     ^-  state-8
     %=  state-7
       -  %8
@@ -985,11 +1011,17 @@
   ::
   ++  state-8-to-9
     |=  =state-8
+    ~>  %spin.['state-8-to-9']
     ^-  state-9
     %=  state-8
       -  %9
       groups  (~(run by groups.state-8) v9:net-group:v7:gc)
     ==
+  ::
+  ++  state-9-to-10
+    |=  =state-9
+    ^-  state-10
+    *state-10
   --
 ::
 ++  inflate-io
@@ -1007,6 +1039,7 @@
 ::
 ++  watch
   |=  =(pole knot)
+  ~>  %spin.['watch']
   ^+  cor
   ~|  commit
   ~|  watch-path=`path`pole
@@ -1037,7 +1070,9 @@
     ?>  =(our.bowl ship)
     =/  se-core  (se-abed:se-core [our.bowl name.pole])
     ?:  (se-is-banned:se-core src.bowl)
-      ~|(%se-is-banned !!)
+      =.  cor
+        (emit %give %fact ~ group-error+!>(|+%not-found))
+      (emit %give %kick ~ ~)
     se-abet:(se-watch:se-core rest.pole)
   ::
     [%server %groups %index ~]  server-watch-index
@@ -1110,6 +1145,7 @@
 ::
 ++  peek
   |=  =(pole knot)
+  ~>  %spin.['peek']
   ^-  (unit (unit cage))
   |^
   ?+    pole  [~ ~]
@@ -1122,11 +1158,11 @@
       [%x %init %v1 ~]
     =/  groups-light-ui-2
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v9:gc status net light-group)
+      (group-ui:v2:group:v10:gc status net light-group)
     ::  we filter out foreigns which are %done,
     ::  since completed gangs are removed after
     ::  the group join in old groups.
@@ -1148,9 +1184,9 @@
       [%x %v2 %init ~]
     =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
-      =+  (group-ui:v7:group:v9:gc net light-group)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:v7:group:v10:gc net light-group)
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
@@ -1159,46 +1195,58 @@
       [%x %v3 %init ~]
     =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
       %-  ~(urn by groups)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
-      =*  light-group  (drop-seats:group:v9:gc group our.bowl)
-      =+  (group-ui:group:v9:gc net light-group)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:v9:group:v10:gc net light-group)
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
     ``noun+!>([groups-light-ui-9 `foreigns:v8:gv`foreigns])
   ::
+      [%x %v4 %init ~]
+    =/  groups-light-ui-10=(map flag:v10:gv group-ui:v10:gv)
+      %-  ~(urn by groups)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
+      =*  light-group  (drop-seats:group:v10:gc group our.bowl)
+      =+  (group-ui:group:v10:gc net light-group)
+      ::  restore member count after dropping seats
+      ::
+      -(member-count ~(wyt by seats.group))
+    ``noun+!>([groups-light-ui-10 `foreigns:v8:gv`foreigns])
+  ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
-    =/  groups-9=groups:v9:gv  (~(run by groups) tail)
+    =/  groups-10=groups:v10:gv  (~(run by groups) tail)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+!>((~(run by groups-10) v2:group:v10:gc))
+        %v1  ``groups-1+!>((~(run by groups-10) v5:group:v10:gc))
+        %v2  ``groups-2+!>(groups-10)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
-    =/  groups-9=groups:v9:gv
+    =/  groups-10=groups:v10:gv
       %-  ~(run by groups)
-      |=  [=net:v9:gv =group:v9:gv]
-      (drop-seats:group:v9:gc group our.bowl)
+      |=  [=net:v10:gv =group:v10:gv]
+      (drop-seats:group:v10:gc group our.bowl)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+!>((~(run by groups-10) v2:group:v10:gc))
+        %v1  ``groups-1+!>((~(run by groups-10) v5:group:v10:gc))
+        %v2  ``groups-2+!>(groups-10)
     ==
   ::
-      [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
-    =/  net-groups-9=net-groups:v9:gv  groups
+      [%x ver=?(%v0 %v1 %v2 %v3) %ui %groups ~]
+    =/  net-groups-10=net-groups:v10:gv  groups
     ?-    ver.pole
         %v0
       =-  ``groups-ui+!>(-)
-      %-  ~(urn by net-groups-9)
-      |=  [=flag:g =net:v9:gv =group:v9:gv]
+      %-  ~(urn by net-groups-10)
+      |=  [=flag:g =net:v10:gv =group:v10:gv]
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      (group-ui:v2:group:v9:gc status net group)
+      (group-ui:v2:group:v10:gc status net group)
     ::
-      %v1  ``groups-ui-1+!>((~(run by net-groups-9) group-ui:v5:group:v9:gc))
-      %v2  ``groups-ui-2+!>((~(run by net-groups-9) group-ui:group:v9:gc))
+      %v1  ``groups-ui-1+!>((~(run by net-groups-10) group-ui:v5:group:v10:gc))
+      %v2  ``groups-ui-2+!>((~(run by net-groups-10) group-ui:v9:group:v10:gc))
+      %v3  ``groups-ui-3+!>(net-groups-10)
     ==
   ::
     ::  deprecated
@@ -1210,13 +1258,13 @@
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-1
-    !>((~(run by (changes since)) group-ui:v5:group:v9:gc))
+    !>((~(run by (changes since)) group-ui:v5:group:v10:gc))
   ::
       [%x %v2 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-2
-    !>((~(run by (changes since)) group-ui:group:v9:gc))
+    !>((~(run by (changes since)) group-ui:v9:group:v10:gc))
   ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1227,16 +1275,16 @@
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
         %v0
-      ``group+!>((v2:group:v9:gc +.u.net-group))
+      ``group+!>((v2:group:v10:gc +.u.net-group))
     ::
         %v1
-      ``group-1+!>((v5:group:v9:gc +.u.net-group))
+      ``group-1+!>((v5:group:v10:gc +.u.net-group))
     ::
         %v2
-      ``group-2+!>(`group:v9:gv`+.u.net-group)
+      ``group-2+!>((v9:group:v10:gc +.u.net-group))
     ==
   ::
-      [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
+      [%x ver=?(%v0 %v1 %v2 %v3) %ui %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     =+  net-group=(~(get by groups) flag)
@@ -1250,13 +1298,16 @@
         %v0
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      ``group-ui+!>((group-ui:v2:group:v9:gc status u.net-group))
+      ``group-ui+!>((group-ui:v2:group:v10:gc status u.net-group))
     ::
         %v1
-      ``group-ui-1+!>((group-ui:v5:group:v9:gc u.net-group))
+      ``group-ui-1+!>((group-ui:v5:group:v10:gc u.net-group))
     ::
         %v2
-      ``group-ui-2+!>((group-ui:group:v9:gc u.net-group))
+      ``group-ui-2+!>((group-ui:v9:group:v10:gc u.net-group))
+    ::
+        %v3
+      ``group-ui-3+!>((group-ui:group:v10:gc u.net-group))
     ==
   ::
       ::  deprecated
@@ -1284,11 +1335,12 @@
   ==
   ++  changes
     |=  since=time
-    ^-  (map flag:v9:gv [net:v9:gv group:v9:gv])
-    %-  ~(gas by *(map flag:v9:gv [net:v9:gv group:v9:gv]))
+    ~>  %spin.['changes']
+    ^-  (map flag:v10:gv [net:v10:gv group:v10:gv])
+    %-  ~(gas by *(map flag:v10:gv [net:v10:gv group:v10:gv]))
     %+  murn  ~(tap in groups)
     |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:v9:gv [net:v9:gv group:v9:gv]])
+    ^-  (unit [flag:v10:gv [net:v10:gv group:v10:gv]])
     =/  fresh=?
       %+  lth  since
       ?-  -.net
@@ -1298,11 +1350,12 @@
     ?.  fresh  ~
     %-  some
     :-  flag
-    [net (drop-seats:group:v9:gc group our.bowl)]
+    [net (drop-seats:group:v10:gc group our.bowl)]
   --
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
+  ~>  %spin.['agent']
   ^+  cor
   ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take+pole !!)
@@ -1371,6 +1424,7 @@
 ::
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
+  ~>  %spin.['arvo']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
@@ -1506,6 +1560,7 @@
 ::
 ++  safe-watch
   |=  [=wire =dock =path]
+  ~>  %spin.['safe-watch']
   |=  delay=?
   ^+  cor
   ?:  (~(has by wex.bowl) wire dock)  cor
@@ -1520,6 +1575,7 @@
 ::
 ++  eager-leave
   |=  [=wire =dock]
+  ~>  %spin.['eager-leave']
   ^+  cor
   =.  wex.bowl  (~(del by wex.bowl) wire dock)
   =^  caz=(list card)  subs
@@ -1531,6 +1587,7 @@
 ::
 ++  take-channels
   |=  =sign:agent:gall
+  ~>  %spin.['take-channels']
   ?+    -.sign  cor
   ::
       %kick
@@ -1538,7 +1595,7 @@
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
-    =+  !<(=r-channels:v7:old:d q.cage.sign)
+    =+  !<(=r-channels:v7:dv q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -1584,6 +1641,7 @@
 ::
 ++  take-contacts
   |=  =sign:agent:gall
+  ~>  %spin.['take-contacts']
   ^+  cor
   ?+  -.sign  cor
       %kick
@@ -1608,6 +1666,7 @@
 ::
 ++  set-timer
   |=  [=wire when=@da]
+  ~>  %spin.['set-timer']
   ^-  card
   [%pass wire %arvo %b %wait when]
 ::
@@ -1627,6 +1686,7 @@
   ::
   ++  se-abed
     |=  =flag:g
+    ~>  %spin.['se-abed']
     ^+  se-core
     ?>  =(p.flag our.bowl)
     ~|  flag=flag
@@ -1664,12 +1724,14 @@
   ++  se-sub-path  `path`(weld se-area /updates)
   ::
   ++  se-subscription-paths
+    ~>  %spin.['se-subscription-paths']
     ^-  (list path)
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
     =((scag ^~((lent se-sub-path)) path) se-sub-path)
   ::
   ++  se-admin-subscription-paths
+    ~>  %spin.['se-admin-subscription-paths']
     ^-  (list path)
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
@@ -1683,6 +1745,7 @@
   ::
   ++  se-ships-subscription-paths
     |=  ships=(list ship)
+    ~>  %spin.['se-ships-subscription-paths']
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
     =.  path  (slag ^~((lent se-sub-path)) path)
@@ -1692,6 +1755,7 @@
   ::
   ++  se-update
     |=  =u-group:g
+    ~>  %spin.['se-update']
     ^+  se-core
     =/  time
       |-
@@ -1707,31 +1771,54 @@
     |%
     ++  send-invite
       |=  [=ship =invite:v9:gv]
+      ~>  %spin.['send-invite']
       =/  =wire  (weld se-area /invite/send/(scot %p ship))
       =/  =a-foreigns:v9:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  send-old-invite
       |=  [=ship =invite:v7:gv]
+      ~>  %spin.['send-old-invite']
       =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
       =/  =a-foreigns:v7:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
+      ~>  %spin.['revoke-invite']
       =/  =wire  (weld se-area /invite/revoke/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%revoke flag tok]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  reject-ask
       |=  =ship
+      ~>  %spin.['reject-ask']
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  delete-channels
+      |=  nests=(list nest:g)
+      ~>  %spin.['delete-channels']
+      ^-  (list card)
+      %+  murn
+          nests
+      |=  nes=nest:g
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
+      =/  =dock  [our.bowl %channels-server]
+      :: TODO: implement the channel deletion poke in channels-server
+      ::
+      :: =/  action=a-channels:d  [%channel nes %delete ~]
+      :: =/  =cage  channel-action-1+!>(action)
+      :: =/  =wire  (weld se-area /channel/delete)
+      :: `[%pass wire %agent dock %poke cage]
+      ~
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
   ++  se-is-joined
     |=  =ship
+    ~>  %spin.['se-is-joined']
     ^-  ?
     ?~  seat=(~(get by seats.group) ship)  |
     ?:  =(*@da joined.u.seat)  |
@@ -1740,6 +1827,7 @@
   ::
   ++  se-is-admin
     |=  =ship
+    ~>  %spin.['se-is-admin']
     ^-  ?
     ?:  =(ship p.flag)  &
     ?~  seat=(~(get by seats.group) ship)  |
@@ -1756,6 +1844,7 @@
  ::
  ++  se-is-banned
     |=  =ship
+    ~>  %spin.['se-is-banned']
     ?:  =(our.bowl ship)  |
     =*  banned  banned.admissions.group
     ?|  (~(has in ships.banned) ship)
@@ -1766,6 +1855,7 @@
   ::  +se-channel-hosts: set of ships hosting a group channel
   ::
   ++  se-channel-hosts
+    ~>  %spin.['se-channel-hosts']
     ^-  (set ship)
     %-  ~(gas in *(set ship))
     %+  turn
@@ -1779,6 +1869,7 @@
   ::
   ++  se-give-update
     |=  =update:g
+    ~>  %spin.['se-give-update']
     ^+  se-core
     ::  update subscribers: either everyone
     ::  or admins only.
@@ -1793,6 +1884,7 @@
   ::
   ++  se-c-create
     |=  [=flag:g create=create-group:g]
+    ~>  %spin.['se-c-create']
     ?>  from-self
     ?>  ((sane %tas) name.create)
     ?>  (lte (met 3 (jam create)) size-limit)
@@ -1893,6 +1985,7 @@
   ::
   ++  se-c-join
     |=  tok=(unit token:g)
+    ~>  %spin.['se-c-join']
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
@@ -1911,6 +2004,7 @@
   ::
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
+    ~>  %spin.['se-c-ask']
     ^+  se-core
     ?<  ?=(%secret privacy.ad)
     ?>  (lte (met 3 (jam story)) size-limit)
@@ -1964,6 +2058,7 @@
   ::
   ++  se-admit
     |=  [=ship tok=(unit token:g)]
+    ~>  %spin.['se-admit']
     ^-  [? _ad]
     =*  deny   [| ad]
     ?:  =(p.flag ship)  [& ad]
@@ -2008,6 +2103,7 @@
   ::
   ++  se-c-group
     |=  =c-group:g
+    ~>  %spin.['se-c-group']
     ^+  se-core
     ::TODO  commands that change permissions/seats should re-evaluate
     ::      subscriptions, and kick subscriptions from people that are
@@ -2060,6 +2156,7 @@
   ::
   ++  se-c-entry
     |=  =c-entry:g
+    ~>  %spin.['se-c-entry']
     ^+  se-core
     ?-  -.c-entry
       %privacy  (se-c-entry-privacy privacy.c-entry)
@@ -2072,6 +2169,7 @@
   ::
   ++  se-c-entry-privacy
     |=  =privacy:g
+    ~>  %spin.['se-c-entry-privacy']
     ^+  se-core
     =.  privacy.ad  privacy
     (se-update [%entry %privacy privacy])
@@ -2092,6 +2190,7 @@
   ::
   ++  se-c-entry-ban
     |=  =c-ban:g
+    ~>  %spin.['se-c-entry-ban']
     ^+  se-core
     ::  disallow operations affecting the host
     ?<  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
@@ -2202,6 +2301,7 @@
   ::
   ++  se-c-entry-token
     |=  =c-token:g
+    ~>  %spin.['se-c-entry-token']
     ^-  [(unit token:g) _se-core]
     ?-    -.c-token
         %add
@@ -2240,6 +2340,7 @@
   ::
   ++  se-expire-token
     |=  =token:g
+    ~>  %spin.['se-expire-token']
     ^+  se-core
     ?.  (~(has by tokens.ad) token)  se-core
     +:(se-c-entry-token %del token)
@@ -2247,6 +2348,7 @@
   ::
   ++  se-revoke-token-invites
     |=  =token:g
+    ~>  %spin.['se-revoke-token-invites']
     ^+  se-core
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
@@ -2283,6 +2385,7 @@
   ::
   ++  se-c-entry-pending
     |=  [ships=(set ship) =c-pending:g]
+    ~>  %spin.['se-c-entry-pending']
     ^+  se-core
     ?<  ?&  ?=(%add -.c-pending)
             (~(any in ships) se-is-banned)
@@ -2336,6 +2439,7 @@
   ::
   ++  se-c-entry-ask
     |=  [ships=(set ship) c-ask=?(%approve %deny)]
+    ~>  %spin.['se-c-entry-ask']
     ^+  se-core
     ?-    c-ask
         %approve
@@ -2388,6 +2492,7 @@
   ::
   ++  se-c-seat
     |=  [ships=(set ship) =c-seat:g]
+    ~>  %spin.['se-c-seat']
     ^+  se-core
     =/  user-join  =(ships (sy src.bowl ~))
     ::
@@ -2506,6 +2611,7 @@
   ::
   ++  se-send-invites
     |=  ships=(set ship)
+    ~>  %spin.['se-send-invites']
     ^+  se-core
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
@@ -2531,6 +2637,7 @@
   ::
   ++  se-send-invite
     |=  [=ship =invite:g]
+    ~>  %spin.['se-send-invite']
     ^+  se-core
     =.  se-core  (se-revoke-invite ship)
     =.  invited.ad
@@ -2547,6 +2654,7 @@
   ::  revoked.
   ++  se-revoke-invite
     |=  =ship
+    ~>  %spin.['se-revoke-invite']
     ^+  se-core
     ::  delete from the ship from the invited list
     ::
@@ -2572,6 +2680,7 @@
   ::
   ++  se-compat-send-invites
     |=  ships=(set ship)
+    ~>  %spin.['se-compat-send-invites']
     =^  ivl=(list ship)  se-core
       %+  roll  ~(tap in ships)
       |=  [=ship ivl=(list ship) =_se-core]
@@ -2607,6 +2716,7 @@
   ::
   ++  se-c-role
     |=  [roles=(set role-id:g) =c-role:g]
+    ~>  %spin.['se-c-role']
     ^+  se-core
     ::  forbid duplicate roles
     ?<  ?&  ?=(%add -.c-role)
@@ -2684,6 +2794,7 @@
   ::
   ++  se-c-channel
     |=  [=nest:g =c-channel:g]
+    ~>  %spin.['se-c-channel']
     ^+  se-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.c-channel
@@ -2760,6 +2871,7 @@
   ::
   ++  se-channel-del-roles
     |=  [=nest:g roles=(set role-id:g)]
+    ~>  %spin.['se-channel-del-roles']
     ^+  se-core
     =.  channels.group
       %+  ~(jab by channels.group)  nest
@@ -2770,6 +2882,7 @@
   ::
   ++  se-section-add-channel
     |=  [=nest:g =channel:g]
+    ~>  %spin.['se-section-add-channel']
     ^+  sections.group
     ?.  (~(has by sections.group) section.channel)
       sections.group
@@ -2779,6 +2892,7 @@
   ::
   ++  se-c-section
     |=  [=section-id:g =c-section:g]
+    ~>  %spin.['se-c-section']
     ^+  se-core
     ?-    -.c-section
         %add
@@ -2856,12 +2970,14 @@
     ==
   ++  se-c-section-order
     |=  order=(list section-id:g)
+    ~>  %spin.['se-c-section-order']
     =.  order
       (skim order ~(has by sections.group))
     =.  section-order.group  order
     (se-update [%section-order order])
   ++  se-c-flag-content
     |=  [=nest:g =plan:g src=ship]
+    ~>  %spin.['se-c-flag-content']
     ^+  se-core
     =/  posts
       (~(gut by flagged-content.group) nest *(jug plan:g ship))
@@ -2873,6 +2989,7 @@
   ::
   ++  se-watch
     |=  =path
+    ~>  %spin.['se-watch']
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
         ::  receive updates since .time
@@ -2881,7 +2998,10 @@
       =/  ship   (slav %p i.t.path)
       =/  time   (slav %da i.t.t.path)
       ?>  =(ship src.bowl)
-      ?>  (se-is-member src.bowl)
+      ?.  (se-is-member src.bowl)
+        =.  se-core
+          (emit %give %fact ~ group-error+!>(|+%not-authorized))
+        (emit %give %kick ~ ~)
       (se-watch-updates ship time)
     ::
       ::  fetch group preview
@@ -2905,6 +3025,7 @@
   ::
   ++  se-watch-updates
     |=  [=ship =@da]
+    ~>  %spin.['se-watch-updates']
     ^+  se-core
     ::  for initial subscriptions, give a "flattened" log
     ::
@@ -2937,6 +3058,7 @@
   ::
   ++  se-log-exclude
     |=  [=log:g fit=$-(u-group:g ?)]
+    ~>  %spin.['se-log-exclude']
     ^+  log
     %+  gas:log-on:g  *log:g
     %+  skip  (tap:log-on:g log)
@@ -2946,6 +3068,7 @@
   ::
   ++  se-is-admin-update
     |=  =u-group:g
+    ~>  %spin.['se-is-admin-update']
     ?+  u-group  |
       [%entry %token *]    &
       [%entry %pending *]  &
@@ -2955,6 +3078,7 @@
   ::
   ++  se-watch-preview
     |=  =path
+    ~>  %spin.['se-watch-preview']
     ^+  se-core
     =/  allow=?
       ?.  ?=(%secret privacy.ad)  &
@@ -2986,6 +3110,7 @@
   ::
   ++  se-watch-token
     |=  =ship
+    ~>  %spin.['se-watch-token']
     ^+  se-core
     :: prevent inviting banned
     =^  tok=(unit token:g)  se-core
@@ -2996,6 +3121,7 @@
   ::
   ++  se-watch-ask
     |=  =ship
+    ~>  %spin.['se-watch-ask']
     ^+  se-core
     ?.  =(%public privacy.ad)  ::TMI
       :: for a private group we wait until the request is approved
@@ -3008,6 +3134,7 @@
   ::
   ++  se-agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['se-agent']
     ^+  se-core
     ?+    wire  ~|(se-agent-bad+wire !!)
         [%invite %send ship=@ ~]
@@ -3055,6 +3182,7 @@
   ::
   ++  go-abed
     |=  =flag:g
+    ~>  %spin.['go-abed']
     ^+  go-core
     ~|  flag=flag
     =+  gru=(~(get by groups) flag)
@@ -3114,6 +3242,7 @@
   ::
   ++  go-is-admin
     |=  =ship
+    ~>  %spin.['go-is-admin']
     ^-  ?
     ?:  =(ship p.flag)  &
     ?~   tea=(~(get by seats.group) ship)  |
@@ -3123,6 +3252,7 @@
   ::
   ++  go-is-banned
     |=  =ship
+    ~>  %spin.['go-is-banned']
     =*  banned  banned.admissions.group
     ?|  (~(has in ranks.banned) (clan:title ship))
         (~(has in ships.banned) ship)
@@ -3133,6 +3263,7 @@
   ::  +go-channel-hosts: set of ships hosting a group channel
   ::
   ++  go-channel-hosts
+    ~>  %spin.['go-channel-hosts']
     ^-  (set ship)
     %-  ~(gas in *(set ship))
     %+  turn
@@ -3145,24 +3276,28 @@
     |%
     ++  send-invite
       |=  [=ship =invite:v8:gv]
+      ~>  %spin.['send-invite']
       =/  =wire  (weld go-area /invite/send/(scot %p ship))
       =/  =a-foreigns:v8:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  send-old-invite
       |=  [=ship =invite:v7:gv]
+      ~>  %spin.['send-old-invite']
       =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
       =/  =a-foreigns:v7:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
+      ~>  %spin.['revoke-invite']
       =/  =wire  (weld go-area /invite/revoke/(scot %p ship))
       =/  =a-foreigns:v8:gv
         [%revoke flag tok]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  request-token
       |=  =ship
+      ~>  %spin.['request-token']
       ^-  card
       =/  =wire  (weld go-area /invite/(scot %p ship)/token)
       =/  =dock  [p.flag server]
@@ -3170,6 +3305,7 @@
       [%pass wire %agent dock %watch path]
     ::
     ++  leave-group
+      ~>  %spin.['leave-group']
       ^-  card
       =/  =wire  (weld go-area /command/leave)
       =/  =dock  [p.flag server]
@@ -3177,6 +3313,7 @@
     ::
     ++  leave-channels
       |=  nests=(list nest:g)
+      ~>  %spin.['leave-channels']
       ^-  (list card)
       %+  murn
           nests
@@ -3193,6 +3330,7 @@
     ::
     ++  join-channels
       |=  nests=(list nest:g)
+      ~>  %spin.['join-channels']
       ^-  (list card)
       %+  murn
           nests
@@ -3209,6 +3347,7 @@
     ::
     ++  preview-channel
       |=  =nest:g
+      ~>  %spin.['preview-channel']
       ^-  (list card)
       =*  ship  p.q.nest
       =/  =wire
@@ -3222,6 +3361,7 @@
       ==
     ::
     ++  go-wake-members
+      ~>  %spin.['go-wake-members']
       ^-  (list card)
       %+  turn
         ~(tap in (~(del in ~(key by seats.group)) our.bowl))
@@ -3239,10 +3379,15 @@
   ::
   ++  go-safe-sub
     |=  delay=?
+    ~>  %spin.['go-safe-sub']
     ^+  go-core
     =*  log  ~(. l `'group-join')
-    ?:  go-has-sub  go-core
+    ?:  go-has-sub
+      ?:  ?=(%sub -.net)
+        (go-u-connection &+%done)
+      go-core
     =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
+    =.  go-core  (go-u-connection &+%watch)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -3254,6 +3399,7 @@
   ::
   ++  go-start-updates
     |=  delay=?
+    ~>  %spin.['go-start-updates']
     ^+  go-core
     =/  sub-time=@da
       ?:  ?=(%pub -.net)  *@da
@@ -3274,6 +3420,7 @@
   ::
   ++  go-restart-updates
     |=  error=(unit @t)
+    ~>  %spin.['go-restart-updates']
     ^+  go-core
     =.  cor  ?~  error  cor
       (~(tell l ~) %crit 'fully restarting updates' u.error ~)
@@ -3286,7 +3433,7 @@
     ::  since we are trying to re-establish group state from scratch,
     ::  consider it uninitialized.
     ::
-    =.  net  [%sub *@da |]
+    =.  net  [%sub *@da | &+%watch]
     (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
@@ -3300,6 +3447,7 @@
   ::
   ++  go-leave
     |=  send-leave=?
+    ~>  %spin.['go-leave']
     ^+  go-core
     =.  cor
       (submit-activity [%del %group flag])
@@ -3325,6 +3473,7 @@
   ::  +go-preview: generate the preview of the group
   ::
   ++  go-preview
+    ~>  %spin.['go-preview']
     ^-  preview:v7:gv
     :*  flag
         meta.group
@@ -3336,6 +3485,7 @@
   ::
   ++  go-a-invite
     |=  [ships=(set ship) =a-invite:g]
+    ~>  %spin.['go-a-invite']
     %+  roll
       ~(tap in ships)
     |=  [=ship =_go-core]
@@ -3366,6 +3516,7 @@
   ::
   ++  go-send-invite
     |=  [=ship =invite:g]
+    ~>  %spin.['go-send-invite']
     ^+  go-core
     =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
@@ -3383,6 +3534,7 @@
   ::
   ++  go-revoke-invite
     |=  =ship
+    ~>  %spin.['go-revoke-invite']
     ^+  go-core
     =+  invited=(~(get by invited.ad) ship)
     =.  invited.ad  (~(del by invited.ad) ship)
@@ -3402,6 +3554,7 @@
   ::
   ++  go-a-group
     |=  =a-group:g
+    ~>  %spin.['go-a-group']
     ^+  go-core
     ?:  ?=(%navigation -.a-group)
       (go-a-navigation a-navigation.a-group)
@@ -3410,6 +3563,7 @@
   ::
   ++  go-send-command
     |=  [=wire =c-group:g]
+    ~>  %spin.['go-send-command']
     ^+  go-core
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
@@ -3418,6 +3572,7 @@
   ::
   ++  go-a-navigation
     |=  =a-navigation:g
+    ~>  %spin.['go-a-navigation']
     ^+  go-core
     =*  sections  sections.a-navigation
     ::  update sections
@@ -3446,6 +3601,7 @@
   ::
   ++  go-watch
     |=  [ver=?(%v0 %v1) =(pole knot)]
+    ~>  %spin.['go-watch']
     ^+  go-core
     ?<  (go-is-banned src.bowl)
     ?+    pole  ~|(go-bad-watch+pole !!)
@@ -3473,6 +3629,7 @@
   ::
   ++  go-give-channel-preview
     |=  [=channel-preview:g watch=?]
+    ~>  %spin.['go-give-channel-preview']
     ^+  go-core
     =*  nest  nest.channel-preview
     ::  v0
@@ -3498,6 +3655,7 @@
   ::
   ++  go-agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['go-agent']
     ^+  go-core
     ?+    wire  ~|(go-agent-bad+wire !!)
         ::  waked up subscribers after an import
@@ -3605,9 +3763,19 @@
   ::
   ++  go-take-update
     |=  =sign:agent:gall
+    ~>  %spin.['go-take-update']
     ^+  go-core
     ?+   -.sign  ~|(go-take-update-bad+-.sign !!)
-      %kick  (go-safe-sub &)
+        %kick
+      ?.  ?=(%sub -.net)
+        (go-safe-sub &)
+      ::  nb: only attempt to resubscribe if the connection is active.
+      ::  othewise this would trigger when the group host sends an error
+      ::  fact that is followed by a kick closing the subscription.
+      ::
+      ?:  &(?=(%& -.conn.net) ?=(?(%watch %done) p.conn.net))
+        (go-safe-sub &)
+      go-core
     ::
         %watch-ack
       =*  log  ~(. l `'group-join')
@@ -3621,7 +3789,9 @@
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         ?.  &(?=(%sub -.net) init.net)
           (go-leave &)
-        go-core
+        (go-u-connection |+%fail)
+      ?:  ?=(%sub -.net)
+        (go-u-connection &+%done)
       go-core
     ::
         %fact
@@ -3629,12 +3799,14 @@
       ?+  p.cage  ~|(go-take-update-bad-fact+p.cage !!)
         %group-log     (go-apply-log !<(log:g q.cage))
         %group-update  (go-u-group !<(update:g q.cage))
+        %group-error   (go-u-error !<(conn-error:g q.cage))
       ==
     ==
   ::  +go-apply-log: apply group log
   ::
   ++  go-apply-log
     |=  =log:g
+    ~>  %spin.['go-apply-log']
     ?~  log  go-core
     =+  was-init=go-is-init
     =.  go-core
@@ -3642,7 +3814,7 @@
       |=  [=update:g =_go-core]
       (go-u-group:go-core update)
     =?  net  ?=(%sub -.net)
-      [%sub time.net &]
+      [%sub time.net & &+%done]
     =?  go-core  !was-init
       ::  initialize active-channels on group init
       ::
@@ -3671,6 +3843,7 @@
   ::
   ++  go-u-group
     |=  =update:g
+    ~>  %spin.['go-u-group']
     ^+  go-core
     ?:  ?&(?=(%sub -.net) (lth time.update time.net))
       =+  delta=`@dr`(sub time.net time.update)
@@ -3682,7 +3855,7 @@
       (go-restart-updates `'update out of order')
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
-      [%sub time.update init.net]
+      net(time time.update)
     =*  u-group  u-group.update
     ?-  -.u-group
       %create         (go-u-create group.u-group)
@@ -3694,12 +3867,20 @@
       %section        (go-u-section [section-id u-section]:u-group)
       %section-order  (go-u-section-order order.u-group)
       %flag-content   (go-u-flag-content [nest plan src]:u-group)
-      %delete         (go-leave |)
+      %delete         go-u-delete
     ==
+  ::  +go-u-error: receive group connection error
+  ::
+  ++  go-u-error
+    |=  err=conn-error:g
+    ^+  go-core
+    ?>  ?=(%sub -.net)
+    (go-u-connection |+err)
   ::  +go-u-create: apply initial update
   ::
   ++  go-u-create
     |=  gr=group:g
+    ~>  %spin.['go-u-create']
     ^+  go-core
     =.  go-core  (go-response %create gr)
     ?:  go-our-host  go-core
@@ -3711,6 +3892,7 @@
   ::
   ++  go-u-meta
     |=  meta=data:meta
+    ~>  %spin.['go-u-meta']
     ^+  go-core
     =.  go-core  (go-response [%meta meta])
     ?:  go-our-host  go-core
@@ -3721,6 +3903,7 @@
   ::
   ++  go-u-entry
     |=  =u-entry:g
+    ~>  %spin.['go-u-entry']
     ^+  go-core
     ?-  -.u-entry
       %privacy  (go-u-entry-privacy privacy.u-entry)
@@ -3733,6 +3916,7 @@
   ::
   ++  go-u-entry-privacy
     |=  =privacy:g
+    ~>  %spin.['go-u-entry-privacy']
     ^+  go-core
     =.  go-core  (go-response [%entry %privacy privacy])
     ?:  go-our-host  go-core
@@ -3743,6 +3927,7 @@
   ::
   ++  go-u-entry-ban
     |=  =u-ban:g
+    ~>  %spin.['go-u-entry-ban']
     ^+  go-core
     =.  go-core  (go-response [%entry %ban u-ban])
     ?:  go-our-host  go-core
@@ -3794,6 +3979,7 @@
   ::
   ++  go-u-entry-token
     |=  =u-token:g
+    ~>  %spin.['go-u-entry-token']
     ^+  go-core
     =.  go-core  (go-response [%entry %token u-token])
     ?:  go-our-host  go-core
@@ -3814,6 +4000,7 @@
   ::
   ++  go-revoke-token-invites
     |=  =token:g
+    ~>  %spin.['go-revoke-token-invites']
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
     ?~  tok  go-core
@@ -3825,6 +4012,7 @@
   ::
   ++  go-u-entry-pending
     |=  =u-pending:g
+    ~>  %spin.['go-u-entry-pending']
     ^+  go-core
     =.  go-core  (go-response [%entry %pending u-pending])
     ?:  go-our-host  go-core
@@ -3860,6 +4048,7 @@
   ::
   ++  go-u-entry-ask
     |=  =u-ask:g
+    ~>  %spin.['go-u-entry-ask']
     ^+  go-core
     =.  go-core  (go-response [%entry %ask u-ask])
     =?  go-core  &(?=(%add -.u-ask) (go-is-admin our.bowl))
@@ -3881,6 +4070,7 @@
   ::
   ++  go-u-seat
     |=  [ships=(set ship) =u-seat:g]
+    ~>  %spin.['go-u-seat']
     ^+  go-core
     ?-    -.u-seat
         %add
@@ -3914,12 +4104,13 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
-      ::  leave the group if our seat has been deleted, but
+      ::  mark the group as with no access if our seat has been deleted, but
       ::  only if the group has been already initialized.
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
-      =?  go-core  &(leave go-is-init)  (go-leave |)
+      ?:  &(leave go-is-init)
+        (go-u-connection |+%not-authorized)
       go-core
     ::
         %add-roles
@@ -3982,6 +4173,7 @@
   ::
   ++  go-u-role
     |=  [roles=(set role-id:g) =u-role:g]
+    ~>  %spin.['go-u-role']
     ^+  go-core
     ?-    -.u-role
         %add
@@ -4070,6 +4262,7 @@
   ::
   ++  go-u-channel
     |=  [=nest:g =u-channel:g]
+    ~>  %spin.['go-u-channel']
     ^+  go-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.u-channel
@@ -4113,7 +4306,6 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
-      =.  cor  (emil (leave-channels:go-pass nest ~))
       ::  NB: when a channel is deleted we must
       ::      update .active-channels manually without waiting
       ::      for leave response. this is because the channel
@@ -4197,6 +4389,7 @@
   ::
   ++  go-channel-del-roles
     |=  [=nest:g roles=(set role-id:g)]
+    ~>  %spin.['go-channel-del-roles']
     ^+  go-core
     =.  channels.group
       %+  ~(jab by channels.group)  nest
@@ -4207,6 +4400,7 @@
   ::
   ++  go-section-add-channel
     |=  [=nest:g =channel:g]
+    ~>  %spin.['go-section-add-channel']
     ^+  sections.group
     ?.  (~(has by sections.group) section.channel)
       sections.group
@@ -4216,6 +4410,7 @@
   ::
   ++  go-u-section
     |=  [=section-id:g =u-section:g]
+    ~>  %spin.['go-u-section']
     ^+  go-core
     ?-    -.u-section
         %add
@@ -4296,6 +4491,7 @@
   ::
   ++  go-u-section-order
     |=  order=(list section-id:g)
+    ~>  %spin.['go-u-section-order']
     ^+  go-core
     =.  go-core  (go-response %section-order order)
     ?:  go-our-host  go-core
@@ -4307,6 +4503,7 @@
   ::
   ++  go-u-flag-content
     |=  [=nest:g =plan:g src=ship]
+    ~>  %spin.['go-u-flag-content']
     ^+  go-core
     =.  go-core  (go-response %flag-content nest plan src)
     ?:  go-our-host  go-core
@@ -4343,10 +4540,29 @@
             flag
         ==
     go-core
+  ::  +go-u-connection: update connection status
+  ::
+  ++  go-u-connection
+    |=  =conn:g
+    ^+  go-core
+    =.  go-core  (go-response %connection conn)
+    ?:  ?=(%& -.conn)  go-core
+    (emit [%pass go-sub-wire %agent [p.flag server] %leave ~])
+  ::  +go-u-delete: handle group deletion
+  ::
+  ++  go-u-delete
+    ^+  go-core
+    ::TODO only enable when the client understands this is only
+    ::     a host-side event, and it should not delete the group until
+    ::     we %leave it.
+    ::
+    :: =.  go-core  (go-response %delete ~)
+    (go-u-connection |+%not-found)
   ::  +go-response: send response to our subscribers
   ::
   ++  go-response
     |=  =r-group:g
+    ~>  %spin.['go-response']
     ^+  go-core
     ::  do not sent out responses until group log
     ::  has been applied, and the group initialized.
@@ -4354,13 +4570,13 @@
     ?.  go-is-init  go-core
     ::  v1 response
     ::
-    =/  r-groups-9=r-groups:v9:gv  [flag r-group]
+    =/  r-groups-10=r-groups:v10:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
-    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
+    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-10))
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
-      (diff:v2:r-group:v9:gc r-group [seats admissions]:group)
+      (diff:v2:r-group:v10:gc r-group [seats admissions]:group)
     =.  cor
       %+  roll  diffs-2
       |=  [=diff:v2:gv =_cor]
@@ -4371,6 +4587,7 @@
   ::
   ++  go-peek
     |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
+    ~>  %spin.['go-peek']
     ^-  (unit (unit cage))
     ::TODO some of these should be versioned, at least
     ::     those used by the client.
@@ -4437,6 +4654,7 @@
     ==
   ++  go-can-read
     |=  [=ship =channel:g]
+    ~>  %spin.['go-can-read']
     ^-  ?
     =/  public=?  ?=(%public privacy.admissions.group)
     =/  open  =(~ readers.channel)
@@ -4467,6 +4685,7 @@
   ::
   ++  fi-abed
     |=  f=flag:g
+    ~>  %spin.['fi-abed']
     ^+  fi-core
     ~|  flag=f
     =/  far=foreign:g  (~(gut by foreigns) f [~ ~ ~ ~ ~])
@@ -4520,6 +4739,7 @@
   ++  fi-pass
     |%
     ++  leave-group
+      ~>  %spin.['leave-group']
       ^-  card
       =/  =wire  (weld fi-area /command/leave)
       =/  =dock  [p.flag server]
@@ -4527,6 +4747,7 @@
     ::
     ++  join
       |=  tok=(unit token:g)
+      ~>  %spin.['join']
       ^-  card
       =/  =wire  (weld fi-area /join/[?~(tok %public (scot %uv u.tok))])
       =/  =cage
@@ -4535,6 +4756,7 @@
     ::
     ++  ask
       |=  story=(unit story:s:g)  ::XX something is broken with story import
+      ~>  %spin.['ask']
       ^-  (list card)
       =/  =wire  (weld fi-area /ask)
       =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
@@ -4545,12 +4767,14 @@
       ==
     ::
     ++  leave-ask
+      ~>  %spin.['leave-ask']
       ^-  card
       =/  =wire  (weld fi-area /ask)
       [%pass wire %agent [p.flag server] %leave ~]
     ::
     ++  get-index
       |=  =ship
+      ~>  %spin.['get-index']
       ^-  (list card)
       =/  =wire  /foreigns/index/(scot %p ship)
       =/  =dock  [ship server]
@@ -4564,6 +4788,7 @@
   ::
   ++  fi-a-foreign
     |=  =a-foreign:g
+    ~>  %spin.['fi-a-foreign']
     ^+  fi-core
     ?>  from-self
     ?-  -.a-foreign
@@ -4577,10 +4802,10 @@
   ::
   ++  fi-join
     |=  tok=(unit token:g)
+    ~>  %spin.['fi-join']
     ^+  fi-core
     =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
-    =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)
@@ -4602,6 +4827,7 @@
   ::
   ++  fi-ask
     |=  story=(unit story:s:g)
+    ~>  %spin.['fi-ask']
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
     ?:  (~(has by groups) flag)  fi-core
@@ -4618,6 +4844,7 @@
   ::
   ++  fi-watched
     |=  p=(unit tang)
+    ~>  %spin.['fi-watched']
     ^+  fi-core
     =*  log  ~(. l `'group-join')
     ?~  progress
@@ -4677,6 +4904,7 @@
   ::
   ++  fi-invite
     |=  =invite:g
+    ~>  %spin.['fi-invite']
     ^+  fi-core
     ::  guard against invite spoofing
     ?>  =(from.invite src.bowl)
@@ -4699,6 +4927,7 @@
   ::
   ++  fi-revoke
     |=  tok=(unit token:g)
+    ~>  %spin.['fi-revoke']
     ^+  fi-core
     %_  fi-core  invites
       %+  turn  invites
@@ -4717,6 +4946,7 @@
   ::
   ++  fi-decline
     |=  tok=(unit token:g)
+    ~>  %spin.['fi-decline']
     ^+  fi-core
     =.  invites
       %+  skip  invites
@@ -4729,6 +4959,7 @@
   ::
   ++  fi-watch
     |=  [ver=?(%v1) =(pole knot)]
+    ~>  %spin.['fi-watch']
     ?>  from-self
     ^+  fi-core
     ?+    pole  ~|(bad-fi-watch+pole !!)
@@ -4741,6 +4972,7 @@
   ::
   ++  fi-safe-preview
     |=  delay=?
+    ~>  %spin.['fi-safe-preview']
     ^+  fi-core
     =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
@@ -4753,6 +4985,7 @@
   ::
   ++  fi-watch-index
     |=  [ver=?(%v0 %v1) =ship]
+    ~>  %spin.['fi-watch-index']
     ^+  fi-core
     ?>  from-self
     =.  cor  (emil (get-index:fi-pass ship))
@@ -4761,6 +4994,7 @@
   ::
   ++  fi-agent
     |=  [=(pole knot) =sign:agent:gall]
+    ~>  %spin.['fi-agent']
     ^+  fi-core
     ?+    pole  ~|(fi-agent-bad+pole !!)
     ::
@@ -4793,7 +5027,7 @@
         =.  cor
           go-abet:(go-safe-sub:(go-abed:go-core flag) |)
         fi-core
-      =/  =net:g  [%sub *@da |]
+      =/  =net:g  [%sub *@da | &+%watch]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
       ?<  (~(has by groups) flag)
@@ -4901,6 +5135,7 @@
   ::
   ++  fi-take-index
     |=  [=ship =sign:agent:gall]
+    ~>  %spin.['fi-take-index']
     ^+  fi-core
     ?+    -.sign  ~|(fi-take-index-bad+-.sign !!)
       %kick  fi-core  ::  single-shot subscription

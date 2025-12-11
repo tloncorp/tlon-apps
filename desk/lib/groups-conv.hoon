@@ -5,6 +5,139 @@
 ::
 =,  gv
 |%
+++  v10
+  |%
+  ++  group
+    =>
+      |%
+      ++  drop-seats
+        |=  [=group:v9:gv our=ship]
+        ^-  group:v9:gv
+        =.  seats.group
+          =/  our-seat=seat:v9:gv
+            (~(gut by seats.group) our *seat:v9:gv)
+          =/  seats-number=@ud  ~(wyt by seats.group)
+          ?:  (lte seats-number 15)
+            seats.group  :: keep all members if 15 or fewer
+          =/  other-ships=(list [ship seat:v9:gv])
+            ~(tap by (~(del by seats.group) our))
+          =/  keep-ships=(list [ship seat:v9:gv])
+            :-  [our our-seat]
+            (scag 14 other-ships)  :: take first 14 other ships
+          (~(gas by *(map ship seat:v9:gv)) keep-ships)
+        group
+      --
+    |%
+    ++  group-ui
+      |=  [=net:v10:gv =group:v10:gv]
+      ^-  group-ui:v10:gv
+      =/  init=?
+        ?:  ?=(%pub -.net)  &
+        !=(time.net *@da)
+      =/  =conn:v10:gv
+        ?:  ?=(%pub -.net)  &+%done
+        conn.net
+      :*  group
+          init
+          conn
+          ~(wyt by seats.group)
+      ==
+    ++  v9
+      =<  group
+      |%
+      ++  group
+        |=  =group:v10:gv
+        ^-  group:v9:gv
+        group
+      ::
+      ++  group-ui
+        |=  [=net:v10:gv =group:v10:gv]
+        ^-  group-ui:v9:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v7
+      =<  group
+      |%
+      ++  group
+        |=  =group:v10:gv
+        ^-  group:v7:gv
+        %=  group  requests.admissions
+          %-  ~(run by requests.admissions.group)
+          |=  [at=@da note=(unit story:s)]
+          note
+        ==
+      ::
+      ++  group-ui
+        |=  [=net:v10:gv =group:v10:gv]
+        ^-  group-ui:v7:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v5
+      =<  group
+      |%
+      ++  group
+        |=  =group:v10:gv
+        ^-  group:v5:gv
+        %-  v5:group:^v7
+        (v7:^group group)
+      ::
+      ++  group-ui
+        |=  [=net:v10:gv =group:v10:gv]
+        ^-  group-ui:v5:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v2
+      =<  group
+      |%
+      ++  group
+        |=  =group:v10:gv
+        ^-  group:v2:gv
+        %-  v2:group:^v7
+        (v7:^group group)
+      ::
+      ++  group-ui
+        |=  [=status:neg =net:v10:gv =group:v10:gv]
+        ^-  group-ui:v2:gv
+        ?.  ?=(%sub -.net)
+          [(^group group) `[%chi ~]]
+        =/  saga=(unit saga:e)
+          ?+  status  ~
+            %match  `[%chi ~]
+            %clash  `[%lev ~]
+          ==
+        [(^group group) saga]
+      --
+    --
+  ++  r-group
+    |%
+    ++  v2
+      |%
+      ++  diff
+        |=  [=r-group:v10:gv seats=(map ship seat:v10:gv) =admissions:v10:gv]
+        ^-  (list diff:v2:gv)
+        ?:  ?=(%connection -.r-group)  ~
+        (diff:v2:r-group:v9 r-group seats admissions)
+      --
+    --
+  --
 ++  v9
   |%
   ++  group
