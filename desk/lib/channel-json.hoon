@@ -653,6 +653,23 @@
       :~  seal+(reply-seal -.reply)
           memo+(memo +.reply)
       ==
+    ++  memo
+      |=  m=memo:v8:cv
+      ^-  json
+      %-  pairs
+      :~  content/(story:enjs:sj content.m)
+          author/(author author.m)
+          sent/(time sent.m)
+      ==
+    ++  author
+      |=  =author:v8:cv
+      ^-  json
+      ?@  author  (ship author)
+      %-  pairs
+      :~  ship+(ship ship.author)
+          nickname+?~(nickname.author ~ s/u.nickname.author)
+          avatar+?~(avatar.author ~ s/u.avatar.author)
+      ==
     ++  paged-posts
       |=  pn=paged-posts:v8:cv
       %-  pairs
@@ -1101,6 +1118,14 @@
           'lastRepliers'^a/(turn ~(tap in last-repliers.r) author)
       ==
     ::
+    ++  memo
+      |=  m=memo:v7:cv
+      ^-  json
+      %-  pairs
+      :~  content/(story:enjs:sj content.m)
+          author/(ship author.m)
+          sent/(time sent.m)
+      ==
     --
   ++  v1
     |%
@@ -1121,6 +1146,72 @@
           perms+(perm perm.channel)
           pending+(pending-msgs pending.channel)
       ==
+    ++  perm
+      |=  p=perm:v1:cv
+      %-  pairs
+      :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+          group/(flag group.p)
+      ==
+    ::
+    ++  pending-msgs
+      |=  pm=pending-messages:v1:cv
+      %-  pairs
+      :~  posts+(pending-posts posts.pm)
+          replies+(pending-replies replies.pm)
+      ==
+    ::
+    ++  pending-posts
+      |=  pp=pending-posts:v1:cv
+      %-  pairs
+      %+  turn  ~(tap by pp)
+      |=  [cid=client-id:v1:cv es=essay:v1:cv]
+      [(client-id-string cid) (essay es)]
+    ::
+    ++  essay
+      |=  =essay:v1:cv
+      %-  pairs
+      :~  content+(story:enjs:sj content.essay)
+          author+(ship author.essay)
+          sent+(time sent.essay)
+          kind-data+(kind-data kind-data.essay)
+      ==
+    ++  memo
+      |=  m=memo:v1:cv
+      ^-  json
+      %-  pairs
+      :~  content/(story:enjs:sj content.m)
+          author/(ship author.m)
+          sent/(time sent.m)
+      ==
+    ::
+    ++  kind-data
+      |=  =kind-data:v1:cv
+      %+  frond  -.kind-data
+      ?-    -.kind-data
+        %heap   ?~(title.kind-data ~ s+u.title.kind-data)
+        %chat   ?~(kind.kind-data ~ (pairs notice+~ ~))
+        %diary  (pairs title+s+title.kind-data image+s+image.kind-data ~)
+      ==
+    ::
+    ++  pending-replies
+      |=  pr=pending-replies:v1:cv
+      =/  replies
+        %+  roll  ~(tap by pr)
+        |=  $:  [[top=id-post:cv cid=client-id:v1:cv] mem=memo:v1:cv]
+                rs=(map id-post:cv (map client-id:v1:cv memo:v1:cv))
+            ==
+        ?.  (~(has by rs) top)  (~(put by rs) top (malt ~[[cid mem]]))
+        %+  ~(jab by rs)  top
+        |=  mems=(map client-id:v1:cv memo:v1:cv)
+        (~(put by mems) cid mem)
+      %-  pairs
+      %+  turn  ~(tap by replies)
+      |=  [top=id-post:cv rs=(map client-id:v1:cv memo:v1:cv)]
+      :-  (rsh 4 (scot %ui top))
+      %-  pairs
+      %+  turn  ~(tap by rs)
+      |=  [cid=client-id:v1:cv mem=memo:v1:cv]
+      [(client-id-string cid) (memo mem)]
     ::
     ++  paged-posts
       |=  pn=paged-posts:v1:cv

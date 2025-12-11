@@ -117,10 +117,10 @@
       last-repliers=(set author)
       last-reply=(unit time)
   ==
-+$  story  story:s
-+$  verse  verse:s
-+$  inline  inline:s
-+$  listing  listing:s
++$  story  story:v1:ver:s
++$  verse  verse:v1:ver:s
++$  inline  inline:v1:ver:s
++$  listing  listing:v1:ver:s
 ::  $author: post author
 +$  author  $@(ship bot-meta)
 ::  $bot-meta: bot metadata
@@ -364,7 +364,6 @@
 +$  u-post
   $%  [%set post=(may v-post)]
       [%reacts reacts=v-reacts]
-      ::XX make it a standard to always face rev value
       [%essay (rev =essay)]
       [%reply id=id-reply =u-reply]
   ==

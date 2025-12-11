@@ -119,6 +119,7 @@
       ^-  essay:v8:cv
       essay
     ++  v7  v7:essay:^v8
+    ++  v1  v7
     --
   ++  memo
     |%
@@ -127,6 +128,7 @@
       ^-  memo:v8:cv
       memo
     ++  v7  v7:memo:^v8
+    ++  v1  v7
     --
   ++  reacts
     |%
@@ -281,6 +283,28 @@
       |=  =scam:v9:cv
       ^-  scam:v7:cv
       (v7:scam:^v8 (v8 scam))
+    --
+  ++  pending-messages
+    |%
+    ++  v1
+      |=  pending-messages:v9:cv
+      ^-  pending-messages:v1:cv
+      :-  (v1:pending-posts posts)
+      (v1:pending-replies replies)
+    --
+  ++  pending-posts
+    |%
+    ++  v1
+      |=  posts=pending-posts:v9:cv
+      ^-  pending-posts:v1:cv
+      (~(run by posts) v1:essay)
+    --
+  ++  pending-replies
+    |%
+    ++  v1
+      |=  replies=pending-replies:v9:cv
+      ^-  pending-replies:v1:cv
+      (~(run by replies) v1:memo)
     --
   --
 ++  v8
