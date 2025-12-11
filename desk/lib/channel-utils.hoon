@@ -44,7 +44,7 @@
       view   +.view.channel
       sort   +.sort.channel
       order  +.order.channel
-      pending  pending.channel
+      pending  (v1:pending-messages:v9:ccv pending.channel)
     ==
   ?.  full  base
   %_  base

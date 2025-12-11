@@ -69,19 +69,23 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)  ::TODO  make strict
+            ::TODO make strict on next upgrade
+        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
-            :+  %channel-post            &  -:!>(*vale:m-channel-post)
+            ::TODO revert to strict on next upgrade
+            :+  %channel-post            |  -:!>(*vale:m-channel-post)
             :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
             :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
             :+  %channel-post-4          &  -:!>(*vale:m-channel-post-4)
-            :+  %channel-posts           &  -:!>(*vale:m-channel-posts)
+            ::TODO revert to strict on next upgrade
+            :+  %channel-posts           |  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
-            :+  %channel-posts-4         |  -:!>(*vale:m-channel-posts-4)  ::TODO  make strict
+            ::TODO make strict on next upgrade
+            :+  %channel-posts-4         |  -:!>(*vale:m-channel-posts-4)
             :+  %channel-replies         &  -:!>(*vale:m-channel-replies)
             :+  %channel-replies-2       &  -:!>(*vale:m-channel-replies-2)
             :+  %channel-replies-3       &  -:!>(*vale:m-channel-replies-3)
@@ -108,7 +112,7 @@
             :+  %channel-unread-update   &  -:!>(*vale:m-channel-unread-update)
             :+  %channel-unreads         &  -:!>(*vale:m-channel-unreads)
             :+  %channels                &  -:!>(*vale:m-channels)
-            :+  %channels-2              &  -:!>(*vale:m-channels-2)
+            :+  %channels-2              |  -:!>(*vale:m-channels-2)
             :+  %channels-3              &  -:!>(*vale:m-channels-3)
             :+  %channels-4              &  -:!>(*vale:m-channels-4)
             :+  %hidden-posts            &  -:!>(*vale:m-hidden-posts)
@@ -212,15 +216,15 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %16
-        =v-channels:c
-        voc=(map [nest:c plan:c] (unit said:c))
-        hidden-posts=(set id-post:c)
-        debounce=(jug nest:c @da)  ::  temporary bandaid
-        last-updated=(list [=nest:c =time])  ::  newest first, one-per-nest
+        =v-channels:v9:cv
+        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
+        hidden-posts=(set id-post:v9:cv)
+        debounce=(jug nest:v9:cv @da)  ::  temporary bandaid
+        last-updated=(list [=nest:v9:cv =time])  ::  newest first, one-per-nest
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
-        pending-ref-edits=(jug ship [=kind:c name=term])
+        pending-ref-edits=(jug ship [=kind:v9:cv name=term])
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
@@ -389,11 +393,11 @@
   +$  state-16  current-state
   +$  state-15
     $:  %15
-        =v-channels:c
-        voc=(map [nest:c plan:c] (unit said:c))
-        hidden-posts=(set id-post:c)
-        debounce=(jug nest:c @da)
-        pending-ref-edits=(jug ship [=kind:c name=term])
+        =v-channels:v9:cv
+        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
+        hidden-posts=(set id-post:v9:cv)
+        debounce=(jug nest:v9:cv @da)
+        pending-ref-edits=(jug ship [=kind:v9:cv name=term])
         =^subs:s
         =pimp:imp
     ==
