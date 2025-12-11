@@ -1143,15 +1143,13 @@
     ::  Old (v1, v2, v3) subscriptions will hit channels-server, newer versions
     ::  may hit the client agent, because they want to hit the logic
     ::  that circumvents channel permissions for pinned posts
-    ::  because they want to hit the logic that circumvents channel permissions
-    ::  for pinned posts
     ::
-    ?:  &(=(ask ship.nest) ?=(?(%v0 %v1 %v2 %v3) ver))
+    ?:  &(=(ask ship.nest) ?=(?(%v0 %v1 %v2) ver))
       [base server base]
     ::NOTE  attention! we subscribe to other "client agent" instances here.
     ::      uncommon pattern, very "soft". expect subscription failure and
     ::      handle it gracefully.
-    [base dap.bowl [ver base]]
+    [base dap.bowl [?+(ver ver ?(%v3 %v4) %v4) base]]
   ((safe-watch wire [ship.nest dude] path) |)
 ::
 ++  said-path
@@ -1162,7 +1160,7 @@
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
-  |=  [=nest:c =plan:c ask=(unit ship) =sign:agent:gall]
+  |=  [=nest:c =plan:c =sign:agent:gall]
   =/  =path  (said-path nest plan)
   ^+  cor
   ?+    -.sign  !!
@@ -1214,11 +1212,9 @@
         (said-7-to-8:utils !<(=said:v7:c q.cage.sign))
       ::
           %channel-said-1
-        %-  some
-        (said-8-to-9:utils !<(=said:v8:c q.cage.sign))
+        `(said-8-to-9:utils !<(=said:v8:c q.cage.sign))
       ::
-          %channel-said-2
-        `!<(=said:c q.cage.sign)
+          %channel-said-2  `!<(=said:v9:c q.cage.sign)
       ==
     =.  voc
       %+  ~(put by voc)  [nest plan]
@@ -1300,7 +1296,7 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (take-said nest plan ~ sign)
+    (take-said nest plan sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
