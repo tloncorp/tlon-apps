@@ -323,7 +323,10 @@ export const BottomSheetWrapper = forwardRef<
       isNested ||
       hasScrollableContent
     );
-    const useBottomSheetViewForNonModal = !footerComponent;
+    const useBottomSheetViewForNonModal = !(
+      footerComponent ||
+      hasScrollableContent
+    );
 
     if (modal) {
       return (
