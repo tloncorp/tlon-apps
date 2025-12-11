@@ -185,7 +185,7 @@
 +$  said  (pair nest reference)
 ::  $said-response: said with group info for API responses
 ::    wraps the existing said type, avoiding state migration issues
-+$  said-response  [=said group=flag:gv]
++$  said-response  [group=flag:gv =nest ref=$@(?(%deleted %unknown) reference)]
 ::  $plan: index into channel state
 ::    p: Post being referred to
 ::    q: Reply being referred to, if any

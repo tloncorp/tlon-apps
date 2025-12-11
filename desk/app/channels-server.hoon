@@ -40,8 +40,7 @@
       :~  [/$/$/checkpoint %channel-checkpoint ~]
           [/$/$/create %channel-update ~]
           [/$/$/updates %channel-update %channel-logs ~]
-          [/said %channel-said-3 %channel-said-2 %channel-said-1 %channel-denied ~]
-          [/v4/said %channel-said-3 %channel-denied ~]
+          [/said %channel-said-3 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
           [/v0/hooks/full %hook-full ~]
@@ -649,15 +648,6 @@
     (slav %ud n.pole)
   ::
       [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
-    =/  host=ship   (slav %p host.pole)
-    =/  =nest:c     [kind.pole host name.pole]
-    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    ?>  =(our.bowl host)
-    ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
-  ::  handle v4/said requests forwarded from channels.hoon
-  ::  path: /v4/said/{ask}/{kind}/{host}/{name}/post/{time}[/{reply}]
-  ::
-      [%v4 %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
@@ -1323,7 +1313,7 @@
       %^  give  %fact  ~
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
-      (said-4:utils nest plan posts.channel group.perm.channel)
+      (said-4:utils nest plan channel)
     (give %kick ~ ~)
   --
 ++  scry-path

@@ -597,7 +597,7 @@
             %chat   [*memo:c /chat/deleted ~ ~]
         ==
       (suv-post-without-replies-2 +.u.post)
-    [%channel-said-1 !>(`said:v8:c`[nest [%post post]])]
+    [%channel-said-1 !>(`said:v8:c`[nest %post post])]
   =/  reply=[reply-seal:v8:c memo:v8:c]
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
@@ -615,7 +615,7 @@
     ?:  ?=(%| -.u.reply)
       [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
     (suv-reply-2 p.plan +.u.reply)
-  [%channel-said-1 !>(`said:v8:c`[nest [%reply p.plan reply]])]
+  [%channel-said-1 !>(`said:v8:c`[nest %reply p.plan reply])]
 ::
 ++  said-3
   |=  [=nest:c =plan:c posts=v-posts:c]
@@ -633,7 +633,7 @@
         ==
       ?:  ?=(%| -.u.post)  u.post
       &+(suv-post-without-replies-3 +.u.post)
-    [%channel-said-2 !>(`said:v9:c`[nest [%post post]])]
+    [%channel-said-2 !>(`said:v9:c`[nest %post post])]
   =/  reply=(may:v9:c simple-reply:v9:c)
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
@@ -649,40 +649,35 @@
       &+[*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
-  [%channel-said-2 !>(`said:v9:c`[nest [%reply p.plan reply]])]
+  [%channel-said-2 !>(`said:v9:c`[nest %reply p.plan reply])]
 ::
 ++  said-4
-  |=  [=nest:c =plan:c posts=v-posts:c group=flag:gv]
+  |=  [=nest:c =plan:c =v-channel:c]
   ^-  cage
+  =*  posts  posts.v-channel
+  =*  group  group.perm.v-channel
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=(may:c simple-post:c)
-      ?~  post
-        :-  %&  ::TODO  should eventually just unitize $reference
-        :-  *simple-seal:c
-        ?-  kind.nest
-          %diary  [*memo:c /diary/unknown ~ ~]
-          %heap   [*memo:c /heap/unknown ~ ~]
-          %chat   [*memo:c /chat/unknown ~ ~]
-        ==
+    =/  post=(unit (may:v9:c simple-post:v9:c))
+      ?~  post  ~
+      %-  some
       ?:  ?=(%| -.u.post)  u.post
       &+(suv-post-without-replies-3 +.u.post)
-    ::  construct said-response: wraps said with group for API response
-    =/  =said:c  [nest [%post post]]
-    [%channel-said-3 !>(`said-response:c`[said group])]
-  =/  reply=(may:c simple-reply:c)
-    ?~  post
-      &+[*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
-    ?:  ?=(%| -.u.post)
-      &+[*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+    =/  said-response=said-response:v9:c  
+      :+  group  nest
+      ?~(post %unknown [%post u.post])
+    [%channel-said-3 !>(said-response)]
+  =/  reply=$@(?(%deleted %unknown) (may:v9:c simple-reply:v9:c))
+    ?~  post  %unknown
+    ?:  ?=(%| -.u.post)  %deleted
     =/  reply=(unit (may:c v-reply:c))  (get:on-v-replies:c replies.+.u.post u.q.plan)
-    ?~  reply
-      &+[*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
+    ?~  reply  %unknown
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
-  ::  construct said-response: wraps said with group for API response
-  =/  =said:c  [nest [%reply p.plan reply]]
-  [%channel-said-3 !>(`said-response:c`[said group])]
+  =/  said-response=said-response:v9:c  
+    :+  group  nest
+    ?@(reply reply [%reply p.plan reply])
+  [%channel-said-3 !>(said-response)]
 ::
 ++  may-bind
   |*  f=$-(* *)

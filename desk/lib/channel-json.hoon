@@ -551,10 +551,9 @@
   ++  said-response
     |=  sr=said-response:c
     ^-  json
-    ::  flatten the said-response: output nest, reference, and group at top level
     %-  pairs
-    :~  nest/(nest p.said.sr)
-        reference/(reference q.said.sr)
+    :~  nest/(nest nest.sr)
+        reference/?@(ref.sr s+ref.sr (reference ref.sr))
         group/(flag group.sr)
     ==
   ::

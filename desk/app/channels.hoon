@@ -138,7 +138,9 @@
           [/v3 %channel-response-4 ~]
           [/v3/said %channel-said-1 %channel-denied ~]
         ::
-          [/v4/said %channel-said-3 %channel-said-2 %channel-denied ~]
+          [/v4/said %channel-said-2 %channel-denied ~]
+        ::
+          [/v5/said %channel-said-3 %channel-denied ~]
       ==
     ::  scries
     ::
@@ -185,7 +187,7 @@
         [/x/v3/v-channels %noun]
       ::
         [/x/v4/channels %channels-4]
-        [/x/v4/said %channel-said-3]
+        [/x/v4/said %channel-said-2]
         [/x/v4/heads %channel-heads-3]
         [/x/v4/$/$/$/posts %channel-posts-4]
         [/x/v4/$/$/$/posts/post %channel-post-4]
@@ -1090,7 +1092,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2 %v3) ~]                    ?>(from-self cor)
@@ -1108,16 +1110,8 @@
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (watch-said host nest plan -.pole)
   ::
-      [version=?(%v3 %v4) %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [version=?(%v3 %v4 %v5) %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     ::NOTE  best used through /ted/contact-pins or similar
-    =/  ask=ship    (slav %p ask.pole)
-    =/  host=ship   (slav %p host.pole)
-    =/  =nest:c     [kind.pole host name.pole]
-    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (watch-said ask nest plan version.pole)
-  ::  handle proxied v3/v4 said requests (when /v0 prefix is added by forwarding)
-  ::
-      [%v0 version=?(%v3 %v4) %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  ask=ship    (slav %p ask.pole)
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -1126,7 +1120,7 @@
   ==
 ::
 ++  watch-said
-  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3 %v4)]
+  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3 %v4 %v5)]
   ^+  cor
   ::  if we have the data locally, give it
   ::
@@ -1135,7 +1129,7 @@
       ==
     ?-  ver
       ?(%v0 %v1)  ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
-      ?(%v2 %v3 %v4)  ca-abet:(ca-said:(ca-abed:ca-core nest) plan ver)
+      ?(%v2 %v3 %v4 %v5)  ca-abet:(ca-said:(ca-abed:ca-core nest) plan ver)
     ==
   ::  if we don't have the data locally, ask the target for latest,
   ::  but don't go over the network on behalf of someone else.
@@ -1146,21 +1140,18 @@
   ?>  |(from-self =(ask our.bowl))
   =/  [=wire =dude:gall =path]
     =/  base=path  (said-path nest plan)
-    ::  v3 subscriptions will _always_ ask the client agent,
+    ::  Old (v1, v2, v3) subscriptions will hit channels-server, newer versions
+    ::  may hit the client agent, because they want to hit the logic
+    ::  that circumvents channel permissions for pinned posts
     ::  because they want to hit the logic that circumvents channel permissions
     ::  for pinned posts
     ::
-    ?:  &(=(ask ship.nest) !?=(?(%v3 %v4) ver))
+    ?:  &(=(ask ship.nest) ?=(?(%v0 %v1 %v2 %v3) ver))
       [base server base]
     ::NOTE  attention! we subscribe to other "client agent" instances here.
     ::      uncommon pattern, very "soft". expect subscription failure and
     ::      handle it gracefully.
-    ::  For v4, include ask in path: /v4/said/{ask}/{kind}/{host}/{name}/post/...
-    ::  base is /said/{kind}/{host}/{name}/post/..., so (tail base) gives us
-    ::  the {kind}/{host}/{name}/post/... part
-    ::  Subscribe to the channel host (ship.nest), not the requester (ask)
-    ::  Include ask in the wire so we can give to the correct path in take-said
-    [[%said-v4 (scot %p ask) (tail base)] dap.bowl `path`[%v4 %said (scot %p ask) (tail base)]]
+    [base dap.bowl [ver base]]
   ((safe-watch wire [ship.nest dude] path) |)
 ::
 ++  said-path
@@ -1188,6 +1179,27 @@
     (give %kick ~[path v0+path v1+path v2+path] ~)
   ::
       %fact
+    =/  suffix=^path
+      [%said (scot %p src.bowl) (tail path)]
+    ?:  ?=(%channel-said-3 p.cage.sign)
+      =/  sr  !<(said-response:v9:c q.cage.sign)
+      =.  cor
+        %^  give  %fact
+          ~[v5+suffix]
+        channel-said-3+!>(sr)
+      ::  they all got their responses, so kick their subscriptions,
+      ::  and make sure we leave ours so we can do another fetch later.
+      ::  (we don't know what agent we subscribed to, but it's fine, we can
+      ::  just leave both.)
+      ::
+      =/  kick-paths
+        ~[v5+suffix]
+      =.  cor  (give %kick kick-paths ~)
+      %-  emil
+      :~  [%pass path %agent [src.bowl dap.bowl] %leave ~]
+          [%pass path %agent [src.bowl server] %leave ~]
+      ==
+    ::
     ::  we update state only if we learn anything new
     ::
     =/  had=(unit said:c)
@@ -1207,17 +1219,7 @@
       ::
           %channel-said-2
         `!<(=said:c q.cage.sign)
-      ::
-        ::  said-3 contains said-response, extract the said part for storage
-          %channel-said-3
-        =/  sr  !<(said-response:c q.cage.sign)
-        `said.sr
       ==
-    ::  keep track of the full said-response (with group) for v4 responses
-    =/  got-response=(unit said-response:c)
-      ?:  =(%channel-said-3 p.cage.sign)
-        `!<(=said-response:c q.cage.sign)
-      ~
     =.  voc
       %+  ~(put by voc)  [nest plan]
       %^  clap  had  got
@@ -1231,10 +1233,6 @@
         ~[path v0+path v1+path]
       ?~  got  cage.sign
       channel-said+!>((v7:said:v9:ccv u.got))
-    ::  For v3/v4, use the original subscriber (ask) if provided, else src.bowl
-    =/  sub-ship=ship  ?~(ask src.bowl u.ask)
-    =/  suffix=^path
-      [%said (scot %p sub-ship) (tail path)]
     =.  cor
       %^  give  %fact
         ~[v2+path v3+suffix]
@@ -1243,8 +1241,8 @@
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
-      ?~  got-response  cage.sign
-      channel-said-3+!>(u.got-response)
+      ?~  got  cage.sign
+      channel-said-2+!>(`said:v9:c`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
@@ -1303,14 +1301,6 @@
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (take-said nest plan ~ sign)
-  ::
-  ::  v4 said wire includes the original subscriber (ask) for correct path routing
-      [%said-v4 ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
-    =/  ask=ship    (slav %p ask.pole)
-    =/  host=ship   (slav %p host.pole)
-    =/  =nest:c     [kind.pole host name.pole]
-    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (take-said nest plan `ask sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -1528,7 +1518,7 @@
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     =;  output=(unit (unit said:v8:c))
       ``noun+!>(output)
-    =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
+    =/  said=(unit (unit said:v9:c))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
     ``(v8:said:v9:ccv u.u.said)
@@ -1537,12 +1527,7 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
-    =/  said-v9=(unit (unit said:v9:c))
-      ?~  said  ~
-      ?~  u.said  [~ ~]
-      ``u.u.said
-    ``noun+!>(said-v9)
+   ``noun+!>(`(unit (unit said:v9:c))`(~(get by voc) nest plan))
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
@@ -1982,7 +1967,7 @@
     (give %kick ~ ~)
   ::
   ++  ca-said
-    |=  [=plan:c version=?(%v2 %v3 %v4)]
+    |=  [=plan:c version=?(%v2 %v3 %v4 %v5)]
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
@@ -1993,7 +1978,8 @@
         ?.  share
           channel-denied+!>(~)
         ?-  version
-          %v4         (said-4:utils nest plan posts.channel group.perm.channel)
+          %v5         (said-4:utils nest plan channel)
+          %v4         (said-3:utils nest plan posts.channel)
           ?(%v2 %v3)  (said-2:utils nest plan posts.channel)
         ==
       ?:  (can-read:ca-perms src.bowl)  &
