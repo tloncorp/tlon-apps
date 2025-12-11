@@ -266,28 +266,40 @@ export const BottomSheetWrapper = forwardRef<
     );
 
     const commonProps = useMemo(
-      () => ({
-        enablePanDownToClose,
-        enableDynamicSizing,
-        keyboardBehavior,
-        keyboardBlurBehavior: 'restore' as const,
-        android_keyboardInputMode,
-        animationConfigs: ANIMATION_CONFIGS[animation],
-        onChange: handleSheetChanges,
-        backdropComponent: renderBackdrop,
-        handleComponent: renderHandle,
-        footerComponent,
-        style: frameStyle,
-        snapPointsMode,
-        snapPoints: transformedSnapPoints,
-        backgroundStyle: {
-          backgroundColor: backgroundColor,
-        },
-        // Prevents pan gesture from being activated unless user has scrolled
-        // this much vertical distance. Important for nested horizontal
-        // scrollviews.
-        activeOffsetY: [-10, 10] as [number, number],
-      }),
+      () => {
+        const baseProps = {
+          enablePanDownToClose,
+          enableDynamicSizing,
+          keyboardBehavior,
+          keyboardBlurBehavior: 'restore' as const,
+          android_keyboardInputMode,
+          animationConfigs: ANIMATION_CONFIGS[animation],
+          onChange: handleSheetChanges,
+          backdropComponent: renderBackdrop,
+          handleComponent: renderHandle,
+          footerComponent,
+          style: frameStyle,
+          backgroundStyle: {
+            backgroundColor: backgroundColor,
+          },
+          // Prevents pan gesture from being activated unless user has scrolled
+          // this much vertical distance. Important for nested horizontal
+          // scrollviews.
+          activeOffsetY: [-10, 10] as [number, number],
+        };
+
+        // Only include snapPoints when not using dynamic sizing
+        // Dynamic sizing calculates height automatically and doesn't need snapPoints
+        if (!enableDynamicSizing && transformedSnapPoints) {
+          return {
+            ...baseProps,
+            snapPointsMode,
+            snapPoints: transformedSnapPoints,
+          };
+        }
+
+        return baseProps;
+      },
       [
         enablePanDownToClose,
         enableDynamicSizing,
