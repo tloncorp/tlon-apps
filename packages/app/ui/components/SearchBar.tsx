@@ -57,6 +57,7 @@ export function SearchBar({
         onChangeText={onTextChange}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        autoCorrect={false}
         rightControls={
           value !== '' || onPressCancel ? (
             <TextInput.InnerButton

@@ -117,6 +117,7 @@ export const BottomSheetWrapper = forwardRef<
       footerComponent,
       hasScrollableContent = false,
       enableContentPanningGesture,
+      enableDynamicSizing = false,
     },
     ref
   ) => {
@@ -267,6 +268,7 @@ export const BottomSheetWrapper = forwardRef<
     const commonProps = useMemo(
       () => ({
         enablePanDownToClose,
+        enableDynamicSizing,
         keyboardBehavior,
         keyboardBlurBehavior: 'restore' as const,
         android_keyboardInputMode,
@@ -288,6 +290,7 @@ export const BottomSheetWrapper = forwardRef<
       }),
       [
         enablePanDownToClose,
+        enableDynamicSizing,
         keyboardBehavior,
         android_keyboardInputMode,
         animation,
