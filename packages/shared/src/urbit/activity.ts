@@ -1,10 +1,11 @@
-import { parse, da } from '@urbit/aura';
+import { da } from '@urbit/aura';
 import _ from 'lodash';
 
 import type { UnionToIntersection } from '../utils';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import { parseIdNumber } from '../api/apiUtils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -773,7 +774,7 @@ export function getIdParts(id: string): { author: string; sent: number } {
   const [author, sentStr] = id.split('/');
   return {
     author,
-    sent: da.toUnix(parse('ud', sentStr)),
+    sent: da.toUnix(parseIdNumber(sentStr)),
   };
 }
 

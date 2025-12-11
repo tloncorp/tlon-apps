@@ -60,7 +60,6 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.get_distinct_id();
-  // Import at top of function to avoid circular dependency
-  const { identifyUser } = require('./identifyUser.web');
-  identifyUser(UUID, { isTlonEmployee: true });
+  // Inline identifyUser call to avoid circular dependency
+  analyticsClient?.identify(UUID, { isTlonEmployee: true });
 };

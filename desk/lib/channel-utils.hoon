@@ -18,6 +18,7 @@
 ::
 ++  uv-channels-1
   |=  =v-channels:c
+  ~>  %spin.['libcu-uv-channels-1']
   ^-  channels-0:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
@@ -32,6 +33,7 @@
 ::
 ++  uv-channels
   |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels']
   ^-  channels:v1:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
@@ -53,6 +55,7 @@
 ::
 ++  uv-channels-2
   |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-2']
   ^-  channels:v8:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
@@ -76,6 +79,7 @@
 ::
 ++  uv-channels-3
   |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-3']
   ^-  channels:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
@@ -99,6 +103,7 @@
 ::
 ++  uv-posts
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts']
   ^-  posts:v1:c
   %+  gas:on-posts:v1:c  *posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -108,6 +113,7 @@
 ::
 ++  uv-posts-1
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-1']
   ^-  posts:v7:c
   %+  gas:on-posts:v7:c  *posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -117,6 +123,7 @@
 ::
 ++  uv-posts-2
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-2']
   ^-  posts:v8:c
   %+  gas:on-posts:v8:c  *posts:v8:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -126,6 +133,7 @@
 ::
 ++  uv-posts-3
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-3']
   ^-  posts:v9:c
   %+  gas:on-posts:v9:c  *posts:v9:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -135,6 +143,7 @@
 ::
 ++  s-posts-1
   |=  =posts:c
+  ~>  %spin.['libcu-s-posts-1']
   ^-  simple-posts:v7:c
   %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-posts:c posts)
@@ -144,6 +153,7 @@
 ::
 ++  suv-posts
   |=  =v-posts:c
+  ~>  %spin.['libcu-suv-posts']
   ^-  simple-posts:v1:c
   %+  gas:on-simple-posts:v1:c  *simple-posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -153,6 +163,7 @@
 ::
 ++  suv-posts-1
   |=  =v-posts:c
+  ~>  %spin.['libcu-suv-posts-1']
   ^-  simple-posts:v7:c
   %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -163,6 +174,7 @@
 ::
 ++  uv-post
   |=  =v-post:c
+  ~>  %spin.['libcu-uv-post']
   ^-  post:v1:c
   :_  [rev.v-post (v7:essay:v9:ccv +>.v-post)]
   :*  id.v-post
@@ -173,6 +185,7 @@
 ::
 ++  uv-post-1
   |=  =v-post:c
+  ~>  %spin.['libcu-uv-post-1']
   ^-  post:v7:c
   :_  [rev.v-post (v7:essay:v9:ccv +>.v-post)]
   :*  id.v-post
@@ -183,6 +196,7 @@
 ::
 ++  uv-post-2
   |=  =v-post:c
+  ~>  %spin.['libcu-uv-post-2']
   ^-  post:v8:c
   =/  =replies:v8:c
     (uv-replies-2 id.v-post replies.v-post)
@@ -197,6 +211,7 @@
 ::
 ++  uv-post-3
   |=  =v-post:c
+  ~>  %spin.['libcu-uv-post-3']
   ^-  post:v9:c
   =/  =replies:v9:c
     (uv-replies-3 id.v-post replies.v-post)
@@ -211,6 +226,7 @@
 ::
 ++  s-post-1
   |=  =post:c
+  ~>  %spin.['libcu-s-post-1']
   ^-  simple-post:v7:c
   :_  (v7:essay:v9:ccv +>.post)
   =/  seal
@@ -224,6 +240,7 @@
 ::
 ++  s-post-2
   |=  =post:c
+  ~>  %spin.['libcu-s-post-2']
   ^-  simple-post:v8:c
   :_  +>.post
   =/  seal
@@ -237,6 +254,7 @@
 ::
 ++  s-post-3
   |=  =post:c
+  ~>  %spin.['libcu-s-post-3']
   ^-  simple-post:c
   :_  +>.post
   %=  -.post
@@ -245,17 +263,20 @@
   ==
 ++  suv-post
   |=  =v-post:c
+  ~>  %spin.['libcu-suv-post']
   ^-  simple-post:v1:c
   (s-post-1 (uv-post-3 v-post))
 ::
 ::
 ++  suv-post-1
   |=  =v-post:c
+  ~>  %spin.['libcu-suv-post-1']
   ^-  simple-post:v7:c
   (s-post-1 (uv-post-3 v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-without-replies']
   ^-  posts:v1:c
   %+  gas:on-posts:v1:c  *posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -265,6 +286,7 @@
 ::
 ++  uv-posts-without-replies-1
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-without-replies-1']
   ^-  posts:v7:c
   %+  gas:on-posts:v7:c  *posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -274,6 +296,7 @@
 ::
 ++  uv-posts-without-replies-2
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-without-replies-2']
   ^-  posts:v8:c
   %+  gas:on-posts:v8:c  *posts:v8:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -283,6 +306,7 @@
 ::
 ++  uv-posts-without-replies-3
   |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-without-replies-3']
   ^-  posts:v9:c
   %+  gas:on-posts:v9:c  *posts:v9:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -294,6 +318,7 @@
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c
+  ~>  %spin.['libcu-suv-posts-without-replies']
   ^-  simple-posts:v1:c
   %+  gas:on-simple-posts:v1:c  *simple-posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -303,6 +328,7 @@
 ::
 ++  suv-posts-without-replies-1
   |=  =v-posts:c
+  ~>  %spin.['libcu-suv-posts-without-replies-1']
   ^-  simple-posts:v7:c
   %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
@@ -312,6 +338,7 @@
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c
+  ~>  %spin.['libcu-uv-post-without-replies']
   ^-  post:v1:c
   :_  [rev.post (v7:essay:v9:ccv +>.post)]
   :*  id.post
@@ -322,6 +349,7 @@
 ::
 ++  uv-post-without-replies-1
   |=  post=v-post:c
+  ~>  %spin.['libcu-uv-post-without-replies-1']
   ^-  post:v7:c
   :_  [rev.post (v7:essay:v9:ccv +>.post)]
   :*  id.post
@@ -332,6 +360,7 @@
 ::
 ++  uv-post-without-replies-2
   |=  post=v-post:c
+  ~>  %spin.['libcu-uv-post-without-replies-2']
   ^-  post:v8:c
   :_  +.post
   :*  id.post
@@ -344,6 +373,7 @@
 ::
 ++  uv-post-without-replies-3
   |=  post=v-post:c
+  ~>  %spin.['libcu-uv-post-without-replies-3']
   ^-  post:c
   :_  +.post
   :*  id.post
@@ -355,26 +385,31 @@
   ==
 ++  suv-post-without-replies
   |=  post=v-post:c
+  ~>  %spin.['libcu-suv-post-without-replies']
   ^-  simple-post:v1:c
   (s-post-1 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-1
   |=  post=v-post:c
+  ~>  %spin.['libcu-suv-post-without-replies-1']
   ^-  simple-post:v7:c
   (s-post-1 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-2
   |=  post=v-post:c
+  ~>  %spin.['libcu-suv-post-without-replies-2']
   ^-  simple-post:v8:c
   (s-post-2 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-3
   |=  post=v-post:c
+  ~>  %spin.['libcu-suv-post-without-replies-3']
   ^-  simple-post:c
   (s-post-3 (uv-post-without-replies-3 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-uv-replies']
   ^-  replies:v1:c
   %+  gas:on-replies:v1:c  *replies:v1:c
   %+  murn  (tap:on-v-replies:c v-replies)
@@ -385,6 +420,7 @@
 ::
 ++  uv-replies-1
   |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-uv-replies-1']
   ^-  replies:v7:c
   %+  gas:on-replies:v7:c  *replies:v7:c
   %+  turn  (tap:on-v-replies:c v-replies)
@@ -395,6 +431,7 @@
 ::
 ++  uv-replies-2
   |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-uv-replies-2']
   ^-  replies:v8:c
   %+  gas:on-replies:v8:c  *replies:v8:c
   %+  turn  (tap:on-v-replies:c v-replies)
@@ -405,6 +442,7 @@
 ::
 ++  uv-replies-3
   |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-uv-replies-3']
   ^-  replies:c
   %+  gas:on-replies:c  *replies:c
   %+  turn  (tap:on-v-replies:c v-replies)
@@ -414,6 +452,7 @@
   [time [-.v-reply (uv-reply-2 parent-id +.v-reply)]]
 ++  s-replies-1
   |=  =replies:c
+  ~>  %spin.['libcu-s-replies-1']
   ^-  simple-replies:v7:c
   %+  gas:on-simple-replies:v7:c  *simple-replies:v7:c
   %+  murn  (tap:on-replies:c replies)
@@ -424,6 +463,7 @@
 ::
 ++  s-replies-2
   |=  =replies:c
+  ~>  %spin.['libcu-s-replies-2']
   ^-  simple-replies:c
   %+  gas:on-simple-replies:c  *simple-replies:c
   %+  murn  (tap:on-replies:c replies)
@@ -434,43 +474,51 @@
 ::
 ++  suv-replies-1
   |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-suv-replies-1']
   ^-  simple-replies:v7:c
   (s-replies-1 (uv-replies-3 parent-id v-replies))
 ::
 ++  uv-reply-2
   |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-uv-reply-2']
   ^-  reply:c
   :_  +.v-reply
   [id.v-reply parent-id (v7:reacts:v9:ccv (uv-reacts reacts.v-reply))]
 ::
 ++  uv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-uv-reply-1']
   ^-  reply:v7:c
   :_  [rev.v-reply (v7:memo:v9:ccv +>.v-reply)]
   [id.v-reply parent-id (v7:reacts:v9:ccv (uv-reacts reacts.v-reply))]
 ::
 ++  s-reply-1
   |=  =reply:c
+  ~>  %spin.['libcu-s-reply-1']
   ^-  simple-reply:v7:c
   (simple-reply-1 -.reply +>.reply)
 ::
 ++  s-reply-2
   |=  =reply:c
+  ~>  %spin.['libcu-s-reply-2']
   ^-  simple-reply:c
   [-.reply +>.reply]
 ::
 ++  suv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-suv-reply-1']
   ^-  simple-reply:v7:c
   (s-reply-1 (uv-reply-1 parent-id v-reply))
 ::
 ++  suv-reply-2
   |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-suv-reply-2']
   ^-  simple-reply:c
   (s-reply-2 (uv-reply-2 parent-id v-reply))
 ::
 ++  uv-reacts
   |=  =v-reacts:c
+  ~>  %spin.['libcu-uv-reacts']
   ^-  reacts:c
   %-  ~(gas by *reacts:c)
   %+  murn  ~(tap by v-reacts)
@@ -480,6 +528,7 @@
 ::
 ++  simple-post-1
   |=  post=simple-post:c
+  ~>  %spin.['libcu-simple-post-1']
   ^-  simple-post:v7:c
   :_  (v7:essay:v9:ccv +.post)
   ^-  simple-seal:v7:c
@@ -492,6 +541,7 @@
 ::
 ++  simple-reply-1
   |=  =simple-reply:c
+  ~>  %spin.['libcu-simple-reply-1']
   ^-  simple-reply:v7:c
   %=  simple-reply
     +  (v7:memo:v9:ccv +.simple-reply)
@@ -500,12 +550,14 @@
 ::
 ++  simple-replies-1
   |=  replies=simple-replies:c
+  ~>  %spin.['libcu-simple-replies-1']
   ^-  simple-replies:v7:c
   %+  run:on-simple-replies:c  replies
   simple-reply-1
 ::
 ++  reference-1
   |=  ref=reference:c
+  ~>  %spin.['libcu-reference-1']
   ^-  reference:v7:c
   ?-  -.ref
       %post
@@ -540,6 +592,7 @@
 ::
 ++  said-1
   |=  [=nest:c =plan:c posts=v-posts:c]
+  ~>  %spin.['libcu-said-1']
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
@@ -578,6 +631,7 @@
 ::
 ++  said-2
   |=  [=nest:c =plan:c posts=v-posts:c]
+  ~>  %spin.['libcu-said-2']
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
@@ -619,6 +673,7 @@
 ::
 ++  said-3
   |=  [=nest:c =plan:c posts=v-posts:c]
+  ~>  %spin.['libcu-said-3']
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
@@ -657,14 +712,17 @@
   `(f +.v)
 ++  mu-v-post
   |=  v-post=(may:c v-post:c)
+  ~>  %spin.['libcu-mu-v-post']
   ^-  (unit v-post:c)
   ((may-bind same) v-post)
 ++  mu-v-reply
   |=  v-reply=(may:c v-reply:c)
+  ~>  %spin.['libcu-mu-v-reply']
   ^-  (unit v-reply:c)
   ((bake (may-bind same) (may:c v-reply:c)) v-reply)
 ++  was-mentioned
   |=  [=story:s who=ship seat=(unit seat:v7:gv)]
+  ~>  %spin.['libcu-was-mentioned']
   ^-  ?
   %+  lien  story
   |=  =verse:s
@@ -685,6 +743,7 @@
   |%
   ++  channel
     |=  chan=v-channel:c
+    ~>  %spin.['libcu-channel']
     ^+  chan
     %_  chan
         posts
@@ -706,28 +765,33 @@
     ==
   ++  said
     |=  =said:c
+    ~>  %spin.['libcu-said']
     ?+  q.said  said
       [%post %& *]     said(+>.post.q (essay +>.post.q.said))
       [%reply @ %& *]  said(content.reply.q (story content.reply.q.said))
     ==
   ++  essay
     |=  =essay:c
+    ~>  %spin.['libcu-essay']
     %_  essay
       content  (story content.essay)
       meta     (bind meta.essay meta)
     ==
   ++  meta
     |=  =data:m
+    ~>  %spin.['libcu-meta']
     %_  data
       image  ?:((is-good-link image.data) image.data '')
       cover  ?:((is-good-link cover.data) cover.data '')
     ==
   ++  story
     |=  content=story:c
+    ~>  %spin.['libcu-story']
     ^+  content
     (turn content verse)
   ++  verse
     |=  =verse:s
+    ~>  %spin.['libcu-verse']
     ^+  verse
     ?-  -.verse
         %block
@@ -746,6 +810,7 @@
     ==
   ++  is-good-link
     |=  =cord
+    ~>  %spin.['libcu-is-good-link']
     ?|  =('' cord)
         =('http' (end 3^4 cord))
         =('#' (end 3 cord))
@@ -755,6 +820,7 @@
 ::
 ++  flatten
   |=  content=(list verse:s)
+  ~>  %spin.['libcu-flatten']
   ^-  cord
   %+  rap   3
   %+  turn  content
@@ -788,6 +854,7 @@
 ::
 ++  get-reply-meta
   |=  post=v-post:c
+  ~>  %spin.['libcu-get-reply-meta']
   ^-  reply-meta:c
   :*  (get-non-null-reply-count replies.post)
       (get-last-repliers post ~)
@@ -796,6 +863,7 @@
 ::
 ++  get-non-null-reply-count
   |=  replies=v-replies:c
+  ~>  %spin.['libcu-get-non-null-reply-count']
   ^-  @ud
   =/  entries=(list [time (may:c v-reply:c)])  (bap:on-v-replies:c replies)
   =/  count  0
@@ -808,6 +876,7 @@
 ::
 ++  get-last-repliers
   |=  [post=v-post:c pending=(unit author:c)]  ::TODO  could just take =v-replies
+  ~>  %spin.['libcu-get-last-repliers']
   ^-  (set author:c)
   =/  replyers=(set author:c)  ?~(pending ~ (sy u.pending ~))
   =/  entries=(list [time (may:c v-reply:c)])  (bap:on-v-replies:c replies.post)
@@ -869,6 +938,7 @@
   ::
   ++  is-admin
     |=  her=ship
+    ~>  %spin.['libcu-is-admin']
     ?:  =(ship.nest her)  &
     .^  admin=?
     ;:  weld
@@ -879,6 +949,7 @@
   ::
   ++  can-read
     |=  her=ship
+    ~>  %spin.['libcu-can-read']
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
@@ -890,6 +961,7 @@
   ::
   ++  can-write
     |=  [her=ship writers=(set role-id:v7:gv)]
+    ~>  %spin.['libcu-can-write']
     ?:  =(ship.nest her)  &
     =/  =path
       %+  welp  groups-scry
@@ -907,6 +979,7 @@
   |%
   ++  ref-to-pointer  ::TODO  formalize "pointer" type?
     |=  ref=cite:ci
+    ~>  %spin.['libcu-ref-to-pointer']
     ^-  (unit [=nest:gv =plan:c])
     ?.  ?=(%chan -.ref)
       ~
@@ -922,6 +995,7 @@
   ::
   ++  grab-post
     |=  [=bowl:gall ref=cite:ci]
+    ~>  %spin.['libcu-grab-post']
     ^-  (unit [=nest:gv =post:c])
     ?~  point=(ref-to-pointer ref)
       ~
@@ -940,6 +1014,7 @@
   ::
   ++  from-post
     |=  [=nest:gv =id-post:c kind=path]
+    ~>  %spin.['libcu-from-post']
     ^-  cite:ci
     =/  kind=@ta
       ?+  kind  ~&([%from-post-strange-kind kind] %msg)
@@ -952,6 +1027,7 @@
 ::
 ++  flatten-inline
   |=  i=inline:s
+  ~>  %spin.['libcu-flatten-inline']
   ^-  cord
   ?@  i  i
   ?-  -.i
@@ -967,6 +1043,7 @@
 ::
 ++  first-inline
   |=  content=story:s
+  ~>  %spin.['libcu-first-inline']
   ^-  (list inline:s)
   ?~  content  ~
   ?:  ?=(%inline -.i.content)
@@ -997,11 +1074,13 @@
   ++  content  story
   ++  story
     |=  content=story:s
+    ~>  %spin.['libcu-story']
     ^-  marl
     (zing (turn content verse))
   ::
   ++  verse
     |=  =verse:s
+    ~>  %spin.['libcu-verse']
     ^-  marl
     ?-  -.verse
       %block  (block p.verse)
@@ -1017,6 +1096,7 @@
   ::
   ++  block
     |=  =block:s
+    ~>  %spin.['libcu-block']
     ^-  marl
     ?-  -.block
         %image
@@ -1116,6 +1196,7 @@
   ::
   ++  inline
     |=  =inline:s
+    ~>  %spin.['libcu-inline']
     ^-  manx
     ?@  inline
       ;span:"{(trip inline)}"
@@ -1222,6 +1303,7 @@
 ::
 ++  repair-channel
   |=  [n=nest:v9:c v=v-channel:v9:c]
+  ~>  %spin.['libcu-repair-channel']
   ^+  v
   ::  renumber posts based on the order in which they show up,
   ::  dropping bad tombstones along the way
@@ -1235,6 +1317,7 @@
   v
 ++  renumber-posts
   |=  posts=v-posts:v9:c
+  ~>  %spin.['libcu-renumber-posts']
   =/  state  ,[count=@ud seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]
   ^-  [state _posts]
   %-  (dip:on-v-posts:v9:c state)
@@ -1253,6 +1336,7 @@
   [`post | count seqs dead]
 ++  drop-bad-tombstones
   |=  posts=v-posts:v9:c
+  ~>  %spin.['libcu-drop-bad-tombstones']
   ^+  posts
   =<  +
   %-  (dip:on-v-posts:v9:c ,~)
@@ -1266,6 +1350,7 @@
   `post
 ++  renumber-log
   |=  [n=nest:v9:c =log:v9:c seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]
+  ~>  %spin.['libcu-renumber-log']
   ^+  log
   ::  do a "repair" pass over the log: walk it and re-apply sequence nrs,
   ::  ensuring that the log contains consistent sequence nrs for every post id.
@@ -1299,12 +1384,14 @@
 ::
 ++  get-author-ship
   |=  =author:c
+  ~>  %spin.['libcu-get-author-ship']
   ^-  ship
   ?@  author  author
   ship.author
 ::
 ++  get-person-ship
   |=  =author:c
+  ~>  %spin.['libcu-get-person-ship']
   ^-  (unit ship)
   ?^  author  ~
   (some author)
@@ -1313,6 +1400,7 @@
 ::
 ++  compile
   |=  src=@t
+  ~>  %spin.['libcu-compile']
   ^-  (each vase tang)
   =/  tonk=(each vase tang)
     =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
@@ -1327,6 +1415,7 @@
 ::
 ++  run-hook
   |=  [=args:h =hook:h]
+  ~>  %spin.['libcu-run-hook']
   ^-  (unit return:h)
   %-  (slog (crip "running hook: {<name.hook>} {<id.hook>}") ~)
   %-  ?~  channel.bowl.args  same

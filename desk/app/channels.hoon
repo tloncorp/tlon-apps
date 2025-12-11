@@ -295,6 +295,7 @@
 ++  server  (cat 3 dap.bowl '-server')
 ++  log
   |=  msg=(trap tape)
+  ~>  %spin.['log']
   ?.  verbose  same
   (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
 ::
@@ -303,6 +304,7 @@
 ::
 ++  safe-watch
   |=  [=wire =dock =path]
+  ~>  %spin.['safe-watch']
   |=  delay=?
   ^+  cor
   ?:  (~(has by wex.bowl) wire dock)  cor
@@ -467,11 +469,13 @@
   ::
   ++  state-15-to-16
     |=  state-15
+    ~>  %spin.['state-15-to-16']
     ^-  state-16
     [%16 v-channels voc hidden-posts debounce last-updated=~ pending-ref-edits subs pimp]
   ::
   ++  state-14-to-15
     |=  s=state-14
+    ~>  %spin.['state-14-to-15']
     ^-  state-15
     %=  s  -  %15
       v-channels  (~(run by v-channels.s) channel:drop-bad-links:utils)
@@ -480,10 +484,12 @@
   ::
   ++  state-13-to-14
     |=  s=state-13
+    ~>  %spin.['state-13-to-14']
     s(- %14)
   ::
   ++  state-12-to-13
     |=  s=state-12
+    ~>  %spin.['state-12-to-13']
     =-  s(- %13, v-channels (~(run by v-channels.s) -))
     |=  v=v-channel:v9:c
     ^+  v
@@ -491,17 +497,20 @@
   ::
   ++  state-11-to-12
     |=  s=state-11
+    ~>  %spin.['state-11-to-12']
     ::NOTE  this used to do the +state-12-to-13 logic,
     ::      but we moved that down the line.
     s(- %12)
   ::
   ++  state-10-to-11
     |=  state-10
+    ~>  %spin.['state-10-to-11']
     ^-  state-11
     [%11 v-channels voc hidden-posts debounce=~ pending-ref-edits subs pimp]
   ::
   ++  state-9-to-10
     |=  s=state-9
+    ~>  %spin.['state-9-to-10']
     ^-  state-10
     %=  s  -  %10
       v-channels  (v-channels-8-to-9:utils v-channels.s)
@@ -514,11 +523,13 @@
   ::
   ++  state-8-to-9
     |=  s=state-8
+    ~>  %spin.['state-8-to-9']
     ^-  state-9
     s(- %9)
   ::
   ++  state-7-to-8
     |=  s=state-7
+    ~>  %spin.['state-7-to-8']
     ^-  state-8
     %=  s  -  %8
       v-channels  (v-channels-7-to-8:utils v-channels.s)
@@ -527,10 +538,12 @@
   ::
   ++  state-6-to-7
     |=  s=state-6
+    ~>  %spin.['state-6-to-7']
     ^-  state-7
     s(- %7, v-channels (v-channels-6-to-7 v-channels.s))
   ++  v-channels-6-to-7
     |=  vc=v-channels:v6:c
+    ~>  %spin.['v-channels-6-to-7']
     ^-  v-channels:v7:c
     %-  ~(run by vc)
     |=  v=v-channel:v6:c
@@ -555,6 +568,7 @@
   ::
   ++  state-5-to-6
     |=  state-5
+    ~>  %spin.['state-5-to-6']
     ^-  state-6
     [%6 v-channels voc hidden-posts pending-ref-edits subs *pimp:imp]
   ::
@@ -570,6 +584,7 @@
   ::
   ++  state-4-to-5
     |=  state-4
+    ~>  %spin.['state-4-to-5']
     ^-  state-5
     [%5 v-channels voc hidden-posts pending-ref-edits subs]
   ::
@@ -607,10 +622,12 @@
     ==
   ++  state-3-to-4
     |=  s=state-3
+    ~>  %spin.['state-3-to-4']
     ^-  state-4
     s(- %4, v-channels (~(run by v-channels.s) v-channel-2-to-3))
   ++  state-2-to-3
     |=  s=state-2
+    ~>  %spin.['state-2-to-3']
     ^-  state-3
     %=  s  -  %3
         pending-ref-edits  [pending-ref-edits.s *^subs:^s]
@@ -661,6 +678,7 @@
   +$  v-reply-1       [v-reply-seal:v7:c memo:v7:c]
   ++  state-1-to-2
     |=  s=state-1
+    ~>  %spin.['state-1-to-2']
     ^-  state-2
     =/  pend=(jug ship [=kind:c name=term])
       %-  ~(gas ju *(jug ship [kind:c term]))
@@ -673,10 +691,12 @@
     ==
   ++  v-channel-2-to-3
     |=  v=v-channel-2
+    ~>  %spin.['v-channel-2-to-3']
     ^-  v-channel:v6:c
     v(future [future.v *pending-messages:v7:c])
   ++  v-channel-1-to-2
     |=  v=v-channel-1
+    ~>  %spin.['v-channel-1-to-2']
     ^-  v-channel-2
     %=  v
       posts   (v-posts-1-to-2 posts.v)
@@ -685,18 +705,22 @@
     ==
   ++  log-1-to-2
     |=  l=log-1
+    ~>  %spin.['log-1-to-2']
     (run:log-on-1 l u-channel-1-to-2)
   ++  u-channel-1-to-2
     |=  u=u-channel-1
+    ~>  %spin.['u-channel-1-to-2']
     ^-  u-channel:v7:c
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
+    ~>  %spin.['future-1-to-2']
     ^-  future:v-channel:v7:c
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
+    ~>  %spin.['u-post-1-to-2']
     ^-  u-post:v7:c
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
@@ -704,12 +728,14 @@
     ==
   ++  v-posts-1-to-2
     |=  p=v-posts-1
+    ~>  %spin.['v-posts-1-to-2']
     %+  run:on-v-posts-1  p
     |=(p=(unit v-post-1) ?~(p ~ `(v-post-1-to-2 u.p)))
   ++  v-post-1-to-2
     |=(p=v-post-1 p(replies (v-replies-1-to-2 replies.p)))
   ++  v-replies-1-to-2
     |=  r=v-replies-1
+    ~>  %spin.['v-replies-1-to-2']
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
@@ -734,10 +760,12 @@
   ::
   ++  state-0-to-1
     |=  s=state-0
+    ~>  %spin.['state-0-to-1']
     ^-  state-1
     s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
   ++  v-channel-0-to-1
     |=  v=v-channel-0
+    ~>  %spin.['v-channel-0-to-1']
     ^-  v-channel-1
     =/  recency=time
       ?~(tim=(ram:on-v-posts-1 posts.v) *time key.u.tim)
@@ -753,6 +781,7 @@
 ::
 ++  unsubscribe
   |=  [=wire =dock]
+  ~>  %spin.['unsubscribe']
   ^+  cor
   =^  caz=(list card)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
@@ -815,6 +844,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
+  ~>  %spin.['poke']
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
       %noun
@@ -1057,6 +1087,7 @@
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
+    ~>  %spin.['toggle-post']
     ^+  cor
     =.  hidden-posts
       ?-  -.toggle
@@ -1068,6 +1099,7 @@
 ::
 ++  run-import
   |=  =egg-any:gall
+  ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
   ?-  -.egg-any
@@ -1087,6 +1119,7 @@
   ==
 ++  watch
   |=  =(pole knot)
+  ~>  %spin.['watch']
   ^+  cor
   =?  pole  !?=([?(%v0 %v1 %v2 %v3) *] pole)
     [%v0 pole]
@@ -1117,6 +1150,7 @@
 ::
 ++  watch-said
   |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3 %v4)]
+  ~>  %spin.['watch-said']
   ^+  cor
   ::  if we have the data locally, give it
   ::
@@ -1150,6 +1184,7 @@
 ::
 ++  said-path
   |=  [=nest:c =plan:c]
+  ~>  %spin.['said-path']
   ^-  path
   %+  welp
     /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
@@ -1157,6 +1192,7 @@
 ::
 ++  take-said
   |=  [=nest:c =plan:c =sign:agent:gall]
+  ~>  %spin.['take-said']
   =/  =path  (said-path nest plan)
   ^+  cor
   ?+    -.sign  !!
@@ -1232,6 +1268,7 @@
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
+  ~>  %spin.['agent']
   ^+  cor
   ~|  `wire`pole
   =?  cor  !=(/logs pole)
@@ -1315,6 +1352,7 @@
 ::
 ++  take-groups
   |=  =r-groups:v9:gv
+  ~>  %spin.['take-groups']
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -1335,6 +1373,7 @@
 ::
 ++  recheck-perms
   |=  [affected=(list nest:c) sects=(set sect:v0:gv)]
+  ~>  %spin.['recheck-perms']
   ~&  "%channel recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -1343,6 +1382,7 @@
 ::
 ++  peek
   |=  =(pole knot)
+  ~>  %spin.['peek']
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
   =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] +.pole)
@@ -1509,6 +1549,7 @@
   ==
 ++  heads
   |=  [since=?(~ [u=@ ~]) ver=?(%v2 %v3 %v4)]
+  ~>  %spin.['heads']
   =/  since=(unit id-post:c)
     ?~  since  ~
     ?^  tim=(slaw %da u.since)  `u.tim
@@ -1537,6 +1578,7 @@
 ::
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
+  ~>  %spin.['arvo']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
@@ -1584,6 +1626,7 @@
   ==
 ::
 ++  unreads
+  ~>  %spin.['unreads']
   ^-  unreads:c
   %-  ~(gas by *unreads:c)
   %+  turn  ~(tap in ~(key by v-channels))
@@ -1594,10 +1637,12 @@
 ::
 ++  scry-path
   |=  [agent=term =path]
+  ~>  %spin.['scry-path']
   ^-  ^path
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  get-seat
   |=  [=flag:g =ship]
+  ~>  %spin.['get-seat']
   ^-  (unit seat:v7:gv)
   =/  base-path
     (scry-path %groups /)
@@ -1622,10 +1667,12 @@
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  safe-watch
     |=  [=wire =dock =path]
+    ~>  %spin.['safe-watch']
     |=  delay=?
     ca-core(cor ((^safe-watch wire dock path) delay))
   ++  unsubscribe
     |=  [=wire =dock]
+    ~>  %spin.['unsubscribe']
     ca-core(cor (^unsubscribe wire dock))
   ++  ca-abet
     =?  last-updated  |(gone !(~(has by v-channels) nest))
@@ -1636,6 +1683,7 @@
     ==
   ++  ca-abed
     |=  n=nest:c
+    ~>  %spin.['ca-abed']
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
@@ -1646,15 +1694,30 @@
   ++  ca-activity
     =,  activity
     |%
+    ++  blocked
+      |=  who=ship
+      =;  blocks=(set ship)
+        (~(has in blocks) who)
+      =+  p=(scry-path %chat /blocked/ships)
+      =>  [p=p set=set]  ~+  ::  cache best we can
+      .^((set @p) %gx p)
+    ++  running
+      =+  p=(scry-path %activity /$)
+      =>  p=p  ~+
+      .^(? %gu p)
+    ::
     ++  on-post
       |=  v-post:c
+      ~>  %spin.['on-post']
       ^+  ca-core
       =*  author-ship  (get-author-ship:utils author)
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked author-ship)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
@@ -1663,6 +1726,7 @@
     ::
     ++  on-post-delete
       |=  v-post:c
+      ~>  %spin.['on-post-delete']
       ^+  ca-core
       ::  remove any activity that might've happened under this post
       ::
@@ -1678,16 +1742,19 @@
     ::
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
+      ~>  %spin.['on-reply']
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author)
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       =/  parent-key=message-key
         [[parent-author id.parent] id.parent]
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked reply-author)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
@@ -1720,6 +1787,7 @@
       (send ~[[%adjust thread `vm] action])
     ++  on-reply-delete
       |=  [parent=v-post:c reply=v-reply:c]
+      ~>  %spin.['on-reply-delete']
       ^+  ca-core
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author.reply)
@@ -1738,8 +1806,9 @@
     ::
     ++  send
       |=  actions=(list action)
+      ~>  %spin.['send']
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       %-  emil
       %+  turn  actions
@@ -1752,6 +1821,7 @@
   ::
   ++  ca-create
     |=  create=create-channel:c
+    ~>  %spin.['ca-create']
     ?>  from-self
     =.  nest  [kind.create our.bowl name.create]
     ?<  (~(has by v-channels) nest)
@@ -1767,6 +1837,7 @@
   ::
   ++  ca-join
     |=  [n=nest:c group=flag:g]
+    ~>  %spin.['ca-join']
     =.  nest  n
     =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
     =+  .^(grp=group:v9:gv %gx path)
@@ -1798,6 +1869,7 @@
   ::
   ++  ca-a-channel
     |=  =a-channel:c
+    ~>  %spin.['ca-a-channel']
     ?>  from-self
     ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
       %join       !!  ::  handled elsewhere
@@ -1830,6 +1902,7 @@
   ::
   ++  ca-a-remark
     |=  =a-remark:c
+    ~>  %spin.['ca-a-remark']
     ^+  ca-core
     =.  remark.channel
       ?-    -.a-remark
@@ -1855,6 +1928,7 @@
   ::
   ++  ca-send-command
     |=  command=c-channels:c
+    ~>  %spin.['ca-send-command']
     ^+  ca-core
     ?>  ?=(%channel -.command)
     ::  don't allow anyone else to proxy through us
@@ -1924,6 +1998,7 @@
   ::
   ++  ca-know-said
     |=  =plan:c
+    ~>  %spin.['ca-know-said']
     ^-  ?
     (have-plan:utils nest plan posts.channel)
   ::
@@ -1931,6 +2006,7 @@
   ::
   ++  ca-said-1
     |=  =plan:c
+    ~>  %spin.['ca-said-1']
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
@@ -1941,6 +2017,7 @@
   ::
   ++  ca-said
     |=  [=plan:c version=?(%v2 %v3 %v4)]
+    ~>  %spin.['ca-said']
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
@@ -1968,11 +2045,13 @@
     (give %kick ~ ~)
   ::
   ++  ca-has-sub
+    ~>  %spin.['ca-has-sub']
     ^-  ?
     (~(has by wex.bowl) [ca-sub-wire ship.nest server])
   ::
   ++  ca-safe-sub
     |=  delay=?
+    ~>  %spin.['ca-safe-sub']
     ?:  ca-has-sub  ca-core
     ?^  posts.channel  (ca-start-updates delay)
     =.  load.net.channel  |
@@ -1985,6 +2064,7 @@
   ::
   ++  ca-start-updates
     |=  delay=?
+    ~>  %spin.['ca-start-updates']
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
@@ -1994,6 +2074,7 @@
   ::
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['ca-agent']
     ^+  ca-core
     =?  last-updated  ?=(%fact -.sign)
       (~(put ol last-updated) nest now.bowl)
@@ -2011,6 +2092,7 @@
   ::
   ++  ca-take-create
     |=  =sign:agent:gall
+    ~>  %spin.['ca-take-create']
     ^+  ca-core
     ?-    -.sign
         %poke-ack
@@ -2042,6 +2124,7 @@
   ::
   ++  ca-take-update
     |=  =sign:agent:gall
+    ~>  %spin.['ca-take-update']
     ^+  ca-core
     ?+    -.sign  ca-core
         %kick       (ca-safe-sub &)
@@ -2060,6 +2143,7 @@
   ::
   ++  ca-take-checkpoint
     |=  =sign:agent:gall
+    ~>  %spin.['ca-take-checkpoint']
     ^+  ca-core
     ?+    -.sign  ca-core
         :: only if kicked prematurely
@@ -2079,6 +2163,7 @@
   ::
   ++  ca-take-backlog
     |=  =sign:agent:gall
+    ~>  %spin.['ca-take-backlog']
     ^+  ca-core
     ?+    -.sign  ca-core
         ::  only hit if kicked prematurely (we %leave after the first %fact)
@@ -2098,6 +2183,7 @@
   ::
   ++  ca-ingest-checkpoint
     |=  chk=u-checkpoint:c
+    ~>  %spin.['ca-ingest-checkpoint']
     ^+  ca-core
     =.  load.net.channel  &
     =.  ca-core  (ca-apply-checkpoint chk &)
@@ -2109,6 +2195,7 @@
   ::
   ++  ca-fetch-contacts
     |=  chk=u-checkpoint:c
+    ~>  %spin.['ca-fetch-contacts']
     =/  authors=(list author:c)
       %~  tap  in  %-  sy
       %+  murn  ~(val by posts.chk)
@@ -2119,6 +2206,7 @@
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
+    ~>  %spin.['ca-apply-checkpoint']
     =^  changed  order.channel  (apply-rev:c order.channel order.chk)
     =?  ca-core  &(changed send)  (ca-response %order +.order.channel)
     =^  changed  view.channel  (apply-rev:c view.channel view.chk)
@@ -2149,6 +2237,7 @@
   ::
   ++  ca-sync-backlog
     |=  delay=?
+    ~>  %spin.['ca-sync-backlog']
     =/  checkpoint-start  (pry:on-v-posts:c posts.channel)
     ?~  checkpoint-start  ca-core
     %.  delay
@@ -2160,12 +2249,14 @@
   ::
   ++  ca-ingest-backlog
     |=  chk=u-checkpoint:c
+    ~>  %spin.['ca-ingest-backlog']
     =.  ca-core  (ca-apply-checkpoint chk |)
     =/  wire  (weld ca-area /backlog)
     (unsubscribe wire [ship.nest server])
   ::
   ++  ca-apply-logs
     |=  =log:c
+    ~>  %spin.['ca-apply-logs']
     ^+  ca-core
     %+  roll  (tap:log-on:c log)
     |=  [[=time =u-channel:c] ca=_ca-core]
@@ -2178,6 +2269,7 @@
   ::
   ++  ca-u-channels
     |=  [=time =u-channel:c]
+    ~>  %spin.['ca-u-channels']
     ?>  ca-from-host
     ^+  ca-core
     =?  last-updated.channel  ?=(%post -.u-channel)
@@ -2230,6 +2322,7 @@
   ::
   ++  ca-u-post
     |=  [=id-post:c =u-post:c]
+    ~>  %spin.['ca-u-post']
     ^+  ca-core
     =/  post  (get:on-v-posts:c posts.channel id-post)
     ::  never update already-deleted posts
@@ -2308,6 +2401,7 @@
   ::
   ++  ca-heed
     |=  authors=(list author:c)
+    ~>  %spin.['ca-heed']
     %^    emit
         %pass
       /contacts/heed
@@ -2320,6 +2414,7 @@
     ==
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
+    ~>  %spin.['ca-u-reply']
     ^+  ca-core
     |^
     =/  reply  (get:on-v-replies:c replies.post id-reply)
@@ -2363,6 +2458,7 @@
     ::
     ++  put-reply
       |=  [reply=(may:c v-reply:c) =r-reply:c]
+      ~>  %spin.['put-reply']
       ^+  ca-core
       =/  post  (get:on-v-posts:c posts.channel id-post)
       ?~  post  ca-core
@@ -2386,6 +2482,7 @@
   ::
   ++  ca-apply-may-post
     |=  [=id-post:c old=(may:c v-post:c) new=(may:c v-post:c)]
+    ~>  %spin.['ca-apply-may-post']
     ^-  (may:c v-post:c)
     ?:  ?=(%| -.old)  old
     ?:  ?=(%| -.new)  new
@@ -2393,6 +2490,7 @@
   ::
   ++  ca-apply-post
     |=  [=id-post:c old=v-post:c new=v-post:c]
+    ~>  %spin.['ca-apply-post']
     ^-  v-post:c
     %_  old
       replies  (ca-apply-replies replies.old replies.new)
@@ -2402,6 +2500,7 @@
   ::
   ++  ca-apply-reacts
     |=  [old=v-reacts:c new=v-reacts:c]
+    ~>  %spin.['ca-apply-reacts']
     ^-  v-reacts:c
     %-  (~(uno by old) new)
     |=  [* a=(rev:c (unit react:c)) b=(rev:c (unit react:c))]
@@ -2409,10 +2508,12 @@
   ::
   ++  ca-apply-replies
     |=  [old=v-replies:c new=v-replies:c]
+    ~>  %spin.['ca-apply-replies']
     ((uno:mo-v-replies:c old new) ca-apply-reply)
   ::
   ++  ca-apply-reply
     |=  [=id-reply:c old=(may:c v-reply:c) new=(may:c v-reply:c)]
+    ~>  %spin.['ca-apply-reply']
     ^-  (may:c v-reply:c)
     ?:  ?=(%| -.old)  old
     ?:  ?=(%| -.new)  new
@@ -2425,6 +2526,7 @@
   ::
   ++  ca-response
     |=  =r-channel:c
+    ~>  %spin.['ca-response']
     =/  =r-channels:c  [nest r-channel]
     =.  ca-core
       %^  give  %fact
@@ -2507,6 +2609,7 @@
   ::  produce an up-to-date unread state
   ::
   ++  ca-unread
+    ~>  %spin.['ca-unread']
     ^-  unread:c
     :-  recency.remark.channel
     =/  unreads
@@ -2549,6 +2652,7 @@
   ::
   ++  ca-peek
     |=  [=(pole knot) ver=?(%v0 %v1 %v2 %v3 %v4)]
+    ~>  %spin.['ca-peek']
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
     ::
@@ -2607,6 +2711,7 @@
   ::
   ++  give-posts-0
     |=  [mode=?(%outline %post) ls=(list [time (may:c v-post:c)])]
+    ~>  %spin.['give-posts-0']
     ^-  (unit (unit cage))
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
     =;  paged-posts=paged-simple-posts:v7:c
@@ -2632,6 +2737,7 @@
             version=?(%v1 %v2 %v3 %v4)
             ls=(list [time (may:c v-post:c)])
         ==
+    ~>  %spin.['give-posts']
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
     =/  newer=(unit time)
       ?~  ls  ~
@@ -2679,6 +2785,7 @@
     ==
   ++  ca-peek-posts-0
     |=  =(pole knot)
+    ~>  %spin.['ca-peek-posts-0']
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
     ?+    pole  [~ ~]
@@ -2727,6 +2834,7 @@
   ::
   ++  ca-peek-posts
     |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4)]
+    ~>  %spin.['ca-peek-posts']
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
     =*  mo   mo-v-posts:c
@@ -2892,6 +3000,7 @@
   ::
   ++  ca-peek-replies-0
     |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
+    ~>  %spin.['ca-peek-replies-0']
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
@@ -2924,6 +3033,7 @@
   ::
   ++  ca-peek-replies
     |=  [parent-id=id-post:c replies=v-replies:c =(pole knot) version=?(%v1 %v2 %v3 %v4)]
+    ~>  %spin.['ca-peek-replies']
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?:  ?=([%reply %id time=@ ~] pole)
@@ -2973,11 +3083,13 @@
           |%
           ++  mention
             |=  [sip=@ud len=@ud nedl=ship]
+            ~>  %spin.['mention']
             ^-  scan:c
             (scour-count sip len %mention nedl)
           ::
           ++  text
             |=  [sip=@ud len=@ud nedl=@t]
+            ~>  %spin.['text']
             ^-  scan:c
             (scour-count sip len %text nedl)
           --
@@ -2986,11 +3098,13 @@
           |%
           ++  mention
             |=  [fro=(unit id-post:c) sum=@ud nedl=ship]
+            ~>  %spin.['mention']
             ^-  [(unit id-post:c) scan:c]
             (scour-tries fro sum %mention nedl)
           ::
           ++  text
             |=  [fro=(unit id-post:c) sum=@ud nedl=@t]
+            ~>  %spin.['text']
             ^-  [(unit id-post:c) scan:c]
             (scour-tries fro sum %text nedl)
           --
@@ -3003,6 +3117,7 @@
     ::
     ++  scour-tries
       |=  [from=(unit id-post:c) tries=@ud =match-type]
+      ~>  %spin.['scour-tries']
       =*  posts  posts.channel
       =.  posts  (lot:on-v-posts:c posts ~ from)  ::  verified correct
       =|  s=[tries=_tries last=(unit id-post:c) =scan:c]
@@ -3045,6 +3160,7 @@
     ::
     ++  scour-count
       |=  [skip=@ud len=@ud =match-type]
+      ~>  %spin.['scour-count']
       =*  posts  posts.channel
       ?>  (gth len 0)
       =+  s=[skip=skip len=len *=scan:c]
@@ -3075,6 +3191,7 @@
     ::
     ++  scour-replys
       |=  [s=[skip=@ud len=@ud =scan:c] =id-post:c replies=v-replies:c =match-type]
+      ~>  %spin.['scour-replys']
       |-  ^+  s
       ?~  replies  s
       ?:  =(0 len.s)  s
@@ -3094,6 +3211,7 @@
     ::
     ++  match
       |=  [post=v-post:c =match-type]
+      ~>  %spin.['match']
       ^-  ?
       ?-  -.match-type
         %mention  (match-post-mention nedl.match-type post)
@@ -3102,6 +3220,7 @@
     ::
     ++  match-reply
       |=  [reply=v-reply:c =match-type]
+      ~>  %spin.['match-reply']
       ?-  -.match-type
         %mention  (match-story-mention nedl.match-type content.reply)
         %text     (match-story-text nedl.match-type content.reply)
@@ -3109,12 +3228,14 @@
     ::
     ++  match-post-mention
       |=  [nedl=ship post=v-post:c]
+      ~>  %spin.['match-post-mention']
       ^-  ?
       ?:  ?=([%chat %notice ~] kind.post)  |
       (match-story-mention nedl content.post)
     ::
     ++  match-story-mention
       |=  [nedl=ship =story:c]
+      ~>  %spin.['match-story-mention']
       %+  lien  story
       |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
@@ -3127,6 +3248,7 @@
     ::
     ++  match-post-text
       |=  [nedl=@t post=v-post:c]
+      ~>  %spin.['match-post-text']
       ^-  ?
       ?:  ?=([%chat %notice ~] kind.post)  |
       ::
@@ -3140,6 +3262,7 @@
     ::
     ++  match-story-text
       |=  [nedl=@t =story:c]
+      ~>  %spin.['match-story-text']
       %+  lien  story
       |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
@@ -3165,6 +3288,7 @@
     ::
     ++  find
       |=  [nedl=@t hay=@t case=?]
+      ~>  %spin.['find']
       ^-  ?
       =/  nlen  (met 3 nedl)
       =/  hlen  (met 3 hay)
@@ -3188,6 +3312,7 @@
     ::      but not enough to matter
     ++  cass
       |=  text=@t
+      ~>  %spin.['cass']
       ^-  @t
       %^    run
           3
@@ -3204,6 +3329,7 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:v0:gv)
+    ~>  %spin.['ca-recheck']
     =/  =flag:g  group.perm.channel
     =/  exists-path
       (scry-path %groups /groups/(scot %p p.flag)/[q.flag])

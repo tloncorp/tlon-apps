@@ -95,7 +95,7 @@ export function GettingNodeReadyScreen({
     if (notifPerms.hasPermission && hostedNodeId) {
       scheduleNodeResumeNudge(hostedNodeId).catch((err) => {
         logger.trackEvent(AnalyticsEvent.ErrorNodeResumePush, {
-          errorMessage: err.message,
+          error: err,
           context: 'while scheduling from GettingNodeReadyScreen',
         });
       });

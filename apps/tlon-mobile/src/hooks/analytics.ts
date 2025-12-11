@@ -57,7 +57,7 @@ export async function checkAnalyticsDigest() {
       await db.anyalticsDigestUpdatedAt.setValue(Date.now());
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorDigestFailed, {
-        errorMessage: e.message,
+        error: e,
       });
     }
   }
