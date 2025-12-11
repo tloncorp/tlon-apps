@@ -5,6 +5,7 @@ import { isBrowser } from 'browser-or-node';
 import { TimeoutError } from '../api';
 import { createDevLogger } from '../debug';
 import { desig } from '../urbit';
+import { readArrayBufferFromBlob } from '../utils';
 import * as utils from '../utils';
 import { EventEmitter } from '../utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
@@ -966,11 +967,7 @@ export class Urbit {
       }
 
       const responseBlob = await response.blob();
-      const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.readAsArrayBuffer(responseBlob);
-      });
+      const buffer = await readArrayBufferFromBlob(responseBlob);
 
       try {
         const unpacked = await unpackJamBytes(buffer);
