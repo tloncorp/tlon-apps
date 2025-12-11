@@ -1527,7 +1527,7 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-   ``noun+!>(`(unit (unit said:v9:c))`(~(get by voc) nest plan))
+    ``noun+!>(`(unit (unit said:v9:c))`(~(get by voc) nest plan))
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
