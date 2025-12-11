@@ -548,6 +548,15 @@
         reference/(reference q.s)
     ==
   ::
+  ++  said-response
+    |=  sr=said-response:c
+    ^-  json
+    %-  pairs
+    :~  nest/(nest nest.sr)
+        reference/?@(ref.sr s+ref.sr (reference ref.sr))
+        group/(flag group.sr)
+    ==
+  ::
   +|  %old
   ::
   ++  v9  .

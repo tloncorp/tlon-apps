@@ -13,6 +13,7 @@
 /%  m-channel-logs          %channel-logs
 /%  m-channel-said-1        %channel-said-1
 /%  m-channel-said-2        %channel-said-2
+/%  m-channel-said-3        %channel-said-3
 /%  m-channel-update        %channel-update
 /%  m-hook-channel-preview  %hook-channel-preview
 /%  m-hook-full             %hook-full
@@ -27,6 +28,7 @@
             :+  %channel-logs          |  -:!>(*vale:m-channel-logs)
             :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2        |  -:!>(*vale:m-channel-said-2)
+            :+  %channel-said-3        |  -:!>(*vale:m-channel-said-3)
             :+  %channel-update        |  -:!>(*vale:m-channel-update)
             :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
             :+  %hook-full             |  -:!>(*vale:m-hook-full)
@@ -38,7 +40,7 @@
       :~  [/$/$/checkpoint %channel-checkpoint ~]
           [/$/$/create %channel-update ~]
           [/$/$/updates %channel-update %channel-logs ~]
-          [/said %channel-said-2 %channel-said-1 %channel-denied ~]
+          [/said %channel-said-3 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
           [/v0/hooks/full %hook-full ~]
@@ -1311,7 +1313,7 @@
       %^  give  %fact  ~
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
-      (said-3:utils nest plan posts.channel)
+      (said-4:utils nest plan channel)
     (give %kick ~ ~)
   --
 ++  scry-path

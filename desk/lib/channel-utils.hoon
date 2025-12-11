@@ -650,6 +650,35 @@
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
   [%channel-said-2 !>(`said:v9:c`[nest %reply p.plan reply])]
+::
+++  said-4
+  |=  [=nest:c =plan:c =v-channel:c]
+  ^-  cage
+  =*  posts  posts.v-channel
+  =*  group  group.perm.v-channel
+  =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
+  ?~  q.plan
+    =/  post=(unit (may:v9:c simple-post:v9:c))
+      ?~  post  ~
+      %-  some
+      ?:  ?=(%| -.u.post)  u.post
+      &+(suv-post-without-replies-3 +.u.post)
+    =/  said-response=said-response:v9:c  
+      :+  group  nest
+      ?~(post %unknown [%post u.post])
+    [%channel-said-3 !>(said-response)]
+  =/  reply=$@(?(%deleted %unknown) (may:v9:c simple-reply:v9:c))
+    ?~  post  %unknown
+    ?:  ?=(%| -.u.post)  %deleted
+    =/  reply=(unit (may:c v-reply:c))  (get:on-v-replies:c replies.+.u.post u.q.plan)
+    ?~  reply  %unknown
+    ?:  ?=(%| -.u.reply)  u.reply
+    &+(suv-reply-2 p.plan +.u.reply)
+  =/  said-response=said-response:v9:c  
+    :+  group  nest
+    ?@(reply reply [%reply p.plan reply])
+  [%channel-said-3 !>(said-response)]
+::
 ++  may-bind
   |*  f=$-(* *)
   |*  v=(may:c *)
