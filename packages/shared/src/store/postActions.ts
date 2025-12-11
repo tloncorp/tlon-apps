@@ -216,9 +216,8 @@ async function _sendPost({
     logger.crumb('done sending post');
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
-      errorMessage: e.message,
+      error: e,
       errorType: e.constructor?.name,
-      errorStack: e.stack,
       errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
@@ -594,7 +593,7 @@ export async function sendReply({
   } catch (e) {
     logger.crumb('failed to send reply');
     logger.trackEvent(AnalyticsEvent.ErrorSendReply, {
-      errorMessage: e.message,
+      error: e,
     });
     console.error('Failed to send reply', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
@@ -784,7 +783,7 @@ export async function addPostReaction(
   } catch (e) {
     console.error('Failed to add post reaction', e);
     logger.trackEvent(AnalyticsEvent.ErrorReact, {
-      errorMessage: e.message,
+      error: e,
     });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
@@ -879,7 +878,7 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
     );
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorUnreact, {
-      errorMessage: e.message,
+      error: e,
     });
     console.error('Failed to remove post reaction', e);
 

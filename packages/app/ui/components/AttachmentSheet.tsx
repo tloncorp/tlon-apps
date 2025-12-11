@@ -53,7 +53,7 @@ export default function AttachmentSheet({
     try {
       return await getClipboardImageWithFallbacks();
     } catch (error) {
-      logger.trackError('Clipboard access failed', { error });
+      logger.trackError('Clipboard access failed', error);
       return null;
     }
   }, []);
@@ -94,7 +94,7 @@ export default function AttachmentSheet({
         attachAssets(atts);
         onAttach?.(atts);
       } catch (error) {
-        logger.trackError('Error pasting from clipboard', { error });
+        logger.trackError('Error pasting from clipboard', error);
       }
     }, 50);
   }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
@@ -168,7 +168,7 @@ export default function AttachmentSheet({
         }
       } catch (e) {
         console.error('Error taking picture', e);
-        logger.trackError('Error taking picture', { error: e });
+        logger.trackError('Error taking picture', e);
         // In case of error, remove the placeholder
         clearAttachments();
       }
@@ -229,7 +229,7 @@ export default function AttachmentSheet({
         }
       } catch (e) {
         console.error('Error picking image', e);
-        logger.trackError('Error picking image', { error: e });
+        logger.trackError('Error picking image', e);
 
         // In case of error, remove the placeholder
         clearAttachments();

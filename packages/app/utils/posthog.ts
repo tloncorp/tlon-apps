@@ -49,11 +49,11 @@ posthogAsync?.then((client) => {
 
       // Only send errors to Sentry (not general analytics events)
       // Until logging is refactored to consistently use 'app_error',
-      // we also pass along any event with "Error" in the name
+      // we also pass along any event with "error" in the name (case-insensitive)
       if (
         event === 'app_error' ||
         event === 'Debug Logs' ||
-        event.includes('Error')
+        /error/i.test(event)
       ) {
         sentryLogger.capture(event, data);
       }
@@ -95,18 +95,6 @@ const capture = (event: string, properties?: { [key: string]: any }) => {
 
 export const trackOnboardingAction = (properties: OnboardingProperties) =>
   capture('Onboarding Action', properties);
-
-export const trackError = (
-  {
-    message,
-    properties,
-  }: {
-    message: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    properties?: { [key: string]: any };
-  },
-  event = 'app_error'
-) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);
