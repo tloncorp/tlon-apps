@@ -1764,24 +1764,6 @@
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  delete-channels
-      |=  nests=(list nest:g)
-      ~>  %spin.['delete-channels']
-      ^-  (list card)
-      %+  murn
-          nests
-      |=  nes=nest:g
-      ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels-server]
-      :: TODO: implement the channel deletion poke in channels-server
-      ::
-      :: =/  action=a-channels:d  [%channel nes %delete ~]
-      :: =/  =cage  channel-action-1+!>(action)
-      :: =/  =wire  (weld se-area /channel/delete)
-      :: `[%pass wire %agent dock %poke cage]
-      ~
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
