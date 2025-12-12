@@ -38,7 +38,13 @@ export const useShipConnectionStatus = (
         );
         api.checkConnectionStatus(
           contactId,
+          // we debounce updates to avoid flickering through rapid status changes
           debounce(
+            // first we calculate a time diff to know if it's a recent
+            // update. if it is, we update the query data. this means
+            // that initially the query fn itself will return quickly
+            // with empty or previous data, and only later will it be
+            // updated when we receive a recent status update.
             (status: ConnectionStatus) => {
               const diff = Date.now() - (status.timestamp ?? 0);
               logger.log(
@@ -56,9 +62,12 @@ export const useShipConnectionStatus = (
                   status
                 );
                 queryClient.setQueryData<ConnectionStatus>(queryKey, status);
+
+                // unsubscribe if the status is complete
                 return status?.complete;
               }
 
+              // do not unsubscribe yet, we haven't heard anything (recent)
               return false;
             },
             500,

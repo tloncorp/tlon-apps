@@ -273,16 +273,6 @@ export function ConnectionIndicatorListItem({
           <ListItem.Title>{labels.title}</ListItem.Title>
           <ListItem.Subtitle>{labels.subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
-        {/* {loading && (
-          <ListItem.EndContent>
-            <Spinner size="small" />
-          </ListItem.EndContent>
-        )}
-        {error && (
-          <ListItem.EndContent>
-            <Icon type="Close" />
-          </ListItem.EndContent>
-        )} */}
         <ListItem.EndContent>
           {labels.icon ? <Icon type={labels.icon} /> : <Spinner size="small" />}
         </ListItem.EndContent>

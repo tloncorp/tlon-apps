@@ -15,10 +15,10 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { View, XStack } from 'tamagui';
+import { XStack } from 'tamagui';
 
 import { useChatOptions, useCurrentUserId } from '../../contexts';
-import { useChatTitle } from '../../utils';
+import { getChannelHost, useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import ConnectionStatus from '../ConnectionStatus';
 import { ScreenHeader } from '../ScreenHeader';
@@ -122,17 +122,7 @@ export function ChannelHeader({
   const isWindowNarrow = useIsWindowNarrow();
 
   const channelHost = useMemo(() => {
-    if (channel.type === 'dm') {
-      return channel.id;
-    }
-
-    if (channel.type === 'groupDm') {
-      return currentUserId;
-    }
-
-    const { ship } = getNestParts(channel.id);
-
-    return ship;
+    return getChannelHost(channel, currentUserId);
   }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
