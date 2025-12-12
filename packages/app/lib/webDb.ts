@@ -91,8 +91,12 @@ export class WebDb extends BaseDb {
 
       const dbFile = await getDatabaseFile();
       if (dbFile != null) {
-        const encoded = await readArrayBufferFromBlob(dbFile);
-        await sqliteContent.setValue(encoded);
+        try {
+          const encoded = await readArrayBufferFromBlob(dbFile);
+          await sqliteContent.setValue(encoded);
+        } catch (e) {
+          console.error('Failed to save to file', e);
+        }
       }
     },
     1000,
@@ -103,9 +107,7 @@ export class WebDb extends BaseDb {
     await super.processChanges();
 
     if (ENABLE_DB_FILE_SAVE) {
-      this.saveToFile()?.catch((e) => {
-        console.error('Failed to save to file', e);
-      });
+      this.saveToFile();
     }
   }
 
