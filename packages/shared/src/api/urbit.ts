@@ -560,6 +560,22 @@ export async function checkIsNodeBusy() {
   return config.client?.checkIsNodeBusy() || Promise.resolve('unknown');
 }
 
+export async function checkIsNodeBusyWithHints(): Promise<{
+  nodeBusyStatus: 'available' | 'busy' | 'unknown';
+  hints?: string;
+}> {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+
+  const result = await client.getSpinHints();
+  if (result === '/root') {
+    return { nodeBusyStatus: 'available' };
+  }
+
+  return { nodeBusyStatus: 'busy', hints: result };
+}
+
 export async function scry<T>({
   app,
   path,
