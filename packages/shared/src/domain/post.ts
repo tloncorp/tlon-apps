@@ -29,6 +29,7 @@ export type PostDataDraft = PostDataDraftParent | PostDataDraftEdit;
 interface _PostDataFinalizedBase {
   channelId: string;
   content: Story;
+  blob?: string;
   metadata?: PostMetadata;
 }
 

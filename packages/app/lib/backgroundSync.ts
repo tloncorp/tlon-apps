@@ -53,10 +53,8 @@ async function performSync() {
     logger.trackEvent('Background sync complete', { taskExecutionId });
   } catch (err) {
     logger.trackError('Background sync failed', {
-      error: err.toString(),
-      errorMessage: err instanceof Error ? err.message : undefined,
+      error: err instanceof Error ? err : undefined,
       taskExecutionId,
-      stack: err instanceof Error ? err.stack : undefined,
     });
   } finally {
     logger.trackEvent('Background sync timing', {
@@ -99,8 +97,8 @@ export async function registerBackgroundSyncTask() {
       logger.trackEvent(`Running background task`);
       if (error) {
         logger.trackError(`Failed background task`, {
+          error,
           context: 'called with error',
-          errorMessage: error.message,
         });
         return BackgroundTask.BackgroundTaskResult.Failed;
       }
@@ -110,8 +108,8 @@ export async function registerBackgroundSyncTask() {
         return BackgroundTask.BackgroundTaskResult.Success;
       } catch (err) {
         logger.trackError('Failed background task', {
+          error: err instanceof Error ? err : undefined,
           context: 'catch',
-          errorMessage: err instanceof Error ? err.message : err,
         });
         return BackgroundTask.BackgroundTaskResult.Failed;
       }
@@ -138,9 +136,7 @@ export async function registerBackgroundSyncTask() {
         tasks: status,
       });
     } catch (err) {
-      logger.trackError('Failed to register background task', {
-        errorMessage: err instanceof Error ? err.message : err,
-      });
+      logger.trackError('Failed to register background task', err instanceof Error ? err : undefined);
     }
   })();
 }

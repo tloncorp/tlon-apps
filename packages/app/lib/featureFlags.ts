@@ -9,20 +9,29 @@ export const featureMeta = {
   instrumentationEnabled: {
     default: false,
     label: 'Enable collecting and reporting performance data',
+    onlyTlon: false,
   },
   customChannelCreation: {
     default: false,
     label: 'Enable creating custom channels',
+    onlyTlon: true,
   },
   contactsTab: {
     default: false,
     label: 'Enable contacts tab',
+    onlyTlon: false,
+  },
+  fileUpload: {
+    default: false,
+    label: 'Enable uploading non-image files in chats',
+    onlyTlon: true,
   },
   aiSummarization: {
     default: false,
     label: 'Enable AI-powered message and channel summarization',
+    onlyTlon: true,
   },
-} satisfies Record<string, { default: boolean; label: string }>;
+} satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;
 
 export type FeatureName = keyof typeof featureMeta;
 

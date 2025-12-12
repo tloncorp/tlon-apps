@@ -1,5 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 export const tryGetImageWithFormat = async (
   getter: () => Promise<string>,
@@ -17,7 +18,7 @@ export const getClipboardImageWithFallbacks = async (): Promise<{
   data: string;
   mimeType: string;
 } | null> => {
-  if (!(await Clipboard.hasImage())) return null;
+  if (Platform.OS === 'android' || !(await Clipboard.hasImage())) return null;
 
   // Try iOS-specific methods first, then fall back to generic
   const attempts = [

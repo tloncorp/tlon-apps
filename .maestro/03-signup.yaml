@@ -78,7 +78,7 @@ onFlowComplete:
 - tapOn: Next
 
 # set notification preferences
-- assertVisible: Tlon works best
+- assertVisible: Nothing
 - tapOn: Next
 
 # allow notifications screen

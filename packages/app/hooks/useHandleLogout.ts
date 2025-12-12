@@ -34,7 +34,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
         await clearAuthInfo();
         logger.log('Cleared stored auth credentials');
       } catch (error) {
-        logger.trackError('Failed to clear stored auth info', { error });
+        logger.trackError('Failed to clear stored auth info', error);
       }
     }
 

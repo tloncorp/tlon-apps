@@ -704,16 +704,23 @@ export function ChannelOptionsSheetContent({
       } catch (error) {
         console.error('Error summarizing channel:', error);
         let message: string;
-        if (error.message === 'No messages found in time range') {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage === 'No messages found in time range') {
           message = `No messages found in ${timeLabel}`;
-        } else if (error.message === 'AI provider is rate-limited. Please try again in a few moments.') {
-          message = error.message;
+        } else if (errorMessage === 'AI provider is rate-limited. Please try again in a few moments.') {
+          message = errorMessage;
+        } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
+          message = 'AI summarization not configured';
+        } else if (errorMessage.includes('OpenRouter API error')) {
+          // Extract just the error part without the full technical details
+          message = 'AI service error. Please try again.';
         } else {
-          message = `Failed to summarize ${timeLabel}`;
+          message = `Failed to summarize: ${errorMessage}`;
         }
         showToast({
           message,
-          duration: 3000,
+          duration: 4000,
         });
       }
     },

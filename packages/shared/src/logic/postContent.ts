@@ -2,6 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
+import { parsePostBlob } from './content-helpers';
 import { isTrustedEmbed } from './embed';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
@@ -187,7 +188,6 @@ export interface PlaintextPreviewConfig {
   includeRefTag: boolean;
   indentDepth?: number;
 }
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace PlaintextPreviewConfig {
   export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
     blockSeparator: '\n',
@@ -324,19 +324,63 @@ export function plaintextPreviewOfInline(
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(input: unknown): PostContent {
+export function convertContent(
+  input: unknown,
+  blob: string | undefined | null
+): PostContent {
+  const out: PostContent = [];
+
+  if (blob != null) {
+    const blobData = parsePostBlob(blob);
+    for (const entry of blobData) {
+      switch (entry.type) {
+        case 'file': {
+          const { fileUri, name } = entry;
+          const isUploading =
+            fileUri.startsWith('file://') || fileUri.startsWith('blob:');
+          if (isUploading) {
+            out.push({
+              type: 'blockquote',
+              content: [{ type: 'text', text: 'Uploading attachment...' }],
+            });
+          } else {
+            out.push({
+              type: 'link',
+              url: fileUri,
+              siteName: name ?? 'Attached file',
+              description: 'Press to download',
+              title: summarizeFilesize(entry.size),
+            });
+          }
+          break;
+        }
+
+        case 'unknown': {
+          out.push({
+            type: 'blockquote',
+            content: [
+              { type: 'text', text: 'Upgrade your app to see this post' },
+            ],
+          });
+          break;
+        }
+      }
+    }
+  }
+
   if (!input) {
-    return [];
+    return out;
   }
 
   const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
-    return [];
+    return out;
   }
 
-  return convertContentSafe(story);
+  out.push(...convertContentSafe(story));
+  return out;
 }
 
 /**
@@ -734,4 +778,14 @@ export function getTextContent(
   return postContent == null
     ? null
     : plaintextPreviewOf(convertContentSafe(postContent), config);
+}
+
+function summarizeFilesize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  } else if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  } else {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 }

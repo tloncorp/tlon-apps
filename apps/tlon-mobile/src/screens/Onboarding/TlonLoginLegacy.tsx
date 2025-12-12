@@ -72,16 +72,14 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
       await handleLogin(params);
     } catch (err) {
       logger.trackError(AnalyticsEvent.LoginAnomaly, {
+        error: err,
         context: 'Failed legacy login',
-        errorMessage: err.message,
-        errorStack: err.stack,
       });
       if (err instanceof HostingError && err.details.status === 401) {
         setRemoteError('Incorrect email or password.');
       } else {
         logger.trackError(`Error Logging In`, {
-          errorMessage: err.message,
-          errorStack: err.stack,
+          error: err,
           details: err.details,
         });
         setRemoteError(err.message);

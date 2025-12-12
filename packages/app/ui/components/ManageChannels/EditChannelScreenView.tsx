@@ -1,6 +1,13 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, FormInput, Icon, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  ConfirmDialog,
+  FormInput,
+  Icon,
+  Pressable,
+  Text,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { Alert, Platform, Switch } from 'react-native';
@@ -8,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
-import { DeleteSheet } from '../DeleteSheet';
 import { RadioControl, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
@@ -78,7 +84,7 @@ export function EditChannelScreenView({
   channel,
   onDeleteChannel,
 }: EditChannelScreenViewProps) {
-  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const form = useForm<ChannelFormSchema>({
     defaultValues: getDefaultFormValues(channel),
     mode: 'onChange',
@@ -133,7 +139,7 @@ export function EditChannelScreenView({
       );
       return;
     }
-    setShowDeleteSheet(true);
+    setShowDeleteDialog(true);
   }, [group?.channels?.length]);
 
   useEffect(() => {
@@ -198,12 +204,15 @@ export function EditChannelScreenView({
             </YStack>
           </YStack>
         </ScrollView>
-        <DeleteSheet
-          open={showDeleteSheet}
-          onOpenChange={(show) => setShowDeleteSheet(show)}
-          title={channel?.title ?? 'channel'}
-          itemTypeDescription="channel"
-          deleteAction={onDeleteChannel}
+        <ConfirmDialog
+          open={showDeleteDialog}
+          onOpenChange={(show) => setShowDeleteDialog(show)}
+          title={`Delete ${channel?.title ?? 'channel'}?`}
+          description="This action cannot be undone."
+          confirmText="Delete channel"
+          cancelText="Cancel"
+          onConfirm={onDeleteChannel}
+          destructive
         />
       </View>
     </FormProvider>

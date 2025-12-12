@@ -32,6 +32,15 @@ export interface SummarizeMessageParams {
 export interface SummarizeMessageResponse {
   summary: string;
   error?: string;
+  errorDetails?: {
+    message: string;
+    name: string;
+    stack?: string;
+    responseStatus?: number;
+    responseText?: string;
+    responseData?: any;
+    responseHeaders?: Record<string, string>;
+  };
 }
 
 /**
@@ -61,7 +70,7 @@ export async function summarizeMessage({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3.1:free',
+        model: 'amazon/nova-2-lite-v1:free',
         messages: [
           {
             role: 'user',
@@ -75,32 +84,68 @@ export async function summarizeMessage({
 
     if (!response.ok) {
       const errorText = await response.text();
+      let errorData = null;
+
+      // Try to parse error response as JSON
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        // If parsing fails, errorData stays null
+      }
 
       if (response.status === 429) {
         throw new Error('AI provider is rate-limited. Please try again in a few moments.');
       }
 
-      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      const error = new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      // Attach additional context for PostHog tracking
+      (error as any).responseStatus = response.status;
+      (error as any).responseText = errorText;
+      (error as any).responseData = errorData;
+      (error as any).responseHeaders = Object.fromEntries(response.headers.entries());
+      throw error;
     }
 
     const data = await response.json();
 
     if (!data.choices || data.choices.length === 0) {
-      throw new Error('No response from OpenRouter API');
+      const error = new Error('No response from OpenRouter API');
+      (error as any).responseData = data;
+      throw error;
     }
 
     const summary = data.choices[0].message?.content;
 
     if (!summary) {
-      throw new Error('Empty summary received from OpenRouter API');
+      const error = new Error('Empty summary received from OpenRouter API');
+      (error as any).responseData = data;
+      throw error;
     }
 
     return { summary };
   } catch (error) {
     console.error('Error summarizing message:', error);
+
+    // Extract all error details for logging
+    const errorDetails: any = {
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      name: error instanceof Error ? error.name : 'UnknownError',
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+
+    // Include additional properties if they exist
+    if (error && typeof error === 'object') {
+      const errorObj = error as any;
+      if (errorObj.responseStatus) errorDetails.responseStatus = errorObj.responseStatus;
+      if (errorObj.responseText) errorDetails.responseText = errorObj.responseText;
+      if (errorObj.responseData) errorDetails.responseData = errorObj.responseData;
+      if (errorObj.responseHeaders) errorDetails.responseHeaders = errorObj.responseHeaders;
+    }
+
     return {
       summary: '',
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: errorDetails.message,
+      errorDetails, // Include full details for PostHog
     };
   }
 }

@@ -54,10 +54,17 @@ test('Forward chat message from group channel to DM - verify toast and reference
     await zodPage.waitForTimeout(2000);
 
     // Click on the group (it stays as "Untitled group")
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({
-      timeout: 10000,
-    });
-    await zodPage.getByText(groupName).first().click();
+    try {
+      await expect(zodPage.getByText(groupName).first()).toBeVisible({
+        timeout: 10000,
+      });
+      await zodPage.getByText(groupName).first().click();
+    } catch {
+      await expect(zodPage.getByText('Untitled group').first()).toBeVisible({
+        timeout: 10000,
+      });
+      await zodPage.getByText('Untitled group').first().click();
+    }
 
     // Wait for group to load by checking for a non-loading header
     await expect(

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { poke, scry } from '../api/urbit';
 import * as db from '../db';
-import { ImageAttachment } from '../domain/attachment';
+import { Attachment, ImageAttachment } from '../domain/attachment';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import * as urbit from '../urbit';
 import { finalizeAndSendPost, sendPost } from './postActions';
@@ -168,7 +168,8 @@ describe('finalizeAndSendPost', () => {
     const fakeAsset = buildFakeImageAttachment(LOCAL_URI);
 
     // simulate upload start
-    setUploadState(fakeAsset.file.uri, {
+    const uploadKey = unsafe_extractUploadKey(fakeAsset);
+    setUploadState(uploadKey, {
       status: 'uploading',
       localUri: fakeAsset.file.uri,
     });
@@ -183,11 +184,12 @@ describe('finalizeAndSendPost', () => {
       sendPostPromise,
       message,
       fakeAsset,
+      uploadKey,
     };
   }
 
   test('happy path', async () => {
-    const { sendPostPromise, message, fakeAsset } =
+    const { sendPostPromise, message, fakeAsset, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -201,7 +203,7 @@ describe('finalizeAndSendPost', () => {
     expect(latestPost!.content).toEqual(expect.stringContaining(LOCAL_URI));
 
     // simulate upload success
-    setUploadState(fakeAsset.file.uri, {
+    setUploadState(uploadKey, {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -220,12 +222,12 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('image upload fails', async () => {
-    const { sendPostPromise, message, fakeAsset } =
+    const { sendPostPromise, message, fakeAsset, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
     // simulate upload failure
-    setUploadState(fakeAsset.file.uri, {
+    setUploadState(uploadKey, {
       status: 'error',
       errorMessage: 'Simulated upload failure',
     });
@@ -244,7 +246,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('session connection lost during upload', async () => {
-    const { sendPostPromise, message, fakeAsset } =
+    const { sendPostPromise, message, fakeAsset, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -252,7 +254,7 @@ describe('finalizeAndSendPost', () => {
     updateSession(null);
 
     // but upload completes
-    setUploadState(fakeAsset.file.uri, {
+    setUploadState(uploadKey, {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -268,7 +270,8 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('send image attachment shortly before session reconnects', async () => {
-    const { sendPostPromise, fakeAsset } = beginSendPostWithAttachments();
+    const { sendPostPromise, fakeAsset, uploadKey } =
+      beginSendPostWithAttachments();
 
     // immediately lose session so we enqueue the post
     updateSession({ channelStatus: 'reconnecting' });
@@ -280,7 +283,7 @@ describe('finalizeAndSendPost', () => {
     });
 
     // upload completes while session is still dead
-    setUploadState(fakeAsset.file.uri, {
+    setUploadState(uploadKey, {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -315,7 +318,7 @@ describe('finalizeAndSendPost', () => {
 
     // simulate upload start for both posts
     postData.forEach((post) => {
-      setUploadState(post.attachment.file.uri, {
+      setUploadState(unsafe_extractUploadKey(post.attachment), {
         status: 'uploading',
         localUri: post.attachment.file.uri,
       });
@@ -380,7 +383,7 @@ describe('finalizeAndSendPost', () => {
     );
 
     // complete upload for post1 first
-    setUploadState(postData[1].attachment.file.uri, {
+    setUploadState(unsafe_extractUploadKey(postData[1].attachment), {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -394,7 +397,7 @@ describe('finalizeAndSendPost', () => {
     });
 
     // complete upload for post0
-    setUploadState(postData[0].attachment.file.uri, {
+    setUploadState(unsafe_extractUploadKey(postData[0].attachment), {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -428,7 +431,7 @@ describe('finalizeAndSendPost', () => {
 
     updateSession({ startTime: Date.now(), channelStatus: 'active' });
 
-    setUploadState(postData[0].attachment!.file.uri, {
+    setUploadState(unsafe_extractUploadKey(postData[0].attachment!), {
       status: 'uploading',
       localUri: postData[0].attachment!.file.uri,
     });
@@ -481,7 +484,7 @@ describe('finalizeAndSendPost', () => {
       postData[2].latestFromDb!.sentAt
     );
 
-    setUploadState(postData[0].attachment!.file.uri, {
+    setUploadState(unsafe_extractUploadKey(postData[0].attachment!), {
       status: 'success',
       remoteUri: REMOTE_URI,
     });
@@ -531,4 +534,12 @@ function buildFakeImageAttachment(uri: string): ImageAttachment {
 
 function buildPostContent(): urbit.Story {
   return [{ inline: [friendlyUniqueString()] }];
+}
+
+function unsafe_extractUploadKey(att: Attachment): Attachment.UploadIntent.Key {
+  const uploadIntent = Attachment.toUploadIntent(att);
+  if (!uploadIntent.needsUpload) {
+    throw new Error("Attachment doesn't need upload");
+  }
+  return Attachment.UploadIntent.extractKey(uploadIntent);
 }

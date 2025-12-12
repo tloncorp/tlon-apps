@@ -13,7 +13,7 @@ import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
-  DeleteSheet,
+  ConfirmDialog,
   MetaEditorScreenView,
   YStack,
   useGroupTitle,
@@ -34,7 +34,7 @@ export function GroupMetaScreen(props: Props) {
   });
   const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
-  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const currentUserId = useCurrentUserId();
 
   const navigateToHome = useCallback(() => {
@@ -89,12 +89,15 @@ export function GroupMetaScreen(props: Props) {
         currentUserId={currentUserId}
       >
         <YStack flex={1} justifyContent="flex-end">
-          <DeleteSheet
-            title={title ?? 'This group'}
-            itemTypeDescription="group"
-            open={showDeleteSheet}
-            onOpenChange={setShowDeleteSheet}
-            deleteAction={handleDeleteGroup}
+          <ConfirmDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+            title={`Delete ${title ?? 'This group'}?`}
+            description="This action cannot be undone."
+            confirmText="Delete group"
+            cancelText="Cancel"
+            onConfirm={handleDeleteGroup}
+            destructive
           />
         </YStack>
       </MetaEditorScreenView>

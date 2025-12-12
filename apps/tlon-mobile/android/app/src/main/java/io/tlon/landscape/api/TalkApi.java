@@ -137,8 +137,8 @@ public class TalkApi {
         fetchObject("/~/scry/groups/groups/light", callback);
     }
 
-    public void fetchGangs(TalkObjectCallback callback) {
-        fetchObject("/~/scry/groups/gangs", callback);
+    public void fetchForeignGroup(String groupId, TalkObjectCallback callback) {
+        fetchObject("/~/scry/groups/v1/foreigns/" + groupId, callback);
     }
 
     public void fetchGroupChannel(String channelId, TalkObjectCallback callback) {

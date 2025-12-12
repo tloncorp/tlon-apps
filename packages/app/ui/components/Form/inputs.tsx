@@ -1,3 +1,4 @@
+import { Attachment } from '@tloncorp/shared/domain';
 import {
   ActionSheetContext,
   VariantsFromValues,
@@ -10,7 +11,6 @@ import { Image } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { desktopTypeStyles, mobileTypeStyles } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
   ReactElement,
@@ -245,9 +245,14 @@ export const ImageInput = XStack.styleable<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUri]);
 
-  const handleImageSelected = useCallback((assets: ImagePickerAsset[]) => {
-    setAssetUri(assets[0].uri);
-  }, []);
+  const handleImageSelected = useCallback(
+    (assets: Attachment.UploadIntent[]) => {
+      setAssetUri(
+        Attachment.UploadIntent.extractImagePickerAssets(assets)[0].uri
+      );
+    },
+    []
+  );
 
   const handleSheetToggled = useCallback(() => {
     if (!canUpload) {
@@ -323,6 +328,7 @@ export const ImageInput = XStack.styleable<{
         onAttach={handleImageSelected}
         showClearOption={showClear && !!value}
         onClearAttachments={handleImageRemoved}
+        mediaType="image"
       />
     </>
   );

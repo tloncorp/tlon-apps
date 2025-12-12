@@ -302,13 +302,21 @@ export async function handleAction({
         })
         .catch((error) => {
           console.error('Error in summarize action:', error);
-          const message =
-            error.message === 'AI provider is rate-limited. Please try again in a few moments.'
-              ? error.message
-              : `Failed to summarize ${itemType}`;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          let message: string;
+          if (errorMessage === 'AI provider is rate-limited. Please try again in a few moments.') {
+            message = errorMessage;
+          } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
+            message = 'AI summarization not configured';
+          } else if (errorMessage.includes('OpenRouter API error')) {
+            message = 'AI service error. Please try again.';
+          } else {
+            message = `Failed to summarize ${itemType}: ${errorMessage}`;
+          }
           showToast?.({
             message,
-            duration: 3000,
+            duration: 4000,
           });
         });
       break;

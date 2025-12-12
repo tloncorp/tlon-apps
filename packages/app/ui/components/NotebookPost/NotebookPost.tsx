@@ -1,6 +1,13 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Image, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   ComponentProps,
   useCallback,
@@ -30,7 +37,6 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
-import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const IMAGE_HEIGHT = 268;
 
@@ -40,7 +46,6 @@ export function NotebookPost({
   onPressEdit,
   onLongPress,
   onPressRetry,
-  onPressDelete,
   showReplies = true,
   showAuthor = true,
   showDate = false,
@@ -54,9 +59,9 @@ export function NotebookPost({
   size?: '$l' | '$s' | '$xs';
   hideOverflowMenu?: boolean;
 }) {
-  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -72,15 +77,13 @@ export function NotebookPost({
     onLongPress?.(post);
   }, [post, onLongPress]);
 
-  const handleRetryPressed = useCallback(() => {
-    onPressRetry?.(post);
-    setShowRetrySheet(false);
+  const handleRetryPressed = useCallback(async () => {
+    try {
+      await onPressRetry?.(post);
+    } catch (e) {
+      console.error('Failed to retry post', e);
+    }
   }, [onPressRetry, post]);
-
-  const handleDeletePressed = useCallback(() => {
-    onPressDelete?.(post);
-    setShowRetrySheet(false);
-  }, [onPressDelete, post]);
 
   const handleEditPostPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -96,13 +99,8 @@ export function NotebookPost({
       return;
     }
 
-    if (deliveryFailed) {
-      setShowRetrySheet(true);
-      return;
-    }
-
     onPress?.(post);
-  }, [post, onPress, deliveryFailed]);
+  }, [post, onPress]);
 
   const onHoverIn = useCallback(() => {
     setIsHovered(true);
@@ -183,12 +181,14 @@ export function NotebookPost({
           </>
         )}
 
-        {post.deliveryStatus === 'failed' ? (
-          <XStack alignItems="center" justifyContent="flex-end">
-            <Text color="$negativeActionText" fontSize="$xs">
-              Message failed to send
-            </Text>
-          </XStack>
+        {deliveryFailed ? (
+          <Pressable onPress={handleRetryPressed}>
+            <XStack alignItems="center" justifyContent="flex-end">
+              <Text color="$negativeActionText" size="$label/m">
+                {isWindowNarrow ? 'Tap' : 'Click'} to retry
+              </Text>
+            </XStack>
+          </Pressable>
         ) : null}
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
           <Pressable
@@ -224,13 +224,6 @@ export function NotebookPost({
           </Pressable>
         )}
       </NotebookPostFrame>
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        post={post}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
     </Pressable>
   );
 }

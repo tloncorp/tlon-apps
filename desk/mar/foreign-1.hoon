@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  foreign
-  ++  json  foreign:v8:enjs:j
+  ++  json  (foreign:v8:enjs:j foreign)
   --
 ++  grab
   |%

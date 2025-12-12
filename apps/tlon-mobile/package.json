@@ -26,7 +26,8 @@
     "test-ui": "jest",
     "tsc": "tsc --noEmit",
     "build": "pnpm generate",
-    "eas-build-post-install": "pnpm -w run build:mobile-release"
+    "eas-build-post-install": "pnpm -w run build:mobile-release",
+    "test-android-resume": "./scripts/test-background-resume.sh"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
@@ -58,6 +59,7 @@
     "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
+    "@sentry/react-native": "^7.6.0",
     "@shopify/flash-list": "1.7.3",
     "@shopify/react-native-skia": "1.5.0",
     "@tamagui/react-native-media-driver": "~1.126.12",
@@ -66,7 +68,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
-    "@urbit/aura": "^2.0.1",
+    "@urbit/aura": "^3.0.0",
     "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
@@ -83,6 +85,7 @@
     "expo-contacts": "~14.0.5",
     "expo-dev-client": "~5.0.20",
     "expo-device": "~7.0.3",
+    "expo-document-picker": "~13.0.3",
     "expo-file-system": "~18.0.12",
     "expo-haptics": "~14.0.1",
     "expo-image": "~2.0.7",

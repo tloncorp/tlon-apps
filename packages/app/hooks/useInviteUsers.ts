@@ -18,10 +18,7 @@ export function useInviteGroupMembers(groupId: string, onComplete: () => void) {
       setLoading(false);
       onComplete();
     } catch (error) {
-      logger.trackError('Error inviting group members', {
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
+      logger.trackError('Error inviting group members', error);
       throw error; // Re-throw so calling components can handle if needed
     } finally {
       setLoading(false);

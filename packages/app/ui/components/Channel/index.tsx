@@ -1,5 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Attachment,
   DraftInputId,
   UploadedImageAttachment,
   finalizeAndSendPost,
@@ -19,7 +20,6 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -227,16 +227,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const { uploadAssets, clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
-      async (assets: ImagePickerAsset[]) => {
+      async (uploadIntents: Attachment.UploadIntent[]) => {
         if (channel.type !== 'gallery') {
-          attachAssets(assets);
+          attachAssets(uploadIntents);
           return;
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(assets);
+          const uploadedAttachments = await uploadAssets(uploadIntents);
 
           for (const attachment of uploadedAttachments) {
+            if (attachment.type !== 'image') {
+              throw new Error('Not implemented');
+            }
             const story: Story = [
               {
                 block: {
@@ -271,6 +274,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const draftInputRef = useRef<DraftInputHandle>(null);
 
+    // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+    const scrollToNewMessage = useCallback(() => {
+      requestAnimationFrame(() => {
+        collectionRef.current?.scrollToStart?.({ animated: true });
+      });
+    }, []);
+
     const draftInputContext = useMemo(
       (): DraftInputContext => ({
         channel,
@@ -287,14 +297,21 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        sendPost: async (content, channelId, metadata) => {
+        sendPost: async (content, channelId, metadata, blob) => {
           await sendPost({
             channelId,
             content,
             metadata,
+            blob,
           });
+          scrollToNewMessage();
         },
-        sendPostFromDraft: finalizeAndSendPost,
+        sendPostFromDraft: async (draft) => {
+          await finalizeAndSendPost(draft);
+          if (!draft.isEdit) {
+            scrollToNewMessage();
+          }
+        },
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,

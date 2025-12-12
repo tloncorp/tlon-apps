@@ -99,10 +99,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         timeUnit: 's',
       });
     } catch (e) {
-      logger.trackError('post signup error', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup error', e);
     } finally {
       // this is when the UI will transition to authenticated app
       setTimeout(() => {
@@ -179,10 +176,7 @@ async function runPostSignupActions(params: {
         nickname: params.nickname,
       });
     } catch (e) {
-      logger.trackError('post signup: failed to set nickname', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup: failed to set nickname', e);
     }
   }
 
@@ -199,10 +193,7 @@ async function runPostSignupActions(params: {
         }, tenMinutes);
       }
     } catch (e) {
-      logger.trackError('post signup: failed to set telemetry', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup: failed to set telemetry', e);
     }
   }
 
@@ -210,10 +201,15 @@ async function runPostSignupActions(params: {
     try {
       await connectNotifyProvider(params.notificationToken);
     } catch (e) {
-      logger.trackError('post signup: failed to set notification token', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup: failed to set notification token', e);
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification level', e);
     }
   }
 

@@ -122,12 +122,12 @@ export type HomeDrawerParamList = Pick<
 > & {
   MainContent: undefined;
   Channel:
-    | NavigatorScreenParams<ChannelStackParamList>
-    | RootStackParamList['Channel'];
+  | NavigatorScreenParams<ChannelStackParamList>
+  | RootStackParamList['Channel'];
   DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
   GroupDM:
-    | NavigatorScreenParams<ChannelStackParamList>
-    | RootStackParamList['GroupDM'];
+  | NavigatorScreenParams<ChannelStackParamList>
+  | RootStackParamList['GroupDM'];
   ChatDetails: RootStackParamList['ChatDetails'];
   ChatVolume: RootStackParamList['ChatVolume'];
 };
@@ -201,6 +201,24 @@ export type GroupSettingsStackParamList = {
   };
   GroupRoles: {
     groupId: string;
+    fromChatDetails?: boolean;
+  };
+  EditRole: {
+    groupId: string;
+    roleId: string;
+    selectedMembers?: string[];
+    fromChatDetails?: boolean;
+  };
+  AddRole: {
+    groupId: string;
+    selectedMembers?: string[];
+    fromChatDetails?: boolean;
+  };
+  SelectRoleMembers: {
+    groupId: string;
+    roleId?: string;
+    selectedMembers: string[];
+    onSave: (selectedMembers: string[]) => void;
     fromChatDetails?: boolean;
   };
   ChatVolume: {

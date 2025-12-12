@@ -5,7 +5,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718983367123,
-      "reads": { "items": {}, "floor": 1718983344422 },
+      "reads": {
+        "items": {},
+        "floor": 1718983344422
+      },
       "children": [],
       "notify": false
     },
@@ -20,7 +23,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-5883"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-5883"
+      ],
       "notify": false
     },
     "club/0v4.00000.qd75d.vkj7d.i5k75.c10oi": {
@@ -28,7 +33,10 @@
       "unread": null,
       "count": 0,
       "recency": 1715954286923,
-      "reads": { "items": {}, "floor": 1715954286923 },
+      "reads": {
+        "items": {},
+        "floor": 1715954286923
+      },
       "children": [],
       "notify": false
     },
@@ -60,7 +68,10 @@
       "unread": null,
       "count": 0,
       "recency": 1720547910216,
-      "reads": { "items": {}, "floor": 1720547910216 },
+      "reads": {
+        "items": {},
+        "floor": 1720547910216
+      },
       "children": [
         "dm-thread/~rilfun-lidlen/~latter-bolden/170.141.184.506.857.339.000.443.018.981.461.851.111",
         "dm-thread/~rilfun-lidlen/~latter-bolden/170.141.184.506.850.839.080.300.040.094.356.384.776"
@@ -72,7 +83,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719505564291,
-      "reads": { "items": {}, "floor": 1719505564291 },
+      "reads": {
+        "items": {},
+        "floor": 1719505564291
+      },
       "children": [],
       "notify": false
     },
@@ -81,7 +95,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717789502887,
-      "reads": { "items": {}, "floor": 1717789502887 },
+      "reads": {
+        "items": {},
+        "floor": 1717789502887
+      },
       "children": [],
       "notify": false
     },
@@ -90,7 +107,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717099677752,
-      "reads": { "items": {}, "floor": 1717099677752 },
+      "reads": {
+        "items": {},
+        "floor": 1717099677752
+      },
       "children": [],
       "notify": false
     },
@@ -99,7 +119,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719946251417,
-      "reads": { "items": {}, "floor": 1719946251417 },
+      "reads": {
+        "items": {},
+        "floor": 1719946251417
+      },
       "children": [],
       "notify": false
     },
@@ -108,7 +131,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718923637630,
-      "reads": { "items": {}, "floor": 1718923637630 },
+      "reads": {
+        "items": {},
+        "floor": 1718923637630
+      },
       "children": [],
       "notify": false
     },
@@ -138,7 +164,10 @@
       "unread": null,
       "count": 0,
       "recency": 1715961794678,
-      "reads": { "items": {}, "floor": 1715961794678 },
+      "reads": {
+        "items": {},
+        "floor": 1715961794678
+      },
       "children": [],
       "notify": false
     },
@@ -161,7 +190,10 @@
       "unread": null,
       "count": 0,
       "recency": 1720452002365,
-      "reads": { "items": {}, "floor": 1720452002365 },
+      "reads": {
+        "items": {},
+        "floor": 1720452002365
+      },
       "children": [],
       "notify": false
     },
@@ -176,7 +208,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-8186"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-8186"
+      ],
       "notify": false
     },
     "club/0v4.00000.qd74r.0te7l.oa7lo.a7loa": {
@@ -184,7 +218,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -193,7 +230,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718935723842,
-      "reads": { "items": {}, "floor": 1718935723842 },
+      "reads": {
+        "items": {},
+        "floor": 1718935723842
+      },
       "children": [],
       "notify": false
     },
@@ -202,7 +242,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719606940498,
-      "reads": { "items": {}, "floor": 1719606940498 },
+      "reads": {
+        "items": {},
+        "floor": 1719606940498
+      },
       "children": [
         "thread/chat/~latter-bolden/welcome-570/170.141.184.506.873.225.053.715.049.421.622.738.944",
         "thread/chat/~latter-bolden/welcome-570/170.141.184.506.873.316.737.483.697.497.590.202.368",
@@ -221,7 +264,9 @@
         },
         "floor": 1715841839704
       },
-      "children": ["channel/chat/~latter-bolden/welcome-5696"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-5696"
+      ],
       "notify": false
     },
     "group/~pondus-watbel/crop-circle-photos": {
@@ -229,7 +274,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718928050873,
-      "reads": { "items": {}, "floor": 1718927652520 },
+      "reads": {
+        "items": {},
+        "floor": 1718927652520
+      },
       "children": [],
       "notify": false
     },
@@ -238,7 +286,10 @@
       "unread": null,
       "count": 0,
       "recency": 1716159682338,
-      "reads": { "items": {}, "floor": 1716159682338 },
+      "reads": {
+        "items": {},
+        "floor": 1716159682338
+      },
       "children": [],
       "notify": false
     },
@@ -247,7 +298,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -256,7 +310,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719861338293,
-      "reads": { "items": {}, "floor": 1719861338293 },
+      "reads": {
+        "items": {},
+        "floor": 1719861338293
+      },
       "children": [
         "thread/heap/~pondus-watbel/new-blocks/170.141.184.506.839.385.501.161.073.129.381.953.536"
       ],
@@ -267,7 +324,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719277552656,
-      "reads": { "items": {}, "floor": 1719277552656 },
+      "reads": {
+        "items": {},
+        "floor": 1719277552656
+      },
       "children": [],
       "notify": false
     },
@@ -282,7 +342,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~pondus-watbel/the-catalogue"],
+      "children": [
+        "channel/chat/~pondus-watbel/the-catalogue"
+      ],
       "notify": false
     },
     "channel/chat/~latter-bolden/banter-79": {
@@ -290,7 +352,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718645680864,
-      "reads": { "items": {}, "floor": 1718645680864 },
+      "reads": {
+        "items": {},
+        "floor": 1718645680864
+      },
       "children": [],
       "notify": false
     },
@@ -299,7 +364,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718825956909,
-      "reads": { "items": {}, "floor": 1718825956909 },
+      "reads": {
+        "items": {},
+        "floor": 1718825956909
+      },
       "children": [],
       "notify": false
     },
@@ -308,7 +376,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -317,7 +388,10 @@
       "unread": null,
       "count": 0,
       "recency": 1721150310718,
-      "reads": { "items": {}, "floor": 1721150310718 },
+      "reads": {
+        "items": {},
+        "floor": 1721150310718
+      },
       "children": [
         "thread/chat/~bolbex-fogdys/marcom/170.141.184.506.901.782.451.352.354.821.343.543.296",
         "thread/chat/~bolbex-fogdys/marcom/170.141.184.506.877.666.897.656.812.830.961.172.480"
@@ -357,7 +431,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719550103808,
-      "reads": { "items": {}, "floor": 1719550103808 },
+      "reads": {
+        "items": {},
+        "floor": 1719550103808
+      },
       "children": [],
       "notify": false
     },
@@ -436,7 +513,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -445,7 +525,10 @@
       "unread": null,
       "count": 0,
       "recency": 1716472289691,
-      "reads": { "items": {}, "floor": 1716472289691 },
+      "reads": {
+        "items": {},
+        "floor": 1716472289691
+      },
       "children": [],
       "notify": false
     },
@@ -454,7 +537,10 @@
       "unread": null,
       "count": 0,
       "recency": 1721174600511,
-      "reads": { "items": {}, "floor": 1721174600511 },
+      "reads": {
+        "items": {},
+        "floor": 1721174600511
+      },
       "children": [],
       "notify": false
     },
@@ -501,7 +587,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -510,7 +599,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -547,7 +639,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718645680864,
-      "reads": { "items": {}, "floor": 1718645680864 },
+      "reads": {
+        "items": {},
+        "floor": 1718645680864
+      },
       "children": [],
       "notify": false
     },
@@ -556,7 +651,10 @@
       "unread": null,
       "count": 0,
       "recency": 1721049299297,
-      "reads": { "items": {}, "floor": 1721049299297 },
+      "reads": {
+        "items": {},
+        "floor": 1721049299297
+      },
       "children": [],
       "notify": false
     },
@@ -1543,7 +1641,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718722495305,
-      "reads": { "items": {}, "floor": 1718722495305 },
+      "reads": {
+        "items": {},
+        "floor": 1718722495305
+      },
       "children": [],
       "notify": false
     },
@@ -1552,7 +1653,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -1561,7 +1665,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718231326351,
-      "reads": { "items": {}, "floor": 1718231326351 },
+      "reads": {
+        "items": {},
+        "floor": 1718231326351
+      },
       "children": [],
       "notify": false
     },
@@ -1570,7 +1677,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717907540686,
-      "reads": { "items": {}, "floor": 1717907540686 },
+      "reads": {
+        "items": {},
+        "floor": 1717907540686
+      },
       "children": [],
       "notify": false
     },
@@ -1585,7 +1695,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-8300"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-8300"
+      ],
       "notify": false
     },
     "group/~latter-bolden/locked-down": {
@@ -1599,7 +1711,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-4929"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-4929"
+      ],
       "notify": false
     },
     "ship/~bitter-bitduc": {
@@ -1607,7 +1721,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717448561862,
-      "reads": { "items": {}, "floor": 1717448561862 },
+      "reads": {
+        "items": {},
+        "floor": 1717448561862
+      },
       "children": [],
       "notify": false
     },
@@ -1616,7 +1733,10 @@
       "unread": null,
       "count": 0,
       "recency": 1716585649934,
-      "reads": { "items": {}, "floor": 1716585649934 },
+      "reads": {
+        "items": {},
+        "floor": 1716585649934
+      },
       "children": [],
       "notify": false
     },
@@ -1625,8 +1745,13 @@
       "unread": null,
       "count": 0,
       "recency": 1719606940498,
-      "reads": { "items": {}, "floor": 1719606940498 },
-      "children": ["channel/chat/~latter-bolden/welcome-570"],
+      "reads": {
+        "items": {},
+        "floor": 1719606940498
+      },
+      "children": [
+        "channel/chat/~latter-bolden/welcome-570"
+      ],
       "notify": false
     },
     "ship/~ravmel-ropdyl": {
@@ -1648,7 +1773,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719324243285,
-      "reads": { "items": {}, "floor": 1719324243285 },
+      "reads": {
+        "items": {},
+        "floor": 1719324243285
+      },
       "children": [],
       "notify": false
     },
@@ -1657,7 +1785,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719277552656,
-      "reads": { "items": {}, "floor": 1719277552656 },
+      "reads": {
+        "items": {},
+        "floor": 1719277552656
+      },
       "children": [],
       "notify": false
     },
@@ -1666,7 +1797,10 @@
       "unread": null,
       "count": 0,
       "recency": 1715144529623,
-      "reads": { "items": {}, "floor": 1715144529623 },
+      "reads": {
+        "items": {},
+        "floor": 1715144529623
+      },
       "children": [],
       "notify": false
     },
@@ -1692,7 +1826,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -1701,7 +1838,10 @@
       "unread": null,
       "count": 0,
       "recency": 1692887885871,
-      "reads": { "items": {}, "floor": 1692887885871 },
+      "reads": {
+        "items": {},
+        "floor": 1692887885871
+      },
       "children": [],
       "notify": false
     },
@@ -1710,7 +1850,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -1719,7 +1862,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719590069468,
-      "reads": { "items": {}, "floor": 1719590069468 },
+      "reads": {
+        "items": {},
+        "floor": 1719590069468
+      },
       "children": [],
       "notify": false
     },
@@ -1728,7 +1874,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -1743,7 +1892,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~pondus-watbel/welcome-4526"],
+      "children": [
+        "channel/chat/~pondus-watbel/welcome-4526"
+      ],
       "notify": false
     },
     "channel/chat/~pondus-watbel/the-catalogue": {
@@ -1751,7 +1902,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -1913,7 +2067,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719548870487,
-      "reads": { "items": {}, "floor": 1719548870487 },
+      "reads": {
+        "items": {},
+        "floor": 1719548870487
+      },
       "children": [],
       "notify": false
     },
@@ -1922,7 +2079,10 @@
       "unread": null,
       "count": 0,
       "recency": 1721058859439,
-      "reads": { "items": {}, "floor": 1721058859439 },
+      "reads": {
+        "items": {},
+        "floor": 1721058859439
+      },
       "children": [
         "dm-thread/0v4.00000.qd8s0.plmc9.6t5sd.9vfjm/~dozped-mogtec/170.141.184.506.871.932.119.919.738.657.124.013.572",
         "dm-thread/0v4.00000.qd8s0.plmc9.6t5sd.9vfjm/~pondus-watbel/170.141.184.506.871.930.215.330.306.534.760.228.323"
@@ -1974,7 +2134,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4295,7 +4458,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717651006456,
-      "reads": { "items": {}, "floor": 1717651006456 },
+      "reads": {
+        "items": {},
+        "floor": 1717651006456
+      },
       "children": [],
       "notify": false
     },
@@ -4324,7 +4490,9 @@
         },
         "floor": 1715807322505
       },
-      "children": ["channel/chat/~latter-bolden/welcome-1327"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-1327"
+      ],
       "notify": false
     },
     "group/~latter-bolden/joiner-2": {
@@ -4332,8 +4500,13 @@
       "unread": null,
       "count": 0,
       "recency": 1718914734517,
-      "reads": { "items": {}, "floor": 1718914734517 },
-      "children": ["channel/chat/~latter-bolden/welcome-6251"],
+      "reads": {
+        "items": {},
+        "floor": 1718914734517
+      },
+      "children": [
+        "channel/chat/~latter-bolden/welcome-6251"
+      ],
       "notify": false
     },
     "ship/~dovpel-nimhes-noslux-lophul--navler-dotdeg-datfel-samzod": {
@@ -4341,7 +4514,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717789313978,
-      "reads": { "items": {}, "floor": 1717789313978 },
+      "reads": {
+        "items": {},
+        "floor": 1717789313978
+      },
       "children": [],
       "notify": false
     },
@@ -4448,7 +4624,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719856873430,
-      "reads": { "items": {}, "floor": 1719856873430 },
+      "reads": {
+        "items": {},
+        "floor": 1719856873430
+      },
       "children": [
         "thread/chat/~pondus-watbel/image-test/170.141.184.506.873.080.966.657.301.263.236.988.928",
         "thread/chat/~pondus-watbel/image-test/170.141.184.506.873.080.773.642.028.433.392.271.360",
@@ -4506,7 +4685,9 @@
         },
         "floor": 1719531713024
       },
-      "children": ["channel/chat/~pondus-watbel/stray-thoughts"],
+      "children": [
+        "channel/chat/~pondus-watbel/stray-thoughts"
+      ],
       "notify": false
     },
     "club/0v4.00000.qd78g.49cbo.qjuv7.di5k7": {
@@ -4514,7 +4695,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4523,7 +4707,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4532,7 +4719,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4785,7 +4975,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4794,7 +4987,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719276237268,
-      "reads": { "items": {}, "floor": 1719276237268 },
+      "reads": {
+        "items": {},
+        "floor": 1719276237268
+      },
       "children": [],
       "notify": false
     },
@@ -4803,7 +4999,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4812,7 +5011,10 @@
       "unread": null,
       "count": 2,
       "recency": 1719279812819,
-      "reads": { "items": {}, "floor": 1719237750998 },
+      "reads": {
+        "items": {},
+        "floor": 1719237750998
+      },
       "children": [
         "dm-thread/0v4.00000.qd8ng.sbun1.8un18.un18u/~latter-bolden/170.141.184.506.866.507.486.664.746.140.376.097.619",
         "dm-thread/0v4.00000.qd8ng.sbun1.8un18.un18u/~latter-bolden/170.141.184.506.866.507.486.664.746.140.376.097.619",
@@ -4826,7 +5028,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4835,7 +5040,10 @@
       "unread": null,
       "count": 0,
       "recency": 1715841839704,
-      "reads": { "items": {}, "floor": 1715841839704 },
+      "reads": {
+        "items": {},
+        "floor": 1715841839704
+      },
       "children": [],
       "notify": false
     },
@@ -4844,7 +5052,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4853,7 +5064,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718757549629,
-      "reads": { "items": {}, "floor": 1718757549629 },
+      "reads": {
+        "items": {},
+        "floor": 1718757549629
+      },
       "children": [],
       "notify": false
     },
@@ -4868,7 +5082,9 @@
         },
         "floor": 1717789502887
       },
-      "children": ["channel/chat/~latter-bolden/welcome-1528"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-1528"
+      ],
       "notify": false
     },
     "channel/chat/~bolbex-fogdys/watercooler-4926": {
@@ -4876,7 +5092,10 @@
       "unread": null,
       "count": 0,
       "recency": 1721321238720,
-      "reads": { "items": {}, "floor": 1721321238720 },
+      "reads": {
+        "items": {},
+        "floor": 1721321238720
+      },
       "children": [
         "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.882.883.782.220.180.641.728.692.224",
         "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.873.394.664.793.925.738.030.956.544",
@@ -4935,7 +5154,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4944,7 +5166,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4953,7 +5178,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718930973188,
-      "reads": { "items": {}, "floor": 1718930973188 },
+      "reads": {
+        "items": {},
+        "floor": 1718930973188
+      },
       "children": [],
       "notify": false
     },
@@ -4962,8 +5190,13 @@
       "unread": null,
       "count": 0,
       "recency": 1718935801182,
-      "reads": { "items": {}, "floor": 1718935801182 },
-      "children": ["channel/chat/~latter-bolden/welcome-6239"],
+      "reads": {
+        "items": {},
+        "floor": 1718935801182
+      },
+      "children": [
+        "channel/chat/~latter-bolden/welcome-6239"
+      ],
       "notify": false
     },
     "club/0v4.00000.qd7j4.dv0v7.di5k7.5c10o": {
@@ -4971,7 +5204,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -4980,7 +5216,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718645680864,
-      "reads": { "items": {}, "floor": 1718645680864 },
+      "reads": {
+        "items": {},
+        "floor": 1718645680864
+      },
       "children": [],
       "notify": false
     },
@@ -4989,7 +5228,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -5007,7 +5249,10 @@
       "unread": null,
       "count": 0,
       "recency": 1720637972616,
-      "reads": { "items": {}, "floor": 1720637972616 },
+      "reads": {
+        "items": {},
+        "floor": 1720637972616
+      },
       "children": [
         "thread/chat/~pondus-watbel/ghost-town/170.141.184.506.892.331.663.951.064.377.159.843.840",
         "thread/chat/~pondus-watbel/ghost-town/170.141.184.506.878.673.486.421.153.503.156.109.312",
@@ -5037,7 +5282,10 @@
       "unread": null,
       "count": 0,
       "recency": 1718930328664,
-      "reads": { "items": {}, "floor": 1718930311473 },
+      "reads": {
+        "items": {},
+        "floor": 1718930311473
+      },
       "children": [],
       "notify": false
     },
@@ -5067,7 +5315,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -5076,7 +5327,10 @@
       "unread": null,
       "count": 0,
       "recency": 1684342021902,
-      "reads": { "items": {}, "floor": 1684342021902 },
+      "reads": {
+        "items": {},
+        "floor": 1684342021902
+      },
       "children": [],
       "notify": false
     },
@@ -5101,7 +5355,10 @@
       "unread": null,
       "count": 0,
       "recency": 1716159722466,
-      "reads": { "items": {}, "floor": 1716159722466 },
+      "reads": {
+        "items": {},
+        "floor": 1716159722466
+      },
       "children": [],
       "notify": false
     },
@@ -5239,7 +5496,10 @@
       "unread": null,
       "count": 0,
       "recency": 1717789330855,
-      "reads": { "items": {}, "floor": 1717789330855 },
+      "reads": {
+        "items": {},
+        "floor": 1717789330855
+      },
       "children": [],
       "notify": false
     },
@@ -5514,7 +5774,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-2421"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-2421"
+      ],
       "notify": false
     },
     "ship/~davnex-rabwes-rippel-tipsyl--micbyt-batsef-livfet-binzod": {
@@ -5522,7 +5784,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719536647664,
-      "reads": { "items": {}, "floor": 1719536647664 },
+      "reads": {
+        "items": {},
+        "floor": 1719536647664
+      },
       "children": [],
       "notify": false
     },
@@ -10713,7 +10978,10 @@
       "unread": null,
       "count": 0,
       "recency": 1719324243285,
-      "reads": { "items": {}, "floor": 1719324243285 },
+      "reads": {
+        "items": {},
+        "floor": 1719324243285
+      },
       "children": [
         "channel/chat/~ravmel-ropdyl/welcome-2872",
         "channel/chat/~ravmel-ropdyl/chaat",
@@ -10890,7 +11158,10 @@
       "unread": null,
       "count": 0,
       "recency": 1715807322505,
-      "reads": { "items": {}, "floor": 1715807322505 },
+      "reads": {
+        "items": {},
+        "floor": 1715807322505
+      },
       "children": [],
       "notify": false
     },
@@ -10899,7 +11170,10 @@
       "unread": null,
       "count": 0,
       "recency": 946684800000,
-      "reads": { "items": {}, "floor": 946684800000 },
+      "reads": {
+        "items": {},
+        "floor": 946684800000
+      },
       "children": [],
       "notify": false
     },
@@ -11066,7 +11340,9 @@
         },
         "floor": 946684800000
       },
-      "children": ["channel/chat/~latter-bolden/welcome-8165"],
+      "children": [
+        "channel/chat/~latter-bolden/welcome-8165"
+      ],
       "notify": false
     }
   },
@@ -11077,233 +11353,409 @@
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/priv", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/priv",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "diary/~nocsyx-lassul/feedback-and-questions-2368": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "grid",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/short-chats": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-2421": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/test-channels", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/test-channels",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "heap/~pondus-watbel/new-blocks": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~nibset-napwyn/developers": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-4929": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/locked-down", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/locked-down",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "diary/~pondus-watbel/books": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~nibset-napwyn/commons": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~nibset-napwyn/intros": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "diary/~nibset-napwyn/getting-started": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": ["admin"] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": [
+            "admin"
+          ]
+        },
         "view": "grid",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "heap/~nibset-napwyn/bulletin-board-53": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~ravmel-ropdyl/a-chat": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~ravmel-ropdyl/test-today", "writers": [] },
+        "perms": {
+          "group": "~ravmel-ropdyl/test-today",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-5883": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/demo-test", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/demo-test",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "heap/~pondus-watbel/stuffs": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-1327": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/places-you-ll-go", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/places-you-ll-go",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/new-channel": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-570": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/pumpkins", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/pumpkins",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-8300": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/demo-test-group", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/demo-test-group",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~ravmel-ropdyl/welcome-2872": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~ravmel-ropdyl/test-today", "writers": [] },
+        "perms": {
+          "group": "~ravmel-ropdyl/test-today",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-6251": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/joiner-2", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/joiner-2",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-5696": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/joiner-1", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/joiner-1",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-6239": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/chess-club", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/chess-club",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/banter-79": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/image-test": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/stray-thoughts": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/digital-basics", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/digital-basics",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~ravmel-ropdyl/chaat": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~ravmel-ropdyl/test-today", "writers": [] },
+        "perms": {
+          "group": "~ravmel-ropdyl/test-today",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/ghost-town": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-8165": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/place-of-places", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/place-of-places",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/welcome-4526": {
         "order": [],
@@ -11314,31 +11766,54 @@
           "writers": []
         },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "diary/~dalwes-migdec/fall-updates": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": ["admin"] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": [
+            "admin"
+          ]
+        },
         "view": "grid",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/looooong-chats": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+        "perms": {
+          "group": "~pondus-watbel/testing-facility",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "heap/~nibset-napwyn/local-directory": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~pondus-watbel/the-catalogue": {
         "order": [],
@@ -11349,15 +11824,24 @@
           "writers": []
         },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       },
       "chat/~latter-bolden/welcome-8186": {
         "order": [],
         "posts": {},
         "sort": "time",
-        "perms": { "group": "~latter-bolden/woodshop", "writers": [] },
+        "perms": {
+          "group": "~latter-bolden/woodshop",
+          "writers": []
+        },
         "view": "list",
-        "pending": { "posts": {}, "replies": {} }
+        "pending": {
+          "posts": {},
+          "replies": {}
+        }
       }
     }
   },
@@ -11397,80 +11881,173 @@
       "0v4.00000.qd7sp.la7c1.0oidq.boqju": {
         "net": "done",
         "hive": [],
-        "team": ["~pondus-watbel"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~pondus-watbel"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd7dg.c71e2.hte2h.te2ht": {
         "net": "done",
         "hive": [],
-        "team": ["~dozped-mogtec"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~dozped-mogtec"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd4p2.it253.qs53q.s53qs": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd7ei.2gq96.t5sd9.vfjmp": {
         "net": "done",
-        "hive": ["~zod"],
-        "team": ["~pondus-watbel"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "hive": [
+          "~zod"
+        ],
+        "team": [
+          "~pondus-watbel"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd74r.0te7l.oa7lo.a7loa": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78g.m398e.ao21h.4rknh": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd9l2.sk6iu.6kvnp.rchd1": {
         "net": "done",
-        "hive": ["~pondus-watbel"],
-        "team": ["~halsym-ponrep-sarnyd-libneb--difmus-pilmyr-widmep-litzod"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "hive": [
+          "~pondus-watbel"
+        ],
+        "team": [
+          "~halsym-ponrep-sarnyd-libneb--difmus-pilmyr-widmep-litzod"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd8s9.51eht.e2hte.2hte2": {
         "net": "done",
-        "hive": ["~dovnec-masnec-foglec-samfyr--padben-larfyr-fansyr-marzod"],
-        "team": ["~pondus-watbel"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "hive": [
+          "~dovnec-masnec-foglec-samfyr--padben-larfyr-fansyr-marzod"
+        ],
+        "team": [
+          "~pondus-watbel"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd92b.4bfdi.5k75c.10oid": {
         "net": "done",
         "hive": [],
-        "team": ["~solfer-magfed", "~finned-palmer", "~latter-bolden"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~solfer-magfed",
+          "~finned-palmer",
+          "~latter-bolden"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78h.1ggsl.g4329.n9f3a": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78g.r50v7.di5k7.5c10o": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd75s.q6n4r.knhl7.tuer4": {
         "net": "done",
-        "hive": ["~pondus-watbel"],
-        "team": ["~misfer-sicrex-mismep-hatnyd--ritmet-figpen-ponryd-samzod"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "hive": [
+          "~pondus-watbel"
+        ],
+        "team": [
+          "~misfer-sicrex-mismep-hatnyd--ritmet-figpen-ponryd-samzod"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd9l2.tccq3.im0gc.96t5s": {
         "net": "done",
-        "hive": ["~dozped-mogtec"],
-        "team": ["~halsym-ponrep-sarnyd-libneb--difmus-pilmyr-widmep-litzod"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "hive": [
+          "~dozped-mogtec"
+        ],
+        "team": [
+          "~halsym-ponrep-sarnyd-libneb--difmus-pilmyr-widmep-litzod"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2": {
         "net": "done",
@@ -11492,19 +12069,38 @@
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd75d.vkj7d.i5k75.c10oi": {
         "net": "done",
         "hive": [],
-        "team": ["~latter-bolden"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~latter-bolden"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78g.49cbo.qjuv7.di5k7": {
         "net": "done",
         "hive": [],
-        "team": ["~pondus-watbel"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~pondus-watbel"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd819.b3ubo.qjuv7.di5k7": {
         "net": "done",
@@ -11527,19 +12123,36 @@
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78h.iudrc.hd1pb.0864j": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd78i.8vovn.prchd.1pb08": {
         "net": "done",
         "hive": [],
-        "team": ["~latter-bolden"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~latter-bolden"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd8g4.j496c.pj6cp.j6cpj": {
         "net": "done",
@@ -11548,25 +12161,49 @@
           "~pondus-watbel",
           "~falfet-pitsed-picwel-radtyd--nacmev-bindur-lagnyt-marzod"
         ],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd2fn.dacu6.kvnpr.chd1p": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd8ng.sbun1.8un18.un18u": {
         "net": "done",
         "hive": [],
         "team": [],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       },
       "0v4.00000.qd8s0.plmc9.6t5sd.9vfjm": {
         "net": "done",
         "hive": [],
-        "team": ["~pondus-watbel", "~latter-bolden", "~dozped-mogtec"],
-        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+        "team": [
+          "~pondus-watbel",
+          "~latter-bolden",
+          "~dozped-mogtec"
+        ],
+        "meta": {
+          "image": "",
+          "title": "",
+          "cover": "",
+          "description": ""
+        }
       }
     },
     "invited": [],
@@ -11577,1244 +12214,12 @@
     ],
     "blocked-by": []
   },
-  "pins": ["0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2"],
-  "gangs": {
-    "~tasrut-sippyx/raypeat": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/places-you-ll-go": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~latter-bolden/places-you-ll-go",
-        "time": 1715823630692,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "Places You'll Go",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~raldeg/nativeplanet": { "preview": null, "invite": null, "claim": null },
-    "~fabled-faster/new-york": {
-      "preview": null,
-      "invite": null,
-      "claim": {
-        "progress": "knocking",
-        "join-all": false
-      }
-    },
-    "~barmyl-sigted/network-being": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~barmyl-sigted/network-being",
-        "time": 1715289628525,
-        "secret": false,
-        "meta": {
-          "image": "https://i5.walmartimages.com/asr/9851bdb6-b5f0-4d83-8026-f84251396ed0_1.3e35b199c2aa382ef18425d9c7fc8185.jpeg",
-          "title": "network-Being",
-          "cover": "http://wildplanetdesign.com/images/Old-computer.jpg",
-          "description": "A group to discuss Heidegger, cybernetics, and the phenomenology of being online. "
-        }
-      },
-      "invite": {
-        "flag": "~dacler-ricwyt/new-new-new-york",
-        "ship": "~solfer-magfed"
-      },
-      "claim": null
-    },
-    "~salfer-biswed/gamers": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~salfer-biswed/gamers",
-        "time": 1715289628522,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2023.11.28..4.37.24..8560.4189.374b.c6a7-ijhguf.png",
-          "title": "Gamers",
-          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2023.11.28..4.37.40..947a.e147.ae14.7ae1-fds.png",
-          "description": "All things gaming - console, PC, tabletop, etc"
-        }
-      },
-      "invite": null,
-      "claim": {
-        "progress": "adding",
-        "join-all": true
-      }
-    },
-    "~dacler-ricwyt/new-new-new-york": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~dacler-ricwyt/new-new-new-york",
-        "time": 1715309834209,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
-          "title": "New New New York",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/16541675/original_9f936dee69d31615b5d402a438b8ffa6.jpg",
-          "description": "This is the true story … of urbit strangers … picked to live in a group … work together … and have their lives archived … to find out what happens … when people stop being polite … and start getting real: New New New York."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~roptyp-norwen/palm-tree-neofloridians": {
-      "preview": {
-        "cordon": {
-          "shut": { "pending": ["~holryx-padtux", "~datnut-pollen"], "ask": [] }
-        },
-        "flag": "~roptyp-norwen/palm-tree-neofloridians",
-        "time": 1715289628537,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/roptyp-norwen/2023.11.18..17.25.2..5c6a.7ef9.db22.d0e5-IMG_8571.jpeg",
-          "title": "🌴NeoFloridians",
-          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/roptyp-norwen/2023.11.18..17.16.19..45a1.cac0.8312.6e97-IMG_8571.jpeg",
-          "description": "The humanist pro-industrial renaissance in Florida🌴🇺🇸. Legendary group under reconstruction post breach💯. Learning station where NeoFloridians enjoy the opportunity to marinate in the culture and folkways of PaleoFloridians🛡️. 🪐☑️ ☄️🚫"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pagled-hodten/aira": { "preview": null, "invite": null, "claim": null },
-    "~middev/the-forge": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~middev/the-forge",
-        "time": 1715889900012,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.5.06..21.01.58-the%20forge.png",
-          "title": "The Forge",
-          "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/IilliilUII.png",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~samsen-hacpyx/washington--d-c-": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~simsur-ronbet/sharing": {
-      "preview": {
-        "cordon": { "shut": { "pending": ["~riprud-tidmel"], "ask": [] } },
-        "flag": "~simsur-ronbet/sharing",
-        "time": 1715456299000,
-        "secret": false,
-        "meta": {
-          "image": "https://i.imgur.com/5jXegVU.png",
-          "title": "Sharing",
-          "cover": "#D9D9D9",
-          "description": "collective curated content container"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~bitbet-bolbel/urbit-community": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~dibref-labter/arbit": { "preview": null, "invite": null, "claim": null },
-    "~hidweb-ribbex/the-universe-and-beyond": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~hidweb-ribbex/the-universe-and-beyond",
-        "time": 1715289627502,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/hidweb-ribbex/2024.3.25..18.29.1..fc28.f5c2.8f5c.28f5-universe.jpeg",
-          "title": "The universe and beyond ",
-          "cover": "#4f92e1",
-          "description": "This group is dedicated to everything related to the Universe, Space exploration and engineering.\nIn this group, you can share news, pictures, ideas, ... about everything related to space!\n\n\nEnjoy and learn :)"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~magbel/core-school": { "preview": null, "invite": null, "claim": null },
-    "~dalweb-donfun/urbit-deutschland": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~darlur/bookends": {
-      "preview": {
-        "cordon": { "shut": { "pending": ["~pinzod-hidden"], "ask": [] } },
-        "flag": "~darlur/bookends",
-        "time": 1715636424923,
-        "secret": true,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/zax-urbit/bookends/2023.1.13..14.58.47-bookends-book.png",
-          "title": "Bookends",
-          "cover": "https://nyc3.digitaloceanspaces.com/zax-urbit/bookends/bookends-logo.jpeg",
-          "description": "A group for anyone who loves the written word"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~dovsem-bornyl/autoverse": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~dovsem-bornyl/autoverse",
-        "time": 1715955963355,
-        "secret": false,
-        "meta": {
-          "image": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.4.9..20.33.31..5851.eb85.1eb8.51eb-starship.jpg",
-          "title": "Autoverse",
-          "cover": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.4.9..20.33.36..1810.624d.d2f1.a9fb-starship.jpg",
-          "description": "Sci-Fi, Liberalism, Rationality, Urbit, Software, Silicon Valley"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~dalten/dalten-collective-public": {
-      "preview": {
-        "cordon": {
-          "open": {
-            "ships": ["~nibber-digrys", "~naltyc-wornes", "~dasfeb"],
-            "ranks": []
-          }
-        },
-        "flag": "~dalten/dalten-collective-public",
-        "time": 1716484381426,
-        "secret": false,
-        "meta": {
-          "image": "https://dalten.sfo2.digitaloceanspaces.com/sicdev-pilnup/2022.8.08..19.54.45-dalten.png",
-          "title": "Dalten Collective Public",
-          "cover": "#000000",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~mornut-baller/mornut-baller-s-homepage": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/test-g-3": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~mister-hoster-sidnym-ladrut/vi": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~mister-hoster-sidnym-ladrut/vi",
-        "time": 1715780722349,
-        "secret": false,
-        "meta": {
-          "image": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Vimlogo.svg",
-          "title": "Vi",
-          "cover": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Vimlogo.svg",
-          "description": "A place to discuss Vi and its variants"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/ano-lock": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~davnex-rabwes-rippel-tipsyl--micbyt-batsef-livfet-binzod/pasta-reviews": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/test-channels": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~nattyv/nativeplanet": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~nattyv/nativeplanet",
-        "time": 1715106281223,
-        "secret": false,
-        "meta": {
-          "image": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.10.19..14.34.02-NP%20URBIT.png",
-          "title": "NativePlanet",
-          "cover": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.7.17..15.27.53-size%20comparison%202.png",
-          "description": "Native Planet support, development, everything. "
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~bidsun-bidsun/horology": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~bidsun-bidsun/horology",
-        "time": 1715289628316,
-        "secret": false,
-        "meta": {
-          "image": "https://bestwatch.my/media/catalog/product/image/width/800/height/800/R/o/Rolex-Submariner-114060.jpg",
-          "title": "Horology",
-          "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ61t7ICNtCxjAJhuHq_4557cTvR2xnfzYSqj2oZFbc4r7I1Q20GvOIsHoziCX65Awdo4&usqp=CAU",
-          "description": "For all things watches, clocks, watch-making, and adjacent topics."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~sovref-hasfyr/scholia-pugillatoria": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~sovref-hasfyr/scholia-pugillatoria",
-        "time": 1715229033635,
-        "secret": false,
-        "meta": {
-          "image": "https://pbs.twimg.com/profile_images/1520539901133049858/G6ODKJPh_400x400.jpg",
-          "title": "Scholia Pugillātōria",
-          "cover": "https://pbs.twimg.com/profile_images/1520539901133049858/G6ODKJPh_400x400.jpg",
-          "description": "Scholia Pugillātōria is an academic journal for martial arts studies and articles. Scholia Pugillātōria seeks articles on personal combat, including boxing, wrestling, Oriental martial arts, African martial arts, fencing, savate, balintawak, dueling, HEMA, and human biomechanics.\n\npugilism.cc"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/icon-w-o-header": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/icon-w-o-header",
-        "time": 1716494920678,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/14816305/original_b28645552aed5a31a39335558f66deae.jpg?1642813365?bc=0",
-          "title": "Icon w/o Header",
-          "cover": "#D9D9D9",
-          "description": "It has a description, but it's not too long."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~ripwen-sabrup/max-zoom-photos-jpg": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~ripwen-sabrup/max-zoom-photos-jpg",
-        "time": 1715106281140,
-        "secret": false,
-        "meta": {
-          "image": "https://fra1.digitaloceanspaces.com/marryp-worryd/ripwen-sabrup/2023.8.12..10.10.02-nothingg.png",
-          "title": "max zoom maximalists",
-          "cover": "#BCBCBC",
-          "description": "please feel free to post any photos taken with ~max zoom of your device ~have fun"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pagteb-podtuc/moldy-mirror": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~pagteb-podtuc/moldy-mirror",
-        "time": 1715289627643,
-        "secret": false,
-        "meta": {
-          "image": "https://i.imgvibe.com/2023/11/18/mm_logo.jpg",
-          "title": "Moldy Mirror",
-          "cover": "https://i.imgvibe.com/2023/11/18/MM_mirror.jpg",
-          "description": "A friendly space to discuss the writings of Moldy Bug Mirror... or something.\n\nDon't worry, it will be fun."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~fansef-dastus/urwasm": { "preview": null, "invite": null, "claim": null },
-    "~rondev/group-discovery": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/max-description": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/max-description",
-        "time": 1716494928071,
-        "secret": false,
-        "meta": {
-          "image": "#ff8f8f",
-          "title": "Max Description",
-          "cover": "#5c948a",
-          "description": "[unité] or in the simple substance, is nothing but what is called Perception, which\nis to be distinguished from Apperception or Consciousness, as will afterwards\nappear. In this matter the Cartesian view is extremely defective, for it treats as\nnon-existent those perceptions of which we are not awar"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~dalweb-donfun/eurbit": { "preview": null, "invite": null, "claim": null },
-    "~tirrel/the-marketplace": {
-      "preview": {
-        "cordon": {
-          "open": {
-            "ships": [
-              "~podtus-tacrus-rivryt-habfex--fossug-tobnyt-sovpex-wanzod",
-              "~digmev-savrec",
-              "~toptyr-bilder",
-              "~tonlur-sarret",
-              "~nallux-dozryl"
-            ],
-            "ranks": []
-          }
-        },
-        "flag": "~tirrel/the-marketplace",
-        "time": 1715714504344,
-        "secret": false,
-        "meta": {
-          "image": "https://snipboard.io/U0IYyi.jpg",
-          "title": "The Marketplace",
-          "cover": "#00ff6a",
-          "description": "Welcome to The Marketplace, featuring The Pit, Urbit's first open-outcry market!"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~middev/paper": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~middev/paper",
-        "time": 1715289619538,
-        "secret": false,
-        "meta": {
-          "image": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/5565C5EE-CCE3-402A-9F9F-A4B214E47D60_1_105_c.jpeg",
-          "title": "paper",
-          "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/1BAFC48E-60E4-474E-B4E0-88BCF28534B8_1_105_c.jpeg",
-          "description": "eink and beyond"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/pumpkins": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~litmus-ritten/ccru": { "preview": null, "invite": null, "claim": null },
-    "~magbel/deseret-third-book": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~magbel/deseret-third-book",
-        "time": 1715707474242,
-        "secret": false,
-        "meta": {
-          "image": "#121234",
-          "title": "𐐔𐐯𐑅𐐨𐑉𐐯𐐻 𐐛𐐮𐑉𐐼 𐐒𐐳𐐿",
-          "cover": "https://library.sigilante.red/bucket/lagrev-nocfep/2024.3.24..0.28.22..6c49.ba5e.353f.7ced-coin-mountains.jpg",
-          "description": "Deseret Third Book"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/woodshop": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~latter-bolden/woodshop",
-        "time": 1716922339562,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0",
-          "title": "Woodworking",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/21743670/original_554922cca44c533119390d16b9ae40c7.jpg?1683596847?bc=0",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~darduc-mitfen/catholicism": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": ["pawn"] } },
-        "flag": "~darduc-mitfen/catholicism",
-        "time": 1715105318459,
-        "secret": false,
-        "meta": {
-          "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Flag_of_the_Vatican_City_%282023%E2%80%93present%29.svg/1280px-Flag_of_the_Vatican_City_%282023%E2%80%93present%29.svg.png",
-          "title": "⛪ Catholicism",
-          "cover": "https://tradcatholic.org/img.webp",
-          "description": "Ad Deum qui laetificat juventutem meam.\n\n\nContact an admin with requests or issues. Do not message ~darduc-mitfen directly.\n\nCanary: https://docs.tradcatholic.org/canary.html\n\n\nPublic Key: https://keys.openpgp.org/search?q=7D65021B96173B9AFBF3716462DB88A587EF7996"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~winter-paches/the-great-north": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": ["pawn"] } },
-        "flag": "~winter-paches/the-great-north",
-        "time": 1715289627716,
-        "secret": false,
-        "meta": {
-          "image": "https://zax-urbit.nyc3.digitaloceanspaces.com/winter-paches/2021.5.10..15.34.18-the-great-north.jpeg",
-          "title": "The Great North",
-          "cover": "https://nyc3.digitaloceanspaces.com/zax-urbit/winter-paches/2022.12.09..14.19.25-black-diamond-trail.jpg",
-          "description": "Sportsmen and Philosophers who love the cold. A place to discuss North American cold weather sports, politics and current events."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~fabled-faster/storage": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~fabled-faster/storage",
-        "time": 1715309833159,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/fabled-faster/2024.2.14..23.49.19..b5c2.8f5c.28f5.c28f-IMG_2867.jpeg",
-          "title": "Storage",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~nodsup-halnux/recognition": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/soon-to-be-deleted---": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~tinsur-tantud/digital-stack": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~dister-dozzod-lapdeg/battery-payload": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~minder-folden/valeria-city": {
-      "preview": {
-        "cordon": {
-          "shut": { "pending": ["~ribben-donnyl", "~rigtyr-datsul"], "ask": [] }
-        },
-        "flag": "~minder-folden/valeria-city",
-        "time": 1715636421892,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/minderimages/minder-folden/2023.12.9..18.47.43..2189.374b.c6a7.ef9d-ValeriaLogo.png",
-          "title": "Valeria City",
-          "cover": "https://s3.minder-folden.startram.io/bucket/minder-folden/2024.5.9..15.55.1..28f5.c28f.5c28.f5c2-Minderfolden-Shopping-District.png",
-          "description": "The city of a thousand planets. Final ark of humanity."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/priv": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": ["~pondus-watbel"] } },
-        "flag": "~latter-bolden/priv",
-        "time": 1716514932605,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/22747425/original_0b03b4c106a0e9b6fcf8ad55c4d10a28.jpg?1689888572?bc=0",
-          "title": "priv",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~fogbus/california-art-community": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~litmus-ritten/iwtf": { "preview": null, "invite": null, "claim": null },
-    "~tocwex/syndicate-public": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~tocwex/syndicate-public",
-        "time": 1715229032635,
-        "secret": false,
-        "meta": {
-          "image": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/sarlev-sarsen/2024.2.24..20.54.23..5e35.3f7c.ed91.6872-tocwex_low-detail-sigil_reverse.png",
-          "title": "~tocwex.syndicate",
-          "cover": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/sarlev-sarsen/2024.2.21..19.14.1..81ca.c083.126e.978d-image.png",
-          "description": "SOVEREIGN TOOLS FOR CRYPTO-ECONOMIC ACTIVITY IN THE WORLD OF ATOMS"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~topdem/structure": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~topdem/structure",
-        "time": 1715106284170,
-        "secret": false,
-        "meta": {
-          "image": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.22.12-sq2.png",
-          "title": "Structure",
-          "cover": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.17.03-tumblr_f3031a40e7444a7854e30e387b512ebf_7beaba7e_2048.jpg",
-          "description": "STRUCTURE GROUP GAIDEN: Harvest Nine  \n\nMechanics. Design. Structure. Urbit R&D Para-Organisation. "
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~paldev/nlbit": { "preview": null, "invite": null, "claim": null },
-    "~nospur-sontud/unoffical-nockchain-zorp-": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~nospur-sontud/unoffical-nockchain-zorp-",
-        "time": 1715289627496,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "unoffical nockchain/zorp ",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/really-long-group-name-pushing-the-boundaries-of-both-what-is-possible-and-what-a-truly-avant-garde-group-title-can-achieve-wow-still-going-can-t-believe-it-lets-me-do-this-aha-max": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/really-long-group-name-pushing-the-boundaries-of-both-what-is-possible-and-what-a-truly-avant-garde-group-title-can-achieve-wow-still-going-can-t-believe-it-lets-me-do-this-aha-max",
-        "time": 1716494921794,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/954200/original_eea129a064d875b0082b3e08c45740fc.gif?1490927897?bc=1",
-          "title": "Really Long Group Name Pushing The Boundaries of Both What Is Possible and What A Truly Avant Garde Group Title Can Achieve Wow Still Going Can't Believe It Lets Me Do This aha max",
-          "cover": "#D9D9D9",
-          "description": "Sure is a doozy."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/barebones": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/barebones",
-        "time": 1716494928300,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "barebones",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pagwex-dovwyn/our-incredible-journey": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pagwex-dovwyn/our-incredible-journey",
-        "time": 1715289627599,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2023.11.17..3.35.13..2f9d.b22d.0e56.0418-luggage_1f9f3.png",
-          "title": "O𝕦𝕣 Incredible Journey",
-          "cover": "https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2023.11.17..3.29.46..624d.d2f1.a9fb.e76c-safe.png",
-          "description": "travel\nverb (used without object),trav·eled, trav·el·ing or (especially British) trav·elled, trav·el·ling.\nTo move illegally by walking or running without dribbling the ball."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/demo-test": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/place-of-places": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~latter-bolden/place-of-places",
-        "time": 1716440238480,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "Place of Places",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~darduc-mitfen/sailing-and-cruising": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/lounge": { "preview": null, "invite": null, "claim": null },
-    "~darduc-mitfen/radio": { "preview": null, "invite": null, "claim": null },
-    "~wolref-podlex/tea": { "preview": null, "invite": null, "claim": null },
-    "~pondus-watbel/header-w-o-icon": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/header-w-o-icon",
-        "time": 1716494920672,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "Header w/o Icon",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/233707/original_538dcbb0cefadf31ae96941561546cca.jpg?1398950597?bc=1",
-          "description": "Come for the header, stay for the comforting icon free vibes."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/new-place-2": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~fighet-parnet/reverse-engineering": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~middel-salbyt/dominion-of-canada": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~middel-salbyt/dominion-of-canada",
-        "time": 1719861089629,
-        "secret": false,
-        "meta": {
-          "image": "https://middel-salbyt.s3.diffeq.com/2022.2.20..04.07.14-EHcgXQaX0AA-L7m.jpg",
-          "title": "Dominion of Canada",
-          "cover": "#000000",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~ravmel-ropdyl/audio-video-images": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~ravmel-ropdyl/audio-video-images",
-        "time": 1715104121701,
-        "secret": false,
-        "meta": {
-          "image": "#ffffff",
-          "title": "Media",
-          "cover": "#ffffff",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~dibref-labter/leo": { "preview": null, "invite": null, "claim": null },
-    "~tasrut-sippyx/farm": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~tasrut-sippyx/farm",
-        "time": 1715261974807,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/tasrut-sippyx/2024.5.7..23.13.9..d4fd.f3b6.45a1.0cac-IMG_3776.jpeg",
-          "title": "Post Your Animals",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~magbel/in-tenebris-silva": {
-      "preview": {
-        "cordon": {
-          "shut": { "pending": ["~sitful-hatred", "~poldec-tonteg"], "ask": [] }
-        },
-        "flag": "~magbel/in-tenebris-silva",
-        "time": 1715707474398,
-        "secret": true,
-        "meta": {
-          "image": "#000000",
-          "title": "⸙ In Tenebrīs Silva",
-          "cover": "https://raw.githubusercontent.com/sigilante/pixiesticks/master/lege-rubrum.png",
-          "description": "life in the dark forest, institutional epistemology, complexity theory, and more affairs of plain living"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~natnex-ronret/door-link": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~natnex-ronret/door-link",
-        "time": 1715289630640,
-        "secret": false,
-        "meta": {
-          "image": "https://www.door.link/logowhite.svg",
-          "title": "door.link",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20581622/original_931d1045222458d744eb8b7c752a176c.jpg",
-          "description": "sound/silence cult"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~ravmel-ropdyl/crate": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~ravmel-ropdyl/crate",
-        "time": 1715104121714,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/22382497/original_36aeecd221e56a5ad4d07d59955620b8.png",
-          "title": "Network Ambience",
-          "cover": "https://i.pinimg.com/564x/87/64/5e/87645eba9165f53631fa5fe584eaeeae.jpg",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~mopfel-winrux/solar-photography": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/chess-club": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~dozped-mogtec/vegetable-stand": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~nospur-sontud/sarmyn-s-list": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/testing-facility": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/ban-hammer": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/ban-hammer",
-        "time": 1716494921867,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "ban hammer",
-          "cover": "#D9D9D9",
-          "description": "none shall pass"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~tommur-dostyn/tlon-studio": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~tommur-dostyn/tlon-studio",
-        "time": 1715292633647,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/21209143/original_168cacf7dc10ebd7035dea91fda26595.png?1680533999?bc=0",
-          "title": "Tlon Studio",
-          "cover": "https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~siddef/uf-meetups": { "preview": null, "invite": null, "claim": null },
-    "~worpet-bildet/portal": { "preview": null, "invite": null, "claim": null },
-    "~rabbel-fopnus/encyclopedia": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~rabbel-fopnus/encyclopedia",
-        "time": 1715120081163,
-        "secret": false,
-        "meta": {
-          "image": "https://i.imgur.com/VTV06P4.png",
-          "title": "The Humble Guide to the Galaxies",
-          "cover": "https://i.imgur.com/lbPA48y.png",
-          "description": "Encyclopedia for all things #urbit. Read more here: https://urbit.org/grants/urbit-encyclopedia-1"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/digital-basics": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~pondus-watbel/digital-basics",
-        "time": 1716494921857,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/24239506/original_e204d534b498c08e7b33ef0e79f35ad6.png?1697681734?bc=0",
-          "title": "Digital Basics",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20076114/original_9faa2e6578b93e45adfc7b0e23c17840.jpg?1674854425?bc=0",
-          "description": "The most normal group where nothing is exotic. It has a header, and a description that isn't too long. Not austere, not maximalist. Simply...plain.\n\nIs this really approximately average? Who knows, but it's what we have to work with."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/secret-group": {
-      "preview": {
-        "cordon": { "shut": { "pending": [], "ask": [] } },
-        "flag": "~pondus-watbel/secret-group",
-        "time": 1716494927953,
-        "secret": true,
-        "meta": {
-          "image": "#999999",
-          "title": "secret group",
-          "cover": "#D9D9D9",
-          "description": "hush hush and whatnot. Do you have the key? Probably not."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~dovsem-bornyl/sf-bay-area": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~dovsem-bornyl/sf-bay-area",
-        "time": 1715955963366,
-        "secret": false,
-        "meta": {
-          "image": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.7.09..21.27.06-sf.jpeg",
-          "title": "SF Bay Area",
-          "cover": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.7.09..21.27.10-sf.jpeg",
-          "description": "Urbiters in the SF Bay Area"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~hiddev-dannut/new-hooniverse": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~hiddev-dannut/new-hooniverse",
-        "time": 1715229033618,
-        "secret": false,
-        "meta": {
-          "image": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
-          "title": "Hooniverse",
-          "cover": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
-          "description": "Community-based Hoon learning for all levels.  Hoon School and App School support."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~darsyn-figdyt/colorless-photography": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~darsyn-figdyt/colorless-photography",
-        "time": 1715289627524,
-        "secret": false,
-        "meta": {
-          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.18..2.43.15..29ba.5e35.3f7c.ed91-colorless gray.png",
-          "title": "colorless",
-          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.18..2.43.30..428f.5c28.f5c2.8f5c-colorless gray.png",
-          "description": "Black and white photography group"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/joiner-1": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~latter-bolden/joiner-1",
-        "time": 1715841644610,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "Joiner 1",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/joiner-2": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~latter-bolden/joiner-2",
-        "time": 1716535219388,
-        "secret": false,
-        "meta": {
-          "image": "https://d2w9rnfcy7mm78.cloudfront.net/26343985/original_f527d1a55989b940d78025c877ac658e.gif?1707914004?bc=0",
-          "title": "Joiner 2",
-          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/7171902/original_7b0894138a10e2d28416df781fe0ef52.jpg?1588769183?bc=0",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~ronnys-rigwet/bike-shed": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~rilfun-lidlen/fashion": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~rilfun-lidlen/fashion",
-        "time": 1715289628342,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/rilfun-lidlen/rilfun-lidlen/2023.12.22..0.36.3..c106.24dd.2f1a.9fbe-f.svg",
-          "title": "Fashion",
-          "cover": "https://nyc3.digitaloceanspaces.com/rilfun-lidlen/rilfun-lidlen/2024.3.8..16.11.18..2353.f7ce.d916.872b-original_e83f05be747001a8c077dad4642305e9.jpg",
-          "description": "Jawnz, streetwear, high street, couture, ready-to-wear, vintage, your sewing hobby, appreciation, buy-and-sell, /fa/ memes, Urbit Fashion General"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~nodsup-halnux/exiled-ends-of-the-earth-eee": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~latter-bolden/locked-door": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~linfyr-tanbur/tasty-coffee-tips": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~linfyr-tanbur/tasty-coffee-tips",
-        "time": 1715106281220,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "Tasty Coffee Tips",
-          "cover": "#D9D9D9",
-          "description": "A open group discussion on how to make coffee tasty. Be it by discussing brewing methods, specific coffees, brewing tips, roasting, tech etc. What makes how you brew coffee so special? Lets talk about it. Questions and troubleshooting brews and tech welcome! -Ian"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~pondus-watbel/oasis": { "preview": null, "invite": null, "claim": null },
-    "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~pondus-watbel/quality-assurance-center-of-consumer-excellence",
-        "time": 1716507833194,
-        "secret": false,
-        "meta": {
-          "image": "#999999",
-          "title": "quality assurance center of consumer excellence",
-          "cover": "#D9D9D9",
-          "description": ""
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~halbex-palheb/uf-public": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~halbex-palheb/uf-public",
-        "time": 1720717237512,
-        "secret": false,
-        "meta": {
-          "image": "https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png",
-          "title": "UF",
-          "cover": "#000000",
-          "description": "The latest from the Urbit Foundation"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~matwet/networked-subject": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice",
-        "time": 1715780722349,
-        "secret": false,
-        "meta": {
-          "image": "https://images.unsplash.com/photo-1527066579998-dbbae57f45ce?ixlib=rb-4.0.3",
-          "title": "Views of the Hyperlattice",
-          "cover": "https://images.unsplash.com/photo-1499867187828-b1d145ae757d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1473&q=80",
-          "description": "Saloon for front-end web developers"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~raghet-worwep-ligdep-racduc--hasnup-dibdec-dalped-binzod/probably-offline-": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~famhut-wolpyx/boomer-jams": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~famhut-wolpyx/boomer-jams",
-        "time": 1715289628534,
-        "secret": false,
-        "meta": {
-          "image": "https://famhut-wolpyx-media.sfo3.digitaloceanspaces.com/famhut-wolpyx-media/famhut-wolpyx/2023.11.22..18.12.9..9c28.f5c2.8f5c.28f5-boomer-jams.jpeg",
-          "title": "Boomer Jamz",
-          "cover": "#D9D9D9",
-          "description": "A music group to go full autistic on an artist, genre, moment in time or whatever catches your musical fancy. \n\nTends toward nostalgia and deep cuts from the past but anything goes.\n\nCurrently on goth rock."
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~darlur/hammock-coast": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~darlur/hammock-coast",
-        "time": 1715636424929,
-        "secret": false,
-        "meta": {
-          "image": "https://s3.hosneb-rosler.darlur.net/bucket/2023.8.10..20.43.16-hammock-coast-lighthouse.jpg",
-          "title": "Hammock Coast",
-          "cover": "https://s3.hosneb-rosler.darlur.net/bucket/2023.8.10..20.41.01-sc-hammock-coast.jpg",
-          "description": "Martians living in God's Country: Coastal South Carolina between Georgetown and Myrtle Beach"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~padwet/penguins": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~padwet/penguins",
-        "time": 1715106284106,
-        "secret": false,
-        "meta": {
-          "image": "https://media.ritpub-sipsyl.us-chi1.upcloudobjects.com/ritpub-sipsyl/2021.3.05..00.03.58-urbit%20penguin.png",
-          "title": "🐧 Penguins",
-          "cover": "#000000",
-          "description": "Linux users and hackers"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~mopfel-winrux/nockpu": { "preview": null, "invite": null, "claim": null },
-    "~mister-hoster-sidnym-ladrut/tui": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~mister-hoster-sidnym-ladrut/tui",
-        "time": 1715780722349,
-        "secret": false,
-        "meta": {
-          "image": "https://placehold.co/400/222222/cccccc?text=~&font=montserrat",
-          "title": "~TUI",
-          "cover": "https://placehold.co/400/222222/cccccc?text=~TUI&font=montserrat",
-          "description": "Discussion related to text-based user interfaces for Urbit"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~nocsyx-lassul/holy-grail-ui": {
-      "preview": {
-        "cordon": { "open": { "ships": [], "ranks": [] } },
-        "flag": "~nocsyx-lassul/holy-grail-ui",
-        "time": 1716578161959,
-        "secret": false,
-        "meta": {
-          "image": "https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.9.18..19.41.58-1d028686e1b5892197b83f58a98e8f4c.jpeg",
-          "title": "holy grail ui",
-          "cover": "#f7aaff",
-          "description": "infinitely composable and interoperable components enabled by urbit backend"
-        }
-      },
-      "invite": null,
-      "claim": null
-    },
-    "~simsur-ronbet/scotland": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    },
-    "~litmus-ritten/utwg": { "preview": null, "invite": null, "claim": null },
-    "~satsut-tocdeb/tonga-room": {
-      "preview": null,
-      "invite": null,
-      "claim": null
-    }
-  },
+  "pins": [
+    "0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2"
+  ],
   "profile": false,
   "groups": {
     "~latter-bolden/locked-down": {
-      "zone-ord": ["default"],
-      "cordon": { "shut": { "pending": [], "ask": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
-        }
-      },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
-      },
-      "zones": {
-        "default": {
-          "idx": ["chat/~latter-bolden/welcome-4929"],
-          "meta": {
-            "image": "",
-            "title": "Sectionless",
-            "cover": "",
-            "description": ""
-          }
-        }
-      },
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-4929": {
@@ -12830,7 +12235,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -12838,27 +12242,40 @@
         "title": "Locked Down",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~latter-bolden/test-channels": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "private",
+        "access": "pending",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
       },
-      "zones": {
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-2421"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-4929"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -12867,6 +12284,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/test-channels": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-2421": {
@@ -12882,7 +12304,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -12890,27 +12311,40 @@
         "title": "Test Channels",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~latter-bolden/pumpkins": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
       },
-      "zones": {
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-570"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-2421"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -12919,6 +12353,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/pumpkins": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-570": {
@@ -12934,7 +12373,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -12942,27 +12380,40 @@
         "title": "Pumpkins",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~latter-bolden/woodshop": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
       },
-      "zones": {
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-8186"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-570"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -12971,6 +12422,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/woodshop": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-8186": {
@@ -12986,7 +12442,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -12994,34 +12449,40 @@
         "title": "Woodworking",
         "cover": "https://d2w9rnfcy7mm78.cloudfront.net/21743670/original_554922cca44c533119390d16b9ae40c7.jpg?1683596847?bc=0",
         "description": ""
-      }
-    },
-    "~latter-bolden/priv": {
-      "zone-ord": ["default"],
-      "cordon": {
-        "shut": {
-          "pending": [
-            "~lasnux-havrex-tidfes-modred--livnev-savlet-nopsyp-binzod"
-          ],
-          "ask": []
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "cabals": {
+      "roles": {
         "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
       },
-      "zones": {
+      "sections": {
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-1528"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-8186"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13030,6 +12491,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/priv": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-1528": {
@@ -13045,7 +12511,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -13053,27 +12518,42 @@
         "title": "priv",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~latter-bolden/demo-test": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "private",
+        "access": "pending",
+        "pending": [
+          "~lasnux-havrex-tidfes-modred--livnev-savlet-nopsyp-binzod"
+        ],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
       },
-      "zones": {
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-5883"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-1528"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13082,6 +12562,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/demo-test": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-5883": {
@@ -13097,7 +12582,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -13105,51 +12589,39 @@
         "title": "Demo Test",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~pondus-watbel/testing-facility": {
-      "zone-ord": ["zljifp", "default"],
-      "cordon": {
-        "shut": {
-          "pending": [
-            "~savrus-hocdyt-miswyd-tagfur--firfes-botpel-danpem-marzod",
-            "~rapwep-rilsul-wicser-fidtyr--larmel-lavsep-sarlec-samzod",
-            "~dozped-mogtec"
-          ],
-          "ask": []
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "cabals": {
+      "roles": {
         "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
-        },
-        "lover": {
-          "meta": {
-            "image": "",
-            "title": "lover",
-            "cover": "",
-            "description": "yes."
-          }
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 1718645680302, "sects": ["admin"] }
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
       },
-      "zones": {
+      "sections": {
         "default": {
-          "idx": [
-            "heap/~pondus-watbel/new-blocks",
-            "chat/~pondus-watbel/ghost-town",
-            "chat/~pondus-watbel/image-test",
-            "chat/~pondus-watbel/new-channel",
-            "chat/~latter-bolden/banter-79",
-            "chat/~pondus-watbel/looooong-chats",
-            "chat/~pondus-watbel/short-chats"
+          "channel-order": [
+            "chat/~latter-bolden/welcome-5883"
           ],
           "meta": {
             "image": "",
@@ -13157,21 +12629,19 @@
             "cover": "",
             "description": ""
           }
-        },
-        "zljifp": {
-          "idx": ["heap/~pondus-watbel/stuffs", "diary/~pondus-watbel/books"],
-          "meta": {
-            "image": "",
-            "title": "New Section",
-            "cover": "",
-            "description": ""
-          }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~pondus-watbel/testing-facility": {
       "flagged-content": {
         "chat/~latter-bolden/banter-79": {
           "170141184506613146589971254600657797120": {
-            "flaggers": ["~pondus-watbel"],
+            "flaggers": [
+              "~pondus-watbel"
+            ],
             "replies": {},
             "flagged": true
           }
@@ -13287,41 +12757,91 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": true,
-      "saga": { "synced": null },
+      "saga": {
+        "synced": null
+      },
       "meta": {
         "image": "https://storage.googleapis.com/tlon-prod-memex-assets/pondus-watbel/2024.7.1..16.43.12..e6e9.78d4.fdf3.b645-8179D4E4-B752-4A48-B5A5-CD3CA29F5060.jpg",
         "title": "Testing Facility",
         "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/pondus-watbel/2024.7.1..16.44.26..6978.d4fd.f3b6.45a1-23ABADB9-4B03-4AAB-8299-EE3AF668A352.jpg",
         "description": ""
-      }
-    },
-    "~pondus-watbel/digital-basics": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "zljifp",
+        "default"
+      ],
+      "admissions": {
+        "privacy": "private",
+        "access": "pending",
+        "pending": [
+          "~savrus-hocdyt-miswyd-tagfur--firfes-botpel-danpem-marzod",
+          "~rapwep-rilsul-wicser-fidtyr--larmel-lavsep-sarlec-samzod",
+          "~dozped-mogtec"
+        ],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": { "~latter-bolden": { "joined": 1715205955432, "sects": [] } },
-      "zones": {
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        },
+        "lover": {
+          "image": "",
+          "title": "lover",
+          "cover": "",
+          "description": "yes."
+        }
+      },
+      "seats": {
+        "~latter-bolden": {
+          "joined": 1718645680302,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~pondus-watbel/stray-thoughts"],
+          "channel-order": [
+            "heap/~pondus-watbel/new-blocks",
+            "chat/~pondus-watbel/ghost-town",
+            "chat/~pondus-watbel/image-test",
+            "chat/~pondus-watbel/new-channel",
+            "chat/~latter-bolden/banter-79",
+            "chat/~pondus-watbel/looooong-chats",
+            "chat/~pondus-watbel/short-chats"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
             "cover": "",
             "description": ""
           }
+        },
+        "zljifp": {
+          "channel-order": [
+            "heap/~pondus-watbel/stuffs",
+            "diary/~pondus-watbel/books"
+          ],
+          "meta": {
+            "image": "",
+            "title": "New Section",
+            "cover": "",
+            "description": ""
+          }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~pondus-watbel/digital-basics": {
       "flagged-content": {},
       "channels": {
         "chat/~pondus-watbel/stray-thoughts": {
@@ -13337,138 +12857,47 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
-      "saga": { "synced": null },
+      "saga": {
+        "synced": null
+      },
       "meta": {
         "image": "https://d2w9rnfcy7mm78.cloudfront.net/24239506/original_e204d534b498c08e7b33ef0e79f35ad6.png?1697681734?bc=0",
         "title": "Digital Basics",
         "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20076114/original_9faa2e6578b93e45adfc7b0e23c17840.jpg?1674854425?bc=0",
         "description": "The most normal group where nothing is exotic. It has a header, and a description that isn't too long. Not austere, not maximalist. Simply...plain.\n\nIs this really approximately average? Who knows, but it's what we have to work with."
-      }
-    },
-    "~nibset-napwyn/tlon": {
-      "zone-ord": ["zkqiq4", "zbgfe9", "zks3gi", "default"],
-      "cordon": { "open": { "ships": ["~forfel-norfel"], "ranks": [] } },
-      "cabals": {
-        "import/~nibset-napwyn/tlon-bookshelf-5581": {
-          "meta": {
-            "image": "",
-            "title": "Writers: ~2022 Tlon Bookshelf",
-            "cover": "",
-            "description": "The writers role for the ~2022 Tlon Bookshelf channel"
-          }
-        },
-        "tech-support": {
-          "meta": {
-            "image": "",
-            "title": "Tech Support",
-            "cover": "",
-            "description": ""
-          }
-        },
-        "import/~nibset-napwyn/summer-refs-9798": {
-          "meta": {
-            "image": "",
-            "title": "Writers: ~2022 Summer Refs",
-            "cover": "",
-            "description": "The writers role for the ~2022 Summer Refs channel"
-          }
-        },
-        "tlon": {
-          "meta": {
-            "image": "",
-            "title": "Tlon",
-            "cover": "",
-            "description": "Tlon employees"
-          }
-        },
-        "import/~nibset-napwyn/summer-updates-9584": {
-          "meta": {
-            "image": "",
-            "title": "Writers: ~2022 Summer Updates",
-            "cover": "",
-            "description": "The writers role for the ~2022 Summer Updates channel"
-          }
-        },
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
+        }
+      },
+      "roles": {
         "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
-        },
-        "import/~nibset-napwyn/summer-media-3692": {
-          "meta": {
-            "image": "",
-            "title": "Writers: ~2022 Summer Media",
-            "cover": "",
-            "description": "The writers role for the ~2022 Summer Media channel"
-          }
-        },
-        "placard-": {
-          "meta": {
-            "image": "",
-            "title": "🪧",
-            "cover": "",
-            "description": "shared a group in the community catalog"
-          }
-        },
-        "coffee-": {
-          "meta": {
-            "image": "",
-            "title": "☕️",
-            "cover": "",
-            "description": "internet cafe regulars"
-          }
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
         }
       },
-      "fleet": {
+      "seats": {
         "~latter-bolden": {
-          "joined": 1715112756392,
-          "sects": ["tech-support", "tlon"]
+          "joined": 1715205955432,
+          "roles": []
         }
       },
-      "zones": {
-        "zks3gi": {
-          "idx": [
-            "heap/~nibset-napwyn/bulletin-board-53",
-            "heap/~nibset-napwyn/local-directory"
-          ],
-          "meta": {
-            "image": "",
-            "title": "Catalog",
-            "cover": "",
-            "description": ""
-          }
-        },
-        "zkqiq4": {
-          "idx": [
-            "diary/~nibset-napwyn/getting-started",
-            "chat/~nibset-napwyn/intros"
-          ],
-          "meta": {
-            "image": "",
-            "title": "Welcome",
-            "cover": "",
-            "description": ""
-          }
-        },
-        "zbgfe9": {
-          "idx": [
-            "chat/~nibset-napwyn/commons",
-            "chat/~nibset-napwyn/developers"
-          ],
-          "meta": {
-            "image": "",
-            "title": "Discuss",
-            "cover": "",
-            "description": ""
-          }
-        },
+      "sections": {
         "default": {
-          "idx": [],
+          "channel-order": [
+            "chat/~pondus-watbel/stray-thoughts"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13477,37 +12906,55 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~nibset-napwyn/tlon": {
       "flagged-content": {
         "chat/~nibset-napwyn/commons": {
           "170141184506736054360111748375562420224": {
-            "flaggers": ["~palfun-foslup"],
+            "flaggers": [
+              "~palfun-foslup"
+            ],
             "replies": {},
             "flagged": true
           },
           "170141184506639145268131884024161370112": {
-            "flaggers": ["~natnex-ronret"],
+            "flaggers": [
+              "~natnex-ronret"
+            ],
             "replies": {},
             "flagged": true
           },
           "170141184506635900592614747505220911104": {
-            "flaggers": ["~forfel-norfel"],
+            "flaggers": [
+              "~forfel-norfel"
+            ],
             "replies": {},
             "flagged": true
           },
           "170141184506897058790869626017158266880": {
-            "flaggers": ["~pondus-watbel"],
+            "flaggers": [
+              "~pondus-watbel"
+            ],
             "replies": {},
             "flagged": true
           },
           "170141184506639102248277255152893689856": {
-            "flaggers": ["~tiller-tolbus", "~mopfel-winrux"],
+            "flaggers": [
+              "~tiller-tolbus",
+              "~mopfel-winrux"
+            ],
             "replies": {},
             "flagged": true
           }
         },
         "chat/~nibset-napwyn/intros": {
           "170141184506766288456647010336412532736": {
-            "flaggers": ["~nocsyx-lassul"],
+            "flaggers": [
+              "~nocsyx-lassul"
+            ],
             "replies": {},
             "flagged": true
           }
@@ -13577,7 +13024,9 @@
         "heap/~nibset-napwyn/bulletin-board-53": {
           "join": false,
           "added": 1681835507711,
-          "readers": ["admin"],
+          "readers": [
+            "admin"
+          ],
           "zone": "zks3gi",
           "meta": {
             "image": "",
@@ -13611,35 +13060,137 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
-      "saga": { "synced": null },
+      "saga": {
+        "synced": null
+      },
       "meta": {
         "image": "https://tlon.io/local-icon.svg",
         "title": "Tlon Local",
         "cover": "https://tlon.io/local-bg.jpg",
         "description": "We’re off building the internet of tomorrow. And we’re not doing it alone. \n\nJoin us in Tlon Local, where the future is always under construction."
-      }
-    },
-    "~latter-bolden/joiner-2": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "zkqiq4",
+        "zbgfe9",
+        "zks3gi",
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [
+            "~forfel-norfel"
+          ],
+          "ranks": []
         }
       },
-      "fleet": {
-        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      "roles": {
+        "import/~nibset-napwyn/tlon-bookshelf-5581": {
+          "image": "",
+          "title": "Writers: ~2022 Tlon Bookshelf",
+          "cover": "",
+          "description": "The writers role for the ~2022 Tlon Bookshelf channel"
+        },
+        "tech-support": {
+          "image": "",
+          "title": "Tech Support",
+          "cover": "",
+          "description": ""
+        },
+        "import/~nibset-napwyn/summer-refs-9798": {
+          "image": "",
+          "title": "Writers: ~2022 Summer Refs",
+          "cover": "",
+          "description": "The writers role for the ~2022 Summer Refs channel"
+        },
+        "tlon": {
+          "image": "",
+          "title": "Tlon",
+          "cover": "",
+          "description": "Tlon employees"
+        },
+        "import/~nibset-napwyn/summer-updates-9584": {
+          "image": "",
+          "title": "Writers: ~2022 Summer Updates",
+          "cover": "",
+          "description": "The writers role for the ~2022 Summer Updates channel"
+        },
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        },
+        "import/~nibset-napwyn/summer-media-3692": {
+          "image": "",
+          "title": "Writers: ~2022 Summer Media",
+          "cover": "",
+          "description": "The writers role for the ~2022 Summer Media channel"
+        },
+        "placard-": {
+          "image": "",
+          "title": "🪧",
+          "cover": "",
+          "description": "shared a group in the community catalog"
+        },
+        "coffee-": {
+          "image": "",
+          "title": "☕️",
+          "cover": "",
+          "description": "internet cafe regulars"
+        }
       },
-      "zones": {
+      "seats": {
+        "~latter-bolden": {
+          "joined": 1715112756392,
+          "roles": [
+            "tech-support",
+            "tlon"
+          ]
+        }
+      },
+      "sections": {
+        "zks3gi": {
+          "channel-order": [
+            "heap/~nibset-napwyn/bulletin-board-53",
+            "heap/~nibset-napwyn/local-directory"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Catalog",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zkqiq4": {
+          "channel-order": [
+            "diary/~nibset-napwyn/getting-started",
+            "chat/~nibset-napwyn/intros"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zbgfe9": {
+          "channel-order": [
+            "chat/~nibset-napwyn/commons",
+            "chat/~nibset-napwyn/developers"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Discuss",
+            "cover": "",
+            "description": ""
+          }
+        },
         "default": {
-          "idx": ["chat/~latter-bolden/welcome-6251"],
+          "channel-order": [],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13648,6 +13199,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~latter-bolden/joiner-2": {
       "flagged-content": {},
       "channels": {
         "chat/~latter-bolden/welcome-6251": {
@@ -13663,7 +13219,6 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
       "saga": null,
       "meta": {
@@ -13671,25 +13226,40 @@
         "title": "Joiner 2",
         "cover": "https://d2w9rnfcy7mm78.cloudfront.net/7171902/original_7b0894138a10e2d28416df781fe0ef52.jpg?1588769183?bc=0",
         "description": ""
-      }
-    },
-    "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": { "~latter-bolden": { "joined": 1716493303503, "sects": [] } },
-      "zones": {
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
+      },
+      "seats": {
+        "~latter-bolden": {
+          "joined": 946684800000,
+          "roles": [
+            "admin"
+          ]
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~pondus-watbel/the-catalogue"],
+          "channel-order": [
+            "chat/~latter-bolden/welcome-6251"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13698,6 +13268,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
       "flagged-content": {},
       "channels": {
         "chat/~pondus-watbel/the-catalogue": {
@@ -13713,33 +13288,47 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
-      "saga": { "synced": null },
+      "saga": {
+        "synced": null
+      },
       "meta": {
         "image": "#999999",
         "title": "quality assurance center of consumer excellence",
         "cover": "#D9D9D9",
         "description": ""
-      }
-    },
-    "~pondus-watbel/atlanta-motor-speedway": {
-      "zone-ord": ["default"],
-      "cordon": { "open": { "ships": [], "ranks": [] } },
-      "cabals": {
-        "admin": {
-          "meta": {
-            "image": "",
-            "title": "Admin",
-            "cover": "",
-            "description": "Admins can add and remove channels and edit metadata"
-          }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
         }
       },
-      "fleet": { "~latter-bolden": { "joined": 1716552016856, "sects": [] } },
-      "zones": {
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
+      },
+      "seats": {
+        "~latter-bolden": {
+          "joined": 1716493303503,
+          "roles": []
+        }
+      },
+      "sections": {
         "default": {
-          "idx": ["chat/~pondus-watbel/welcome-4526"],
+          "channel-order": [
+            "chat/~pondus-watbel/the-catalogue"
+          ],
           "meta": {
             "image": "",
             "title": "Sectionless",
@@ -13748,6 +13337,11 @@
           }
         }
       },
+      "admins": [
+        "admin"
+      ]
+    },
+    "~pondus-watbel/atlanta-motor-speedway": {
       "flagged-content": {},
       "channels": {
         "chat/~pondus-watbel/welcome-4526": {
@@ -13763,15 +13357,2087 @@
           }
         }
       },
-      "bloc": ["admin"],
       "secret": false,
-      "saga": { "synced": null },
+      "saga": {
+        "synced": null
+      },
       "meta": {
         "image": "#999999",
         "title": "Aᴛʟᴀɴᴛᴀ Mᴏᴛᴏʀ Sᴘᴇᴇᴅᴡᴀʏ",
         "cover": "#D9D9D9",
         "description": ""
-      }
+      },
+      "section-order": [
+        "default"
+      ],
+      "admissions": {
+        "privacy": "public",
+        "access": "anyone",
+        "pending": [],
+        "banned": {
+          "ships": [],
+          "ranks": []
+        }
+      },
+      "roles": {
+        "admin": {
+          "image": "",
+          "title": "Admin",
+          "cover": "",
+          "description": "Admins can add and remove channels and edit metadata"
+        }
+      },
+      "seats": {
+        "~latter-bolden": {
+          "joined": 1716552016856,
+          "roles": []
+        }
+      },
+      "sections": {
+        "default": {
+          "channel-order": [
+            "chat/~pondus-watbel/welcome-4526"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "admins": [
+        "admin"
+      ]
+    }
+  },
+  "foreigns": {
+    "~tasrut-sippyx/raypeat": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/places-you-ll-go": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/places-you-ll-go",
+        "time": 1715823630692,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Places You'll Go",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~raldeg/nativeplanet": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~fabled-faster/new-york": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": "ask",
+      "token": null
+    },
+    "~barmyl-sigted/network-being": {
+      "invites": [
+        {
+          "flag": "~dacler-ricwyt/new-new-new-york",
+          "time": 1764098324555,
+          "from": "~solfer-magfed",
+          "token": null,
+          "note": null,
+          "preview": {
+            "flag": "~barmyl-sigted/network-being",
+            "time": 1715289628525,
+            "secret": false,
+            "meta": {
+              "image": "https://i5.walmartimages.com/asr/9851bdb6-b5f0-4d83-8026-f84251396ed0_1.3e35b199c2aa382ef18425d9c7fc8185.jpeg",
+              "title": "network-Being",
+              "cover": "http://wildplanetdesign.com/images/Old-computer.jpg",
+              "description": "A group to discuss Heidegger, cybernetics, and the phenomenology of being online. "
+            },
+            "admissions": {
+              "privacy": "public",
+              "access": "anyone",
+              "pending": [],
+              "banned": {
+                "ships": [],
+                "ranks": []
+              }
+            }
+          },
+          "valid": true
+        }
+      ],
+      "lookup": null,
+      "preview": {
+        "flag": "~barmyl-sigted/network-being",
+        "time": 1715289628525,
+        "secret": false,
+        "meta": {
+          "image": "https://i5.walmartimages.com/asr/9851bdb6-b5f0-4d83-8026-f84251396ed0_1.3e35b199c2aa382ef18425d9c7fc8185.jpeg",
+          "title": "network-Being",
+          "cover": "http://wildplanetdesign.com/images/Old-computer.jpg",
+          "description": "A group to discuss Heidegger, cybernetics, and the phenomenology of being online. "
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~salfer-biswed/gamers": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~salfer-biswed/gamers",
+        "time": 1715289628522,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2023.11.28..4.37.24..8560.4189.374b.c6a7-ijhguf.png",
+          "title": "Gamers",
+          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2023.11.28..4.37.40..947a.e147.ae14.7ae1-fds.png",
+          "description": "All things gaming - console, PC, tabletop, etc"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": "join",
+      "token": null
+    },
+    "~dacler-ricwyt/new-new-new-york": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~dacler-ricwyt/new-new-new-york",
+        "time": 1715309834209,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
+          "title": "New New New York",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/16541675/original_9f936dee69d31615b5d402a438b8ffa6.jpg",
+          "description": "This is the true story … of urbit strangers … picked to live in a group … work together … and have their lives archived … to find out what happens … when people stop being polite … and start getting real: New New New York."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~roptyp-norwen/palm-tree-neofloridians": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~roptyp-norwen/palm-tree-neofloridians",
+        "time": 1715289628537,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/roptyp-norwen/2023.11.18..17.25.2..5c6a.7ef9.db22.d0e5-IMG_8571.jpeg",
+          "title": "🌴NeoFloridians",
+          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/roptyp-norwen/2023.11.18..17.16.19..45a1.cac0.8312.6e97-IMG_8571.jpeg",
+          "description": "The humanist pro-industrial renaissance in Florida🌴🇺🇸. Legendary group under reconstruction post breach💯. Learning station where NeoFloridians enjoy the opportunity to marinate in the culture and folkways of PaleoFloridians🛡️. 🪐☑️ ☄️🚫"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [
+            "~holryx-padtux",
+            "~datnut-pollen"
+          ],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pagled-hodten/aira": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~middev/the-forge": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~middev/the-forge",
+        "time": 1715889900012,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.5.06..21.01.58-the%20forge.png",
+          "title": "The Forge",
+          "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/IilliilUII.png",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~samsen-hacpyx/washington--d-c-": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~simsur-ronbet/sharing": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~simsur-ronbet/sharing",
+        "time": 1715456299000,
+        "secret": false,
+        "meta": {
+          "image": "https://i.imgur.com/5jXegVU.png",
+          "title": "Sharing",
+          "cover": "#D9D9D9",
+          "description": "collective curated content container"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [
+            "~riprud-tidmel"
+          ],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~bitbet-bolbel/urbit-community": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~dibref-labter/arbit": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~hidweb-ribbex/the-universe-and-beyond": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~hidweb-ribbex/the-universe-and-beyond",
+        "time": 1715289627502,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/hidweb-ribbex/2024.3.25..18.29.1..fc28.f5c2.8f5c.28f5-universe.jpeg",
+          "title": "The universe and beyond ",
+          "cover": "#4f92e1",
+          "description": "This group is dedicated to everything related to the Universe, Space exploration and engineering.\nIn this group, you can share news, pictures, ideas, ... about everything related to space!\n\n\nEnjoy and learn :)"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~magbel/core-school": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~dalweb-donfun/urbit-deutschland": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~darlur/bookends": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~darlur/bookends",
+        "time": 1715636424923,
+        "secret": true,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/zax-urbit/bookends/2023.1.13..14.58.47-bookends-book.png",
+          "title": "Bookends",
+          "cover": "https://nyc3.digitaloceanspaces.com/zax-urbit/bookends/bookends-logo.jpeg",
+          "description": "A group for anyone who loves the written word"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [
+            "~pinzod-hidden"
+          ],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~dovsem-bornyl/autoverse": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~dovsem-bornyl/autoverse",
+        "time": 1715955963355,
+        "secret": false,
+        "meta": {
+          "image": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.4.9..20.33.31..5851.eb85.1eb8.51eb-starship.jpg",
+          "title": "Autoverse",
+          "cover": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.4.9..20.33.36..1810.624d.d2f1.a9fb-starship.jpg",
+          "description": "Sci-Fi, Liberalism, Rationality, Urbit, Software, Silicon Valley"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~dalten/dalten-collective-public": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~dalten/dalten-collective-public",
+        "time": 1716484381426,
+        "secret": false,
+        "meta": {
+          "image": "https://dalten.sfo2.digitaloceanspaces.com/sicdev-pilnup/2022.8.08..19.54.45-dalten.png",
+          "title": "Dalten Collective Public",
+          "cover": "#000000",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [
+              "~nibber-digrys",
+              "~naltyc-wornes",
+              "~dasfeb"
+            ],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~mornut-baller/mornut-baller-s-homepage": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/test-g-3": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~mister-hoster-sidnym-ladrut/vi": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~mister-hoster-sidnym-ladrut/vi",
+        "time": 1715780722349,
+        "secret": false,
+        "meta": {
+          "image": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Vimlogo.svg",
+          "title": "Vi",
+          "cover": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Vimlogo.svg",
+          "description": "A place to discuss Vi and its variants"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/ano-lock": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~davnex-rabwes-rippel-tipsyl--micbyt-batsef-livfet-binzod/pasta-reviews": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/test-channels": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~nattyv/nativeplanet": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~nattyv/nativeplanet",
+        "time": 1715106281223,
+        "secret": false,
+        "meta": {
+          "image": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.10.19..14.34.02-NP%20URBIT.png",
+          "title": "NativePlanet",
+          "cover": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.7.17..15.27.53-size%20comparison%202.png",
+          "description": "Native Planet support, development, everything. "
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~bidsun-bidsun/horology": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~bidsun-bidsun/horology",
+        "time": 1715289628316,
+        "secret": false,
+        "meta": {
+          "image": "https://bestwatch.my/media/catalog/product/image/width/800/height/800/R/o/Rolex-Submariner-114060.jpg",
+          "title": "Horology",
+          "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQ61t7ICNtCxjAJhuHq_4557cTvR2xnfzYSqj2oZFbc4r7I1Q20GvOIsHoziCX65Awdo4&usqp=CAU",
+          "description": "For all things watches, clocks, watch-making, and adjacent topics."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~sovref-hasfyr/scholia-pugillatoria": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~sovref-hasfyr/scholia-pugillatoria",
+        "time": 1715229033635,
+        "secret": false,
+        "meta": {
+          "image": "https://pbs.twimg.com/profile_images/1520539901133049858/G6ODKJPh_400x400.jpg",
+          "title": "Scholia Pugillātōria",
+          "cover": "https://pbs.twimg.com/profile_images/1520539901133049858/G6ODKJPh_400x400.jpg",
+          "description": "Scholia Pugillātōria is an academic journal for martial arts studies and articles. Scholia Pugillātōria seeks articles on personal combat, including boxing, wrestling, Oriental martial arts, African martial arts, fencing, savate, balintawak, dueling, HEMA, and human biomechanics.\n\npugilism.cc"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/icon-w-o-header": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/icon-w-o-header",
+        "time": 1716494920678,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/14816305/original_b28645552aed5a31a39335558f66deae.jpg?1642813365?bc=0",
+          "title": "Icon w/o Header",
+          "cover": "#D9D9D9",
+          "description": "It has a description, but it's not too long."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~ripwen-sabrup/max-zoom-photos-jpg": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~ripwen-sabrup/max-zoom-photos-jpg",
+        "time": 1715106281140,
+        "secret": false,
+        "meta": {
+          "image": "https://fra1.digitaloceanspaces.com/marryp-worryd/ripwen-sabrup/2023.8.12..10.10.02-nothingg.png",
+          "title": "max zoom maximalists",
+          "cover": "#BCBCBC",
+          "description": "please feel free to post any photos taken with ~max zoom of your device ~have fun"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pagteb-podtuc/moldy-mirror": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pagteb-podtuc/moldy-mirror",
+        "time": 1715289627643,
+        "secret": false,
+        "meta": {
+          "image": "https://i.imgvibe.com/2023/11/18/mm_logo.jpg",
+          "title": "Moldy Mirror",
+          "cover": "https://i.imgvibe.com/2023/11/18/MM_mirror.jpg",
+          "description": "A friendly space to discuss the writings of Moldy Bug Mirror... or something.\n\nDon't worry, it will be fun."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~fansef-dastus/urwasm": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~rondev/group-discovery": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/max-description": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/max-description",
+        "time": 1716494928071,
+        "secret": false,
+        "meta": {
+          "image": "#ff8f8f",
+          "title": "Max Description",
+          "cover": "#5c948a",
+          "description": "[unité] or in the simple substance, is nothing but what is called Perception, which\nis to be distinguished from Apperception or Consciousness, as will afterwards\nappear. In this matter the Cartesian view is extremely defective, for it treats as\nnon-existent those perceptions of which we are not awar"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~dalweb-donfun/eurbit": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~tirrel/the-marketplace": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~tirrel/the-marketplace",
+        "time": 1715714504344,
+        "secret": false,
+        "meta": {
+          "image": "https://snipboard.io/U0IYyi.jpg",
+          "title": "The Marketplace",
+          "cover": "#00ff6a",
+          "description": "Welcome to The Marketplace, featuring The Pit, Urbit's first open-outcry market!"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [
+              "~podtus-tacrus-rivryt-habfex--fossug-tobnyt-sovpex-wanzod",
+              "~digmev-savrec",
+              "~toptyr-bilder",
+              "~tonlur-sarret",
+              "~nallux-dozryl"
+            ],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~middev/paper": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~middev/paper",
+        "time": 1715289619538,
+        "secret": false,
+        "meta": {
+          "image": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/5565C5EE-CCE3-402A-9F9F-A4B214E47D60_1_105_c.jpeg",
+          "title": "paper",
+          "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/1BAFC48E-60E4-474E-B4E0-88BCF28534B8_1_105_c.jpeg",
+          "description": "eink and beyond"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/pumpkins": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~litmus-ritten/ccru": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~magbel/deseret-third-book": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~magbel/deseret-third-book",
+        "time": 1715707474242,
+        "secret": false,
+        "meta": {
+          "image": "#121234",
+          "title": "𐐔𐐯𐑅𐐨𐑉𐐯𐐻 𐐛𐐮𐑉𐐼 𐐒𐐳𐐿",
+          "cover": "https://library.sigilante.red/bucket/lagrev-nocfep/2024.3.24..0.28.22..6c49.ba5e.353f.7ced-coin-mountains.jpg",
+          "description": "Deseret Third Book"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/woodshop": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/woodshop",
+        "time": 1716922339562,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0",
+          "title": "Woodworking",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/21743670/original_554922cca44c533119390d16b9ae40c7.jpg?1683596847?bc=0",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~darduc-mitfen/catholicism": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~darduc-mitfen/catholicism",
+        "time": 1715105318459,
+        "secret": false,
+        "meta": {
+          "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Flag_of_the_Vatican_City_%282023%E2%80%93present%29.svg/1280px-Flag_of_the_Vatican_City_%282023%E2%80%93present%29.svg.png",
+          "title": "⛪ Catholicism",
+          "cover": "https://tradcatholic.org/img.webp",
+          "description": "Ad Deum qui laetificat juventutem meam.\n\n\nContact an admin with requests or issues. Do not message ~darduc-mitfen directly.\n\nCanary: https://docs.tradcatholic.org/canary.html\n\n\nPublic Key: https://keys.openpgp.org/search?q=7D65021B96173B9AFBF3716462DB88A587EF7996"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": [
+              "pawn"
+            ]
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~winter-paches/the-great-north": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~winter-paches/the-great-north",
+        "time": 1715289627716,
+        "secret": false,
+        "meta": {
+          "image": "https://zax-urbit.nyc3.digitaloceanspaces.com/winter-paches/2021.5.10..15.34.18-the-great-north.jpeg",
+          "title": "The Great North",
+          "cover": "https://nyc3.digitaloceanspaces.com/zax-urbit/winter-paches/2022.12.09..14.19.25-black-diamond-trail.jpg",
+          "description": "Sportsmen and Philosophers who love the cold. A place to discuss North American cold weather sports, politics and current events."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": [
+              "pawn"
+            ]
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~fabled-faster/storage": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~fabled-faster/storage",
+        "time": 1715309833159,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/fabled-faster/2024.2.14..23.49.19..b5c2.8f5c.28f5.c28f-IMG_2867.jpeg",
+          "title": "Storage",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~nodsup-halnux/recognition": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/soon-to-be-deleted---": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~tinsur-tantud/digital-stack": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~dister-dozzod-lapdeg/battery-payload": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~minder-folden/valeria-city": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~minder-folden/valeria-city",
+        "time": 1715636421892,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/minderimages/minder-folden/2023.12.9..18.47.43..2189.374b.c6a7.ef9d-ValeriaLogo.png",
+          "title": "Valeria City",
+          "cover": "https://s3.minder-folden.startram.io/bucket/minder-folden/2024.5.9..15.55.1..28f5.c28f.5c28.f5c2-Minderfolden-Shopping-District.png",
+          "description": "The city of a thousand planets. Final ark of humanity."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [
+            "~ribben-donnyl",
+            "~rigtyr-datsul"
+          ],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/priv": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/priv",
+        "time": 1716514932605,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/22747425/original_0b03b4c106a0e9b6fcf8ad55c4d10a28.jpg?1689888572?bc=0",
+          "title": "priv",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [
+              "~pondus-watbel"
+            ],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~fogbus/california-art-community": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~litmus-ritten/iwtf": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~tocwex/syndicate-public": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~tocwex/syndicate-public",
+        "time": 1715229032635,
+        "secret": false,
+        "meta": {
+          "image": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/sarlev-sarsen/2024.2.24..20.54.23..5e35.3f7c.ed91.6872-tocwex_low-detail-sigil_reverse.png",
+          "title": "~tocwex.syndicate",
+          "cover": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/sarlev-sarsen/2024.2.21..19.14.1..81ca.c083.126e.978d-image.png",
+          "description": "SOVEREIGN TOOLS FOR CRYPTO-ECONOMIC ACTIVITY IN THE WORLD OF ATOMS"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~topdem/structure": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~topdem/structure",
+        "time": 1715106284170,
+        "secret": false,
+        "meta": {
+          "image": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.22.12-sq2.png",
+          "title": "Structure",
+          "cover": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.17.03-tumblr_f3031a40e7444a7854e30e387b512ebf_7beaba7e_2048.jpg",
+          "description": "STRUCTURE GROUP GAIDEN: Harvest Nine  \n\nMechanics. Design. Structure. Urbit R&D Para-Organisation. "
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~paldev/nlbit": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~nospur-sontud/unoffical-nockchain-zorp-": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~nospur-sontud/unoffical-nockchain-zorp-",
+        "time": 1715289627496,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "unoffical nockchain/zorp ",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/really-long-group-name-pushing-the-boundaries-of-both-what-is-possible-and-what-a-truly-avant-garde-group-title-can-achieve-wow-still-going-can-t-believe-it-lets-me-do-this-aha-max": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/really-long-group-name-pushing-the-boundaries-of-both-what-is-possible-and-what-a-truly-avant-garde-group-title-can-achieve-wow-still-going-can-t-believe-it-lets-me-do-this-aha-max",
+        "time": 1716494921794,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/954200/original_eea129a064d875b0082b3e08c45740fc.gif?1490927897?bc=1",
+          "title": "Really Long Group Name Pushing The Boundaries of Both What Is Possible and What A Truly Avant Garde Group Title Can Achieve Wow Still Going Can't Believe It Lets Me Do This aha max",
+          "cover": "#D9D9D9",
+          "description": "Sure is a doozy."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/barebones": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/barebones",
+        "time": 1716494928300,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "barebones",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pagwex-dovwyn/our-incredible-journey": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pagwex-dovwyn/our-incredible-journey",
+        "time": 1715289627599,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2023.11.17..3.35.13..2f9d.b22d.0e56.0418-luggage_1f9f3.png",
+          "title": "O𝕦𝕣 Incredible Journey",
+          "cover": "https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2023.11.17..3.29.46..624d.d2f1.a9fb.e76c-safe.png",
+          "description": "travel\nverb (used without object),trav·eled, trav·el·ing or (especially British) trav·elled, trav·el·ling.\nTo move illegally by walking or running without dribbling the ball."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/demo-test": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/place-of-places": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/place-of-places",
+        "time": 1716440238480,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Place of Places",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~darduc-mitfen/sailing-and-cruising": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/lounge": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~darduc-mitfen/radio": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~wolref-podlex/tea": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/header-w-o-icon": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/header-w-o-icon",
+        "time": 1716494920672,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Header w/o Icon",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/233707/original_538dcbb0cefadf31ae96941561546cca.jpg?1398950597?bc=1",
+          "description": "Come for the header, stay for the comforting icon free vibes."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/new-place-2": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~fighet-parnet/reverse-engineering": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~middel-salbyt/dominion-of-canada": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~middel-salbyt/dominion-of-canada",
+        "time": 1719861089629,
+        "secret": false,
+        "meta": {
+          "image": "https://middel-salbyt.s3.diffeq.com/2022.2.20..04.07.14-EHcgXQaX0AA-L7m.jpg",
+          "title": "Dominion of Canada",
+          "cover": "#000000",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~ravmel-ropdyl/audio-video-images": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~ravmel-ropdyl/audio-video-images",
+        "time": 1715104121701,
+        "secret": false,
+        "meta": {
+          "image": "#ffffff",
+          "title": "Media",
+          "cover": "#ffffff",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~dibref-labter/leo": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~tasrut-sippyx/farm": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~tasrut-sippyx/farm",
+        "time": 1715261974807,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/tasrut-sippyx/2024.5.7..23.13.9..d4fd.f3b6.45a1.0cac-IMG_3776.jpeg",
+          "title": "Post Your Animals",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~magbel/in-tenebris-silva": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~magbel/in-tenebris-silva",
+        "time": 1715707474398,
+        "secret": true,
+        "meta": {
+          "image": "#000000",
+          "title": "⸙ In Tenebrīs Silva",
+          "cover": "https://raw.githubusercontent.com/sigilante/pixiesticks/master/lege-rubrum.png",
+          "description": "life in the dark forest, institutional epistemology, complexity theory, and more affairs of plain living"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [
+            "~sitful-hatred",
+            "~poldec-tonteg"
+          ],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~natnex-ronret/door-link": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~natnex-ronret/door-link",
+        "time": 1715289630640,
+        "secret": false,
+        "meta": {
+          "image": "https://www.door.link/logowhite.svg",
+          "title": "door.link",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20581622/original_931d1045222458d744eb8b7c752a176c.jpg",
+          "description": "sound/silence cult"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~ravmel-ropdyl/crate": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~ravmel-ropdyl/crate",
+        "time": 1715104121714,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/22382497/original_36aeecd221e56a5ad4d07d59955620b8.png",
+          "title": "Network Ambience",
+          "cover": "https://i.pinimg.com/564x/87/64/5e/87645eba9165f53631fa5fe584eaeeae.jpg",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~mopfel-winrux/solar-photography": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/chess-club": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~dozped-mogtec/vegetable-stand": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~nospur-sontud/sarmyn-s-list": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/testing-facility": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/ban-hammer": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/ban-hammer",
+        "time": 1716494921867,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "ban hammer",
+          "cover": "#D9D9D9",
+          "description": "none shall pass"
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~tommur-dostyn/tlon-studio": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~tommur-dostyn/tlon-studio",
+        "time": 1715292633647,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/21209143/original_168cacf7dc10ebd7035dea91fda26595.png?1680533999?bc=0",
+          "title": "Tlon Studio",
+          "cover": "https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~siddef/uf-meetups": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~worpet-bildet/portal": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~rabbel-fopnus/encyclopedia": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~rabbel-fopnus/encyclopedia",
+        "time": 1715120081163,
+        "secret": false,
+        "meta": {
+          "image": "https://i.imgur.com/VTV06P4.png",
+          "title": "The Humble Guide to the Galaxies",
+          "cover": "https://i.imgur.com/lbPA48y.png",
+          "description": "Encyclopedia for all things #urbit. Read more here: https://urbit.org/grants/urbit-encyclopedia-1"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/digital-basics": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/digital-basics",
+        "time": 1716494921857,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/24239506/original_e204d534b498c08e7b33ef0e79f35ad6.png?1697681734?bc=0",
+          "title": "Digital Basics",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20076114/original_9faa2e6578b93e45adfc7b0e23c17840.jpg?1674854425?bc=0",
+          "description": "The most normal group where nothing is exotic. It has a header, and a description that isn't too long. Not austere, not maximalist. Simply...plain.\n\nIs this really approximately average? Who knows, but it's what we have to work with."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/secret-group": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/secret-group",
+        "time": 1716494927953,
+        "secret": true,
+        "meta": {
+          "image": "#999999",
+          "title": "secret group",
+          "cover": "#D9D9D9",
+          "description": "hush hush and whatnot. Do you have the key? Probably not."
+        },
+        "admissions": {
+          "privacy": "private",
+          "access": "pending",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~dovsem-bornyl/sf-bay-area": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~dovsem-bornyl/sf-bay-area",
+        "time": 1715955963366,
+        "secret": false,
+        "meta": {
+          "image": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.7.09..21.27.06-sf.jpeg",
+          "title": "SF Bay Area",
+          "cover": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.7.09..21.27.10-sf.jpeg",
+          "description": "Urbiters in the SF Bay Area"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~hiddev-dannut/new-hooniverse": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~hiddev-dannut/new-hooniverse",
+        "time": 1715229033618,
+        "secret": false,
+        "meta": {
+          "image": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
+          "title": "Hooniverse",
+          "cover": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
+          "description": "Community-based Hoon learning for all levels.  Hoon School and App School support."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~darsyn-figdyt/colorless-photography": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~darsyn-figdyt/colorless-photography",
+        "time": 1715289627524,
+        "secret": false,
+        "meta": {
+          "image": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.18..2.43.15..29ba.5e35.3f7c.ed91-colorless gray.png",
+          "title": "colorless",
+          "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.18..2.43.30..428f.5c28.f5c2.8f5c-colorless gray.png",
+          "description": "Black and white photography group"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/joiner-1": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/joiner-1",
+        "time": 1715841644610,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Joiner 1",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/joiner-2": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~latter-bolden/joiner-2",
+        "time": 1716535219388,
+        "secret": false,
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/26343985/original_f527d1a55989b940d78025c877ac658e.gif?1707914004?bc=0",
+          "title": "Joiner 2",
+          "cover": "https://d2w9rnfcy7mm78.cloudfront.net/7171902/original_7b0894138a10e2d28416df781fe0ef52.jpg?1588769183?bc=0",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~ronnys-rigwet/bike-shed": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~rilfun-lidlen/fashion": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~rilfun-lidlen/fashion",
+        "time": 1715289628342,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/rilfun-lidlen/rilfun-lidlen/2023.12.22..0.36.3..c106.24dd.2f1a.9fbe-f.svg",
+          "title": "Fashion",
+          "cover": "https://nyc3.digitaloceanspaces.com/rilfun-lidlen/rilfun-lidlen/2024.3.8..16.11.18..2353.f7ce.d916.872b-original_e83f05be747001a8c077dad4642305e9.jpg",
+          "description": "Jawnz, streetwear, high street, couture, ready-to-wear, vintage, your sewing hobby, appreciation, buy-and-sell, /fa/ memes, Urbit Fashion General"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~nodsup-halnux/exiled-ends-of-the-earth-eee": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~latter-bolden/locked-door": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~linfyr-tanbur/tasty-coffee-tips": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~linfyr-tanbur/tasty-coffee-tips",
+        "time": 1715106281220,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Tasty Coffee Tips",
+          "cover": "#D9D9D9",
+          "description": "A open group discussion on how to make coffee tasty. Be it by discussing brewing methods, specific coffees, brewing tips, roasting, tech etc. What makes how you brew coffee so special? Lets talk about it. Questions and troubleshooting brews and tech welcome! -Ian"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/oasis": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~pondus-watbel/quality-assurance-center-of-consumer-excellence",
+        "time": 1716507833194,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "quality assurance center of consumer excellence",
+          "cover": "#D9D9D9",
+          "description": ""
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~halbex-palheb/uf-public": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~halbex-palheb/uf-public",
+        "time": 1720717237512,
+        "secret": false,
+        "meta": {
+          "image": "https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png",
+          "title": "UF",
+          "cover": "#000000",
+          "description": "The latest from the Urbit Foundation"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~matwet/networked-subject": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice",
+        "time": 1715780722349,
+        "secret": false,
+        "meta": {
+          "image": "https://images.unsplash.com/photo-1527066579998-dbbae57f45ce?ixlib=rb-4.0.3",
+          "title": "Views of the Hyperlattice",
+          "cover": "https://images.unsplash.com/photo-1499867187828-b1d145ae757d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1473&q=80",
+          "description": "Saloon for front-end web developers"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~raghet-worwep-ligdep-racduc--hasnup-dibdec-dalped-binzod/probably-offline-": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~famhut-wolpyx/boomer-jams": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~famhut-wolpyx/boomer-jams",
+        "time": 1715289628534,
+        "secret": false,
+        "meta": {
+          "image": "https://famhut-wolpyx-media.sfo3.digitaloceanspaces.com/famhut-wolpyx-media/famhut-wolpyx/2023.11.22..18.12.9..9c28.f5c2.8f5c.28f5-boomer-jams.jpeg",
+          "title": "Boomer Jamz",
+          "cover": "#D9D9D9",
+          "description": "A music group to go full autistic on an artist, genre, moment in time or whatever catches your musical fancy. \n\nTends toward nostalgia and deep cuts from the past but anything goes.\n\nCurrently on goth rock."
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~darlur/hammock-coast": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~darlur/hammock-coast",
+        "time": 1715636424929,
+        "secret": false,
+        "meta": {
+          "image": "https://s3.hosneb-rosler.darlur.net/bucket/2023.8.10..20.43.16-hammock-coast-lighthouse.jpg",
+          "title": "Hammock Coast",
+          "cover": "https://s3.hosneb-rosler.darlur.net/bucket/2023.8.10..20.41.01-sc-hammock-coast.jpg",
+          "description": "Martians living in God's Country: Coastal South Carolina between Georgetown and Myrtle Beach"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~padwet/penguins": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~padwet/penguins",
+        "time": 1715106284106,
+        "secret": false,
+        "meta": {
+          "image": "https://media.ritpub-sipsyl.us-chi1.upcloudobjects.com/ritpub-sipsyl/2021.3.05..00.03.58-urbit%20penguin.png",
+          "title": "🐧 Penguins",
+          "cover": "#000000",
+          "description": "Linux users and hackers"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~mopfel-winrux/nockpu": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~mister-hoster-sidnym-ladrut/tui": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~mister-hoster-sidnym-ladrut/tui",
+        "time": 1715780722349,
+        "secret": false,
+        "meta": {
+          "image": "https://placehold.co/400/222222/cccccc?text=~&font=montserrat",
+          "title": "~TUI",
+          "cover": "https://placehold.co/400/222222/cccccc?text=~TUI&font=montserrat",
+          "description": "Discussion related to text-based user interfaces for Urbit"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~nocsyx-lassul/holy-grail-ui": {
+      "invites": [],
+      "lookup": null,
+      "preview": {
+        "flag": "~nocsyx-lassul/holy-grail-ui",
+        "time": 1716578161959,
+        "secret": false,
+        "meta": {
+          "image": "https://nyc3.digitaloceanspaces.com/hmillerdev/nocsyx-lassul/2022.9.18..19.41.58-1d028686e1b5892197b83f58a98e8f4c.jpeg",
+          "title": "holy grail ui",
+          "cover": "#f7aaff",
+          "description": "infinitely composable and interoperable components enabled by urbit backend"
+        },
+        "admissions": {
+          "privacy": "public",
+          "access": "anyone",
+          "pending": [],
+          "banned": {
+            "ships": [],
+            "ranks": []
+          }
+        }
+      },
+      "progress": null,
+      "token": null
+    },
+    "~simsur-ronbet/scotland": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~litmus-ritten/utwg": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
+    },
+    "~satsut-tocdeb/tonga-room": {
+      "invites": [],
+      "lookup": null,
+      "preview": null,
+      "progress": null,
+      "token": null
     }
   }
 }

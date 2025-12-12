@@ -24,7 +24,6 @@ export { useContactName } from './components/ContactNameV2';
 export * from './components/ContactRow';
 export * from './components/ContactsScreenView';
 export * from './components/ContentReference';
-export * from './components/DeleteSheet';
 export { DetailPostView as DetailPostUsingContentConfiguration } from './components/DetailPostUsingContentConfiguration';
 export * from './components/EditProfileScreenView';
 export * from './components/EditableProfileImages';

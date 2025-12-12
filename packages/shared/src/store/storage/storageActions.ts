@@ -1,17 +1,19 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { deSig, unixToDa } from '@urbit/aura';
-import { formatDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
+//REVIEW  why doesn't this work here?
+// import { desig } from '@tloncorp/shared/urbit';
+import { desig } from '../../urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
-import { ImagePickerAsset } from 'expo-image-picker';
 
 import { RNFile, getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
+import { AnalyticsEvent } from '../../domain';
+import { Attachment } from '../../domain/attachment';
 import { setUploadState } from './storageUploadState';
 import {
-  fetchFileFromUri,
   getExtensionFromMimeType,
   getMemexUpload,
   hasCustomS3Creds,
@@ -38,60 +40,136 @@ function getSaveFormat(mimeType?: string): SaveFormat {
   return SaveFormat.JPEG;
 }
 
-export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
-  if (asset.uri === PLACEHOLDER_ASSET_URI) {
-    logger.log('placeholder image, skipping upload');
-    return;
-  }
-  logger.crumb(
-    'uploading asset',
-    asset.mimeType,
-    asset.fileSize,
-    'isWeb',
-    isWeb
-  );
-  logger.log('full asset', asset);
-  setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
-  try {
-    logger.log('resizing asset', asset.uri);
-    let resizedAsset = asset;
-    const originalMimeType = asset.mimeType;
-    // avoid resizing gifs
-    if (!asset.mimeType?.includes('gif')) {
-      const format = getSaveFormat(asset.mimeType);
-      resizedAsset = await manipulateAsync(
-        asset.uri,
-        [
-          {
-            resize:
-              asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-          },
-        ],
-        {
-          compress: 0.75,
-          format,
-        }
-      );
+export async function uploadAsset(
+  intent: Attachment.UploadIntent,
+  isWeb = false
+) {
+  switch (intent.type) {
+    case 'image': {
+      const asset = intent.asset;
+      if (asset.uri === PLACEHOLDER_ASSET_URI) {
+        logger.log('placeholder image, skipping upload');
+        return;
+      }
+      await uploadImageAsset(intent, isWeb);
+      break;
     }
+
+    case 'file': {
+      await uploadAssetWithLifecycle(intent, isWeb, {
+        async prepareAsset() {
+          return intent.file;
+        },
+      });
+      break;
+    }
+
+    case 'fileUri': {
+      await uploadAssetWithLifecycle(intent, isWeb, {
+        async prepareAsset() {
+          return { uri: intent.localUri };
+        },
+      });
+      break;
+    }
+  }
+}
+
+async function uploadAssetWithLifecycle(
+  uploadIntent: Attachment.UploadIntent,
+  isWeb = false,
+  callbacks: {
+    willUpload?: () => void;
+    prepareAsset: () => Promise<
+      (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string }) | File
+    >;
+  }
+) {
+  const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
+  callbacks.willUpload?.();
+
+  setUploadState(uploadKey, {
+    status: 'uploading',
+    localUri: Attachment.UploadIntent.createLocalUri(uploadIntent),
+  });
+  try {
     const remoteUri = await performUpload(
-      { ...resizedAsset, mimeType: originalMimeType },
+      await callbacks.prepareAsset(),
       isWeb
     );
     logger.crumb('upload succeeded');
-    logger.log('final uri', remoteUri);
-    setUploadState(asset.uri, { status: 'success', remoteUri });
+    logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
+      remoteUri,
+      isWeb,
+    });
+    setUploadState(uploadKey, { status: 'success', remoteUri });
   } catch (e) {
-    logger.crumb('upload failed');
+    logger.trackError('upload failed', {
+      error: e,
+      message: e.message,
+      uploadIntent: JSON.stringify(uploadIntent),
+      isWeb,
+    });
     console.error(e);
-    setUploadState(asset.uri, { status: 'error', errorMessage: e.message });
+    setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
   }
-};
+}
+
+async function uploadImageAsset(
+  uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
+  isWeb = false
+) {
+  await uploadAssetWithLifecycle(uploadIntent, isWeb, {
+    willUpload() {
+      const asset = uploadIntent.asset;
+      logger.crumb(
+        'uploading asset',
+        asset.mimeType,
+        asset.fileSize,
+        'isWeb',
+        isWeb
+      );
+      logger.log('full asset', asset);
+    },
+    async prepareAsset() {
+      const asset = uploadIntent.asset;
+      logger.log('resizing asset', asset.uri);
+      let resizedAsset = asset;
+      const originalMimeType = asset.mimeType;
+      // avoid resizing gifs
+      if (!asset.mimeType?.includes('gif')) {
+        const format = getSaveFormat(asset.mimeType);
+        resizedAsset = await manipulateAsync(
+          asset.uri,
+          [
+            {
+              resize:
+                asset.width > asset.height ? { width: 1200 } : { height: 1200 },
+            },
+          ],
+          {
+            compress: 0.75,
+            format,
+          }
+        );
+      }
+      return {
+        ...resizedAsset,
+        mimeType: originalMimeType,
+      };
+    },
+  });
+}
 
 export const performUpload = async (
-  params: Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string },
+  params:
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | File,
   isWeb = false
 ) => {
-  logger.log('performing upload', params.uri, 'isWeb', isWeb);
+  if (!(params instanceof File)) {
+    logger.log('performing upload', params.uri, 'isWeb', isWeb);
+  }
   const [config, credentials] = await Promise.all([
     db.storageConfiguration.getValue(),
     db.storageCredentials.getValue(),
@@ -101,32 +179,53 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const file = await fetchFileFromUri(params.uri, params.height, params.width);
-  logger.log('fetched file', file);
-  if (!file) {
-    throw new Error('unable to fetch image from uri');
-  }
+  const { blob, fileName, contentType, sourceUri } = await (async () => {
+    if (params instanceof File) {
+      return {
+        blob: params,
+        fileName: params.name,
+        contentType: params.type,
+        sourceUri: URL.createObjectURL(params),
+      };
+    } else {
+      const response = await fetch(params.uri);
+      const blob = await response.blob();
 
-  const contentType = file.type;
-  const baseFileName = params.uri.split('/').pop()?.split('?')[0] || 'image';
-  const extension = getExtensionFromMimeType(params.mimeType || contentType);
-  const fileName = baseFileName.includes('.')
-    ? baseFileName
-    : `${baseFileName}${extension}`;
-  const fileKey = `${deSig(getCurrentUserId())}/${deSig(
-    formatDa(unixToDa(new Date().getTime()))
+      const contentType = blob.type;
+      const baseFileName =
+        params.uri.split('/').pop()?.split('?')[0] || 'image';
+      const extension = getExtensionFromMimeType(
+        params.mimeType || contentType
+      );
+      const fileName = baseFileName.includes('.')
+        ? baseFileName
+        : `${baseFileName}${extension}`;
+
+      return {
+        blob,
+        fileName,
+        contentType,
+        sourceUri: params.uri,
+      };
+    }
+  })();
+
+  logger.log('fetched file', fileName, contentType, blob.size);
+
+  const fileKey = `${desig(getCurrentUserId())}/${desig(
+    render('da', da.fromUnix(new Date().getTime()))
   )}-${fileName}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      contentLength: file.blob.size,
+      contentLength: blob.size,
       contentType,
       fileName: fileKey,
     });
     await uploadFile(
       uploadUrl,
-      params.uri,
+      sourceUri,
       {
         'Cache-Control': 'public, max-age=3600',
         'Content-Type': contentType,
@@ -174,7 +273,7 @@ export const performUpload = async (
 
     await uploadFile(
       signedUrl,
-      params.uri,
+      sourceUri,
       isDigitalOcean ? headers : undefined,
       isWeb
     );

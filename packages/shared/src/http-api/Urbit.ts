@@ -1,4 +1,4 @@
-import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
+import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
@@ -580,7 +580,7 @@ export class Urbit {
   //      should result in a noun nesting inside of the xx $eyre-command type
   private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
-    const body = formatUw(jam(dejs.list(args)).number.toString());
+    const body = render('uw', jam(dejs.list(args)).number);
     this.validatePokeBodySize(body);
 
     const response = await this.fetchFn(this.channelUrl, {
@@ -719,7 +719,7 @@ export class Urbit {
     this.outstandingPokes.set(eventId, params);
 
     if (isNoun(noun)) {
-      const shipAtom = new Atom(BigInt(patp2bn(`~${ship}`).toString()));
+      const shipAtom = new Atom(parse('p', `~${ship}`));
       const non = ['poke', eventId, shipAtom, app, mark, noun];
       await this.sendNounsToChannel(non);
     } else {

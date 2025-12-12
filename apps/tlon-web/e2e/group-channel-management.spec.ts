@@ -3,9 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test.skip('should handle channel management operations', async ({
-  zodPage,
-}) => {
+test('should handle channel management operations', async ({ zodPage }) => {
   const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
@@ -32,7 +30,9 @@ test.skip('should handle channel management operations', async ({
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
-  await expect(page.getByText('Manage channels')).toBeVisible();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').first().getByText('Channels')
+  ).toBeVisible();
   await expect(
     page
       .locator('div')
@@ -58,21 +58,85 @@ test.skip('should handle channel management operations', async ({
     page.getByTestId('ChannelItem-Second chat channel-1')
   ).toBeVisible({ timeout: 10000 });
 
-  // Move channel down
-  await page.getByTestId('MoveChannelDownButton').first().click();
+  // Enter sort/edit mode
+  await page.getByText('Sort', { exact: true }).click();
+  await page.waitForTimeout(500);
 
-  // Wait for the channel to appear at index 0 with a longer timeout
+  // Drag "General" (at position 0) below "Second chat channel" (at position 1)
+  // Use manual mouse operations on the drag handle for @dnd-kit compatibility
+  const generalDragHandle = page.getByTestId('ChannelDragHandle-General-0');
+  const secondDragHandle = page.getByTestId(
+    'ChannelDragHandle-Second chat channel-1'
+  );
+
+  const generalHandleBox = await generalDragHandle.boundingBox();
+  const secondHandleBox = await secondDragHandle.boundingBox();
+
+  if (generalHandleBox && secondHandleBox) {
+    // Start drag from center of General's drag handle
+    const startX = generalHandleBox.x + generalHandleBox.width / 2;
+    const startY = generalHandleBox.y + generalHandleBox.height / 2;
+
+    // End drag below Second chat channel's drag handle
+    const endX = secondHandleBox.x + secondHandleBox.width / 2;
+    const endY = secondHandleBox.y + secondHandleBox.height + 20;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.waitForTimeout(150);
+    await page.mouse.move(endX, endY, { steps: 15 });
+    await page.waitForTimeout(150);
+    await page.mouse.up();
+  }
+
+  await page.waitForTimeout(1000);
+
+  // Wait for the reorder to take effect
   await expect(
     page.getByTestId('ChannelItem-Second chat channel-0')
   ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('ChannelItem-General-1')).toBeVisible({
+    timeout: 10000,
+  });
 
-  // Move channel up
-  await page.getByTestId('MoveChannelUpButton').nth(1).click();
+  // Drag back to original order - drag Second chat channel down below General
+  const secondDragHandleNew = page.getByTestId(
+    'ChannelDragHandle-Second chat channel-0'
+  );
+  const generalDragHandleNew = page.getByTestId('ChannelDragHandle-General-1');
 
-  // Wait for the channel to appear at index 1 with a longer timeout
+  const secondNewBox = await secondDragHandleNew.boundingBox();
+  const generalNewBox = await generalDragHandleNew.boundingBox();
+
+  if (secondNewBox && generalNewBox) {
+    // Start drag from center of Second chat channel's drag handle (now at position 0)
+    const startX = secondNewBox.x + secondNewBox.width / 2;
+    const startY = secondNewBox.y + secondNewBox.height / 2;
+
+    // End drag below General's drag handle (now at position 1)
+    const endX = generalNewBox.x + generalNewBox.width / 2;
+    const endY = generalNewBox.y + generalNewBox.height + 20;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.waitForTimeout(150);
+    await page.mouse.move(endX, endY, { steps: 15 });
+    await page.waitForTimeout(150);
+    await page.mouse.up();
+  }
+
+  await page.waitForTimeout(1000);
+
+  // Verify back to original order
+  await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
+    timeout: 10000,
+  });
   await expect(
     page.getByTestId('ChannelItem-Second chat channel-1')
   ).toBeVisible({ timeout: 10000 });
+
+  // Exit sort/edit mode
+  await page.getByText('Done', { exact: true }).click();
 
   // Channel settings
   await helpers.editChannel(
@@ -82,16 +146,110 @@ test.skip('should handle channel management operations', async ({
     'Testing channel description'
   );
 
-  await page.getByText('Group info').click();
-  await page.waitForTimeout(500);
-  await page.getByTestId('GroupChannels').click();
-  await page.waitForTimeout(500);
+  // editChannel saves and returns to Channels screen
+  // Wait for save to complete and verify the renamed channel appears
+  await page.waitForTimeout(1000);
   await expect(
     page.getByTestId('ChannelItem-Testing channel renaming-1')
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
 
   // Create channel section
   await helpers.createChannelSection(page, 'Testing section');
+
+  // Test section reordering
+  // Enter sort mode
+  await page.getByText('Sort', { exact: true }).click();
+  await page.waitForTimeout(500);
+
+  // Verify both sections visible with correct indices
+  // "Sectionless" is the default section name
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-0')).toBeVisible(
+    { timeout: 10000 }
+  );
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-1')
+  ).toBeVisible({ timeout: 10000 });
+
+  // Drag "Testing section" above "Sectionless"
+  const testingSectionHandle = page.getByTestId(
+    'SectionDragHandle-Testing section-1'
+  );
+  const sectionlessHandle = page.getByTestId('SectionDragHandle-Sectionless-0');
+
+  const testingBox = await testingSectionHandle.boundingBox();
+  const sectionlessBox = await sectionlessHandle.boundingBox();
+
+  if (testingBox && sectionlessBox) {
+    const startX = testingBox.x + testingBox.width / 2;
+    const startY = testingBox.y + testingBox.height / 2;
+    const endX = sectionlessBox.x + sectionlessBox.width / 2;
+    const endY = sectionlessBox.y - 20; // Drop above Sectionless
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.waitForTimeout(150);
+    await page.mouse.move(endX, endY, { steps: 15 });
+    await page.waitForTimeout(150);
+    await page.mouse.up();
+  }
+
+  await page.waitForTimeout(1000);
+
+  // Verify sections reordered
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-0')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-1')).toBeVisible(
+    { timeout: 10000 }
+  );
+
+  // Exit sort mode
+  await page.getByText('Done', { exact: true }).click();
+
+  // Test section name editing
+  // After reordering, "Testing section" is at position 0
+  await page
+    .getByTestId('NavSection-Testing section')
+    .getByTestId('SectionMenuButton')
+    .click();
+  await expect(page.getByText('Edit name')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Edit name').click();
+
+  // Wait for the edit sheet to open
+  await expect(page.getByText('Change section name')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByTestId('SectionNameInput')).toBeVisible();
+
+  // Clear the input and enter new name
+  await page.getByTestId('SectionNameInput').fill('Renamed section');
+  await page.getByText('Save', { exact: true }).click();
+
+  // Verify section was renamed
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('NavSection-Renamed section')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(
+    page.getByTestId('NavSection-Testing section')
+  ).not.toBeVisible();
+
+  // Test section deletion
+  // Open the section menu for "Renamed section"
+  await page
+    .getByTestId('NavSection-Renamed section')
+    .getByTestId('SectionMenuButton')
+    .click();
+  await expect(page.getByText('Delete section')).toBeVisible({ timeout: 5000 });
+  await page.getByText('Delete section').click();
+
+  // Verify section was deleted
+  await page.waitForTimeout(500);
+  await expect(
+    page.getByTestId('NavSection-Renamed section')
+  ).not.toBeVisible();
+  // "Sectionless" should still exist
+  await expect(page.getByTestId('NavSection-Sectionless')).toBeVisible();
 
   await helpers.navigateBack(page);
 
@@ -132,11 +290,16 @@ test.skip('should handle channel management operations', async ({
 
   await helpers.deleteChannel(page, 'Testing channel renaming', 1);
 
-  await expect(page.getByText('Manage channels')).toBeVisible();
+  // Verify we're still on the Channels screen and the channel was deleted
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').first().getByText('Channels')
+  ).toBeVisible();
   await expect(
     page.getByTestId('ChannelItem-Testing channel renaming-1')
   ).not.toBeVisible();
 
+  // Navigate back (goes to main group view) and open group settings to verify channel count
   await helpers.navigateBack(page);
+  await helpers.openGroupSettings(page);
   await helpers.verifyElementCount(page, 'GroupChannels', 1);
 });

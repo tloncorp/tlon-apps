@@ -11,6 +11,6 @@ final class GroupStore: UserDefaultsStore<Group> {
     static let sharedInstance = GroupStore(storageKey: "store.groups", fetchItems: PocketAPI.shared.fetchGroups)
 }
 
-class GangStore: UserDefaultsStore<Gang> {
-    static let sharedInstance = GangStore(storageKey: "store.gangs", fetchItems: PocketAPI.shared.fetchGangs)
+class ForeignGroupStore: UserDefaultsStore<ForeignGroup> {
+    static let sharedInstance = ForeignGroupStore(storageKey: "store.foreign-groups", fetchItem: PocketAPI.shared.fetchForeignGroup)
 }

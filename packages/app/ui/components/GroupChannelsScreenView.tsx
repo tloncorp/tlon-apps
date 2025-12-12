@@ -211,6 +211,7 @@ export const GroupChannelsScreenView = React.memo(
             onLongPress={!isUnjoined ? handleOpenChannelOptions : undefined}
             useTypeIcon={true}
             dimmed={isUnjoined}
+            disableOptions={isUnjoined}
             onLayout={handleItemLayout}
             EndContent={
               isUnjoined ? (

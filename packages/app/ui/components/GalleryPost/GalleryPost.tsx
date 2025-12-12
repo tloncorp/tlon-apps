@@ -44,7 +44,6 @@ import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
-import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
@@ -62,7 +61,6 @@ export function GalleryPost({
   onPressEdit,
   onLongPress,
   onPressRetry,
-  onPressDelete,
   showAuthor = true,
   hideOverflowMenu,
   contentRendererConfiguration,
@@ -78,7 +76,6 @@ export function GalleryPost({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
-  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
@@ -95,15 +92,13 @@ export function GalleryPost({
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
 
-  const handleRetryPressed = useCallback(() => {
-    onPressRetry?.(post);
-    setShowRetrySheet(false);
+  const handleRetryPressed = useCallback(async () => {
+    try {
+      await onPressRetry?.(post);
+    } catch (e) {
+      console.error('Failed to retry post', e);
+    }
   }, [onPressRetry, post]);
-
-  const handleDeletePressed = useCallback(() => {
-    onPressDelete?.(post);
-    setShowRetrySheet(false);
-  }, [onPressDelete, post]);
 
   const deliveryFailed =
     post.deliveryStatus === 'failed' ||
@@ -111,12 +106,8 @@ export function GalleryPost({
     post.deleteStatus === 'failed';
 
   const handlePress = useCallback(() => {
-    if (onPress && !deliveryFailed) {
-      onPress(post);
-    } else if (deliveryFailed) {
-      setShowRetrySheet(true);
-    }
-  }, [onPress, deliveryFailed, post]);
+    onPress?.(post);
+  }, [onPress, post]);
 
   const handleLongPress = useBoundHandler(post, onLongPress);
 
@@ -187,15 +178,12 @@ export function GalleryPost({
           isPreview={true}
         />
         {showHeaderFooter && (
-          <GalleryPostFooter post={post} deliveryFailed={deliveryFailed} />
+          <GalleryPostFooter
+            post={post}
+            deliveryFailed={deliveryFailed}
+            onPressRetry={handleRetryPressed}
+          />
         )}
-        <SendPostRetrySheet
-          open={showRetrySheet}
-          onOpenChange={setShowRetrySheet}
-          post={post}
-          onPressDelete={handleDeletePressed}
-          onPressRetry={handleRetryPressed}
-        />
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
           <Pressable
             position="absolute"
@@ -264,10 +252,13 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
 export function GalleryPostFooter({
   post,
   deliveryFailed,
+  onPressRetry,
   ...props
-}: { post: db.Post; deliveryFailed?: boolean } & ComponentProps<
-  typeof XStack
->) {
+}: {
+  post: db.Post;
+  deliveryFailed?: boolean;
+  onPressRetry?: () => void;
+} & ComponentProps<typeof XStack>) {
   const isWindowNarrow = useIsWindowNarrow();
   const retryVerb = useMemo(() => {
     if (isWindowNarrow) {
@@ -278,8 +269,9 @@ export function GalleryPostFooter({
   }, [isWindowNarrow]);
 
   return (
-    <View width="100%" pointerEvents="none">
+    <View width="100%" pointerEvents="box-none">
       <XStack
+        pointerEvents="box-none"
         alignItems="center"
         justifyContent="space-between"
         backgroundColor="$background"
@@ -294,9 +286,11 @@ export function GalleryPostFooter({
           <ReactionsDisplay post={post} minimal={true} />
         </View>
         {deliveryFailed ? (
-          <Text color="$negativeActionText" size="$label/s">
-            {retryVerb} to retry
-          </Text>
+          <Pressable pointerEvents="auto" onPress={onPressRetry}>
+            <Text color="$negativeActionText" size="$label/s">
+              {retryVerb} to retry
+            </Text>
+          </Pressable>
         ) : (
           <XStack alignItems="center" gap="$xs" justifyContent="center">
             <Text size="$label/m" color="$tertiaryText">

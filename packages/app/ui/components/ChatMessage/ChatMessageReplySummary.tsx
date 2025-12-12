@@ -14,11 +14,13 @@ export const ChatMessageReplySummary = React.memo(
     onPress,
     textColor,
     showTime = true,
+    showEditedIndicator = false,
   }: {
     post: db.Post;
     onPress?: () => void;
     textColor?: ColorTokens;
     showTime?: boolean;
+    showEditedIndicator?: boolean;
     // Since this component is used in places other than a chat log, we need to
     // be able to toggle the Chat message padding on and off
   }) {
@@ -26,13 +28,20 @@ export const ChatMessageReplySummary = React.memo(
     const hasUnreads = !!threadUnread?.count;
     const isNotify = threadUnread?.notify ?? false;
     const time = useMemo(() => {
-      return formatDistanceToNow(replyTime!);
+      return replyTime ? formatDistanceToNow(replyTime) : '';
     }, [replyTime]);
 
-    return replyCount && replyContactIds && replyTime ? (
-      <Pressable onPress={onPress}>
-        <XStack gap="$m" alignItems="center">
-          <AvatarPreviewStack contactIds={replyContactIds} />
+    const hasReplies = !!(replyCount && replyContactIds && replyTime);
+
+    // Show the component if there are replies OR if we need to show the edited indicator
+    if (!hasReplies && !showEditedIndicator) {
+      return null;
+    }
+
+    const content = (
+      <XStack gap="$m" alignItems="center">
+        {hasReplies && <AvatarPreviewStack contactIds={replyContactIds} />}
+        {hasReplies && (
           <Text
             size="$label/m"
             color={
@@ -46,14 +55,27 @@ export const ChatMessageReplySummary = React.memo(
           >
             {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
           </Text>
+        )}
+        {hasReplies && (
           <ThreadUnreadDot
             unreadCount={threadUnread?.count ?? 0}
             isNotify={isNotify}
           />
-          {showTime && <ReplyTimeText>{time} ago</ReplyTimeText>}
-        </XStack>
-      </Pressable>
-    ) : null;
+        )}
+        {hasReplies && showTime && <ReplyTimeText>{time} ago</ReplyTimeText>}
+        {showEditedIndicator && (
+          <Text size="$label/m" paddingTop={1} color="$tertiaryText">
+            Edited
+          </Text>
+        )}
+      </XStack>
+    );
+
+    return onPress ? (
+      <Pressable onPress={onPress}>{content}</Pressable>
+    ) : (
+      content
+    );
   }
 );
 
@@ -89,6 +111,7 @@ function AvatarPreviewStack({ contactIds }: { contactIds: string[] }) {
 const ReplyTimeText = styled(Text, {
   size: '$label/m',
   color: '$tertiaryText',
+  paddingTop: 1,
 });
 
 function ThreadUnreadDot({

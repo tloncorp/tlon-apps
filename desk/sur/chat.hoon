@@ -85,12 +85,14 @@
 +$  reacts  (map author react)
 ::
 ::  $pact: a triple-indexed map of chat messages,
-::         .wit: time -> message
-::         .dex: id -> time
-::         .upd: edit-time -> time
+::
+::  .num: highest message sequence number
+::  .wit: time -> message
+::  .dex: id -> time
+::  .upd: edit-time -> time
 ::
 +$  pact
-  $:  num=@ud  ::  number of msgs/highest nr msg, for sequence nr generation
+  $:  num=@ud
       wit=writs
       dex=index
       upd=last-updated
@@ -229,14 +231,15 @@
 ::
 ::  $dm: a direct line of communication between two ships
 ::
-::    net: status of dm
-::    id: a message identifier
-::    action: an update to the dm
-::    rsvp: a response to a dm invitation
+::    .pact: message store
+::    .net: status of dm
+::    .id: a message identifier
+::    .action: an update to the dm
+::    .rsvp: a response to a dm invitation
 ::
 ++  dm
-  =<  dm
-  |%
+  |^  dm
+  ::
   +$  dm
     $:  =pact
         =remark

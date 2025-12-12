@@ -111,18 +111,16 @@ export function useOnboardingHelpers() {
           })
           .catch((e) => {
             logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+              error: e,
               context: 'failed to clear revival status',
-              errorMessage: e.message,
-              errorStack: e.stack,
               severity: AnalyticsSeverity.High,
             });
           });
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+          error: e,
           context: 'failed to scaffold personal group',
           during: 'mobile revival login (useOnboardingHelpers)',
-          errorMessage: e.message,
-          errorStack: e.stack,
           severity: AnalyticsSeverity.Critical,
         });
       }
