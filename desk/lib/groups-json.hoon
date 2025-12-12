@@ -1299,6 +1299,7 @@
           section+(ot section-id+so a-section+a-section:v7 ~)
           navigation+a-navigation
           flag-content+flag-content
+          delete+ul
       ==
     ++  a-navigation
       ^-  $-(json a-navigation:v8:gv)
@@ -1346,7 +1347,7 @@
     ++  roles
       |=  =json
       ^-  (set role-id:v7:gv)
-      (sy ((ar role-id:v7:gv) json))
+      (sy ((ar so) json))
     ++  a-invite
       ^-  $-(json a-invite:v7:gv)
       %-  ot
@@ -1440,7 +1441,7 @@
       ^-  $-(json channel:v7:gv)
       %-  ot
       :~  meta+meta
-          added+time
+          added+di
           section+so
           readers+roles
           join+bo

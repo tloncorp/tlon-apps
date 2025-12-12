@@ -31,9 +31,8 @@ export async function initiateTwitterAttestation(handle: string) {
     logger.trackEvent(AnalyticsEvent.ActionInitiateTwitterAttest, { handle });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
-      context: 'failed to initiate twitter attestation',
       error: e,
-      errorMessage: e.message,
+      context: 'failed to initiate twitter attestation',
       erroredAtStep: step,
     });
     throw e;
@@ -68,9 +67,8 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
     });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
-      context: 'failed to initiate phone attestation',
       error: e,
-      errorMessage: e.message,
+      context: 'failed to initiate phone attestation',
       erroredAtStep: step,
     });
     throw e;
@@ -89,9 +87,8 @@ export async function confirmTwitterAttestation(
     });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
-      context: 'failed to confirm twitter attestation',
       error: e,
-      errorMessage: e.message,
+      context: 'failed to confirm twitter attestation',
     });
     throw e;
   }
@@ -109,9 +106,8 @@ export async function confirmPhoneAttestation(
     });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
-      context: 'failed to confirm phone attestation',
       error: e,
-      errorMessage: e.message,
+      context: 'failed to confirm phone attestation',
     });
     throw e;
   }
@@ -143,11 +139,10 @@ export async function revokeAttestation(attestation: db.Attestation) {
     logger.trackEvent(AnalyticsEvent.ActionRevokeAttestation, { attestation });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      error: e,
       context: 'failed to revoke attestation',
       type: attestation.type,
       value: attestation.value,
-      error: e,
-      errorMessage: e.message,
     });
     throw e;
   }
@@ -165,10 +160,9 @@ export async function checkAttestedSignature(
     return isValid;
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      error: e,
       context: 'failed to check attestation signature',
       signature,
-      error: e,
-      errorMessage: e.message,
     });
     throw e;
   }
@@ -233,9 +227,8 @@ export async function discoverContacts(
     return matches;
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-      context: 'failed to discover contacts',
       error: e,
-      errorMessage: e.message,
+      context: 'failed to discover contacts',
     });
     throw e;
   }

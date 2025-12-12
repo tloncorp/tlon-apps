@@ -299,6 +299,17 @@ export function useBootSequence() {
         store.joinGroup(invitedGroup);
       }
 
+      if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
+        api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
+          logger.trackError('failed to join getting started group', e);
+        });
+      }
+
+      // unconditionally attempt to leave Tlon Studio
+      store.leaveGroup(TLON_STUDIO).catch((e) => {
+        logger.trackError('failed to leave tlon studio group', e);
+      });
+
       // give the joins some time to process, then resync & pin
       setTimeout(() => {
         if (invitedGroup && !invitedGroup.currentUserIsMember) {
@@ -370,10 +381,9 @@ export function useBootSequence() {
         setBootPhase(nextBootPhase);
       } catch (e) {
         logger.trackError('runBootPhase error', {
+          error: e,
           bootPhase,
           bootPhaseName: BootPhaseNames[bootPhase],
-          errorMessage: e.message,
-          errorStack: e.stack,
         });
         lastRunErrored.current = true;
         setBootPhase(bootPhase);

@@ -71,7 +71,7 @@ async function deviceIsOnline(): Promise<boolean> {
     isOnline = (netInfo.isConnected && netInfo.isInternetReachable) ?? false;
   } catch (e) {
     logger.trackEvent('Failed to check Network Status', {
-      errorMessage: e.message,
+      error: e,
     });
   }
 
