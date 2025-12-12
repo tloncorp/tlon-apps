@@ -144,6 +144,9 @@ export default ({ mode }: { mode: string }) => {
         project: process.env.SENTRY_WEB_PROJECT,
         authToken: process.env.SENTRY_AUTH_TOKEN,
         disable: !process.env.CI,
+        release: process.env.VITE_GIT_HASH
+          ? { name: process.env.VITE_GIT_HASH }
+          : undefined,
         sourcemaps: {
           filesToDeleteAfterUpload: ['**/*.map'],
         },
