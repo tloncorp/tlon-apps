@@ -185,6 +185,7 @@
   ::
   ++  state-5-to-6
     |=  old=state-5
+    ~>  %spin.['state-5-to-6']
     ^-  state-6
     =/  [=indices:a =activity:a]
       (sync-reads indices.old activity.old volume-settings.old)
@@ -203,6 +204,7 @@
     ==
   ++  state-4-to-5
     |=  old=state-4
+    ~>  %spin.['state-4-to-5']
     ^-  state-5
     :*  %5
         allowed.old
@@ -212,6 +214,7 @@
     ==
   ++  indices-4-to-5
     |=  =indices:a
+    ~>  %spin.['indices-4-to-5']
     ^-  indices:a
     %+  ~(jab by indices)  [%base ~]
     |=  =index:a
@@ -229,6 +232,7 @@
     ==
   ++  state-3-to-4
     |=  old=state-3
+    ~>  %spin.['state-3-to-4']
     ^-  state-4
     =/  new-indices  (indices-3-to-4 indices.old)
     :*  %4
@@ -239,10 +243,12 @@
     ==
   ++  indices-3-to-4
     |=  =indices:v3:old:a
+    ~>  %spin.['indices-3-to-4']
     ^-  indices:a
     (~(run by indices) |=([=stream:a =reads:a] [stream reads *@da]))
   ++  activity-3-to-4
     |=  [=indices:a vs=volume-settings:a]
+    ~>  %spin.['activity-3-to-4']
     ^-  activity:a
     =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
     %+  roll  sources
@@ -259,6 +265,7 @@
     ==
   ++  state-2-to-3
     |=  old=state-2
+    ~>  %spin.['state-2-to-3']
     ^-  state-3
     :*  %3
         allowed.old
@@ -270,17 +277,20 @@
     [%1 =indices:v3:old:a =activity:v2:old:a =volume-settings:a]
   ++  state-1-to-2
     |=  old=state-1
+    ~>  %spin.['state-1-to-2']
     ^-  state-2
     [%2 %all +.old]
   --
 ::
 ++  scry-path
   |=  [=dude:gall =path]
+  ~>  %spin.['scry-path']
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
 ++  get-seat
   |=  [=flag:gv =ship]
+  ~>  %spin.['get-seat']
   ^-  (unit seat:v7:gv)
   =/  base-path
     (scry-path %groups /)
@@ -297,6 +307,7 @@
   ==
 ++  poke
   |=  [=mark =vase]
+  ~>  %spin.['poke']
   ^+  cor
   ?+  mark  ~|(bad-poke+mark !!)
       %noun
@@ -363,6 +374,7 @@
 ::
 ++  watch
   |=  =(pole knot)
+  ~>  %spin.['watch']
   ^+  cor
   =?  pole  !?=([?(%v0 %v1 %v4) *] pole)
     [%v0 pole]
@@ -379,6 +391,7 @@
 ::
 ++  peek
   |=  =(pole knot)
+  ~>  %spin.['peek']
   ^-  (unit (unit cage))
   =/  any  ?(%v0 %v1 %v2 %v3 %v4 %v5)
   =/  upto-4  ?(%v0 %v1 %v2 %v3 %v4)
@@ -590,6 +603,7 @@
 ::
 ++  feed
   |=  [type=?(%all %mentions %replies) start=time-id:a count=@ud]
+  ~>  %spin.['feed']
   |^
   ^-  feed:a
   =-
@@ -683,6 +697,7 @@
 ++  recent-messages-amount  6
 ++  top-messages
   |=  [=source:a =stream:a]
+  ~>  %spin.['top-messages']
   |^
   ^-  (list time-event:a)
   =-  msgs
@@ -713,15 +728,18 @@
 ::
 ++  strip-threads
   |=  =activity:a
+  ~>  %spin.['strip-threads']
   %-  ~(rep by activity)
   |=  [[=source:a as=activity-summary:a] out=activity:a]
   ?:  ?=(?(%thread %dm-thread) -.source)  out
   (~(put by out) source as)
 ++  base
+  ~>  %spin.['base']
   ^-  index:a
   (~(got by indices) [%base ~])
 ++  get-index
   |=  =source:a
+  ~>  %spin.['get-index']
   (~(gut by indices) source *index:a)
 ++  give-update
   |=  $:  =update:a
@@ -731,6 +749,7 @@
             [%only =path]
         ==
       ==
+  ~>  %spin.['give-update']
   ^+  cor
   %-  (log |.("{<[update dist]>}"))
   =?  cor  ?!(?=(%activity -.update))
@@ -824,6 +843,7 @@
 ::
 ++  del-source
   |=  =source:a
+  ~>  %spin.['del-source']
   ^+  cor
   =.  cor
     =/  children  (get-children:src indices source)
@@ -843,6 +863,7 @@
 ::
 ++  del-event
   |=  [=source:a event=incoming-event:a]
+  ~>  %spin.['del-event']
   ^+  cor
   =/  =index:a  (~(got by indices) source)
   =/  events=(list [=time-id:a =event:a])
@@ -866,6 +887,7 @@
 ::
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
+  ~>  %spin.['add-to-index']
   ^+  cor
   =/  =index:a  (~(gut by indices) source *index:a)
   =/  new=_stream.index
@@ -874,6 +896,7 @@
 ::
 ++  refresh-index
   |=  [=source:a new=index:a]
+  ~>  %spin.['refresh-index']
   %-  (log |.("refeshing index: {<source>}"))
   =.  indices
     (~(put by indices) source new)
@@ -890,11 +913,13 @@
 ::
 ++  refresh-summary
   |=  =source:a
+  ~>  %spin.['refresh-summary']
   =/  summary  (summarize-unreads source (get-index source))
   cor(activity (~(put by activity) source summary))
 ::
 ++  refresh
   |=  =source:a
+  ~>  %spin.['refresh']
   =.  cor  (refresh-summary source)
   =/  parents  (get-parents:src source)
   |-
@@ -903,6 +928,7 @@
   $(parents t.parents)
 ++  bump
   |=  =source:a
+  ~>  %spin.['bump']
   ^+  cor
   ::  we use get-index here because this source may not exist especially
   ::  if it was a post we created and then commented on w/o any other activity
@@ -920,6 +946,7 @@
   (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [sources=(list source:a) action=read-action:a]
+  ~>  %spin.['read']
   ^+  cor
   =|  reads=(list source:a)
   =|  updates=(set source:a)
@@ -993,6 +1020,7 @@
 ::
 ++  give-reads
   |=  =source:a
+  ~>  %spin.['give-reads']
   ^+  cor
   =/  summary  (~(got by activity) source)
   =/  =update:a  [%read source summary]
@@ -1000,6 +1028,7 @@
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
+  ~>  %spin.['adjust']
   ^+  cor
   =.  cor  (give-update [%adjust source volume-map] [%hose ~])
   ?~  volume-map
@@ -1012,6 +1041,7 @@
 ::
 ++  allow
   |=  na=notifications-allowed:a
+  ~>  %spin.['allow']
   ^+  cor
   =.  allowed  na
   (give-update [%allow-notifications na] [%hose ~])
@@ -1033,6 +1063,7 @@
 ::
 ++  drop-orphans
   |=  dry-run=?
+  ~>  %spin.['drop-orphans']
   =/  indexes  ~(tap by indices)
   =/  orphan-count=@ud  0
   |-
@@ -1069,6 +1100,7 @@
   refresh-all-summaries
 ++  fix-channel-init-unreads
   |=  [=indices:a =unreads:c]
+  ~>  %spin.['fix-channel-init-unreads']
   %-  ~(urn by indices)
   |=  [=source:a =index:a]
   ::  if we're a channel with only the %chan-init event, we need to set
@@ -1083,6 +1115,7 @@
   index(floor.reads -.u.last)
 ++  fix-dm-init-unreads
   |=  [=indices:a =unreads:ch]
+  ~>  %spin.['fix-dm-init-unreads']
   ^-  indices:a
   %-  ~(urn by indices)
   |=  [=source:a =index:a]
@@ -1102,6 +1135,7 @@
 ::
 ++  sync-reads
   |=  [=indices:a =activity:a vs=volume-settings:a]
+  ~>  %spin.['sync-reads']
   =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  [indices activity]
@@ -1197,6 +1231,7 @@
   (handle-threads u.club threads)
   ++  handle-dms
     |=  [=club:ch =indexes]
+    ~>  %spin.['handle-dms']
     ^+  indexes
     %+  turn
       indexes
@@ -1206,6 +1241,7 @@
     index(stream (clean-stream-keys club stream.index))
   ++  handle-threads
     |=  [=club:ch =indexes]
+    ~>  %spin.['handle-threads']
     ^+  indexes
     =/  collapsed
       %+  roll
@@ -1240,6 +1276,7 @@
     [[floor ~] bump.index]
   ++  clean-stream-keys
     |=  [=club:ch =stream:a]
+    ~>  %spin.['clean-stream-keys']
     ^-  stream:a
     %+  gas:on-event:a  *stream:a
     %+  turn
@@ -1298,6 +1335,7 @@
 ::
 ++  set-channel-reads
   |=  =channels:v8:cv
+  ~>  %spin.['set-channel-reads']
   ^+  cor
   =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
   =/  entries  ~(tap by unreads)
@@ -1422,6 +1460,7 @@
   (welp writs replies)
 ++  set-volumes
   |=  =channels:v8:cv
+  ~>  %spin.['set-volumes']
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
     =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~

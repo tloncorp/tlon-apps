@@ -285,8 +285,19 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
           post={{ ...post, deliveryStatus: 'pending' }}
         />
         <PostSpecimen
-          label="Failed"
+          label="Failed (showAuthor=true)"
           post={{ ...post, deliveryStatus: 'failed' }}
+          onPressRetry={async (p) => {
+            alert(`Retry triggered for post: ${p.id}`);
+          }}
+        />
+        <PostSpecimen
+          label="Failed (showAuthor=false)"
+          post={{ ...post, deliveryStatus: 'failed' }}
+          showAuthor={false}
+          onPressRetry={async (p) => {
+            alert(`Retry triggered for post: ${p.id}`);
+          }}
         />
         <PostSpecimen label="Sent" post={{ ...post, deliveryStatus: 'sent' }} />
         <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
@@ -297,12 +308,27 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
   );
 };
 
-const PostSpecimen = ({ label, post }: { label: string; post: db.Post }) => {
+const PostSpecimen = ({
+  label,
+  post,
+  onPressRetry,
+  showAuthor = true,
+}: {
+  label: string;
+  post: db.Post;
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  showAuthor?: boolean;
+}) => {
   return (
     <View padding="$m" gap="$m" backgroundColor={'$secondaryBackground'}>
       <Text size="$label/s">{label}</Text>
       <View backgroundColor={'$background'} borderRadius="$l">
-        <ChatMessage post={post} showAuthor={true} showReplies={true} />
+        <ChatMessage
+          post={post}
+          showAuthor={showAuthor}
+          showReplies={true}
+          onPressRetry={onPressRetry}
+        />
       </View>
     </View>
   );

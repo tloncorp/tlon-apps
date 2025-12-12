@@ -193,9 +193,8 @@ export const syncSince = async ({
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      error: e,
       ...callCtx,
-      errorMessage: e.message,
-      stack: e.stack,
     });
   }
   logger.log(`sync since complete`);
@@ -227,10 +226,7 @@ export const syncLatestChanges = async ({
       await debouncedSyncInit(syncCtx);
       await db.changesSyncedAt.setValue(start);
     } catch (e) {
-      logger.trackError('Failed latest changes fallback', {
-        errorMessage: e.message,
-        stack: e.stack,
-      });
+      logger.trackError('Failed latest changes fallback', e);
     }
     return;
   }
@@ -663,7 +659,7 @@ export async function syncGroup(
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
     });
   } catch (e) {
-    logger.trackError('group sync failed', { errorMessage: e.message });
+    logger.trackError('group sync failed', e);
     console.error(e);
     throw e;
   } finally {
@@ -1903,9 +1899,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         updateSession({ startTime: Date.now() });
       });
     } catch (err) {
-      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
-        errorMessage: err.message,
-      });
+      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, err);
     }
 
     updateSession({ phase: 'low' });
@@ -1952,10 +1946,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         logger.crumb(`finished low priority sync`);
       })
       .catch((e) => {
-        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, e);
       });
 
     updateSession({ phase: 'ready' });

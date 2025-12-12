@@ -75,12 +75,12 @@
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
-            ::TODO revert to strict on next upgrade
+            ::TODO make strict on next upgrade
             :+  %channel-post            |  -:!>(*vale:m-channel-post)
             :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
             :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
             :+  %channel-post-4          &  -:!>(*vale:m-channel-post-4)
-            ::TODO revert to strict on next upgrade
+            ::TODO make strict on next upgrade
             :+  %channel-posts           |  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
@@ -112,6 +112,7 @@
             :+  %channel-unread-update   &  -:!>(*vale:m-channel-unread-update)
             :+  %channel-unreads         &  -:!>(*vale:m-channel-unreads)
             :+  %channels                &  -:!>(*vale:m-channels)
+            ::TODO  make strict on next update
             :+  %channels-2              |  -:!>(*vale:m-channels-2)
             :+  %channels-3              &  -:!>(*vale:m-channels-3)
             :+  %channels-4              &  -:!>(*vale:m-channels-4)
@@ -1697,16 +1698,30 @@
   ++  ca-activity
     =,  activity
     |%
+    ++  blocked
+      |=  who=ship
+      =;  blocks=(set ship)
+        (~(has in blocks) who)
+      =+  p=(scry-path %chat /blocked/ships)
+      =>  [p=p set=set]  ~+  ::  cache best we can
+      .^((set @p) %gx p)
+    ++  running
+      =+  p=(scry-path %activity /$)
+      =>  p=p  ~+
+      .^(? %gu p)
+    ::
     ++  on-post
       |=  v-post:c
       ~>  %spin.['on-post']
       ^+  ca-core
       =*  author-ship  (get-author-ship:utils author)
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked author-ship)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
@@ -1735,13 +1750,15 @@
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author)
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       =/  parent-key=message-key
         [[parent-author id.parent] id.parent]
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
+      ?:  (blocked reply-author)
+        ca-core
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
@@ -1795,7 +1812,7 @@
       |=  actions=(list action)
       ~>  %spin.['send']
       ^+  ca-core
-      ?.  .^(? %gu (scry-path %activity /$))
+      ?.  running
         ca-core
       %-  emil
       %+  turn  actions

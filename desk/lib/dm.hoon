@@ -5,6 +5,7 @@
 ++  mope  ((mp time (may:c writ:c)) lte)
 ++  gas
   |=  ls=(list [=time writ=(may:c writ:c)])
+  ~>  %spin.['libdm-gas']
   ^+  pac
   %_    pac
       wit  (gas:on:writs:c wit.pac ls)
@@ -19,6 +20,7 @@
 ::
 ++  unread
   |=  [our=ship recency=time last-read=time unread-threads=(set id:c)]
+  ~>  %spin.['libdm-unread']
   ^-  unread:unreads:c
   :-  recency
   =/  unreads=(list [time (may:c writ:c)])
@@ -65,6 +67,7 @@
 ::
 ++  get
   |=  =id:c
+  ~>  %spin.['libdm-get']
   ^-  (unit [=time writ=(may:c writ:c)])
   ?~  tim=(~(get by dex.pac) id)
     ~
@@ -74,6 +77,7 @@
 ::
 ++  jab
   |=  [=id:c fun=$-((may:c writ:c) [pact:c (may:c writ:c)])]
+  ~>  %spin.['libdm-jab']
   ^+  pac
   ?~  v=(get id)  pac
   =/  [=pact:c writ=(may:c writ:c)]  (fun writ.u.v)
@@ -82,11 +86,13 @@
 ::
 ++  got
   |=  =id:c
+  ~>  %spin.['libdm-got']
   ^-  [=time writ=(may:c writ:c)]
   (need (get id))
 ::
 ++  reduce
   |=  [now=time from-self=? =id:c del=delta:writs:c]
+  ~>  %spin.['libdm-reduce']
   ^+  pac
   ::  if the post pre-exists we can add it directly,
   ::  %add is handled specially below.
@@ -180,6 +186,7 @@
 ::
 ++  reduce-reply
   |=  [=replies:c now=time from-self=? parent-id=id:c =id:c delta=delta:replies:c]
+  ~>  %spin.['libdm-reduce-reply']
   ^-  [pact:c replies:c]
   ?-  -.delta
       %add
@@ -231,17 +238,20 @@
 ::
 ++  get-reply
   |=  [=id:c =replies:c]
+  ~>  %spin.['libdm-get-reply']
   ^-  (unit [=time reply=(may:c reply:c)])
   ?~  tim=(~(get by dex.pac) id)        ~
   ?~  qup=(get:on:replies:c replies u.tim)  ~
   `[u.tim u.qup]
 ++  jab-reply
   |=  [=id:c =replies:c fun=$-((may:c reply:c) (may:c reply:c))]
+  ~>  %spin.['libdm-jab-reply']
   ^+  replies
   ?~  v=(get-reply id replies)  replies
   (put:on:replies:c replies time.u.v (fun reply.u.v))
 ++  give-paged-writs
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3) ls=(list [time (may:c writ:c)])]
+  ~>  %spin.['libdm-give-paged-writs']
   ^-  (unit (unit cage))
   =;  p=paged-writs:c
     =/  paged-writs-4  (v4:paged-writs:v6:cc p)
@@ -282,6 +292,7 @@
 ::
 ++  get-around
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3) =time count=@ud]
+  ~>  %spin.['libdm-get-around']
   ^-  (unit (unit cage))
   =/  older  (bat:mope wit.pac `time count)
   =/  newer  (tab:on:writs:c wit.pac `time count)
@@ -294,6 +305,7 @@
 ::
 ++  changes
   |=  since=@da
+  ~>  %spin.['libdm-changes']
   ^-  (unit writs:c)
   ?:  (gte since key:(fall (ram:updated-on:c upd.pac) [key=since ~]))
     ~
@@ -310,6 +322,7 @@
 ::
 ++  peek
   |=  [care=@tas ver=?(%v0 %v1 %v2 %v3) =(pole knot)]
+  ~>  %spin.['libdm-peek']
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
@@ -399,11 +412,13 @@
         |%
         ++  mention
           |=  [sip=@ud len=@ud nedl=^ship]
+          ~>  %spin.['libdm-mention']
           ^-  scan:c
           (scour-count sip len %mention nedl)
         ::
         ++  text
           |=  [sip=@ud len=@ud nedl=@t]
+          ~>  %spin.['libdm-text']
           ^-  scan:c
           (scour-count sip len %text nedl)
         --
@@ -412,11 +427,13 @@
         |%
         ++  mention
           |=  [fro=(unit time) sum=@ud nedl=ship]
+          ~>  %spin.['libdm-mention']
           ^-  [(unit time) scan:c]
           (scour-tries fro sum %mention nedl)
         ::
         ++  text
           |=  [fro=(unit time) sum=@ud nedl=@t]
+          ~>  %spin.['libdm-text']
           ^-  [(unit time) scan:c]
           (scour-tries fro sum %text nedl)
         --
@@ -429,6 +446,7 @@
   ::
   ++  scour-tries
     |=  [from=(unit time) tries=@ud =match-type]
+    ~>  %spin.['libdm-scour-tries']
     =*  posts  wit.pac
     =.  posts  (lot:on:writs:c posts ~ from)  ::  verified correct
     =|  s=[tries=_tries last=(unit time) =scan:c]
@@ -465,6 +483,7 @@
   ::
   ++  scour-count
     |=  [sip=@ud len=@ud =match-type]
+    ~>  %spin.['libdm-scour-count']
     ?>  (gth len 0)
     ^-  scan:c
     =+  s=[sip=sip len=len *=scan:c]
@@ -490,6 +509,7 @@
   ::
   ++  scour-replies
     |=  [s=[skip=@ud len=@ud =scan:c] =id:c =replies:c =match-type]
+    ~>  %spin.['libdm-scour-replies']
     |-  ^+  s
     ?~  replies  s
     ?:  =(0 len.s)  s
@@ -507,6 +527,7 @@
   ::
   ++  match
     |=  [=writ:c =match-type]
+    ~>  %spin.['libdm-match']
     ^-  ?
     ?-  -.match-type
       %mention  (match-writ-mention nedl.match-type writ)
@@ -515,6 +536,7 @@
   ::
   ++  match-reply
     |=  [=reply:c =match-type]
+    ~>  %spin.['libdm-match-reply']
     ?-  -.match-type
       %mention  (match-story-mention nedl.match-type content.reply)
       %text     (match-story-text nedl.match-type content.reply)
@@ -522,12 +544,14 @@
   ::
   ++  match-writ-mention
     |=  [nedl=ship =writ:c]
+    ~>  %spin.['libdm-match-writ-mention']
     ^-  ?
     ?:  ?=([%chat %notice ~] kind.writ)  |
     (match-story-mention nedl content.writ)
   ::
   ++  match-story-mention
     |=  [nedl=ship =story:s]
+    ~>  %spin.['libdm-match-story-mention']
     %+  lien  story
     |=  =verse:s
     ?.  ?=(%inline -.verse)  |
@@ -540,11 +564,13 @@
   ::
   ++  match-writ-text
     |=  [nedl=@t =writ:c]
+    ~>  %spin.['libdm-match-writ-text']
     ?:  ?=([%chat %notice ~] kind.writ)  |
     (match-story-text nedl content.writ)
   ::
   ++  match-story-text
     |=  [nedl=@t =story:s]
+    ~>  %spin.['libdm-match-story-text']
     %+  lien  story
     |=  =verse:s
     ?.  ?=(%inline -.verse)  |
@@ -565,6 +591,7 @@
   ::
   ++  find
     |=  [nedl=@t hay=@t case=?]
+    ~>  %spin.['libdm-find']
     ^-  ?
     =/  nlen  (met 3 nedl)
     =/  hlen  (met 3 hay)
@@ -586,6 +613,7 @@
   ::
   ++  cass
     |=  text=@t
+    ~>  %spin.['libdm-cass']
     ^-  @t
     %^    run
         3
