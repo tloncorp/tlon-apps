@@ -75,12 +75,12 @@
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
-            ::TODO revert to strict on next upgrade
+            ::TODO make strict on next upgrade
             :+  %channel-post            |  -:!>(*vale:m-channel-post)
             :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
             :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
             :+  %channel-post-4          &  -:!>(*vale:m-channel-post-4)
-            ::TODO revert to strict on next upgrade
+            ::TODO make strict on next upgrade
             :+  %channel-posts           |  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
@@ -112,6 +112,7 @@
             :+  %channel-unread-update   &  -:!>(*vale:m-channel-unread-update)
             :+  %channel-unreads         &  -:!>(*vale:m-channel-unreads)
             :+  %channels                &  -:!>(*vale:m-channels)
+            ::TODO  make strict on next update
             :+  %channels-2              |  -:!>(*vale:m-channels-2)
             :+  %channels-3              &  -:!>(*vale:m-channels-3)
             :+  %channels-4              &  -:!>(*vale:m-channels-4)
