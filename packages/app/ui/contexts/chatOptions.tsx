@@ -89,7 +89,7 @@ type ChatOptionsProviderProps = {
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
   onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean) => void;
-  onPressGroupMembers?: (groupId: string) => void;
+  onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressManageChannels?: (groupId: string) => void;
   onPressInvite?: (groupId: string) => void;
   onPressGroupPrivacy?: (groupId: string) => void;
@@ -281,7 +281,10 @@ export const ChatOptionsProvider = ({
     } else if (leaveChannelData.groupId) {
       // Leaving a channel in a group - navigate to the first available channel
       store.leaveGroupChannel(leaveChannelData.id);
-      await navigateToGroupOnLeave?.(leaveChannelData.groupId, leaveChannelData.id);
+      await navigateToGroupOnLeave?.(
+        leaveChannelData.groupId,
+        leaveChannelData.id
+      );
     } else {
       // Fallback
       store.leaveGroupChannel(leaveChannelData.id);
@@ -383,7 +386,7 @@ export const ChatOptionsProvider = ({
 
   const handlePressGroupMembers = useCallback(() => {
     if (groupId) {
-      onPressGroupMembers(groupId);
+      onPressGroupMembers(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupMembers]);
