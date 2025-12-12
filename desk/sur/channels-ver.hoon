@@ -142,7 +142,7 @@
       ==
     ::  $r-post: modified
     ::
-    ::  %set: $post wrapped in +may
+    ::  %set: wrap $post in +may
     +$  r-post
       $%  [%set post=(may post)]
           [%reply id=id-reply =reply-meta =r-reply]
@@ -151,7 +151,7 @@
       ==
     ::  $r-reply: modified
     ::
-    ::  %set: $reply wrapped in +may
+    ::  %set: wrap $reply in +may
     +$  r-reply
       $%  [%set reply=(may reply)]
           [%reacts =reacts]
@@ -166,7 +166,7 @@
       ==
     ::  $r-simple-post: modified
     ::
-    ::  %set: $simple-post wrapped in +may
+    ::  %set: wrap $simple-post in +may
     ::
     +$  r-simple-post
       $%  $<(?(%set %reply) r-post)
@@ -175,7 +175,7 @@
       ==
     ::  $r-simple-reply: modified
     ::
-    ::  $set: $simple-reply wrapped in +may
+    ::  %set: wrap $simple-reply in +may
     ::
     +$  r-simple-reply
       $%  $<(%set r-reply)
