@@ -593,6 +593,7 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
       enableContentPanningGesture={enableContentPanningGesture}
+      hasScrollableContent
     >
       <CreateChatFormContent
         chatType={chatType}
