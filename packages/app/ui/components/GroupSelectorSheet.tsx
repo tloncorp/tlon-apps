@@ -1,7 +1,9 @@
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { SheetHeader, View } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 
+import { AppDataContextProvider } from '../contexts/appDataContext';
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
@@ -20,6 +22,9 @@ interface SheetProps {
 export function GroupSelectorSheet(props: SheetProps) {
   const [contentScrolling, setContentScrolling] = useState(false);
 
+  const contactsQuery = store.useContacts();
+  const calmSettingsQuery = store.useCalmSettings();
+
   useEffect(() => {
     if (props.open) {
       triggerHaptic('sheetOpen');
@@ -36,32 +41,37 @@ export function GroupSelectorSheet(props: SheetProps) {
       dismissOnSnapToBottom
       modal
     >
-      <ActionSheet.Content paddingBottom="$s">
-        <SheetHeader paddingHorizontal="$2xl">
-          <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
-          <SheetHeader.RightControls>
-            <SheetHeader.ButtonText
-              onPress={props.onClose}
-              testID="CloseFavoriteGroupSelectorSheet"
-            >
-              Save
-            </SheetHeader.ButtonText>
-          </SheetHeader.RightControls>
-        </SheetHeader>
-      </ActionSheet.Content>
-      <ActionSheet.ScrollableContent
-        id="GroupSelectorScrollableContent"
-        padding="$xl"
+      <AppDataContextProvider
+        contacts={contactsQuery.data}
+        calmSettings={calmSettingsQuery.data}
       >
-        <View flex={1} height="100%">
-          <GroupSelector
-            selected={props.selected}
-            onSelect={props.onSelect}
-            onScrollChange={setContentScrolling}
-            alphaSegmentedGroups={props.alphaSegmentedGroups}
-          />
-        </View>
-      </ActionSheet.ScrollableContent>
+        <ActionSheet.Content paddingBottom="$s">
+          <SheetHeader paddingHorizontal="$2xl">
+            <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
+            <SheetHeader.RightControls>
+              <SheetHeader.ButtonText
+                onPress={props.onClose}
+                testID="CloseFavoriteGroupSelectorSheet"
+              >
+                Save
+              </SheetHeader.ButtonText>
+            </SheetHeader.RightControls>
+          </SheetHeader>
+        </ActionSheet.Content>
+        <ActionSheet.ScrollableContent
+          id="GroupSelectorScrollableContent"
+          padding="$xl"
+        >
+          <View flex={1} height="100%">
+            <GroupSelector
+              selected={props.selected}
+              onSelect={props.onSelect}
+              onScrollChange={setContentScrolling}
+              alphaSegmentedGroups={props.alphaSegmentedGroups}
+            />
+          </View>
+        </ActionSheet.ScrollableContent>
+      </AppDataContextProvider>
     </ActionSheet>
   );
 }

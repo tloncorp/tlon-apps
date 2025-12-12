@@ -1,6 +1,7 @@
 package io.tlon.landscape;
 
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -14,8 +15,15 @@ import io.tlon.landscape.storage.SecureStorage;
 
 public class UrbitModule extends ReactContextBaseJavaModule {
 
+    private static final String TAG = "UrbitModule";
+
     UrbitModule(ReactApplicationContext context) {
         super(context);
+        try {
+            JSThreadMonitor.setReactContext(context);
+        } catch (Exception e) {
+            Log.w(TAG, "Could not set ReactContext: " + e.getMessage());
+        }
     }
 
     @NonNull
@@ -43,6 +51,11 @@ public class UrbitModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void updateBadgeCount(int count, String uid) {
        // For now, no-op on Android
+    }
+
+    @ReactMethod
+    public void signalJsReady() {
+        JSHeartbeatMonitor.signalReady();
     }
 
 }
