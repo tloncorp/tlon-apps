@@ -8,7 +8,11 @@ import { desig } from '../urbit';
 import * as utils from '../utils';
 import { EventEmitter } from '../utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
-import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
+import {
+  EventSourceMessage,
+  FetchEventSourceInit,
+  fetchEventSource,
+} from './fetch-event-source';
 import {
   Ack,
   AuthError,
@@ -1026,6 +1030,35 @@ export class Urbit {
     );
     signal?.cleanup();
     return result;
+  }
+
+  async getSpinHints(
+    options?: Omit<FetchEventSourceInit, 'onmessage' | 'onerror' | 'signal'>
+  ): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const controller = new AbortController();
+      let messageReceived = false;
+
+      fetchEventSource(`${this.url}/~_~/spin`, {
+        ...options,
+        signal: controller.signal,
+        reactNative: { textStreaming: true },
+        openWhenHidden: true,
+        responseTimeout: 25000,
+        fetch: this.fetchFn,
+        onmessage(event) {
+          if (!messageReceived) {
+            messageReceived = true;
+            controller.abort();
+            resolve(event.data);
+          }
+        },
+        onerror(error) {
+          controller.abort();
+          reject(error);
+        },
+      });
+    });
   }
 
   /**
