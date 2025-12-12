@@ -7,7 +7,7 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/shared/urbit/activity';
-import { formatDa, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -22,16 +22,16 @@ type PreviewContentNode =
       channelId: string;
       groupId: string;
     }
-  | { type: 'gangTitle'; gangId: string }
+  | { type: 'foreignGroupTitle'; groupId: string }
   | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
   | {
       type: 'concatenateStrings';
       first: PreviewContentNode;
       second: PreviewContentNode;
-    };
+    }
+  | { type: 'roleTitle'; groupId: string; roleId: string };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 namespace PreviewContentNode {
   export function stringLiteral(content: string): PreviewContentNode {
     return { type: 'stringLiteral', content };
@@ -68,8 +68,11 @@ namespace PreviewContentNode {
   export function groupTitle(groupId: string): PreviewContentNode {
     return { type: 'groupTitle', groupId };
   }
-  export function gangTitle(gangId: string): PreviewContentNode {
-    return { type: 'gangTitle', gangId };
+  export function foreignGroupTitle(groupId: string): PreviewContentNode {
+    return { type: 'foreignGroupTitle', groupId };
+  }
+  export function roleTitle(groupId: string, roleId: string): PreviewContentNode {
+    return { type: 'roleTitle', groupId, roleId };
   }
 }
 
@@ -94,13 +97,14 @@ export function renderActivityEventPreview({
   event: ub.ActivityEvent;
 }): PreviewContentPayload | null {
   const {
-    gangTitle,
+    foreignGroupTitle,
     groupTitle,
     stringLiteral: lit,
     channelTitle,
     userNickname,
     concatenateAll: concat,
     postSource,
+    roleTitle,
   } = PreviewContentNode;
   const source = getSourceForEvent(ev);
 
@@ -190,7 +194,7 @@ export function renderActivityEventPreview({
           groupingKey: lit(sourceToString(source)),
           body: concat([
             lit('You were invited to '),
-            gangTitle(ev['group-invite'].group),
+            foreignGroupTitle(ev['group-invite'].group),
             lit(' by '),
             userNickname(ev['group-invite'].ship),
           ]),
@@ -233,17 +237,31 @@ export function renderActivityEventPreview({
         },
       };
 
-    case is(ev, 'group-role'):
+    case is(ev, 'group-role'): {
+      const groupId = ev['group-role'].group;
+      const roles = ev['group-role'].roles;
+      // Build role titles with comma separators
+      const roleTitleNodes: PreviewContentNode[] = roles.flatMap(
+        (roleId, index) => {
+          const roleTitleNode = roleTitle(groupId, roleId);
+          return index < roles.length - 1
+            ? [roleTitleNode, lit(', ')]
+            : [roleTitleNode];
+        }
+      );
       return {
         notification: {
           groupingKey: lit(sourceToString(source)),
           body: concat([
             userNickname(ev['group-role'].ship),
-            lit(` has a new role (${ev['group-role'].role}) in `),
-            groupTitle(ev['group-role'].group),
+            lit(' has a new role ('),
+            ...roleTitleNodes,
+            lit(') in '),
+            groupTitle(groupId),
           ]),
         },
       };
+    }
 
     case is(ev, 'flag-post'):
       return {
@@ -287,5 +305,5 @@ export function renderActivityEventPreview({
 }
 
 export function formatUrbitDateString(timestamp: number): string {
-  return formatDa(unixToDa(timestamp));
+  return render('da', da.fromUnix(timestamp));
 }

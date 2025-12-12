@@ -1,4 +1,4 @@
-import { unixToDa } from '@urbit/aura';
+import { da } from '@urbit/aura';
 
 import * as api from '../api';
 import { getCanonicalPostId } from '../api/apiUtils';
@@ -135,12 +135,14 @@ export function buildPostUpdate({
   metadata,
   sequenceNum,
   deliveryStatus = 'pending',
+  blob,
 }: {
   id: types.Post['id'];
   content: ub.Story;
   metadata?: db.PostMetadata;
   sequenceNum?: number | null;
   deliveryStatus?: db.PostDeliveryStatus;
+  blob?: string;
 }) {
   const [postContent, postFlags] = api.toPostContent(content);
   return {
@@ -154,6 +156,7 @@ export function buildPostUpdate({
     images: api.getContentImages(id, content),
     deliveryStatus,
     sequenceNum,
+    blob,
     ...postFlags,
   } satisfies Partial<types.Post>;
 }
@@ -167,6 +170,7 @@ export function buildPost({
   metadata,
   parentId,
   deliveryStatus = 'pending',
+  blob,
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -176,9 +180,10 @@ export function buildPost({
   metadata?: db.PostMetadata;
   parentId?: string;
   deliveryStatus?: db.PostDeliveryStatus;
+  blob?: string;
 }): types.Post {
   const sentAt = Date.now();
-  const id = getCanonicalPostId(unixToDa(sentAt).toString());
+  const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
   const type = logic.getPostTypeFromChannelId({
     channelId: channel.id,
     parentId,
@@ -190,6 +195,7 @@ export function buildPost({
     metadata,
     deliveryStatus,
     sequenceNum,
+    blob,
   });
 
   return {

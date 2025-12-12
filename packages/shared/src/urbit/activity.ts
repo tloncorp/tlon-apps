@@ -1,10 +1,11 @@
-import { daToUnix, parseUd } from '@urbit/aura';
+import { da } from '@urbit/aura';
 import _ from 'lodash';
 
 import type { UnionToIntersection } from '../utils';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import { parseIdNumber } from '../api/apiUtils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -89,7 +90,7 @@ export interface GroupRoleEvent {
   'group-role': {
     ship: string;
     group: string;
-    role: string;
+    roles: string[];
   };
 }
 
@@ -773,7 +774,7 @@ export function getIdParts(id: string): { author: string; sent: number } {
   const [author, sentStr] = id.split('/');
   return {
     author,
-    sent: daToUnix(parseUd(sentStr)),
+    sent: da.toUnix(parseIdNumber(sentStr)),
   };
 }
 
@@ -885,7 +886,6 @@ export function getRelevancy(
   return 'involvedThread';
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ActivityIncomingEvent {
   /**
    * Helper for building exhaustive checks:

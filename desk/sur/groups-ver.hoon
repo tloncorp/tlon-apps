@@ -233,6 +233,7 @@
         [%section =section-id =a-section]
         [%navigation =a-navigation]
         [%flag-content =nest =plan src=ship]
+        [%delete ~]
     ==
   ::  $a-section: depends on $c-section
   +$  a-section  c-section
@@ -581,6 +582,7 @@
         [%channel =nest =a-channel]
         [%section =section-id =a-section]
         [%flag-content =nest =plan src=ship]
+        [%delete ~]
     ==
   ::  $a-invite: invite a ship
   +$  a-invite

@@ -33,7 +33,7 @@ import {
   Treaty,
   udToDec,
 } from '@urbit/api';
-import { formatUd, formatUv, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
@@ -358,7 +358,7 @@ export function preSig(ship: string): string {
 }
 
 export function newUv(seed = Date.now()) {
-  return formatUv(unixToDa(seed));
+  return render('uv', da.fromUnix(seed));
 }
 
 export function getSectTitle(cabals: Cabals, sect: string) {

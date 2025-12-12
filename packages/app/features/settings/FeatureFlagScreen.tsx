@@ -27,8 +27,8 @@ export function FeatureFlagScreen({ navigation }: Props) {
   const features = useMemo(
     () =>
       Object.entries(featureFlags.featureMeta)
-        .filter(([name]) => {
-          if (name === 'customChannelCreation' || name === 'aiSummarization') {
+        .filter(([_name, meta]) => {
+          if (meta.onlyTlon) {
             return isTlonEmployee;
           }
           return true;

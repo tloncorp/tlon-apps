@@ -12,3 +12,4 @@ export * from './useEventEmitter';
 export * from './ProgressManager';
 export * from './telemetryFormatters';
 export * from './spyOn';
+export * from './file';

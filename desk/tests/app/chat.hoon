@@ -50,7 +50,7 @@
   :: ~&  'have unreads'
   ;<  *  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /contacts/~zod [~dev %contacts] contact-action+!>([%heed ~[~zod]]))
+    :~  (ex-poke /contacts/~zod [~dev %contacts] contact-action-1+!>([%meet ~[~zod]]))
         (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
         (ex-poke /activity/submit [~dev %activity] activity-action+!>(activity-action))
         (ex-fact ~[/ /dm/~zod /dm/~zod/writs] writ-response+!>(old-response-3))

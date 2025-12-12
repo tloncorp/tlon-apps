@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FlatList } from 'react-native';
 
 import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
@@ -20,12 +19,17 @@ import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
 import { IPostCollectionView } from './shared';
 
+interface ScrollerHandle {
+  scrollToIndex: (params: { index: number; animated?: boolean }) => void;
+  scrollToStart: (params: { animated?: boolean }) => void;
+}
+
 export const ListPostCollection: IPostCollectionView = forwardRef(
   function ListPostCollection(_props, forwardedRef) {
     const ctx = usePostCollectionContext();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
-    const flatListRef = useRef<FlatList>(null);
+    const scrollerRef = useRef<ScrollerHandle>(null);
     const collectionLayoutType = useMemo(
       () => layoutTypeFromChannel(ctx.channel),
       [ctx.channel]
@@ -60,11 +64,13 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
 
     useImperativeHandle(forwardedRef, () => ({
       scrollToPostAtIndex(index: number) {
-        flatListRef.current?.scrollToIndex({
+        scrollerRef.current?.scrollToIndex({
           index,
           animated: false,
-          viewPosition: 0.5,
         });
+      },
+      scrollToStart(opts: { animated?: boolean }) {
+        scrollerRef.current?.scrollToStart(opts);
       },
     }));
     const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
@@ -123,7 +129,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         onPressDelete={ctx.onPressDelete}
         activeMessage={activeMessage}
         setActiveMessage={setActiveMessage}
-        ref={flatListRef}
+        ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
       />

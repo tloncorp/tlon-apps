@@ -166,8 +166,7 @@ export const SignupScreen = ({ navigation }: Props) => {
         }
       } else {
         logger.trackError('Unexpected error during signup OTP request', {
-          errorMessage: err.message,
-          errorStack: err.stack,
+          error: err,
           email: emailForm.getValues().email,
           phoneNumber: phoneForm.getValues().phoneNumber,
         });

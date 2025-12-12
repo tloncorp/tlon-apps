@@ -77,6 +77,14 @@ onFlowComplete:
 - assertVisible: Next
 - tapOn: Next
 
+# set notification preferences
+- assertVisible: Nothing
+- tapOn: Next
+
+# allow notifications screen
+- assertVisible: On the next screen, make sure you tap
+- tapOn: Next
+
 # wait until setup is complete
 - extendedWaitUntil:
     visible: Welcome to Tlon Messenger

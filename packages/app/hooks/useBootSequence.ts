@@ -173,6 +173,16 @@ export function useBootSequence() {
         return NodeBootPhase.CHECKING_FOR_INVITE;
       }
 
+      if (lureMeta?.invitedGroupTitle) {
+        // workaround for our generic invites that boot you into empty state. Should be
+        // removed once a better backend solution is in place
+
+        logger.trackEvent(
+          'Detected generic workaround invite, skipping scaffold'
+        );
+        return NodeBootPhase.CHECKING_FOR_INVITE;
+      }
+
       try {
         await store.scaffoldPersonalGroup();
 
@@ -234,7 +244,7 @@ export function useBootSequence() {
     // ACCEPTING_INVITES [optional]: join the invited groups
     //
     if (bootPhase === NodeBootPhase.ACCEPTING_INVITES) {
-      const { invitedDm, invitedGroup, tlonTeamDM, personalGroup } =
+      const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       // if expected items aren't there, re-run this step
@@ -274,19 +284,13 @@ export function useBootSequence() {
 
       if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
         api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
-          logger.trackError('failed to join getting started group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
-          });
+          logger.trackError('failed to join getting started group', e);
         });
       }
 
       // unconditionally attempt to leave Tlon Studio
       store.leaveGroup(TLON_STUDIO).catch((e) => {
-        logger.trackError('failed to leave tlon studio group', {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        logger.trackError('failed to leave tlon studio group', e);
       });
 
       // give the joins some time to process, then resync & pin
@@ -360,10 +364,9 @@ export function useBootSequence() {
         setBootPhase(nextBootPhase);
       } catch (e) {
         logger.trackError('runBootPhase error', {
+          error: e,
           bootPhase,
           bootPhaseName: BootPhaseNames[bootPhase],
-          errorMessage: e.message,
-          errorStack: e.stack,
         });
         lastRunErrored.current = true;
         setBootPhase(bootPhase);
