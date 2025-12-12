@@ -238,7 +238,7 @@ const CreateChatFormContent = ({
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          height={isWindowNarrow ? 500 : undefined}
+          maxHeight={500}
         />
         {chatType === 'group' && (
           <Button marginTop="$l" hero onPress={onCreateGroup}>
@@ -289,6 +289,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       } else if (step === 'initial') {
         setStep('selectType');
       }
@@ -350,6 +351,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       },
     }),
     []
@@ -429,7 +431,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onOpenChange={() => setStep('initial')}
         mode="dialog"
         closeButton
-        dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
+        dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
       >
         <View flex={1} padding="$m">
           <CreateChatFormContent
@@ -590,7 +592,6 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
-      enableDynamicSizing={false}
       enableContentPanningGesture={enableContentPanningGesture}
     >
       <CreateChatFormContent

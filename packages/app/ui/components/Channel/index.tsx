@@ -274,6 +274,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const draftInputRef = useRef<DraftInputHandle>(null);
 
+    // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+    const scrollToNewMessage = useCallback(() => {
+      requestAnimationFrame(() => {
+        collectionRef.current?.scrollToStart?.({ animated: true });
+      });
+    }, []);
+
     const draftInputContext = useMemo(
       (): DraftInputContext => ({
         channel,
@@ -297,8 +304,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             metadata,
             blob,
           });
+          scrollToNewMessage();
         },
-        sendPostFromDraft: finalizeAndSendPost,
+        sendPostFromDraft: async (draft) => {
+          await finalizeAndSendPost(draft);
+          if (!draft.isEdit) {
+            scrollToNewMessage();
+          }
+        },
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,

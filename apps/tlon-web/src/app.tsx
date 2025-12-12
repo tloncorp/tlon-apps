@@ -496,10 +496,9 @@ function ConnectedWebApp() {
             }
           } catch (e) {
             telemetry.capture(AnalyticsEvent.ErrorWayfinding, {
+              error: e,
               context: 'failed to scaffold personal group',
               during: 'web start sequence',
-              errorMessage: e.message,
-              errorStack: e.stack,
               severity: AnalyticsSeverity.Critical,
             });
           } finally {

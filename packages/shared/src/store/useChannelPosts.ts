@@ -93,10 +93,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     initialPageParam,
     refetchOnMount: false,
     retry(failureCount, error) {
-      postsLogger.trackError('failed to load posts', {
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
+      postsLogger.trackError('failed to load posts', error);
       if (failureCount > maxFailureCount) {
         return false;
       }
