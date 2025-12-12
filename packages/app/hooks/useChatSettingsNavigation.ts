@@ -59,7 +59,8 @@ export const useChatSettingsNavigation = () => {
     ) => {
       const paramsWithOrigin = {
         ...params,
-        fromChatDetails: params.fromChatDetails ?? true,
+        fromChatDetails:
+          'fromChatDetails' in params ? params.fromChatDetails : true,
       } as GroupSettingsStackParamList[T];
 
       if (!isWindowNarrow && 'groupId' in params) {
