@@ -4230,6 +4230,7 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
+      =.  cor  (emil (leave-channels:go-pass nest ~))
       ::  NB: when a channel is deleted we must
       ::      update .active-channels manually without waiting
       ::      for leave response. this is because the channel
