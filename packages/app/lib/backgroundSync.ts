@@ -90,57 +90,56 @@ export async function removeLegacyTasks() {
   }
 }
 
+// Define the background task at module scope - this must happen before registration
+TaskManager.defineTask<Record<string, unknown>>(
+  TASK_ID,
+  async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+    logger.trackEvent(`Running background task`);
+    if (error) {
+      logger.trackError(`Failed background task`, {
+        context: 'called with error',
+        errorMessage: error.message,
+      });
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
+
+    try {
+      await performSync();
+      return BackgroundTask.BackgroundTaskResult.Success;
+    } catch (err) {
+      logger.trackError('Failed background task', {
+        context: 'catch',
+        errorMessage: err instanceof Error ? err.message : err,
+      });
+      return BackgroundTask.BackgroundTaskResult.Failed;
+    }
+  }
+);
+
 export async function registerBackgroundSyncTask() {
   await removeLegacyTasks();
 
-  TaskManager.defineTask<Record<string, unknown>>(
-    TASK_ID,
-    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-      logger.trackEvent(`Running background task`);
-      if (error) {
-        logger.trackError(`Failed background task`, {
-          context: 'called with error',
-          errorMessage: error.message,
-        });
-        return BackgroundTask.BackgroundTaskResult.Failed;
-      }
-
-      try {
-        await performSync();
-        return BackgroundTask.BackgroundTaskResult.Success;
-      } catch (err) {
-        logger.trackError('Failed background task', {
-          context: 'catch',
-          errorMessage: err instanceof Error ? err.message : err,
-        });
-        return BackgroundTask.BackgroundTaskResult.Failed;
-      }
-    }
-  );
-
-  (async () => {
-    try {
-      if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
-        logger.trackEvent('Background sync task is registered');
-      } else {
-        logger.trackEvent(
-          'Background sync task is not registered, registering now'
-        );
-        await BackgroundTask.registerTaskAsync(TASK_ID, {
-          // Uses expo-notification default - at time of writing, 10 minutes on
-          // Android, system minimum on iOS (10-15 minutes)
-          // minimumInterval: 15 * 60,
-        });
-        logger.trackEvent('Background sync task is registered');
-      }
-      const status = await TaskManager.getRegisteredTasksAsync();
-      logger.trackEvent('Current registered tasks:', {
-        tasks: status,
+  try {
+    if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
+      logger.trackEvent('Background sync task is registered');
+    } else {
+      logger.trackEvent(
+        'Background sync task is not registered, registering now'
+      );
+      await BackgroundTask.registerTaskAsync(TASK_ID, {
+        // Uses expo-notification default - at time of writing, 10 minutes on
+        // Android, system minimum on iOS (10-15 minutes)
+        // minimumInterval: 15 * 60,
       });
-    } catch (err) {
-      logger.trackError('Failed to register background task', {
-        errorMessage: err instanceof Error ? err.message : err,
-      });
+      logger.trackEvent('Background sync task is registered');
     }
-  })();
+    const status = await TaskManager.getRegisteredTasksAsync();
+    logger.trackEvent('Current registered tasks:', {
+      tasks: status,
+    });
+  } catch (err) {
+    logger.trackError('Failed to register background task', {
+      errorMessage: err instanceof Error ? err.message : err,
+    });
+  }
 }
