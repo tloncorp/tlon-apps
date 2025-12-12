@@ -83,9 +83,6 @@ export function ChatListScreenView({
     previewGroupId ?? null
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
@@ -353,7 +350,6 @@ export function ChatListScreenView({
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}
               group={selectedGroup ?? undefined}
-              hostStatus={hostConnectionStatus}
               onActionComplete={handleGroupAction}
             />
           </View>
