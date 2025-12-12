@@ -1032,15 +1032,12 @@ export class Urbit {
     return result;
   }
 
-  async getSpinHints(
-    options?: Omit<FetchEventSourceInit, 'onmessage' | 'onerror' | 'signal'>
-  ): Promise<string> {
+  async getSpinHints(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       const controller = new AbortController();
       let messageReceived = false;
 
       fetchEventSource(`${this.url}/~_~/spin`, {
-        ...options,
         signal: controller.signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,

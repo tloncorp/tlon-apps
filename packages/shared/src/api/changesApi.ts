@@ -14,7 +14,6 @@ export async function fetchChangesSince(timestamp: number): Promise<
     hints?: string;
   }
 > {
-  // const nodeIsBusy = checkIsNodeBusy();
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
   const response = await scry<ub.ChangesV7>({
