@@ -220,7 +220,6 @@ type ParameterizedId<Id extends string> = {
   configuration?: Record<string, JSONValue>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 namespace ParameterizedId {
   export function id<Id extends string>(id: ParameterizedId<Id>): Id {
     return typeof id === 'string' ? id : id.id;
@@ -259,7 +258,6 @@ export interface ChannelContentConfiguration {
     | ParameterizedId<CollectionRendererId>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ChannelContentConfiguration {
   export function defaultConfiguration(): ChannelContentConfiguration {
     return {
@@ -290,7 +288,6 @@ export namespace ChannelContentConfiguration {
  * We use a channel's `description` field to store structured data. This
  * module provides helpers for managing that data.
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace StructuredChannelDescriptionPayload {
   type Encoded = string | null | undefined;
   interface Decoded {

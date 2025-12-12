@@ -2,6 +2,7 @@ import { POST_HOG_API_KEY } from '@tloncorp/app/constants';
 import { useDebugStore } from '@tloncorp/shared';
 import posthog, { Properties } from 'posthog-js';
 
+import { createSentryErrorLogger } from '../sentry';
 import { log } from './utils';
 
 // Configure PostHog with all auto-capturing settings disabled,
@@ -18,14 +19,28 @@ posthog.init(POST_HOG_API_KEY, {
 
 export const analyticsClient = posthog;
 
-const wrappedErrorLogger = {
+// Create composite logger that sends to both PostHog and Sentry
+const sentryLogger = createSentryErrorLogger();
+const compositeLogger = {
   capture: (event: string, data: Record<string, unknown>) => {
+    // Always send to PostHog (analytics + errors)
     analyticsClient.capture(event, { ...data, ...EVENT_PRIVACY_MASK });
+
+    // Only send errors to Sentry (not general analytics events)
+    // Until logging is refactored to consistently use 'app_error',
+    // we also pass along any event with "error" in the name (case-insensitive)
+    if (
+      event === 'app_error' ||
+      event === 'Debug Logs' ||
+      /error/i.test(event)
+    ) {
+      sentryLogger.capture(event, data);
+    }
   },
 };
 
 // hand off the instance to our dev loggers
-useDebugStore.getState().initializeErrorLogger(wrappedErrorLogger);
+useDebugStore.getState().initializeErrorLogger(compositeLogger);
 
 export const EVENT_PRIVACY_MASK: Properties = {
   // The following default properties stop PostHog from auto-logging the URL,

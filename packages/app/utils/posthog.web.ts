@@ -60,5 +60,6 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.get_distinct_id();
-  posthog.identify(UUID, { isTlonEmployee: true });
+  // Inline identifyUser call to avoid circular dependency
+  analyticsClient?.identify(UUID, { isTlonEmployee: true });
 };

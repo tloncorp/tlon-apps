@@ -1,5 +1,4 @@
-import { parseUd } from '@urbit/aura';
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';  //REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -13,6 +12,7 @@ import {
   ReplySeal,
 } from './channel';
 import { GroupMeta } from './groups';
+import { parseIdNumber } from '../api/apiUtils';
 
 export type Patda = string;
 export type Ship = string;
@@ -206,7 +206,7 @@ export function newWritTupleArray(
     data?.pages
       ?.map((page) => {
         const writPages = Object.entries(page.writs).map(
-          ([k, v]) => [bigInt(parseUd(k)), v] as WritTuple
+          ([k, v]) => [bigInt(parseIdNumber(k)), v] as WritTuple
         );
         return writPages;
       })

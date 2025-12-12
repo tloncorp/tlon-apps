@@ -117,8 +117,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         return maybeAccountIssue;
       } catch (err) {
         logger.trackError('Error signing up user', {
-          errorMessage: err.message,
-          errorStack: err.stack,
+          error: err,
           severity: AnalyticsSeverity.Critical,
           ...accountCreds,
         });
@@ -175,8 +174,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           logger.trackError(
             `Error ${mode === 'signup' ? 'Signing Up' : 'Logging In'}`,
             {
-              errorMessage: e.message,
-              errorStack: e.stack,
+              error: e,
               details: e.details,
             }
           );
@@ -242,10 +240,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         }
       } else {
         setError('An error occurred. Please try again.');
-        logger.trackError('Error requesting OTP resend', {
-          errorMessage: err.message,
-          errorStack: err.stack,
-        });
+        logger.trackError('Error requesting OTP resend', err);
       }
     }
   };

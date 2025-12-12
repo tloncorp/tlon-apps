@@ -1,16 +1,11 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Icon, IconType, Pressable, Text } from '@tloncorp/ui';
+import { Icon, IconType, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import {
-  ColorProp,
-  ColorTokens,
-  GetThemeValueForKey,
-  styled,
-  withStaticProperties,
-} from 'tamagui';
+import { ColorTokens, styled, withStaticProperties } from 'tamagui';
 import { Stack, View, XStack, YStack } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { numberWithMax } from '../../utils';
 import {
   ChannelAvatar,
@@ -237,9 +232,23 @@ export const ListItemPostPreview = ({
   post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
   showAuthor?: boolean;
 }) => {
+  const { isAuthorBlocked } = useBlockedAuthor(post as db.Post);
+
+  const getPreviewContent = () => {
+    if (isAuthorBlocked) {
+      return '(Post from blocked user)';
+    }
+    if (post.hidden) {
+      return '(This post has been hidden)';
+    }
+    return post.textContent ?? '';
+  };
+
+  const previewContent = getPreviewContent();
+
   return (
     <ListItemSubtitle>
-      {showAuthor ? (
+      {showAuthor && !isAuthorBlocked && !post.hidden ? (
         <>
           <ContactName
             userId={post.authorId}
@@ -250,7 +259,7 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
+      {previewContent}
     </ListItemSubtitle>
   );
 };

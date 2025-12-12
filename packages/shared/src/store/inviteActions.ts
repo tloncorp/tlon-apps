@@ -58,10 +58,7 @@ export async function verifyUserInviteLink() {
       throw new Error('finalInviteLink is falsy');
     }
   } catch (e) {
-    logger.trackError('Failed to verify personal invite link', {
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
+    logger.trackError('Failed to verify personal invite link', e);
   }
 }
 
@@ -143,9 +140,8 @@ export async function createGroupInviteLink(groupId: string) {
     );
   } catch (e) {
     logger.trackError(AnalyticsEvent.InviteError, {
+      error: e,
       context: 'reel describe failed',
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
   }
 }
@@ -196,9 +192,9 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         await fetch(endpoint, options);
       } catch (e) {
         logger.trackError(AnalyticsEvent.InviteError, {
+          error: e,
           context: 'failed to bite lure',
           inviteId: invite.id,
-          errorMessage: e.message,
         });
         return;
       }
@@ -208,9 +204,9 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
       });
     } catch (err) {
       logger.trackEvent(AnalyticsEvent.InviteError, {
+        error: err,
         context: 'Failed to bite lure on invite deeplink while logged in',
         lure: invite.id,
-        errorMessage: err.message,
       });
     }
   } else {

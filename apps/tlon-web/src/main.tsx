@@ -20,7 +20,10 @@ import { createRoot } from 'react-dom/client';
 import App from './app';
 import { isElectron } from './electron-bridge';
 import { analyticsClient } from './logic/analytics';
+import { initSentry } from './sentry';
 import './styles/index.css';
+
+initSentry();
 
 const logger = createDevLogger('main.tsx', false);
 
