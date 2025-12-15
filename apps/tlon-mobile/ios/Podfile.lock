@@ -2626,7 +2626,6 @@ SPEC REPOS:
     - SDWebImageWebPCoder
     - Sentry
     - SocketRocket
-    - sqlite3
 
 EXTERNAL SOURCES:
   boost:
