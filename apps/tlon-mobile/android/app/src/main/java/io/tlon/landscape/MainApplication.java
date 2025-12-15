@@ -74,7 +74,7 @@ public class MainApplication extends Application implements ReactApplication {
       if (mReactHost == null) {
           mReactHost = ReactNativeHostWrapper.createReactHost(getApplicationContext(), mReactNativeHost);
       }
-        return mReactHost;
+      return mReactHost;
     }
 
   @Override
