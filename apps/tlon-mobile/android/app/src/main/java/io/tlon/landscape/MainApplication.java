@@ -61,6 +61,8 @@ public class MainApplication extends Application implements ReactApplication {
       }
   });
 
+  private ReactHost mReactHost = null;
+
   @Override
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
@@ -69,7 +71,10 @@ public class MainApplication extends Application implements ReactApplication {
     @Nullable
     @Override
     public ReactHost getReactHost() {
-        return ReactNativeHostWrapper.createReactHost(getApplicationContext(), getReactNativeHost());
+      if (mReactHost == null) {
+          mReactHost = ReactNativeHostWrapper.createReactHost(getApplicationContext(), mReactNativeHost);
+      }
+        return mReactHost;
     }
 
   @Override
