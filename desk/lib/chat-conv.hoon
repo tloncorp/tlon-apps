@@ -1,4 +1,4 @@
-/-  c=chat, ch=channels, cv=chat-ver
+/-  c=chat, dv=channels-ver, cv=chat-ver
 /+  ccv=channel-conv
 |%
 ++  v6
@@ -532,14 +532,14 @@
     |%
     ++  v3
       |=  memo:v2:cv
-      ^-  memo:v7:ch
+      ^-  memo:v7:dv
       [(v3:story author content) author sent]
     --
   ++  story
     |%
     ++  v3
       |=  [=ship =content:v2:cv]
-      ^-  story:v7:ch
+      ^-  story:v7:dv
       =*  body  p.content
       ?-    -.content
           %notice  ~[%inline pfix.body ship+ship sfix.body]~

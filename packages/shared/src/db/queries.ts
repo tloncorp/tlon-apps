@@ -2386,6 +2386,24 @@ export const deleteNavSection = createWriteQuery(
   ['groupNavSections']
 );
 
+export const updateNavSectionOrder = createWriteQuery(
+  'updateNavSectionOrder',
+  async (
+    { groupId, sectionIds }: { groupId: string; sectionIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    // Update each section's index based on position in array
+    for (let i = 0; i < sectionIds.length; i++) {
+      const navSectionId = `${groupId}-${sectionIds[i]}`;
+      await ctx.db
+        .update($groupNavSections)
+        .set({ sectionIndex: i })
+        .where(eq($groupNavSections.id, navSectionId));
+    }
+  },
+  ['groupNavSections']
+);
+
 export const addChannelToNavSection = createWriteQuery(
   'addChannelToNavSection',
   async (

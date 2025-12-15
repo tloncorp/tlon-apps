@@ -112,7 +112,11 @@ export function GalleryInput({
         };
 
         // Set the attachment for editing
-        attachAssets([mockAttachment.file]);
+        attachAssets([
+          domain.Attachment.UploadIntent.fromImagePickerAsset(
+            mockAttachment.file
+          ),
+        ]);
         setCanPost(true);
       } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post

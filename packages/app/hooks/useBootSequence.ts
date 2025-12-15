@@ -370,10 +370,9 @@ export function useBootSequence() {
         setBootPhase(nextBootPhase);
       } catch (e) {
         logger.trackError('runBootPhase error', {
+          error: e,
           bootPhase,
           bootPhaseName: BootPhaseNames[bootPhase],
-          errorMessage: e.message,
-          errorStack: e.stack,
         });
         lastRunErrored.current = true;
         setBootPhase(bootPhase);

@@ -146,9 +146,9 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               storage.invitation.setValue(nextLure);
             } catch (e) {
               logger.trackError(AnalyticsEvent.InviteError, {
+                error: e,
                 context: 'Failed to extract lure metadata',
                 inviteId: params.lure,
-                errorMessage: e?.message,
               });
             }
           } else if (params.wer) {

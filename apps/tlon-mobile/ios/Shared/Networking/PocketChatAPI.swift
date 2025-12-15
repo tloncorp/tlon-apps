@@ -17,8 +17,8 @@ extension PocketAPI {
         try await fetchDecodable("/~/scry/groups/groups/light")
     }
   
-    func fetchGangs() async throws -> [String: Gang] {
-        try await fetchDecodable("/~/scry/groups/gangs")
+    func fetchForeignGroup(_ groupId: String) async throws -> ForeignGroup {
+        try await fetchDecodable("/~/scry/groups/v1/foreigns/\(groupId)")
     }
 
     func fetchGroupChannels() async throws -> [String: GroupChannel] {

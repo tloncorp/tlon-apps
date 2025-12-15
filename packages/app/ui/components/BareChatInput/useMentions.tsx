@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ALL_MENTION_ID as allID, isValidPatp } from '@tloncorp/shared';
+import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
+import { valid } from '@urbit/aura';
 import * as db from '@tloncorp/shared/db';
 import { useMemo, useState } from 'react';
 
@@ -230,7 +231,7 @@ export const useMentions = ({
     if (mentionStartIndex === null) return;
 
     const display = option.title || option.id;
-    const mentionDisplay = isValidPatp(display) ? display : `@${display}`;
+    const mentionDisplay = valid('p', display) ? display : `@${display}`;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1

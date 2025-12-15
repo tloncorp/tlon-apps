@@ -78,8 +78,7 @@ export async function scaffoldPersonalGroup() {
     });
   } catch (e) {
     logger.trackEvent('Error Personal Group Scaffold', {
-      errorMessage: e.message,
-      stack: e.stack,
+      error: e,
     });
     throw new Error('Something went wrong');
   }
@@ -198,8 +197,7 @@ export async function createGroup(params: {
 
     logger.error(`${params.group.id}: failed to create group`, e);
     logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
-      errorMessage: e.message,
-      stack: e.stack,
+      error: e,
     });
     throw new Error('Something went wrong');
   }
@@ -319,10 +317,7 @@ export async function inviteGroupMembers({
   try {
     await api.inviteGroupMembers({ groupId, contactIds });
   } catch (e) {
-    logger.trackError('Failed to invite group members', {
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
+    logger.trackError('Failed to invite group members', e);
     // rollback optimistic update
     await db.removeChatMembers({
       chatId: groupId,
