@@ -1,6 +1,6 @@
-/-  c=channels
+/-  cv=channels-ver
 /+  j=channel-json
-|_  =scan:v7:c
+|_  =scan:v7:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -11,6 +11,6 @@
   --
 ++  grab
   |%
-  +$  noun  scan:v7:c
+  +$  noun  scan:v7:cv
   --
 --
