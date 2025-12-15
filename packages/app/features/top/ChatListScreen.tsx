@@ -42,7 +42,6 @@ import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
-import { useConnectionStatus } from './useConnectionStatus';
 
 const logger = createDevLogger('ChatListScreen', false);
 
