@@ -138,7 +138,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
 
-  // Verify "Testing role" appears in the Roles section (as a chip)
+  // Verify "Testing role" appears in the permission table
   await expect(page.getByText('Testing role').first()).toBeVisible();
 
   // Verify "Testing role" has read permissions in the permission table
@@ -200,12 +200,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('GroupChannels').click();
   await page.getByTestId('EditChannelButton').first().click();
 
-  // Remove "Renamed role" from readers by clicking the X on the role chip
+  // Remove "Renamed role" from readers by clicking the X in the permission table row
   await expect(page.getByText('Renamed role').first()).toBeVisible();
   await page.getByTestId('RemoveRole-Renamed role').click();
   await page.waitForTimeout(500);
 
-  // Verify "Renamed role" is no longer visible in the Roles section
+  // Verify "Renamed role" is no longer visible in the permission table
   await expect(page.getByText('Renamed role')).not.toBeVisible();
 
   // Verify it's also not in the permission table
