@@ -407,13 +407,14 @@ export default function BareChatInput({
         bareChatInputLogger.log('setting draft', jsonContent);
         storeDraft(jsonContent);
 
-        // force update the native input's text.
-        // we must set the text to an empty string because sending any text via
-        // setNativeProps is actually *additive* to the existing text and not a replacement.
-        // calling setNativeProps is still necessary because it forces the input to update
-        // and display the new text value.
+        // Clear the native input's text after processing references.
+        // We defer with setTimeout because .clear() uses mostRecentEventCount
+        // internally, which isn't updated until after onChangeText returns.
+        // Calling it synchronously would use a stale event count that gets rejected.
         if (!isWeb) {
-          inputRef.current?.setNativeProps({ text: '' });
+          setTimeout(() => {
+            inputRef.current?.clear();
+          }, 0);
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally

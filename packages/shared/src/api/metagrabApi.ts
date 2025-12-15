@@ -170,9 +170,7 @@ export async function getFallbackLinkMetadata(
     return meta;
   } catch (e) {
     console.log('fallback no good', e);
-    logger.trackError('Failed to get fallback link metadata response', {
-      errorMessage: e.message,
-    });
+    logger.trackError('Failed to get fallback link metadata response', e);
     return { type: 'error', reason: 'unknown error' };
   }
 }

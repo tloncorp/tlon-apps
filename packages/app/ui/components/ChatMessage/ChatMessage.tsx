@@ -16,7 +16,6 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
-import { SendPostRetrySheet } from '../SendPostRetrySheet';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -31,7 +30,6 @@ const ChatMessage = ({
   onPress,
   onLongPress,
   onPressRetry,
-  onPressDelete,
   onShowEmojiPicker,
   onPressEdit,
   showReplies,
@@ -60,7 +58,6 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
-  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
@@ -92,16 +89,12 @@ const ChatMessage = ({
   }, [onPressReplies, post]);
 
   const shouldHandlePress = useMemo(() => {
-    return Boolean(onPress || deliveryFailed);
-  }, [onPress, deliveryFailed]);
+    return Boolean(onPress);
+  }, [onPress]);
 
   const handlePress = useCallback(() => {
-    if (onPress && !deliveryFailed) {
-      onPress(post);
-    } else if (deliveryFailed) {
-      setShowRetrySheet(true);
-    }
-  }, [post, onPress, deliveryFailed]);
+    onPress?.(post);
+  }, [post, onPress]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -120,13 +113,7 @@ const ChatMessage = ({
     } catch (e) {
       console.error('Failed to retry post', e);
     }
-    setShowRetrySheet(false);
   }, [onPressRetry, post]);
-
-  const handleDeletePressed = useCallback(() => {
-    onPressDelete?.(post);
-    setShowRetrySheet(false);
-  }, [onPressDelete, post]);
 
   const handleEditPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -194,6 +181,9 @@ const ChatMessage = ({
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
+  const shouldRenderReplySummary =
+    shouldRenderReplies || (!showAuthor && post.isEdited);
+
   return (
     <Pressable
       // avoid setting the top level press handler at all unless we need to
@@ -218,7 +208,7 @@ const ChatMessage = ({
             sent={post.sentAt ?? 0}
             type={post.type}
             disabled={hideProfilePreview}
-            deliveryStatus={post.deliveryStatus}
+            deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
             deleteStatus={post.deleteStatus}
             showEditedIndicator={!!post.isEdited}
@@ -243,17 +233,10 @@ const ChatMessage = ({
           </View>
         ) : null}
 
-        {!showAuthor && post.isEdited ? (
-          <View position="absolute" right={12} top={8} zIndex={199}>
-            <Text size="$label/s" color="$tertiaryText">
-              Edited
-            </Text>
-          </View>
-        ) : null}
 
-        {!showAuthor && deliveryFailed ? (
+        {deliveryFailed ? (
           <Pressable
-            onPress={() => setShowRetrySheet(true)}
+            onPress={handleRetryPressed}
             position="absolute"
             right={12}
             top={8}
@@ -306,23 +289,15 @@ const ChatMessage = ({
           </View>
         )}
 
-        {shouldRenderReplies ? (
+        {shouldRenderReplySummary ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-            {shouldRenderReplies ? (
-              <ChatMessageReplySummary
-                post={post}
-                onPress={handleRepliesPressed}
-              />
-            ) : null}
+            <ChatMessageReplySummary
+              post={post}
+              onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
+              showEditedIndicator={!showAuthor && !!post.isEdited}
+            />
           </XStack>
         ) : null}
-        <SendPostRetrySheet
-          open={showRetrySheet}
-          post={post}
-          onOpenChange={setShowRetrySheet}
-          onPressRetry={handleRetryPressed}
-          onPressDelete={handleDeletePressed}
-        />
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
         <View position="absolute" top={0} right={12}>

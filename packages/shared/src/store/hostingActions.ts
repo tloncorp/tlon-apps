@@ -203,9 +203,8 @@ export async function checkHostingNodeStatus(
     return { status: nodeStatus, isBeingRevived };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
+      error: e,
       context: 'Failed to get node status',
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     return { status: domain.HostedNodeStatus.Unknown, isBeingRevived: false };
   }
@@ -229,9 +228,8 @@ export async function authenticateWithReadyNode(
       accessCode = result.code;
     } catch (e) {
       logger.trackError(AnalyticsEvent.LoginDebug, {
+        error: e,
         context: 'Failed to get access code',
-        errorMessage: e.message,
-        errorStack: e.stack,
       });
       return null;
     }
@@ -246,9 +244,8 @@ export async function authenticateWithReadyNode(
     );
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.LoginDebug, {
+      error: e,
       context: 'Failed to get Landscape auth cookie',
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     return null;
   }

@@ -42,6 +42,7 @@ import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
+import { useConnectionStatus } from './useConnectionStatus';
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -121,7 +122,10 @@ export function ChatListScreenView({
     }
 
     // if still loading the screen data, show loading
-    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+    if (
+      !chats ||
+      (!chats.unpinned.length && !chats.pinned.length && !chats.pending.length)
+    ) {
       return 'Loading...';
     }
 
@@ -318,7 +322,10 @@ export function ChatListScreenView({
                 </>
               }
             />
-            {chats && chats.unpinned.length ? (
+            {chats &&
+            (chats.unpinned.length ||
+              chats.pending.length ||
+              chats.pinned.length) ? (
               <>
                 <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
                 <ChatListSearch

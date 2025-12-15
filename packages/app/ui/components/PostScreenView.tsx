@@ -495,6 +495,9 @@ function SinglePostView({
   // replies section (Scroller container). Scrolling to index 1 shows new replies because
   // they appear at the bottom of the inverted list inside the Scroller.
   const flatListRef = useRef<FlatList>(null);
+  const scrollerRef = useRef<{
+    scrollToStart: (opts: { animated?: boolean }) => void;
+  }>(null);
   const REPLIES_SECTION_INDEX = 1;
 
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
@@ -565,6 +568,22 @@ function SinglePostView({
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
+  // Helper to scroll to new reply - shared by sendReply and sendReplyFromDraft
+  const scrollToNewReply = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (isChatChannel) {
+        // Chat threads: scroll the inner Scroller directly
+        scrollerRef.current?.scrollToStart({ animated: true });
+      } else {
+        // Notebook/gallery: scroll the outer FlatList to the replies section
+        flatListRef.current?.scrollToIndex({
+          index: REPLIES_SECTION_INDEX,
+          animated: true,
+        });
+      }
+    });
+  }, [isChatChannel, REPLIES_SECTION_INDEX]);
+
   const hasLoadedReplies = !!(posts && channel && parentPost);
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
@@ -585,15 +604,9 @@ function SinglePostView({
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
-      // Scroll to show the new reply after the next frame to ensure it's rendered
-      requestAnimationFrame(() => {
-        flatListRef.current?.scrollToIndex({
-          index: REPLIES_SECTION_INDEX,
-          animated: true,
-        });
-      });
+      scrollToNewReply();
     },
-    [channel, parentPost, store, REPLIES_SECTION_INDEX]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const sendReplyFromDraft = useCallback(
@@ -608,16 +621,10 @@ function SinglePostView({
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
         });
-        // Scroll to show the new reply after the next frame to ensure it's rendered
-        requestAnimationFrame(() => {
-          flatListRef.current?.scrollToIndex({
-            index: REPLIES_SECTION_INDEX,
-            animated: true,
-          });
-        });
+        scrollToNewReply();
       }
     },
-    [channel, parentPost, store, REPLIES_SECTION_INDEX]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(
@@ -646,6 +653,7 @@ function SinglePostView({
           setActiveMessage={setActiveMessage}
           editorIsFocused={false}
           flatListRef={flatListRef}
+          scrollerRef={scrollerRef}
         />
       ) : null}
 

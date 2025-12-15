@@ -85,7 +85,7 @@ public class MainApplication extends Application implements ReactApplication {
       DefaultNewArchitectureEntryPoint.load();
     }
     ApplicationLifecycleDispatcher.onApplicationCreate(this);
-    ProcessLifecycleOwner.get().getLifecycle().addObserver(new AppLifecycleManager());
+    ProcessLifecycleOwner.get().getLifecycle().addObserver(new AppLifecycleManager(this));
 
     try {
       SecureStorage.create(this);

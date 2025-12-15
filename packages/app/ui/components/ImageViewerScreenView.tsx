@@ -1,8 +1,8 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
 import {
   createDevLogger,
+  downloadImageForWeb,
   ensureFileExtension,
-  downloadImageForWeb
 } from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -205,14 +205,28 @@ export function ImageViewerScreenView(props: {
             );
           }
 
+          const fileInfo = await FileSystem.getInfoAsync(localUri);
+          if (!fileInfo.exists) {
+            logger.trackError('Downloaded file does not exist', {
+              uri: props.uri,
+              localUri,
+            });
+            throw new Error('Downloaded file does not exist');
+          }
+
           try {
-            await MediaLibrary.saveToLibraryAsync(localUri);
+            const fileUri = localUri.startsWith('file://')
+              ? localUri
+              : `file://${localUri}`;
+            await MediaLibrary.saveToLibraryAsync(fileUri);
             Alert.alert('Success', 'Image saved to your photos!');
           } catch (saveError) {
             logger.trackError('Failed to save image to library', {
               error: saveError.message,
               uri: props.uri,
+              localUri,
             });
+
             Alert.alert(
               'Error',
               'Failed to save image to photos. Please check your device storage and try again.'
@@ -220,13 +234,17 @@ export function ImageViewerScreenView(props: {
             console.error('Save error:', saveError);
           } finally {
             try {
-              await FileSystem.deleteAsync(localUri);
+              // Check if file still exists before attempting to delete
+              const fileStillExists = await FileSystem.getInfoAsync(localUri);
+              if (fileStillExists.exists) {
+                await FileSystem.deleteAsync(localUri);
+              }
             } catch (deleteError) {
+              // Silently ignore deletion errors - file may have been moved by MediaLibrary
               logger.trackError('Failed to delete temporary image file', {
                 error: deleteError.message,
                 uri: localUri,
               });
-              console.error('Failed to delete temporary file:', deleteError);
             }
           }
         } catch (downloadError) {

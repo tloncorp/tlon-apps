@@ -1,4 +1,4 @@
-/-  g=groups, gv=groups-ver, c=channels
+/-  g=groups, gv=groups-ver, c=channels, cv=channels-ver
 /+  *test-agent, test, utils=channel-utils, s=subscriber, imp=import-aid
 /=  channels-agent  /app/channels
 |%
@@ -347,7 +347,7 @@
     :: =.  save  (slop (slot 2 save) !>(!>(bad-state)))
     ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
     ;<  caz=(list card)  bind:m
-      =;  tombs=(list [id-post:v9:c tombstone:v9:c])
+      =;  tombs=(list [id-post:v9:cv tombstone:v9:cv])
         (do-poke %noun -:!>(**) [%tombstones *nest:c tombs])
       :~  :*  key=missing-key
               [missing-key ~sul seq=1 del-at=~2025.7.23..09.10.11]

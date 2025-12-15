@@ -60,9 +60,7 @@ const useSplashHider = () => {
           splashscreenLogger.trackEvent('Splash screen hidden');
         });
       } catch (err) {
-        splashscreenLogger.trackError('Failed to hide splash screen', {
-          errorMessage: err.message,
-        });
+        splashscreenLogger.trackError('Failed to hide splash screen', err);
       }
     };
 

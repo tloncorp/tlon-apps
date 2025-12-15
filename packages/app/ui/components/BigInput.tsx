@@ -335,7 +335,7 @@ export function BigInput({
           }
         } catch (error) {
           if (isMountedRef.current) {
-            logger.trackError('notebook:inline-image:upload-error', { error });
+            logger.trackError('notebook:inline-image:upload-error', error);
             showToast({
               message:
                 'Error uploading image. Please check your connection and try again.',

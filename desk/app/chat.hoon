@@ -1,4 +1,4 @@
-/-  c=chat, cv=chat-ver, d=channels, g=groups
+/-  c=chat, cv=chat-ver, d=channels, dv=channels-ver, g=groups
 /-  u=ui, e=epic, a=activity, s=story, meta
 /-  contacts
 /+  default-agent, verb, dbug,
@@ -288,6 +288,7 @@
 ++  now-id   `id:c`[our now]:bowl
 ++  scry-path
   |=  [agent=term =path]
+  ~>  %spin.['scry-path']
   ^-  ^path
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  init  cor
@@ -451,6 +452,7 @@
   ::
   ++  state-10-to-11
     |=  state-10
+    ~>  %spin.['state-10-to-11']
     ^-  state-11
     :*  %11
         dms
@@ -467,6 +469,7 @@
   ::
   ++  state-9-to-10
     |=  state-9
+    ~>  %spin.['state-9-to-10']
     ^-  state-10
     :*  %10
         (~(run by dms) dm-9-to-10)
@@ -481,14 +484,17 @@
     ==
   ++  club-9-to-10
     |=  =club:v5:cv
+    ~>  %spin.['club-9-to-10']
     ^-  club:v6:cv
     club(pact (pact-9-to-10 pact.club))
   ++  dm-9-to-10
     |=  =dm:v5:cv
+    ~>  %spin.['dm-9-to-10']
     ^-  dm:v6:cv
     dm(pact (pact-9-to-10 pact.dm))
   ++  pact-9-to-10
     |=  pact:v5:cv
+    ~>  %spin.['pact-9-to-10']
     ^-  pact:v6:cv
     =;  [num=@ud writs=(list [time (may:v6:cv writ:v6:cv)])]
       [num (gas:on:writs:v6:cv ~ writs) dex upd=~]
@@ -501,6 +507,7 @@
     [[time %& new-writ(seq num)] writs]
   ++  state-8-to-9
     |=  state-8
+    ~>  %spin.['state-8-to-9']
     ^-  state-9
     :*  %9
         (~(run by dms) dm-8-to-9)
@@ -515,14 +522,17 @@
     ==
   ++  club-8-to-9
     |=  =club:v4:cv
+    ~>  %spin.['club-8-to-9']
     ^-  club:v5:cv
     club(pact (pact-8-to-9 pact.club))
   ++  dm-8-to-9
     |=  =dm:v4:cv
+    ~>  %spin.['dm-8-to-9']
     ^-  dm:v5:cv
     dm(pact (pact-8-to-9 pact.dm))
   ++  pact-8-to-9
     |=  =pact:v4:cv
+    ~>  %spin.['pact-8-to-9']
     ^-  pact:v5:cv
     =;  writs=(list [time writ:v5:cv])
       ::  default num here because it will be numbered above
@@ -532,6 +542,7 @@
     [time (writ-8-to-9 writ)]
   ++  writ-8-to-9
     |=  =writ:v4:cv
+    ~>  %spin.['writ-8-to-9']
     ^-  writ:v5:cv
     =,  -.writ
     ::  default seq here because it will be numbered above
@@ -539,6 +550,7 @@
   ::
   ++  state-7-to-8
     |=  state-7
+    ~>  %spin.['state-7-to-8']
     ^-  state-8
     :*  %8
         (~(run by dms) dm-7-to-8)
@@ -553,28 +565,34 @@
     ==
   ++  club-7-to-8
     |=  =club:v3:cv
+    ~>  %spin.['club-7-to-8']
     ^-  club:v4:cv
     club(pact (pact-7-to-8 pact.club))
   ++  dm-7-to-8
     |=  =dm:v3:cv
+    ~>  %spin.['dm-7-to-8']
     ^-  dm:v4:cv
     dm(pact (pact-7-to-8 pact.dm))
   ++  pact-7-to-8
     |=  =pact:v3:cv
+    ~>  %spin.['pact-7-to-8']
     ^-   pact:v4:cv
     pact(wit (run:on:writs:v3:cv wit.pact v4:writ:v3:cc))
   ::
   ++  state-6-to-7
     |=  state-6
+    ~>  %spin.['state-6-to-7']
     ^-  state-7
     [%7 dms clubs pins ~ blocked blocked-by hidden-messages old-chats old-pins]
   ++  state-5-to-6
     |=  s=state-5
+    ~>  %spin.['state-5-to-6']
     ^-  state-6
     s(- %6, dms (dms-5-to-6 dms.s), clubs (clubs-5-to-6 clubs.s))
   ::
   ++  dms-5-to-6
     |=  dms=(map ship dm-5)
+    ~>  %spin.['dms-5-to-6']
     ^-  (map ship dm:v3:cv)
     %-  ~(run by dms)
     |=  dm=dm-5
@@ -583,6 +601,7 @@
   ::
   ++  clubs-5-to-6
     |=  clubs=(map id:club:v3:cv club-5)
+    ~>  %spin.['clubs-5-to-6']
     ^-  (map id:club:v3:cv club:v3:cv)
     %-  ~(run by clubs)
     |=  club=club-5
@@ -591,12 +610,14 @@
   ::
   ++  remark-5-to-6
     |=  [=writs:v3:cv remark=remark-5]
+    ~>  %spin.['remark-5-to-6']
     ^-  remark:v3:cv
     :_  remark
     ?~(tim=(ram:on:writs:v3:cv writs) *time key.u.tim)
   ::
   ++  state-4-to-5
     |=  state-4
+    ~>  %spin.['state-4-to-5']
     ^-  state-5
     :-  %5
     :+  (dms-4-to-5 dms)
@@ -605,12 +626,14 @@
   ::
   ++  pins-4-to-5
     |=  pins=(list whom:v2:cv)
+    ~>  %spin.['pins-4-to-5']
     ^-  (list whom:v3:cv)
     %+  murn  pins
     |=(w=whom:v2:cv ?:(?=(%flag -.w) ~ (some w)))
   ::
   ++  dms-4-to-5
     |=  dms=(map ship dm:v2:cv)
+    ~>  %spin.['dms-4-to-5']
     ^-  (map ship dm-5)
     %-  ~(run by dms)
     |=  dm:v2:cv
@@ -619,6 +642,7 @@
   ::
   ++  clubs-4-to-5
     |=  clubs=(map id:club:v2:cv club:v2:cv)
+    ~>  %spin.['clubs-4-to-5']
     ^-  (map id:club:c club-5)
     %-  ~(run by clubs)
     |=  club:v2:cv
@@ -626,6 +650,7 @@
   ::
   ++  pact-4-to-5
     |=  =pact:v2:cv
+    ~>  %spin.['pact-4-to-5']
     ^-  pact:v3:cv
     :_  dex.pact
     =/  writs  (tap:on:writs:v2:cv wit.pact)
@@ -648,8 +673,9 @@
   ::
   ++  writ-4-to-5
     |=  [=time old=writ:v2:cv =replies:v3:cv]
+    ~>  %spin.['writ-4-to-5']
     ^-  writ:v3:cv
-    =;  qm=reply-meta:v7:d
+    =;  qm=reply-meta:v7:dv
       :-  [id.old time feels.old replies qm]
       (essay-4-to-5 +.old)
     ::
@@ -670,22 +696,26 @@
   ::
   ++  reply-4-to-5
     |=  [parent-id=id:v3:cv =time old=writ:v2:cv]
+    ~>  %spin.['reply-4-to-5']
     ^-  reply:v3:cv
     [[id.old parent-id time feels.old] (memo-4-to-5 +.old)]
   ::
   ++  memo-4-to-5
     |=  memo:v2:cv
-    ^-  memo:v7:old:d
+    ~>  %spin.['memo-4-to-5']
+    ^-  memo:v7:dv
     [(story-4-to-5 author content) author sent]
   ::
   ++  essay-4-to-5
     |=  memo:v2:cv
+    ~>  %spin.['essay-4-to-5']
     ^-  essay:v3:cv
     [(memo-4-to-5 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
   ::
   ++  story-4-to-5
     |=  [=ship old=content:v2:cv]
-    ^-  story:v7:old:d
+    ~>  %spin.['story-4-to-5']
+    ^-  story:v7:dv
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
@@ -696,6 +726,7 @@
   ::
   ++  state-3-to-4
     |=  s=state-3
+    ~>  %spin.['state-3-to-4']
     ^-  state-4
     %*  .  *state-4
       dms     dms.s
@@ -713,6 +744,7 @@
     ==
   ++  state-2-to-3
     |=  s=state-2
+    ~>  %spin.['state-2-to-3']
     ^-  state-3
     %*  .  *state-3
       dms     dms.s
@@ -731,6 +763,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
+  ~>  %spin.['poke']
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
       %chat-negotiate
@@ -942,12 +975,14 @@
   ==
   ++  pin
     |=  ps=(list whom:c)
+    ~>  %spin.['pin']
     =.  pins  ps
     cor
   --
   ::
   ++  has-blocked
     |=  =ship
+    ~>  %spin.['has-blocked']
     ^+  cor
     ?<  (~(has in blocked-by) ship)
     ?<  =(our.bowl ship)
@@ -956,6 +991,7 @@
   ::
   ++  has-unblocked
     |=  =ship
+    ~>  %spin.['has-unblocked']
     ^+  cor
     ?>  (~(has in blocked-by) ship)
     ?<  =(our.bowl ship)
@@ -964,6 +1000,7 @@
   ::
   ++  block
     |=  =ship
+    ~>  %spin.['block']
     ^+  cor
     ?<  (~(has in blocked) ship)
     ?<  =(our.bowl ship)
@@ -972,6 +1009,7 @@
   ::
   ++  unblock
     |=  =ship
+    ~>  %spin.['unblock']
     ^+  cor
     ?>  (~(has in blocked) ship)
     =.  blocked  (~(del in blocked) ship)
@@ -979,6 +1017,7 @@
   ::
   ++  toggle-message
     |=  toggle=message-toggle:c
+    ~>  %spin.['toggle-message']
     ^+  cor
     =.  hidden-messages
       ?-  -.toggle
@@ -989,6 +1028,7 @@
   ::
 ++  watch
   |=  =(pole knot)
+  ~>  %spin.['watch']
   ^+  cor
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
   ::  catch-all
@@ -1024,6 +1064,7 @@
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
+  ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
@@ -1092,17 +1133,20 @@
   ==
 ++  give-kick
   |=  [pas=(list path) =cage]
+  ~>  %spin.['give-kick']
   =.  cor  (give %fact pas cage)
   (give %kick ~ ~)
 ::
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
+  ~>  %spin.['arvo']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
     [%load %rectify-activity ~]  rectify-activity
   ==
 ++  peek
   |=  =path
+  ~>  %spin.['peek']
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
     [%x %full ~]  ``noun+!>([dms clubs])
@@ -1285,6 +1329,7 @@
 ::
 ++  heads
   |=  since=(unit time)
+  ~>  %spin.['heads']
   ^-  chat-heads:c
   %+  murn
     %+  welp
@@ -1308,6 +1353,7 @@
   `[whom recency.remark `+.val.u.vp]
 ::
 ++  unreads
+  ~>  %spin.['unreads']
   ^-  unreads:c
   %-  ~(gas by *unreads:c)
   %+  welp
@@ -1327,6 +1373,7 @@
   `[ship/ship di-unread:di]
 ++  give-unread
   |=  [=whom:c =unread:unreads:c]
+  ~>  %spin.['give-unread']
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
@@ -1380,6 +1427,7 @@
 ::
 ++  make-notice
     |=  [=ship text=cord]
+    ~>  %spin.['make-notice']
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
@@ -1387,6 +1435,7 @@
 ::
 ++  get-ship-dw
   |=  =delta:writs:c
+  ~>  %spin.['get-ship-dw']
   ^-  ship
   ?>  ?=(?(%add %add-react %del-react) -.delta)
   ?-  -.delta
@@ -1397,6 +1446,7 @@
 ::
 ++  get-ship-dr
   |=  =delta:replies:c
+  ~>  %spin.['get-ship-dr']
   ^-  ship
   ?>  ?=(?(%add %add-react %del-react) -.delta)
   ?-  -.delta
@@ -1407,6 +1457,7 @@
 ::
 ++  check-writ-ownership
   |=  diff=diff:writs:c
+  ~>  %spin.['check-writ-ownership']
   =*  her    p.p.diff
   =*  delta  q.diff
   =*  should  =(her src.bowl)
@@ -1421,6 +1472,7 @@
 ::
 ++  check-reply-ownership
   |=  [d=delta:writs:c should=?]
+  ~>  %spin.['check-reply-ownership']
   ?>  ?=(%reply -.d)
   =*  delta  delta.d
   ?-  -.delta
@@ -1432,6 +1484,7 @@
 ::
 ++  diff-to-response
   |=  [=diff:writs:c =pact:c]
+  ~>  %spin.['diff-to-response']
   ^-  (unit response:writs:c)
   =;  delta=?(~ response-delta:writs:c)
     ?~  delta  ~
@@ -1483,6 +1536,7 @@
   ::
   ++  refs
     |=  =flag:t
+    ~>  %spin.['refs']
     ?~  old-chat=(~(get by old-chats) flag)  cor
     %-  emil
     ::  iterate over all chats and, for every message/reply authored by us,
@@ -1561,6 +1615,7 @@
     ==
   ++  convert-pin
     |=  =whom:t
+    ~>  %spin.['convert-pin']
     ^-  whom:u
     ?.  ?=(%flag -.whom)
       [%chat whom]
@@ -1570,6 +1625,7 @@
   ::
   ++  convert-channels
     |=  [log=? =_old-chats]
+    ~>  %spin.['convert-channels']
     ^-  v-channels:d
     %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by old-chats)
@@ -1593,6 +1649,7 @@
   ::
   ++  convert-posts
     |=  old=pact:t
+    ~>  %spin.['convert-posts']
     ^-  v-posts:d
     =/  writs  (tap:on:writs:t wit.old)
     =/  reply-index=(map @da v-replies:d)
@@ -1626,6 +1683,7 @@
   ::
   ++  convert-post
     |=  [id=@da seq=@ud old=writ:t replies=v-replies:d]
+    ~>  %spin.['convert-post']
     ^-  v-post:d
     =/  modified-at=@da
       %-  ~(rep in replied.old)
@@ -1636,6 +1694,7 @@
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)
+    ~>  %spin.['convert-feels']
     ^-  v-reacts:d
     %-  ~(run by old)
     |=  =feel:t
@@ -1645,16 +1704,19 @@
   ::
   ++  convert-quip
     |=  [id=@da old=writ:t]
+    ~>  %spin.['convert-quip']
     ^-  v-reply:d
     [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=memo:t
+    ~>  %spin.['convert-memo']
     ^-  memo:d
     [(convert-story author.old content.old) author.old sent.old]
   ::
   ++  convert-essay
     |=  old=memo:t
+    ~>  %spin.['convert-essay']
     ^-  essay:d
     :*  (convert-memo old)
         [%chat ?-(-.content.old %story ~, %notice /notice)]
@@ -1664,6 +1726,7 @@
   ::
   ++  convert-story
     |=  [=ship old=content:t]
+    ~>  %spin.['convert-story']
     ^-  story:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
@@ -1695,6 +1758,7 @@
   ::
   ++  convert-log
     |=  [[=writs:t =index:t] posts=v-posts:d =perm:d =log:t]
+    ~>  %spin.['convert-log']
     ^-  log:d
     %+  gas:log-on:d  *log:d
     %-  zing
@@ -1775,10 +1839,12 @@
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  cu-abed
     |=  i=id:club:c
+    ~>  %spin.['cu-abed']
     ~|  no-club/i
     cu-core(id i, club (~(gut by clubs) i *club:c))
   ++  cu-abed-hard
     |=  i=id:club:c
+    ~>  %spin.['cu-abed-hard']
     ~|  no-club/i
     cu-core(id i, club (~(got by clubs) i))
   ++  cu-clean
@@ -1822,6 +1888,7 @@
     |%
     ++  act
       |=  [=ship =diff:club:c]
+      ~>  %spin.['act']
       ^-  card
       =/  =wire
         %+  weld  cu-area
@@ -1836,6 +1903,7 @@
     ::
     ++  gossip
       |=  =diff:club:c
+      ~>  %spin.['gossip']
       ^-  (list card)
       %+  turn  ~(tap in cu-out)
       |=  =ship
@@ -1844,6 +1912,7 @@
   ::
   ++  cu-init
     |=  [=net:club:c =create:club:c]
+    ~>  %spin.['cu-init']
     =/  clab=club:c
       [*heard:club:c *remark:c *pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
@@ -1854,6 +1923,7 @@
   ::
   ++  cu-create
     |=  =create:club:c
+    ~>  %spin.['cu-create']
     =.  cu-core  (cu-init %done create)
     =.  cu-core  (cu-diff 0v0 [%init team hive met]:crew.club)
     =.  cor  (give-unread club/id cu-unread)
@@ -1873,6 +1943,7 @@
   ::  messages, and never forward. XX: defend against?
   ++  cu-post-notice
     |=  [=ship text=cord]
+    ~>  %spin.['cu-post-notice']
     =/  =id:c             [ship now.bowl]
     =/  =delta:writs:c    (make-notice ship text)
     =/  w-d=diff:writs:c  [id delta]
@@ -1881,6 +1952,7 @@
   ::
   ++  cu-give-action
     |=  =action:club:c
+    ~>  %spin.['cu-give-action']
     =/  action-5  (v5:action-club:v6:cc action)
     =.  cor
       =/  =cage  chat-club-action+!>((v3:action-club:v5:cc action-5))
@@ -1895,6 +1967,7 @@
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
+    ~>  %spin.['cu-give-writs-diff']
     =/  =whom:c  [%club id]
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.club)
@@ -1926,6 +1999,7 @@
   ::
   ++  cu-diff
     |=  [=uid:club:c =delta:club:c]
+    ~>  %spin.['cu-diff']
     =.  last-updated  (~(put ol last-updated) [%club id] now.bowl)
     ::  generate a uid if we're hearing from a pre-upgrade ship or if we're sending
     =^  uid  cu-core
@@ -1993,15 +2067,16 @@
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
-        =*  essay  essay.q.diff.delta
-        =?    last-read.remark.club
-            =((get-author-ship:utils author.essay) our.bowl)
+        =*  essay   essay.q.diff.delta
+        =/  author  (get-author-ship:utils author.essay)
+        =?  last-read.remark.club  =(author our.bowl)
           (add now.bowl (div ~s1 100))
-        =.  recency.remark.club  now.bowl
-        =.  cor  (give-unread club/id cu-unread)
-        =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.essay our.bowl ~)
-        =.  cu-core  (cu-activity concern content.essay mention)
+        =?  cu-core  !(~(has in blocked) author)
+          =.  recency.remark.club  now.bowl
+          =.  cor  (give-unread club/id cu-unread)
+          =/  concern  [%post p.diff.delta now.bowl]
+          =/  mention  (was-mentioned:utils content.essay our.bowl ~)
+          (cu-activity concern content.essay mention)
         (cu-give-writs-diff diff.delta)
       ::
           %del
@@ -2050,17 +2125,19 @@
         ::
             %add
           =*  memo  memo.delt
-          =?  last-read.remark.club  =(author.memo our.bowl)
+          =/  author  (get-author-ship:utils author.memo)
+          =?  last-read.remark.club  =(author our.bowl)
             (add now.bowl (div ~s1 100))
-          =?  unread-threads.remark.club  !=(our.bowl author.memo)
-            (~(put in unread-threads.remark.club) p.diff.delta)
-          =.  recency.remark.club  now.bowl
-          =.  cor  (give-unread club/id cu-unread)
-          =*  op  writ.u.entry
-          =/  top-con  [id time]:op
-          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl ~)
-          =.  cu-core  (cu-activity concern content.memo mention)
+          =?  cu-core  !(~(has in blocked) author)
+            =?  unread-threads.remark.club  !=(our.bowl author)
+              (~(put in unread-threads.remark.club) p.diff.delta)
+            =.  recency.remark.club  now.bowl
+            =.  cor  (give-unread club/id cu-unread)
+            =*  op  writ.u.entry
+            =/  top-con  [id time]:op
+            =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
+            =/  mention  (was-mentioned:utils content.memo our.bowl ~)
+            (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -2102,6 +2179,7 @@
   ::
   ++  cu-remark-diff
     |=  diff=remark-diff:c
+    ~>  %spin.['cu-remark-diff']
     ^+  cu-core
     =.  remark.club
       ?-  -.diff
@@ -2123,6 +2201,7 @@
   ::
   ++  cu-peek
     |=  [care=@tas ver=?(%v0 %v1 %v2 %v3) =(pole knot)]
+    ~>  %spin.['cu-peek']
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:cu-pact care ver rest.pole)
@@ -2180,6 +2259,7 @@
   ::
   ++  cu-watch
     |=  [ver=?(%v0 %v1 %v2 %v3) =path]
+    ~>  %spin.['cu-watch']
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
@@ -2189,6 +2269,7 @@
   ::
   ++  cu-agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['cu-agent']
     ^+  cu-core
     ?+    wire  ~|(bad-club-take/wire !!)
         [%gossip *]
@@ -2252,6 +2333,7 @@
 ::
 ++  dms-by-net
   |=  nets=(list net:dm:c)
+  ~>  %spin.['dms-by-net']
   =/  nets  (~(gas in *(set net:dm:c)) nets)
   %-  ~(gas by *(map ship dm:c))
   %+  skim  ~(tap by dms)
@@ -2305,11 +2387,13 @@
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  di-abed
     |=  s=@p
+    ~>  %spin.['di-abed']
     ~|  ship=s
     di-core(ship s, dm (~(got by dms) s))
   ::
   ++  di-abed-soft
     |=  s=@p
+    ~>  %spin.['di-abed-soft']
     =/  dm  (~(get by dms) s)
     ?^  dm  di-core(ship s, dm u.dm)
     =|  =remark:c
@@ -2338,6 +2422,7 @@
             content=story:d
             mention=?
         ==
+    ~>  %spin.['di-activity']
     ?.  ?|  =(net.dm %done)
             &(=(net.dm %invited) =(%invite -.concern))
         ==
@@ -2348,6 +2433,7 @@
   ::
   ++  di-proxy
     |=  =diff:dm:c
+    ~>  %spin.['di-proxy']
     =.  di-core  (di-ingest-diff diff)
     ::  track the id of the message we sent so that we can handle nacks
     ::  gracefully, such as retrying with an older protocol version.
@@ -2376,6 +2462,7 @@
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
+    ~>  %spin.['di-give-writs-diff']
     =/  =whom:c  [%ship ship]
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.dm)
@@ -2408,6 +2495,7 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
+    ~>  %spin.['di-ingest-diff']
     ^+  di-core
     =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
     =/  =wire  /contacts/(scot %p ship)
@@ -2521,6 +2609,7 @@
   ::
   ++  di-take-counter
     |=  =diff:dm:c
+    ~>  %spin.['di-take-counter']
     ?<  (~(has in blocked) ship)
     =?  di-core  ?=(%inviting net.dm)
       (di-receive-rsvp &)
@@ -2528,12 +2617,14 @@
   ::
   ++  di-post-notice
     |=  text=cord
+    ~>  %spin.['di-post-notice']
     =/  =delta:writs:c  (make-notice ?:(from-self our.bowl ship) text)
     (di-ingest-diff [our now]:bowl delta)
   ::  +di-send-rsvp: send a dm rsvp
   ::
   ++  di-send-rsvp
     |=  ok=?
+    ~>  %spin.['di-send-rsvp']
     ^+  di-core
     ?>  from-self
     =?  cor  ?&  !=(ship our.bowl)  ::  avoid self-proxy infinite loop
@@ -2565,6 +2656,7 @@
   ::
   ++  di-receive-rsvp
     |=  ok=?
+    ~>  %spin.['di-receive-rsvp']
     ^+  di-core
     ?<  from-self
     ?>  =(ship src.bowl)
@@ -2590,6 +2682,7 @@
     (di-post-notice ' joined the chat')
   ++  di-watch
     |=  [ver=?(%v0 %v1 %v2 %v3) =path]
+    ~>  %spin.['di-watch']
     ^+  di-core
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
@@ -2599,6 +2692,7 @@
   ::
   ++  di-agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['di-agent']
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
         [%contacts %heed ~]
@@ -2685,10 +2779,10 @@
             [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
           =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
           =/  rid=time  (slav %ud i.t.t.t.wire)
-          =/  msg=(unit memo:v7:d)
+          =/  msg=(unit memo:v7:dv)
             %+  biff  (get:di-pact id)
             |=  [time writ=(may:c writ:c)]
-            ^-  (unit memo:v7:d)
+            ^-  (unit memo:v7:dv)
             ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
             ?:  ?=(%| -.writ)  ~
             ?~  rep=(get:on:replies:c replies.writ u.id)  ~
@@ -2706,6 +2800,7 @@
   ::
   ++  di-peek
     |=  [care=@tas ver=?(%v0 %v1 %v2 %v3) =(pole knot)]
+    ~>  %spin.['di-peek']
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
@@ -2766,6 +2861,7 @@
     [recency last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
+    ~>  %spin.['di-remark-diff']
     ^+  di-core
     =.  remark.dm
       ?-  -.diff
@@ -2787,12 +2883,14 @@
     |%
     ++  pass
       |=  [=wire =dock =task:agent:gall]
+      ~>  %spin.['pass']
       ^-  card
       [%pass (welp di-area wire) %agent dock task]
     ++  poke-them  |=([=wire =cage] (pass wire [ship dap.bowl] %poke cage))
     ++  proxy-rsvp  |=(ok=? (poke-them /proxy/rsvp/(scot %f ok) chat-dm-rsvp+!>([our.bowl ok])))
     ++  proxy
       |=  =diff:dm:c
+      ~>  %spin.['proxy']
       ::NOTE  static wire important for ordering guarantees and preventing flow
       ::      proliferation, see also +di-proxy
       (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
