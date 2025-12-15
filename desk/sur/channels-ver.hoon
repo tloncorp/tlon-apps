@@ -29,6 +29,82 @@
   |$  [data]
   [rev=@ud data]
 ::
+++  v10
+  =,  v9
+  |%
+  ::  $v-channels: depends on $v-channel
+  +$  v-channels  (map nest v-channel)
+  ::  $v-channel: depends on $net
+  ++  v-channel
+    |^  ,[global local]
+    ::  $global: should be identical between ships
+    ::
+    +$  global
+      $:  posts=v-posts
+          ::  .count: number of posts, for sequence nr generation
+          count=@ud
+          order=(rev arranged-posts)
+          view=(rev view)
+          sort=(rev sort)
+          perm=(rev perm)
+          meta=(rev (unit @t))
+      ==
+    ::  $window: sparse set of time ranges
+    ::
+    ::TODO  populate this
+    +$  window  (list [from=time to=time])
+    ::  .window: time range for requested posts that we haven't received
+    ::  .diffs: diffs for posts in the window, to apply on receipt
+    ::
+    +$  future
+      [=window diffs=(jug id-post u-post)]
+    ::  $local: local-only information
+    ::
+    +$  local
+      $:  =net
+          =log
+          =remark
+          =window
+          =future
+          pending=pending-messages
+          =last-updated
+      ==
+    --
+  ::  $conn-ok: positive subscription status
+  +$  conn-ok  ?(%watch %done %suspend)
+  ::  $conn-error: failed subscription status
+  +$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+  ::  $conn: subscription status
+  +$  conn  (each conn-ok conn-error)
+  ::  $net: modified
+  ::
+  ::  .conn: connection status
+  ::
+  +$  net  [p=ship load=_| =conn]
+  ::  $channels: depends on $channel
+  +$  channels  (map nest channel)
+  ::  $channel: depends on $net
+  ::
+  ++  channel
+    |^  ,[global local]
+    +$  global
+      $:  =posts
+          ::  .count: number of posts, for sequence nr generation
+          count=@ud
+          order=arranged-posts
+          =view
+          =sort
+          =perm
+          meta=(unit @t)
+      ==
+    ::
+    +$  local
+      $:  =net
+          =remark
+          pending=pending-messages
+      ==
+    --
+  --
 ++  v9
   =,  v8
   |%

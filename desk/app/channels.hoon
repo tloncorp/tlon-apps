@@ -216,8 +216,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %16
-        =v-channels:v9:cv
+    $:  %17
+        =v-channels:v10:cv
         voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
         hidden-posts=(set id-post:v9:cv)
         debounce=(jug nest:v9:cv @da)  ::  temporary bandaid
@@ -365,7 +365,8 @@
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
-  ?>  ?=(%16 -.old)
+  =?  old  ?=(%16 -.old)  (state-16-to-17 old)
+  ?>  ?=(%17 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -373,7 +374,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-16
+    $%  state-17
+        state-16
         state-15
         state-14
         state-13
@@ -391,7 +393,22 @@
         state-1
         state-0
     ==
-  +$  state-16  current-state
+  +$  state-17  current-state
+  +$  state-16
+    $:  %16
+        =v-channels:v9:cv
+        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
+        hidden-posts=(set id-post:v9:cv)
+        debounce=(jug nest:v9:cv @da)  ::  temporary bandaid
+        last-updated=(list [=nest:v9:cv =time])  ::  newest first, one-per-nest
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:v9:cv name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-15
     $:  %15
         =v-channels:v9:cv
@@ -470,6 +487,15 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-16-to-17
+    |=  =state-16
+    ~>  %spin.['state-16-to-17']
+    ^-  state-17
+    %=  state-16
+      -  %17
+      v-channels  (~(run by v-channels.state-16) v10:v-channel:v9:ccv)
     ==
   ::
   ++  state-15-to-16
@@ -637,23 +663,23 @@
     |^  ,[global local]
     +$  global
       $:  posts=v-posts-1
-          order=(rev:c order=arranged-posts:c)
-          view=(rev:c =view:c)
-          sort=(rev:c =sort:c)
-          perm=(rev:c =perm:c)
+          order=(rev:v7:cv order=arranged-posts:v7:cv)
+          view=(rev:v7:cv =view:v7:cv)
+          sort=(rev:v7:cv =sort:v7:cv)
+          perm=(rev:v7:cv =perm:v7:cv)
       ==
-    +$  window    window:v-channel:c
-    +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:v7:cv =window =future]
+    +$  window    window:v-channel:v7:cv
+    +$  future    [=window diffs=(jug id-post:v7:cv u-post-1)]
+    +$  local     [=net:v7:cv log=log-1 =remark:v7:cv =window =future]
     --
   ::
   ++  v-channel-2
     |^  ,[global:v-channel:v7:cv local]
     +$  local
-      $:  =net:c
+      $:  =net:v7:cv
           =log:v7:cv
           =remark:v7:cv
-          =window:v-channel:c
+          =window:v-channel:v7:cv
           =future:v-channel:v7:cv
       ==
     --
@@ -755,7 +781,7 @@
     |^  ,[global:v-channel-1 local]
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
+    +$  local     [=net:v7:cv log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::
@@ -1399,7 +1425,7 @@
     ``channels-2+!>(`channels:v1:cv`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v3 %v-channels ~]
-    ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels))
+    ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v10:ccv v-channels))
     ::
       [%x %v4 %v-channels ~]
     ``noun+!>(v-channels)

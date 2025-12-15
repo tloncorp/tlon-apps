@@ -1642,8 +1642,8 @@
                 ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
         net
       ?-  -.net.chat
-        %pub  [*ship &]
-        %sub  [host load]:net.chat
+        %pub  [*ship & &+%done]
+        %sub  [host load &+%done]:net.chat
       ==
     ==
   ::

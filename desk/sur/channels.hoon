@@ -189,10 +189,15 @@
 ::
 +$  plan
   (pair time (unit time))
-::
+::  $conn-ok: positive subscription status
++$  conn-ok  ?(%watch %done %suspend)
+::  $conn-error: failed subscription status
++$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+::  $conn: subscription status
++$  conn  (each conn-ok conn-error)
 ::  $net: subscriber-only state
 ::
-+$  net  [p=ship load=_|]
++$  net  [p=ship load=_| =conn]
 ::
 ::  $unreads: a map of channel unread information, for clients
 ::  $unread: unread data for a specific channel, for clients

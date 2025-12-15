@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid, em=emojimart
+/+  utils=channel-utils, ccv=channel-conv, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -62,8 +62,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
-        =v-channels:v9:cv
+    $:  %14
+        =v-channels:v10:cv
         =hooks:h
         =pimp:imp
     ==
@@ -160,12 +160,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -180,7 +182,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -212,6 +220,12 @@
       =v-channels:v7:cv
       =pimp:imp
     ==
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    s(- %14, v-channels (~(run by v-channels.s) v10:v-channel:v9:ccv))
   ::
   ++  state-12-to-13
     |=  s=state-12
@@ -307,10 +321,10 @@
   ++  v-channel-2
     |^  ,[global:v-channel:v7:cv local]
     +$  local
-      $:  =net:c
+      $:  =net:v7:cv
           =log:v7:cv
-          =remark:c
-          =window:v-channel:c
+          =remark:v7:cv
+          =window:v-channel:v7:cv
           =future:v-channel:v7:cv
       ==
     --
@@ -340,7 +354,7 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:c =window =future]
+    +$  local     [=net:v7:cv log=log-1 =remark:v7:cv =window =future]
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
@@ -423,7 +437,7 @@
     |^  ,[global:v-channel-1 local]
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
+    +$  local     [=net:v7:cv log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::
