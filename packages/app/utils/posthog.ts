@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
-import { Platform, TurboModuleRegistry } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 import { createSentryErrorLogger } from './sentry';
@@ -72,8 +72,8 @@ posthogAsync?.then((client) => {
 
   // Write PostHog API key to UserDefaults for iOS native access
   if (Platform.OS === 'ios' && POST_HOG_API_KEY) {
-    const UrbitModule = TurboModuleRegistry.get('UrbitModule');
-    (UrbitModule as UrbitModuleSpec)?.setPostHogApiKey(POST_HOG_API_KEY);
+    const UrbitModule = NativeModules.UrbitModule as UrbitModuleSpec;
+    UrbitModule?.setPostHogApiKey(POST_HOG_API_KEY);
   }
 });
 

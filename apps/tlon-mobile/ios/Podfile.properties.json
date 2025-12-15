@@ -1,5 +1,4 @@
 {
   "expo.jsEngine": "hermes",
-  "ios.useFrameworks": "static",
-  "newArchEnabled": "true"
+  "ios.useFrameworks": "static"
 }

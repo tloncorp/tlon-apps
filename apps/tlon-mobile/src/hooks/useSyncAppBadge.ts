@@ -2,9 +2,9 @@ import { UrbitModuleSpec } from '@tloncorp/app/utils/urbitModule';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect } from 'react';
-import { Platform, TurboModuleRegistry } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
-const UrbitModule = TurboModuleRegistry.get('UrbitModule') as UrbitModuleSpec;
+const UrbitModule = NativeModules.UrbitModule as UrbitModuleSpec;
 
 const logger = createDevLogger('useSyncAppBadge', false);
 
