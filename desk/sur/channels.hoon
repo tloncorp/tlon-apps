@@ -395,6 +395,7 @@
       [%create =perm]
       [%join group=flag:gv]
       [%leave ~]
+      [%connection =wire =conn]
       a-remark
   ==
 ::

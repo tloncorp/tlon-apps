@@ -24,6 +24,13 @@
 +$  client-id  [author=ship sent=time]
 +$  plan
   (pair time (unit time))
++$  unreads  (map nest unread)
++$  unread
+  $:  recency=time
+      count=@ud
+      unread=(unit [id=id-post count=@ud])
+      threads=(map id-post [id=id-reply count=@ud])
+  ==
 ::
 ++  rev
   |$  [data]
@@ -104,6 +111,27 @@
           pending=pending-messages
       ==
     --
+  ::  $r-channels: depends on $r-channel
+  +$  r-channels  [=nest =r-channel]
+  ::  $r-channel: modified
+  ::
+  ::  %connection: subscription status
+  ::
+  +$  r-channel
+    $%  [%posts =posts]
+        [%post id=id-post =r-post]
+        [%pending id=client-id =r-pending]
+        [%order order=arranged-posts]
+        [%view =view]
+        [%sort =sort]
+        [%perm =perm]
+        [%meta meta=(unit @t)]
+        [%create =perm]
+        [%join group=flag:gv]
+        [%leave ~]
+        [%connection =wire =conn]
+        a-remark
+    ==
   --
 ++  v9
   =,  v8
@@ -479,13 +507,6 @@
     ==
   +$  said  (pair nest reference)
   +$  net  [p=ship load=_|]
-  +$  unreads  (map nest unread)
-  +$  unread
-    $:  recency=time
-        count=@ud
-        unread=(unit [id=id-post count=@ud])
-        threads=(map id-post [id=id-reply count=@ud])
-    ==
   +$  remark  [recency=time last-read=time watching=_| unread-threads=(set id-post)]
   +$  perm
     $:  writers=(set sect:v0:gv)
@@ -973,13 +994,6 @@
     ==
   +$  net  [p=ship load=_|]
   +$  remark  [recency=time last-read=time watching=_| unread-threads=(set id-post)]
-  +$  unreads  (map nest unread)
-  +$  unread
-    $:  recency=time
-        count=@ud
-        unread=(unit [id=id-post count=@ud])
-        threads=(map id-post [id=id-reply count=@ud])
-    ==
   ++  story  story:v0:ver:s
   ++  verse  verse:v0:ver:s
   ++  inline  inline:v0:ver:s

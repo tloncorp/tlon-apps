@@ -4306,7 +4306,6 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
-      =.  cor  (emil (leave-channels:go-pass nest ~))
       ::  NB: when a channel is deleted we must
       ::      update .active-channels manually without waiting
       ::      for leave response. this is because the channel
@@ -4546,6 +4545,8 @@
   ++  go-u-connection
     |=  =conn:g
     ^+  go-core
+    =?  net  ?=(%sub -.net)
+      net(conn conn)
     =.  go-core  (go-response %connection conn)
     ?:  ?=(%& -.conn)  go-core
     (emit [%pass go-sub-wire %agent [p.flag server] %leave ~])
@@ -4567,7 +4568,7 @@
     ^+  go-core
     ::  do not sent out responses until group log
     ::  has been applied, and the group initialized.
-    ::
+    ::  TODO: but make exception for %connection status.
     ?.  go-is-init  go-core
     ::  v1 response
     ::

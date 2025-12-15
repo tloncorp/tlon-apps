@@ -659,22 +659,28 @@
     ca-abet:ca-watch-create:(ca-abed:ca-core nest)
   ::
       [=kind:c name=@ %updates ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
     ?.  (can-read:ca-perms:ca src.bowl)
-      ~|(%permission-denied !!)
+      ca-abet:(ca-give-conn-error:ca-core %not-authorized)
     cor
   ::
       [=kind:c name=@ %updates after=@ ~]
-    =<  ca-abet
-    %-  ca-watch-updates:(ca-abed:ca-core kind.pole our.bowl name.pole)
-    (slav %da after.pole)
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
+    =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
+    ca-abet:(ca-watch-updates:ca (slav %da after.pole))
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ ~]
-    =<  ca-abet
-    %-  ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
-    [(slav %da from.pole) ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
+    =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
+    ca-abet:(ca-watch-checkpoint:ca (slav %da from.pole) ~)
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ to=@ ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =<  ca-abet
     %^    ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
         (slav %da from.pole)
@@ -682,6 +688,8 @@
     (slav %da to.pole)
   ::
       [=kind:c name=@ %checkpoint %before n=@ud ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =<  ca-abet
     %-  ca-watch-checkpoint-page:(ca-abed:ca-core kind.pole our.bowl name.pole)
     (slav %ud n.pole)
@@ -884,7 +892,7 @@
     ~>  %spin.['ca-watch-updates']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  =log:c  (lot:log-on:c log.channel `da ~)
     =.  ca-core  (give %fact ~ %channel-logs !>(log))
     ca-core
@@ -894,7 +902,7 @@
     ~>  %spin.['ca-watch-checkpoint']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (lot:on-v-posts:c posts.channel `from to)
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
@@ -905,7 +913,7 @@
     ~>  %spin.['ca-watch-checkpoint-page']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c (bat:mo-v-posts:c posts.channel ~ n))
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
@@ -1294,6 +1302,13 @@
     ?:  =(~ paths)
       ca-core
     (give %fact paths %channel-update !>(update))
+  ::
+  ++  ca-give-conn-error
+    |=  err=conn-error:c
+    ^+  ca-core
+    =.  ca-core
+      (give %fact ~ chanel-error+!>(|+err))
+    (give %kick ~ ~)
   ::
   ++  ca-subscriptions
     ~>  %spin.['ca-subscriptions']

@@ -2095,6 +2095,7 @@
   ++  ca-start-updates
     |=  delay=?
     ~>  %spin.['ca-start-updates']
+    =.  ca-core  (ca-u-connection /updates &+%watch)
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
@@ -2113,7 +2114,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  ca-core
       ((slog %ca-agent u.p.sign) ca-core)
-      :: ca-core  :: no-op wire, should only send pokes
+    ::
       [%create ~]       (ca-take-create sign)
       [%updates ~]      (ca-take-update sign)
       [%backlog ~]      (ca-take-backlog sign)
@@ -2141,8 +2142,10 @@
     ::
         %fact
       =*  cage  cage.sign
+      ?:  ?=(%channel-error p.cage)
+        (ca-u-connection /create |+!<(conn-error:c q.cage))
       ?.  =(%channel-update p.cage)
-        ~|(diary-strange-fact+p.cage !!)
+        ~|(channel-strange-fact+p.cage !!)
       =+  !<(=update:c q.cage)
       =?  meta.channel  ?=(%create -.u-channel.update)
         [0 meta.u-channel.update]
@@ -2156,16 +2159,27 @@
     |=  =sign:agent:gall
     ~>  %spin.['ca-take-update']
     ^+  ca-core
+    =*  net  net.channel
     ?+    -.sign  ca-core
-        %kick       (ca-safe-sub &)
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
+        %kick       
+      ::  nb: only attempt to resubscribe if the connection is active.
+      ::  othewise this would trigger when the channel host sends an error
+      ::  fact that is followed by a kick closing the subscription.
+      ::
+      ?:  &(?=(%& -.conn.net) ?=(?(%watch %done) p.conn.net))
+        (ca-safe-sub &)
       ca-core
+    ::
+        %watch-ack
+      ?~  p.sign  
+        (ca-u-connection /update &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
+      (ca-u-connection /update |+%fail)
     ::
         %fact
       =*  cage  cage.sign
       ?+  p.cage  ~|(channel-strange-fact+p.cage !!)
+        %channel-error   (ca-u-connection /update |+!<(conn-error:c q.cage))
         %channel-logs    (ca-apply-logs !<(log:c q.cage))
         %channel-update  (ca-u-channels !<(update:c q.cage))
       ==
@@ -2185,7 +2199,10 @@
     ::
         %fact
       =*  cage  cage.sign
-      ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
+      ?+    p.cage  ~|(channel-strange-fact+p.cage !!)
+          %channel-error
+        (ca-u-connection /checkpoint |+!<(conn-error:c q.cage))
+      ::
           %channel-checkpoint
         (ca-ingest-checkpoint !<(u-checkpoint:c q.cage))
       ==
@@ -2205,7 +2222,10 @@
     ::
         %fact
       =*  cage  cage.sign
-      ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
+      ?+    p.cage  ~|(channel-strange-fact+p.cage !!)
+          %channel-error
+        (ca-u-connection /backlog |+!<(conn-error:c q.cage))
+      ::
           %channel-checkpoint
         (ca-ingest-backlog !<(u-checkpoint:c q.cage))
       ==
@@ -2551,18 +2571,42 @@
       reacts  (ca-apply-reacts reacts.old reacts.new)
       +>      +>.new
     ==
+  ::  +ca-u-connection: receive connection update
+  ::
+  ++  ca-u-connection
+    |=  [=wire =conn:c]
+    ^+  ca-core
+    =*  net  net.channel
+    =+  wir=wire  ::TMI
+    ?.  ?=([%update ~] wir)
+      =.  ca-core  (ca-response %connection wire conn)
+      (unsubscribe (weld ca-area wire) [ship.nest server])
+    ::  we only maintain the connection status on the /updates wire,
+    ::  which is the main source of updates from the channel host.
+    ::  we do receive updates on other wires, but these other
+    ::  subscriptions are transient, and when we subscribe on any of
+    ::  them, we establish the main subscription at the same time.
+    ::
+    =.  conn.net  conn
+    =.  ca-core  (ca-response %connection wire conn)
+    ?:  =(%& -.conn.net)  ca-core
+    =.  ca-core  (unsubscribe (weld ca-area wire) [ship.nest server])
+    ca-core
   ::
   ::  give a "response" to our subscribers
   ::
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
+    ^+  ca-core
     =/  =r-channels:c  [nest r-channel]
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
-      =/  rc=r-channels:v9:cv  r-channels
+      =/  rc=r-channels:v10:cv  r-channels
       channel-response-4+!>(rc)
+    ?:  ?=(%connection -.r-channel)  ca-core
+    =/  r-channels=r-channels:v9:cv  [nest r-channel]
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
