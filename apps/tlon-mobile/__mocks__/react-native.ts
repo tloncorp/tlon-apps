@@ -14,6 +14,7 @@ originalModule.NativeModules.UrbitModule = {
   clearUrbit: jest.fn(),
   setUrbit: jest.fn(),
   updateBadgeCount: jest.fn(),
+  signalJsReady: jest.fn(),
 };
 
 Object.defineProperty(originalModule, 'Settings', {

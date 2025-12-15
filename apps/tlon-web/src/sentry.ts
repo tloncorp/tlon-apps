@@ -17,6 +17,8 @@ export function initSentry() {
 
     // Set environment and release for better error tracking
     environment: isDev ? 'development' : 'production',
+    // Release must match release.name in vite.config.mts sentryVitePlugin
+    // for source map resolution. Both use VITE_GIT_HASH set in CI workflows.
     release: GIT_HASH,
 
     // Tag errors with platform for filtering in Sentry UI
