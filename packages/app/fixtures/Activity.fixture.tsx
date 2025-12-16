@@ -17,6 +17,7 @@ const baseContentProps = {
   onEndReached: () => {},
   isFetching: false,
   isRefreshing: false,
+  isLoading: false,
   onRefreshTriggered: () => {},
 } as const;
 

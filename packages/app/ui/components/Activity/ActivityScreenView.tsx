@@ -175,6 +175,7 @@ export function ActivityScreenView({
       onEndReached={handleEndReached}
       events={events}
       isFetching={currentFetcher.isFetching}
+      isLoading={currentFetcher.isLoading}
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
@@ -189,6 +190,7 @@ export function ActivityScreenContent({
   activeTab,
   events,
   isFetching,
+  isLoading,
   isRefreshing,
   onPressTab,
   onPressEvent,
@@ -205,6 +207,7 @@ export function ActivityScreenContent({
   onEndReached: () => void;
   events: logic.SourceActivityEvents[];
   isFetching: boolean;
+  isLoading: boolean;
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
@@ -267,7 +270,7 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        {events.length > 0 ? (
+        {isLoading || events.length > 0 ? (
           <>
             <ActivityHeader
               activeTab={activeTab}
