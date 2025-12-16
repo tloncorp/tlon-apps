@@ -80,8 +80,6 @@ const useSplashHider = () => {
   return splashHidden;
 };
 
-registerBackgroundSyncTask();
-
 // Android notification tap handler passes initial params here
 const App = () => {
   const isDarkMode = useIsDarkMode();
@@ -104,6 +102,10 @@ const App = () => {
   }, [signupContext.email, signupContext.phoneNumber]);
 
   usePreloadedEmojis();
+
+  useEffect(() => {
+    registerBackgroundSyncTask();
+  }, []);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
