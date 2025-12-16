@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { PlaintextPreviewConfig, getTextContent } from '@tloncorp/shared/logic';
 import type { Story } from '@tloncorp/shared/urbit';
-import { formatUd, unixToDa } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 import seedrandom from 'seedrandom';
 
 const makeRandomGenerator = (seed: string = '') => {
@@ -686,7 +686,7 @@ export const createFakePost = (
   const fakeImage = image ? createImageContent(image) : null;
 
   const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
-  const id = formatUd(unixToDa(randomSentAtSameDay));
+  const id = render('ud', da.fromUnix(randomSentAtSameDay));
   return {
     id: `${id}`,
     authorId: ship,

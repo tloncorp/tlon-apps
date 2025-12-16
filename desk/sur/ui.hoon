@@ -1,4 +1,4 @@
-/-  gv=groups-ver, d=channels, cv=chat-ver, a=activity
+/-  gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
 +$  init-6
   $:  groups=groups-ui:v9:gv
@@ -30,7 +30,7 @@
 +$  init-3
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v1:old:d
+      =channels:v1:dv
       =activity:v3:old:a
       pins=(list whom)
       chat=chat-1
@@ -39,7 +39,7 @@
 +$  init-2
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v1:old:d
+      =channels:v1:dv
       activity=activity:v2:old:a
       pins=(list whom)
       chat=chat-1
@@ -49,8 +49,8 @@
 +$  init-1
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v1:old:d
-      =unreads:d
+      =channels:v1:dv
+      =unreads:v7:dv
       pins=(list whom)
       chat=chat-0
       profile=?
@@ -59,24 +59,24 @@
 +$  init-0
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      channels=channels:v1:old:d
-      =unreads:d
+      channels=channels:v1:dv
+      =unreads:v7:dv
       pins=(list whom)
       chat=chat-0
       profile=?
   ==
 ::
-+$  mixed-heads  [chan=channel-heads:v7:d chat=chat-heads:v3:cv]
-+$  mixed-heads-2  [chan=channel-heads:v8:d chat=chat-heads:v5:cv]
-+$  mixed-heads-3  [chan=channel-heads:v9:d chat=chat-heads:v6:cv]
++$  mixed-heads  [chan=channel-heads:v7:dv chat=chat-heads:v3:cv]
++$  mixed-heads-2  [chan=channel-heads:v8:dv chat=chat-heads:v5:cv]
++$  mixed-heads-3  [chan=channel-heads:v9:dv chat=chat-heads:v6:cv]
 ::
 +$  channel-8
-  $:  =channels:v8:d
-      hidden-posts=(set id-post:d)
+  $:  =channels:v8:dv
+      hidden-posts=(set id-post:dv)
   ==
 +$  channel-0
-  $:  =channels:v1:old:d
-      hidden-posts=(set id-post:d)
+  $:  =channels:v1:dv
+      hidden-posts=(set id-post:dv)
   ==
 +$  chat-2
   $:  dms=(set ship)

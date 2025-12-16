@@ -106,6 +106,7 @@
   ::
   ++  pass-activity
     |=  [who=ship field=(pair @tas value)]
+    ~>  %spin.['pass-activity']
     ^-  card
     =/  =cage  activity-action+!>(`action:activity`[%add %contact who field])
     [%pass /activity %agent [our.bowl %activity] %poke cage]
@@ -140,6 +141,7 @@
         ::  over 5.000 elements: do some benchmarking.
         ::
         ++  subs
+          ~>  %spin.['subs']
           ^-  (set path)
           %-  ~(rep by sup.bowl)
           ::  default .acc prevents invalid empty fact path in the case
@@ -149,6 +151,7 @@
           ?.(?=([%v1 %contact *] pat) acc (~(put in acc) pat))
         ++  fact
           |=  [pat=(set path) u=update]
+          ~>  %spin.['fact']
           ^-  gift:agent:gall
           [%fact ~(tap in pat) %contact-update-1 !>(u)]
         --
@@ -161,6 +164,7 @@
     ::
     ++  p-self
       |=  con=(map @tas value)
+      ~>  %spin.['p-self']
       =/  old=contact
         ?.(?=([@ ^] rof) *contact con.rof)
       =/  new=contact
@@ -173,6 +177,7 @@
     ::
     ++  p-page-spot
       |=  [who=ship mod=contact]
+      ~>  %spin.['p-page-spot']
       ?:  (~(has by book) who)
         ~|  "peer {<who>} is already a contact"  !!
       =/  con=contact
@@ -187,6 +192,7 @@
     ::
     ++  p-page
       |=  [=kip mod=contact]
+      ~>  %spin.['p-page']
       ?@  kip
         (p-page-spot kip mod)
       ?:  (~(has by book) kip)
@@ -197,6 +203,7 @@
     ::
     ++  p-edit
       |=  [=kip mod=contact]
+      ~>  %spin.['p-edit']
       =/  =page
         ~|  "contact page {<kip>} does not exist"
         (~(got by book) kip)
@@ -212,6 +219,7 @@
     ::
     ++  p-wipe
       |=  wip=(list kip)
+      ~>  %spin.['p-wipe']
       %+  roll  wip
       |=  [=kip acc=_cor]
       (p-commit-wipe kip)
@@ -219,6 +227,7 @@
     ::
     ++  p-commit-self
       |=  con=contact
+      ~>  %spin.['p-commit-self']
       =/  p=profile  [(mono wen.rof now.bowl) con]
       =.  rof  p
       =.  cor
@@ -230,12 +239,14 @@
     ::
     ++  p-commit-page
       |=  [=kip =page]
+      ~>  %spin.['p-commit-page']
       =.  book  (~(put by book) kip page)
       (p-response [%page kip page])
     ::  +p-commit-edit: publish contact page update
     ::
     ++  p-commit-edit
       |=  [=kip =page]
+      ~>  %spin.['p-commit-edit']
       =.  book
         (~(put by book) kip page)
       (p-response [%page kip page])
@@ -243,6 +254,7 @@
     ::
     ++  p-commit-wipe
       |=  =kip
+      ~>  %spin.['p-commit-wipe']
       =.  book
         (~(del by book) kip)
       (p-response [%wipe kip])
@@ -250,6 +262,7 @@
     ::
     ++  p-init
       |=  wen=(unit @da)
+      ~>  %spin.['p-init']
       ?~  wen  (give (fact ~ full+rof))
       ?:  =(u.wen wen.rof)  cor
       ::
@@ -259,11 +272,13 @@
     ::
     ++  p-news-0
       |=  n=news-0:c0
+      ~>  %spin.['p-news-0']
       (give %fact ~[/news] %contact-news !>(n))
     ::  +p-response: publish response
     ::
     ++  p-response
       |=  r=response
+      ~>  %spin.['p-response']
       (give %fact ~[/v1/news] %contact-response-0 !>(r))
     --
   ::
@@ -288,6 +303,7 @@
     ::
     ++  s-many
       |=  [l=(list ship) f=$-(_s-impl _s-impl)]
+      ~>  %spin.['s-many']
       ^+  cor
       %+  roll  l
       |=  [who=@p acc=_cor]
@@ -321,6 +337,7 @@
       ::
       ++  si-take
         |=  [=wire =sign:agent:gall]
+        ~>  %spin.['si-take']
         ^+  si-cor
         ?-  -.sign
           %poke-ack   ~|(strange-poke-ack+wire !!)
@@ -344,6 +361,7 @@
       ::
       ++  si-hear
         |=  u=update
+        ~>  %spin.['si-hear']
         ^+  si-cor
         ?.  (sane-contact `src.bowl con.u)
           si-cor
@@ -367,6 +385,7 @@
       ::
       ++  send-activity
         |=  [u=update con=contact]
+        ~>  %spin.['send-activity']
         ^-  (list card)
         ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
           ~
@@ -470,6 +489,7 @@
       *profile
     ::
     ++  them
+      ~>  %spin.['them']
       ^-  ^peers
       %-  ~(rep by (~(del by ful) our.bowl))
       |=  [[who=ship con=contact:legacy] =^peers]
@@ -477,6 +497,7 @@
     ::
     ++  convert
       |=  con=contact:legacy
+      ~>  %spin.['convert']
       ^-  profile
       %-  profile:from-0
       [last-updated.con con(|6 groups.con)]
@@ -490,6 +511,7 @@
   ::
   ++  load
     |=  old-vase=vase
+    ~>  %spin.['load']
     ^+  cor
     |^  =+  !<([old=versioned-state *] old-vase)
         =^  caz-0=(list card)  old
@@ -498,7 +520,7 @@
         =.  cor  (emil caz-0)
         =?  old  ?=(%1 -.old)  (state-1-to-2 old)
         =?  cor  ?=(%2 -.old)
-          ::  fix incorrectly bunted timestamp for an empty profile 
+          ::  fix incorrectly bunted timestamp for an empty profile
           ::  migrated from v0.
           ::
           ?:  &(=(*@da wen.rof) ?=(~ con.rof))
@@ -543,6 +565,7 @@
     ::
     ++  state-3-to-4
       |=  state-3
+      ~>  %spin.['state-3-to-4']
       ^-  state-4
       =*  state  +<
       ::  sanitize our nickname
@@ -582,16 +605,19 @@
     ::
     ++  state-2-to-3
       |=  =state-2
+      ~>  %spin.['state-2-to-3']
       ^-  state-3
       [%3 rof book peers ~ retry]:state-2
     ::
     ++  state-1-to-2
       |=  =state-1
+      ~>  %spin.['state-1-to-2']
       ^-  state-2
       state-1(- %2)
     ::
     ++  state-0-to-1
       |=  state-0
+      ~>  %spin.['state-0-to-1']
       ^-  [(list card) state-1]
       =|  =state-1
       =.  rof.state-1
@@ -644,6 +670,7 @@
   ::
   ++  poke
     |=  [=mark =vase]
+    ~>  %spin.['poke']
     ^+  cor
     ?+    mark  ~|(bad-mark+mark !!)
         %noun
@@ -716,6 +743,7 @@
   ::
   ++  peek
     |=  pat=(pole knot)
+    ~>  %spin.['peek']
     ^-  (unit (unit cage))
     ?+    pat  [~ ~]
       ::
@@ -860,6 +888,7 @@
   ::
   ++  peer
     |=  pat=(pole knot)
+    ~>  %spin.['peer']
     ^+  cor
     ?+  pat  ~|(bad-watch-path+pat !!)
       ::
@@ -876,6 +905,7 @@
   ::
   ++  agent
     |=  [=wire =sign:agent:gall]
+    ~>  %spin.['agent']
     ^+  cor
     ?+    wire  ~|(evil-agent+wire !!)
         [%contact ~]
@@ -896,6 +926,7 @@
   ::
   ++  arvo
     |=  [=wire sign=sign-arvo]
+    ~>  %spin.['arvo']
     ^+  cor
     ?+  wire  ~|(evil-vane+wire !!)
       ::

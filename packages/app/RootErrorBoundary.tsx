@@ -1,8 +1,8 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { themes } from '@tloncorp/ui/config';
+import * as SplashScreen from 'expo-splash-screen';
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import * as SplashScreen from 'expo-splash-screen';
 
 const logger = createDevLogger('root-error-boundary', false);
 
@@ -40,8 +40,7 @@ export class RootErrorBoundary extends Component<
     hideSplashScreen();
 
     logger.trackError('Root error boundary triggered', {
-      errorMessage: error.message,
-      errorStack: error.stack,
+      error,
       componentStack: errorInfo.componentStack,
     });
   }

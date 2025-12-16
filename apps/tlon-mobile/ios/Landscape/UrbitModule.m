@@ -14,6 +14,7 @@ RCT_EXTERN_METHOD(setUrbit:(NSString *)shipName shipUrl:(NSString *)shipUrl auth
 RCT_EXTERN_METHOD(clearUrbit)
 RCT_EXTERN_METHOD(setPostHogApiKey:(NSString *)apiKey)
 RCT_EXTERN_METHOD(updateBadgeCount:(NSInteger)count uid:(NSString *)uid)
+RCT_EXTERN_METHOD(signalJsReady)
 + (BOOL)requiresMainQueueSetup
 {
   return NO;

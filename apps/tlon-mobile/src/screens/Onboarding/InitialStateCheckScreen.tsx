@@ -59,8 +59,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
       } catch (e) {
         db.clearSessionStorageItems();
         logger.trackEvent('Error reviving onboarding session', {
-          errorMessage: e.message,
-          errorStack: e.stack,
+          error: e,
         });
       }
 

@@ -1,105 +1,64 @@
 {
   "~fabled-faster/new-york": {
-    "zone-ord": ["default", "zv5eht", "zv61h0", "zv4boh"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
+    "meta": {
+      "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
+      "title": "New York",
+      "cover": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.06.07-FTVR9pcXwAAWht9.jpeg",
+      "description": "Martians Invade the Big Apple"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1692473215572
+      }
+    },
+    "roles": {
       "downtown-brooklyn": {
-        "meta": {
-          "image": "",
-          "title": "Downtown Brooklyn",
-          "cover": "",
-          "description": ""
-        }
+        "image": "",
+        "title": "Downtown Brooklyn",
+        "cover": "",
+        "description": ""
       },
       "westchester": {
-        "meta": {
-          "image": "",
-          "title": "Westchester",
-          "cover": "",
-          "description": ""
-        }
+        "image": "",
+        "title": "Westchester",
+        "cover": "",
+        "description": ""
       },
       "prospect": {
-        "meta": {
-          "image": "",
-          "title": "Prospect",
-          "cover": "",
-          "description": ""
-        }
+        "image": "",
+        "title": "Prospect",
+        "cover": "",
+        "description": ""
       },
       "admin": {
-        "meta": {
-          "image": "",
-          "title": "Janitor",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
+        "image": "",
+        "title": "Janitor",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
       },
       "village": {
-        "meta": {
-          "image": "",
-          "title": "Village",
-          "cover": "",
-          "description": ""
-        }
+        "image": "",
+        "title": "Village",
+        "cover": "",
+        "description": ""
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1692473215572, "sects": [] } },
-    "zones": {
-      "zv61h0": {
-        "idx": [
-          "chat/~fabled-faster/manhattan",
-          "chat/~fabled-faster/brooklyn",
-          "chat/~fabled-faster/albany-expressions-8300"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Regional",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zv5eht": {
-        "idx": [
-          "heap/~fabled-faster/event-pics-87",
-          "chat/~fabled-faster/organized-athletics",
-          "chat/~fabled-faster/events-7881",
-          "heap/~fabled-faster/events-1267"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Events",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zv4boh": {
-        "idx": [
-          "heap/~fabled-faster/spots-1241",
-          "chat/~tormut-bolpub/nyc-housing-7361",
-          "heap/~fabled-faster/webring-6130"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Resources",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "default": {
-        "idx": [
-          "chat/~fabled-faster/banter-3807",
-          "heap/~fabled-faster/scene-9092"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Sectionless",
-          "cover": "",
-          "description": ""
-        }
-      }
-    },
-    "flagged-content": {},
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~tormut-bolpub/nyc-housing-7361": {
         "join": false,
@@ -246,34 +205,53 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
-      "title": "New York",
-      "cover": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.06.07-FTVR9pcXwAAWht9.jpeg",
-      "description": "Martians Invade the Big Apple"
-    }
-  },
-  "~solfer-magfed/test-group": {
-    "zone-ord": ["default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
+    "active-channels": [],
+    "sections": {
+      "zv61h0": {
+        "channel-order": [
+          "chat/~fabled-faster/manhattan",
+          "chat/~fabled-faster/brooklyn",
+          "chat/~fabled-faster/albany-expressions-8300"
+        ],
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Regional",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
-      }
-    },
-    "fleet": {
-      "~solfer-magfed": { "joined": 946684800000, "sects": ["admin"] }
-    },
-    "zones": {
+      },
+      "zv5eht": {
+        "channel-order": [
+          "heap/~fabled-faster/event-pics-87",
+          "chat/~fabled-faster/organized-athletics",
+          "chat/~fabled-faster/events-7881",
+          "heap/~fabled-faster/events-1267"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Events",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zv4boh": {
+        "channel-order": [
+          "heap/~fabled-faster/spots-1241",
+          "chat/~tormut-bolpub/nyc-housing-7361",
+          "heap/~fabled-faster/webring-6130"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Resources",
+          "cover": "",
+          "description": ""
+        }
+      },
       "default": {
-        "idx": ["heap/~solfer-magfed/bna"],
+        "channel-order": [
+          "chat/~fabled-faster/banter-3807",
+          "heap/~fabled-faster/scene-9092"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -282,77 +260,74 @@
         }
       }
     },
+    "section-order": [
+      "default",
+      "zv5eht",
+      "zv61h0",
+      "zv4boh"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~solfer-magfed/test-group": {
+    "meta": {
+      "image": "#999999",
+      "title": "Test Group",
+      "cover": "#D9D9D9",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "admin"
+        ],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "heap/~solfer-magfed/bna": {
         "join": false,
         "added": 1674070522417,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Bna", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#999999",
-      "title": "Test Group",
-      "cover": "#D9D9D9",
-      "description": ""
-    }
-  },
-  "~dacler-ricwyt/new-new-new-york": {
-    "zone-ord": ["zm1d5l", "zm1p35", "default", "zlvkch", "zlvuq5"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Bna",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 946684800000, "sects": [] } },
-    "zones": {
-      "zlvkch": {
-        "idx": [],
-        "meta": { "image": "", "title": "hey", "cover": "", "description": "" }
-      },
-      "zm1d5l": {
-        "idx": [],
-        "meta": {
-          "image": "",
-          "title": "New Section",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zlvuq5": {
-        "idx": [
-          "heap/~dacler-ricwyt/events",
-          "heap/~dacler-ricwyt/iso---recs",
-          "heap/~dacler-ricwyt/pics"
-        ],
-        "meta": {
-          "image": "",
-          "title": "scene",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zm1p35": {
-        "idx": ["chat/~dacler-ricwyt/intros", "chat/~dacler-ricwyt/banter"],
-        "meta": {
-          "image": "",
-          "title": "mingle",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [],
+        "channel-order": [
+          "heap/~solfer-magfed/bna"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -361,7 +336,49 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~dacler-ricwyt/new-new-new-york": {
+    "meta": {
+      "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
+      "title": "New New New York",
+      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/16541675/original_9f936dee69d31615b5d402a438b8ffa6.jpg",
+      "description": "This is the true story … of urbit strangers … picked to live in a group … work together … and have their lives archived … to find out what happens … when people stop being polite … and start getting real: New New New York."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~dacler-ricwyt/intros": {
         "join": false,
@@ -416,52 +433,61 @@
         "added": 1694186149784,
         "readers": [],
         "zone": "zlvuq5",
-        "meta": { "image": "", "title": "pics", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2022.12.15..04.21.41-apple-pink-lady.png",
-      "title": "New New New York",
-      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/16541675/original_9f936dee69d31615b5d402a438b8ffa6.jpg",
-      "description": "This is the true story … of urbit strangers … picked to live in a group … work together … and have their lives archived … to find out what happens … when people stop being polite … and start getting real: New New New York."
-    }
-  },
-  "~riprud-tidmel/chi-anon": {
-    "zone-ord": ["default", "zm872j", "zm7ulj"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "pics",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1675818760831, "sects": [] } },
-    "zones": {
-      "zm872j": {
-        "idx": ["chat/~riprud-tidmel/ruffs-n-riffs"],
-        "meta": { "image": "", "title": "chat", "cover": "", "description": "" }
+    "active-channels": [],
+    "sections": {
+      "zlvkch": {
+        "channel-order": [],
+        "meta": {
+          "image": "",
+          "title": "hey",
+          "cover": "",
+          "description": ""
+        }
       },
-      "zm7ulj": {
-        "idx": [
-          "heap/~riprud-tidmel/proof-of-chi",
-          "heap/~riprud-tidmel/show-n-tell",
-          "heap/~riprud-tidmel/give-a-dog-a-bone--random-links-"
+      "zm1d5l": {
+        "channel-order": [],
+        "meta": {
+          "image": "",
+          "title": "New Section",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zlvuq5": {
+        "channel-order": [
+          "heap/~dacler-ricwyt/events",
+          "heap/~dacler-ricwyt/iso---recs",
+          "heap/~dacler-ricwyt/pics"
         ],
         "meta": {
           "image": "",
-          "title": "links",
+          "title": "scene",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zm1p35": {
+        "channel-order": [
+          "chat/~dacler-ricwyt/intros",
+          "chat/~dacler-ricwyt/banter"
+        ],
+        "meta": {
+          "image": "",
+          "title": "mingle",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -470,7 +496,53 @@
         }
       }
     },
+    "section-order": [
+      "zm1d5l",
+      "zm1p35",
+      "default",
+      "zlvkch",
+      "zlvuq5"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~riprud-tidmel/chi-anon": {
+    "meta": {
+      "image": "https://d2w9rnfcy7mm78.cloudfront.net/22488284/original_973e327896392f5bee01243ca3efc013.png",
+      "title": "cursed chihuahuas",
+      "cover": "https://www.pluggedin.com/wp-content/uploads/2019/12/beverly-hills-chihuahua-1024x576.jpeg",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1675818760831
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "heap/~riprud-tidmel/give-a-dog-a-bone--random-links-": {
         "join": false,
@@ -521,45 +593,87 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://d2w9rnfcy7mm78.cloudfront.net/22488284/original_973e327896392f5bee01243ca3efc013.png",
-      "title": "cursed chihuahuas",
-      "cover": "https://www.pluggedin.com/wp-content/uploads/2019/12/beverly-hills-chihuahua-1024x576.jpeg",
-      "description": ""
-    }
-  },
-  "~middev/the-forge": {
-    "zone-ord": ["default", "z13vm7"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
+    "active-channels": [],
+    "sections": {
+      "zm872j": {
+        "channel-order": [
+          "chat/~riprud-tidmel/ruffs-n-riffs"
+        ],
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "chat",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 946684800000, "sects": [] } },
-    "zones": {
+      },
+      "zm7ulj": {
+        "channel-order": [
+          "heap/~riprud-tidmel/proof-of-chi",
+          "heap/~riprud-tidmel/show-n-tell",
+          "heap/~riprud-tidmel/give-a-dog-a-bone--random-links-"
+        ],
+        "meta": {
+          "image": "",
+          "title": "links",
+          "cover": "",
+          "description": ""
+        }
+      },
       "default": {
-        "idx": ["chat/~middev/info"],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
           "cover": "",
           "description": ""
         }
-      },
-      "z13vm7": {
-        "idx": ["chat/~maldev-master/guild-hall"],
-        "meta": { "image": "", "title": "main", "cover": "", "description": "" }
       }
     },
+    "section-order": [
+      "default",
+      "zm872j",
+      "zm7ulj"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~middev/the-forge": {
+    "meta": {
+      "image": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.5.06..21.01.58-the%20forge.png",
+      "title": "The Forge",
+      "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/IilliilUII.png",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~maldev-master/guild-hall": {
         "join": false,
@@ -578,22 +692,57 @@
         "added": 1710604326709,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "info", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "info",
+          "cover": "",
+          "description": ""
+        }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.5.06..21.01.58-the%20forge.png",
-      "title": "The Forge",
-      "cover": "https://littel-wolfur.nyc3.cdn.digitaloceanspaces.com/IilliilUII.png",
-      "description": ""
-    }
+    "active-channels": [],
+    "sections": {
+      "default": {
+        "channel-order": [
+          "chat/~middev/info"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Sectionless",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "z13vm7": {
+        "channel-order": [
+          "chat/~maldev-master/guild-hall"
+        ],
+        "meta": {
+          "image": "",
+          "title": "main",
+          "cover": "",
+          "description": ""
+        }
+      }
+    },
+    "section-order": [
+      "default",
+      "z13vm7"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
   },
   "~bitbet-bolbel/urbit-community": {
-    "zone-ord": ["default"],
-    "cordon": {
-      "open": {
+    "meta": {
+      "image": "#999999",
+      "title": "Urbit Community",
+      "cover": "#FFFFFF",
+      "description": "World hub, help desk, meet and greet, etc."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
         "ships": [
           "~sictuc-pasfel-tachus-pocryg--watnut-banmev-partyl-samzod",
           "~tolnem-sochus-nodsyl-rivsyp--mocrum-hopwer-dibtul-marzod",
@@ -604,45 +753,36 @@
           "~rispyx-mosfet"
         ],
         "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1674493539925
       }
     },
-    "cabals": {
+    "roles": {
       "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
       },
       "import/~bitbet-bolbel/urbit-dialogue-archives-1750": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Urbit Dialogue Archives",
-          "cover": "",
-          "description": "The writers role for the Urbit Dialogue Archives channel"
-        }
+        "image": "",
+        "title": "Writers: Urbit Dialogue Archives",
+        "cover": "",
+        "description": "The writers role for the Urbit Dialogue Archives channel"
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1674493539925, "sects": [] } },
-    "zones": {
-      "default": {
-        "idx": [
-          "chat/~bitpyx-dildus/assembly-2021-6523",
-          "chat/~dopzod/urbit-help",
-          "chat/~darrux-landes/general",
-          "chat/~darrux-landes/development",
-          "diary/~bitbet-bolbel/urbit-dialogue-archives-1750"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Sectionless",
-          "cover": "",
-          "description": ""
-        }
-      }
-    },
-    "flagged-content": {},
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~dopzod/urbit-help": {
         "join": true,
@@ -659,7 +799,9 @@
       "diary/~bitbet-bolbel/urbit-dialogue-archives-1750": {
         "join": false,
         "added": 1612553657391,
-        "readers": ["import/~bitbet-bolbel/urbit-dialogue-archives-1750"],
+        "readers": [
+          "import/~bitbet-bolbel/urbit-dialogue-archives-1750"
+        ],
         "zone": "default",
         "meta": {
           "image": "",
@@ -705,51 +847,15 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#999999",
-      "title": "Urbit Community",
-      "cover": "#FFFFFF",
-      "description": "World hub, help desk, meet and greet, etc."
-    }
-  },
-  "~bolbex-fogdys/tlon-urbit-foundation": {
-    "zone-ord": ["default"],
-    "cordon": {
-      "shut": {
-        "pending": [
-          "~sigsyt-dacsub",
-          "~tamlut-modnys",
-          "~lavlyn-litmeg",
-          "~taller-ravnut",
-          "~litsyx-tomter",
-          "~datder-sonnet",
-          "~lasnup-fabful",
-          "~dinleb-rambep",
-          "~ritwel-hapmet",
-          "~tidrel-tabpub"
-        ],
-        "ask": []
-      }
-    },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1710342753588, "sects": [] } },
-    "zones": {
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [
-          "diary/~bolbex-fogdys/transition-4145",
-          "chat/~bolbex-fogdys/general-7566",
-          "chat/~bolbex-fogdys/watercooler-4938"
+        "channel-order": [
+          "chat/~bitpyx-dildus/assembly-2021-6523",
+          "chat/~dopzod/urbit-help",
+          "chat/~darrux-landes/general",
+          "chat/~darrux-landes/development",
+          "diary/~bitbet-bolbel/urbit-dialogue-archives-1750"
         ],
         "meta": {
           "image": "",
@@ -759,7 +865,49 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~bolbex-fogdys/tlon-urbit-foundation": {
+    "meta": {
+      "image": "#003e91",
+      "title": "Tlon + Urbit Foundation",
+      "cover": "#FFFFFF",
+      "description": "A place for Tlon and UF staff to coordinate and hang out"
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1710342753588
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~bolbex-fogdys/watercooler-4938": {
         "join": false,
@@ -798,53 +946,13 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": true,
-    "meta": {
-      "image": "#003e91",
-      "title": "Tlon + Urbit Foundation",
-      "cover": "#FFFFFF",
-      "description": "A place for Tlon and UF staff to coordinate and hang out"
-    }
-  },
-  "~solfer-magfed/bofto": {
-    "zone-ord": ["default"],
-    "cordon": {
-      "shut": {
-        "pending": [
-          "~livfep-savser",
-          "~lastes-foghec",
-          "~ranwyl-wicmet",
-          "~sippeg-wantev",
-          "~wistud-rinlet",
-          "~fosreg-harrun",
-          "~natdut-dopweb-solfer-magfed",
-          "~siglec-bandur",
-          "~wanlud-simler"
-        ],
-        "ask": []
-      }
-    },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": {
-      "~solfer-magfed": { "joined": 946684800000, "sects": ["admin"] }
-    },
-    "zones": {
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [
-          "diary/~solfer-magfed/baringo-70",
-          "diary/~solfer-magfed/baringo",
-          "chat/~solfer-magfed/besto",
-          "heap/~solfer-magfed/bando"
+        "channel-order": [
+          "diary/~bolbex-fogdys/transition-4145",
+          "chat/~bolbex-fogdys/general-7566",
+          "chat/~bolbex-fogdys/watercooler-4938"
         ],
         "meta": {
           "image": "",
@@ -854,7 +962,51 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~solfer-magfed/bofto": {
+    "meta": {
+      "image": "#ff0000",
+      "title": "Bofto",
+      "cover": "https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.9.07..16.20.41-da910.jpeg",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "admin"
+        ],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~solfer-magfed/baringo-70": {
         "join": false,
@@ -905,44 +1057,14 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": true,
-    "meta": {
-      "image": "#ff0000",
-      "title": "Bofto",
-      "cover": "https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.9.07..16.20.41-da910.jpeg",
-      "description": ""
-    }
-  },
-  "~bitdeg/assembly-2023": {
-    "zone-ord": ["default", "zthski"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1698846534086, "sects": [] } },
-    "zones": {
-      "zthski": {
-        "idx": [],
-        "meta": {
-          "image": "",
-          "title": "New Section",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [
-          "chat/~bitdeg/lisboa-lingua",
-          "diary/~bitdeg/news",
-          "diary/~bitdeg/faq"
+        "channel-order": [
+          "diary/~solfer-magfed/baringo-70",
+          "diary/~solfer-magfed/baringo",
+          "chat/~solfer-magfed/besto",
+          "heap/~solfer-magfed/bando"
         ],
         "meta": {
           "image": "",
@@ -952,14 +1074,61 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~bitdeg/assembly-2023": {
+    "meta": {
+      "image": "https://storage.googleapis.com/media.urbit.org/site/events/urb01_assembly23_std_1-1%20(1).png",
+      "title": "Assembly Lisboa 🇵🇹",
+      "cover": "https://storage.googleapis.com/media.urbit.org/site/events/assembly-location.jpeg",
+      "description": "The official group for Assembly Lisboa 2023"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1698846534086
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~bitdeg/faq": {
         "join": true,
         "added": 1685471061553,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "FAQ", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "FAQ",
+          "cover": "",
+          "description": ""
+        }
       },
       "chat/~bitdeg/lisboa-lingua": {
         "join": true,
@@ -978,68 +1147,31 @@
         "added": 1685470926043,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "News", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://storage.googleapis.com/media.urbit.org/site/events/urb01_assembly23_std_1-1%20(1).png",
-      "title": "Assembly Lisboa 🇵🇹",
-      "cover": "https://storage.googleapis.com/media.urbit.org/site/events/assembly-location.jpeg",
-      "description": "The official group for Assembly Lisboa 2023"
-    }
-  },
-  "~tinsur-tantud/digital-stack": {
-    "zone-ord": ["zk46ck", "ztbptg", "z80hjo", "default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "tools-": {
         "meta": {
           "image": "",
-          "title": "🛠️",
+          "title": "News",
           "cover": "",
-          "description": "interviewees"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1697727752542, "sects": [] } },
-    "zones": {
-      "zk46ck": {
-        "idx": [
-          "diary/~tinsur-tantud/digital-stack-mag",
-          "heap/~tinsur-tantud/digital-stack-refs"
-        ],
-        "meta": { "image": "", "title": "zine", "cover": "", "description": "" }
-      },
-      "ztbptg": {
-        "idx": [
-          "chat/~tinsur-tantud/chat",
-          "heap/~tinsur-tantud/desktops---homescreens",
-          "heap/~tinsur-tantud/tools",
-          "heap/~tinsur-tantud/appstalgia"
-        ],
+    "active-channels": [],
+    "sections": {
+      "zthski": {
+        "channel-order": [],
         "meta": {
           "image": "",
-          "title": "general",
+          "title": "New Section",
           "cover": "",
           "description": ""
         }
       },
-      "z80hjo": {
-        "idx": ["diary/~tinsur-tantud/about", "heap/~tinsur-tantud/events"],
-        "meta": { "image": "", "title": "info", "cover": "", "description": "" }
-      },
       "default": {
-        "idx": [],
+        "channel-order": [
+          "chat/~bitdeg/lisboa-lingua",
+          "diary/~bitdeg/news",
+          "diary/~bitdeg/faq"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -1048,14 +1180,68 @@
         }
       }
     },
+    "section-order": [
+      "default",
+      "zthski"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~tinsur-tantud/digital-stack": {
+    "meta": {
+      "image": "https://natnex.nyc3.digitaloceanspaces.com/natnex/natnex-ronret/2023.9.22..19.08.39-ds3.jpg",
+      "title": "Digital Stack",
+      "cover": "https://natnex.nyc3.digitaloceanspaces.com/natnex/natnex-ronret/2023.9.22..19.07.59-ds.jpg",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1697727752542
+      }
+    },
+    "roles": {
+      "tools-": {
+        "image": "",
+        "title": "🛠️",
+        "cover": "",
+        "description": "interviewees"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~tinsur-tantud/chat": {
         "join": false,
         "added": 1695401795183,
         "readers": [],
         "zone": "ztbptg",
-        "meta": { "image": "", "title": "chat", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "chat",
+          "cover": "",
+          "description": ""
+        }
       },
       "heap/~tinsur-tantud/events": {
         "join": false,
@@ -1142,77 +1328,48 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://natnex.nyc3.digitaloceanspaces.com/natnex/natnex-ronret/2023.9.22..19.08.39-ds3.jpg",
-      "title": "Digital Stack",
-      "cover": "https://natnex.nyc3.digitaloceanspaces.com/natnex/natnex-ronret/2023.9.22..19.07.59-ds.jpg",
-      "description": ""
-    }
-  },
-  "~dister-dozzod-lapdeg/battery-payload": {
-    "zone-ord": ["default", "zumm0e", "zum48n"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "import/~dister-dozzod-lapdeg/memoranda-7530": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Memoranda",
-          "cover": "",
-          "description": "The writers role for the Memoranda channel"
-        }
-      },
-      "import/~dister-dozzod-lapdeg/transmissions-3241": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Transmissions",
-          "cover": "",
-          "description": "The writers role for the Transmissions channel"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1682346487927, "sects": [] } },
-    "zones": {
-      "zumm0e": {
-        "idx": [
-          "chat/~dister-dozzod-lapdeg/hackathons-8899",
-          "chat/~dister-dozzod-lapdeg/userspace-8167",
-          "chat/~dister-dozzod-lapdeg/kernelspace-150",
-          "chat/~dister-dozzod-lapdeg/app-specific-534",
-          "chat/~dister-dozzod-lapdeg/app-workshop",
-          "chat/~dister-dozzod-lapdeg/best-practices-1230",
-          "chat/~dister-dozzod-lapdeg/testing"
+    "active-channels": [],
+    "sections": {
+      "zk46ck": {
+        "channel-order": [
+          "diary/~tinsur-tantud/digital-stack-mag",
+          "heap/~tinsur-tantud/digital-stack-refs"
         ],
         "meta": {
           "image": "",
-          "title": "Discussions",
+          "title": "zine",
           "cover": "",
           "description": ""
         }
       },
-      "zum48n": {
-        "idx": [
-          "diary/~dister-dozzod-lapdeg/build-party",
-          "diary/~dister-dozzod-lapdeg/transmissions-3241",
-          "diary/~dister-dozzod-lapdeg/memoranda-7530"
+      "ztbptg": {
+        "channel-order": [
+          "chat/~tinsur-tantud/chat",
+          "heap/~tinsur-tantud/desktops---homescreens",
+          "heap/~tinsur-tantud/tools",
+          "heap/~tinsur-tantud/appstalgia"
         ],
-        "meta": { "image": "", "title": "Docs", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "general",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "z80hjo": {
+        "channel-order": [
+          "diary/~tinsur-tantud/about",
+          "heap/~tinsur-tantud/events"
+        ],
+        "meta": {
+          "image": "",
+          "title": "info",
+          "cover": "",
+          "description": ""
+        }
       },
       "default": {
-        "idx": [
-          "quorum/~dister-dozzod-lapdeg/database",
-          "chat/~dister-dozzod-lapdeg/water-cooler-4003",
-          "chat/~dister-dozzod-lapdeg/troubleshooting-7189"
-        ],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -1221,7 +1378,64 @@
         }
       }
     },
+    "section-order": [
+      "zk46ck",
+      "ztbptg",
+      "z80hjo",
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~dister-dozzod-lapdeg/battery-payload": {
+    "meta": {
+      "image": "https://github.com/sigilante/curriculum/blob/master/img/awl-small.png?raw=true",
+      "title": "💻 [battery payload]",
+      "cover": "https://github.com/sigilante/curriculum/blob/master/img/awl-small.png?raw=true",
+      "description": "Urbit Foundation developer community.  App Workshop and Build Party materials and support."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1682346487927
+      }
+    },
+    "roles": {
+      "import/~dister-dozzod-lapdeg/memoranda-7530": {
+        "image": "",
+        "title": "Writers: Memoranda",
+        "cover": "",
+        "description": "The writers role for the Memoranda channel"
+      },
+      "import/~dister-dozzod-lapdeg/transmissions-3241": {
+        "image": "",
+        "title": "Writers: Transmissions",
+        "cover": "",
+        "description": "The writers role for the Transmissions channel"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~dister-dozzod-lapdeg/hackathons-8899": {
         "join": false,
@@ -1262,7 +1476,9 @@
       "diary/~dister-dozzod-lapdeg/memoranda-7530": {
         "join": false,
         "added": 1663113182398,
-        "readers": ["import/~dister-dozzod-lapdeg/memoranda-7530"],
+        "readers": [
+          "import/~dister-dozzod-lapdeg/memoranda-7530"
+        ],
         "zone": "zum48n",
         "meta": {
           "image": "",
@@ -1274,7 +1490,9 @@
       "diary/~dister-dozzod-lapdeg/transmissions-3241": {
         "join": false,
         "added": 1663113205185,
-        "readers": ["import/~dister-dozzod-lapdeg/transmissions-3241"],
+        "readers": [
+          "import/~dister-dozzod-lapdeg/transmissions-3241"
+        ],
         "zone": "zum48n",
         "meta": {
           "image": "",
@@ -1380,110 +1598,44 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://github.com/sigilante/curriculum/blob/master/img/awl-small.png?raw=true",
-      "title": "💻 [battery payload]",
-      "cover": "https://github.com/sigilante/curriculum/blob/master/img/awl-small.png?raw=true",
-      "description": "Urbit Foundation developer community.  App Workshop and Build Party materials and support."
-    }
-  },
-  "~dabben-larbet/tlon": {
-    "zone-ord": ["default", "zguuoi", "z9ftpl", "z9857t", "ztttom"],
-    "cordon": {
-      "shut": {
-        "pending": [
-          "~nappyx-fitmus",
-          "~sapwyc-walwyx",
-          "~larnet-havsem",
-          "~bosser-hatber",
-          "~batset-motred",
-          "~wiczod-hacmes",
-          "~landen-ragsen",
-          "~lospur-pagnys"
+    "active-channels": [],
+    "sections": {
+      "zumm0e": {
+        "channel-order": [
+          "chat/~dister-dozzod-lapdeg/hackathons-8899",
+          "chat/~dister-dozzod-lapdeg/userspace-8167",
+          "chat/~dister-dozzod-lapdeg/kernelspace-150",
+          "chat/~dister-dozzod-lapdeg/app-specific-534",
+          "chat/~dister-dozzod-lapdeg/app-workshop",
+          "chat/~dister-dozzod-lapdeg/best-practices-1230",
+          "chat/~dister-dozzod-lapdeg/testing"
         ],
-        "ask": []
-      }
-    },
-    "cabals": {
-      "janitor": {
         "meta": {
           "image": "",
-          "title": "Janitor",
+          "title": "Discussions",
           "cover": "",
           "description": ""
         }
       },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1675980950203, "sects": [] } },
-    "zones": {
-      "z9ftpl": {
-        "idx": [
-          "chat/~bitpyx-dildus/interface",
-          "chat/~bolbex-fogdys/marcom",
-          "chat/~dabben-larbet/hosting-6173"
-        ],
-        "meta": { "image": "", "title": "Team", "cover": "", "description": "" }
-      },
-      "zguuoi": {
-        "idx": [
-          "diary/~bolbex-fogdys/bulletins",
-          "chat/~bolbex-fogdys/tlon-general",
-          "chat/~bolbex-fogdys/watercooler-4926",
-          "chat/~nocsyx-lassul/bongtable",
-          "chat/~bolbex-fogdys/ops"
+      "zum48n": {
+        "channel-order": [
+          "diary/~dister-dozzod-lapdeg/build-party",
+          "diary/~dister-dozzod-lapdeg/transmissions-3241",
+          "diary/~dister-dozzod-lapdeg/memoranda-7530"
         ],
         "meta": {
           "image": "",
-          "title": "Company",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "ztttom": {
-        "idx": [
-          "chat/~dabben-larbet/native-apps",
-          "chat/~bolbex-fogdys/growth",
-          "diary/~bolbex-fogdys/digests",
-          "diary/~bolbex-fogdys/design-digests",
-          "diary/~bitpyx-dildus/infrastructure-digests",
-          "chat/~bolbex-fogdys/infrastructure",
-          "chat/~bolbex-fogdys/design",
-          "chat/~bitpyx-dildus/content-distribution-3618",
-          "diary/~roslet-tanner/homestead-digests-6268"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Archive [Read Only]",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "z9857t": {
-        "idx": [
-          "heap/~dabben-larbet/fanmail-3976",
-          "heap/~bolbex-fogdys/design-1761",
-          "heap/~bitpyx-dildus/music-34",
-          "heap/~dabben-larbet/interface-1720"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Galleries",
+          "title": "Docs",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [
+          "quorum/~dister-dozzod-lapdeg/database",
+          "chat/~dister-dozzod-lapdeg/water-cooler-4003",
+          "chat/~dister-dozzod-lapdeg/troubleshooting-7189"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -1492,24 +1644,57 @@
         }
       }
     },
-    "flagged-content": {
-      "chat/~bolbex-fogdys/ops": {
-        "170141184506682001534977571980713132032": {
-          "flaggers": [],
-          "replies": {
-            "170141184506682004053431297477917540352": ["~finmep-lanteb"]
-          },
-          "flagged": false
-        }
+    "section-order": [
+      "default",
+      "zumm0e",
+      "zum48n"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~dabben-larbet/tlon": {
+    "meta": {
+      "image": "https://storage.googleapis.com/assets.tlon.io/2024.3.15..14.36.44..2f9d.b22d.0e56.0418-Row-Icon.png",
+      "title": "Tlon",
+      "cover": "#ededed",
+      "description": "We build infrastructure that is technically excellent,  architecturally sound, and aesthetically beautiful"
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
       },
-      "chat/~dabben-larbet/native-apps": {
-        "170141184506404431672618457020472754176": {
-          "flaggers": ["~nocsyx-lassul"],
-          "replies": {},
-          "flagged": true
-        }
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1675980950203
       }
     },
+    "roles": {
+      "janitor": {
+        "image": "",
+        "title": "Janitor",
+        "cover": "",
+        "description": ""
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "heap/~dabben-larbet/interface-1720": {
         "join": true,
@@ -1574,7 +1759,9 @@
       "diary/~bitpyx-dildus/infrastructure-digests": {
         "join": true,
         "added": 1585277821656,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1586,7 +1773,9 @@
       "diary/~roslet-tanner/homestead-digests-6268": {
         "join": true,
         "added": 1652975305250,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1622,7 +1811,9 @@
       "chat/~bitpyx-dildus/content-distribution-3618": {
         "join": true,
         "added": 1641932082298,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1646,7 +1837,9 @@
       "diary/~bolbex-fogdys/design-digests": {
         "join": true,
         "added": 1674247227000,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1670,7 +1863,9 @@
       "chat/~bolbex-fogdys/design": {
         "join": true,
         "added": 1586198948022,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1682,7 +1877,9 @@
       "diary/~bolbex-fogdys/digests": {
         "join": true,
         "added": 1675303612044,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1730,7 +1927,9 @@
       "chat/~bolbex-fogdys/growth": {
         "join": true,
         "added": 1674520265172,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1754,7 +1953,9 @@
       "chat/~bolbex-fogdys/infrastructure": {
         "join": true,
         "added": 1586198938568,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "ztttom",
         "meta": {
           "image": "",
@@ -1764,59 +1965,71 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": true,
-    "meta": {
-      "image": "https://storage.googleapis.com/assets.tlon.io/2024.3.15..14.36.44..2f9d.b22d.0e56.0418-Row-Icon.png",
-      "title": "Tlon",
-      "cover": "#ededed",
-      "description": "We build infrastructure that is technically excellent,  architecturally sound, and aesthetically beautiful"
-    }
-  },
-  "~topdem/structure": {
-    "zone-ord": ["default", "zsl6nk", "zi1c62", "zmm1um"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
+    "active-channels": [],
+    "sections": {
+      "z9ftpl": {
+        "channel-order": [
+          "chat/~bitpyx-dildus/interface",
+          "chat/~bolbex-fogdys/marcom",
+          "chat/~dabben-larbet/hosting-6173"
+        ],
         "meta": {
           "image": "",
-          "title": "Substance",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1687904558172, "sects": [] } },
-    "zones": {
-      "zmm1um": {
-        "idx": ["heap/~ripwen-sabrup/rock-"],
-        "meta": {
-          "image": "",
-          "title": "Organs",
+          "title": "Team",
           "cover": "",
           "description": ""
         }
       },
-      "zi1c62": {
-        "idx": ["diary/~topdem/annals", "chat/~topdem/altar"],
+      "zguuoi": {
+        "channel-order": [
+          "diary/~bolbex-fogdys/bulletins",
+          "chat/~bolbex-fogdys/tlon-general",
+          "chat/~bolbex-fogdys/watercooler-4926",
+          "chat/~nocsyx-lassul/bongtable",
+          "chat/~bolbex-fogdys/ops"
+        ],
         "meta": {
           "image": "",
-          "title": "Organisation",
+          "title": "Company",
           "cover": "",
           "description": ""
         }
       },
-      "zsl6nk": {
-        "idx": ["chat/~topdem/open-field", "heap/~latter-bolden/landmarks"],
+      "ztttom": {
+        "channel-order": [
+          "chat/~dabben-larbet/native-apps",
+          "chat/~bolbex-fogdys/growth",
+          "diary/~bolbex-fogdys/digests",
+          "diary/~bolbex-fogdys/design-digests",
+          "diary/~bitpyx-dildus/infrastructure-digests",
+          "chat/~bolbex-fogdys/infrastructure",
+          "chat/~bolbex-fogdys/design",
+          "chat/~bitpyx-dildus/content-distribution-3618",
+          "diary/~roslet-tanner/homestead-digests-6268"
+        ],
         "meta": {
           "image": "",
-          "title": "Disorganisation",
+          "title": "Archive [Read Only]",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "z9857t": {
+        "channel-order": [
+          "heap/~dabben-larbet/fanmail-3976",
+          "heap/~bolbex-fogdys/design-1761",
+          "heap/~bitpyx-dildus/music-34",
+          "heap/~dabben-larbet/interface-1720"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Galleries",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -1825,7 +2038,74 @@
         }
       }
     },
-    "flagged-content": {},
+    "section-order": [
+      "default",
+      "zguuoi",
+      "z9ftpl",
+      "z9857t",
+      "ztttom"
+    ],
+    "flagged-content": {
+      "chat/~bolbex-fogdys/ops": {
+        "170141184506682001534977571980713132032": {
+          "flaggers": [],
+          "replies": {
+            "170141184506682004053431297477917540352": [
+              "~finmep-lanteb"
+            ]
+          },
+          "flagged": false
+        }
+      },
+      "chat/~dabben-larbet/native-apps": {
+        "170141184506404431672618457020472754176": {
+          "flaggers": [
+            "~nocsyx-lassul"
+          ],
+          "replies": {},
+          "flagged": true
+        }
+      }
+    },
+    "member-count": 1,
+    "init": true
+  },
+  "~topdem/structure": {
+    "meta": {
+      "image": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.22.12-sq2.png",
+      "title": "Structure",
+      "cover": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.17.03-tumblr_f3031a40e7444a7854e30e387b512ebf_7beaba7e_2048.jpg",
+      "description": "STRUCTURE GROUP GAIDEN: Harvest Nine  \n\nMechanics. Design. Structure. Urbit R&D Para-Organisation. "
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1687904558172
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Substance",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~topdem/altar": {
         "join": false,
@@ -1888,45 +2168,45 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.22.12-sq2.png",
-      "title": "Structure",
-      "cover": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.17.03-tumblr_f3031a40e7444a7854e30e387b512ebf_7beaba7e_2048.jpg",
-      "description": "STRUCTURE GROUP GAIDEN: Harvest Nine  \n\nMechanics. Design. Structure. Urbit R&D Para-Organisation. "
-    }
-  },
-  "~latter-bolden/post-migrate-main": {
-    "zone-ord": ["default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "thing": {
+    "active-channels": [],
+    "sections": {
+      "zmm1um": {
+        "channel-order": [
+          "heap/~ripwen-sabrup/rock-"
+        ],
         "meta": {
           "image": "",
-          "title": "thing",
+          "title": "Organs",
           "cover": "",
           "description": ""
         }
       },
-      "admin": {
+      "zi1c62": {
+        "channel-order": [
+          "diary/~topdem/annals",
+          "chat/~topdem/altar"
+        ],
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Organisation",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1701716649681, "sects": [] } },
-    "zones": {
-      "default": {
-        "idx": [
-          "chat/~latter-bolden/lots-of-links",
-          "chat/~latter-bolden/banter",
-          "heap/~latter-bolden/some-blocks",
-          "diary/~latter-bolden/books"
+      },
+      "zsl6nk": {
+        "channel-order": [
+          "chat/~topdem/open-field",
+          "heap/~latter-bolden/landmarks"
         ],
+        "meta": {
+          "image": "",
+          "title": "Disorganisation",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "default": {
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -1935,7 +2215,58 @@
         }
       }
     },
+    "section-order": [
+      "default",
+      "zsl6nk",
+      "zi1c62",
+      "zmm1um"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~latter-bolden/post-migrate-main": {
+    "meta": {
+      "image": "#f2ff00",
+      "title": "Post-Migrate Main",
+      "cover": "#D9D9D9",
+      "description": "this is a test"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1701716649681
+      }
+    },
+    "roles": {
+      "thing": {
+        "image": "",
+        "title": "thing",
+        "cover": "",
+        "description": ""
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~latter-bolden/books": {
         "join": false,
@@ -1986,41 +2317,14 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#f2ff00",
-      "title": "Post-Migrate Main",
-      "cover": "#D9D9D9",
-      "description": "this is a test"
-    }
-  },
-  "~solfer-magfed/boko": {
-    "zone-ord": ["default"],
-    "cordon": { "shut": { "pending": [], "ask": [] } },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": {
-      "~solfer-magfed": { "joined": 946684800000, "sects": ["admin"] }
-    },
-    "zones": {
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [
-          "chat/~solfer-magfed/hi",
-          "chat/~diswes-nilfep/biftor",
-          "chat/~solfer-magfed/another",
-          "chat/~solfer-magfed/hhih",
-          "chat/~solfer-magfed/mino",
-          "diary/~solfer-magfed/bofto",
-          "heap/~solfer-magfed/gg-"
+        "channel-order": [
+          "chat/~latter-bolden/lots-of-links",
+          "chat/~latter-bolden/banter",
+          "heap/~latter-bolden/some-blocks",
+          "diary/~latter-bolden/books"
         ],
         "meta": {
           "image": "",
@@ -2030,7 +2334,51 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~solfer-magfed/boko": {
+    "meta": {
+      "image": "#999999",
+      "title": "Boko",
+      "cover": "#D9D9D9",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "admin"
+        ],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~solfer-magfed/another": {
         "join": false,
@@ -2049,7 +2397,12 @@
         "added": 1701967303353,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "hihi", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "hihi",
+          "cover": "",
+          "description": ""
+        }
       },
       "chat/~solfer-magfed/mino": {
         "join": false,
@@ -2112,80 +2465,18 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#999999",
-      "title": "Boko",
-      "cover": "#D9D9D9",
-      "description": ""
-    }
-  },
-  "~natnex-ronret/door-link": {
-    "zone-ord": ["default", "z0ofv2", "z8b9d3", "z8cc11"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "import/~natnex-ronret/log-4009": {
-        "meta": {
-          "image": "",
-          "title": "Writers: log",
-          "cover": "",
-          "description": "The writers role for the log channel"
-        }
-      },
-      "import/~natnex-ronret/music-6402": {
-        "meta": {
-          "image": "",
-          "title": "Writers: door archive",
-          "cover": "",
-          "description": "The writers role for the door archive channel"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1676730834948, "sects": [] } },
-    "zones": {
-      "z8cc11": {
-        "idx": [
-          "heap/~natnex-ronret/log-4009",
-          "diary/~natnex-ronret/feed",
-          "heap/~natnex-ronret/music-6402"
-        ],
-        "meta": { "image": "", "title": "feed", "cover": "", "description": "" }
-      },
-      "z8b9d3": {
-        "idx": [
-          "chat/~natnex-ronret/friends-of-door-link-2714",
-          "heap/~natnex-ronret/sharing-4257",
-          "heap/~natnex-ronret/f-o-d--room",
-          "heap/~natnex-ronret/ecm",
-          "heap/~natnex-ronret/osts-6449"
-        ],
-        "meta": {
-          "image": "",
-          "title": "friends of door",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "z0ofv2": {
-        "idx": ["diary/~natnex-ronret/welcome"],
-        "meta": {
-          "image": "",
-          "title": "door.link",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [],
+        "channel-order": [
+          "chat/~solfer-magfed/hi",
+          "chat/~diswes-nilfep/biftor",
+          "chat/~solfer-magfed/another",
+          "chat/~solfer-magfed/hhih",
+          "chat/~solfer-magfed/mino",
+          "diary/~solfer-magfed/bofto",
+          "heap/~solfer-magfed/gg-"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -2194,7 +2485,61 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~natnex-ronret/door-link": {
+    "meta": {
+      "image": "https://www.door.link/logowhite.svg",
+      "title": "door.link",
+      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20581622/original_931d1045222458d744eb8b7c752a176c.jpg",
+      "description": "sound/silence cult"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1676730834948
+      }
+    },
+    "roles": {
+      "import/~natnex-ronret/log-4009": {
+        "image": "",
+        "title": "Writers: log",
+        "cover": "",
+        "description": "The writers role for the log channel"
+      },
+      "import/~natnex-ronret/music-6402": {
+        "image": "",
+        "title": "Writers: door archive",
+        "cover": "",
+        "description": "The writers role for the door archive channel"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~natnex-ronret/welcome": {
         "join": false,
@@ -2225,7 +2570,12 @@
         "added": 1671288029880,
         "readers": [],
         "zone": "z8cc11",
-        "meta": { "image": "", "title": "feed", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "feed",
+          "cover": "",
+          "description": ""
+        }
       },
       "heap/~natnex-ronret/music-6402": {
         "join": true,
@@ -2300,32 +2650,49 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://www.door.link/logowhite.svg",
-      "title": "door.link",
-      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20581622/original_931d1045222458d744eb8b7c752a176c.jpg",
-      "description": "sound/silence cult"
-    }
-  },
-  "~bicmud-wacler/a-place-to-gooo": {
-    "zone-ord": ["default"],
-    "cordon": { "shut": { "pending": [], "ask": [] } },
-    "cabals": {
-      "admin": {
+    "active-channels": [],
+    "sections": {
+      "z8cc11": {
+        "channel-order": [
+          "heap/~natnex-ronret/log-4009",
+          "diary/~natnex-ronret/feed",
+          "heap/~natnex-ronret/music-6402"
+        ],
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "feed",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1696967691061, "sects": [] } },
-    "zones": {
+      },
+      "z8b9d3": {
+        "channel-order": [
+          "chat/~natnex-ronret/friends-of-door-link-2714",
+          "heap/~natnex-ronret/sharing-4257",
+          "heap/~natnex-ronret/f-o-d--room",
+          "heap/~natnex-ronret/ecm",
+          "heap/~natnex-ronret/osts-6449"
+        ],
+        "meta": {
+          "image": "",
+          "title": "friends of door",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "z0ofv2": {
+        "channel-order": [
+          "diary/~natnex-ronret/welcome"
+        ],
+        "meta": {
+          "image": "",
+          "title": "door.link",
+          "cover": "",
+          "description": ""
+        }
+      },
       "default": {
-        "idx": [],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -2334,159 +2701,147 @@
         }
       }
     },
+    "section-order": [
+      "default",
+      "z0ofv2",
+      "z8b9d3",
+      "z8cc11"
+    ],
     "flagged-content": {},
-    "channels": {},
-    "bloc": ["admin"],
-    "secret": false,
+    "member-count": 1,
+    "init": true
+  },
+  "~bicmud-wacler/a-place-to-gooo": {
     "meta": {
       "image": "#5a1919",
       "title": "A Place to Gooo",
       "cover": "#D9D9D9",
       "description": ""
-    }
-  },
-  "~tommur-dostyn/tlon-studio": {
-    "zone-ord": [
-      "zvk7ra",
-      "zq4e61",
-      "zq3j8e",
-      "zq3ujp",
-      "zq43eg",
-      "zq4ask",
-      "default"
-    ],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "ops": {
-        "meta": { "image": "", "title": "ops", "cover": "", "description": "" }
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
       },
-      "group-lead": {
-        "meta": {
-          "image": "",
-          "title": "group lead",
-          "cover": "",
-          "description": "This role is for all group leads and admins. It will give access to our private support channel."
-        }
-      },
-      "engineering": {
-        "meta": {
-          "image": "",
-          "title": "eng",
-          "cover": "",
-          "description": "engineering"
-        }
-      },
-      "design": {
-        "meta": {
-          "image": "",
-          "title": "design",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      },
-      "comms": {
-        "meta": {
-          "image": "",
-          "title": "comms",
-          "cover": "",
-          "description": ""
-        }
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1696967691061
       }
     },
-    "fleet": {
-      "~solfer-magfed": { "joined": 1690293698508, "sects": ["design"] }
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
     },
-    "zones": {
-      "zq4ask": {
-        "idx": ["heap/~tommur-dostyn/books", "heap/~tommur-dostyn/references"],
-        "meta": {
-          "image": "",
-          "title": "Shelf",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zq3j8e": {
-        "idx": [
-          "chat/~tommur-dostyn/news---announcements",
-          "heap/~tommur-dostyn/happenings--jobs---grants"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Bulletin Board",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zq3ujp": {
-        "idx": [
-          "diary/~tommur-dostyn/releases---network-updates",
-          "diary/~tommur-dostyn/how-to"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Garden",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zq43eg": {
-        "idx": ["heap/~tommur-dostyn/wip", "diary/~tommur-dostyn/blog"],
-        "meta": { "image": "", "title": "Desk", "cover": "", "description": "" }
-      },
-      "zvk7ra": {
-        "idx": ["diary/~tommur-dostyn/start-here"],
-        "meta": {
-          "image": "",
-          "title": "Welcome",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "admins": [
+      "admin"
+    ],
+    "channels": {},
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": ["heap/~tommur-dostyn/media"],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
           "cover": "",
           "description": ""
         }
+      }
+    },
+    "section-order": [
+      "default"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~tommur-dostyn/tlon-studio": {
+    "meta": {
+      "image": "https://d2w9rnfcy7mm78.cloudfront.net/21209143/original_168cacf7dc10ebd7035dea91fda26595.png?1680533999?bc=0",
+      "title": "Tlon Studio",
+      "cover": "https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
       },
-      "zq4e61": {
-        "idx": [
-          "chat/~tommur-dostyn/general-chat",
-          "chat/~tommur-dostyn/support"
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "design"
         ],
-        "meta": {
-          "image": "",
-          "title": "Kitchen",
-          "cover": "",
-          "description": ""
-        }
+        "joined": 1690293698508
       }
     },
-    "flagged-content": {
-      "chat/~tommur-dostyn/news---announcements": {
-        "170141184506639101906159902084810407936": {
-          "flaggers": ["~socsel-pacted", "~tinnus-napbus", "~mopfel-winrux"],
-          "replies": {},
-          "flagged": true
-        }
+    "roles": {
+      "ops": {
+        "image": "",
+        "title": "ops",
+        "cover": "",
+        "description": ""
+      },
+      "group-lead": {
+        "image": "",
+        "title": "group lead",
+        "cover": "",
+        "description": "This role is for all group leads and admins. It will give access to our private support channel."
+      },
+      "engineering": {
+        "image": "",
+        "title": "eng",
+        "cover": "",
+        "description": "engineering"
+      },
+      "design": {
+        "image": "",
+        "title": "design",
+        "cover": "",
+        "description": ""
+      },
+      "admin": {
+        "image": "",
+        "title": "admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      },
+      "comms": {
+        "image": "",
+        "title": "comms",
+        "cover": "",
+        "description": ""
       }
     },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~tommur-dostyn/support": {
         "join": false,
         "added": 1690298388444,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "zq4e61",
         "meta": {
           "image": "",
@@ -2558,7 +2913,9 @@
       "chat/~tommur-dostyn/general-chat": {
         "join": false,
         "added": 1688662321677,
-        "readers": ["admin"],
+        "readers": [
+          "admin"
+        ],
         "zone": "zq4e61",
         "meta": {
           "image": "",
@@ -2620,82 +2977,160 @@
         "added": 1688426835188,
         "readers": [],
         "zone": "zq43eg",
-        "meta": { "image": "", "title": "Blog", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://d2w9rnfcy7mm78.cloudfront.net/21209143/original_168cacf7dc10ebd7035dea91fda26595.png?1680533999?bc=0",
-      "title": "Tlon Studio",
-      "cover": "https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000",
-      "description": ""
-    }
-  },
-  "~natnex-ronret/romina-s-office": {
-    "zone-ord": ["zle49s", "z0tp4m", "z0vj1a", "default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Blog",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1688420699161, "sects": [] } },
-    "zones": {
-      "zle49s": {
-        "idx": [
-          "heap/~natnex-ronret/ongoing",
-          "diary/~natnex-ronret/faceless-27"
+    "active-channels": [],
+    "sections": {
+      "zq4ask": {
+        "channel-order": [
+          "heap/~tommur-dostyn/books",
+          "heap/~tommur-dostyn/references"
         ],
         "meta": {
           "image": "",
-          "title": "Daily basis",
+          "title": "Shelf",
           "cover": "",
           "description": ""
         }
       },
-      "z0vj1a": {
-        "idx": [
-          "heap/~natnex-ronret/visual-log",
-          "heap/~natnex-ronret/unofficial-urbit-artworks",
-          "heap/~natnex-ronret/bootleg-room",
-          "heap/~natnex-ronret/inspiration"
+      "zq3j8e": {
+        "channel-order": [
+          "chat/~tommur-dostyn/news---announcements",
+          "heap/~tommur-dostyn/happenings--jobs---grants"
         ],
         "meta": {
           "image": "",
-          "title": "Studio",
+          "title": "Bulletin Board",
           "cover": "",
           "description": ""
         }
       },
-      "z0tp4m": {
-        "idx": [
-          "heap/~natnex-ronret/work---grayscale",
-          "heap/~natnex-ronret/work---color-49"
+      "zq3ujp": {
+        "channel-order": [
+          "diary/~tommur-dostyn/releases---network-updates",
+          "diary/~tommur-dostyn/how-to"
         ],
         "meta": {
           "image": "",
-          "title": "Works (2014 – )",
+          "title": "Garden",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zq43eg": {
+        "channel-order": [
+          "heap/~tommur-dostyn/wip",
+          "diary/~tommur-dostyn/blog"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Desk",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zvk7ra": {
+        "channel-order": [
+          "diary/~tommur-dostyn/start-here"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Welcome",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [
+          "heap/~tommur-dostyn/media"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
           "cover": "",
           "description": ""
         }
+      },
+      "zq4e61": {
+        "channel-order": [
+          "chat/~tommur-dostyn/general-chat",
+          "chat/~tommur-dostyn/support"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Kitchen",
+          "cover": "",
+          "description": ""
+        }
       }
     },
-    "flagged-content": {},
+    "section-order": [
+      "zvk7ra",
+      "zq4e61",
+      "zq3j8e",
+      "zq3ujp",
+      "zq43eg",
+      "zq4ask",
+      "default"
+    ],
+    "flagged-content": {
+      "chat/~tommur-dostyn/news---announcements": {
+        "170141184506639101906159902084810407936": {
+          "flaggers": [
+            "~socsel-pacted",
+            "~tinnus-napbus",
+            "~mopfel-winrux"
+          ],
+          "replies": {},
+          "flagged": true
+        }
+      }
+    },
+    "member-count": 1,
+    "init": true
+  },
+  "~natnex-ronret/romina-s-office": {
+    "meta": {
+      "image": "https://d2w9rnfcy7mm78.cloudfront.net/21456129/original_5bcd82e80e8e62f37c4710e54220f66c.png",
+      "title": "romina's studio",
+      "cover": "#ffffff",
+      "description": "Romina Malta / Art director collaborating with studios, record labels and artists but mostly focusing my energy in Urbit + Tlon. ‎ \n\nromi.link / door.link\n"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1688420699161
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "heap/~natnex-ronret/work---color-49": {
         "join": false,
@@ -2794,95 +3229,48 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://d2w9rnfcy7mm78.cloudfront.net/21456129/original_5bcd82e80e8e62f37c4710e54220f66c.png",
-      "title": "romina's studio",
-      "cover": "#ffffff",
-      "description": "Romina Malta / Art director collaborating with studios, record labels and artists but mostly focusing my energy in Urbit + Tlon. ‎ \n\nromi.link / door.link\n"
-    }
-  },
-  "~hiddev-dannut/new-hooniverse": {
-    "zone-ord": ["default", "zr716d", "zqvukb", "zr4ibj", "zrl1pt"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "import/~hiddev-dannut/app-school-live-administration-568": {
-        "meta": {
-          "image": "",
-          "title": "Writers: App School Live:  Administration",
-          "cover": "",
-          "description": "The writers role for the App School Live:  Administration channel"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      },
-      "import/~hiddev-dannut/administration-5989": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Hoon School Live:  Administration",
-          "cover": "",
-          "description": "The writers role for the Hoon School Live:  Administration channel"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1687305651410, "sects": [] } },
-    "zones": {
-      "zrl1pt": {
-        "idx": [
-          "chat/~hiddev-dannut/hooniverse-banter-4174",
-          "quorum/~hiddev-dannut/hooniverse",
-          "chat/~ribbyt-ribbyt-hiddev-dannut/hackathon-urbit-questions-6444"
-        ],
-        "meta": { "image": "", "title": "Misc", "cover": "", "description": "" }
-      },
-      "zqvukb": {
-        "idx": [
-          "chat/~hiddev-dannut/hooniversity--scheduled-classes-5052",
-          "diary/~hiddev-dannut/administration-5989"
+    "active-channels": [],
+    "sections": {
+      "zle49s": {
+        "channel-order": [
+          "heap/~natnex-ronret/ongoing",
+          "diary/~natnex-ronret/faceless-27"
         ],
         "meta": {
           "image": "",
-          "title": "Hoon Academy",
+          "title": "Daily basis",
           "cover": "",
           "description": ""
         }
       },
-      "zr716d": {
-        "idx": [
-          "chat/~hiddev-dannut/beginners-749",
-          "chat/~hiddev-dannut/hooniverse-chat--ask---learn-881",
-          "chat/~hiddev-dannut/vanes-5343",
-          "chat/~hiddev-dannut/gall-desks-software-distribution-3514",
-          "chat/~hiddev-dannut/ask-and-learn--nock-5463"
+      "z0vj1a": {
+        "channel-order": [
+          "heap/~natnex-ronret/visual-log",
+          "heap/~natnex-ronret/unofficial-urbit-artworks",
+          "heap/~natnex-ronret/bootleg-room",
+          "heap/~natnex-ronret/inspiration"
         ],
         "meta": {
           "image": "",
-          "title": "Ask and Learn",
+          "title": "Studio",
           "cover": "",
           "description": ""
         }
       },
-      "zr4ibj": {
-        "idx": [
-          "chat/~hiddev-dannut/app-school-live-classroom-office-hours-9835",
-          "diary/~hiddev-dannut/app-school-live-administration-568"
+      "z0tp4m": {
+        "channel-order": [
+          "heap/~natnex-ronret/work---grayscale",
+          "heap/~natnex-ronret/work---color-49"
         ],
         "meta": {
           "image": "",
-          "title": "App Academy",
+          "title": "Works (2014 – )",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -2891,7 +3279,64 @@
         }
       }
     },
+    "section-order": [
+      "zle49s",
+      "z0tp4m",
+      "z0vj1a",
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~hiddev-dannut/new-hooniverse": {
+    "meta": {
+      "image": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
+      "title": "Hooniverse",
+      "cover": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
+      "description": "Community-based Hoon learning for all levels.  Hoon School and App School support."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1687305651410
+      }
+    },
+    "roles": {
+      "import/~hiddev-dannut/app-school-live-administration-568": {
+        "image": "",
+        "title": "Writers: App School Live:  Administration",
+        "cover": "",
+        "description": "The writers role for the App School Live:  Administration channel"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      },
+      "import/~hiddev-dannut/administration-5989": {
+        "image": "",
+        "title": "Writers: Hoon School Live:  Administration",
+        "cover": "",
+        "description": "The writers role for the Hoon School Live:  Administration channel"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~hiddev-dannut/hooniverse-chat--ask---learn-881": {
         "join": false,
@@ -3038,132 +3483,62 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
-      "title": "Hooniverse",
-      "cover": "https://github.com/sigilante/curriculum/blob/master/img/hsl-small.png?raw=true",
-      "description": "Community-based Hoon learning for all levels.  Hoon School and App School support."
-    }
-  },
-  "~nibset-napwyn/tlon": {
-    "zone-ord": ["zkqiq4", "zbgfe9", "zks3gi", "default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "import/~nibset-napwyn/tlon-bookshelf-5581": {
+    "active-channels": [],
+    "sections": {
+      "zrl1pt": {
+        "channel-order": [
+          "chat/~hiddev-dannut/hooniverse-banter-4174",
+          "quorum/~hiddev-dannut/hooniverse",
+          "chat/~ribbyt-ribbyt-hiddev-dannut/hackathon-urbit-questions-6444"
+        ],
         "meta": {
           "image": "",
-          "title": "Writers: ~2022 Tlon Bookshelf",
-          "cover": "",
-          "description": "The writers role for the ~2022 Tlon Bookshelf channel"
-        }
-      },
-      "tech-support": {
-        "meta": {
-          "image": "",
-          "title": "Tech Support",
+          "title": "Misc",
           "cover": "",
           "description": ""
         }
       },
-      "import/~nibset-napwyn/summer-refs-9798": {
-        "meta": {
-          "image": "",
-          "title": "Writers: ~2022 Summer Refs",
-          "cover": "",
-          "description": "The writers role for the ~2022 Summer Refs channel"
-        }
-      },
-      "tlon": {
-        "meta": {
-          "image": "",
-          "title": "Tlon",
-          "cover": "",
-          "description": "Tlon employees"
-        }
-      },
-      "import/~nibset-napwyn/summer-updates-9584": {
-        "meta": {
-          "image": "",
-          "title": "Writers: ~2022 Summer Updates",
-          "cover": "",
-          "description": "The writers role for the ~2022 Summer Updates channel"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      },
-      "import/~nibset-napwyn/summer-media-3692": {
-        "meta": {
-          "image": "",
-          "title": "Writers: ~2022 Summer Media",
-          "cover": "",
-          "description": "The writers role for the ~2022 Summer Media channel"
-        }
-      },
-      "placard-": {
-        "meta": {
-          "image": "",
-          "title": "🪧",
-          "cover": "",
-          "description": "shared a group in the community catalog"
-        }
-      },
-      "coffee-": {
-        "meta": {
-          "image": "",
-          "title": "☕️",
-          "cover": "",
-          "description": "internet cafe regulars"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1673711612181, "sects": [] } },
-    "zones": {
-      "zks3gi": {
-        "idx": [
-          "heap/~nibset-napwyn/bulletin-board-53",
-          "heap/~nibset-napwyn/local-directory"
+      "zqvukb": {
+        "channel-order": [
+          "chat/~hiddev-dannut/hooniversity--scheduled-classes-5052",
+          "diary/~hiddev-dannut/administration-5989"
         ],
         "meta": {
           "image": "",
-          "title": "Catalog",
+          "title": "Hoon Academy",
           "cover": "",
           "description": ""
         }
       },
-      "zkqiq4": {
-        "idx": [
-          "diary/~nibset-napwyn/getting-started",
-          "chat/~nibset-napwyn/intros"
+      "zr716d": {
+        "channel-order": [
+          "chat/~hiddev-dannut/beginners-749",
+          "chat/~hiddev-dannut/hooniverse-chat--ask---learn-881",
+          "chat/~hiddev-dannut/vanes-5343",
+          "chat/~hiddev-dannut/gall-desks-software-distribution-3514",
+          "chat/~hiddev-dannut/ask-and-learn--nock-5463"
         ],
         "meta": {
           "image": "",
-          "title": "Welcome",
+          "title": "Ask and Learn",
           "cover": "",
           "description": ""
         }
       },
-      "zbgfe9": {
-        "idx": [
-          "chat/~nibset-napwyn/commons",
-          "chat/~nibset-napwyn/developers"
+      "zr4ibj": {
+        "channel-order": [
+          "chat/~hiddev-dannut/app-school-live-classroom-office-hours-9835",
+          "diary/~hiddev-dannut/app-school-live-administration-568"
         ],
         "meta": {
           "image": "",
-          "title": "Discuss",
+          "title": "App Academy",
           "cover": "",
           "description": ""
         }
       },
       "default": {
-        "idx": [],
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -3172,25 +3547,101 @@
         }
       }
     },
-    "flagged-content": {
-      "chat/~nibset-napwyn/commons": {
-        "170141184506639145268131884024161370112": {
-          "flaggers": ["~natnex-ronret"],
-          "replies": {},
-          "flagged": true
-        },
-        "170141184506635900592614747505220911104": {
-          "flaggers": ["~forfel-norfel"],
-          "replies": {},
-          "flagged": true
-        },
-        "170141184506639102248277255152893689856": {
-          "flaggers": ["~tiller-tolbus", "~mopfel-winrux"],
-          "replies": {},
-          "flagged": true
-        }
+    "section-order": [
+      "default",
+      "zr716d",
+      "zqvukb",
+      "zr4ibj",
+      "zrl1pt"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~nibset-napwyn/tlon": {
+    "meta": {
+      "image": "https://tlon.io/local-icon.svg",
+      "title": "Tlon Local",
+      "cover": "https://tlon.io/local-bg.jpg",
+      "description": "We’re off building the internet of tomorrow. And we’re not doing it alone. \n\nJoin us in Tlon Local, where the future is always under construction."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1673711612181
       }
     },
+    "roles": {
+      "import/~nibset-napwyn/tlon-bookshelf-5581": {
+        "image": "",
+        "title": "Writers: ~2022 Tlon Bookshelf",
+        "cover": "",
+        "description": "The writers role for the ~2022 Tlon Bookshelf channel"
+      },
+      "tech-support": {
+        "image": "",
+        "title": "Tech Support",
+        "cover": "",
+        "description": ""
+      },
+      "import/~nibset-napwyn/summer-refs-9798": {
+        "image": "",
+        "title": "Writers: ~2022 Summer Refs",
+        "cover": "",
+        "description": "The writers role for the ~2022 Summer Refs channel"
+      },
+      "tlon": {
+        "image": "",
+        "title": "Tlon",
+        "cover": "",
+        "description": "Tlon employees"
+      },
+      "import/~nibset-napwyn/summer-updates-9584": {
+        "image": "",
+        "title": "Writers: ~2022 Summer Updates",
+        "cover": "",
+        "description": "The writers role for the ~2022 Summer Updates channel"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      },
+      "import/~nibset-napwyn/summer-media-3692": {
+        "image": "",
+        "title": "Writers: ~2022 Summer Media",
+        "cover": "",
+        "description": "The writers role for the ~2022 Summer Media channel"
+      },
+      "placard-": {
+        "image": "",
+        "title": "🪧",
+        "cover": "",
+        "description": "shared a group in the community catalog"
+      },
+      "coffee-": {
+        "image": "",
+        "title": "☕️",
+        "cover": "",
+        "description": "internet cafe regulars"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~nocsyx-lassul/feedback-and-questions-2368": {
         "join": true,
@@ -3289,116 +3740,46 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://tlon.io/local-icon.svg",
-      "title": "Tlon Local",
-      "cover": "https://tlon.io/local-bg.jpg",
-      "description": "We’re off building the internet of tomorrow. And we’re not doing it alone. \n\nJoin us in Tlon Local, where the future is always under construction."
-    }
-  },
-  "~halbex-palheb/uf-public": {
-    "zone-ord": ["default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "import/~halbex-palheb/infrastructure-6618": {
+    "active-channels": [],
+    "sections": {
+      "zks3gi": {
+        "channel-order": [
+          "heap/~nibset-napwyn/bulletin-board-53",
+          "heap/~nibset-napwyn/local-directory"
+        ],
         "meta": {
           "image": "",
-          "title": "Writers: Infrastructure",
-          "cover": "",
-          "description": "The writers role for the Infrastructure channel"
-        }
-      },
-      "import/~halbex-palheb/developer-pipeline-5424": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Developer Reports",
-          "cover": "",
-          "description": "The writers role for the Developer Reports channel"
-        }
-      },
-      "aegean": {
-        "meta": {
-          "image": "",
-          "title": "Aegean",
+          "title": "Catalog",
           "cover": "",
           "description": ""
         }
       },
-      "import/~halbex-palheb/ecosystem-406": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Ecosystem",
-          "cover": "",
-          "description": "The writers role for the Ecosystem channel"
-        }
-      },
-      "native-planet": {
-        "meta": {
-          "image": "",
-          "title": "Native Planet",
-          "cover": "",
-          "description": "Works at Native Planet"
-        }
-      },
-      "zorp": {
-        "meta": {
-          "image": "",
-          "title": "Zorp",
-          "cover": "",
-          "description": "Works at Zorp"
-        }
-      },
-      "import/~halbex-palheb/announcements-7496": {
-        "meta": {
-          "image": "",
-          "title": "Writers: Announcements",
-          "cover": "",
-          "description": "The writers role for the Announcements channel"
-        }
-      },
-      "tlon": {
-        "meta": {
-          "image": "",
-          "title": "Tlon",
-          "cover": "",
-          "description": "Works at Tlon"
-        }
-      },
-      "uf": {
-        "meta": {
-          "image": "",
-          "title": "UF",
-          "cover": "",
-          "description": "A member of the UF Staff"
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      },
-      "red-horizon": {
-        "meta": {
-          "image": "",
-          "title": "Red Horizon",
-          "cover": "",
-          "description": "Works at Red Horizon"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1677338763627, "sects": [] } },
-    "zones": {
-      "default": {
-        "idx": [
-          "diary/~halbex-palheb/announcements-7496",
-          "diary/~halbex-palheb/job-board-4746",
-          "chat/~halbex-palheb/general-4066"
+      "zkqiq4": {
+        "channel-order": [
+          "diary/~nibset-napwyn/getting-started",
+          "chat/~nibset-napwyn/intros"
         ],
+        "meta": {
+          "image": "",
+          "title": "Welcome",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zbgfe9": {
+        "channel-order": [
+          "chat/~nibset-napwyn/commons",
+          "chat/~nibset-napwyn/developers"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Discuss",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "default": {
+        "channel-order": [],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -3407,7 +3788,137 @@
         }
       }
     },
-    "flagged-content": {},
+    "section-order": [
+      "zkqiq4",
+      "zbgfe9",
+      "zks3gi",
+      "default"
+    ],
+    "flagged-content": {
+      "chat/~nibset-napwyn/commons": {
+        "170141184506639145268131884024161370112": {
+          "flaggers": [
+            "~natnex-ronret"
+          ],
+          "replies": {},
+          "flagged": true
+        },
+        "170141184506635900592614747505220911104": {
+          "flaggers": [
+            "~forfel-norfel"
+          ],
+          "replies": {},
+          "flagged": true
+        },
+        "170141184506639102248277255152893689856": {
+          "flaggers": [
+            "~tiller-tolbus",
+            "~mopfel-winrux"
+          ],
+          "replies": {},
+          "flagged": true
+        }
+      }
+    },
+    "member-count": 1,
+    "init": true
+  },
+  "~halbex-palheb/uf-public": {
+    "meta": {
+      "image": "https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png",
+      "title": "UF",
+      "cover": "#000000",
+      "description": "The latest from the Urbit Foundation"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1677338763627
+      }
+    },
+    "roles": {
+      "import/~halbex-palheb/infrastructure-6618": {
+        "image": "",
+        "title": "Writers: Infrastructure",
+        "cover": "",
+        "description": "The writers role for the Infrastructure channel"
+      },
+      "import/~halbex-palheb/developer-pipeline-5424": {
+        "image": "",
+        "title": "Writers: Developer Reports",
+        "cover": "",
+        "description": "The writers role for the Developer Reports channel"
+      },
+      "aegean": {
+        "image": "",
+        "title": "Aegean",
+        "cover": "",
+        "description": ""
+      },
+      "import/~halbex-palheb/ecosystem-406": {
+        "image": "",
+        "title": "Writers: Ecosystem",
+        "cover": "",
+        "description": "The writers role for the Ecosystem channel"
+      },
+      "native-planet": {
+        "image": "",
+        "title": "Native Planet",
+        "cover": "",
+        "description": "Works at Native Planet"
+      },
+      "zorp": {
+        "image": "",
+        "title": "Zorp",
+        "cover": "",
+        "description": "Works at Zorp"
+      },
+      "import/~halbex-palheb/announcements-7496": {
+        "image": "",
+        "title": "Writers: Announcements",
+        "cover": "",
+        "description": "The writers role for the Announcements channel"
+      },
+      "tlon": {
+        "image": "",
+        "title": "Tlon",
+        "cover": "",
+        "description": "Works at Tlon"
+      },
+      "uf": {
+        "image": "",
+        "title": "UF",
+        "cover": "",
+        "description": "A member of the UF Staff"
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      },
+      "red-horizon": {
+        "image": "",
+        "title": "Red Horizon",
+        "cover": "",
+        "description": "Works at Red Horizon"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~halbex-palheb/announcements-7496": {
         "join": true,
@@ -3446,44 +3957,13 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png",
-      "title": "UF",
-      "cover": "#000000",
-      "description": "The latest from the Urbit Foundation"
-    }
-  },
-  "~motluc-nammex/h00ncr3w": {
-    "zone-ord": ["default", "zpamko"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": { "~solfer-magfed": { "joined": 1697210314836, "sects": [] } },
-    "zones": {
-      "zpamko": {
-        "idx": [],
-        "meta": {
-          "image": "",
-          "title": "Testing playgrounds",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": [
-          "diary/~motluc-nammex/personal-tech-blog",
-          "chat/~motluc-nammex/security-discussion",
-          "chat/~motluc-nammex/chill-chat"
+        "channel-order": [
+          "diary/~halbex-palheb/announcements-7496",
+          "diary/~halbex-palheb/job-board-4746",
+          "chat/~halbex-palheb/general-4066"
         ],
         "meta": {
           "image": "",
@@ -3493,7 +3973,49 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~motluc-nammex/h00ncr3w": {
+    "meta": {
+      "image": "https://i.imgur.com/iZ6jgTP.png",
+      "title": "Urbit Security Fanclub",
+      "cover": "https://i.imgur.com/iZ6jgTP.png",
+      "description": "Group for discussing, exploring, and strengthening the security of Urbit and its application ecosystem."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1697210314836
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~motluc-nammex/security-discussion": {
         "join": false,
@@ -3524,39 +4046,30 @@
         "added": 1696729873919,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Blog", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://i.imgur.com/iZ6jgTP.png",
-      "title": "Urbit Security Fanclub",
-      "cover": "https://i.imgur.com/iZ6jgTP.png",
-      "description": "Group for discussing, exploring, and strengthening the security of Urbit and its application ecosystem."
-    }
-  },
-  "~dacsur-torryl-solfer-magfed/moony": {
-    "zone-ord": ["default"],
-    "cordon": { "shut": { "pending": [], "ask": [] } },
-    "cabals": {
-      "admin": {
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Blog",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1695742456109, "sects": [] } },
-    "zones": {
+    "active-channels": [],
+    "sections": {
+      "zpamko": {
+        "channel-order": [],
+        "meta": {
+          "image": "",
+          "title": "Testing playgrounds",
+          "cover": "",
+          "description": ""
+        }
+      },
       "default": {
-        "idx": [
-          "chat/~dacsur-torryl-solfer-magfed/ghost",
-          "chat/~dacsur-torryl-solfer-magfed/fghost",
-          "chat/~dacsur-torryl-solfer-magfed/chost",
-          "chat/~dacsur-torryl-solfer-magfed/host"
+        "channel-order": [
+          "diary/~motluc-nammex/personal-tech-blog",
+          "chat/~motluc-nammex/security-discussion",
+          "chat/~motluc-nammex/chill-chat"
         ],
         "meta": {
           "image": "",
@@ -3566,7 +4079,50 @@
         }
       }
     },
+    "section-order": [
+      "default",
+      "zpamko"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~dacsur-torryl-solfer-magfed/moony": {
+    "meta": {
+      "image": "#999999",
+      "title": "Moony",
+      "cover": "#D9D9D9",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1695742456109
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~dacsur-torryl-solfer-magfed/ghost": {
         "join": false,
@@ -3597,7 +4153,12 @@
         "added": 1696359537292,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Host", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "Host",
+          "cover": "",
+          "description": ""
+        }
       },
       "chat/~dacsur-torryl-solfer-magfed/chost": {
         "join": false,
@@ -3612,34 +4173,15 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#999999",
-      "title": "Moony",
-      "cover": "#D9D9D9",
-      "description": ""
-    }
-  },
-  "~solfer-magfed/public-testo": {
-    "zone-ord": ["default"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
-      }
-    },
-    "fleet": {
-      "~solfer-magfed": { "joined": 946684800000, "sects": ["admin"] }
-    },
-    "zones": {
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": ["chat/~solfer-magfed/test"],
+        "channel-order": [
+          "chat/~dacsur-torryl-solfer-magfed/ghost",
+          "chat/~dacsur-torryl-solfer-magfed/fghost",
+          "chat/~dacsur-torryl-solfer-magfed/chost",
+          "chat/~dacsur-torryl-solfer-magfed/host"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -3648,44 +4190,71 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~solfer-magfed/public-testo": {
+    "meta": {
+      "image": "#999999",
+      "title": "Public Testo",
+      "cover": "#D9D9D9",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "admin"
+        ],
+        "joined": 946684800000
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~solfer-magfed/test": {
         "join": false,
         "added": 1707846398886,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Test", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "#999999",
-      "title": "Public Testo",
-      "cover": "#D9D9D9",
-      "description": ""
-    }
-  },
-  "~ravmel-ropdyl/td": {
-    "zone-ord": ["default"],
-    "cordon": { "shut": { "pending": [], "ask": [] } },
-    "cabals": {
-      "admin": {
         "meta": {
           "image": "",
-          "title": "Admin",
+          "title": "Test",
           "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": {
-      "~solfer-magfed": { "joined": 1683811539881, "sects": ["member"] }
-    },
-    "zones": {
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": ["heap/~ravmel-ropdyl/wall", "chat/~ravmel-ropdyl/desk"],
+        "channel-order": [
+          "chat/~solfer-magfed/test"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
@@ -3694,107 +4263,141 @@
         }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~ravmel-ropdyl/td": {
+    "meta": {
+      "image": "https://s3.us-west-1.amazonaws.com/23-urbit/ravmel-ropdyl/2023.5.11..00.06.25-Toronto-Dominion_Bank_logo.svg",
+      "title": "TD",
+      "cover": "https://s3.us-west-1.amazonaws.com/23-urbit/ravmel-ropdyl/2023.5.11..00.06.32-TDConferenceCentre.jpg",
+      "description": ""
+    },
+    "admissions": {
+      "privacy": "private",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [
+          "member"
+        ],
+        "joined": 1683811539881
+      }
+    },
+    "roles": {
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "heap/~ravmel-ropdyl/wall": {
         "join": false,
         "added": 1683763259429,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Wall", "cover": "", "description": "" }
+        "meta": {
+          "image": "",
+          "title": "Wall",
+          "cover": "",
+          "description": ""
+        }
       },
       "chat/~ravmel-ropdyl/desk": {
         "join": false,
         "added": 1683763246349,
         "readers": [],
         "zone": "default",
-        "meta": { "image": "", "title": "Desk", "cover": "", "description": "" }
-      }
-    },
-    "bloc": ["admin"],
-    "secret": true,
-    "meta": {
-      "image": "https://s3.us-west-1.amazonaws.com/23-urbit/ravmel-ropdyl/2023.5.11..00.06.25-Toronto-Dominion_Bank_logo.svg",
-      "title": "TD",
-      "cover": "https://s3.us-west-1.amazonaws.com/23-urbit/ravmel-ropdyl/2023.5.11..00.06.32-TDConferenceCentre.jpg",
-      "description": ""
-    }
-  },
-  "~satsut-tocdeb/tonga-room": {
-    "zone-ord": ["zt4uh4", "zq0rmj", "default", "zt3lnv", "zq2v07"],
-    "cordon": { "open": { "ships": [], "ranks": [] } },
-    "cabals": {
-      "regular": {
         "meta": {
           "image": "",
-          "title": "Regular",
+          "title": "Desk",
           "cover": "",
-          "description": "Familiar faces. "
-        }
-      },
-      "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
+          "description": ""
         }
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1689976222940, "sects": [] } },
-    "zones": {
-      "zt4uh4": {
-        "idx": [],
-        "meta": {
-          "image": "",
-          "title": "New Section",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zq0rmj": {
-        "idx": [],
-        "meta": {
-          "image": "",
-          "title": "Appreciation",
-          "cover": "",
-          "description": ""
-        }
-      },
-      "zt3lnv": {
-        "idx": [
-          "chat/~satsut-tocdeb/bar-talk",
-          "heap/~satsut-tocdeb/juke-box",
-          "chat/~satsut-tocdeb/after-hours",
-          "heap/~satsut-tocdeb/admit-when-you-re-drunk-on-urbit-by-posting-a-screenshot"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Social",
-          "cover": "",
-          "description": ""
-        }
-      },
+    "active-channels": [],
+    "sections": {
       "default": {
-        "idx": ["diary/~satsut-tocdeb/welcome-to-tonga-room"],
+        "channel-order": [
+          "heap/~ravmel-ropdyl/wall",
+          "chat/~ravmel-ropdyl/desk"
+        ],
         "meta": {
           "image": "",
           "title": "Sectionless",
           "cover": "",
           "description": ""
         }
-      },
-      "zq2v07": {
-        "idx": ["heap/~satsut-tocdeb/friends-of-tonga-room"],
-        "meta": {
-          "image": "",
-          "title": "Top Shelf",
-          "cover": "",
-          "description": ""
-        }
       }
     },
+    "section-order": [
+      "default"
+    ],
     "flagged-content": {},
+    "member-count": 1,
+    "init": true
+  },
+  "~satsut-tocdeb/tonga-room": {
+    "meta": {
+      "image": "https://d2w9rnfcy7mm78.cloudfront.net/19972948/original_f658feeaaf49cb1f265b24a260fd4d6b.jpg",
+      "title": "Tonga Room",
+      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/19972611/original_1a49de4a5459c8041cf118d823da531e.jpg",
+      "description": "The first bar on Urbit."
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
+        "ships": [],
+        "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1689976222940
+      }
+    },
+    "roles": {
+      "regular": {
+        "image": "",
+        "title": "Regular",
+        "cover": "",
+        "description": "Familiar faces. "
+      },
+      "admin": {
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
+      }
+    },
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "diary/~satsut-tocdeb/welcome-to-tonga-room": {
         "join": false,
@@ -3869,19 +4472,84 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "https://d2w9rnfcy7mm78.cloudfront.net/19972948/original_f658feeaaf49cb1f265b24a260fd4d6b.jpg",
-      "title": "Tonga Room",
-      "cover": "https://d2w9rnfcy7mm78.cloudfront.net/19972611/original_1a49de4a5459c8041cf118d823da531e.jpg",
-      "description": "The first bar on Urbit."
-    }
+    "active-channels": [],
+    "sections": {
+      "zt4uh4": {
+        "channel-order": [],
+        "meta": {
+          "image": "",
+          "title": "New Section",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zq0rmj": {
+        "channel-order": [],
+        "meta": {
+          "image": "",
+          "title": "Appreciation",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zt3lnv": {
+        "channel-order": [
+          "chat/~satsut-tocdeb/bar-talk",
+          "heap/~satsut-tocdeb/juke-box",
+          "chat/~satsut-tocdeb/after-hours",
+          "heap/~satsut-tocdeb/admit-when-you-re-drunk-on-urbit-by-posting-a-screenshot"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Social",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "default": {
+        "channel-order": [
+          "diary/~satsut-tocdeb/welcome-to-tonga-room"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Sectionless",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "zq2v07": {
+        "channel-order": [
+          "heap/~satsut-tocdeb/friends-of-tonga-room"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Top Shelf",
+          "cover": "",
+          "description": ""
+        }
+      }
+    },
+    "section-order": [
+      "zt4uh4",
+      "zq0rmj",
+      "default",
+      "zt3lnv",
+      "zq2v07"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
   },
   "~hocwyn-tipwex/uqbar-event-horizon-forever": {
-    "zone-ord": ["default"],
-    "cordon": {
-      "open": {
+    "meta": {
+      "image": "",
+      "title": "🌺🏖️🐬 Uqbar Event Horizon",
+      "cover": "#000000",
+      "description": "New from beyond the light cone"
+    },
+    "admissions": {
+      "privacy": "public",
+      "banned": {
         "ships": [
           "~fostul-palmeg-litdev-lapmyn--litryt-falnem-silsed-binzod",
           "~taltyn-malruc-sogbus-walnyt--labwyd-mosduc-hacryt-samzod",
@@ -3918,49 +4586,36 @@
           "~losfed-mosref-palfeb-solpet--latnex-lopfeb-sibsub-marzod"
         ],
         "ranks": []
+      },
+      "pending": {},
+      "requests": {},
+      "tokens": {},
+      "referrals": {},
+      "invited": {}
+    },
+    "seats": {
+      "~solfer-magfed": {
+        "roles": [],
+        "joined": 1677509233960
       }
     },
-    "cabals": {
+    "roles": {
       "import/~hocwyn-tipwex/vip-lounge-948": {
-        "meta": {
-          "image": "",
-          "title": "Writers: VIP Lounge",
-          "cover": "",
-          "description": "The writers role for the VIP Lounge channel"
-        }
+        "image": "",
+        "title": "Writers: VIP Lounge",
+        "cover": "",
+        "description": "The writers role for the VIP Lounge channel"
       },
       "admin": {
-        "meta": {
-          "image": "",
-          "title": "Admin",
-          "cover": "",
-          "description": "Admins can add and remove channels and edit metadata"
-        }
+        "image": "",
+        "title": "Admin",
+        "cover": "",
+        "description": "Admins can add and remove channels and edit metadata"
       }
     },
-    "fleet": { "~solfer-magfed": { "joined": 1677509233960, "sects": [] } },
-    "zones": {
-      "default": {
-        "idx": [
-          "chat/~hocwyn-tipwex/vip-lounge-948",
-          "chat/~sonnyt-sonnyt-habsul-rignyr/general-chat-2",
-          "chat/~hocwyn-tipwex/uqbar-builduuurs-3544",
-          "heap/~hocwyn-tipwex/link-to-your-personal-urbit-group-here-4413",
-          "chat/~hocwyn-tipwex/neutron-degeneracy-9621",
-          "heap/~habsul-rignyr/educational-links-3759",
-          "diary/~hocwyn-tipwex/urbit-links-and-other-handy-reference-8335",
-          "chat/~hocwyn-tipwex/help-5287",
-          "diary/~habsul-rignyr/announcements-9643"
-        ],
-        "meta": {
-          "image": "",
-          "title": "Sectionless",
-          "cover": "",
-          "description": ""
-        }
-      }
-    },
-    "flagged-content": {},
+    "admins": [
+      "admin"
+    ],
     "channels": {
       "chat/~hocwyn-tipwex/help-5287": {
         "join": false,
@@ -4071,13 +4726,33 @@
         }
       }
     },
-    "bloc": ["admin"],
-    "secret": false,
-    "meta": {
-      "image": "",
-      "title": "🌺🏖️🐬 Uqbar Event Horizon",
-      "cover": "#000000",
-      "description": "New from beyond the light cone"
-    }
+    "active-channels": [],
+    "sections": {
+      "default": {
+        "channel-order": [
+          "chat/~hocwyn-tipwex/vip-lounge-948",
+          "chat/~sonnyt-sonnyt-habsul-rignyr/general-chat-2",
+          "chat/~hocwyn-tipwex/uqbar-builduuurs-3544",
+          "heap/~hocwyn-tipwex/link-to-your-personal-urbit-group-here-4413",
+          "chat/~hocwyn-tipwex/neutron-degeneracy-9621",
+          "heap/~habsul-rignyr/educational-links-3759",
+          "diary/~hocwyn-tipwex/urbit-links-and-other-handy-reference-8335",
+          "chat/~hocwyn-tipwex/help-5287",
+          "diary/~habsul-rignyr/announcements-9643"
+        ],
+        "meta": {
+          "image": "",
+          "title": "Sectionless",
+          "cover": "",
+          "description": ""
+        }
+      }
+    },
+    "section-order": [
+      "default"
+    ],
+    "flagged-content": {},
+    "member-count": 1,
+    "init": true
   }
 }

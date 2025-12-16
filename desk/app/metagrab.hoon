@@ -110,9 +110,8 @@
   =.  hes  [['accept' '*/*'] hes]
   =/  =request:http
     [?-(met %head %'HEAD', %get %'GET') url hes ~]
-  ::NOTE  outbound-config is actually meaningless,
-  ::      iris doesn't do anything with it at present...
-  [%pass /fetch/(scot %t url)/(crip ~(rend co %blob hes))/[met] %arvo %i %request request *outbound-config:iris]
+  ::TODO  would we be fine with iris handling redirects for us?
+  [%pass /fetch/(scot %t url)/(crip ~(rend co %blob hes))/[met] %arvo %i %request request redirects=0 retries=3]
 ::
 ++  extract-data
   |=  $:  url=@t

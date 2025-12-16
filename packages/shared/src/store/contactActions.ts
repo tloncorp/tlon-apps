@@ -55,10 +55,7 @@ export async function addContacts(contacts: string[]) {
 
     await api.addUserContacts(newContacts);
   } catch (e) {
-    logger.trackError('Error adding contacts', {
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
+    logger.trackError('Error adding contacts', e);
     // Rollback the update
     const rolbacks = contacts.map((contactId) =>
       db.updateContact({
@@ -241,10 +238,7 @@ export async function findContactSuggestions() {
       suggestionsFound: false,
     });
   } catch (e) {
-    logger.trackError('Client Contact Suggestions Failure', {
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
+    logger.trackError('Client Contact Suggestions Failure', e);
   }
   logger.log('No suggestions added');
   return false;
@@ -282,10 +276,7 @@ export async function updateContactMetadata(
           : undefined,
     });
   } catch (e) {
-    logger.trackError('Error updating contact metadata', {
-      errorMessage: e.message,
-      errorStack: e.stack,
-    });
+    logger.trackError('Error updating contact metadata', e);
     // rollback the update
     await db.updateContact({
       id: contactId,

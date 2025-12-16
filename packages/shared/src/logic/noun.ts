@@ -1,4 +1,4 @@
-import { daToUnix, formatUv, patp } from '@urbit/aura';
+import { render, da } from '@urbit/aura';
 import { Atom, Cell, Noun, enjs } from '@urbit/nockjs';
 
 // TODO: nockjs should export these
@@ -29,12 +29,12 @@ export const getPatp: EnjsFunction = (noun: Noun) => {
     throw new Error(`malformed patp ${noun.toString()}`);
   }
 
-  return patp(noun.number);
+  return render('p', noun.number);
 };
 
-export const getUv: EnjsFunction = runIfAtom((a) => formatUv(a.number));
+export const getUv: EnjsFunction = runIfAtom((a) => render('uv', a.number));
 
-export const time: EnjsFunction = runIfAtom((a) => daToUnix(a.number));
+export const time: EnjsFunction = runIfAtom((a) => da.toUnix(a.number));
 
 export function getMapAsObject<T>(
   noun: Noun,
