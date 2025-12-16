@@ -6,11 +6,14 @@ import { LoadingSpinner } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
-import { View, useStyle } from 'tamagui';
+import { Text, View, useStyle } from 'tamagui';
 
-import { NavigationProvider, useStore } from '../../contexts';
 import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
+import { NavigationProvider, useStore } from '../../contexts';
+import { PrimaryButton } from '../Buttons';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
+import { PersonalInviteSheet } from '../PersonalInviteSheet';
+import { ScreenHeader } from '../ScreenHeader';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 
@@ -25,6 +28,8 @@ export function ActivityScreenView({
   onGroupAction,
   bucketFetchers,
   refresh,
+  onNavigateToContacts,
+  onInviteFriends,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
@@ -34,6 +39,8 @@ export function ActivityScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
+  onNavigateToContacts?: () => void;
+  onInviteFriends?: () => void;
 }) {
   const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
@@ -172,6 +179,8 @@ export function ActivityScreenView({
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
       onGroupAction={onGroupAction}
+      onNavigateToContacts={onNavigateToContacts}
+      onInviteFriends={onInviteFriends}
     />
   );
 }
@@ -187,6 +196,8 @@ export function ActivityScreenContent({
   onRefreshTriggered,
   onGroupAction,
   seenMarker,
+  onNavigateToContacts,
+  onInviteFriends,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -198,8 +209,11 @@ export function ActivityScreenContent({
   onRefreshTriggered: () => void;
   seenMarker: number;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  onNavigateToContacts?: () => void;
+  onInviteFriends?: () => void;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
+  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const hostConnectionStatus = useConnectionStatus(
     selectedGroup?.hostUserId ?? ''
   );
@@ -218,6 +232,15 @@ export function ActivityScreenContent({
     await setBadgeCountAsync(0);
     await store.markAllRead();
   }, []);
+
+  const handleInviteFriends = useCallback(() => {
+    setPersonalInviteOpen(false);
+    if (onInviteFriends) {
+      setTimeout(() => {
+        onInviteFriends();
+      }, 200);
+    }
+  }, [onInviteFriends]);
 
   const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
@@ -244,26 +267,60 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        <ActivityHeader
-          activeTab={activeTab}
-          onTabPress={onPressTab}
-          markAllRead={markAllRead}
-        />
-        {events.length > 0 && (
-          <FlatList
-            data={events}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={containerStyle}
-            onEndReached={onEndReached}
-            ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={onRefreshTriggered}
-              />
-            }
-          />
+        {events.length > 0 ? (
+          <>
+            <ActivityHeader
+              activeTab={activeTab}
+              onTabPress={onPressTab}
+              markAllRead={markAllRead}
+            />
+
+            <FlatList
+              data={events}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={containerStyle}
+              onEndReached={onEndReached}
+              ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onRefreshTriggered}
+                />
+              }
+            />
+          </>
+        ) : (
+          <>
+            <ScreenHeader title="Activity" />
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$xl"
+              gap="$xl"
+            >
+              <Text
+                color="$tertiaryText"
+                fontSize="$l"
+                textAlign="center"
+                marginBottom="$m"
+              >
+                No activity yet. Invite some of your contacts to Tlon Messenger
+                to get started.
+              </Text>
+              <View gap="$m" width="100%" maxWidth={300}>
+                <PrimaryButton onPress={() => setPersonalInviteOpen(true)}>
+                  Invite Friends
+                </PrimaryButton>
+                {onNavigateToContacts && (
+                  <PrimaryButton onPress={onNavigateToContacts}>
+                    View Contacts
+                  </PrimaryButton>
+                )}
+              </View>
+            </View>
+          </>
         )}
         <GroupPreviewSheet
           open={!!selectedGroup}
@@ -271,6 +328,11 @@ export function ActivityScreenContent({
           group={selectedGroup ?? undefined}
           hostStatus={hostConnectionStatus}
           onActionComplete={handleGroupAction}
+        />
+        <PersonalInviteSheet
+          open={personalInviteOpen}
+          onOpenChange={setPersonalInviteOpen}
+          onPressInviteFriends={handleInviteFriends}
         />
       </View>
     </NavigationProvider>
