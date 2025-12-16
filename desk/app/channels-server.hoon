@@ -52,8 +52,8 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%3 ~ ~]
-    (my %groups^[~.groups^%2 ~ ~] ~)
+      [~.channels^%4 ~ ~]
+    (my %groups^[~.groups^%3 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
 ::

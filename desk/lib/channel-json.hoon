@@ -110,15 +110,8 @@
     =/  times=(list time:z)  ?~(a ~ u.a)
     (turn times id)
   ::
-  ++  perm
-    |=  p=perm:v9:cv
-    %-  pairs
-    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
-        group/(flag group.p)
-    ==
-  ::
   ++  post-toggle
-    |=  p=post-toggle:v9:cv
+    |=  p=post-toggle:cv
     %+  frond  -.p
     ?-  -.p
       %hide  (id id-post.p)
@@ -126,9 +119,60 @@
     ==
   ::
   ++  hidden-posts
-    |=  hp=hidden-posts:v9:cv
+    |=  hp=hidden-posts:cv
     a+(turn ~(tap in hp) id)
-  ::
+  ++  v10
+    =,  v9
+    |%
+    ++  r-channels
+      |=  [=nest:cv =r-channel:v10:cv]
+      %-  pairs
+      :~  nest+(^nest nest)
+          response+(^r-channel r-channel)
+      ==
+    ::
+    ++  r-channel
+      |=  =r-channel:v10:cv
+      %+  frond  -.r-channel
+      ?-  -.r-channel
+        %posts    (posts posts.r-channel)
+        %post     (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
+        %pending  (pending r-channel)
+        %order    (order order.r-channel)
+        %view     s+view.r-channel
+        %sort     s+sort.r-channel
+        %perm     (perm perm.r-channel)
+        %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
+      ::
+        %create   (perm perm.r-channel)
+        %join     (flag group.r-channel)
+        %leave    ~
+        %read     ~
+        %read-at  s+(scot %ud time.r-channel)
+        %watch    ~
+        %unwatch  ~
+      ::
+        %connection  (connection [wire conn]:r-channel)
+      ==
+    ++  connection
+      |=  [=wire =conn:v10:gv]
+      %-  pairs
+      :~  'wire'^(path wire)
+          'status'^(^conn conn)
+      ==
+    ++  conn
+      |=  =conn:v10:gv
+      ?:  ?=(%& -.conn)
+        (frond ok+s+p.conn)
+      (frond error+s+p.conn)
+    ::TODO migrate writers to role-ids
+    ++  perm
+      |=  p=perm:v10:cv
+      %-  pairs
+      :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+          group/(flag group.p)
+      ==
+    --
   ++  v9
     |%
     ++  r-channels
@@ -599,6 +643,12 @@
           perms+(perm perm.channel)
           meta+?~(meta.channel ~ s+u.meta.channel)
       ==
+    ++  perm
+      |=  p=perm:v8:cv
+      %-  pairs
+      :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+          group/(flag group.p)
+      ==
     ++  said
       |=  s=said:v8:cv
       %-  pairs
@@ -1019,6 +1069,12 @@
           sort+s+sort.channel
           perms+(perm perm.channel)
           pending+(pending-msgs pending.channel)
+      ==
+    ++  perm
+      |=  p=perm:v7:cv
+      %-  pairs
+      :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+          group/(flag group.p)
       ==
     ::
     ++  paged-posts

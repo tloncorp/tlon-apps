@@ -169,11 +169,11 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.groups^%2 ~ ~]
+      [~.groups^%3 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%2 ~ ~]
-        %channels^[~.channels^%3 ~ ~]
-        %channels-server^[~.channels^%3 ~ ~]
+    :~  %groups^[~.groups^%3 ~ ~]
+        %channels^[~.channels^%4 ~ ~]
+        %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
 %^  verb  |  %warn
@@ -4568,8 +4568,8 @@
     ^+  go-core
     ::  do not sent out responses until group log
     ::  has been applied, and the group initialized.
-    ::  TODO: but make exception for %connection status.
-    ?.  go-is-init  go-core
+    ::
+    ?.  |(go-is-init ?=(%connection -.r-group))  go-core
     ::  v1 response
     ::
     =/  r-groups-10=r-groups:v10:gv  [flag r-group]
