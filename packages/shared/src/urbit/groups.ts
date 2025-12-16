@@ -660,8 +660,8 @@ export type GroupEntryAction =
   | { privacy: PrivacyType }
   | { ban: GroupBanAction }
   | { token: GroupTokenAction }
-  | { pending: { ships: string[]; 'c-pending': GroupPendingAction } }
-  | { ask: { ships: string[]; 'c-ask': 'approve' | 'deny' } };
+  | { pending: { ships: string[]; 'a-pending': GroupPendingAction } }
+  | { ask: { ships: string[]; 'a-ask': 'approve' | 'deny' } };
 
 export type GroupBanAction =
   | { set: { ships: string[]; ranks: string[] } }
