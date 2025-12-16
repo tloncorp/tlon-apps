@@ -47,6 +47,8 @@ export function ActivityScreenView({
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
+  const { data: activityIsEmpty } = store.useActivityIsEmpty();
+
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
@@ -175,7 +177,7 @@ export function ActivityScreenView({
       onEndReached={handleEndReached}
       events={events}
       isFetching={currentFetcher.isFetching}
-      isLoading={currentFetcher.isLoading}
+      isConfirmedEmpty={!!activityIsEmpty}
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
@@ -190,7 +192,7 @@ export function ActivityScreenContent({
   activeTab,
   events,
   isFetching,
-  isLoading,
+  isConfirmedEmpty,
   isRefreshing,
   onPressTab,
   onPressEvent,
@@ -207,7 +209,7 @@ export function ActivityScreenContent({
   onEndReached: () => void;
   events: logic.SourceActivityEvents[];
   isFetching: boolean;
-  isLoading: boolean;
+  isConfirmedEmpty: boolean;
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
@@ -270,14 +272,13 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        {isLoading || events.length > 0 ? (
+        {!isConfirmedEmpty ? (
           <>
             <ActivityHeader
               activeTab={activeTab}
               onTabPress={onPressTab}
               markAllRead={markAllRead}
             />
-
             <FlatList
               data={events}
               renderItem={renderItem}

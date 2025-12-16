@@ -13,7 +13,6 @@ export interface ActivityFetcher {
   canFetchMoreActivity: boolean;
   fetchMoreActivity: () => void;
   isFetching: boolean;
-  isLoading: boolean;
   activity: logic.SourceActivityEvents[];
 }
 
@@ -132,11 +131,6 @@ export function useInfiniteBucketedActivity(
     [infiniteQuery.isFetchingNextPage]
   );
 
-  const isLoading = useMemo(
-    () => infiniteQuery.isLoading,
-    [infiniteQuery.isLoading]
-  );
-
   const activity = useMemo(() => {
     const allActivitySources = infiniteQuery.data?.pages.flat() ?? [];
     return allActivitySources.sort(
@@ -147,7 +141,6 @@ export function useInfiniteBucketedActivity(
   return {
     canFetchMoreActivity,
     fetchMoreActivity,
-    isLoading,
     isFetching,
     activity,
   };
