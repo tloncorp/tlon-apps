@@ -1437,6 +1437,9 @@
       [%x %v4 %channels full=?(~ [%full ~])]
     ``channels-4+!>(`channels:v9:cv`(uv-channels-3:utils v-channels ?=(^ full.pole)))
     ::
+      [%x %v5 %channels full=?(~ [%full ~])]
+    ``channels-5+!>(`channels:v10:cv`(uv-channels-4:utils v-channels ?=(^ full.pole)))
+    ::
     ::  /x/v/init: get unreads and unversioned channels
     ::
       [%x ?(%v0 %v1) %init ~]
@@ -1456,6 +1459,10 @@
       [%x %v5 %init ~]
     =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
     ``noun+!>(`[channels:v9:cv (set id-post:c)]`init)
+    ::
+      [%x %v6 %init ~]
+    =/  init  [(uv-channels-4:utils v-channels |) hidden-posts]
+    ``noun+!>(`[channels:v10:cv (set id-post:c)]`init)
     ::
       [%x %v5 %changes since=@ rest=*]
     ::TODO  since this is a scry endpoint, all relevant
@@ -2577,6 +2584,7 @@
   ++  ca-u-connection
     |=  [=wire =conn:c]
     ^+  ca-core
+    ~&  ca-u-connecion+[nest wire conn]
     =*  net  net.channel
     =+  wir=wire  ::TMI
     ?.  ?=([%update ~] wir)

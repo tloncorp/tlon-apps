@@ -264,14 +264,14 @@
   ::
       [%x %v7 %init ~]
     =+  .^([=groups-ui:v10:gv =foreigns:v8:gv] (scry %gx %groups /v4/init/noun))
-    =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
+    =+  .^(=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-7:u
       :*  groups-ui
           foreigns
-          channel-8
+          channel-10
           activity
           pins
           chat

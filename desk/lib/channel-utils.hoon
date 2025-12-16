@@ -101,6 +101,30 @@
     remark  remark.channel
   ==
 ::
+++  uv-channels-4
+  |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-4']
+  ^-  channels:v10:cv
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:v10:cv
+  =/  base
+    %*  .  *channel:v10:cv
+      count    count.channel
+      meta     +.meta.channel
+      perm     +.perm.channel
+      view     +.view.channel
+      sort     +.sort.channel
+      order    +.order.channel
+      pending  pending.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts   (uv-posts-3 posts.channel)
+    net     net.channel
+    remark  remark.channel
+  ==
+::
 ++  uv-posts
   |=  =v-posts:c
   ~>  %spin.['libcu-uv-posts']

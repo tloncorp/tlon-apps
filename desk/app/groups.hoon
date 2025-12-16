@@ -40,6 +40,7 @@
 /%  m-group-update       %group-update
 /%  m-group-log          %group-log
 /%  m-group-token        %group-token
+/%  m-group-error        %group-error
 /%  m-channel-preview    %channel-preview
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
@@ -83,7 +84,9 @@
           :+  %group-update       |  -:!>(*vale:m-group-update)
           :+  %group-log          |  -:!>(*vale:m-group-log)
         ::
-          :+  %group-token        &  -:!>(*vale:m-group-token)
+          :+  %group-token        |  -:!>(*vale:m-group-token)
+        ::
+          :+  %group-error        |  -:!>(*vale:m-group-error)
         ::
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
@@ -104,9 +107,9 @@
       ==
     ::  facts
     ::
-    :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
-        [/server/groups/$/$/token/$ %group-token ~]
-        [/server/groups/$/$/ask/$ %group-token ~]
+    :~  [/server/groups/$/$/updates/$/$ %group-update %group-log %group-error ~]
+        [/server/groups/$/$/token/$ %group-token %group-error ~]
+        [/server/groups/$/$/ask/$ %group-token %group-error ~]
         [/server/groups/$/$/preview %group-preview-3 ~]
         [/server/groups/index %group-previews-1 ~]
       ::
@@ -1071,7 +1074,7 @@
     =/  se-core  (se-abed:se-core [our.bowl name.pole])
     ?:  (se-is-banned:se-core src.bowl)
       =.  cor
-        (emit %give %fact ~ group-error+!>(|+%not-found))
+        (emit %give %fact ~ group-error+!>(%not-found))
       (emit %give %kick ~ ~)
     se-abet:(se-watch:se-core rest.pole)
   ::
@@ -3000,7 +3003,7 @@
       ?>  =(ship src.bowl)
       ?.  (se-is-member src.bowl)
         =.  se-core
-          (emit %give %fact ~ group-error+!>(|+%not-authorized))
+          (emit %give %fact ~ group-error+!>(%not-authorized))
         (emit %give %kick ~ ~)
       (se-watch-updates ship time)
     ::
@@ -4545,6 +4548,7 @@
   ++  go-u-connection
     |=  =conn:g
     ^+  go-core
+    ~&  go-u-connection+[flag conn]
     =?  net  ?=(%sub -.net)
       net(conn conn)
     =.  go-core  (go-response %connection conn)
@@ -4559,7 +4563,8 @@
     ::     we %leave it.
     ::
     :: =.  go-core  (go-response %delete ~)
-    (go-u-connection |+%not-found)
+    =.  go-core  (go-u-connection |+%not-found)
+    (go-leave |)
   ::  +go-response: send response to our subscribers
   ::
   ++  go-response

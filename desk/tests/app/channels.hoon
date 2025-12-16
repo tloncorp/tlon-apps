@@ -3,7 +3,7 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %16
+  $:  %17
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -204,7 +204,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -241,7 +241,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -310,7 +310,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -364,7 +364,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
