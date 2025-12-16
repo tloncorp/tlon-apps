@@ -374,6 +374,12 @@
         go-abet:(go-leave:group-core &)
       ==
     ::
+        %group-suspend
+      =+  !<([=flag:gv suspend=?] vase)
+      ?>  from-self
+      =<  go-abet
+      (go-a-suspend:(go-abed:go-core flag) suspend)
+    ::
         ::  deprecated
         %group-action-3
       ?>  from-self
@@ -3600,6 +3606,16 @@
       [%section section-id %set order.section]
     %+  go-send-command:go-core  /command/section-order
     [%section-order order.a-navigation]
+  ::  +go-a-suspend: toggle group connection
+  ::
+  ++  go-a-suspend
+    |=  suspend=?
+    ^+  go-core
+    ?.  ?=(%sub -.net)  go-core
+    ?:  suspend
+      =.  cor  (eager-leave go-sub-wire [p.flag dap.bowl])
+      (go-u-connection &+%suspend)
+    (go-start-updates |)
   ::  +go-watch: handle group watch request
   ::
   ++  go-watch
@@ -4113,7 +4129,8 @@
       ::  would kick us out on a subsequent rejoin.
       ::
       ?:  &(leave go-is-init)
-        (go-u-connection |+%not-authorized)
+        =.  go-core  (go-u-connection |+%not-authorized)
+        (go-leave |)
       go-core
     ::
         %add-roles

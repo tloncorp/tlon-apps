@@ -1413,7 +1413,7 @@
   ~>  %spin.['peek']
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %v6) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
     ::

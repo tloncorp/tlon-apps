@@ -117,11 +117,11 @@
       sort     +.sort.channel
       order    +.order.channel
       pending  pending.channel
+      net      net.channel
     ==
   ?.  full  base
   %_  base
     posts   (uv-posts-3 posts.channel)
-    net     net.channel
     remark  remark.channel
   ==
 ::

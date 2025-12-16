@@ -172,6 +172,25 @@
       :~  writers/a/(turn ~(tap in writers.p) (lead %s))
           group/(flag group.p)
       ==
+    ++  channels
+      |=  channels=channels:v10:cv
+      %-  pairs
+      %+  turn  ~(tap by channels)
+      |=  [n=nest:cv ca=channel:v10:cv]
+      [(nest-cord n) (channel ca)]
+    ::
+    ++  channel
+      |=  channel=channel:v10:cv
+      %-  pairs
+      :~  posts+(posts posts.channel)
+          count+(numb count.channel)
+          order+(order order.channel)
+          view+s+view.channel
+          sort+s+sort.channel
+          perms+(perm perm.channel)
+          meta+?~(meta.channel ~ s+u.meta.channel)
+          conn+(conn conn.net.channel)
+      ==
     --
   ++  v9
     |%
