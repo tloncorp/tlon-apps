@@ -1043,6 +1043,7 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
+    ?:  &(?=(%sub -.net) ?=([%& %suspend] conn.net))  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -1077,6 +1078,10 @@
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
+    ?.  (~(has by groups) our.bowl name.pole)
+      =.  cor
+        (emit %give %fact ~ group-error+!>(%not-found))
+      (emit %give %kick ~ ~)
     =/  se-core  (se-abed:se-core [our.bowl name.pole])
     ?:  (se-is-banned:se-core src.bowl)
       =.  cor
@@ -1390,7 +1395,7 @@
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
             ?|  ?=([%command %leave ~] rest.pole)
-                ?=([%comand %delete ~] rest.pole)
+                ?=([%command %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
             ==

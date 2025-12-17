@@ -865,8 +865,9 @@
   =.  cor
     %+  roll
       ~(tap by v-channels)
-    |=  [[=nest:c *] core=_cor]
-    ca-abet:(ca-safe-sub:(ca-abed:ca-core:core nest) |)
+    |=  [[=nest:c channel=v-channel:c] =_cor]
+    ?:  ?=([%& %suspend] conn.net.channel)  cor
+    ca-abet:(ca-safe-sub:(ca-abed:ca-core:cor nest) |)
   ::
   cor
 ::
@@ -1036,6 +1037,12 @@
     ?:  ?=(%join -.a-channel.a-channels)
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
     ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+  ::
+      %channel-suspend
+    =+  !<([=nest:cv suspend=?] vase)
+    ?>  from-self
+    =<  ca-abet
+    (ca-a-suspend:(ca-abed:ca-core nest) suspend)
   ::
       %channel-request-join
     =+  !<([=nest:c =flag:g] vase)
@@ -2033,6 +2040,15 @@
     ::  +can-poke:neg.
     ::
     (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
+  ::  +ca-a-suspend: toggle channel connection
+  ::
+  ++  ca-a-suspend
+    |=  suspend=?
+    ^+  ca-core
+    ?:  suspend
+      =.  ca-core  ca-simple-leave
+      (ca-u-connection /updates &+%suspend)
+    (ca-start-updates |)
   ::
   ++  ca-know-said
     |=  =plan:c
@@ -2180,14 +2196,14 @@
     ::
         %watch-ack
       ?~  p.sign  
-        (ca-u-connection /update &+%done)
+        (ca-u-connection /updates &+%done)
       %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
-      (ca-u-connection /update |+%fail)
+      (ca-u-connection /updates |+%fail)
     ::
         %fact
       =*  cage  cage.sign
       ?+  p.cage  ~|(channel-strange-fact+p.cage !!)
-        %channel-error   (ca-u-connection /update |+!<(conn-error:c q.cage))
+        %channel-error   (ca-u-connection /updates |+!<(conn-error:c q.cage))
         %channel-logs    (ca-apply-logs !<(log:c q.cage))
         %channel-update  (ca-u-channels !<(update:c q.cage))
       ==
@@ -2584,10 +2600,15 @@
   ++  ca-u-connection
     |=  [=wire =conn:c]
     ^+  ca-core
-    ~&  ca-u-connecion+[nest wire conn]
+    ~&  ca-u-connection+[nest wire conn]
     =*  net  net.channel
     =+  wir=wire  ::TMI
-    ?.  ?=([%update ~] wir)
+    ?.  ?=([%updates ~] wir)
+      ::  connection updates on wires other than /update are not
+      ::  tracked in the state. we should only ever get updates about
+      ::  errors.
+      ::
+      ?>  ?=(%| -.conn)
       =.  ca-core  (ca-response %connection wire conn)
       (unsubscribe (weld ca-area wire) [ship.nest server])
     ::  we only maintain the connection status on the /updates wire,

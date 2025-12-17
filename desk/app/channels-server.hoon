@@ -14,6 +14,7 @@
 /%  m-channel-said-1        %channel-said-1
 /%  m-channel-said-2        %channel-said-2
 /%  m-channel-update        %channel-update
+/%  m-channel-error         %channel-error
 /%  m-hook-channel-preview  %hook-channel-preview
 /%  m-hook-full             %hook-full
 /%  m-hook-response-0       %hook-response-0
@@ -28,6 +29,7 @@
             :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2        |  -:!>(*vale:m-channel-said-2)
             :+  %channel-update        |  -:!>(*vale:m-channel-update)
+            :+  %channel-error         |  -:!>(*vale:m-channel-error)
             :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
             :+  %hook-full             |  -:!>(*vale:m-hook-full)
             :+  %hook-response-0       |  -:!>(*vale:m-hook-response-0)
@@ -35,9 +37,9 @@
         ==
       ::  facts
       ::
-      :~  [/$/$/checkpoint %channel-checkpoint ~]
-          [/$/$/create %channel-update ~]
-          [/$/$/updates %channel-update %channel-logs ~]
+      :~  [/$/$/checkpoint %channel-checkpoint %channel-error ~]
+          [/$/$/create %channel-update %channel-error ~]
+          [/$/$/updates %channel-update %channel-logs %channel-error ~]
           [/said %channel-said-2 %channel-said-1 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
@@ -1307,7 +1309,7 @@
     |=  err=conn-error:c
     ^+  ca-core
     =.  ca-core
-      (give %fact ~ chanel-error+!>(|+err))
+      (give %fact ~ channel-error+!>(err))
     (give %kick ~ ~)
   ::
   ++  ca-subscriptions
