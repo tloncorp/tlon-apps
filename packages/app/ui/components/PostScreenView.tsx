@@ -206,6 +206,9 @@ export function PostScreenView({
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
+  // For carousel mode edit overlay
+  const [carouselEditShouldBlur, setCarouselEditShouldBlur] = useState(false);
+
   const mode: 'single' | 'carousel' = useMemo(() => {
     if (Platform.OS === 'web' || !isWindowNarrow) {
       return 'single';
@@ -354,6 +357,23 @@ export function PostScreenView({
                           setEditingPost,
                         }}
                       />
+                    ) : // For carousel mode: render either the edit input or the carousel
+                    // Render as replacement (not overlay) so it flows below the header
+                    editingPost && channel.type === 'gallery' ? (
+                      <YStack flex={1} backgroundColor="$background">
+                        <GalleryDraftInput
+                          channel={channel}
+                          editPost={editPost}
+                          editingPost={editingPost}
+                          getDraft={draftCallbacks?.getDraft ?? (async () => null)}
+                          group={group}
+                          clearDraft={draftCallbacks?.clearDraft ?? (async () => {})}
+                          setEditingPost={setEditingPost}
+                          setShouldBlur={setCarouselEditShouldBlur}
+                          shouldBlur={carouselEditShouldBlur}
+                          storeDraft={draftCallbacks?.storeDraft ?? (async () => {})}
+                        />
+                      </YStack>
                     ) : (
                       <CarouselPostScreenContent
                         flex={1}
