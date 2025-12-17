@@ -2106,7 +2106,8 @@
   ++  ca-safe-sub
     |=  delay=?
     ~>  %spin.['ca-safe-sub']
-    ?:  ca-has-sub  ca-core
+    ?:  ca-has-sub  
+      (ca-u-connection /updates &+%done)
     ?^  posts.channel  (ca-start-updates delay)
     =.  load.net.channel  |
     %.  delay
@@ -2603,13 +2604,13 @@
     =*  net  net.channel
     =+  wir=wire  ::TMI
     ?.  ?=([%updates ~] wir)
-      ::  connection updates on wires other than /update are not
-      ::  tracked in the state. we should only ever get updates about
+      ::  connection updates on wires other than /updates are not
+      ::  tracked in the state. here we should only ever get updates about
       ::  errors.
       ::
       ?>  ?=(%| -.conn)
       =.  ca-core  (ca-response %connection wire conn)
-      (unsubscribe (weld ca-area wire) [ship.nest server])
+      ca-simple-leave
     ::  we only maintain the connection status on the /updates wire,
     ::  which is the main source of updates from the channel host.
     ::  we do receive updates on other wires, but these other

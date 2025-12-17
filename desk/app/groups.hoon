@@ -31,6 +31,7 @@
 /%  m-groups-ui          %groups-ui
 /%  m-groups-ui-1        %groups-ui-1
 /%  m-groups-ui-2        %groups-ui-2
+/%  m-groups-ui-3        %groups-ui-3
 /%  m-group-changed-groups-1  %group-changed-groups-1
 /%  m-group-changed-groups-2  %group-changed-groups-2
 /%  m-group-preview      %group-preview
@@ -68,6 +69,8 @@
           ::
           ::TODO make strict once used
           :+  %groups-ui-2        |  -:!>(*vale:m-groups-ui-2)
+          ::TODO make strict once used
+          :+  %groups-ui-3        |  -:!>(*vale:m-groups-ui-3)
         ::
           :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
           ::
@@ -152,6 +155,7 @@
       [/x/v0/ui/groups %groups-ui]
       [/x/v1/ui/groups %groups-ui-1]
       [/x/v2/ui/groups %groups-ui-2]
+      [/x/v3/ui/groups %groups-ui-3]
     ::
       [/x/v0/ui/groups/$/$ %group-ui]
       [/x/v1/ui/groups/$/$ %group-ui-1]
@@ -1267,7 +1271,7 @@
     ::
       %v1  ``groups-ui-1+!>((~(run by net-groups-10) group-ui:v5:group:v10:gc))
       %v2  ``groups-ui-2+!>((~(run by net-groups-10) group-ui:v9:group:v10:gc))
-      %v3  ``groups-ui-3+!>(net-groups-10)
+      %v3  ``groups-ui-3+!>((~(run by net-groups-10) group-ui:group:v10:gc))
     ==
   ::
     ::  deprecated
@@ -1816,24 +1820,6 @@
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  delete-channels
-      |=  nests=(list nest:g)
-      ~>  %spin.['delete-channels']
-      ^-  (list card)
-      %+  murn
-          nests
-      |=  nes=nest:g
-      ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels-server]
-      :: TODO: implement the channel deletion poke in channels-server
-      ::
-      :: =/  action=a-channels:d  [%channel nes %delete ~]
-      :: =/  =cage  channel-action-1+!>(action)
-      :: =/  =wire  (weld se-area /channel/delete)
-      :: `[%pass wire %agent dock %poke cage]
-      ~
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -4135,8 +4121,8 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
-      ::  mark the group as with no access if our seat has been deleted, but
-      ::  only if the group has been already initialized.
+      ::  leave the group if our seat has been deleted, but
+      ::  only if the group had been already initialized.
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
@@ -4581,7 +4567,7 @@
       net(conn conn)
     =.  go-core  (go-response %connection conn)
     ?:  ?=(%& -.conn)  go-core
-    (emit [%pass go-sub-wire %agent [p.flag server] %leave ~])
+    go-leave-subs
   ::  +go-u-delete: handle group deletion
   ::
   ++  go-u-delete
