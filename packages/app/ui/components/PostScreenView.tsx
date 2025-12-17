@@ -206,8 +206,7 @@ export function PostScreenView({
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
-  // For carousel mode edit overlay
-  const [carouselEditShouldBlur, setCarouselEditShouldBlur] = useState(false);
+  const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
     if (Platform.OS === 'web' || !isWindowNarrow) {
@@ -341,7 +340,28 @@ export function PostScreenView({
                     goToEdit={handleEditPress}
                   />
                   {parentPost &&
-                    (mode === 'single' ? (
+                    (editingPost && channel.type === 'gallery' ? (
+                      <YStack flex={1} backgroundColor="$background">
+                        <GalleryDraftInput
+                          channel={channel}
+                          editPost={editPost}
+                          editingPost={editingPost}
+                          getDraft={
+                            draftCallbacks?.getDraft ?? (async () => null)
+                          }
+                          group={group}
+                          clearDraft={
+                            draftCallbacks?.clearDraft ?? (async () => {})
+                          }
+                          setEditingPost={setEditingPost}
+                          setShouldBlur={setGalleryEditShouldBlur}
+                          shouldBlur={galleryEditShouldBlur}
+                          storeDraft={
+                            draftCallbacks?.storeDraft ?? (async () => {})
+                          }
+                        />
+                      </YStack>
+                    ) : mode === 'single' ? (
                       <SinglePostView
                         {...{
                           channel,
@@ -357,23 +377,6 @@ export function PostScreenView({
                           setEditingPost,
                         }}
                       />
-                    ) : // For carousel mode: render either the edit input or the carousel
-                    // Render as replacement (not overlay) so it flows below the header
-                    editingPost && channel.type === 'gallery' ? (
-                      <YStack flex={1} backgroundColor="$background">
-                        <GalleryDraftInput
-                          channel={channel}
-                          editPost={editPost}
-                          editingPost={editingPost}
-                          getDraft={draftCallbacks?.getDraft ?? (async () => null)}
-                          group={group}
-                          clearDraft={draftCallbacks?.clearDraft ?? (async () => {})}
-                          setEditingPost={setEditingPost}
-                          setShouldBlur={setCarouselEditShouldBlur}
-                          shouldBlur={carouselEditShouldBlur}
-                          storeDraft={draftCallbacks?.storeDraft ?? (async () => {})}
-                        />
-                      </YStack>
                     ) : (
                       <CarouselPostScreenContent
                         flex={1}
@@ -731,9 +734,8 @@ function SinglePostView({
         </View>
       )}
 
-      {parentPost &&
-      isEditingParent &&
-      (channel.type === 'notebook' || channel.type === 'gallery') ? (
+      {/* Notebook editing handled here; gallery editing is at PostScreenView level */}
+      {parentPost && isEditingParent && channel.type === 'notebook' ? (
         <View
           position="absolute"
           top={0}
@@ -742,37 +744,22 @@ function SinglePostView({
           bottom={0}
           backgroundColor="$background"
         >
-          {channel.type === 'gallery' ? (
-            <GalleryDraftInput
-              channel={channel}
-              editPost={editPost}
-              editingPost={editingPost}
-              getDraft={getDraft}
-              group={group}
-              clearDraft={clearDraft}
-              setEditingPost={setEditingPost}
-              setShouldBlur={setInputShouldBlur}
-              shouldBlur={inputShouldBlur}
-              storeDraft={storeDraft}
-            />
-          ) : (
-            <BigInput
-              channelType={urbit.getChannelType(parentPost.channelId)}
-              channelId={parentPost?.channelId}
-              editingPost={editingPost}
-              setEditingPost={setEditingPost}
-              editPost={editPost}
-              shouldBlur={inputShouldBlur}
-              setShouldBlur={setInputShouldBlur}
-              sendPost={async () => {}}
-              sendPostFromDraft={async () => {}}
-              getDraft={getDraft}
-              storeDraft={storeDraft}
-              clearDraft={clearDraft}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-            />
-          )}
+          <BigInput
+            channelType={urbit.getChannelType(parentPost.channelId)}
+            channelId={parentPost?.channelId}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            editPost={editPost}
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
+            getDraft={getDraft}
+            storeDraft={storeDraft}
+            clearDraft={clearDraft}
+            groupMembers={groupMembers}
+            groupRoles={groupRoles}
+          />
         </View>
       ) : null}
     </YStack>
