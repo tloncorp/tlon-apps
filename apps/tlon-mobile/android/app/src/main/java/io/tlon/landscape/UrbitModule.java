@@ -1,29 +1,18 @@
 package io.tlon.landscape;
 
 import android.content.SharedPreferences;
-import android.util.Log;
-
 import androidx.annotation.NonNull;
-
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-
 import java.util.Random;
-
 import io.tlon.landscape.storage.SecureStorage;
 
 public class UrbitModule extends ReactContextBaseJavaModule {
 
-    private static final String TAG = "UrbitModule";
-
     UrbitModule(ReactApplicationContext context) {
         super(context);
-        try {
-            JSThreadMonitor.setReactContext(context);
-        } catch (Exception e) {
-            Log.w(TAG, "Could not set ReactContext: " + e.getMessage());
-        }
+        ReactHealthMonitor.setReactContext(context);
     }
 
     @NonNull
@@ -49,13 +38,10 @@ public class UrbitModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void updateBadgeCount(int count, String uid) {
-       // For now, no-op on Android
-    }
+    public void updateBadgeCount(int count, String uid) {}
 
     @ReactMethod
     public void signalJsReady() {
-        JSHeartbeatMonitor.signalReady();
+        ReactHealthMonitor.signalJsReady();
     }
-
 }
