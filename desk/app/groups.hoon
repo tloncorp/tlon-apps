@@ -1013,8 +1013,7 @@
     |=  =state-7
     ~>  %spin.['state-7-to-8']
     ^-  state-8
-    %=  state-7
-      -  %8
+    %=  state-7  -  %8
       foreigns  (~(run by foreigns.state-7) v8:foreign:v7:gc)
     ==
   ::
@@ -1022,15 +1021,23 @@
     |=  =state-8
     ~>  %spin.['state-8-to-9']
     ^-  state-9
-    %=  state-8
-      -  %9
+    %=  state-8  -  %9
       groups  (~(run by groups.state-8) v9:net-group:v7:gc)
     ==
   ::
   ++  state-9-to-10
     |=  =state-9
     ^-  state-10
-    *state-10
+    %=  state-9  -  %10
+        groups
+      %-  ~(run by groups.state-9)
+      |=  [=net:v9:gv =group:v9:gv]
+      ?:  ?=(%pub -.net)
+        [net group]
+      :_  group
+      ^-  net:v10:gv
+      [%sub time init &+%done]:net
+    ==
   --
 ::
 ++  inflate-io

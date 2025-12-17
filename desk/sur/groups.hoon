@@ -222,11 +222,13 @@
       member-count=@ud
   ==
 ::  $conn-ok: positive subscription status
-+$  conn-ok     ?(%watch %done %suspend)
++$  conn-ok     ?(%watch %suspend %done)
 ::  $conn-error: failed subscription status
 +$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
 ::  $conn: subscription status
-+$  conn  (each conn-ok conn-error)
++$  conn
+  $~  &+%done
+  (each conn-ok conn-error)
 ::  $net: an indicator of whether we are a host or a subscriber
 ::
 +$  net
