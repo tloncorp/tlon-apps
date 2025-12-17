@@ -191,7 +191,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c conn &+%watch)
         *log:c
         *remark:c
         *window:v-channel:c
@@ -297,7 +297,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c conn &+%watch)
         *log:c
         *remark:c
         *window:v-channel:c
