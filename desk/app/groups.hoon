@@ -4570,7 +4570,6 @@
   ++  go-u-connection
     |=  =conn:g
     ^+  go-core
-    ~&  go-u-connection+[flag conn]
     =?  net  ?=(%sub -.net)
       net(conn conn)
     =.  go-core  (go-response %connection conn)

@@ -2600,7 +2600,6 @@
   ++  ca-u-connection
     |=  [=wire =conn:c]
     ^+  ca-core
-    ~&  ca-u-connection+[nest wire conn]
     =*  net  net.channel
     =+  wir=wire  ::TMI
     ?.  ?=([%updates ~] wir)
