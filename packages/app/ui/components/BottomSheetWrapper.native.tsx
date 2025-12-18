@@ -117,7 +117,7 @@ export const BottomSheetWrapper = forwardRef<
       footerComponent,
       hasScrollableContent = false,
       enableContentPanningGesture,
-      enableDynamicSizing = false,
+      enableDynamicSizing,
     },
     ref
   ) => {
@@ -168,6 +168,19 @@ export const BottomSheetWrapper = forwardRef<
 
       return snapPoints;
     }, [snapPoints, snapPointsMode]);
+
+    // Resolve enableDynamicSizing: explicit prop takes precedence, otherwise
+    // default to false for percent-mode sheets (they should expand to the percentage,
+    // not fit content) and true for fit/constant modes (gorhom's default behavior)
+    const resolvedEnableDynamicSizing = useMemo(() => {
+      if (enableDynamicSizing !== undefined) {
+        return enableDynamicSizing;
+      }
+      if (snapPointsMode === 'percent') {
+        return false;
+      }
+      return true;
+    }, [enableDynamicSizing, snapPointsMode]);
 
     React.useImperativeHandle(
       ref,
@@ -268,7 +281,7 @@ export const BottomSheetWrapper = forwardRef<
     const commonProps = useMemo(
       () => ({
         enablePanDownToClose,
-        enableDynamicSizing,
+        enableDynamicSizing: resolvedEnableDynamicSizing,
         keyboardBehavior,
         keyboardBlurBehavior: 'restore' as const,
         android_keyboardInputMode,
@@ -290,7 +303,7 @@ export const BottomSheetWrapper = forwardRef<
       }),
       [
         enablePanDownToClose,
-        enableDynamicSizing,
+        resolvedEnableDynamicSizing,
         keyboardBehavior,
         android_keyboardInputMode,
         animation,
@@ -327,8 +340,7 @@ export const BottomSheetWrapper = forwardRef<
       hasScrollableContent
     );
     const useBottomSheetViewForNonModal = !(
-      footerComponent ||
-      hasScrollableContent
+      footerComponent || hasScrollableContent
     );
 
     if (modal) {

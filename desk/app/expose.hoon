@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts, ci=cite
+/-  c=cite, d=channels, dv=channels-ver, co=contacts, ci=cite
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -315,11 +315,11 @@
     ::
         %fact
       ?.  =(%channel-response-2 p.cage.sign)  [~ this]
-      =+  !<(r-channels:v7:old:d q.cage.sign)
+      =+  !<(r-channels:v7:dv q.cage.sign)
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
           %post
-        =/  new=(unit $?(%del kind-data:v7:old:d))
+        =/  new=(unit $?(%del kind-data:v7:dv))
           ?+  -.r-post.r-channel  ~
               %set
             ?~  post.r-post.r-channel  `%del
