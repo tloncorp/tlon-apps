@@ -247,8 +247,41 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await expect(continueButton).toBeVisible({ timeout: 5000 });
   await continueButton.click();
 
-  // Brief wait for invitation to be sent
-  await page.waitForTimeout(1000);
+  // Wait for the invite sheet to close (confirms action dispatched)
+  await expect(page.getByText('Select contacts to invite')).not.toBeVisible({
+    timeout: 10000,
+  });
+
+  // Stabilization wait for cross-ship sync
+  await page.waitForTimeout(2000);
+}
+
+/**
+ * Navigates to a group from the Home screen using the stable testID pattern.
+ * Groups created without an explicit name have testID 'ChatListItem-Untitled group-unpinned'
+ * regardless of their computed display name (which depends on members).
+ */
+export async function navigateToGroupByTestId(
+  page: Page,
+  options: {
+    expectedDisplayName?: string;
+    pinned?: boolean;
+    timeout?: number;
+  } = {}
+) {
+  const { expectedDisplayName, pinned = false, timeout = 10000 } = options;
+  const testId = `ChatListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+
+  // Navigate using stable testID
+  await expect(page.getByTestId(testId)).toBeVisible({ timeout });
+  await page.getByTestId(testId).click();
+
+  // Optionally verify the computed display name after entering the group
+  if (expectedDisplayName) {
+    await expect(page.getByText(expectedDisplayName).first()).toBeVisible({
+      timeout: 15000,
+    });
+  }
 }
 
 export async function acceptGroupInvite(page: Page, groupName?: string) {
