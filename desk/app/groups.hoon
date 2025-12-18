@@ -6,7 +6,7 @@
 ::  rather achieves the functional separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
+/-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
     activity
 /-  meta
 /+  default-agent, verb, dbug
@@ -1564,7 +1564,7 @@
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
-    =+  !<(=r-channels:v7:old:d q.cage.sign)
+    =+  !<(=r-channels:v7:dv q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -4713,7 +4713,6 @@
     ^+  fi-core
     =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
-    =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)

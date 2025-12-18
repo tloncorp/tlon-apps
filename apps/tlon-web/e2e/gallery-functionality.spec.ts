@@ -19,17 +19,12 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and open the group
+  // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-
-  if (await zodPage.getByText('Home').isVisible()) {
-    groupName = '~ten, ~zod';
-    // Click on the group (still named 'Untitled group' until ~ten accepts)
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({
-      timeout: 10000,
-    });
-    await zodPage.getByText(groupName).first().click();
-  }
+  groupName = '~ten, ~zod';
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Create a new gallery channel
   await helpers.openGroupSettings(zodPage);

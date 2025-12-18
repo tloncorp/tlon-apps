@@ -1,4 +1,4 @@
-/-  g=groups, d=channels
+/-  g=groups, cv=channels-ver
 /-  meta
 |%
 ::
@@ -7,7 +7,7 @@
 ::  $writ: a chat message
 +$  writ   [seal essay]
 ::  $reply: a chat reply
-+$  reply   [reply-seal memo:v7:old:d]
++$  reply   [reply-seal memo:v7:cv]
 ::  $react: either an emoji identifier like :wave: or a URL for custom
 +$  react   @ta
 ::  $scam: bounded search results
@@ -39,7 +39,7 @@
 ::
 +$  seal
   $:  =id
-      time=id-post:d
+      time=id-post:cv
       =reacts
       =replies
       meta=reply-meta
@@ -54,12 +54,12 @@
 +$  reply-seal
   $:  =id
       parent-id=id
-      time=id-post:d
+      time=id-post:cv
       =reacts
   ==
 ::
 ::  $essay: a chat message with metadata
-+$  essay  [memo:v7:old:d %chat =kind]
++$  essay  [memo:v7:cv %chat =kind]
 +$  kind  $@(~ [%notice ~])
 ::  $reacts: a set of reactions to a chat message
 +$  reacts  (map ship react)
@@ -95,7 +95,7 @@
   +$  delta
     ::  time and meta are units because we won't have it when we send,
     ::  but we need it upon receipt
-    $%  [%add =memo:v7:old:d =kind time=(unit time)]
+    $%  [%add =memo:v7:cv =kind time=(unit time)]
         [%del ~]
         [%reply =id meta=(unit reply-meta) =delta:replies]
         [%add-react =ship =react]
@@ -103,7 +103,7 @@
     ==
   +$  response  [=id response=response-delta]
   +$  response-delta
-    $%  [%add =memo:v7:old:d =time]
+    $%  [%add =memo:v7:cv =time]
         [%del ~]
         [%reply =id meta=(unit reply-meta) delta=response-delta:replies]
         [%add-react =ship =react]
@@ -121,13 +121,13 @@
   ++  on
     ((^on time reply) lte)
   +$  delta
-    $%  [%add =memo:v7:old:d time=(unit time)]
+    $%  [%add =memo:v7:cv time=(unit time)]
         [%del ~]
         [%add-react =ship =react]
         [%del-react =ship]
     ==
   +$  response-delta
-    $%  [%add =memo:v7:old:d =time]
+    $%  [%add =memo:v7:cv =time]
         [%del ~]
         [%add-react =ship =react]
         [%del-react =ship]
