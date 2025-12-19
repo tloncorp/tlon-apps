@@ -67,119 +67,131 @@ async function performCleanup(page: Page, shipName: string) {
   }
 }
 
-export const test = base.extend<TestFixtures>({
-  zodSetup: async ({ browser }, use) => {
-    const context = await browser.newContext({
-      storageState: shipManifest['~zod'].authFile,
-    });
-    const page = await context.newPage();
-
-    // Attach error detector if in production mode
-    const errorDetector = new RuntimeErrorDetector();
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.attachToPage(page);
-    }
-
-    await page.goto(zodUrl);
-    await page.waitForSelector('text=Home', { state: 'visible' });
-    await page.evaluate(() => {
-      window.toggleDevTools();
-    });
-    await page.waitForTimeout(1000);
-
-    await performCleanup(page, 'zod');
-
-    await use({ context, page });
-
-    await performCleanup(page, 'zod');
-
-    // Check for errors after test
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.checkForErrors(page).catch((error) => {
-        console.error('Runtime errors detected in ship:', error.message);
-        throw error;
+export const testWithOptions = (options?: { installClock?: boolean }) =>
+  base.extend<TestFixtures>({
+    zodSetup: async ({ browser }, use) => {
+      const context = await browser.newContext({
+        storageState: shipManifest['~zod'].authFile,
       });
-    }
-  },
+      const page = await context.newPage();
+      if (options?.installClock) {
+        await page.clock.install();
+      }
 
-  tenSetup: async ({ browser }, use) => {
-    const context = await browser.newContext({
-      storageState: shipManifest['~ten'].authFile,
-    });
-    const page = await context.newPage();
+      // Attach error detector if in production mode
+      const errorDetector = new RuntimeErrorDetector();
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.attachToPage(page);
+      }
 
-    // Attach error detector if in production mode
-    const errorDetector = new RuntimeErrorDetector();
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.attachToPage(page);
-    }
-
-    await page.goto(tenUrl);
-    await page.waitForSelector('text=Home', { state: 'visible' });
-    await page.evaluate(() => {
-      window.toggleDevTools();
-    });
-    await page.waitForTimeout(1000);
-    await performCleanup(page, 'ten');
-
-    await use({ context, page });
-
-    await performCleanup(page, 'ten');
-
-    // Check for errors after test
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.checkForErrors(page).catch((error) => {
-        console.error('Runtime errors detected in ship:', error.message);
-        throw error;
+      await page.goto(zodUrl);
+      await page.waitForSelector('text=Home', { state: 'visible' });
+      await page.evaluate(() => {
+        window.toggleDevTools();
       });
-    }
-  },
+      await page.waitForTimeout(1000);
 
-  busSetup: async ({ browser }, use) => {
-    const context = await browser.newContext({
-      storageState: shipManifest['~bus'].authFile,
-    });
-    const page = await context.newPage();
+      await performCleanup(page, 'zod');
 
-    // Attach error detector if in production mode
-    const errorDetector = new RuntimeErrorDetector();
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.attachToPage(page);
-    }
+      await use({ context, page });
 
-    await page.goto(busUrl);
-    await page.waitForSelector('text=Home', { state: 'visible' });
-    await page.evaluate(() => {
-      window.toggleDevTools();
-    });
+      await performCleanup(page, 'zod');
 
-    await page.waitForTimeout(1000);
-    await performCleanup(page, 'bus');
+      // Check for errors after test
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.checkForErrors(page).catch((error) => {
+          console.error('Runtime errors detected in ship:', error.message);
+          throw error;
+        });
+      }
+    },
 
-    await use({ context, page });
-
-    await performCleanup(page, 'bus');
-
-    // Check for errors after test
-    if (process.env.USE_PRODUCTION_BUILD === 'true') {
-      await errorDetector.checkForErrors(page).catch((error) => {
-        console.error('Runtime errors detected in ship:', error.message);
-        throw error;
+    tenSetup: async ({ browser }, use) => {
+      const context = await browser.newContext({
+        storageState: shipManifest['~ten'].authFile,
       });
-    }
-  },
+      const page = await context.newPage();
+      if (options?.installClock) {
+        await page.clock.install();
+      }
 
-  zodPage: async ({ zodSetup }, use) => {
-    await use(zodSetup.page);
-  },
+      // Attach error detector if in production mode
+      const errorDetector = new RuntimeErrorDetector();
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.attachToPage(page);
+      }
 
-  tenPage: async ({ tenSetup }, use) => {
-    await use(tenSetup.page);
-  },
+      await page.goto(tenUrl);
+      await page.waitForSelector('text=Home', { state: 'visible' });
+      await page.evaluate(() => {
+        window.toggleDevTools();
+      });
+      await page.waitForTimeout(1000);
+      await performCleanup(page, 'ten');
 
-  busPage: async ({ busSetup }, use) => {
-    await use(busSetup.page);
-  },
-});
+      await use({ context, page });
+
+      await performCleanup(page, 'ten');
+
+      // Check for errors after test
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.checkForErrors(page).catch((error) => {
+          console.error('Runtime errors detected in ship:', error.message);
+          throw error;
+        });
+      }
+    },
+
+    busSetup: async ({ browser }, use) => {
+      const context = await browser.newContext({
+        storageState: shipManifest['~bus'].authFile,
+      });
+      const page = await context.newPage();
+      if (options?.installClock) {
+        await page.clock.install();
+      }
+
+      // Attach error detector if in production mode
+      const errorDetector = new RuntimeErrorDetector();
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.attachToPage(page);
+      }
+
+      await page.goto(busUrl);
+      await page.waitForSelector('text=Home', { state: 'visible' });
+      await page.evaluate(() => {
+        window.toggleDevTools();
+      });
+
+      await page.waitForTimeout(1000);
+      await performCleanup(page, 'bus');
+
+      await use({ context, page });
+
+      await performCleanup(page, 'bus');
+
+      // Check for errors after test
+      if (process.env.USE_PRODUCTION_BUILD === 'true') {
+        await errorDetector.checkForErrors(page).catch((error) => {
+          console.error('Runtime errors detected in ship:', error.message);
+          throw error;
+        });
+      }
+    },
+
+    zodPage: async ({ zodSetup }, use) => {
+      await use(zodSetup.page);
+    },
+
+    tenPage: async ({ tenSetup }, use) => {
+      await use(tenSetup.page);
+    },
+
+    busPage: async ({ busSetup }, use) => {
+      await use(busSetup.page);
+    },
+  });
+
+export const test = testWithOptions();
 
 export { expect } from '@playwright/test';
