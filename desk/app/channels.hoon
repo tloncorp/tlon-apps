@@ -2108,8 +2108,12 @@
   ++  ca-safe-sub
     |=  delay=?
     ~>  %spin.['ca-safe-sub']
-    ?:  ca-has-sub  
-      (ca-u-connection /updates &+%done)
+    ?:  ca-has-sub
+      =*  conn  conn.net.channel
+      =?  cor  ?=(%| -.conn)
+        %-  emit:cor  %+  tell:plog  %warn
+        ~[leaf+"+ca-safe-sub already subscribed, but conn is {<conn>}"]
+      ca-core
     ?^  posts.channel  (ca-start-updates delay)
     =.  load.net.channel  |
     %.  delay
@@ -2122,7 +2126,8 @@
   ++  ca-start-updates
     |=  delay=?
     ~>  %spin.['ca-start-updates']
-    =.  ca-core  (ca-u-connection /updates &+%watch)
+    =?  ca-core  !ca-has-sub
+      (ca-u-connection /updates &+%watch)
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
