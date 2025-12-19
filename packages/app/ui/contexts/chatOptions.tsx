@@ -179,6 +179,13 @@ export const ChatOptionsProvider = ({
     []
   );
 
+  // Defensive: restore chat from initialChat if cleared unexpectedly
+  useEffect(() => {
+    if (chat === null && initialChat) {
+      setChat(initialChat);
+    }
+  }, [chat, initialChat]);
+
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
 
@@ -281,7 +288,10 @@ export const ChatOptionsProvider = ({
     } else if (leaveChannelData.groupId) {
       // Leaving a channel in a group - navigate to the first available channel
       store.leaveGroupChannel(leaveChannelData.id);
-      await navigateToGroupOnLeave?.(leaveChannelData.groupId, leaveChannelData.id);
+      await navigateToGroupOnLeave?.(
+        leaveChannelData.groupId,
+        leaveChannelData.id
+      );
     } else {
       // Fallback
       store.leaveGroupChannel(leaveChannelData.id);

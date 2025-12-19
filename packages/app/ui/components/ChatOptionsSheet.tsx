@@ -355,7 +355,7 @@ export function GroupOptionsSheetContent({
               },
           {
             title: 'Group info & settings',
-            action: wrappedAction.bind(null, handlePressChatDetails),
+            action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
           },
         ],
@@ -447,16 +447,16 @@ function EditGroupSheetContent({
 }: {
   chatTitle: string;
   onPressBack: () => void;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
 
   const wrappedAction = useCallback(
-    (action: () => void) => {
+    (action: () => void, clearChat = true) => {
       action();
-      onOpenChange(false);
+      onOpenChange(false, clearChat);
     },
     [onOpenChange]
   );
@@ -468,19 +468,19 @@ function EditGroupSheetContent({
         {
           title: 'Edit group info',
           description: 'Change name, description, and image',
-          action: wrappedAction.bind(null, onPressGroupMeta),
+          action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Manage channels',
           description: 'Add or remove channels in this group',
-          action: wrappedAction.bind(null, onPressManageChannels),
+          action: wrappedAction.bind(null, onPressManageChannels, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
           description: 'Change who can find or join this group',
-          action: wrappedAction.bind(null, onPressGroupPrivacy),
+          action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
         !isWindowNarrow && {
@@ -640,7 +640,7 @@ export function ChannelOptionsSheetContent({
   channel: db.Channel;
   onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
   const {
     group,
@@ -704,11 +704,15 @@ export function ChannelOptionsSheetContent({
       } catch (error) {
         console.error('Error summarizing channel:', error);
         let message: string;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
 
         if (errorMessage === 'No messages found in time range') {
           message = `No messages found in ${timeLabel}`;
-        } else if (errorMessage === 'AI provider is rate-limited. Please try again in a few moments.') {
+        } else if (
+          errorMessage ===
+          'AI provider is rate-limited. Please try again in a few moments.'
+        ) {
           message = errorMessage;
         } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
           message = 'AI summarization not configured';
@@ -728,9 +732,9 @@ export function ChannelOptionsSheetContent({
   );
 
   const wrappedAction = useCallback(
-    (action: () => void) => {
+    (action: () => void, clearChat = true) => {
       action();
-      onOpenChange(false);
+      onOpenChange(false, clearChat);
     },
     [onOpenChange]
   );
@@ -785,24 +789,28 @@ export function ChannelOptionsSheetContent({
           {
             title: 'Edit group info',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressChannelMeta),
+            action: wrappedAction.bind(null, onPressChannelMeta, false),
           },
           {
             title: 'Members',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressChannelMembers),
+            action: wrappedAction.bind(null, onPressChannelMembers, false),
           },
         ],
         group && [
           'neutral',
           {
             title: 'Group info & settings',
-            action: wrappedAction.bind(null, handlePressChatDetails),
+            action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin && {
             title: 'Channel settings',
-            action: wrappedAction.bind(null, () => onPressEditChannel(false)),
+            action: wrappedAction.bind(
+              null,
+              () => onPressEditChannel(false),
+              false
+            ),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin &&
