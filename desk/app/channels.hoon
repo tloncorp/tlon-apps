@@ -97,7 +97,7 @@
             :+  %channel-response        &  -:!>(*vale:m-channel-response)
             :+  %channel-response-2      &  -:!>(*vale:m-channel-response-2)
             :+  %channel-response-3      &  -:!>(*vale:m-channel-response-3)
-            :+  %channel-response-4      &  -:!>(*vale:m-channel-response-4)
+            :+  %channel-response-4      |  -:!>(*vale:m-channel-response-4)
             :+  %channel-said            &  -:!>(*vale:m-channel-said)
             :+  %channel-said-1          &  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2          &  -:!>(*vale:m-channel-said-2)
