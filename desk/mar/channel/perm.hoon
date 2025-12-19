@@ -1,14 +1,14 @@
-/-  c=channels
+/-  cv=channels-ver
 /+  j=channel-json
-|_  =perm:c
+|_  =perm:v9:cv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  perm
-  ++  json  (perm:enjs:j perm)
+  ++  json  (perm:v9:enjs:j perm)
   --
 ++  grab
   |%
-  ++  noun  perm:c
+  ++  noun  perm:v9:cv
   --
 --

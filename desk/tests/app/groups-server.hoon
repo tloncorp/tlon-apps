@@ -253,9 +253,11 @@
   ;<  ~  bind:m  (set-src ~fed)
   ;<  ~  bind:m
     (ex-fail (do-poke group-command+!>([%ask my-flag `story])))
-  ;<  ~  bind:m
-    (ex-fail (do-watch ask-path))
-  (pure:m ~)
+  ;<  caz=(list card)  bind:m  (do-watch ask-path)
+  %+  ex-cards  caz
+  :~  (ex-fact ~ group-error+!>(%not-found))
+      (ex-card [%give %kick ~ ~])
+  ==
 ::  +test-c-groups-ask-private: test private group ask request
 ::
 ::  an ask to a private group can be either approved or denied by an admin.
@@ -999,6 +1001,8 @@
     :~  (ex-poke (snoc revoke-wire ~.~dev) [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
         (ex-poke (snoc revoke-wire ~.~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v124]))
         (ex-update now.bowl [%delete ~])
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
         (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)

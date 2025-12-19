@@ -1,5 +1,14 @@
 /-  gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
++$  init-7
+  $:  groups=groups-ui:v10:gv
+      =foreigns:v8:gv
+      channels=channels-10
+      =activity:a
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-6
   $:  groups=groups-ui:v9:gv
       =foreigns:v8:gv
@@ -70,6 +79,10 @@
 +$  mixed-heads-2  [chan=channel-heads:v8:dv chat=chat-heads:v5:cv]
 +$  mixed-heads-3  [chan=channel-heads:v9:dv chat=chat-heads:v6:cv]
 ::
++$  channels-10
+  $:  =channels:v10:dv
+      hidden-posts=(set id-post:dv)
+  ==
 +$  channel-8
   $:  =channels:v8:dv
       hidden-posts=(set id-post:dv)
