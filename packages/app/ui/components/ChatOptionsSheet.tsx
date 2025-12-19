@@ -137,7 +137,7 @@ export function GroupOptionsSheetLoader({
 }: {
   groupId: string;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
   trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
@@ -179,7 +179,7 @@ export function GroupOptionsSheetLoader({
     return (
       <Popover
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={(open) => onOpenChange(open, false)}
         placement="top-end"
         allowFlip
         offset={-12}
@@ -521,7 +521,7 @@ const ChannelOptionsSheetLoader = memo(
   }: {
     channelId: string;
     open: boolean;
-    onOpenChange: (open: boolean) => void;
+    onOpenChange: (open: boolean, clearChat?: boolean) => void;
     trigger?: React.ReactNode;
     onPressConfigureChannel?: () => void;
   }) => {
@@ -569,7 +569,7 @@ const ChannelOptionsSheetLoader = memo(
       return (
         <Popover
           open={open}
-          onOpenChange={onOpenChange}
+          onOpenChange={(open) => onOpenChange(open, false)}
           placement="top-end"
           allowFlip
           offset={-12}

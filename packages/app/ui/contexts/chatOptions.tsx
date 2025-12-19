@@ -180,7 +180,12 @@ export const ChatOptionsProvider = ({
     []
   );
 
-  // Defensive: restore chat from initialChat if cleared unexpectedly
+  // Defensive: restore chat from initialChat if cleared unexpectedly.
+  // This handles edge cases where setChat(null) is called (e.g., when
+  // ChatOptionsSheet closes) but we're still on a screen that needs
+  // the chat context (e.g., after navigating to ChatDetailsScreen and back).
+  // Without this, groupId becomes undefined and actions like "Customize"
+  // in EmptyChannelNotice fail silently.
   useEffect(() => {
     if (chat === null && initialChat) {
       setChat(initialChat);
