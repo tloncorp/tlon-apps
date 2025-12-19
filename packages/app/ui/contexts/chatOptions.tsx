@@ -114,6 +114,7 @@ type ChatOptionsProviderProps = {
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
+    groupId?: string;
   };
 };
 
@@ -193,7 +194,9 @@ export const ChatOptionsProvider = ({
     id: isChannel ? chat.id : undefined,
   });
   const channelTitle = useChannelTitle(channel ?? null);
-  const groupId = isGroup ? chat.id : channel?.groupId ?? undefined;
+  const groupId = isGroup
+    ? chat.id
+    : channel?.groupId ?? initialChat?.groupId ?? undefined;
   const channelId = isChannel ? chat.id : undefined;
   const { data: group } = useGroup({
     id: groupId,
