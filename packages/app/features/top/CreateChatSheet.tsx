@@ -238,7 +238,7 @@ const CreateChatFormContent = ({
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          maxHeight={500}
+          maxHeight={isWindowNarrow ? undefined : 500}
         />
         {chatType === 'group' && (
           <Button marginTop="$l" hero onPress={onCreateGroup}>
@@ -593,6 +593,7 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
       enableContentPanningGesture={enableContentPanningGesture}
+      hasScrollableContent
     >
       <CreateChatFormContent
         chatType={chatType}

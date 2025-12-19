@@ -20,18 +20,10 @@ test('should test notebook post moderation features', async ({
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and verify group creation
+  // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-
-  // Wait for group name to update after invitation
-  await expect(zodPage.getByText(groupName).first()).toBeVisible({
-    timeout: 15000,
-  });
-  await zodPage.getByText(groupName).first().click();
-
-  // Verify we're in the correct group
-  await expect(zodPage.getByText(groupName).first()).toBeVisible({
-    timeout: 5000,
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
   });
 
   // Create a new notebook channel

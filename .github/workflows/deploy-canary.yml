@@ -53,6 +53,7 @@ jobs:
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
       VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      VITE_GIT_HASH: ${{ github.sha }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_WEB_PROJECT: ${{ secrets.SENTRY_WEB_PROJECT }}
