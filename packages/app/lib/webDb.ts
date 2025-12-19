@@ -38,7 +38,7 @@ export class WebDb extends BaseDb {
           // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
           await this.sqlocal.sql`select null`;
         } catch (e) {
-          logger.warn(
+          console.warn(
             'Failed to load DB from file, continuing with empty DB',
             e
           );
