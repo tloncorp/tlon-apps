@@ -366,13 +366,12 @@ function stringToArrayBuffer(str: string) {
 
 function arrayBufferToString(buf: ArrayBuffer) {
   const uint8s = new Uint8Array(buf);
-  let out = '';
-  for (const byte of uint8s) {
-    out += String.fromCharCode(byte);
-  }
-  return out;
+  const chars = Array.from(uint8s, (byte) => String.fromCharCode(byte));
+  return chars.join('');
 }
 
+
+}
 export type NagState = {
   lastDismissed: number;
   dismissCount: number;
