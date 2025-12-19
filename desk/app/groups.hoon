@@ -58,24 +58,19 @@
       :~  :+  %noun               &  -:!>(*vale:m-noun)
           :+  %group              &  -:!>(*vale:m-group)
           :+  %group-1            &  -:!>(*vale:m-group-1)
-          :+  %group-2            |  -:!>(*vale:m-group-2)
+          :+  %group-2            &  -:!>(*vale:m-group-2)
         ::
           :+  %groups             &  -:!>(*vale:m-groups)
           :+  %groups-1           &  -:!>(*vale:m-groups-1)
-          :+  %groups-2           |  -:!>(*vale:m-groups-2)
+          :+  %groups-2           &  -:!>(*vale:m-groups-2)
         ::
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
-          ::
-          ::TODO make strict once used
-          :+  %groups-ui-2        |  -:!>(*vale:m-groups-ui-2)
-          ::TODO make strict once used
-          :+  %groups-ui-3        |  -:!>(*vale:m-groups-ui-3)
+          :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
+          :+  %groups-ui-3        &  -:!>(*vale:m-groups-ui-3)
         ::
           :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
-          ::
-          ::TODO make strict once used
-          :+  %group-changed-groups-2  |  -:!>(*vale:m-group-changed-groups-2)
+          :+  %group-changed-groups-2  &  -:!>(*vale:m-group-changed-groups-2)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -94,19 +89,13 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          ::
-          ::TODO make strict once used
           :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
-          ::
-          ::TODO make strict once used
-          :+  %foreign-1          |  -:!>(*vale:m-foreign-1)
-          ::
-          ::TODO make strict once used
-          :+  %foreigns-1         |  -:!>(*vale:m-foreigns-1)
+          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
+          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
     ::
@@ -1244,7 +1233,7 @@
     ?-    ver.pole
         %v0  ``groups+!>((~(run by groups-10) v2:group:v10:gc))
         %v1  ``groups-1+!>((~(run by groups-10) v5:group:v10:gc))
-        %v2  ``groups-2+!>(groups-10)
+        %v2  ``groups-2+!>((~(run by groups-10) v9:group:v10:gc))
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
@@ -3388,13 +3377,13 @@
     |=  delay=?
     ~>  %spin.['go-safe-sub']
     ^+  go-core
-    =*  log  ~(. l `'group-join')
     ?:  go-has-sub
-      ?:  ?=(%sub -.net)
-        (go-u-connection &+%done)
+      ?.  ?=(%sub -.net)  go-core
+      =?  cor  ?=(%| -.conn.net)
+        %+  tell:l  %warn
+        ~[leaf+"+go-safe-sub already subscribed, but conn is {<conn.net>}"]
       go-core
-    =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
-    =.  go-core  (go-u-connection &+%watch)
+    =.  cor  (tell:l %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -3411,6 +3400,12 @@
     =/  sub-time=@da
       ?:  ?=(%pub -.net)  *@da
       time.net
+    ::  nb: only set %watch if we don't have a subscription.
+    ::  otherwise we wouldn't receive a watch-ack that would
+    ::  transition the connection state to %done.
+    ::
+    =?  go-core  &(?=(%sub -.net) !go-has-sub)
+      (go-u-connection &+%watch)
     =/  sub-path=path
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     =.  cor
@@ -3440,7 +3435,7 @@
     ::  since we are trying to re-establish group state from scratch,
     ::  consider it uninitialized.
     ::
-    =.  net  [%sub *@da | &+%watch]
+    =.  net  net(time *@da, init |)
     (go-start-updates &)
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
@@ -3626,6 +3621,7 @@
       =+  ship=(slav %p ship.pole)
       =/  =nest:g  [app.pole ship name.pole]
       ?.  =(ship.pole our.bowl)
+        ~&  %channels-preview-proxy
         ::  proxy the request to the channel host
         =.  cor  (emil (preview-channel:go-pass nest))
         go-core
@@ -4572,11 +4568,6 @@
   ::
   ++  go-u-delete
     ^+  go-core
-    ::TODO only enable when the client understands this is only
-    ::     a host-side event, and it should not delete the group until
-    ::     we %leave it.
-    ::
-    :: =.  go-core  (go-response %delete ~)
     =.  go-core  (go-u-connection |+%not-found)
     (go-leave |)
   ::  +go-response: send response to our subscribers

@@ -69,23 +69,25 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-            ::TODO make strict on next upgrade
+            ::TODO type affected by a versioning bug,
+            ::     do not make strict.
         :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
-            ::TODO make strict on next upgrade
+            ::TODO type affected by a versioning bug,
+            ::     do not make strict.
             :+  %channel-post            |  -:!>(*vale:m-channel-post)
             :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
             :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
             :+  %channel-post-4          &  -:!>(*vale:m-channel-post-4)
-            ::TODO make strict on next upgrade
+            ::TODO type affected by a versioning bug,
+            ::     do not make strict.
             :+  %channel-posts           |  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
-            ::TODO make strict on next upgrade
-            :+  %channel-posts-4         |  -:!>(*vale:m-channel-posts-4)
+            :+  %channel-posts-4         &  -:!>(*vale:m-channel-posts-4)
             :+  %channel-replies         &  -:!>(*vale:m-channel-replies)
             :+  %channel-replies-2       &  -:!>(*vale:m-channel-replies-2)
             :+  %channel-replies-3       &  -:!>(*vale:m-channel-replies-3)
@@ -95,8 +97,7 @@
             :+  %channel-response        &  -:!>(*vale:m-channel-response)
             :+  %channel-response-2      &  -:!>(*vale:m-channel-response-2)
             :+  %channel-response-3      &  -:!>(*vale:m-channel-response-3)
-            ::TODO make strict on next upgrade
-            :+  %channel-response-4      |  -:!>(*vale:m-channel-response-4)
+            :+  %channel-response-4      &  -:!>(*vale:m-channel-response-4)
             :+  %channel-said            &  -:!>(*vale:m-channel-said)
             :+  %channel-said-1          &  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2          &  -:!>(*vale:m-channel-said-2)
@@ -113,7 +114,8 @@
             :+  %channel-unread-update   &  -:!>(*vale:m-channel-unread-update)
             :+  %channel-unreads         &  -:!>(*vale:m-channel-unreads)
             :+  %channels                &  -:!>(*vale:m-channels)
-            ::TODO  make strict on next update
+            ::TODO type affected by a versioning bug,
+            ::     do not make strict.
             :+  %channels-2              |  -:!>(*vale:m-channels-2)
             :+  %channels-3              &  -:!>(*vale:m-channels-3)
             :+  %channels-4              &  -:!>(*vale:m-channels-4)
