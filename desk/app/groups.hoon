@@ -149,6 +149,7 @@
       [/x/v0/ui/groups/$/$ %group-ui]
       [/x/v1/ui/groups/$/$ %group-ui-1]
       [/x/v2/ui/groups/$/$ %group-ui-2]
+      [/x/v3/ui/groups/$/$ %group-ui-3]
     ::
       [/x/v0/groups/$/$ %group]
       [/x/v1/groups/$/$ %group-1]
@@ -3621,7 +3622,6 @@
       =+  ship=(slav %p ship.pole)
       =/  =nest:g  [app.pole ship name.pole]
       ?.  =(ship.pole our.bowl)
-        ~&  %channels-preview-proxy
         ::  proxy the request to the channel host
         =.  cor  (emil (preview-channel:go-pass nest))
         go-core
