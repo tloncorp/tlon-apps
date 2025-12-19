@@ -2126,6 +2126,10 @@
   ++  ca-start-updates
     |=  delay=?
     ~>  %spin.['ca-start-updates']
+    ::  nb: only set %watch if we don't have a subscription.
+    ::  otherwise we wouldn't receive a watch-ack that would
+    ::  transition the connection state to %done.
+    ::
     =?  ca-core  !ca-has-sub
       (ca-u-connection /updates &+%watch)
     ::  not most optimal time, should maintain last heard time instead
