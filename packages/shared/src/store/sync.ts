@@ -190,6 +190,12 @@ export const syncSince = async ({
             queryCtx: batchCtx,
             callCtx,
           });
+
+          // make sure we attempt to get latest posts if we haven't succeeded yet
+          const lastSyncedAt = await db.changesSyncedAt.getValue();
+          if (!lastSyncedAt) {
+            await syncLatestPosts();
+          }
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
@@ -310,7 +316,10 @@ export const syncLatestPosts = async (
       return () => Promise.resolve();
     }
   } catch (e) {
-    logger.trackError('failed to sync latest posts');
+    logger.trackError('failed to sync latest posts', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     return () => Promise.resolve();
   }
 };
