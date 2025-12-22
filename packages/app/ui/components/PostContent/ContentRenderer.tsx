@@ -38,9 +38,9 @@ export function PostContentRenderer({
     if (!post.content || post.content == 'null') {
       return [];
     }
-    const content = convertContent(post.content);
+    const content = convertContent(post.content, post.blob);
     return content;
-  }, [post.content]);
+  }, [post.content, post.blob]);
 
   return (
     <BlockRendererProvider>

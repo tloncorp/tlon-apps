@@ -19,14 +19,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { FlatList, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useConnectionStatus } from '../../features/top/useConnectionStatus';
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -278,11 +279,11 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
+    // Always clear attachments when leaving thread to prevent them from
+    // appearing in the main chat input
+    clearAttachments();
     if (isEditingParent) {
       setEditingPost?.(undefined);
-      // Clear attachments when exiting edit mode to prevent them from
-      // appearing in the reply input
-      clearAttachments();
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
@@ -492,6 +493,19 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+
+  // Auto-scroll setup for gallery/notebook posts:
+  // Chat channels use an inverted Scroller component and don't need auto-scroll here.
+  // Gallery/notebook posts use a FlatList in DetailView with data: ['header', 'posts']
+  // where index 0 is the post header (gallery/notebook content) and index 1 is the entire
+  // replies section (Scroller container). Scrolling to index 1 shows new replies because
+  // they appear at the bottom of the inverted list inside the Scroller.
+  const flatListRef = useRef<FlatList>(null);
+  const scrollerRef = useRef<{
+    scrollToStart: (opts: { animated?: boolean }) => void;
+  }>(null);
+  const REPLIES_SECTION_INDEX = 1;
+
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
@@ -560,6 +574,22 @@ function SinglePostView({
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
+  // Helper to scroll to new reply - shared by sendReply and sendReplyFromDraft
+  const scrollToNewReply = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (isChatChannel) {
+        // Chat threads: scroll the inner Scroller directly
+        scrollerRef.current?.scrollToStart({ animated: true });
+      } else {
+        // Notebook/gallery: scroll the outer FlatList to the replies section
+        flatListRef.current?.scrollToIndex({
+          index: REPLIES_SECTION_INDEX,
+          animated: true,
+        });
+      }
+    });
+  }, [isChatChannel, REPLIES_SECTION_INDEX]);
+
   const hasLoadedReplies = !!(posts && channel && parentPost);
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
@@ -580,8 +610,9 @@ function SinglePostView({
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
+      scrollToNewReply();
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const sendReplyFromDraft = useCallback(
@@ -596,9 +627,10 @@ function SinglePostView({
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
         });
+        scrollToNewReply();
       }
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(
@@ -626,6 +658,8 @@ function SinglePostView({
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
           editorIsFocused={false}
+          flatListRef={flatListRef}
+          scrollerRef={scrollerRef}
         />
       ) : null}
 

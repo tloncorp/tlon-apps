@@ -19,14 +19,11 @@ test('should show and clear unread message counts', async ({
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and verify group creation
+  // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-  if (await zodPage.getByText('Home').isVisible()) {
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-    await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-  }
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();

@@ -199,9 +199,8 @@ export const syncSince = async ({
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      error: e,
       ...callCtx,
-      errorMessage: e.message,
-      stack: e.stack,
     });
   }
   logger.log(`sync since complete`);
@@ -233,10 +232,7 @@ export const syncLatestChanges = async ({
       await debouncedSyncInit(syncCtx);
       await db.changesSyncedAt.setValue(start);
     } catch (e) {
-      logger.trackError('Failed latest changes fallback', {
-        errorMessage: e.message,
-        stack: e.stack,
-      });
+      logger.trackError('Failed latest changes fallback', e);
     }
     return;
   }
@@ -328,11 +324,15 @@ export const syncLatestPosts = async (
 };
 
 export const syncSettings = async (ctx?: SyncCtx) => {
-  const settings = await syncQueue.add('settings', ctx, () =>
-    api.getSettings()
-  );
-  logger.log('got settings from api', settings);
-  return db.insertSettings(settings);
+  const result = await syncQueue.add('settings', ctx, () => api.getSettings());
+  logger.log('got settings from api', result);
+  await db.insertSettings(result.settings);
+
+  if (result.pendingMemberDismissals?.length) {
+    await db.insertPendingMemberDismissals({
+      dismissals: result.pendingMemberDismissals,
+    });
+  }
 };
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
@@ -516,9 +516,7 @@ export const syncPinnedItems = async (ctx?: SyncCtx) => {
 };
 
 export const syncGroups = async (ctx?: SyncCtx) => {
-  const groups = await syncQueue.add('groups', ctx, () =>
-    api.getGroups({ includeMembers: false })
-  );
+  const groups = await syncQueue.add('groups', ctx, () => api.getGroups());
   await db.insertGroups({ groups: groups });
 };
 
@@ -673,7 +671,7 @@ export async function syncGroup(
       updateLastActivityTime();
     });
   } catch (e) {
-    logger.trackError('group sync failed', { errorMessage: e.message });
+    logger.trackError('group sync failed', e);
     console.error(e);
     throw e;
   } finally {
@@ -792,13 +790,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       );
       break;
     case 'groupJoinRequest':
-      await db.addGroupJoinRequests(
-        {
-          groupId: update.groupId,
-          contactIds: update.ships,
-        },
-        ctx
-      );
+      await db.insertGroupJoinRequests([update.request], ctx);
       break;
     case 'revokeGroupJoinRequests':
       await db.deleteGroupJoinRequests(
@@ -865,10 +857,10 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'setGroupAsOpen':
+    case 'setGroupAsPublic':
       await db.updateGroup({ id: update.groupId, privacy: 'public' }, ctx);
       break;
-    case 'setGroupAsShut':
+    case 'setGroupAsPrivate':
       group = await db.getGroup({ id: update.groupId }, ctx);
 
       if (group?.privacy !== 'secret') {
@@ -1031,6 +1023,15 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         {
           id: update.navSectionId,
           sectionIndex: update.index,
+        },
+        ctx
+      );
+      break;
+    case 'updateSectionOrder':
+      await db.updateNavSectionOrder(
+        {
+          groupId: update.groupId,
+          sectionIds: update.sectionIds,
         },
         ctx
       );
@@ -1921,9 +1922,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         updateSession({ startTime: Date.now() });
       });
     } catch (err) {
-      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
-        errorMessage: err.message,
-      });
+      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, err);
     }
 
     updateSession({ phase: 'low' });
@@ -1970,10 +1969,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         logger.crumb(`finished low priority sync`);
       })
       .catch((e) => {
-        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, e);
       });
 
     updateSession({ phase: 'ready' });

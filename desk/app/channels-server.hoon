@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
@@ -53,7 +53,7 @@
 %-  %-  agent:neg
     :+  notify=|
       [~.channels^%3 ~ ~]
-    (my %groups^[~.groups^%1 ~ ~] ~)
+    (my %groups^[~.groups^%2 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
 ::
@@ -63,7 +63,7 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %13
-        =v-channels:v9:c
+        =v-channels:v9:cv
         =hooks:h
         =pimp:imp
     ==
@@ -137,6 +137,7 @@
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
+  ~>  %spin.['safe-watch']
   ^+  cor
   ?:  (~(has by wex.bowl) wire dock)  cor
   (emit %pass wire %agent dock %watch path)
@@ -184,121 +185,133 @@
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
-        =v-channels:v9:c
+        =v-channels:v9:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-9
     $:  %9
-        =v-channels:v8:c
+        =v-channels:v8:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-8
     $:  %8
-        =v-channels:v8:c
+        =v-channels:v8:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-7
     $:  %7
-        =v-channels:v7:c
+        =v-channels:v7:cv
         =hooks:h
         =pimp:imp
     ==
   +$  state-6
     $:  %6
-      =v-channels:v7:c
+      =v-channels:v7:cv
       =pimp:imp
     ==
   ::
   ++  state-12-to-13
     |=  s=state-12
+    ~>  %spin.['state-12-to-13']
     ^-  state-13
     s(- %13, v-channels (~(run by v-channels.s) channel:drop-bad-links:utils))
   ::
   ++  state-11-to-12
     |=  s=state-11
+    ~>  %spin.['state-11-to-12']
     ^-  state-12
     s(- %12)
   ::
   ++  state-10-to-11
     |=  s=state-10
+    ~>  %spin.['state-10-to-11']
     ^-  state-11
     ~>  %bout.[0 'repairing all channels']
     s(- %11, v-channels (~(urn by v-channels.s) repair-channel:utils))
   ::
   ++  state-9-to-10
     |=  s=state-9
+    ~>  %spin.['state-9-to-10']
     ^-  state-10
     s(- %10, v-channels (v-channels-8-to-9:utils v-channels.s))
   ++  state-8-to-9
     |=  s=state-8
+    ~>  %spin.['state-8-to-9']
     ^-  state-9
     =-  s(- %9, v-channels -)
     %-  ~(run by v-channels.s)
-    |=  v=v-channel:v8:c
+    |=  v=v-channel:v8:cv
     ^+  v
-    %+  roll  (tap:log-on:v8:c log.v)
-    |=  $:  [t=time u=u-channel:v8:c]
+    %+  roll  (tap:log-on:v8:cv log.v)
+    |=  $:  [t=time u=u-channel:v8:cv]
             chan=_v
         ==
     ?.  ?=([%post * %set ~] u)  chan
-    ~?  ?=([~ ~ *] (get:on-v-posts:v8:c posts.chan id.u))
+    ~?  ?=([~ ~ *] (get:on-v-posts:v8:cv posts.chan id.u))
       %strange-existing-deleted-posts
     =-  chan(posts -)
-    (put:on-v-posts:v8:c posts.chan id.u ~)
+    (put:on-v-posts:v8:cv posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
+    ~>  %spin.['state-7-to-8']
     ^-  state-8
     s(- %8, v-channels (v-channels-7-to-8:utils v-channels.s))
   ++  state-6-to-7
     |=  state-6
+    ~>  %spin.['state-6-to-7']
     ^-  state-7
     [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
-        =v-channels:v6:c
+        =v-channels:v6:cv
         =pimp:imp
     ==
   ++  state-5-to-6
     |=  state-5
+    ~>  %spin.['state-5-to-6']
     ^-  state-6
-    [%6 (v-channels-5-to-6 v-channels) pimp]
-  ++  v-channels-5-to-6
-    |=  vc=v-channels:v6:c
-    ^-  v-channels:v7:c
+    [%6 (v-channels-6-to-7 v-channels) pimp]
+  ++  v-channels-6-to-7
+    |=  vc=v-channels:v6:cv
+    ~>  %spin.['v-channels-6-to-7']
+    ^-  v-channels:v7:cv
     %-  ~(run by vc)
-    |=  v=v-channel:v6:c
-    ^-  v-channel:v7:c
+    |=  v=v-channel:v6:cv
+    ^-  v-channel:v7:cv
     v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
-        =v-channels:v6:c
+        =v-channels:v6:cv
     ==
   ++  state-4-to-5
     |=  state-4
+    ~>  %spin.['state-4-to-5']
     ^-  state-5
     [%5 v-channels *pimp:imp]
   ::
   ++  state-3-to-4
     |=  s=state-3
+    ~>  %spin.['state-3-to-4']
     ^-  state-4
     s(- %4, v-channels (~(run by v-channels.s) v-channel-2-to-3))
   ::
   ++  v-channel-2-to-3
     |=  v=v-channel-2
-    ^-  v-channel:v6:c
-    v(future [future.v *pending-messages:v7:c])
+    ~>  %spin.['v-channel-2-to-3']
+    ^-  v-channel:v6:cv
+    v(future [future.v *pending-messages:v7:cv])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
-    |^  ,[global:v-channel:v7:c local]
+    |^  ,[global:v-channel:v7:cv local]
     +$  local
       $:  =net:c
-          =log:v7:c
+          =log:v7:cv
           =remark:c
           =window:v-channel:c
-          =future:v-channel:v7:c
+          =future:v-channel:v7:cv
       ==
     --
   ::
@@ -306,6 +319,7 @@
   +$  state-2  [%2 v-channels=v-channels-2]
   ++  state-2-to-3
     |=  old=state-2
+    ~>  %spin.['state-2-to-3']
     ^-  state-3
     [%3 +.old]
   ::
@@ -330,29 +344,31 @@
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
-  +$  u-channel-1     $%  $<(%post u-channel:v7:c)
+  +$  u-channel-1     $%  $<(%post u-channel:v7:cv)
                           [%post id=id-post:c u-post=u-post-1]
                       ==
-  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:c)
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:cv)
                           [%set post=(unit v-post-1)]
                           [%reply id=id-reply:c u-reply=u-reply-1]
                       ==
-  +$  u-reply-1       $%  $<(%set u-reply:v7:c)
+  +$  u-reply-1       $%  $<(%set u-reply:v7:cv)
                           [%set reply=(unit v-reply-1)]
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:v7:c)]
-  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:c]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:cv)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:cv]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:c memo:v7:c]
+  +$  v-reply-1       [v-reply-seal:v7:cv memo:v7:cv]
   ++  state-1-to-2
     |=  s=state-1
+    ~>  %spin.['state-1-to-2']
     ^-  state-2
     s(- %2, v-channels (~(run by v-channels.s) v-channel-1-to-2))
   ++  v-channel-1-to-2
     |=  v=v-channel-1
+    ~>  %spin.['v-channel-1-to-2']
     ^-  v-channel-2
     %=  v
       posts   (v-posts-1-to-2 posts.v)
@@ -361,35 +377,41 @@
     ==
   ++  log-1-to-2
     |=  l=log-1
+    ~>  %spin.['log-1-to-2']
     (run:log-on-1 l u-channel-1-to-2)
   ++  u-channel-1-to-2
     |=  u=u-channel-1
-    ^-  u-channel:v7:c
+    ~>  %spin.['u-channel-1-to-2']
+    ^-  u-channel:v7:cv
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
-    ^-  future:v-channel:v7:c
+    ~>  %spin.['future-1-to-2']
+    ^-  future:v-channel:v7:cv
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
-    ^-  u-post:v7:c
+    ~>  %spin.['u-post-1-to-2']
+    ^-  u-post:v7:cv
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
     ==
   ++  v-posts-1-to-2
     |=  p=v-posts-1
+    ~>  %spin.['v-posts-1-to-2']
     %+  run:on-v-posts-1  p
     |=(p=(unit v-post-1) ?~(p ~ `(v-post-1-to-2 u.p)))
   ++  v-post-1-to-2
     |=(p=v-post-1 p(replies (v-replies-1-to-2 replies.p)))
   ++  v-replies-1-to-2
     |=  r=v-replies-1
+    ~>  %spin.['v-replies-1-to-2']
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
-    |=(r=v-reply-1 `v-reply:v7:c`[-.r 0 +.r])
+    |=(r=v-reply-1 `v-reply:v7:cv`[-.r 0 +.r])
   ::
   ::  %0 to %1
   ::
@@ -407,10 +429,12 @@
   ::
   ++  state-0-to-1
     |=  s=state-0
+    ~>  %spin.['state-0-to-1']
     ^-  state-1
     s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
   ++  v-channel-0-to-1
     |=  v=v-channel-0
+    ~>  %spin.['v-channel-0-to-1']
     ^-  v-channel-1
     =/  recency=time
       ?~(tim=(ram:on-v-posts-1 posts.v) *time key.u.tim)
@@ -434,6 +458,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
+  ~>  %spin.['poke']
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
       %noun
@@ -475,10 +500,10 @@
         ==
       :-  %noun
       !>  :+  %tombstones  nest
-      ^-  (list [id-post:v9:c tombstone:v9:c])
+      ^-  (list [id-post:v9:cv tombstone:v9:cv])
       %+  murn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(may:c v-post:c)]
-      ^-  (unit [id-post:v9:c tombstone:v9:c])
+      ^-  (unit [id-post:v9:cv tombstone:v9:cv])
       ?:(?=(%& -.p) ~ `[i +.p])
     ==
   ::
@@ -552,6 +577,7 @@
 ::
 ++  run-import
   |=  =egg-any:gall
+  ~>  %spin.['run-import']
   =.  pimp  ~
   ?-  -.egg-any
       ?(%15 %16)
@@ -590,6 +616,7 @@
 ::
 ++  watch
   |=  =(pole knot)
+  ~>  %spin.['watch']
   ^+  cor
   ~|  watch-path=`path`pole
   ?+    pole  ~|(%bad-watch-path !!)
@@ -655,6 +682,7 @@
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
+  ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
     [%logs ~]          cor
@@ -690,7 +718,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v7:gv q.cage.sign))
+      (take-groups !<(r-groups:v9:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -717,6 +745,7 @@
 ::
 ++  peek
   |=  =(pole knot)
+  ~>  %spin.['peek']
   ^-  (unit (unit cage))
   =?  +.pole  !?=([%v0 *] +.pole)
     [%v0 +.pole]
@@ -729,6 +758,7 @@
 ::
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
+  ~>  %spin.['arvo']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%hooks rest=*]
@@ -739,7 +769,8 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:gv
+  |=  =r-groups:v9:gv
+  ~>  %spin.['take-groups']
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
@@ -774,6 +805,7 @@
 ::
 ++  recheck-perms
   |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
+  ~>  %spin.['recheck-perms']
   ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -782,6 +814,7 @@
 ::
 ++  full-recheck-perms
   |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
+  ~>  %spin.['full-recheck-perms']
   ~&  "%channel-server fully recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -790,6 +823,7 @@
 ::
 ++  request-join
   |=  [=flag:g affected=(list nest:c) ships=(set ship)]
+  ~>  %spin.['request-join']
   %-  emil
   %-  zing
   %+  murn  affected
@@ -819,6 +853,7 @@
   ::
   ++  ca-abed
     |=  n=nest:c
+    ~>  %spin.['ca-abed']
     ~|  nest=n
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
@@ -832,6 +867,7 @@
   ::
   ++  ca-watch-updates
     |=  =@da
+    ~>  %spin.['ca-watch-updates']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
       ~|(%permission-denied !!)
@@ -841,6 +877,7 @@
   ::
   ++  ca-watch-checkpoint
     |=  [from=@da to=(unit @da)]
+    ~>  %spin.['ca-watch-checkpoint']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
       ~|(%permission-denied !!)
@@ -851,6 +888,7 @@
   ::
   ++  ca-watch-checkpoint-page
     |=  n=@
+    ~>  %spin.['ca-watch-checkpoint-page']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
       ~|(%permission-denied !!)
@@ -861,6 +899,7 @@
   ::
   ++  ca-create
     |=  [n=nest:c new=create-channel:c]
+    ~>  %spin.['ca-create']
     ^+  ca-core
     |^
     =.  nest  n
@@ -893,9 +932,10 @@
     ::  +can-nest: does the group exist, are we an admin
     ::
     ++  can-nest
+      ~>  %spin.['can-nest']
       ^-  ?
       =/  groups
-        .^  groups:v7:gv
+        .^  groups:v9:gv
           %gx
           /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
         ==
@@ -907,6 +947,7 @@
   ::
   ++  ca-c-channel
     |=  =c-channel:c
+    ~>  %spin.['ca-c-channel']
     ^+  ca-core
     ?>  our-host:ca-perms
     ?-    -.c-channel
@@ -960,6 +1001,7 @@
   ::
   ++  ca-c-post
     |=  =c-post:c
+    ~>  %spin.['ca-c-post']
     ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.channel)
     =*  no-op  `ca-core
@@ -1105,6 +1147,7 @@
   ::
   ++  ca-c-reply
     |=  [parent=v-post:c =c-reply:c]
+    ~>  %spin.['ca-c-reply']
     ^-  [(unit u-post:c) v-replies:c]
     =*  replies  replies.parent
     ?-    -.c-reply
@@ -1189,6 +1232,7 @@
   ::
   ++  ca-c-react
     |=  [reacts=v-reacts:c =c-react:c]
+    ~>  %spin.['ca-c-react']
     ^-  [changed=? v-reacts:c]
     =/  =author:c
       ?:  ?=(%add-react -.c-react)
@@ -1209,6 +1253,7 @@
   ::
   ++  ca-update
     |=  =u-channel:c
+    ~>  %spin.['ca-update']
     ^+  ca-core
     =/  time
       |-
@@ -1221,6 +1266,7 @@
     (ca-give-update update)
   ::
   ++  ca-subscription-paths
+    ~>  %spin.['ca-subscription-paths']
     ^-  (list path)
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
@@ -1228,6 +1274,7 @@
   ::
   ++  ca-give-update
     |=  =update:c
+    ~>  %spin.['ca-give-update']
     ^+  ca-core
     =/  paths  ca-subscription-paths
     ?:  =(~ paths)
@@ -1235,6 +1282,7 @@
     (give %fact paths %channel-update !>(update))
   ::
   ++  ca-subscriptions
+    ~>  %spin.['ca-subscriptions']
     ^-  (set [ship path])
     %+  roll  ~(val by sup.bowl)
     |=  [[=ship =path] out=(set [ship path])]
@@ -1257,6 +1305,7 @@
   ::
   ++  ca-revoke
     |=  her=ship
+    ~>  %spin.['ca-revoke']
     ^+  ca-core
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
@@ -1265,6 +1314,7 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:v0:gv)
+    ~>  %spin.['ca-recheck']
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
@@ -1289,6 +1339,7 @@
   ::
   ++  ca-full-recheck
     |=  sects=(set sect:v0:gv)
+    ~>  %spin.['ca-full-recheck']
     ::  if we have sects, we need to sync channel writers
     ::  to remove any missing sects.
     ::
@@ -1306,6 +1357,7 @@
   ::
   ++  ca-said
     |=  =plan:c
+    ~>  %spin.['ca-said']
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
@@ -1316,20 +1368,22 @@
   --
 ++  scry-path
   |=  [=dude:gall =path]
+  ~>  %spin.['scry-path']
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
+  ~>  %spin.['get-hook-bowl']
   ^-  bowl:h
-  =/  group=(unit group:v7:gv)
+  =/  group=(unit group:v9:gv)
     ?~  channel  ~
     =*  flag  group.perm.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
+    ?.  .^(? %gu (scry-path %groups /$))  *group:v9:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
-      *group:v7:gv
-    .^(group:v7:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
+      *group:v9:gv
+    .^(group:v9:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
   :*  channel
       group
       v-channels
@@ -1352,10 +1406,12 @@
   ::
   ++  ho-abed
     |=  i=id-hook:h
+    ~>  %spin.['ho-abed']
     ho-core(id i, hook (~(got by hooks.hooks) i))
   ::
   ++  ho-add
     |=  [name=@t src=@t]
+    ~>  %spin.['ho-add']
     ^+  ho-core
     =.  id
       =+  i=(end 7 eny.bowl)
@@ -1372,6 +1428,7 @@
     (ho-give-response [%set id name src meta.hook error])
   ++  ho-edit
     |=  [name=(unit @t) src=(unit @t) meta=(unit data:m)]
+    ~>  %spin.['ho-edit']
     =?  src.hook  ?=(^ src)  u.src
     =/  result=(each vase tang)
       (compile:utils src.hook)
@@ -1407,11 +1464,13 @@
     (ho-give-response [%gone id])
   ++  ho-configure
     |=  [=nest:c =config:h]
+    ~>  %spin.['ho-configure']
     ^+  ho-core
     =.  config.hook  (~(put by config.hook) nest config)
     (ho-give-response [%config id nest config])
   ++  ho-cron
     |=  [=origin:h schedule=$@(@dr schedule:h) =config:h]
+    ~>  %spin.['ho-cron']
     ^+  ho-core
     =?  schedule  ?=(@ schedule)
       [now.bowl schedule]
@@ -1425,6 +1484,7 @@
     (ho-give-response [%cron id origin schedule config])
   ++  ho-rest
     |=  =origin:h
+    ~>  %spin.['ho-rest']
     ^+  ho-core
     =/  crons  (~(got by crons.hooks) id)
     =/  cron  (~(got by crons) origin)
@@ -1434,6 +1494,7 @@
     (ho-give-response [%rest id origin])
   ++  ho-run-single
     |=  [=event:h prefix=tape =origin:h =config:h]
+    ~>  %spin.['ho-run-single']
     =/  channel
       ?@  origin  ~
       ?~  ch=(~(get by v-channels) origin)  ~
@@ -1450,10 +1511,12 @@
     ho-core
   ++  ho-give-response
     |=  =response:h
+    ~>  %spin.['ho-give-response']
     (give %fact ~[/v0/hooks] hook-response-0+!>(response))
   --
 ++  run-hooks
   |=  [=event:h =nest:c default=cord]
+  ~>  %spin.['run-hooks']
   ^-  [(each event:h tang) _cor]
   =|  effects=(list effect:h)
   =/  order  (~(gut by order.hooks) nest ~)
@@ -1477,6 +1540,7 @@
   next
 ++  wake-hook
   |=  =(pole knot)
+  ~>  %spin.['wake-hook']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take+pole !!)
       [%waiting id=@ ~]
@@ -1519,6 +1583,7 @@
   ==
 ++  schedule-cron
   |=  [=origin:h =job:h]
+  ~>  %spin.['schedule-cron']
   ^+  cor
   =/  wire
     %+  welp  /hooks/cron/(scot %uv id-hook.job)
@@ -1527,6 +1592,7 @@
   (emit [%pass wire %arvo %b %wait next.schedule.job])
 ++  unschedule-cron
   |=  [=origin:h =job:h]
+  ~>  %spin.['unschedule-cron']
   =/  wire
     %+  welp  /hooks/cron/(scot %uv id-hook.job)
     ?@  origin  ~
@@ -1534,16 +1600,19 @@
   (emit [%pass wire %arvo %b %rest next.schedule.job])
 ++  schedule-waiting
   |=  wh=waiting-hook:h
+  ~>  %spin.['schedule-waiting']
   =/  =wire  /hooks/waiting/(scot %uv id.wh)
   (emit [%pass wire %arvo %b %wait fires-at.wh])
 ++  unschedule-waiting
   |=  id=id-hook:h
+  ~>  %spin.['unschedule-waiting']
   ^+  cor
   ?~  previous=(~(get by waiting.hooks) id)  cor
   =/  =wire  /hooks/waiting/(scot %uv id.u.previous)
   (emit [%pass wire %arvo %b %rest fires-at.u.previous])
 ++  run-hook-effects
   |=  [effects=(list effect:h) =origin:h]
+  ~>  %spin.['run-hook-effects']
   ^+  cor
   |-
   ?~  effects
@@ -1586,6 +1655,7 @@
   ==
 ++  get-hook-template
   |=  =nest:c
+  ~>  %spin.['get-hook-template']
   ^-  template:h
   =/  order=(list id-hook:h)  (~(got by order.hooks) nest)
   =/  crons=(list [id-hook:h job:h])
@@ -1612,6 +1682,7 @@
   ==
 ++  setup-hook-template
   |=  [=nest:c =template:h]
+  ~>  %spin.['setup-hook-template']
   ^+  cor
   =.  order.hooks
     (~(put by order.hooks) nest order.template)
@@ -1647,6 +1718,7 @@
   $(crons t.crons)
 ++  get-channel-hooks-preview
   |=  =nest:c
+  ~>  %spin.['get-channel-hooks-preview']
   ^-  channel-preview:h
   =/  =template:h  (get-hook-template nest)
   %+  turn

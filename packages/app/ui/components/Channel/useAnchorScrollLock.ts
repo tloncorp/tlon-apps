@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, useMutableCallback } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   RefObject,
@@ -84,7 +84,7 @@ export function useAnchorScrollLock({
     [anchor?.postId, flatListRef, anchorIndex]
   );
 
-  const handleItemLayout = useCallback(
+  const handleItemLayout = useMutableCallback(
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
 
@@ -137,17 +137,7 @@ export function useAnchorScrollLock({
         logger.log('all posts rendered');
         setDidAnchorSearchTimeout(true);
       }
-    },
-    [
-      anchor?.postId,
-      anchor?.type,
-      userHasScrolled,
-      flatListRef,
-      posts,
-      readyToDisplayPosts,
-      collectionLayoutType,
-      columnsCount,
-    ]
+    }
   );
 
   const maintainVisibleContentPositionConfig = useMemo(() => {

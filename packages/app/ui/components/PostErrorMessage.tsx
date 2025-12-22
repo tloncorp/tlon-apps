@@ -36,7 +36,12 @@ export function PostErrorMessage({
           padding="$xs"
           testID={actionTestID}
         >
-          <Text size="$label/m" color="$primaryActionText">
+          <Text
+            size="$label/m"
+            textDecorationLine="underline"
+            textDecorationDistance={10}
+            color="$primaryText"
+          >
             {actionLabel}
           </Text>
         </Button>

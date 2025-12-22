@@ -1,5 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Attachment,
   DraftInputId,
   UploadedImageAttachment,
   finalizeAndSendPost,
@@ -16,9 +17,9 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -28,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -36,6 +38,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -43,7 +46,6 @@ import {
   useCurrentUserId,
 } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
@@ -52,6 +54,7 @@ import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
+import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
@@ -257,16 +260,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const { uploadAssets, clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
-      async (assets: ImagePickerAsset[]) => {
+      async (uploadIntents: Attachment.UploadIntent[]) => {
         if (channel.type !== 'gallery') {
-          attachAssets(assets);
+          attachAssets(uploadIntents);
           return;
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(assets);
+          const uploadedAttachments = await uploadAssets(uploadIntents);
 
           for (const attachment of uploadedAttachments) {
+            if (attachment.type !== 'image') {
+              throw new Error('Not implemented');
+            }
             const story: Story = [
               {
                 block: {
@@ -301,6 +307,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const draftInputRef = useRef<DraftInputHandle>(null);
 
+    // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+    const scrollToNewMessage = useCallback(() => {
+      requestAnimationFrame(() => {
+        collectionRef.current?.scrollToStart?.({ animated: true });
+      });
+    }, []);
+
     const draftInputContext = useMemo(
       (): DraftInputContext => ({
         channel,
@@ -317,14 +330,21 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        sendPost: async (content, channelId, metadata) => {
+        sendPost: async (content, channelId, metadata, blob) => {
           await sendPost({
             channelId,
             content,
             metadata,
+            blob,
           });
+          scrollToNewMessage();
         },
-        sendPostFromDraft: finalizeAndSendPost,
+        sendPostFromDraft: async (draft) => {
+          await finalizeAndSendPost(draft);
+          if (!draft.isEdit) {
+            scrollToNewMessage();
+          }
+        },
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
@@ -376,6 +396,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
 
     const channelProviderValue = useMemo(() => ({ channel }), [channel]);
+
+    const includeJoinRequestNotice = useMemo(() => {
+      // we want to avoid duplicating the notice on both the channels list and inline here
+
+      // if group is multi-channel, skip
+      const validGroup = group && (group.channels?.length ?? 0) === 1;
+
+      // skip web since currently all groups show the channel sidebar
+      const validPlatform = Platform.OS !== 'web';
+
+      return validGroup && validPlatform;
+    }, [group]);
 
     return (
       <ScrollContextProvider>
@@ -438,6 +470,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           goToEdit={handleGoToEditChannel}
                         />
                         <YStack alignItems="stretch" flex={1}>
+                          {includeJoinRequestNotice && (
+                            <SystemNotices.ConnectedJoinRequestNotice
+                              group={group}
+                              onViewRequests={goToGroupSettings}
+                            />
+                          )}
                           <AnimatePresence>
                             {draftInputPresentationMode !== 'fullscreen' && (
                               <View flex={1}>

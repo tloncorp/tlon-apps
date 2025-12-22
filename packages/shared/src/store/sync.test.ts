@@ -2,7 +2,7 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { StructuredChannelDescriptionPayload, toClientGroup } from '../api';
+import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '../api';
 import '../api/channelContentConfig';
 import {
   CollectionRendererId,
@@ -27,7 +27,7 @@ import {
 import rawGroupsInit2 from '../test/init.json';
 import {
   CombinedHeads,
-  GroupsInit,
+  GroupsInit6,
   PagedPosts,
   PostDataResponse,
 } from '../urbit';
@@ -35,7 +35,7 @@ import {
   ContactBookScryResult1,
   Contact as UrbitContact,
 } from '../urbit/contact';
-import { Group as UrbitGroup } from '../urbit/groups';
+import { GroupV7 as UrbitGroup } from '../urbit/groups';
 import {
   syncContacts,
   syncDms,
@@ -56,8 +56,8 @@ const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
-const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
-const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 setupDatabaseTestSuite();
@@ -168,6 +168,7 @@ test('syncs dms', async () => {
       title: '',
       description: '',
       lastPostSequenceNum: null,
+      currentUserIsMember: null,
       members: [
         {
           chatId: '~solfer-magfed',
@@ -194,6 +195,7 @@ test('syncs dms', async () => {
       // nb: we coerce empty description strings to null
       description: null,
       lastPostSequenceNum: null,
+      currentUserIsMember: null,
       members: db
         .buildChatMembers({
           chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -217,7 +219,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
 const testGroupData: db.Group = {
-  ...toClientGroup(
+  ...toClientGroupV7(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true

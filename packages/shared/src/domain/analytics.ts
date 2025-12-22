@@ -59,6 +59,7 @@ export enum AnalyticsEvent {
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
   WayfindingDebug = 'Wayfinding Debug',
+  AttachmentUploadSuccess = 'Attachment Upload Success',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',

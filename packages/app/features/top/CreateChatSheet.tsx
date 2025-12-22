@@ -11,7 +11,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -31,11 +31,11 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
+import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
 import {
   GroupType,
   GroupTypeSelectionSheet,
 } from '../groups/GroupTypeSelectionSheet';
-import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step =
@@ -227,7 +227,7 @@ const CreateChatFormContent = ({
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-      <YStack gap="$l" flex={1} $sm={{ paddingHorizontal: '$xl' }}>
+      <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
           searchable
           multiSelect={chatType === 'group'}
@@ -238,7 +238,7 @@ const CreateChatFormContent = ({
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          height={400}
+          maxHeight={isWindowNarrow ? undefined : 500}
         />
         {chatType === 'group' && (
           <Button marginTop="$l" hero onPress={onCreateGroup}>
@@ -289,6 +289,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       } else if (step === 'initial') {
         setStep('selectType');
       }
@@ -350,6 +351,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setStep('initial');
         setSelectedTemplateId(undefined);
         setGroupTitle(undefined);
+        setSelectedContactIds([]);
       },
     }),
     []
@@ -429,7 +431,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onOpenChange={() => setStep('initial')}
         mode="dialog"
         closeButton
-        dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
+        dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
       >
         <View flex={1} padding="$m">
           <CreateChatFormContent
@@ -567,9 +569,20 @@ export function CreateChatInviteSheet({
   );
 
   const handlePressCreateGroup = useCallback(async () => {
-    onSubmit({ type: 'group', contactIds: selectedContactIds, templateId, title });
+    onSubmit({
+      type: 'group',
+      contactIds: selectedContactIds,
+      templateId,
+      title,
+    });
     setSelectedContactIds([]);
   }, [onSubmit, selectedContactIds, templateId, title]);
+
+  // hack: ensure the nested ContactBook will scroll properly within the sheet
+  // by disabling drag within the main content (drag handle only)
+  const enableContentPanningGesture = useMemo(() => {
+    return Platform.OS === 'android' ? false : undefined;
+  }, []);
 
   return (
     <ActionSheet
@@ -579,6 +592,8 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
+      enableContentPanningGesture={enableContentPanningGesture}
+      hasScrollableContent
     >
       <CreateChatFormContent
         chatType={chatType}

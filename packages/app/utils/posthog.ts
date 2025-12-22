@@ -1,10 +1,12 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
 export type OnboardingProperties = {
@@ -34,10 +36,38 @@ export const posthogAsync =
 
 posthogAsync?.then((client) => {
   posthog = client;
-  crashlytics().setAttribute('analyticsId', client.getDistinctId());
-  useDebugStore.getState().initializeErrorLogger(client);
+  const distinctId = client.getDistinctId();
+
+  crashlytics().setAttribute('analyticsId', distinctId);
+
+  // Create composite error logger that sends to both PostHog and Sentry
+  const sentryLogger = createSentryErrorLogger();
+  const compositeLogger = {
+    capture: (event: string, data: Record<string, unknown>) => {
+      // Always send to PostHog (analytics + errors)
+      client.capture(event, data);
+
+      // Only send errors to Sentry (not general analytics events)
+      // Until logging is refactored to consistently use 'app_error',
+      // we also pass along any event with "error" in the name (case-insensitive)
+      if (
+        event === 'app_error' ||
+        event === 'Debug Logs' ||
+        /error/i.test(event)
+      ) {
+        sentryLogger.capture(event, data);
+      }
+    },
+  };
+
+  useDebugStore.getState().initializeErrorLogger(compositeLogger);
   posthog?.register({
     gitHash: GIT_HASH,
+  });
+
+  // Set Sentry user context with PostHog analytics ID
+  Sentry.setUser({
+    id: distinctId,
   });
 
   // Write PostHog API key to UserDefaults for iOS native access
@@ -66,18 +96,6 @@ const capture = (event: string, properties?: { [key: string]: any }) => {
 export const trackOnboardingAction = (properties: OnboardingProperties) =>
   capture('Onboarding Action', properties);
 
-export const trackError = (
-  {
-    message,
-    properties,
-  }: {
-    message: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    properties?: { [key: string]: any };
-  },
-  event = 'app_error'
-) => capture(event, { message, properties });
-
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);
   if (!posthog) {
@@ -86,5 +104,7 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  posthog.identify(UUID, { isTlonEmployee: true });
+  // Import at top of function to avoid circular dependency
+  const { identifyUser } = require('./identifyUser');
+  identifyUser(UUID, { isTlonEmployee: true });
 };

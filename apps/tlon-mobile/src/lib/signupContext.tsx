@@ -86,6 +86,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
+        notificationLevel: values.notificationLevel,
         phoneNumber: values.phoneNumber,
         postHog,
       };
@@ -98,10 +99,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         timeUnit: 's',
       });
     } catch (e) {
-      logger.trackError('post signup error', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup error', e);
     } finally {
       // this is when the UI will transition to authenticated app
       setTimeout(() => {
@@ -117,6 +115,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     values.nickname,
     values.telemetry,
     values.notificationToken,
+    values.notificationLevel,
     values.phoneNumber,
     values.userWasReadyAt,
     postHog,
@@ -168,6 +167,7 @@ async function runPostSignupActions(params: {
   telemetry?: boolean;
   phoneNumber?: string;
   notificationToken?: string;
+  notificationLevel?: string;
   postHog?: PostHog;
 }) {
   if (params.nickname) {
@@ -176,10 +176,7 @@ async function runPostSignupActions(params: {
         nickname: params.nickname,
       });
     } catch (e) {
-      logger.trackError('post signup: failed to set nickname', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup: failed to set nickname', e);
     }
   }
 
@@ -196,10 +193,7 @@ async function runPostSignupActions(params: {
         }, tenMinutes);
       }
     } catch (e) {
-      logger.trackError('post signup: failed to set telemetry', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('post signup: failed to set telemetry', e);
     }
   }
 
@@ -207,7 +201,23 @@ async function runPostSignupActions(params: {
     try {
       await connectNotifyProvider(params.notificationToken);
     } catch (e) {
-      logger.trackError('post signup: failed to set notification token', {
+      logger.trackError('post signup: failed to set notification token', e);
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification level', e);
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification level', {
         errorMessage: e.message,
         errorStack: e.stack,
       });

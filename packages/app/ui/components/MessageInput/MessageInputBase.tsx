@@ -190,7 +190,10 @@ export const MessageInputContainer = memo(
             ) : null}
             {canUpload && showAttachmentButton ? (
               <AttachmentButtonContainer>
-                <AttachmentButton setShouldBlur={setShouldBlur} />
+                <AttachmentButton
+                  setShouldBlur={setShouldBlur}
+                  mediaType="all"
+                />
               </AttachmentButtonContainer>
             ) : null}
             {children}

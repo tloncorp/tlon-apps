@@ -15,8 +15,8 @@ import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
+  ConfirmDialog,
   ContactListItem,
-  DeleteSheet,
   ForwardGroupSheetProvider,
   Icon,
   InviteUsersSheet,
@@ -32,7 +32,6 @@ import {
   XStack,
   YStack,
   createActionGroup,
-  notificationOptions,
   pluralize,
   useChatOptions,
   useChatTitle,
@@ -42,6 +41,7 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
+  useNotificationLevelOptions,
   useToast,
 } from '../../ui';
 
@@ -249,7 +249,7 @@ function ChatDetailsScreenContent({
 
 function GroupLeaveActions({ group }: { group: db.Group }) {
   const { onLeaveGroup } = useChatSettingsNavigation();
-  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
   const groupTitle = useGroupTitle(group) ?? 'group';
@@ -291,7 +291,7 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
     },
     canDelete && {
       title: 'Delete group',
-      action: () => setShowDeleteSheet(true),
+      action: () => setShowDeleteDialog(true),
     }
   );
 
@@ -315,12 +315,15 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
           />
         ))}
       </ActionSheet.ActionGroup>
-      <DeleteSheet
-        title={groupTitle ?? 'This group'}
-        itemTypeDescription="group"
-        open={showDeleteSheet}
-        onOpenChange={setShowDeleteSheet}
-        deleteAction={handleDeleteGroup}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={`Delete ${groupTitle ?? 'This group'}?`}
+        description="This action cannot be undone."
+        confirmText="Delete group"
+        cancelText="Cancel"
+        onConfirm={handleDeleteGroup}
+        destructive
       />
     </>
   );
@@ -342,6 +345,11 @@ function GroupSettings({ group }: { group: db.Group }) {
     onPressChatVolume,
     onPressRoles,
   } = useChatSettingsNavigation();
+
+  const notificationOptions = useNotificationLevelOptions({
+    includeLoud: true,
+    shortDescriptions: true,
+  });
 
   const handlePressGroupPrivacy = useCallback(() => {
     onPressGroupPrivacy?.(group.id);

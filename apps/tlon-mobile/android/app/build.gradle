@@ -115,6 +115,7 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -124,7 +125,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "7.1.0"
+        versionName "8.1.0"
     }
     signingConfigs {
         debug {
@@ -146,6 +147,13 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+        releaseDebuggable {
+            // Like release but with debuggable=true for testing
+            initWith release
+            debuggable true
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
         }
     }
     packagingOptions {
@@ -228,6 +236,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
     implementation("androidx.browser:browser:1.7.0")
 
-    // PostHog
-    implementation("com.posthog:posthog-android:3.+")
+    // PostHog - pinned to avoid constructor signature incompatibilities with newer versions
+    implementation("com.posthog:posthog-android:3.8.2")
 }

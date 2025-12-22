@@ -15,6 +15,7 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -43,6 +44,7 @@ import {
   BottomSheetScrollView,
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
+import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -147,7 +149,14 @@ const ActionSheetComponent = ({
   closeButton,
   footerComponent,
   ...props
-}: PropsWithChildren<ActionSheetProps & SheetProps>) => {
+}: PropsWithChildren<
+  ActionSheetProps &
+    SheetProps &
+    Pick<
+      BottomSheetWrapperProps,
+      'enableContentPanningGesture' | 'hasScrollableContent'
+    >
+>) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
@@ -187,7 +196,7 @@ const ActionSheetComponent = ({
 
   // Detect if children contain scrollable content (must be before any early returns)
   // Uses depth-limited recursion to find nested scrollable content
-  const hasScrollableContent = useMemo(() => {
+  const detectedHasScrollableContent = useMemo(() => {
     let hasScrollable = false;
     const MAX_DEPTH = 3; // Limit recursion depth for performance
 
@@ -219,6 +228,11 @@ const ActionSheetComponent = ({
     Children.forEach(children, (child) => checkChild(child, 0));
     return hasScrollable;
   }, [children]);
+
+  // Allow explicit prop to override auto-detection (useful for BottomSheetFlatList
+  // which isn't detected by the above logic)
+  const hasScrollableContent =
+    props.hasScrollableContent ?? detectedHasScrollableContent;
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -283,6 +297,7 @@ const ActionSheetComponent = ({
             // prevent the modal from going off screen
             maxHeight={maxHeight}
             marginVertical="$2xl"
+            overflow="hidden"
             {...dialogContentProps}
           >
             {closeButton && (
@@ -302,9 +317,15 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ActionSheetContext.Provider value={actionSheetContextValue}>
-              {children}
-            </ActionSheetContext.Provider>
+            <ScrollView
+              flex={1}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ flexGrow: 1 }}
+            >
+              <ActionSheetContext.Provider value={actionSheetContextValue}>
+                {children}
+              </ActionSheetContext.Provider>
+            </ScrollView>
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
@@ -340,6 +361,7 @@ const ActionSheetComponent = ({
       showHandle={true}
       showOverlay={true}
       enablePanDownToClose={true}
+      enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
       frameStyle={{}}
@@ -413,9 +435,10 @@ const ActionSheetContent = YStack.styleable((props, ref) => {
   return <YStack {...contentStyle} {...props} ref={ref} />;
 });
 
-const ActionSheetScrollableContent = ({
-  ...props
-}: ComponentProps<typeof Sheet.ScrollView>) => {
+const ActionSheetScrollableContent = forwardRef<
+  typeof BottomSheetScrollView,
+  ComponentProps<typeof Sheet.ScrollView>
+>(({ ...props }, ref) => {
   const contentStyle = useContentStyle();
   const useBottomSheet = Platform.OS !== 'web';
 
@@ -423,6 +446,7 @@ const ActionSheetScrollableContent = ({
   if (useBottomSheet) {
     return (
       <BottomSheetScrollView
+        ref={ref as any}
         style={{ flex: 1 }}
         contentContainerStyle={contentStyle as any}
         alwaysBounceVertical={false}
@@ -439,6 +463,7 @@ const ActionSheetScrollableContent = ({
   // Use Tamagui ScrollView for web
   return (
     <Sheet.ScrollView
+      ref={ref as any}
       flex={1}
       alwaysBounceVertical={false}
       automaticallyAdjustsScrollIndicatorInsets={false}
@@ -450,7 +475,9 @@ const ActionSheetScrollableContent = ({
       {...props}
     />
   );
-};
+});
+
+ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
@@ -458,7 +485,7 @@ const useContentStyle = () => {
   return {
     paddingBottom: isWindowNarrow
       ? insets.bottom + getTokenValue('$2xl', 'size')
-      : 0,
+      : getTokenValue('$xl', 'size'),
   };
 };
 

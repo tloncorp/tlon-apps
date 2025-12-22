@@ -60,6 +60,205 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
+  ++  v9
+    =,  v8
+    |%
+    ++  group
+      |=  group:v9:gv
+      ^-  json
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+      ==
+    ++  admissions
+      |=  ad=admissions:v9:gv
+      |^
+      %-  pairs
+      :~  privacy+s+privacy.ad
+          banned+(banned banned.ad)
+          pending+(pending pending.ad)
+          requests+(requests requests.ad)
+          tokens+(tokens tokens.ad)
+          invited+(invited invited.ad)
+      ==
+      ++  banned
+        |=  banned:v9:gv
+        ^-  json
+        %-  pairs
+        :~  ships+(^ships ships)
+            ranks+a+(turn ~(tap in ranks) (lead %s))
+        ==
+      ++  pending
+        |=  pend=(jug ship:z role-id:v9:gv)
+        %-  pairs
+        %+  turn  ~(tap by pend)
+        |=  [=ship:z roles=(set role-id:v9:gv)]
+        :-  (scot %p ship)
+        (^roles roles)
+      ++  requests
+        |=  reqs=(map ship:z [at=@da (unit story:s)])
+        %-  pairs
+        %+  turn  ~(tap in reqs)
+        |=  [=ship:z at=@da note=(unit story:s)]
+        :-  (scot %p ship)
+        %-  pairs
+        :~  'requestedAt'^(time at)
+            'note'^?~(note ~ (story:enjs:sj u.note))
+        ==
+      ++  tokens
+        |=  tokens=(map token:v9:gv token-meta:v9:gv)
+        %-  pairs
+        %+  turn  ~(tap in tokens)
+        |=  [=token:v9:gv meta=token-meta:v9:gv]
+        [(scot %uv token) (token-meta meta)]
+      ++  invited
+        |=  invited=(map ship:z [at=@da token=(unit token:v9:gv)])
+        %-  pairs
+        %+  turn  ~(tap in invited)
+        |=  [=ship:z at=@da token=(unit token:v9:gv)]
+        :-  (scot %p ship)
+        (pairs at+s+(scot %da at) token+?~(token ~ (^token u.token)) ~)
+      --
+    ++  groups
+      |=  gs=groups:v9:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group:v9:gv]
+      [(print-flag f) (group gr)]
+    ++  groups-ui
+      |=  gs=groups-ui:v9:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group-ui:v9:gv]
+      [(print-flag f) (group-ui gr)]
+    ++  group-ui
+      |=  =group-ui:v9:gv
+      =,  group.group-ui
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+        ::
+          init+b+init.group-ui
+          member-count+(numb member-count.group-ui)
+      ==
+    ++  r-groups
+      |=  =r-groups:v9:gv
+      ^-  json
+      %-  pairs
+      :~  'flag'^(flag flag.r-groups)
+          'r-group'^(r-group r-group.r-groups)
+      ==
+    ++  r-group
+      |=  =r-group:v9:gv
+      ^-  json
+      %+  frond  -.r-group
+      ?-    -.r-group
+        %create  (group group.r-group)
+        %meta    (meta meta.r-group)
+        %entry   (r-entry r-entry.r-group)
+      ::
+          %seat
+        %-  pairs
+        :~  'ships'^(ships ships.r-group)
+            'r-seat'^(r-seat r-seat.r-group)
+        ==
+      ::
+          %role
+        %-  pairs
+        :~  'roles'^(roles roles.r-group)
+            'r-role'^(r-role r-role.r-group)
+        ==
+      ::
+          %channel
+        %-  pairs
+        :~  'nest'^(nest nest.r-group)
+            'r-channel'^(r-channel r-channel.r-group)
+        ==
+      ::
+          %section
+        %-  pairs
+        :~  'section-id'^s+section-id.r-group
+            'r-section'^(r-section r-section.r-group)
+        ==
+      ::
+          %section-order  
+        (frond 'section-order' a+(turn order.r-group (lead %s)))
+      ::
+        %flag-content  (flag-content +.r-group)
+        %delete  ~
+      ==
+    ++  r-entry
+      |=  =r-entry:v9:gv
+      ^-  json
+      %+  frond  -.r-entry
+      ?-  -.r-entry
+        %privacy  s+privacy.r-entry
+        %ban      (r-ban r-ban.r-entry)
+        %token    (r-token r-token.r-entry)
+        %pending  (r-pending r-pending.r-entry)
+        %ask      (r-ask r-ask.r-entry)
+      ==
+    ++  r-ask
+      |=  =r-ask:v9:gv
+      ^-  json
+      %+  frond  -.r-ask
+      ?-    -.r-ask
+          %add
+        %-  pairs
+        :~  'ship'^(ship ship.r-ask)
+            'requestedAt'^(time at.r-ask)
+            'note'^?~(n=note.r-ask ~ (story:enjs:sj u.n))
+        ==
+      ::
+        %del  (pairs 'ships'^(ships ships.r-ask) ~)
+      ==
+    ++  r-section
+      |=  =r-section:v9:gv
+      ^-  json
+      %+  frond  -.r-section
+      ^-  json
+      ?-    -.r-section
+        %add   (meta meta.r-section)
+        %edit  (meta meta.r-section)
+        %del   ~
+        %move  (frond 'idx' (numb idx.r-section))
+      ::
+          %move-nest
+        (pairs 'idx'^(numb idx.r-section) 'nest'^(nest nest.r-section) ~)
+      ::
+          %set
+        (frond 'set' a+(turn order.r-section nest))
+      ==
+    --
+  ::
   ++  v8
     =,  v7
     |%
@@ -156,7 +355,6 @@
           pending+(pending pending.ad)
           requests+(requests requests.ad)
           tokens+(tokens tokens.ad)
-          ::XX referrals
           invited+(invited invited.ad)
       ==
       ++  banned
@@ -398,7 +596,7 @@
           %add
         %-  pairs
         :~  'ship'^(ship ship.r-ask)
-            'story'^?~(s=story.r-ask ~ (story:enjs:sj u.s))
+            'note'^?~(n=note.r-ask ~ (story:enjs:sj u.n))
         ==
       ::
         %del  (pairs 'ships'^(ships ships.r-ask) ~)
@@ -1101,6 +1299,7 @@
           section+(ot section-id+so a-section+a-section:v7 ~)
           navigation+a-navigation
           flag-content+flag-content
+          delete+ul
       ==
     ++  a-navigation
       ^-  $-(json a-navigation:v8:gv)
@@ -1148,7 +1347,7 @@
     ++  roles
       |=  =json
       ^-  (set role-id:v7:gv)
-      (sy ((ar role-id:v7:gv) json))
+      (sy ((ar so) json))
     ++  a-invite
       ^-  $-(json a-invite:v7:gv)
       %-  ot
@@ -1242,7 +1441,7 @@
       ^-  $-(json channel:v7:gv)
       %-  ot
       :~  meta+meta
-          added+time
+          added+di
           section+so
           readers+roles
           join+bo

@@ -247,8 +247,41 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await expect(continueButton).toBeVisible({ timeout: 5000 });
   await continueButton.click();
 
-  // Brief wait for invitation to be sent
-  await page.waitForTimeout(1000);
+  // Wait for the invite sheet to close (confirms action dispatched)
+  await expect(page.getByText('Select contacts to invite')).not.toBeVisible({
+    timeout: 10000,
+  });
+
+  // Stabilization wait for cross-ship sync
+  await page.waitForTimeout(2000);
+}
+
+/**
+ * Navigates to a group from the Home screen using the stable testID pattern.
+ * Groups created without an explicit name have testID 'ChatListItem-Untitled group-unpinned'
+ * regardless of their computed display name (which depends on members).
+ */
+export async function navigateToGroupByTestId(
+  page: Page,
+  options: {
+    expectedDisplayName?: string;
+    pinned?: boolean;
+    timeout?: number;
+  } = {}
+) {
+  const { expectedDisplayName, pinned = false, timeout = 10000 } = options;
+  const testId = `ChatListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+
+  // Navigate using stable testID
+  await expect(page.getByTestId(testId)).toBeVisible({ timeout });
+  await page.getByTestId(testId).click();
+
+  // Optionally verify the computed display name after entering the group
+  if (expectedDisplayName) {
+    await expect(page.getByText(expectedDisplayName).first()).toBeVisible({
+      timeout: 15000,
+    });
+  }
 }
 
 export async function acceptGroupInvite(page: Page, groupName?: string) {
@@ -292,10 +325,13 @@ export async function deleteGroup(page: Page, groupName?: string) {
   });
 
   await page.getByTestId('GroupLeaveAction-Delete group').click();
-  await expect(
-    page.getByTestId('ActionSheetAction-Delete group').first()
-  ).toBeVisible({ timeout: 10000 });
-  await page.getByTestId('ActionSheetAction-Delete group').click();
+  await expect(page.getByText('This action cannot be undone.')).toBeVisible({
+    timeout: 10000,
+  });
+  await page
+    .getByRole('dialog')
+    .getByText('Delete group', { exact: true })
+    .click();
   await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
     timeout: 20000,
   });
@@ -405,8 +441,8 @@ export async function createRole(
   // Ensure session is stable before creating role
   await waitForSessionStability(page);
 
-  await page.getByText('Add Role').click();
-  await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
+  await page.getByText('New').click();
+  await expect(page.getByText('Add role')).toBeVisible();
 
   await fillFormField(page, 'RoleTitleInput', title);
   await fillFormField(page, 'RoleDescriptionInput', description);
@@ -706,7 +742,10 @@ export async function deleteChannel(
 
   await page.getByText('Delete channel for everyone').click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
-  await page.getByText('Delete channel', { exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByText('Delete channel', { exact: true })
+    .click();
 }
 
 /**
