@@ -214,7 +214,7 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T) => void
+  handler: (update: T, id?: number) => void
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
@@ -254,7 +254,7 @@ export async function subscribe<T>(
         }
 
         // then pass the event along to the subscription handler
-        handler(event);
+        handler(event, id);
       },
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));

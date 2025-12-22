@@ -8,7 +8,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { Text, View, useStyle } from 'tamagui';
 
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { NavigationProvider, useStore } from '../../contexts';
 import { PrimaryButton } from '../Buttons';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
@@ -219,9 +218,7 @@ export function ActivityScreenContent({
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
+
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
       setSelectedGroup(null);
@@ -330,7 +327,6 @@ export function ActivityScreenContent({
           open={!!selectedGroup}
           onOpenChange={() => setSelectedGroup(null)}
           group={selectedGroup ?? undefined}
-          hostStatus={hostConnectionStatus}
           onActionComplete={handleGroupAction}
         />
         <PersonalInviteSheet
