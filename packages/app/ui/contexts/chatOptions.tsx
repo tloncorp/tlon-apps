@@ -114,6 +114,7 @@ type ChatOptionsProviderProps = {
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
+    groupId?: string;
   };
 };
 
@@ -179,6 +180,18 @@ export const ChatOptionsProvider = ({
     []
   );
 
+  // Defensive: restore chat from initialChat if cleared unexpectedly.
+  // This handles edge cases where setChat(null) is called (e.g., when
+  // ChatOptionsSheet closes) but we're still on a screen that needs
+  // the chat context (e.g., after navigating to ChatDetailsScreen and back).
+  // Without this, groupId becomes undefined and actions like "Customize"
+  // in EmptyChannelNotice fail silently.
+  useEffect(() => {
+    if (chat === null && initialChat) {
+      setChat(initialChat);
+    }
+  }, [chat, initialChat]);
+
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
 
@@ -186,7 +199,9 @@ export const ChatOptionsProvider = ({
     id: isChannel ? chat.id : undefined,
   });
   const channelTitle = useChannelTitle(channel ?? null);
-  const groupId = isGroup ? chat.id : channel?.groupId ?? undefined;
+  const groupId = isGroup
+    ? chat.id
+    : channel?.groupId ?? initialChat?.groupId ?? undefined;
   const channelId = isChannel ? chat.id : undefined;
   const { data: group } = useGroup({
     id: groupId,
@@ -281,7 +296,10 @@ export const ChatOptionsProvider = ({
     } else if (leaveChannelData.groupId) {
       // Leaving a channel in a group - navigate to the first available channel
       store.leaveGroupChannel(leaveChannelData.id);
-      await navigateToGroupOnLeave?.(leaveChannelData.groupId, leaveChannelData.id);
+      await navigateToGroupOnLeave?.(
+        leaveChannelData.groupId,
+        leaveChannelData.id
+      );
     } else {
       // Fallback
       store.leaveGroupChannel(leaveChannelData.id);
