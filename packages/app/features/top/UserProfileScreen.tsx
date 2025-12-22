@@ -109,7 +109,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
           uploadAsset={store.uploadAsset}
         >
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
-            <ScreenHeader
+            {/* <ScreenHeader
               title="Profile"
               useHorizontalTitleLayout={!isWindowNarrow}
               leftControls={
@@ -128,7 +128,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
                   />
                 ) : null
               }
-            />
+            /> */}
             <UserProfileScreenView
               userId={userId}
               connectionStatus={connectionStatus}

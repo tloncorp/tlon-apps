@@ -109,7 +109,7 @@ export const ScreenHeaderComponent = ({
               {title}
             </Text>
             {onTitlePress && (
-              <Icon type="ChevronRight" color="$primaryText" size="$s" />
+              <Icon type="ChevronDown" color="$primaryText" size="$s" />
             )}
           </XStack>
         </>

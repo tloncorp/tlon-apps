@@ -65,6 +65,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
         <ScreenHeader
           title="Notifications"
           backAction={() => navigation.goBack()}
+          borderBottom
         />
         <ScrollView
           flex={1}
@@ -72,7 +73,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
           maxWidth={600}
           marginHorizontal="auto"
         >
-          <TlonText.Text size={'$label/m'} marginVertical={'$l'}>
+          <TlonText.Text size={'$body'} marginVertical={'$xl'}>
             Configure what kinds of messages will send you
             {isNative ? ` device push notifications and ` : ' '}in-app alerts.
           </TlonText.Text>

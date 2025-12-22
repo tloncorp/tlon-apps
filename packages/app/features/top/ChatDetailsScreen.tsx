@@ -136,7 +136,7 @@ export function ChatDetailsScreenView() {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
+      {/* <ScreenHeader
         backAction={handlePressBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
@@ -150,7 +150,7 @@ export function ChatDetailsScreenView() {
             </ScreenHeader.TextButton>
           ) : null
         }
-      />
+      /> */}
       {chatType === 'channel' && channel ? (
         <ChatDetailsScreenContent chatType="channel" channel={channel} />
       ) : chatType === 'group' && group ? (

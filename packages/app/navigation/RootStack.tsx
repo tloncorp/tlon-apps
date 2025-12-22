@@ -100,7 +100,11 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
-      <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+      <Root.Screen
+        name="ChatDetails"
+        component={ChatDetailsScreen}
+        options={{ presentation: 'modal' }}
+      />
       <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
       <Root.Screen
         name="ManageAccount"
@@ -115,7 +119,11 @@ export function RootStack() {
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
       />
-      <Root.Screen name="UserProfile" component={UserProfileScreen} />
+      <Root.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={{ presentation: 'modal' }}
+      />
       <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
