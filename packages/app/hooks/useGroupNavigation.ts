@@ -28,6 +28,7 @@ export const useGroupNavigation = () => {
       } else {
         navigationRef.current.navigate('Channel', {
           channelId: channel.id,
+          groupId: channel.groupId ?? undefined,
           ...params,
         });
       }

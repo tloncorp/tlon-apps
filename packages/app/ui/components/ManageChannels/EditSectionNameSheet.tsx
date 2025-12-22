@@ -30,7 +30,7 @@ export function EditSectionNameSheet({
 
   const handlePressSave = useCallback(
     async (data: { name: string }) => {
-      onSave?.(data.name);
+      await onSave?.(data.name);
       reset();
       onOpenChange(false);
     },

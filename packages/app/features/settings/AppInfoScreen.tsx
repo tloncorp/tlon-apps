@@ -3,15 +3,13 @@ import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { preSig } from '@tloncorp/shared/urbit';
 import * as Application from 'expo-application';
-import * as Updates from 'expo-updates';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCallback } from 'react';
 import { Alert, Platform, ScrollView, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 import {
   AppSetting,
@@ -59,7 +57,6 @@ export function AppInfoScreen(props: Props) {
     uploadLogs,
     toggle: setDebugEnabled,
   } = useDebugStore();
-  const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
   const currentUserId = useCurrentUserId();
 
@@ -133,7 +130,6 @@ export function AppInfoScreen(props: Props) {
           paddingBottom="$3xl"
         >
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-          <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
             title="Notify provider"
             value={preSig(NOTIFY_PROVIDER)}

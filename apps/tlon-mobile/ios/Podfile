@@ -34,6 +34,7 @@ def shared(podfile_properties)
   $config = use_native_modules!
 
   pod 'PostHog', '~> 3.0'
+  pod 'sqlite3', '~> 3.50.3'
 
   use_frameworks! :linkage => :static
   $RNFirebaseAsStaticFramework = true

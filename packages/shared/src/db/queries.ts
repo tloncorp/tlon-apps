@@ -4534,6 +4534,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
   ['activityEvents']
 );
 
+export const checkActivityEmpty = createReadQuery(
+  'checkActivityEmpty',
+  async (ctx: QueryCtx) => {
+    const countResult = await ctx.db
+      .select({ count: count() })
+      .from($activityEvents);
+    const countValue = countResult[0]?.count ?? 0;
+    return countValue === 0;
+  },
+  ['activityEvents']
+);
+
 export type BucketedActivity = {
   all: ActivityEvent[];
   threads: ActivityEvent[];
