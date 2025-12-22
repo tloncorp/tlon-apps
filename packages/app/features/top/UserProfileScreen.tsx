@@ -21,7 +21,7 @@ import {
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
-import { useConnectionStatus } from './useConnectionStatus';
+import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -35,12 +35,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const currentUserId = useCurrentUserId();
   const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
-  const connectionStatus = useConnectionStatus(userId);
+  const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
   const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
@@ -142,7 +139,6 @@ export function UserProfileScreen({ route, navigation }: Props) {
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
-            hostStatus={hostConnectionStatus}
             onActionComplete={handleGroupAction}
           />
         </AttachmentProvider>

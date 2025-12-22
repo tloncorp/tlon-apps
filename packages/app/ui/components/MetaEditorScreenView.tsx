@@ -10,9 +10,11 @@ import {
 } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View } from 'tamagui';
+import { Popover, ScrollView, View } from 'tamagui';
 
+import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { capitalize } from '../utils';
+import ConnectionStatus from './ConnectionStatus';
 import {
   ControlledImageField,
   ControlledTextField,
@@ -38,14 +40,18 @@ export function MetaEditorScreenView({
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
+  const isGroup = !!chat && logic.isGroup(chat);
+  const hostStatus = useShipConnectionStatus(isGroup ? chat.hostUserId : '', {
+    enabled: isGroup,
+  });
 
-  const label = chat && logic.isGroup(chat) ? 'group' : 'channel';
+  const label = isGroup ? 'group' : 'channel';
 
   const isPersonalGroup = useMemo(() => {
-    if (chat && logic.isGroup(chat)) {
+    if (isGroup) {
       return logic.isPersonalGroup(chat, currentUserId);
     }
-  }, [chat, currentUserId]);
+  }, [chat, currentUserId, isGroup]);
 
   const {
     control,
@@ -55,6 +61,10 @@ export function MetaEditorScreenView({
   } = useForm({
     defaultValues,
   });
+
+  const disabled =
+    !isValid ||
+    (isGroup && (!hostStatus.complete || hostStatus.status !== 'yes'));
 
   useEffect(() => {
     if (!modelLoaded && chat) {
@@ -79,13 +89,28 @@ export function MetaEditorScreenView({
         backAction={goBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
-          <ScreenHeader.TextButton
-            onPress={runSubmit}
-            color="$positiveActionText"
-            disabled={!isValid}
-          >
-            Save
-          </ScreenHeader.TextButton>
+          <>
+            {isGroup && chat.hostUserId && (
+              <Popover hoverable allowFlip placement="bottom-end">
+                <Popover.Trigger>
+                  <ConnectionStatus contactId={chat.hostUserId} />
+                </Popover.Trigger>
+                <Popover.Content>
+                  <ConnectionStatus
+                    contactId={chat.hostUserId}
+                    type="list-item"
+                  />
+                </Popover.Content>
+              </Popover>
+            )}
+            <ScreenHeader.TextButton
+              onPress={runSubmit}
+              color="$positiveActionText"
+              disabled={disabled}
+            >
+              Save
+            </ScreenHeader.TextButton>
+          </>
         }
       />
       <KeyboardAvoidingView style={{ flex: 1 }}>

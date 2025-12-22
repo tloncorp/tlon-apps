@@ -38,7 +38,6 @@ import {
   useTheme,
 } from 'tamagui';
 
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -171,9 +170,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [editingConfiguration, setEditingConfiguration] = useState(false);
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-    const hostConnectionStatus = useConnectionStatus(
-      groupPreview?.hostUserId ?? ''
-    );
     const title = utils.useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
@@ -588,7 +584,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           group={groupPreview ?? undefined}
                           open={!!groupPreview}
                           onOpenChange={() => setGroupPreview(null)}
-                          hostStatus={hostConnectionStatus}
                           onActionComplete={handleGroupAction}
                         />
                       </>

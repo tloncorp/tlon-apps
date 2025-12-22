@@ -26,7 +26,6 @@ import { FlatList, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
@@ -197,9 +196,6 @@ export function PostScreenView({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const hostConnectionStatus = useConnectionStatus(
-    groupPreview?.hostUserId ?? ''
-  );
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
   // If this screen is a carousel, this is the currently-focused post
@@ -375,7 +371,6 @@ export function PostScreenView({
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
                     onOpenChange={() => setGroupPreview(null)}
-                    hostStatus={hostConnectionStatus}
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>

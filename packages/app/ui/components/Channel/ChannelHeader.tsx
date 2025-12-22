@@ -1,9 +1,10 @@
 import {
+  getNestParts,
   useConnectionStatus,
-  useContact,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
@@ -14,10 +15,13 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { XStack } from 'tamagui';
 
-import { useChatDescription, useChatTitle } from '../../utils/channelUtils';
+import { useChatOptions, useCurrentUserId } from '../../contexts';
+import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
-import { FacePile } from '../FacePile/FacePile';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import ConnectionStatus from '../ConnectionStatus';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
@@ -112,6 +116,7 @@ export function ChannelHeader({
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
+  const currentUserId = useCurrentUserId();
 
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
@@ -132,6 +137,10 @@ export function ChannelHeader({
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
+
+  const channelHost = useMemo(() => {
+    return getChannelHost(channel, currentUserId);
+  }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
     return chatTitle ?? title;
@@ -249,9 +258,9 @@ export function ChannelHeader({
       return <ContactAvatar contactId={dmContactId} size="$2xl" />;
     }
 
-    // For group DMs, show FacePile
-    if (channel.type === 'groupDm' && facePileContacts.length > 0) {
-      return <FacePile contacts={facePileContacts} maxVisible={3} />;
+    // For group DMs, show group avatar as fallback
+    if (channel.type === 'groupDm' && group) {
+      return <GroupAvatar model={group} size="$2xl" />;
     }
 
     // For group channels
@@ -270,9 +279,9 @@ export function ChannelHeader({
         return <GroupAvatar model={group} size="$2xl" />;
       }
 
-      // For single-channel groups without explicit title, use FacePile
-      if (isSingleChannelGroup && facePileContacts.length > 0) {
-        return <FacePile contacts={facePileContacts} maxVisible={3} />;
+      // For single-channel groups without explicit title, use group avatar
+      if (isSingleChannelGroup) {
+        return <GroupAvatar model={group} size="$2xl" />;
       }
 
       // For other cases (single-channel groups or vertical layout), use group avatar (with fallback)
@@ -317,6 +326,24 @@ export function ChannelHeader({
         title={displayTitle}
         titleIcon={avatarElement || titleIcon}
         subtitle={displaySubtitle}
+        // title={
+        //   <XStack alignItems="center" gap="$m">
+        //     <Pressable flex={1} onPress={goToChatDetails}>
+        //       <ScreenHeader.Title testID="ChannelHeaderTitle">
+        //         <XStack alignItems="center">
+        //           {channelHost && isWindowNarrow && (
+        //             <ConnectionStatus
+        //               contactId={channelHost}
+        //               type="indicator"
+        //             />
+        //           )}
+        //           {displayTitle}
+        //         </XStack>
+        //       </ScreenHeader.Title>
+        //     </Pressable>
+        //   </XStack>
+        // }
+        // titleWidth={titleWidth()}
         showSessionStatus
         showSubtitle
         borderBottom
@@ -326,6 +353,12 @@ export function ChannelHeader({
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>
+            {channelHost && !isWindowNarrow && (
+              <ConnectionStatus
+                contactId={channelHost}
+                type="indicator-with-text"
+              />
+            )}
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}

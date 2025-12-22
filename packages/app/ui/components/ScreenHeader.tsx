@@ -147,6 +147,10 @@ const HeaderTextButton = styled(Text, {
     disabled: {
       true: {
         color: '$tertiaryText',
+        cursor: 'default',
+        pressStyle: {
+          opacity: 1,
+        },
       },
     },
   },
