@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "793a834e-2fcd-4601-99ec-bc8aede23daf",
+  "id": "d9e59b75-4527-472d-bc47-fd79243d78bf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2708,6 +2708,13 @@
         "disable_tlon_infra_enhancement": {
           "name": "disable_tlon_infra_enhancement",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "test_setting": {
+          "name": "test_setting",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

@@ -58,6 +58,7 @@ export const settings = sqliteTable('settings', {
   completedWayfindingSplash: boolean('completed_wayfinding_splash'),
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
+  testSetting: text('test_setting'),
 });
 
 export const systemContacts = sqliteTable(
