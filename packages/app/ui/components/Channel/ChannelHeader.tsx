@@ -1,4 +1,8 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import {
+  getNestParts,
+  useConnectionStatus,
+  useDebouncedValue,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -11,10 +15,12 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { XStack } from 'tamagui';
 
-import { useChatOptions } from '../../contexts';
-import { useChatTitle } from '../../utils';
+import { useChatOptions, useCurrentUserId } from '../../contexts';
+import { getChannelHost, useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import ConnectionStatus from '../ConnectionStatus';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
@@ -106,6 +112,7 @@ export function ChannelHeader({
   const [openChatOptions, setOpenChatOptions] = useState(false);
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
+  const currentUserId = useCurrentUserId();
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -113,6 +120,10 @@ export function ChannelHeader({
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
+
+  const channelHost = useMemo(() => {
+    return getChannelHost(channel, currentUserId);
+  }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
     if (connectionStatus === 'Connected') {
@@ -146,11 +157,21 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={
-          <Pressable flex={1} onPress={goToChatDetails}>
-            <ScreenHeader.Title testID="ChannelHeaderTitle">
-              {displayTitle}
-            </ScreenHeader.Title>
-          </Pressable>
+          <XStack alignItems="center" gap="$m">
+            <Pressable flex={1} onPress={goToChatDetails}>
+              <ScreenHeader.Title testID="ChannelHeaderTitle">
+                <XStack alignItems="center">
+                  {channelHost && isWindowNarrow && (
+                    <ConnectionStatus
+                      contactId={channelHost}
+                      type="indicator"
+                    />
+                  )}
+                  {displayTitle}
+                </XStack>
+              </ScreenHeader.Title>
+            </Pressable>
+          </XStack>
         }
         titleWidth={titleWidth()}
         showSessionStatus
@@ -158,6 +179,12 @@ export function ChannelHeader({
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>
+            {channelHost && !isWindowNarrow && (
+              <ConnectionStatus
+                contactId={channelHost}
+                type="indicator-with-text"
+              />
+            )}
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
