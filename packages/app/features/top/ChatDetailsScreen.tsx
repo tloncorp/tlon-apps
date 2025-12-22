@@ -24,6 +24,7 @@ import {
   PaddedBlock,
   Pressable,
   ProfileButton,
+  ScreenHeader,
   ScrollView,
   TlonText,
   View,
@@ -133,21 +134,22 @@ export function ChatDetailsScreenView() {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      {/* <ScreenHeader
+      <ScreenHeader
+        backgroundColor="$secondaryBackground"
         backAction={handlePressBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
-            <ScreenHeader.TextButton
+            <ScreenHeader.IconButton
+              aria-label="Edit"
               onPress={!actionsEnabled ? undefined : handlePressEdit}
               disabled={!actionsEnabled}
-            >
-              Edit
-            </ScreenHeader.TextButton>
+              type="Draw"
+            />
           ) : null
         }
-      /> */}
+      />
       {chatType === 'channel' && channel ? (
         <ChatDetailsScreenContent chatType="channel" channel={channel} />
       ) : chatType === 'group' && group ? (
@@ -229,7 +231,6 @@ function ChatDetailsScreenContent({
         maxWidth: 600,
         marginHorizontal: 'auto',
         gap: '$l',
-        paddingTop: '$2xl',
         paddingBottom: insets.bottom + getTokenValue('$3xl'),
       }}
     >

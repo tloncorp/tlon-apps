@@ -11,6 +11,7 @@ export const ScreenHeaderComponent = ({
   titleIcon,
   subtitle,
   showSubtitle = false,
+  backgroundColor,
   leftControls,
   rightControls,
   isLoading,
@@ -23,6 +24,7 @@ export const ScreenHeaderComponent = ({
   titleIcon?: ReactNode;
   subtitle?: string | ReactNode;
   showSubtitle?: boolean;
+  backgroundColor?: string;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   isLoading?: boolean;
@@ -70,7 +72,7 @@ export const ScreenHeaderComponent = ({
     <View
       paddingTop={top}
       zIndex={50}
-      backgroundColor={'$background'}
+      backgroundColor={backgroundColor ?? '$background'}
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >

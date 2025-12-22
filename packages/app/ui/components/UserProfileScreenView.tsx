@@ -114,7 +114,6 @@ export function UserProfileScreenView(props: Props) {
           maxWidth: 600,
           marginHorizontal: 'auto',
           gap: '$l',
-          paddingTop: '$2xl',
           paddingBottom: insets.bottom + getTokenValue('$3xl'),
           flexWrap: 'wrap',
           flexDirection: 'row',
