@@ -10,7 +10,6 @@ import {
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
 import { MessagesFilterMenu } from '../../features/top/MessagesFilterMenu';
-import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -47,9 +46,6 @@ export const MessagesSidebar = memo(
     const { data: selectedGroup } = store.useGroup({
       id: selectedGroupId ?? '',
     });
-    const hostConnectionStatus = useConnectionStatus(
-      selectedGroup?.hostUserId ?? ''
-    );
     const { setIsOpen: setSearchIsOpen } = useGlobalSearch();
 
     const { data: chats } = store.useCurrentChats();
@@ -216,7 +212,6 @@ export const MessagesSidebar = memo(
                 open={!!selectedGroup}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
-                hostStatus={hostConnectionStatus}
                 onActionComplete={handleGroupAction}
               />
               <InviteUsersSheet
