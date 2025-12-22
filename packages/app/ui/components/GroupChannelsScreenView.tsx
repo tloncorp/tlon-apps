@@ -296,21 +296,15 @@ export const GroupChannelsScreenView = React.memo(
               {group && isGroupAdmin && (
                 <Popover hoverable allowFlip placement="bottom-end">
                   <Popover.Trigger>
-                    <ScreenHeader.TextButton
+                    <ScreenHeader.IconButton
+                      type="Draw"
+                      aria-label="Edit channels"
                       onPress={() =>
                         group && onPressManageChannels(group.id, false)
                       }
                       disabled={!canEdit}
-                    >
-                      Edit
-                    </ScreenHeader.TextButton>
-                  </Popover.Trigger>
-                  <Popover.Content>
-                    <ConnectionStatus
-                      contactId={group.hostUserId}
-                      type="list-item"
                     />
-                  </Popover.Content>
+                  </Popover.Trigger>
                 </Popover>
               )}
             </>
