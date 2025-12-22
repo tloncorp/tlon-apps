@@ -4,9 +4,15 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
-import { Text, View, useStyle } from 'tamagui';
+import { Text, View, XStack, useStyle } from 'tamagui';
 
 import { NavigationProvider, useStore } from '../../contexts';
 import { PrimaryButton } from '../Buttons';
@@ -46,7 +52,7 @@ export function ActivityScreenView({
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
-  const { data: activityIsEmpty } = store.useActivityIsEmpty();
+  const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
 
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
@@ -155,11 +161,25 @@ export function ActivityScreenView({
     [activeTab]
   );
 
+  const currentTabIsEmpty = useMemo(() => {
+    return (
+      events.length === 0 &&
+      (bucketFetchers.all.activity.length ||
+        bucketFetchers.mentions.activity.length ||
+        bucketFetchers.replies.activity.length)
+    );
+  }, [
+    bucketFetchers.all.activity.length,
+    bucketFetchers.mentions.activity.length,
+    bucketFetchers.replies.activity.length,
+    events.length,
+  ]);
+
   const handleEndReached = useCallback(() => {
-    if (currentFetcher.canFetchMoreActivity) {
+    if (events.length > 10 && currentFetcher.canFetchMoreActivity) {
       currentFetcher.fetchMoreActivity();
     }
-  }, [currentFetcher]);
+  }, [currentFetcher, events.length]);
 
   const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = React.useCallback(async () => {
@@ -176,7 +196,8 @@ export function ActivityScreenView({
       onEndReached={handleEndReached}
       events={events}
       isFetching={currentFetcher.isFetching}
-      isConfirmedEmpty={!!activityIsEmpty}
+      allTabsAreEmpty={!!allTabsAreEmpty}
+      currentTabIsEmpty={!!currentTabIsEmpty}
       isRefreshing={refreshing}
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
@@ -191,7 +212,8 @@ export function ActivityScreenContent({
   activeTab,
   events,
   isFetching,
-  isConfirmedEmpty,
+  allTabsAreEmpty,
+  currentTabIsEmpty,
   isRefreshing,
   onPressTab,
   onPressEvent,
@@ -208,7 +230,8 @@ export function ActivityScreenContent({
   onEndReached: () => void;
   events: logic.SourceActivityEvents[];
   isFetching: boolean;
-  isConfirmedEmpty: boolean;
+  allTabsAreEmpty: boolean;
+  currentTabIsEmpty: boolean;
   isRefreshing: boolean;
   onRefreshTriggered: () => void;
   seenMarker: number;
@@ -269,29 +292,7 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        {!isConfirmedEmpty ? (
-          <>
-            <ActivityHeader
-              activeTab={activeTab}
-              onTabPress={onPressTab}
-              markAllRead={markAllRead}
-            />
-            <FlatList
-              data={events}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              contentContainerStyle={containerStyle}
-              onEndReached={onEndReached}
-              ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isRefreshing}
-                  onRefresh={onRefreshTriggered}
-                />
-              }
-            />
-          </>
-        ) : (
+        {allTabsAreEmpty ? (
           <>
             <ScreenHeader title="Activity" />
             <View
@@ -321,6 +322,36 @@ export function ActivityScreenContent({
                 )}
               </View>
             </View>
+          </>
+        ) : (
+          <>
+            <ActivityHeader
+              activeTab={activeTab}
+              onTabPress={onPressTab}
+              markAllRead={markAllRead}
+            />
+            {currentTabIsEmpty ? (
+              <XStack flex={1} justifyContent="center" paddingTop="$6xl">
+                <Text fontSize="$l" color="$tertiaryText">
+                  No activity
+                </Text>
+              </XStack>
+            ) : (
+              <FlatList
+                data={events}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                contentContainerStyle={containerStyle}
+                onEndReached={onEndReached}
+                ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefreshing}
+                    onRefresh={onRefreshTriggered}
+                  />
+                }
+              />
+            )}
           </>
         )}
         <GroupPreviewSheet
