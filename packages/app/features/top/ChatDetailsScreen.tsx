@@ -3,7 +3,7 @@ import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { act, useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
@@ -43,6 +43,7 @@ import {
   useToast,
 } from '../../ui';
 import ConnectionStatus from '../../ui/components/ConnectionStatus';
+import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
@@ -109,6 +110,11 @@ export function ChatDetailsScreenView() {
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
+  const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
+    enabled: chatType === 'group' && !!group,
+  });
+  const actionsEnabled =
+    currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
 
   const handlePressEdit = useCallback(() => {
     if (chatType === 'group' && group) {
@@ -133,7 +139,10 @@ export function ChatDetailsScreenView() {
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
-            <ScreenHeader.TextButton onPress={handlePressEdit}>
+            <ScreenHeader.TextButton
+              onPress={!actionsEnabled ? undefined : handlePressEdit}
+              disabled={!actionsEnabled}
+            >
               Edit
             </ScreenHeader.TextButton>
           ) : null
@@ -146,6 +155,7 @@ export function ChatDetailsScreenView() {
           chatType="group"
           group={group}
           channel={channel}
+          actionsEnabled={actionsEnabled}
         />
       ) : null}
     </View>
@@ -158,13 +168,25 @@ function ChatDetailsScreenContent({
   chatType,
   channel,
   group,
+  actionsEnabled = true,
 }:
-  | { chatType: 'group'; channel?: db.Channel | null; group: db.Group }
-  | { chatType: 'channel'; channel: db.Channel; group?: db.Group | null }) {
+  | {
+      chatType: 'group';
+      channel?: db.Channel | null;
+      group: db.Group;
+      actionsEnabled?: boolean;
+    }
+  | {
+      chatType: 'channel';
+      channel: db.Channel;
+      group?: db.Group | null;
+      actionsEnabled?: boolean;
+    }) {
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
   const canInviteToGroup =
-    (group && currentUserIsAdmin) || group?.privacy === 'public';
+    ((group && currentUserIsAdmin) || group?.privacy === 'public') &&
+    actionsEnabled;
   const groupTitle = useGroupTitle(group) ?? 'group';
   const members = chatType === 'group' ? group?.members : channel?.members;
   const memberCount = members?.length ?? 0;
@@ -236,14 +258,16 @@ function ChatDetailsScreenContent({
         {chatType === 'group' && (
           <GroupQuickActions group={group} canInvite={canInviteToGroup} />
         )}
-        {chatType === 'group' && <GroupSettings group={group} />}
+        {chatType === 'group' && (
+          <GroupSettings group={group} actionsEnabled={actionsEnabled} />
+        )}
 
         {members?.length ? (
           <ChatMembersList
             chatType={chatType}
             members={members}
             canInvite={canInviteToGroup}
-            canManage={currentUserIsAdmin}
+            canManage={currentUserIsAdmin && actionsEnabled}
           />
         ) : null}
 
@@ -335,7 +359,13 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
   );
 }
 
-function GroupSettings({ group }: { group: db.Group }) {
+function GroupSettings({
+  group,
+  actionsEnabled,
+}: {
+  group: db.Group;
+  actionsEnabled: boolean;
+}) {
   const channelCount = group.channels?.length ?? 0;
 
   const currentUserId = useCurrentUserId();
@@ -373,6 +403,50 @@ function GroupSettings({ group }: { group: db.Group }) {
     onPressRoles?.(group.id);
   }, [group.id, onPressRoles]);
 
+  const actions = useMemo(() => {
+    const actionList: GroupSettingsActionProps[] = [
+      {
+        title: 'Notifications',
+        description: notificationOptions.find(
+          (o) => o.value === group?.volumeSettings?.level
+        )?.title,
+        testID: 'GroupNotifications',
+        disabled: false,
+        onPress: handlePressNotificationSettings,
+      },
+    ];
+
+    if (!currentUserIsAdmin) {
+      return actionList;
+    }
+
+    return (
+      [
+        {
+          title: 'Privacy',
+          description: capitalize(group?.privacy ?? ''),
+          testID: 'GroupPrivacy',
+          disabled: !actionsEnabled,
+          onPress: handlePressGroupPrivacy,
+        },
+        {
+          title: 'Roles',
+          description: `${groupRoles?.length ?? 0}`,
+          testID: 'GroupRoles',
+          disabled: !actionsEnabled,
+          onPress: handlePressRoles,
+        },
+        {
+          title: 'Channels',
+          description: `${channelCount}`,
+          testID: 'GroupChannels',
+          disabled: !actionsEnabled,
+          onPress: handlePressManageChannels,
+        },
+      ] as GroupSettingsActionProps[]
+    ).concat(actionList);
+  }, [currentUserIsAdmin, actionsEnabled]);
+
   return (
     <ActionSheet.ActionGroup
       padding={0}
@@ -382,117 +456,85 @@ function GroupSettings({ group }: { group: db.Group }) {
         borderWidth: 0,
       }}
     >
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressGroupPrivacy}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupPrivacy"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {capitalize(group?.privacy ?? '')}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressRoles}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupRoles"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {groupRoles?.length ?? 0}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressManageChannels}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupChannels"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              alignItems="center"
-              gap="$xl"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {channelCount}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      <Pressable onPress={handlePressNotificationSettings}>
-        <ListItem
-          paddingHorizontal="$2xl"
-          backgroundColor={'$background'}
-          borderRadius="$2xl"
-          alignItems="center"
-          testID="GroupNotifications"
-        >
-          <ActionSheet.ActionContent>
-            <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
-          </ActionSheet.ActionContent>
-          <ListItem.EndContent
-            flexDirection="row"
-            gap="$xl"
-            alignItems="center"
-            justifyContent="flex-end"
-            flex={1}
-          >
-            <ListItem.Title color="$tertiaryText">
-              {
-                notificationOptions.find(
-                  (o) => o.value === group?.volumeSettings?.level
-                )?.title
-              }
-            </ListItem.Title>
-            <ActionSheet.ActionIcon type="ChevronRight" color="$tertiaryText" />
-          </ListItem.EndContent>
-        </ListItem>
-      </Pressable>
+      {actions.map((action, index) => (
+        <GroupSettingsAction
+          key={index}
+          {...action}
+          first={index === 0}
+          last={index === actions.length - 1}
+        />
+      ))}
     </ActionSheet.ActionGroup>
+  );
+}
+
+interface GroupSettingsActionProps {
+  title: string;
+  description?: string;
+  disabled: boolean;
+  testID: string;
+  first?: boolean;
+  last?: boolean;
+  onPress: () => void;
+}
+
+function GroupSettingsAction({
+  title,
+  description,
+  disabled,
+  testID,
+  first,
+  last,
+  onPress,
+}: GroupSettingsActionProps) {
+  return (
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      cursor={disabled ? 'default' : 'pointer'}
+    >
+      <ListItem
+        paddingHorizontal="$2xl"
+        backgroundColor={disabled ? '$secondaryBackground' : '$background'}
+        borderTopLeftRadius={first ? '$2xl' : 0}
+        borderTopRightRadius={first ? '$2xl' : 0}
+        borderBottomLeftRadius={last ? '$2xl' : 0}
+        borderBottomRightRadius={last ? '$2xl' : 0}
+        borderLeftWidth={disabled ? 1 : 0}
+        borderRightWidth={disabled ? 1 : 0}
+        borderTopWidth={
+          last && disabled ? 0 : first && disabled ? 1 : undefined
+        }
+        borderBottomWidth={
+          first && disabled ? 0 : last && disabled ? 1 : undefined
+        }
+        borderColor={'$secondaryBorder'}
+        alignItems="center"
+        testID={testID}
+      >
+        <ActionSheet.ActionContent>
+          <ActionSheet.ActionTitle
+            color={disabled ? '$tertiaryText' : undefined}
+          >
+            {title}
+          </ActionSheet.ActionTitle>
+        </ActionSheet.ActionContent>
+        <ListItem.EndContent
+          flexDirection="row"
+          gap="$xl"
+          alignItems="center"
+          justifyContent="flex-end"
+          flex={1}
+        >
+          {description && (
+            <ListItem.Title color="$tertiaryText">{description}</ListItem.Title>
+          )}
+          {!disabled && (
+            <ActionSheet.ActionIcon type="ChevronRight" color="$tertiaryText" />
+          )}
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 

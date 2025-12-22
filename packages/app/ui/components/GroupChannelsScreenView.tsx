@@ -7,6 +7,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Popover,
   View,
   YStack,
   getTokenValue,
@@ -14,11 +15,13 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
+import ConnectionStatus from './ConnectionStatus';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
@@ -59,6 +62,10 @@ export const GroupChannelsScreenView = React.memo(
     const insets = useSafeAreaInsets();
     const userId = useCurrentUserId();
     const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
+    const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
+      enabled: !!group,
+    });
+    const canEdit = hostStatus.complete && hostStatus.status === 'yes';
 
     const chatOptions = useChatOptions();
     const handlePressOverflowButton = useCallback(() => {
@@ -266,14 +273,25 @@ export const GroupChannelsScreenView = React.memo(
           backAction={onBackPressed}
           rightControls={
             <>
-              {isGroupAdmin && (
-                <ScreenHeader.TextButton
-                  onPress={() =>
-                    group && onPressManageChannels(group.id, false)
-                  }
-                >
-                  Edit
-                </ScreenHeader.TextButton>
+              {group && isGroupAdmin && (
+                <Popover hoverable allowFlip placement="bottom-end">
+                  <Popover.Trigger>
+                    <ScreenHeader.TextButton
+                      onPress={() =>
+                        group && onPressManageChannels(group.id, false)
+                      }
+                      disabled={!canEdit}
+                    >
+                      Edit
+                    </ScreenHeader.TextButton>
+                  </Popover.Trigger>
+                  <Popover.Content>
+                    <ConnectionStatus
+                      contactId={group.hostUserId}
+                      type="list-item"
+                    />
+                  </Popover.Content>
+                </Popover>
               )}
               {!isWindowNarrow && group ? (
                 <ChatOptionsSheet
