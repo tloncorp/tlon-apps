@@ -1039,6 +1039,7 @@ export class Urbit {
 
       fetchEventSource(`${this.url}/~_~/spin`, {
         signal: controller.signal,
+        // @ts-expect-error reactNative not in types but is essential
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
