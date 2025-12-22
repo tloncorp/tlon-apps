@@ -23,6 +23,7 @@ import {
   View,
   XStack,
   YStack,
+  getTokenValue,
   styled,
   useTheme,
   useWindowDimensions,
@@ -112,18 +113,20 @@ export function UserProfileScreenView(props: Props) {
           width: '100%',
           maxWidth: 600,
           marginHorizontal: 'auto',
-          // padding: '$l',
           gap: '$l',
-          paddingBottom: insets.bottom + 20,
+          paddingTop: '$2xl',
+          paddingBottom: insets.bottom + getTokenValue('$3xl'),
           flexWrap: 'wrap',
           flexDirection: 'row',
         }}
       >
-        <UserInfoRow
-          userId={props.userId}
-          hasNickname={!!userContact?.nickname?.length}
-        />
-        {userContact?.status && <View width="100%"></View>}
+        <View paddingHorizontal={'$l'}>
+          <UserInfoRow
+            userId={props.userId}
+            hasNickname={!!userContact?.nickname?.length}
+          />
+          {userContact?.status && <View width="100%"></View>}
+        </View>
 
         {currentUserId !== props.userId ? (
           <ProfileButtons userId={props.userId} contact={userContact} />
@@ -134,7 +137,7 @@ export function UserProfileScreenView(props: Props) {
         )}
         <BioDisplay bio={userContact?.bio ?? ''} />
 
-        <XStack gap="$l" width="100%" flexWrap="wrap">
+        <XStack gap="$l" width="100%" flexWrap="wrap" paddingHorizontal={'$xl'}>
           {twitterAttestation && (
             <View width="48%" height={120}>
               <TwitterAttestDisplay attestation={twitterAttestation} />
@@ -244,12 +247,14 @@ export function BioDisplay({
   ...rest
 }: { bio: string } & ComponentProps<typeof WidgetPane>) {
   return bio.length ? (
-    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-      <WidgetPane.Title>About</WidgetPane.Title>
-      <Text size="$body" trimmed={false}>
-        {bio}
-      </Text>
-    </WidgetPane>
+    <View paddingHorizontal={'$xl'} width={'100%'}>
+      <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
+        <WidgetPane.Title>About</WidgetPane.Title>
+        <Text size="$body" trimmed={false}>
+          {bio}
+        </Text>
+      </WidgetPane>
+    </View>
   ) : null;
 }
 
@@ -258,12 +263,14 @@ export function StatusDisplay({
   ...rest
 }: { status: string } & ComponentProps<typeof WidgetPane>) {
   return (
-    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-      <WidgetPane.Title>Status</WidgetPane.Title>
-      <Text size="$body" trimmed={false}>
-        {status}
-      </Text>
-    </WidgetPane>
+    <View paddingHorizontal={'$xl'} width={'100%'}>
+      <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
+        <WidgetPane.Title>Status</WidgetPane.Title>
+        <Text size="$body" trimmed={false}>
+          {status}
+        </Text>
+      </WidgetPane>
+    </View>
   );
 }
 
@@ -303,6 +310,7 @@ export function PinnedGroupsDisplay({
       flexDirection="row"
       flexWrap="wrap"
       gap="$l"
+      paddingHorizontal={'$xl'}
       onLayout={handleLayout}
     >
       {groups.map((group, i) => {
@@ -310,7 +318,7 @@ export function PinnedGroupsDisplay({
           <GroupBlock
             key={group.id}
             model={group}
-            width={i === 0 ? '100%' : (containerWidth - 16) / 2}
+            width={i === 0 ? '100%' : (containerWidth - 48) / 2}
             showDescription={i === 0}
             onPress={onPressGroup}
             {...itemProps}
@@ -467,7 +475,11 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   return (
     <View width="100%">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        paddingLeft={'$xl'}
+      >
         {!isBlocked && (
           <ProfileButton title="Message" onPress={handleMessageUser} hero />
         )}

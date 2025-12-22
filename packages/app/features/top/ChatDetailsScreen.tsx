@@ -3,10 +3,10 @@ import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
-import { act, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isWeb } from 'tamagui';
+import { getTokenValue, isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -24,18 +24,15 @@ import {
   PaddedBlock,
   Pressable,
   ProfileButton,
-  ScreenHeader,
   ScrollView,
   TlonText,
   View,
-  WidgetPane,
   XStack,
   YStack,
   createActionGroup,
   pluralize,
   useChatOptions,
   useChatTitle,
-  useCopy,
   useCurrentUserId,
   useForwardGroupSheet,
   useGroupTitle,
@@ -228,14 +225,15 @@ function ChatDetailsScreenContent({
     <ScrollView
       flex={1}
       contentContainerStyle={{
-        padding: '$l',
-        paddingTop: '$xl',
-        paddingBottom: insets.bottom,
-        gap: '$3xl',
-        flexDirection: 'column',
+        width: '100%',
+        maxWidth: 600,
+        marginHorizontal: 'auto',
+        gap: '$l',
+        paddingTop: '$2xl',
+        paddingBottom: insets.bottom + getTokenValue('$3xl'),
       }}
     >
-      <ListItem alignItems="center" gap="$xl">
+      <ListItem alignItems="center" gap="$xl" paddingHorizontal="$xl">
         {chatType === 'group' ? (
           <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
         ) : (
@@ -247,35 +245,25 @@ function ChatDetailsScreenContent({
           </ListItem.Title>
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
-        {chatType === 'group' && group && (
-          <ListItem.EndContent>
-            <ConnectionStatus
-              contactId={group.hostUserId}
-              type="indicator-with-text"
-            />
-          </ListItem.EndContent>
-        )}
       </ListItem>
 
-      <YStack gap="$l">
-        {chatType === 'group' && (
-          <GroupQuickActions group={group} canInvite={canInviteToGroup} />
-        )}
-        {chatType === 'group' && (
-          <GroupSettings group={group} actionsEnabled={actionsEnabled} />
-        )}
+      {chatType === 'group' && (
+        <GroupQuickActions group={group} canInvite={canInviteToGroup} />
+      )}
+      {chatType === 'group' && (
+        <GroupSettings group={group} actionsEnabled={actionsEnabled} />
+      )}
 
-        {members?.length ? (
-          <ChatMembersList
-            chatType={chatType}
-            members={members}
-            canInvite={canInviteToGroup}
-            canManage={currentUserIsAdmin && actionsEnabled}
-          />
-        ) : null}
+      {members?.length ? (
+        <ChatMembersList
+          chatType={chatType}
+          members={members}
+          canInvite={canInviteToGroup}
+          canManage={currentUserIsAdmin && actionsEnabled}
+        />
+      ) : null}
 
-        {group ? <GroupLeaveActions group={group} /> : null}
-      </YStack>
+      {group ? <GroupLeaveActions group={group} /> : null}
     </ScrollView>
   );
 }
@@ -334,7 +322,7 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
   }, [deleteGroup, onLeaveGroup]);
 
   return (
-    <>
+    <View paddingHorizontal={'$l'}>
       <ActionSheet.ActionGroup
         padding={0}
         contentProps={{ borderRadius: '$2xl' }}
@@ -358,7 +346,7 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         onConfirm={handleDeleteGroup}
         destructive
       />
-    </>
+    </View>
   );
 }
 
@@ -451,28 +439,31 @@ function GroupSettings({
   }, [currentUserIsAdmin, actionsEnabled]);
 
   return (
-    <ActionSheet.ActionGroup
-      padding={0}
-      contentProps={{
-        backgroundColor: '$background',
-        borderRadius: '$2xl',
-        borderWidth: 0,
-      }}
-    >
-      {actions.map((action, index) => (
-        <GroupSettingsAction
-          key={index}
-          {...action}
-          first={index === 0}
-          last={index === actions.length - 1}
-        />
-      ))}
-    </ActionSheet.ActionGroup>
+    <View paddingHorizontal={'$l'}>
+      <ActionSheet.ActionGroup
+        padding={0}
+        contentProps={{
+          backgroundColor: '$background',
+          borderRadius: '$2xl',
+          borderWidth: 0,
+        }}
+      >
+        <ConnectionStatus contactId={group.hostUserId} type="list-item" />
+        {actions.map((action, index) => (
+          <GroupSettingsAction
+            key={index}
+            {...action}
+            first={index === 0}
+            last={index === actions.length - 1}
+          />
+        ))}
+      </ActionSheet.ActionGroup>
+    </View>
   );
 }
 
 interface GroupSettingsActionProps {
-  title: string;
+  title: string | React.ReactNode;
   description?: string;
   disabled: boolean;
   testID: string;
@@ -566,67 +557,69 @@ function ChatMembersList({
   }, [chatType, onPressChannelMembers, onPressGroupMembers]);
 
   return (
-    <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-      <TlonText.Text size="$label/xl" color="$tertiaryText">
-        {memberCount} {pluralize(memberCount, 'Member')}
-      </TlonText.Text>
-      <YStack>
-        {canInvite ? (
-          <Pressable onPress={onPressInvite}>
-            <XStack gap="$l" alignItems="center" height="$4xl">
-              <View
-                width="$3xl"
-                height="$3xl"
-                backgroundColor={'$blueSoft'}
-                borderRadius="$xs"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Icon
-                  type="Add"
-                  color="$positiveActionText"
-                  customSize={[20, 20]}
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
+        <TlonText.Text size="$label/xl" color="$tertiaryText">
+          {memberCount} {pluralize(memberCount, 'Member')}
+        </TlonText.Text>
+        <YStack>
+          {canInvite ? (
+            <Pressable onPress={onPressInvite}>
+              <XStack gap="$l" alignItems="center" height="$4xl">
+                <View
+                  width="$3xl"
+                  height="$3xl"
+                  backgroundColor={'$blueSoft'}
+                  borderRadius="$xs"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Icon
+                    type="Add"
+                    color="$positiveActionText"
+                    customSize={[20, 20]}
+                  />
+                </View>
+                <TlonText.Text size="$label/l" color="$positiveActionText">
+                  Invite People
+                </TlonText.Text>
+              </XStack>
+            </Pressable>
+          ) : null}
+          {joinedMembers
+            ?.slice(0, maxMembersToDisplay)
+            .map((member: db.ChatMember) => {
+              return (
+                <ContactListItem
+                  size="$3xl"
+                  height="auto"
+                  padding={0}
+                  showNickname
+                  key={member.contactId}
+                  contactId={member.contactId}
                 />
-              </View>
-              <TlonText.Text size="$label/l" color="$positiveActionText">
-                Invite People
-              </TlonText.Text>
-            </XStack>
-          </Pressable>
-        ) : null}
-        {joinedMembers
-          ?.slice(0, maxMembersToDisplay)
-          .map((member: db.ChatMember) => {
-            return (
-              <ContactListItem
-                size="$3xl"
-                height="auto"
-                padding={0}
-                showNickname
-                key={member.contactId}
-                contactId={member.contactId}
-              />
-            );
-          })}
-        {(memberCount > maxMembersToDisplay || canInvite) && (
-          <Pressable onPress={handlePressSeeAllMembers}>
-            <XStack
-              height="$4xl"
-              justifyContent="space-between"
-              gap="$l"
-              alignItems="center"
-              $group-press={{ backgroundColor: '$secondaryBackground' }}
-              testID="GroupMembers"
-            >
-              <TlonText.Text size="$label/l">
-                {canManage ? 'Manage members' : 'See all '}
-              </TlonText.Text>
-              <Icon type="ChevronRight" color="$tertiaryText" />
-            </XStack>
-          </Pressable>
-        )}
-      </YStack>
-    </PaddedBlock>
+              );
+            })}
+          {(memberCount > maxMembersToDisplay || canInvite) && (
+            <Pressable onPress={handlePressSeeAllMembers}>
+              <XStack
+                height="$4xl"
+                justifyContent="space-between"
+                gap="$l"
+                alignItems="center"
+                $group-press={{ backgroundColor: '$secondaryBackground' }}
+                testID="GroupMembers"
+              >
+                <TlonText.Text size="$label/l">
+                  {canManage ? 'Manage members' : 'See all '}
+                </TlonText.Text>
+                <Icon type="ChevronRight" color="$tertiaryText" />
+              </XStack>
+            </Pressable>
+          )}
+        </YStack>
+      </PaddedBlock>
+    </View>
   );
 }
 
@@ -703,6 +696,7 @@ function GroupQuickActions({
       horizontal
       showsHorizontalScrollIndicator={false}
       width={'100%'}
+      paddingLeft={'$l'}
     >
       {heroActions.actions.map((action, i) => (
         <ProfileButton

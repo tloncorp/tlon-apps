@@ -216,7 +216,6 @@ export function ConnectionIndicator({
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <XStack alignItems="center">
-        {/* <Icon type={labels.icon || 'Bang'} color={labels.color} size="$l" /> */}
         <Icon type="Record" color={labels.color} size="$l" />
         {showText && (
           <Text size="$label/m" color="$tertiaryText">
@@ -268,7 +267,7 @@ export function ConnectionIndicatorListItem({
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ListItem>
+      <ListItem paddingHorizontal={'$2xl'}>
         <ListItem.MainContent>
           <ListItem.Title>{labels.title}</ListItem.Title>
           <ListItem.Subtitle>{labels.subtitle}</ListItem.Subtitle>
