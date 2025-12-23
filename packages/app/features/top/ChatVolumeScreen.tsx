@@ -125,6 +125,7 @@ function ChatVolumeScreenView({
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Notifications"
+        backgroundColor="$secondaryBackground"
         backAction={handleBackNavigation}
         useHorizontalTitleLayout={!isWindowNarrow}
       />

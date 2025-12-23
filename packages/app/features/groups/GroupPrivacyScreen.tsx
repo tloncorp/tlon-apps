@@ -32,7 +32,8 @@ const privacyOptions = [
   {
     title: 'Secret',
     value: 'secret',
-    description: 'Membership is invite only and private.',
+    description:
+      'Membership is invite only and private. Only administrators can invite new members.',
   },
 ];
 
@@ -61,6 +62,7 @@ export function GroupPrivacyScreen(props: Props) {
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Group privacy"
+        backgroundColor={'$secondaryBackground'}
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
       />

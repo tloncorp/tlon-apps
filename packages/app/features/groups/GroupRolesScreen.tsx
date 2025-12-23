@@ -82,6 +82,7 @@ function GroupRolesScreenView({
       <ScreenHeader
         backAction={handleGoBack}
         title={'Group Roles'}
+        backgroundColor="$secondaryBackground"
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
           <ScreenHeader.TextButton

@@ -307,7 +307,11 @@ export function RoleFormScreen({ navigation, route }: Props) {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title={screenTitle} />
+      <ScreenHeader
+        backAction={handleGoBack}
+        title={screenTitle}
+        backgroundColor="$secondaryBackground"
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{

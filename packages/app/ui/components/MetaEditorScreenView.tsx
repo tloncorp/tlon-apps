@@ -86,31 +86,17 @@ export function MetaEditorScreenView({
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title={title}
+        backgroundColor="$secondaryBackground"
         backAction={goBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
-          <>
-            {isGroup && chat.hostUserId && (
-              <Popover hoverable allowFlip placement="bottom-end">
-                <Popover.Trigger>
-                  <ConnectionStatus contactId={chat.hostUserId} />
-                </Popover.Trigger>
-                <Popover.Content>
-                  <ConnectionStatus
-                    contactId={chat.hostUserId}
-                    type="list-item"
-                  />
-                </Popover.Content>
-              </Popover>
-            )}
-            <ScreenHeader.TextButton
-              onPress={runSubmit}
-              color="$positiveActionText"
-              disabled={disabled}
-            >
-              Save
-            </ScreenHeader.TextButton>
-          </>
+          <ScreenHeader.TextButton
+            onPress={runSubmit}
+            color="$positiveActionText"
+            disabled={disabled}
+          >
+            Save
+          </ScreenHeader.TextButton>
         }
       />
       <KeyboardAvoidingView style={{ flex: 1 }}>
