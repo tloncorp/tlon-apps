@@ -10,19 +10,13 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Platform, TurboModuleRegistry } from 'react-native';
+import { Platform } from 'react-native';
 
 import { cancelNodeResumeNudge } from '../lib/notifications';
 import { transformShipURL } from '../utils/string';
-import { UrbitModuleSpec } from '../utils/urbitModule';
+import { UrbitModule } from '../utils/urbitModule';
 
 const logger = createDevLogger('useShip', false);
-
-// Get UrbitModule (only available in native platforms)
-const UrbitModule =
-  Platform.OS !== 'web'
-    ? (TurboModuleRegistry.get('UrbitModule') as UrbitModuleSpec)
-    : null;
 
 type State = ShipInfo & {
   contactId: string | undefined;

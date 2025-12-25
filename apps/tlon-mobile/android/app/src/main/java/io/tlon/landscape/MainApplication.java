@@ -4,12 +4,10 @@ import android.app.Application;
 import android.content.res.Configuration;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
-import com.facebook.react.ReactHost;
 import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
@@ -61,29 +59,10 @@ public class MainApplication extends Application implements ReactApplication {
       }
   });
 
-  // `volatile` so that once the singleton value is set from one thread, all other threads
-  // immediately see the value
-  private volatile ReactHost mReactHost = null;
-
   @Override
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
   }
-
-    @Nullable
-    @Override
-    public ReactHost getReactHost() {
-      if (mReactHost == null) {
-          synchronized (this) {
-              // we might have just acquired lock after another thread created mReactHost and
-              // released lock: check that we still need to instantiate.
-              if (mReactHost == null) {
-                  mReactHost = ReactNativeHostWrapper.createReactHost(getApplicationContext(), getReactNativeHost());
-              }
-          }
-      }
-      return mReactHost;
-    }
 
   @Override
   public void onCreate()  {

@@ -10,8 +10,9 @@ import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
+import { UrbitModule } from '@tloncorp/app/utils/urbitModule';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform, TurboModuleRegistry } from 'react-native';
+import { AppState } from 'react-native';
 import 'react-native-get-random-values';
 import {
   ReanimatedLogLevel,
@@ -37,9 +38,6 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
-
-const UrbitModule =
-  Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;
 
 function signalJsReady() {
   try {
