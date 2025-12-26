@@ -48,6 +48,7 @@ export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';
 export * from './components/MetaEditorScreenView';
+export * from './components/MobileAppPromoBanner';
 export * from './components/NavBar';
 export * from './components/NavBarView';
 export * from './components/NotificationLevelSelector';
