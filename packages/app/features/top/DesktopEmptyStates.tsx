@@ -1,4 +1,7 @@
+import { TlonText } from '@tloncorp/ui';
 import { View, YStack } from 'tamagui';
+
+import { ArvosDiscussing } from '../../ui';
 
 function EmptyStateBase({ children }: { children: React.ReactNode }) {
   return (
@@ -23,7 +26,21 @@ function EmptyStateBase({ children }: { children: React.ReactNode }) {
 export function HomeEmptyState() {
   return (
     <EmptyStateBase>
-      <></>
+      <YStack gap="$3xl" alignItems="center" maxWidth={280}>
+        <ArvosDiscussing
+          color="$tertiaryText"
+          maxHeight={200}
+          aspectRatio={911 / 755}
+        />
+        <YStack gap="$m" alignItems="center">
+          <TlonText.Text size="$label/2xl" color="$primaryText">
+            Start messaging!
+          </TlonText.Text>
+          <TlonText.Text size="$label/m" color="$tertiaryText">
+            Your chats will appear here.
+          </TlonText.Text>
+        </YStack>
+      </YStack>
     </EmptyStateBase>
   );
 }
