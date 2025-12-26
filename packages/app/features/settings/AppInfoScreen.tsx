@@ -120,7 +120,6 @@ export function AppInfoScreen(props: Props) {
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
-        useHorizontalTitleLayout={!isWindowNarrow}
         borderBottom
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined

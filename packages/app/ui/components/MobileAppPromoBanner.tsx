@@ -71,7 +71,7 @@ export function MobileAppPromoBanner() {
         >
           <Icon type="Close" cursor="pointer" />
         </Pressable>
-        <YStack gap="$l">
+        <YStack gap="$xl">
           <TlonText.Text size="$label/l" color="$primaryText">
             Get Tlon for iOS and Android
           </TlonText.Text>

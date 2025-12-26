@@ -6,13 +6,13 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { formatUserId } from '../../ui/utils/user';
 import {
   BlockedContactsWidget,
   ScreenHeader,
   View,
   useIsWindowNarrow,
 } from '../../ui';
+import { formatUserId } from '../../ui/utils/user';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
@@ -22,7 +22,8 @@ export function BlockedUsersScreen(props: Props) {
 
   const onBlockedContactPress = useCallback((contact: db.Contact) => {
     // For the confirmation dialog, we use nickname if available, otherwise formatted userId
-    const displayName = contact.nickname || formatUserId(contact.id)?.display || contact.id;
+    const displayName =
+      contact.nickname || formatUserId(contact.id)?.display || contact.id;
     const message = store.getConfirmationMessage(false); // Always unblocking from this screen
 
     if (isWeb) {
@@ -51,7 +52,6 @@ export function BlockedUsersScreen(props: Props) {
       <ScreenHeader
         backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
-        useHorizontalTitleLayout={!isNarrow}
         borderBottom
       />
       <View

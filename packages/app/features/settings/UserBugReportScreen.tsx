@@ -59,7 +59,6 @@ export function UserBugReportScreen({ navigation }: Props) {
     <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title="Report a bug"
-        useHorizontalTitleLayout={!isWindowNarrow}
         borderBottom
         backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
       />

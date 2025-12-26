@@ -72,7 +72,6 @@ export function ThemeScreen(props: Props) {
     <View backgroundColor={theme?.background?.val} flex={1}>
       <ScreenHeader
         title="Theme"
-        useHorizontalTitleLayout={!isWindowNarrow}
         borderBottom
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined

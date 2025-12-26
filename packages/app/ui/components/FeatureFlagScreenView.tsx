@@ -21,10 +21,9 @@ export function FeatureFlagScreenView({
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        useHorizontalTitleLayout={!isWindowNarrow}
         borderBottom
         backAction={isWindowNarrow ? onBackPressed : undefined}
-        title={'Feature Previews'}
+        title={'Experimental features'}
       />
       <ScrollView
         style={{

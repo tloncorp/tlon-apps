@@ -20,6 +20,7 @@ import {
   TlonText,
   View,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
@@ -54,6 +55,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   );
 
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <ChatOptionsProvider {...useChatSettingsNavigation()}>
@@ -64,7 +66,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
       >
         <ScreenHeader
           title="Notifications"
-          backAction={() => navigation.goBack()}
+          backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
           borderBottom
         />
         <ScrollView
