@@ -326,24 +326,7 @@ export function ChannelHeader({
         title={displayTitle}
         titleIcon={avatarElement || titleIcon}
         subtitle={displaySubtitle}
-        // title={
-        //   <XStack alignItems="center" gap="$m">
-        //     <Pressable flex={1} onPress={goToChatDetails}>
-        //       <ScreenHeader.Title testID="ChannelHeaderTitle">
-        //         <XStack alignItems="center">
-        //           {channelHost && isWindowNarrow && (
-        //             <ConnectionStatus
-        //               contactId={channelHost}
-        //               type="indicator"
-        //             />
-        //           )}
-        //           {displayTitle}
-        //         </XStack>
-        //       </ScreenHeader.Title>
-        //     </Pressable>
-        //   </XStack>
-        // }
-        // titleWidth={titleWidth()}
+        testID="ChannelHeaderTitle"
         showSessionStatus
         showSubtitle
         borderBottom

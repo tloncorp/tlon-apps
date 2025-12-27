@@ -19,6 +19,7 @@ export const ScreenHeaderComponent = ({
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
+  testID,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   titleIcon?: ReactNode;
@@ -33,6 +34,7 @@ export const ScreenHeaderComponent = ({
   borderBottom?: boolean;
   onTitlePress?: () => void;
   useHorizontalTitleLayout?: boolean;
+  testID?: string;
 }>) => {
   const { top } = useSafeAreaInsets();
   const resolvedSubtitle = useDebouncedValue(
@@ -107,6 +109,7 @@ export const ScreenHeaderComponent = ({
               color={'$primaryText'}
               numberOfLines={1}
               maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
+              testID={testID ?? 'ScreenHeaderTitle'}
             >
               {title}
             </Text>
