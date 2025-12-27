@@ -27,8 +27,7 @@ function ActivityHeaderRaw({
   return (
     <View>
       <View width="100%">
-        <ScreenHeader>
-          <ScreenHeader.Title textAlign="center">Activity</ScreenHeader.Title>
+        <ScreenHeader title="Activity">
           <ScreenHeader.Controls side="right">
             <ActivityOverflowMenu
               open={overflowOpen}

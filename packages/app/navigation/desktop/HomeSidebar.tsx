@@ -23,6 +23,7 @@ import {
   GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
+  MobileAppPromoBanner,
   NavigationProvider,
   RequestsProvider,
   ScreenHeader,
@@ -213,7 +214,7 @@ export const HomeSidebar = memo(
           onPressInvite={handlePressInvite}
         >
           <NavigationProvider focusedChannelId={focusedChannelId}>
-            <View userSelect="none" flex={1}>
+            <View userSelect="none" flex={1} position="relative">
               <ScreenHeader
                 title={notReadyMessage ?? screenTitle}
                 rightControls={
@@ -229,30 +230,33 @@ export const HomeSidebar = memo(
                   </>
                 }
               />
-              {chats && noChats ? (
-                <View
-                  padding="$xl"
-                  margin="$xl"
-                  borderRadius="$m"
-                  backgroundColor="$positiveBackground"
-                  justifyContent="center"
-                >
-                  <Text fontSize="$l">Welcome to Tlon</Text>
-                  <Text fontSize="$s" marginTop="$m">
-                    This is Tlon, an app for messaging friends and constructing
-                    communities.
-                  </Text>
-                  <Text fontSize="$s" marginTop="$m">
-                    To get started, click the &quot;
-                    <Text fontWeight="$xl" fontSize="$l">
-                      +
+              <View flex={1}>
+                {chats && noChats ? (
+                  <View
+                    padding="$xl"
+                    margin="$xl"
+                    borderRadius="$m"
+                    backgroundColor="$positiveBackground"
+                    justifyContent="center"
+                  >
+                    <Text fontSize="$l">Welcome to Tlon</Text>
+                    <Text fontSize="$s" marginTop="$m">
+                      This is Tlon, an app for messaging friends and
+                      constructing communities.
                     </Text>
-                    &quot; button above to create a new chat.
-                  </Text>
-                </View>
-              ) : (
-                <ChatList data={displayData} onPressItem={onPressChat} />
-              )}
+                    <Text fontSize="$s" marginTop="$m">
+                      To get started, click the &quot;
+                      <Text fontWeight="$xl" fontSize="$l">
+                        +
+                      </Text>
+                      &quot; button above to create a new chat.
+                    </Text>
+                  </View>
+                ) : (
+                  <ChatList data={displayData} onPressItem={onPressChat} />
+                )}
+              </View>
+              <MobileAppPromoBanner />
               <GroupPreviewSheet
                 open={!!selectedGroup}
                 onOpenChange={handleGroupPreviewSheetOpenChange}

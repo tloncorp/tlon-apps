@@ -3,12 +3,13 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { useIsFocused } from '@react-navigation/native';
-import { View, getVariableValue, useTheme } from '@tamagui/core';
+import { getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
+import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -96,7 +97,7 @@ export const ActivityNavigator = () => {
     <ActivityDrawer.Navigator
       initialRouteName="ActivityEmpty"
       drawerContent={DrawerContent}
-      backBehavior='history'
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',
@@ -122,10 +123,5 @@ export const ActivityNavigator = () => {
 };
 
 function EmptyActivityScreen() {
-  return (
-    <View
-      flex={1}
-      backgroundColor={getVariableValue(useTheme().secondaryBackground)}
-    />
-  );
+  return <ActivityEmptyState />;
 }

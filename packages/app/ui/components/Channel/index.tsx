@@ -85,6 +85,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
+  goToEditChannel?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -136,6 +137,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
+      goToEditChannel,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -173,11 +175,30 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
     const canRead = utils.useCanRead(channel, currentUserId);
+    const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
+    const isSingleChannelGroup = group?.channels?.length === 1;
+
+    // For DMs, get the other participant's ID
+    const dmRecipientId = useMemo(() => {
+      if (isDM && channel.members) {
+        const otherMember = channel.members.find(
+          (member) => member.contactId !== currentUserId
+        );
+        return otherMember?.contactId;
+      }
+      return undefined;
+    }, [isDM, channel.members, currentUserId]);
+
+    const handleGoToProfile = useCallback(() => {
+      if (dmRecipientId) {
+        goToUserProfile(dmRecipientId);
+      }
+    }, [dmRecipientId, goToUserProfile]);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -190,6 +211,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       },
       [onGroupAction]
     );
+
+    const handleGoToEditChannel = useCallback(() => {
+      if (!channel.groupId) return;
+
+      if (isSingleChannelGroup) {
+        return;
+      } else {
+        if (goToEditChannel) {
+          goToEditChannel(channel.groupId, channel.id);
+        }
+      }
+    }, [goToEditChannel, channel.groupId, channel.id, group?.channels?.length]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -405,22 +438,32 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           channel={channel}
                           group={group}
                           title={title ?? ''}
+                          description={''}
                           goBack={
                             isNarrow ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={
-                            isChatChannel &&
-                            draftInputPresentationMode !== 'fullscreen'
-                          }
-                          goToSearch={goToSearch}
                           goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={
+                          showSearchButton={
+                            channel.type === 'chat' ||
+                            channel.type === 'dm' ||
+                            channel.type === 'groupDm'
+                          }
+                          showEditButton={
+                            isGroupAdmin &&
+                            !isSingleChannelGroup &&
+                            !!channel.groupId &&
+                            (channel.type === 'chat' ||
+                              channel.type === 'notebook' ||
+                              channel.type === 'gallery') &&
                             draftInputPresentationMode !== 'fullscreen'
                           }
+                          goToEdit={handleGoToEditChannel}
                         />
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (
