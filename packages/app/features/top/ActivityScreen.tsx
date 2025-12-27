@@ -39,7 +39,7 @@ export function ActivityScreen(props: Props) {
     // if still loading the initial activity data, show loading
     return allFetcher.isFetching && !allFetcher.activity.length;
   }, [allFetcher.isFetching, allFetcher.activity.length]);
-  
+
   const subtitle = useMemo(() => {
     if (isLoading) {
       return 'Loading...';
@@ -85,6 +85,15 @@ export function ActivityScreen(props: Props) {
     },
     [props.navigation]
   );
+
+  const handleNavigateToContacts = useCallback(() => {
+    props.navigation.navigate('Contacts');
+  }, [props.navigation]);
+
+  const handleInviteFriends = useCallback(() => {
+    props.navigation.navigate('InviteSystemContacts');
+  }, [props.navigation]);
+
   return (
     <View backgroundColor={theme.background?.val} flex={1}>
       <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
@@ -98,6 +107,8 @@ export function ActivityScreen(props: Props) {
           refresh={handleRefreshActivity}
           onGroupAction={performGroupAction}
           subtitle={subtitle}
+          onNavigateToContacts={handleNavigateToContacts}
+          onInviteFriends={handleInviteFriends}
         />
         <NavBarView
           navigateToContacts={() => props.navigation.navigate('Contacts')}

@@ -1,6 +1,5 @@
 {
   "expo.jsEngine": "hermes",
-  "expo.updates.useThirdPartySQLitePod": "true",
   "ios.useFrameworks": "static",
   "newArchEnabled": "true"
 }

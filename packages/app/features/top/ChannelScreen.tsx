@@ -41,10 +41,16 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+  const {
+    channelId,
+    selectedPostId,
+    startDraft,
+    groupId: routeGroupId,
+  } = props.route.params ?? {
     channelId: '',
     selectedPostId: '',
     startDraft: false,
+    groupId: undefined,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
@@ -371,8 +377,9 @@ export default function ChannelScreen(props: Props) {
       ({
         type: 'channel',
         id: currentChannelId,
+        groupId: routeGroupId ?? channel?.groupId ?? undefined,
       }) as const,
-    [currentChannelId]
+    [currentChannelId, routeGroupId, channel?.groupId]
   );
 
   if (!channel) {
