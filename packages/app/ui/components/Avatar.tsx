@@ -18,6 +18,7 @@ import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+import { FacePile } from './FacePile';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -125,13 +126,40 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
       ? model.title
       : utils.getGroupTitle(model, disableNicknames);
   }, [disableNicknames, model]);
-  const fallback = (
+
+  const memberContacts = useMemo(() => {
+    if (isGroupImageShim(model)) {
+      return [];
+    }
+    return (
+      model.members
+        ?.map((m) => m.contact)
+        .filter((c): c is db.Contact => c != null) ?? []
+    );
+  }, [model]);
+
+  const textFallback = (
     <TextAvatar
       text={fallbackTitle ?? 'G'}
       backgroundColor={model.iconImageColor ?? undefined}
       {...props}
     />
   );
+
+  const fallback =
+    memberContacts.length > 0 ? (
+      <AvatarFrame
+        {...props}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <FacePile contacts={memberContacts} maxVisible={3} grid />
+      </AvatarFrame>
+    ) : (
+      textFallback
+    );
+
   return (
     <ImageAvatar
       imageUrl={model.iconImage ?? undefined}
