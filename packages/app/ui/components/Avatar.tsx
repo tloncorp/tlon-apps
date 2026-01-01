@@ -116,6 +116,8 @@ export interface GroupImageShim {
   iconImage?: string;
   iconImageColor?: string;
 }
+const SMALL_AVATAR_SIZES = ['$xl', '$2xl', '$3xl', '$3.5xl'] as const;
+
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
@@ -138,6 +140,10 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
     );
   }, [model]);
 
+  const isSmallSize = SMALL_AVATAR_SIZES.includes(
+    (props.size ?? '$4xl') as (typeof SMALL_AVATAR_SIZES)[number]
+  );
+
   const textFallback = (
     <TextAvatar
       text={fallbackTitle ?? 'G'}
@@ -148,14 +154,18 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
 
   const fallback =
     memberContacts.length > 0 ? (
-      <AvatarFrame
-        {...props}
-        alignItems="center"
-        justifyContent="center"
-        backgroundColor="$secondaryBackground"
-      >
-        <FacePile contacts={memberContacts} maxVisible={3} grid />
-      </AvatarFrame>
+      isSmallSize ? (
+        <FacePile contacts={memberContacts} maxVisible={2} />
+      ) : (
+        <AvatarFrame
+          {...props}
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor="$secondaryBackground"
+        >
+          <FacePile contacts={memberContacts} maxVisible={3} grid />
+        </AvatarFrame>
+      )
     ) : (
       textFallback
     );
