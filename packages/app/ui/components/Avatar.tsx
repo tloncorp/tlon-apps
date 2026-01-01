@@ -18,6 +18,7 @@ import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+import { FacePile } from './FacePile';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -115,6 +116,8 @@ export interface GroupImageShim {
   iconImage?: string;
   iconImageColor?: string;
 }
+const SMALL_AVATAR_SIZES = ['$xl', '$2xl', '$3xl', '$3.5xl'] as const;
+
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   ...props
@@ -125,13 +128,48 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
       ? model.title
       : utils.getGroupTitle(model, disableNicknames);
   }, [disableNicknames, model]);
-  const fallback = (
+
+  const memberContacts = useMemo(() => {
+    if (isGroupImageShim(model)) {
+      return [];
+    }
+    return (
+      model.members
+        ?.map((m) => m.contact)
+        .filter((c): c is db.Contact => c != null) ?? []
+    );
+  }, [model]);
+
+  const isSmallSize = SMALL_AVATAR_SIZES.includes(
+    (props.size ?? '$4xl') as (typeof SMALL_AVATAR_SIZES)[number]
+  );
+
+  const textFallback = (
     <TextAvatar
       text={fallbackTitle ?? 'G'}
       backgroundColor={model.iconImageColor ?? undefined}
       {...props}
     />
   );
+
+  const fallback =
+    memberContacts.length > 0 ? (
+      isSmallSize ? (
+        <FacePile contacts={memberContacts} maxVisible={2} />
+      ) : (
+        <AvatarFrame
+          {...props}
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor="$secondaryBackground"
+        >
+          <FacePile contacts={memberContacts} maxVisible={3} grid />
+        </AvatarFrame>
+      )
+    ) : (
+      textFallback
+    );
+
   return (
     <ImageAvatar
       imageUrl={model.iconImage ?? undefined}

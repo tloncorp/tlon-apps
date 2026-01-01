@@ -32,6 +32,6 @@ test('should test app settings', async ({ zodSetup }) => {
   ).toBeVisible();
   await page.getByText('Experimental features').click();
   await expect(
-    page.getByTestId('ScreenHeaderTitle').getByText('Feature Previews')
+    page.getByTestId('ScreenHeaderTitle').getByText('Experimental features')
   ).toBeVisible();
 });
