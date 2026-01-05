@@ -481,6 +481,7 @@ export default function BareChatInput({
           attachments,
           image: image?.uri,
           channelType,
+          replyToPostId: null,
         };
         if (isEdit && editingPost?.id) {
           return {

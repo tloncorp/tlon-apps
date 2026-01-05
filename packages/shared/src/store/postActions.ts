@@ -45,6 +45,7 @@ export async function finalizePostDraft(
     content: story,
     metadata,
     blob,
+    replyToPostId: draft.replyToPostId,
   };
 
   if (draft.isEdit) {
@@ -76,6 +77,7 @@ export function finalizePostDraftUsingLocalAttachments(
     content: story,
     metadata,
     blob,
+    replyToPostId: draft.replyToPostId,
   };
   if (draft.isEdit) {
     return {
@@ -362,6 +364,7 @@ export async function forwardPost({
   return sendPost({
     channelId,
     content: [{ block: { cite: urbitReference } }],
+    replyToPostId: null,
     metadata:
       channel.type === 'notebook'
         ? {
@@ -408,6 +411,7 @@ export async function forwardGroup({
     return sendPost({
       channelId: channel.id,
       content: [{ block: { cite: urbitReference } }],
+      replyToPostId: null,
       metadata:
         channel.type === 'notebook'
           ? {
@@ -433,6 +437,7 @@ export async function editPost({
   metadata?: db.PostMetadata;
 }) {
   const postData: domain.PostDataFinalizedEdit = {
+    replyToPostId: null,
     channelId: post.channelId,
     isEdit: true,
     editTargetPostId: post.id,

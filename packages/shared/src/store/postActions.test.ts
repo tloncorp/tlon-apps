@@ -40,6 +40,7 @@ describe('sendPost', () => {
     const sendPostPromise = sendPost({
       channelId: TEST_CHANNEL,
       content: buildPostContent(),
+      replyToPostId: null,
     });
     await vi.runOnlyPendingTimersAsync();
     // post starts as enqueued (since we don't have an active session)
@@ -87,6 +88,7 @@ describe('sendPost', () => {
     const sendPostPromise = sendPost({
       channelId: TEST_CHANNEL,
       content: buildPostContent(),
+      replyToPostId: null,
     });
     await vi.runOnlyPendingTimersAsync();
     expect(await fetchLatestPostFromDb()).toMatchObject({
@@ -179,6 +181,7 @@ describe('finalizeAndSendPost', () => {
       content: [message],
       attachments: [fakeAsset],
       channelType: 'chat',
+      replyToPostId: null,
     });
     return {
       sendPostPromise,
@@ -332,6 +335,7 @@ describe('finalizeAndSendPost', () => {
         content: [pd.message],
         attachments: [pd.attachment],
         channelType: 'chat',
+        replyToPostId: null,
       });
 
       // HACK: we want to await _some_ of the async calls in the send post
@@ -443,6 +447,7 @@ describe('finalizeAndSendPost', () => {
         content: [pd.message],
         attachments: pd.attachment ? [pd.attachment] : [],
         channelType: 'chat',
+        replyToPostId: null,
       });
 
       // HACK: we want to await _some_ of the async calls in the send post

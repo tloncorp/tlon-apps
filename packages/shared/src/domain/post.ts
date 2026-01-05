@@ -10,6 +10,7 @@ interface _PostDataDraftBase {
   channelType: ChannelType;
   title?: string;
   image?: string;
+  replyToPostId: string | null;
 }
 /** Draft for an original, non-edit post */
 export interface PostDataDraftPost extends _PostDataDraftBase {
@@ -32,6 +33,7 @@ interface _PostDataFinalizedBase {
   content: Story;
   blob?: string;
   metadata?: PostMetadata;
+  replyToPostId: string | null;
 }
 
 /**

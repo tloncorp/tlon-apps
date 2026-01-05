@@ -252,6 +252,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             await sendPost({
               channelId: channel.id,
               content: story,
+              replyToPostId: null,
             });
           }
         } catch (error) {
@@ -298,6 +299,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             content,
             metadata,
             blob,
+            replyToPostId: null,
           });
           scrollToNewMessage();
         },
