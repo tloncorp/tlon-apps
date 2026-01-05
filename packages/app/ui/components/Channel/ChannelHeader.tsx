@@ -1,10 +1,6 @@
-import {
-  getNestParts,
-  useConnectionStatus,
-  useDebouncedValue,
-} from '@tloncorp/shared';
+import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import {
   Fragment,
@@ -167,7 +163,7 @@ export function ChannelHeader({
                       type="indicator"
                     />
                   )}
-                  {displayTitle}
+                  <Text>{displayTitle}</Text>
                 </XStack>
               </ScreenHeader.Title>
             </Pressable>
