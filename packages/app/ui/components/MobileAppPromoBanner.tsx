@@ -90,7 +90,7 @@ export function MobileAppPromoBanner() {
           <Image
             style={{ width: '100%', height: 150 }}
             contentFit={'cover'}
-            source={`./mobile-banner.png`}
+            source={'./mobile-banner.png'}
           />
         </YStack>
       </View>

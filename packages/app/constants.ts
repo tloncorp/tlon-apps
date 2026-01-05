@@ -6,8 +6,8 @@ export const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
 export const IS_IOS = false;
 export const IS_ANDROID = false;
 export const TLON_APP_STORE_URL =
-  'https://apps.apple.com/app/tlon/id6451393130?utm_source=webapp';
+  'https://apps.apple.com/us/app/tlon-tlon-messenger/id6451392109?utm_source=webapp';
 export const TLON_PLAY_STORE_URL =
-  'https://play.google.com/store/apps/details?id=com.tlon.app&utm_source=webapp';
+  'https://play.google.com/store/apps/details?id=io.tlon.groups&utm_source=webapp';
 
 export * from './lib/envVars';
