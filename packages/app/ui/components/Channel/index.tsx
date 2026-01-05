@@ -17,7 +17,6 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -128,7 +127,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       selectedPostId,
       group,
       groupIsLoading,
-      groupError, // Not currently used but available if needed for error handling
+      // groupError, // Not currently used but available if needed for error handling
       goBack,
       goToChatDetails,
       goToSearch,
@@ -314,6 +313,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         storeDraft,
       }),
       [
+        scrollToNewMessage,
         channel,
         clearDraft,
         editPost,
