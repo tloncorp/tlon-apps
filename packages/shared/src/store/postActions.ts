@@ -27,7 +27,7 @@ export async function failEnqueuedPosts() {
 }
 
 export async function finalizePostDraft(
-  draft: domain.PostDataDraftParent
+  draft: domain.PostDataDraftPost
 ): Promise<domain.PostDataFinalizedParent>;
 export async function finalizePostDraft(
   draft: domain.PostDataDraftEdit
@@ -59,7 +59,7 @@ export async function finalizePostDraft(
 }
 
 export function finalizePostDraftUsingLocalAttachments(
-  draft: domain.PostDataDraftParent
+  draft: domain.PostDataDraftPost
 ): domain.PostDataFinalizedParent;
 export function finalizePostDraftUsingLocalAttachments(
   draft: domain.PostDataDraftEdit

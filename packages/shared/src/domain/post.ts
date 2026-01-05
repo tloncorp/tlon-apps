@@ -11,7 +11,8 @@ interface _PostDataDraftBase {
   title?: string;
   image?: string;
 }
-export interface PostDataDraftParent extends _PostDataDraftBase {
+/** Draft for an original, non-edit post */
+export interface PostDataDraftPost extends _PostDataDraftBase {
   isEdit?: false;
 }
 export interface PostDataDraftEdit extends _PostDataDraftBase {
@@ -24,7 +25,7 @@ export interface PostDataDraftEdit extends _PostDataDraftBase {
  * In other words, this has everything you need to initiate sending a post.
  * Attachments need to be finalized before sending.
  */
-export type PostDataDraft = PostDataDraftParent | PostDataDraftEdit;
+export type PostDataDraft = PostDataDraftPost | PostDataDraftEdit;
 
 interface _PostDataFinalizedBase {
   channelId: string;
