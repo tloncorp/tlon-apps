@@ -193,7 +193,7 @@ describe('finalizeAndSendPost', () => {
   }
 
   test('happy path', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -226,7 +226,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('image upload fails', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -250,7 +250,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('session connection lost during upload', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -274,7 +274,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('send image attachment shortly before session reconnects', async () => {
-    const { sendPostPromise, fakeAsset, uploadKey } =
+    const { sendPostPromise, uploadKey } =
       beginSendPostWithAttachments();
 
     // immediately lose session so we enqueue the post
