@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
+import { Pressable, Text } from '@tloncorp/ui';
 import {
   Fragment,
   createContext,
@@ -167,7 +167,7 @@ export function ChannelHeader({
                       type="indicator"
                     />
                   )}
-                  {displayTitle}
+                  <Text>{displayTitle}</Text>
                 </XStack>
               </ScreenHeader.Title>
             </Pressable>
