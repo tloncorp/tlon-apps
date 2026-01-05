@@ -370,8 +370,6 @@ function arrayBufferToString(buf: ArrayBuffer) {
   return chars.join('');
 }
 
-
-}
 export type NagState = {
   lastDismissed: number;
   dismissCount: number;
