@@ -1,12 +1,13 @@
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import * as api from '../api';
 import { poke, scry } from '../api/urbit';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '../domain/attachment';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import * as urbit from '../urbit';
-import { finalizeAndSendPost, sendPost } from './postActions';
+import { finalizeAndSendPost, sendPost, sendReply } from './postActions';
 import { updateSession } from './session';
 import { setUploadState } from './storage';
 
@@ -501,6 +502,78 @@ describe('finalizeAndSendPost', () => {
     ).toMatchObject(postData.map((pd) => expect.stringContaining(pd.message)));
 
     await Promise.all(postData.map((pd) => pd.sendPromise!));
+  });
+
+  test('sendReply', async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: 'zod/group/channel', type: 'chat' }),
+    ]);
+    const testChannel = (await db.getChannel({ id: 'zod/group/channel' }))!;
+
+    vi.useFakeTimers();
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+
+    // create parent post
+    const parentAuthorId = '~zod';
+    const channel = await db.getChannel({ id: testChannel.id });
+    const parentPost = db.buildPost({
+      authorId: parentAuthorId,
+      author: null,
+      channel: channel!,
+      sequenceNum: 1,
+      content: [{ inline: ['Parent post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parentPost] });
+
+    expect(poke).not.toHaveBeenCalled();
+
+    // send reply
+    const replyContent = buildPostContent();
+    const sendReplyPromise = sendReply({
+      channel: channel!,
+      parentId: parentPost.id,
+      parentAuthor: parentAuthorId,
+      content: replyContent,
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+    await sendReplyPromise;
+
+    // reply was written to database
+    const latestPost = await fetchLatestPostFromDb();
+    expect(latestPost).toMatchObject({
+      channelId: testChannel.id,
+      parentId: parentPost.id,
+      deliveryStatus: 'pending',
+    });
+
+    // reply action was sent
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        app: 'channels',
+        mark: 'channel-action-1',
+        json: expect.objectContaining({
+          channel: expect.objectContaining({
+            action: {
+              post: {
+                reply: {
+                  id: parentPost.id,
+                  action: {
+                    add: {
+                      content: replyContent,
+                      author: api.getCurrentUserId(),
+                      sent: expect.any(Number),
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        }),
+      })
+    );
   });
 });
 
