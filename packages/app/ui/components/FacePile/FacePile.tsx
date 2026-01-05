@@ -1,4 +1,3 @@
-import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
@@ -6,44 +5,38 @@ import { View, XStack, YStack } from 'tamagui';
 import { ContactAvatar } from '../Avatar';
 
 export interface FacePileProps {
-  contacts: db.Contact[];
+  contactIds: string[];
   maxVisible?: number;
   grid?: boolean;
+  /** Total count of contacts (use when contactIds is a sample) */
+  totalCount?: number;
 }
 
 export const FacePile = React.memo(function FacePileComponent({
-  contacts,
+  contactIds,
   maxVisible = 4,
   grid = false,
+  totalCount,
 }: FacePileProps) {
   const effectiveMaxVisible = grid ? Math.min(maxVisible, 3) : maxVisible;
-  const visibleContacts = useMemo(
-    () => contacts.slice(0, effectiveMaxVisible),
-    [contacts, effectiveMaxVisible]
+  const visibleContactIds = useMemo(
+    () => contactIds.slice(0, effectiveMaxVisible),
+    [contactIds, effectiveMaxVisible]
   );
-  const overflowCount = Math.max(0, contacts.length - effectiveMaxVisible);
+  const total = totalCount ?? contactIds.length;
+  const overflowCount = Math.max(0, total - effectiveMaxVisible);
 
   if (grid) {
     return (
       <YStack gap={2}>
         <XStack gap={2}>
-          {visibleContacts.slice(0, 2).map((contact) => (
-            <ContactAvatar
-              key={contact.id}
-              contactId={contact.id}
-              contactOverride={contact}
-              size="$xl"
-            />
+          {visibleContactIds.slice(0, 2).map((contactId) => (
+            <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
         </XStack>
         <XStack gap={2}>
-          {visibleContacts.slice(2, 3).map((contact) => (
-            <ContactAvatar
-              key={contact.id}
-              contactId={contact.id}
-              contactOverride={contact}
-              size="$xl"
-            />
+          {visibleContactIds.slice(2, 3).map((contactId) => (
+            <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
           {overflowCount > 0 && (
             <View
@@ -54,7 +47,7 @@ export const FacePile = React.memo(function FacePileComponent({
               alignItems="center"
               justifyContent="center"
             >
-              <Text fontSize={10} color="$secondaryText">
+              <Text fontSize={8} color="$primaryText">
                 +{overflowCount}
               </Text>
             </View>
@@ -66,17 +59,13 @@ export const FacePile = React.memo(function FacePileComponent({
 
   return (
     <XStack alignItems="center">
-      {visibleContacts.map((contact, index) => (
+      {visibleContactIds.map((contactId, index) => (
         <View
-          key={contact.id}
+          key={contactId}
           marginLeft={index === 0 ? 0 : -12}
-          zIndex={visibleContacts.length + index}
+          zIndex={visibleContactIds.length + index}
         >
-          <ContactAvatar
-            contactId={contact.id}
-            contactOverride={contact}
-            size="$2xl"
-          />
+          <ContactAvatar contactId={contactId} size="$2xl" />
         </View>
       ))}
       {overflowCount > 0 && (

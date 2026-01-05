@@ -18,21 +18,23 @@ export default (
         <SizableText size="$s" color="$secondaryText">
           Single Contact
         </SizableText>
-        <FacePile contacts={[brianContact]} />
+        <FacePile contactIds={[brianContact.id]} />
       </View>
 
       <View>
         <SizableText size="$s" color="$secondaryText">
           Two Contacts
         </SizableText>
-        <FacePile contacts={[brianContact, galenContact]} />
+        <FacePile contactIds={[brianContact.id, galenContact.id]} />
       </View>
 
       <View>
         <SizableText size="$s" color="$secondaryText">
           Three Contacts
         </SizableText>
-        <FacePile contacts={[brianContact, galenContact, jamesContact]} />
+        <FacePile
+          contactIds={[brianContact.id, galenContact.id, jamesContact.id]}
+        />
       </View>
 
       <View>
@@ -40,7 +42,12 @@ export default (
           Four Contacts (Max Visible)
         </SizableText>
         <FacePile
-          contacts={[brianContact, galenContact, jamesContact, danContact]}
+          contactIds={[
+            brianContact.id,
+            galenContact.id,
+            jamesContact.id,
+            danContact.id,
+          ]}
         />
       </View>
 
@@ -49,12 +56,12 @@ export default (
           Five Contacts (Shows +1)
         </SizableText>
         <FacePile
-          contacts={[
-            brianContact,
-            galenContact,
-            jamesContact,
-            danContact,
-            hunterContact,
+          contactIds={[
+            brianContact.id,
+            galenContact.id,
+            jamesContact.id,
+            danContact.id,
+            hunterContact.id,
           ]}
         />
       </View>
@@ -64,14 +71,14 @@ export default (
           Seven Contacts (Shows +3)
         </SizableText>
         <FacePile
-          contacts={[
-            brianContact,
-            galenContact,
-            jamesContact,
-            danContact,
-            hunterContact,
-            markContact,
-            edContact,
+          contactIds={[
+            brianContact.id,
+            galenContact.id,
+            jamesContact.id,
+            danContact.id,
+            hunterContact.id,
+            markContact.id,
+            edContact.id,
           ]}
         />
       </View>
@@ -80,7 +87,7 @@ export default (
         <SizableText size="$s" color="$secondaryText">
           All Initial Contacts (Shows +3)
         </SizableText>
-        <FacePile contacts={initialContacts} />
+        <FacePile contactIds={initialContacts.map((c) => c.id)} />
       </View>
 
       <View>
@@ -88,12 +95,12 @@ export default (
           Custom Max Visible (2)
         </SizableText>
         <FacePile
-          contacts={[
-            brianContact,
-            galenContact,
-            jamesContact,
-            danContact,
-            hunterContact,
+          contactIds={[
+            brianContact.id,
+            galenContact.id,
+            jamesContact.id,
+            danContact.id,
+            hunterContact.id,
           ]}
           maxVisible={2}
         />
@@ -103,7 +110,7 @@ export default (
         <SizableText size="$s" color="$secondaryText">
           Empty Contacts
         </SizableText>
-        <FacePile contacts={[]} />
+        <FacePile contactIds={[]} />
       </View>
     </YStack>
   </FixtureWrapper>

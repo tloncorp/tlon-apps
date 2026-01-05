@@ -120,8 +120,9 @@ const SMALL_AVATAR_SIZES = ['$xl', '$2xl', '$3xl', '$3.5xl'] as const;
 
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
+  memberCount,
   ...props
-}: { model: db.Group | GroupImageShim } & AvatarProps) {
+}: { model: db.Group | GroupImageShim; memberCount?: number } & AvatarProps) {
   const { disableNicknames } = useCalm();
   const fallbackTitle = useMemo(() => {
     return isGroupImageShim(model)
@@ -129,15 +130,11 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
       : utils.getGroupTitle(model, disableNicknames);
   }, [disableNicknames, model]);
 
-  const memberContacts = useMemo(() => {
+  const memberContactIds = useMemo(() => {
     if (isGroupImageShim(model)) {
       return [];
     }
-    return (
-      model.members
-        ?.map((m) => m.contact)
-        .filter((c): c is db.Contact => c != null) ?? []
-    );
+    return model.members?.map((m) => m.contactId) ?? [];
   }, [model]);
 
   const isSmallSize = SMALL_AVATAR_SIZES.includes(
@@ -153,9 +150,13 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   );
 
   const fallback =
-    memberContacts.length > 0 ? (
+    memberContactIds.length > 0 ? (
       isSmallSize ? (
-        <FacePile contacts={memberContacts} maxVisible={2} />
+        <FacePile
+          contactIds={memberContactIds}
+          maxVisible={2}
+          totalCount={memberCount}
+        />
       ) : (
         <AvatarFrame
           {...props}
@@ -163,7 +164,12 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
           justifyContent="center"
           backgroundColor="$secondaryBackground"
         >
-          <FacePile contacts={memberContacts} maxVisible={3} grid />
+          <FacePile
+            contactIds={memberContactIds}
+            maxVisible={3}
+            totalCount={memberCount}
+            grid
+          />
         </AvatarFrame>
       )
     ) : (
