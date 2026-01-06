@@ -600,6 +600,12 @@ export async function syncUpdatedPosts(
     'syncing updated posts',
     runIfDev(() => JSON.stringify(options))
   );
+
+  // no-op if the channel is not a group channel
+  if (!api.isGroupChannelId(options.channelId)) {
+    return;
+  }
+
   const response = await syncQueue.add('syncUpdatedPosts', ctx, async () =>
     api.getChangedPosts(options)
   );
