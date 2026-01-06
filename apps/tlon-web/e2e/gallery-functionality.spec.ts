@@ -53,11 +53,15 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Add a reply to the post
   await helpers.sendMessage(zodPage, 'This is a reply');
 
-  // Test editing from detail view header button
-  const editButton = zodPage.getByTestId('ChannelHeaderEditButton').first();
-  await expect(editButton).toBeVisible();
-  await expect(editButton).toBeAttached();
-  await editButton.click();
+  // Test editing from detail view header button (use .last() to get the one in main content, not sidebar)
+  await helpers.retryInteraction(
+    async () => {
+      const editButton = zodPage.getByTestId('ChannelHeaderEditButton').last();
+      await expect(editButton).toBeVisible({ timeout: 5000 });
+      await editButton.click();
+    },
+    { description: 'Edit button click', maxAttempts: 3 }
+  );
 
   // Wait for the Gallery editor to be ready - it should use DraftInputView with iframe
   await expect(zodPage.locator('iframe')).toBeVisible({ timeout: 10000 });
