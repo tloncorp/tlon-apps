@@ -273,6 +273,7 @@ export const syncLatestChanges = async ({
     ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
+    hints: result.hints,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,

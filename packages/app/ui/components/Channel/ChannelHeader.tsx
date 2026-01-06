@@ -6,6 +6,9 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
+
 import {
   Fragment,
   createContext,
