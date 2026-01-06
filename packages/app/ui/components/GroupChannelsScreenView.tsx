@@ -286,6 +286,7 @@ export const GroupChannelsScreenView = React.memo(
           key={group?.id}
           title={title}
           titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
+          testID="GroupOptionsSheetTrigger"
           subtitle={subtitle}
           showSubtitle={isWindowNarrow}
           borderBottom={isWindowNarrow}

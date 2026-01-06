@@ -59,7 +59,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
 
     // The group should not be visible in ~ten's chat list
     await expect(
-      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+      tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
   });
 
@@ -116,7 +116,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
 
     // The group should not be visible in ~ten's chat list
     await expect(
-      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+      tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
   });
 });

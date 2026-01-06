@@ -138,7 +138,7 @@ export function ChatDetailsScreenView() {
         backgroundColor="$secondaryBackground"
         backAction={handlePressBack}
         useHorizontalTitleLayout={!isWindowNarrow}
-        title={chatType === 'group' ? 'Group info' : 'Channel info'}
+        title={chatType === 'group' ? 'Group info & settings' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
             <ScreenHeader.IconButton
@@ -705,6 +705,7 @@ function GroupQuickActions({
           title={action.title}
           onPress={action.action}
           disabled={action.disabled}
+          testID={`GroupQuickAction-${action.title}`}
           hero
         />
       ))}
@@ -714,6 +715,7 @@ function GroupQuickActions({
           title={action.title}
           onPress={action.action}
           disabled={action.disabled}
+          testID={`GroupQuickAction-${action.title}`}
           secondary
         />
       ))}

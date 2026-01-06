@@ -129,7 +129,7 @@ export const GroupListItem = ({
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
-        testID={`GroupListItem-${model.title || 'Untitled group'}`}
+        testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
       >
         <ListItem
           {...props}

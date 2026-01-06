@@ -92,6 +92,7 @@ export const ScreenHeaderComponent = ({
                 size="$label/s"
                 numberOfLines={1}
                 paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                testID={'ScreenHeaderSubtitle'}
               >
                 {resolvedSubtitle}
               </Text>

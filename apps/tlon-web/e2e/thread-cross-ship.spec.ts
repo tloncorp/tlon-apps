@@ -25,11 +25,11 @@ test('should test cross-ship thread functionality', async ({
   await helpers.navigateBack(zodPage);
   if (await zodPage.getByText('Home').isVisible()) {
     await expect(
-      zodPage.getByTestId('ChatListItem-Untitled group-unpinned')
+      zodPage.getByTestId('GroupListItem-Untitled group-unpinned')
     ).toBeVisible({
       timeout: 5000,
     });
-    await zodPage.getByTestId('ChatListItem-Untitled group-unpinned').click();
+    await zodPage.getByTestId('GroupListItem-Untitled group-unpinned').click();
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
   }
 

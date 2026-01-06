@@ -18,6 +18,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -43,7 +44,6 @@ interface Props {
 
 export const HomeSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
-    const screenTitle = 'Home';
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -59,19 +59,6 @@ export const HomeSidebar = memo(
     const { performGroupAction } = useGroupActions();
 
     const connStatus = store.useConnectionStatus();
-    const notReadyMessage: string | null = useMemo(() => {
-      // if not fully connected yet, show status
-      if (connStatus !== 'Connected') {
-        return `${connStatus}...`;
-      }
-
-      // if still loading the screen data, show loading
-      if (!chats) {
-        return 'Loading...';
-      }
-
-      return null;
-    }, [connStatus, chats]);
 
     const noChats = useMemo(
       () =>
@@ -162,6 +149,8 @@ export const HomeSidebar = memo(
       }
     }, []);
 
+    const { subtitle: syncSubtitle } = useSyncStatus();
+
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
       return !!allChats.find(
@@ -216,7 +205,10 @@ export const HomeSidebar = memo(
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1} position="relative">
               <ScreenHeader
-                title={notReadyMessage ?? screenTitle}
+                title={'Home'}
+                subtitle={syncSubtitle}
+                showSubtitle={true}
+                testID="HomeSidebarHeader"
                 rightControls={
                   <>
                     <ScreenHeader.IconButton
