@@ -77,6 +77,7 @@ export const ScreenHeaderComponent = ({
       backgroundColor={backgroundColor ?? '$background'}
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
+      testID={testID}
     >
       {renderTitleWrapper(
         <>
@@ -110,7 +111,7 @@ export const ScreenHeaderComponent = ({
               color={'$primaryText'}
               numberOfLines={1}
               maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
-              testID={testID ?? 'ScreenHeaderTitle'}
+              testID={'ScreenHeaderTitle'}
             >
               {title}
             </Text>

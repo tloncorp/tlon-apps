@@ -221,7 +221,7 @@ export const ChatOptionsProvider = ({
     }
 
     syncGroup();
-  }, [groupId, group]);
+  }, [groupId]);
 
   const togglePinned = useCallback(async () => {
     // Re-query to get current pin state

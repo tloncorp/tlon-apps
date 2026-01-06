@@ -146,6 +146,7 @@ export function ChatDetailsScreenView() {
               onPress={!actionsEnabled ? undefined : handlePressEdit}
               disabled={!actionsEnabled}
               type="Draw"
+              testID="DetailsEditButton"
             />
           ) : null
         }

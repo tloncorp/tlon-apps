@@ -37,7 +37,6 @@ export async function createGroup(page: Page) {
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('Welcome to your group!')).toBeVisible({
       timeout: 3000,
     });
@@ -350,7 +349,7 @@ export async function navigateToHomeAndVerifyGroup(
   page: Page,
   expectedStatus: 'pinned' | 'unpinned'
 ) {
-  await page.getByTestId('HeaderBackButton').first().click();
+  await page.getByTestId('HomeNavIcon').click();
   if (await page.getByTestId('HomeSidebarHeader').isVisible()) {
     await expect(
       page.getByTestId(`GroupListItem-Untitled group-${expectedStatus}`)
@@ -1703,7 +1702,7 @@ export async function cleanupOwnProfile(page: Page) {
   await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
 
   // Click Edit button
-  const editButton = page.getByText('Edit');
+  const editButton = page.getByTestId('ContactEditButton');
   if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await editButton.click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
@@ -1923,7 +1922,7 @@ export async function clearContactNickname(
     await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
 
     // Click Edit button
-    await page.getByText('Edit').click();
+    await page.getByTestId('ContactEditButton').click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
       timeout: 5000,
     });
