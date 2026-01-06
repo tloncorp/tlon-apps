@@ -54,7 +54,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   await helpers.sendMessage(zodPage, 'This is a reply');
 
   // Test editing from detail view header button
-  const editButton = zodPage.getByTestId('ChannelHeaderEditButton');
+  const editButton = zodPage.getByTestId('ChannelHeaderEditButton').first();
   await expect(editButton).toBeVisible();
   await expect(editButton).toBeAttached();
   await editButton.click();

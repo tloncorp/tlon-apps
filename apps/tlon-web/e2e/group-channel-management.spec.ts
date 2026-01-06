@@ -30,6 +30,10 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
+
+  // Wait for navigation to Channels screen to complete
+  await page.waitForTimeout(500);
+
   await expect(
     page.getByTestId('ScreenHeaderTitle').first().getByText('Channels')
   ).toBeVisible();

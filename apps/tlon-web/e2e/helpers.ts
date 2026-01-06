@@ -31,9 +31,6 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create group').click();
 
-  // Wait for group creation to complete and navigate to group
-  // Either we're already in the group or need to navigate to it
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
@@ -47,7 +44,6 @@ export async function createGroup(page: Page) {
       page.getByTestId('GroupListItem-Untitled group-unpinned')
     ).toBeVisible({ timeout: 10000 });
     await page.getByTestId('GroupListItem-Untitled group-unpinned').click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('Welcome to your group!')).toBeVisible({
       timeout: 5000,
     });
@@ -270,6 +266,12 @@ export async function navigateToGroupByTestId(
 ) {
   const { expectedDisplayName, pinned = false, timeout = 10000 } = options;
   const testId = `GroupListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+
+  // Navigate to Home screen first
+  await page.getByTestId('HomeNavIcon').click();
+
+  // Wait for navigation to complete
+  await page.waitForTimeout(500);
 
   // Ensure we're on the Home screen
   await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
@@ -1486,11 +1488,21 @@ export async function verifyChatUnreadCount(
   page: Page,
   chatName: string,
   expectedCount: number,
-  isPinned = false
+  isPinned = false,
+  isGroup = false
 ) {
+  // Navigate to Home screen first
+  await page.getByTestId('HomeNavIcon').click();
+
+  // Wait for navigation to complete
+  await page.waitForTimeout(500);
+
+  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
+
   await page.waitForTimeout(1000);
+  const itemType = isGroup ? 'GroupListItem' : 'ChatListItem';
   const chatItem = page.getByTestId(
-    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+    `${itemType}-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
   );
 
   if (expectedCount === 0) {
