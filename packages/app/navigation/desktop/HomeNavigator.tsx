@@ -4,7 +4,6 @@ import {
 } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
-import { isEqual } from 'lodash';
 import { memo, useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
@@ -15,6 +14,7 @@ import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
 import { ChannelStack } from './ChannelStack';
 import { HomeSidebar } from './HomeSidebar';
+import { compareDrawerContentProps } from './drawerUtils';
 
 const HomeDrawer = createDrawerNavigator();
 
@@ -55,93 +55,62 @@ export const HomeNavigator = () => {
   );
 };
 
-const DrawerContent = memo(
-  (props: DrawerContentComponentProps) => {
-    const state = props.state as NavigationState<HomeDrawerParamList>;
-    const focusedRoute = state.routes[props.state.index];
-    const focusedRouteParams = focusedRoute.params;
-    // @ts-expect-error - nested params is not in the type
-    const nestedFocusedRouteParams = focusedRouteParams?.params;
-    if (
-      focusedRouteParams &&
-      'groupId' in focusedRouteParams &&
-      focusedRouteParams.groupId
-    ) {
-      if ('channelId' in focusedRouteParams) {
-        return (
-          <GroupChannelsScreenContent
-            groupId={focusedRouteParams.groupId}
-            focusedChannelId={focusedRouteParams.channelId}
-          />
-        );
-      }
+const DrawerContent = memo((props: DrawerContentComponentProps) => {
+  const state = props.state as NavigationState<HomeDrawerParamList>;
+  const focusedRoute = state.routes[props.state.index];
+  const focusedRouteParams = focusedRoute.params;
+  // @ts-expect-error - nested params is not in the type
+  const nestedFocusedRouteParams = focusedRouteParams?.params;
+  if (
+    focusedRouteParams &&
+    'groupId' in focusedRouteParams &&
+    focusedRouteParams.groupId
+  ) {
+    if ('channelId' in focusedRouteParams) {
       return (
-        <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />
+        <GroupChannelsScreenContent
+          groupId={focusedRouteParams.groupId}
+          focusedChannelId={focusedRouteParams.channelId}
+        />
       );
-    } else if (
-      focusedRouteParams &&
-      nestedFocusedRouteParams &&
-      'groupId' in nestedFocusedRouteParams
-    ) {
-      if ('channelId' in nestedFocusedRouteParams) {
-        return (
-          <GroupChannelsScreenContent
-            groupId={nestedFocusedRouteParams.groupId}
-            focusedChannelId={nestedFocusedRouteParams.channelId}
-          />
-        );
-      }
+    }
+    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
+  } else if (
+    focusedRouteParams &&
+    nestedFocusedRouteParams &&
+    'groupId' in nestedFocusedRouteParams
+  ) {
+    if ('channelId' in nestedFocusedRouteParams) {
       return (
         <GroupChannelsScreenContent
           groupId={nestedFocusedRouteParams.groupId}
+          focusedChannelId={nestedFocusedRouteParams.channelId}
         />
       );
-    } else if (
-      focusedRouteParams &&
-      focusedRoute.name === 'ChatDetails' &&
-      'chatId' in focusedRouteParams &&
-      'chatType' in focusedRouteParams
-    ) {
-      if (focusedRouteParams.chatType === 'channel') {
-        return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
-      } else if (focusedRouteParams.chatType === 'group') {
-        return (
-          <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />
-        );
-      }
-      return <HomeSidebar />;
-    } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-      return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
-    } else if (focusedRoute.params && 'previewGroupId' in focusedRoute.params) {
-      return (
-        <HomeSidebar previewGroupId={focusedRoute.params.previewGroupId} />
-      );
-    } else {
-      return <HomeSidebar />;
     }
-  },
-  (prevProps, nextProps) => {
-    // Custom comparison that only checks navigation state changes we care about.
-    // Using isEqual on full props caused issues because DrawerContentComponentProps
-    // contains navigation callbacks with unstable references.
-    const prevState = prevProps.state;
-    const nextState = nextProps.state;
-
-    if (prevState.index !== nextState.index) {
-      return false; // Index changed, re-render
+    return (
+      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
+    );
+  } else if (
+    focusedRouteParams &&
+    focusedRoute.name === 'ChatDetails' &&
+    'chatId' in focusedRouteParams &&
+    'chatType' in focusedRouteParams
+  ) {
+    if (focusedRouteParams.chatType === 'channel') {
+      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
+    } else if (focusedRouteParams.chatType === 'group') {
+      return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }
-
-    const prevRoute = prevState.routes[prevState.index];
-    const nextRoute = nextState.routes[nextState.index];
-
-    if (prevRoute.key !== nextRoute.key) {
-      return false; // Route key changed, re-render
-    }
-
-    // Only deep compare params (much smaller than full props)
-    return isEqual(prevRoute.params, nextRoute.params);
+    return <HomeSidebar />;
+  } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
+    return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
+  } else if (focusedRoute.params && 'previewGroupId' in focusedRoute.params) {
+    return <HomeSidebar previewGroupId={focusedRoute.params.previewGroupId} />;
+  } else {
+    return <HomeSidebar />;
   }
-);
+}, compareDrawerContentProps);
 
 DrawerContent.displayName = 'HomeSidebarDrawerContent';
 

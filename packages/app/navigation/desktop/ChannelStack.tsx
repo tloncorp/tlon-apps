@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
@@ -22,8 +21,8 @@ const ChannelStackNavigator = createNativeStackNavigator();
 export function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
-  // Extract channelId from route params - memoized for stable reference
-  const channelId = useMemo(() => {
+  // Extract channelId from route params
+  const getChannelId = (): string => {
     if (props.route.params && 'channelId' in props.route.params) {
       return props.route.params.channelId;
     }
@@ -34,7 +33,9 @@ export function ChannelStack(
       return props.route.params.params.channelId;
     }
     return 'none';
-  }, [props.route.params]);
+  };
+
+  const channelId = getChannelId();
 
   return (
     <ChannelStackNavigator.Navigator
