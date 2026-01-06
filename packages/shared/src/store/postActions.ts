@@ -35,9 +35,24 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
+  const attachments = await finalizeAttachments(draft.attachments);
+
+  // Remove non-header images from notebook posts - these are "inlined":
+  // https://github.com/tloncorp/tlon-apps/blob/71c9cabc54dfad10c83d46e10f209a3d632d36b2/packages/app/ui/components/BigInput.tsx#L151-L160
+  if (draft.channelType === 'notebook') {
+    for (let i = attachments.length - 1; i >= 0; i--) {
+      const att = attachments[i];
+      const isNonheaderImage =
+        att.type === 'image' && att.file.uri !== draft.image;
+      if (isNonheaderImage) {
+        attachments.splice(i, 1);
+      }
+    }
+  }
+
   const { story, metadata, blob } = logic.toPostData({
     ...draft,
-    attachments: await finalizeAttachments(draft.attachments),
+    attachments,
   });
 
   const finalizedBase = {
