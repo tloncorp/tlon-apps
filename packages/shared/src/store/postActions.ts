@@ -7,8 +7,10 @@ import type * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
+import { isImage } from '../urbit/content';
 import { sessionActionQueue } from './SessionActionQueue';
 import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
+import { performUpload } from './storage/storageActions';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
@@ -16,6 +18,83 @@ import {
 } from './useChannelPosts';
 
 export const logger = createDevLogger('postActions', false);
+
+const LOCAL_URI_PATTERN = /^(file:\/\/\/|content:\/\/)/;
+
+function isLocalUri(uri: string): boolean {
+  return LOCAL_URI_PATTERN.test(uri);
+}
+
+/**
+ * Re-uploads any local file URIs found in a Story, returning a new Story
+ * with remote URLs. Used during retry when the original upload may have
+ * failed but the local file is still available.
+ */
+async function reuploadLocalAttachments(
+  story: urbit.Story,
+  isWeb: boolean
+): Promise<urbit.Story> {
+  const updatedStory: urbit.Story = [];
+
+  for (const verse of story) {
+    if ('block' in verse && isImage(verse.block)) {
+      const imageSrc = verse.block.image.src;
+
+      if (isLocalUri(imageSrc)) {
+        logger.log('reuploadLocalAttachments: found local URI, re-uploading', {
+          src: imageSrc,
+        });
+
+        try {
+          const remoteUri = await performUpload({ uri: imageSrc }, isWeb);
+          logger.log('reuploadLocalAttachments: upload succeeded', {
+            localUri: imageSrc,
+            remoteUri,
+          });
+
+          updatedStory.push({
+            block: {
+              image: {
+                ...verse.block.image,
+                src: remoteUri,
+              },
+            },
+          });
+        } catch (e) {
+          logger.trackError('reuploadLocalAttachments: upload failed', {
+            src: imageSrc,
+            error: e.message,
+          });
+          throw new Error(
+            `Failed to re-upload image: ${e.message}. The original file may no longer be available.`
+          );
+        }
+      } else {
+        // Not a local URI, keep as-is
+        updatedStory.push(verse);
+      }
+    } else {
+      // Not an image block, keep as-is
+      updatedStory.push(verse);
+    }
+  }
+
+  return updatedStory;
+}
+
+/**
+ * Checks if a Story contains any local file URIs that haven't been uploaded.
+ */
+function storyHasLocalUris(story: urbit.Story): boolean {
+  for (const verse of story) {
+    if ('block' in verse && isImage(verse.block)) {
+      if (isLocalUri(verse.block.image.src)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export async function failEnqueuedPosts() {
   const enqueuedPosts = await db.getEnqueuedPosts();
@@ -283,7 +362,48 @@ export async function retrySendPost({
   await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
 
   const content = JSON.parse(post.content as string) as PostContent;
-  const story = toUrbitStory(content);
+  let story = toUrbitStory(content);
+
+  // Check for local file URIs that need re-uploading
+  // (This can happen if the original upload failed but we stored local URIs)
+  let metadataImage = post.image;
+
+  if (
+    storyHasLocalUris(story) ||
+    (metadataImage && isLocalUri(metadataImage))
+  ) {
+    logger.log('retrySendPost: found local URIs, attempting re-upload');
+    try {
+      // Local URIs (file://, content://) are mobile-only, so isWeb = false
+      if (storyHasLocalUris(story)) {
+        story = await reuploadLocalAttachments(story, false);
+      }
+
+      // Also check metadata image (notebook cover image)
+      if (metadataImage && isLocalUri(metadataImage)) {
+        logger.log('retrySendPost: re-uploading metadata image', {
+          src: metadataImage,
+        });
+        metadataImage = await performUpload({ uri: metadataImage }, false);
+      }
+
+      // Update the post content in DB with new remote URIs
+      const [updatedContent] = toPostContent(story);
+      await db.updatePost({
+        id: post.id,
+        content: JSON.stringify(updatedContent),
+        image: metadataImage,
+      });
+      logger.log('retrySendPost: re-upload successful, updated DB');
+    } catch (e) {
+      logger.trackError('retrySendPost: re-upload failed', {
+        error: e.message,
+        postId: post.id,
+      });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      throw e;
+    }
+  }
 
   logger.log('retrySendPost: sending post', { post, story });
 
@@ -314,10 +434,10 @@ export async function retrySendPost({
           content: story,
           blob: post.blob || undefined,
           metadata:
-            post.image || post.title
+            metadataImage || post.title
               ? {
                   title: post.title,
-                  image: post.image,
+                  image: metadataImage,
                 }
               : undefined,
           sentAt: post.sentAt,

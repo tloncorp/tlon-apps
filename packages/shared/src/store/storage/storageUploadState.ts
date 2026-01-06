@@ -98,22 +98,43 @@ export async function finalizeAttachments(
     });
 }
 
-export const waitForUploads = async (keys: Attachment.UploadIntent.Key[]) => {
+export const waitForUploads = async (
+  keys: Attachment.UploadIntent.Key[],
+  timeoutMs: number = 60000
+) => {
   return new Promise<Record<string, UploadState>>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      const pendingKeys = keys.filter(
+        (k) => !uploadStates[k] || uploadStates[k]?.status === 'uploading'
+      );
+      reject(
+        new Error(`Upload timed out waiting for: ${pendingKeys.join(', ')}`)
+      );
+    }, timeoutMs);
+
     const unsubscribe = subscribeToUploadStates(() => checkUploads());
+
     const checkUploads = () => {
       const failed = keys.filter((k) => uploadStates[k]?.status === 'error');
       if (failed.length) {
         const message = failed
           .map((k) => (uploadStates[k] as UploadStateError)?.errorMessage)
           .join(', ');
+        clearTimeout(timeout);
         unsubscribe();
         reject(new Error(message));
+        return;
       }
+      // Only consider finished when ALL uploads have a definitive outcome
+      // (success or error). Don't treat undefined/initial/uploading as finished.
       const isFinished = keys.every(
-        (key) => !uploadStates[key] || uploadStates[key]?.status !== 'uploading'
+        (key) =>
+          uploadStates[key]?.status === 'success' ||
+          uploadStates[key]?.status === 'error'
       );
       if (isFinished) {
+        clearTimeout(timeout);
         unsubscribe();
         resolve(
           keys.reduce<Record<string, UploadState>>((memo, k) => {
