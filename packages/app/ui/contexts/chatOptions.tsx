@@ -89,7 +89,7 @@ type ChatOptionsProviderProps = {
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
   onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean) => void;
-  onPressGroupMembers?: (groupId: string) => void;
+  onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressManageChannels?: (groupId: string) => void;
   onPressInvite?: (groupId: string) => void;
   onPressGroupPrivacy?: (groupId: string) => void;
@@ -401,7 +401,7 @@ export const ChatOptionsProvider = ({
 
   const handlePressGroupMembers = useCallback(() => {
     if (groupId) {
-      onPressGroupMembers(groupId);
+      onPressGroupMembers(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupMembers]);

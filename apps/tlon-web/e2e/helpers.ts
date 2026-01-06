@@ -764,7 +764,7 @@ export async function setChannelPermissions(
       await privateToggle.click();
     }
 
-    await page.getByText('Add roles').click();
+    await page.getByTestId('AddRolesButton').click();
     await expect(page.getByText('Search and add roles')).toBeVisible();
 
     for (const role of readerRoles) {

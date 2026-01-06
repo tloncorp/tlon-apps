@@ -14,9 +14,7 @@ import { Alert, Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
-import { RadioControl, TextInput } from '../Form';
-import { ListItem } from '../ListItem';
+import { RadioControl } from '../Form';
 import { ScreenHeader } from '../ScreenHeader';
 
 interface ChannelFormSchema {
@@ -43,6 +41,10 @@ interface EditChannelScreenViewProps {
     description?: string
   ) => void;
   onDeleteChannel: () => void;
+  createdRoleId?: string;
+  selectedRoleIds?: string[];
+  onCreateRole: () => void;
+  onSelectRoles?: () => void;
 }
 
 const getDefaultFormValues = (
@@ -83,6 +85,10 @@ export function EditChannelScreenView({
   onSubmit,
   channel,
   onDeleteChannel,
+  createdRoleId,
+  selectedRoleIds,
+  onCreateRole,
+  onSelectRoles,
 }: EditChannelScreenViewProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const form = useForm<ChannelFormSchema>({
@@ -95,7 +101,26 @@ export function EditChannelScreenView({
     reset,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = form;
+
+  useEffect(() => {
+    if (createdRoleId) {
+      const currentReaders = watch('readers');
+      if (!currentReaders.includes(createdRoleId)) {
+        setValue('readers', [...currentReaders, createdRoleId], {
+          shouldDirty: true,
+        });
+      }
+    }
+  }, [createdRoleId, setValue, watch]);
+
+  useEffect(() => {
+    if (selectedRoleIds) {
+      setValue('readers', selectedRoleIds, { shouldDirty: true });
+    }
+  }, [selectedRoleIds, setValue]);
 
   const { data: group } = store.useGroup({
     id: channel?.groupId ?? '',
@@ -142,6 +167,25 @@ export function EditChannelScreenView({
     setShowDeleteDialog(true);
   }, [group?.channels?.length]);
 
+  const handleRemoveRole = useCallback(
+    (roleId: string) => {
+      if (roleId === 'admin') return;
+      const currentReaders = watch('readers');
+      const currentWriters = watch('writers');
+      setValue(
+        'readers',
+        currentReaders.filter((r) => r !== roleId),
+        { shouldDirty: true }
+      );
+      setValue(
+        'writers',
+        currentWriters.filter((w) => w !== roleId),
+        { shouldDirty: true }
+      );
+    },
+    [watch, setValue]
+  );
+
   useEffect(() => {
     if (channel) {
       reset(getDefaultFormValues(channel));
@@ -186,8 +230,16 @@ export function EditChannelScreenView({
             )}
             {!!group && !!channel && (
               <>
-                <ChannelPermissionsSelector groupRoles={group.roles} />
-                <PermissionTable groupRoles={group.roles} />
+                <ChannelPermissionsSelector
+                  groupRoles={group.roles}
+                  onCreateRole={onCreateRole}
+                />
+                <PermissionTable
+                  groupRoles={group.roles}
+                  onSelectRoles={onSelectRoles}
+                  onCreateRole={onCreateRole}
+                  onRemoveRole={handleRemoveRole}
+                />
               </>
             )}
             <YStack gap="$2xl">
@@ -266,10 +318,10 @@ export function PrivateChannelToggle({
       pointerEvents="auto"
     >
       <YStack gap="$xl" flex={1} pointerEvents="auto">
-        <Text size="$label/l">Private Channel</Text>
+        <Text size="$label/l">Advanced Permissions</Text>
         <Text size="$label/s" color="$tertiaryText">
-          By making a channel private, only select members and roles will be
-          able to view this channel.
+          Only select members and roles will be able to read or post in this
+          channel.
         </Text>
       </YStack>
       {Platform.OS === 'android' ? (
@@ -299,14 +351,15 @@ export function PrivateChannelToggle({
 
 export function ChannelPermissionsSelector({
   groupRoles,
+  onCreateRole,
 }: {
   groupRoles: db.GroupRole[];
+  onCreateRole?: () => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
 
   const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
 
@@ -349,16 +402,6 @@ export function ChannelPermissionsSelector({
     return mappedRoles.filter((role) => role.value !== 'admin');
   }, [isPrivate, readers, allRoles]);
 
-  const handleSaveRoles = useCallback(
-    (roleIds: string[]) => {
-      const readersWithAdmin = roleIds.includes('admin')
-        ? roleIds
-        : ['admin', ...roleIds];
-      setValue('readers', readersWithAdmin, { shouldDirty: true });
-    },
-    [setValue]
-  );
-
   return (
     <YStack
       width="100%"
@@ -370,61 +413,6 @@ export function ChannelPermissionsSelector({
       <PrivateChannelToggle
         isPrivate={isPrivate}
         onTogglePrivate={handleTogglePrivate}
-      />
-
-      {isPrivate && (
-        <YStack
-          padding="$xl"
-          gap="$2xl"
-          width="100%"
-          borderTopWidth={1}
-          borderTopColor="$secondaryBorder"
-        >
-          <XStack>
-            <Text size="$label/l" flex={1}>
-              Who can access this channel?
-            </Text>
-            <XStack flex={1.5} justifyContent="flex-end">
-              <Button
-                width={120}
-                onPress={() => setShowRoleSelector(true)}
-                size={'$l'}
-                backgroundColor="$positiveActionText"
-                pressStyle={{
-                  backgroundColor: '$positiveActionText',
-                  opacity: 0.9,
-                }}
-                borderColor="$positiveActionText"
-              >
-                <Button.Text color="$positiveBackground">Add roles</Button.Text>
-              </Button>
-            </XStack>
-          </XStack>
-          <YStack gap="$l">
-            <Text size="$label/l">Roles</Text>
-            <XStack gap="$s" flexWrap="wrap" width="100%">
-              {displayedRoles.map((role) => (
-                <RoleChip
-                  key={role.value}
-                  role={role}
-                  onRemove={
-                    role.value !== 'admin'
-                      ? () => handleRemoveRole(role.value)
-                      : undefined
-                  }
-                />
-              ))}
-            </XStack>
-          </YStack>
-        </YStack>
-      )}
-
-      <RoleSelectionSheet
-        open={showRoleSelector}
-        onOpenChange={setShowRoleSelector}
-        allRoles={allRoles}
-        selectedRoleIds={readers}
-        onSave={handleSaveRoles}
       />
     </YStack>
   );
@@ -464,8 +452,14 @@ const checkboxColumnWidth = 100;
 
 export function PermissionTable({
   groupRoles,
+  onSelectRoles,
+  onCreateRole,
+  onRemoveRole,
 }: {
   groupRoles: db.GroupRole[];
+  onSelectRoles?: () => void;
+  onCreateRole?: () => void;
+  onRemoveRole?: (roleId: string) => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -540,7 +534,7 @@ export function PermissionTable({
     [readers, writers, setValue]
   );
 
-  if (!isPrivate || displayedRoles.length === 0) return null;
+  if (!isPrivate) return null;
 
   return (
     <YStack
@@ -578,9 +572,43 @@ export function PermissionTable({
               canWrite={writers.includes(role.value)}
               onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
+              onRemove={
+                role.value !== 'admin' && onRemoveRole
+                  ? () => onRemoveRole(role.value)
+                  : undefined
+              }
             />
           </YStack>
         ))}
+        {/* Add roles and Create new role row */}
+        {(onSelectRoles || onCreateRole) && (
+          <XStack
+            width="100%"
+            alignItems="center"
+            height={68}
+            borderTopWidth={displayedRoles.length > 0 ? 1 : 0}
+            borderTopColor="$secondaryBackground"
+            paddingHorizontal="$xl"
+            gap="$m"
+          >
+            {onSelectRoles && (
+              <Button onPress={onSelectRoles} testID="AddRolesButton">
+                <Button.Icon>
+                  <Icon type="Add" />
+                </Button.Icon>
+                <Button.Text>Add roles</Button.Text>
+              </Button>
+            )}
+            {onCreateRole && (
+              <Button onPress={onCreateRole} testID="CreateRoleButton">
+                <Button.Icon>
+                  <Icon type="Add" />
+                </Button.Icon>
+                <Button.Text>Create new role</Button.Text>
+              </Button>
+            )}
+          </XStack>
+        )}
       </YStack>
     </YStack>
   );
@@ -612,12 +640,14 @@ function PermissionTableRow({
   canWrite,
   onToggleRead,
   onToggleWrite,
+  onRemove,
 }: {
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
   onToggleRead: () => void;
   onToggleWrite: () => void;
+  onRemove?: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
@@ -625,9 +655,16 @@ function PermissionTableRow({
   return (
     <XStack width="100%" alignItems="stretch" flex={1} height={68}>
       <YStack flex={1} justifyContent="center">
-        <Text size="$label/m" paddingVertical="$m" paddingHorizontal={'$xl'}>
-          {role.label}
-        </Text>
+        <XStack alignItems="center" gap="$m" paddingHorizontal="$xl">
+          <Text size="$label/m" paddingVertical="$m" flex={1}>
+            {role.label}
+          </Text>
+          {onRemove && (
+            <Pressable onPress={onRemove} testID={`RemoveRole-${role.label}`}>
+              <Icon type="Close" size="$s" color="$tertiaryText" />
+            </Pressable>
+          )}
+        </XStack>
       </YStack>
       <PermissionTableControlCell>
         {isMember ? (
@@ -674,159 +711,5 @@ function PermissionTableControlCell({
     >
       {children}
     </XStack>
-  );
-}
-
-export function RoleSelectionSheet({
-  open,
-  onOpenChange,
-  allRoles,
-  selectedRoleIds,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  allRoles: RoleOption[];
-  selectedRoleIds: string[];
-  onSave: (roleIds: string[]) => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tempSelectedRoleIds, setTempSelectedRoleIds] =
-    useState<string[]>(selectedRoleIds);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (open) {
-      setTempSelectedRoleIds(selectedRoleIds);
-      setSearchQuery('');
-      setIsScrolling(false);
-    } else {
-      setIsScrolling(false);
-    }
-  }, [open, selectedRoleIds]);
-
-  const filteredRoles = useMemo(() => {
-    const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
-    if (!searchQuery.trim()) {
-      return rolesWithMembers;
-    }
-    const query = searchQuery.toLowerCase();
-    return rolesWithMembers.filter((role) =>
-      role.label.toLowerCase().includes(query)
-    );
-  }, [allRoles, searchQuery]);
-
-  const handleToggleRole = useCallback((roleId: string) => {
-    setTempSelectedRoleIds((prev) => {
-      if (prev.includes(roleId)) {
-        return prev.filter((id) => id !== roleId);
-      }
-      return [...prev, roleId];
-    });
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave(tempSelectedRoleIds);
-    onOpenChange(false);
-  }, [tempSelectedRoleIds, onSave, onOpenChange]);
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      snapPointsMode="percent"
-      disableDrag={isScrolling}
-      modal
-    >
-      <ActionSheet.SimpleHeader
-        title="Search and add roles"
-        subtitle="Select roles for this channel"
-      />
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$xl"
-        paddingBottom={0}
-      >
-        <TextInput
-          icon="Search"
-          placeholder="Search roles"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          testID="RoleSearchInput"
-        />
-      </ActionSheet.Content>
-      <ActionSheet.ScrollableContent
-        paddingHorizontal="$l"
-        onScrollBeginDrag={() => setIsScrolling(true)}
-        onScrollEndDrag={() => setIsScrolling(false)}
-      >
-        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
-          {filteredRoles.map((role) => (
-            <SelectableRoleListItem
-              key={role.value}
-              role={role}
-              isSelected={tempSelectedRoleIds.includes(role.value)}
-              onPress={() => handleToggleRole(role.value)}
-            />
-          ))}
-          {filteredRoles.length === 0 && (
-            <View paddingVertical="$2xl" alignItems="center">
-              <Text color="$tertiaryText">No roles found</Text>
-            </View>
-          )}
-        </YStack>
-        <View
-          paddingHorizontal="$l"
-          paddingTop="$m"
-          paddingBottom={insets.bottom}
-          backgroundColor="$background"
-          borderTopWidth={1}
-          borderTopColor="$border"
-        >
-          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-            <Button.Text>Save</Button.Text>
-          </Button>
-        </View>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function SelectableRoleListItem({
-  role,
-  isSelected,
-  onPress,
-}: {
-  role: RoleOption;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <ListItem
-        {...(isSelected
-          ? { backgroundColor: '$secondaryBackground' }
-          : { borderColor: '$secondaryBorder', borderWidth: 1 })}
-        borderRadius="$xl"
-        height={130}
-        paddingLeft="$3xl"
-        paddingRight="$2xl"
-        alignItems="center"
-      >
-        <ListItem.MainContent alignItems="center" justifyContent="center">
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <ListItem.Title>{role.label}</ListItem.Title>
-            <RadioControl checked={isSelected} />
-          </XStack>
-        </ListItem.MainContent>
-      </ListItem>
-    </Pressable>
   );
 }

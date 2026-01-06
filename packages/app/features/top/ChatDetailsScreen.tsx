@@ -112,7 +112,7 @@ export function ChatDetailsScreenView() {
 
   const handlePressEdit = useCallback(() => {
     if (chatType === 'group' && group) {
-      navigateToGroupMeta(group.id);
+      navigateToGroupMeta(group.id, false, true);
     } else if (chatType === 'channel' && channel) {
       navigateToChannelMeta(channel.id);
     }
@@ -358,19 +358,19 @@ function GroupSettings({ group }: { group: db.Group }) {
   });
 
   const handlePressGroupPrivacy = useCallback(() => {
-    onPressGroupPrivacy?.(group.id);
+    onPressGroupPrivacy?.(group.id, true);
   }, [group.id, onPressGroupPrivacy]);
 
   const handlePressManageChannels = useCallback(() => {
-    onPressManageChannels?.(group.id);
+    onPressManageChannels?.(group.id, true);
   }, [group.id, onPressManageChannels]);
 
   const handlePressNotificationSettings = useCallback(() => {
-    onPressChatVolume({ type: 'group', id: group.id });
+    onPressChatVolume({ type: 'group', id: group.id, fromChatDetails: true });
   }, [group.id, onPressChatVolume]);
 
   const handlePressRoles = useCallback(() => {
-    onPressRoles?.(group.id);
+    onPressRoles?.(group.id, true);
   }, [group.id, onPressRoles]);
 
   return (
