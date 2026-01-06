@@ -2,7 +2,6 @@ import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { constructStory } from '@tloncorp/shared/urbit';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -39,10 +38,8 @@ export function GalleryInput({
     editingPost,
     getDraft,
     onPresentationModeChange,
-    sendPost,
     sendPostFromDraft,
     storeDraft,
-    editPost,
     setEditingPost,
   } = draftInputContext;
 
@@ -271,28 +268,40 @@ export function GalleryInput({
       try {
         setIsPosting(true);
 
-        const story = constructStory([content]);
-        // If editing, use the editPost function from the context
-        if (isEditingPost && editPost && editingPost) {
-          await editPost(editingPost, story, undefined, meta);
+        const draft: domain.PostDataDraft = {
+          channelId: channel.id,
+          content: [content],
+          attachments: [],
+          channelType: channel.type,
+          replyToPostId: null,
+          ...(isEditingPost && editingPost
+            ? {
+                isEdit: true,
+                editTargetPostId: editingPost.id,
+              }
+            : {
+                isEdit: false,
+              }),
 
-          // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-          // First reset all gallery-related state to clean up the editing environment
-          resetGalleryState();
+          title: meta?.title,
+          image: meta?.image,
+        };
+        await sendPostFromDraft(draft);
 
-          // Then clear the editing state to prevent BigInput from showing
-          // This must happen after resetGalleryState to avoid triggering the BigInput display
-          if (setEditingPost) {
-            setEditingPost(undefined);
-          }
+        // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+        // First reset all gallery-related state to clean up the editing environment
+        resetGalleryState();
 
-          // Force inline presentation mode to return to the gallery view
-          // This ensures we exit the fullscreen editing mode completely
+        // Then clear the editing state to prevent BigInput from showing
+        // This must happen after resetGalleryState to avoid triggering the BigInput display
+        if (setEditingPost) {
+          setEditingPost(undefined);
+        }
+
+        // Force inline presentation mode to return to the gallery view
+        // This ensures we exit the fullscreen editing mode completely
+        if (draft.isEdit) {
           onPresentationModeChange?.('inline');
-        } else {
-          // Otherwise send as a new post
-          await sendPost(story, channel.id, meta);
-          resetGalleryState();
         }
 
         // Reset posting state after a short delay
@@ -303,14 +312,14 @@ export function GalleryInput({
       }
     },
     [
+      channel.type,
+      sendPostFromDraft,
       isPosting,
       isEditingPost,
-      editPost,
       editingPost,
       resetGalleryState,
       setEditingPost,
       onPresentationModeChange,
-      sendPost,
       channel.id,
     ]
   );
