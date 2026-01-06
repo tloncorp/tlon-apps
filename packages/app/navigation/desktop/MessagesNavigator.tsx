@@ -54,15 +54,40 @@ export const MessagesNavigator = () => {
   );
 };
 
-const DrawerContent = memo((props: DrawerContentComponentProps) => {
-  const state = props.state as NavigationState<HomeDrawerParamList>;
-  const focusedRoute = state.routes[props.state.index];
-  if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return <MessagesSidebar focusedChannelId={focusedRoute.params.channelId} />;
-  } else {
-    return <MessagesSidebar />;
+const DrawerContent = memo(
+  (props: DrawerContentComponentProps) => {
+    const state = props.state as NavigationState<HomeDrawerParamList>;
+    const focusedRoute = state.routes[props.state.index];
+    if (focusedRoute.params && 'channelId' in focusedRoute.params) {
+      return (
+        <MessagesSidebar focusedChannelId={focusedRoute.params.channelId} />
+      );
+    } else {
+      return <MessagesSidebar />;
+    }
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison that only checks navigation state changes we care about.
+    // Using isEqual on full props caused issues because DrawerContentComponentProps
+    // contains navigation callbacks with unstable references.
+    const prevState = prevProps.state;
+    const nextState = nextProps.state;
+
+    if (prevState.index !== nextState.index) {
+      return false; // Index changed, re-render
+    }
+
+    const prevRoute = prevState.routes[prevState.index];
+    const nextRoute = nextState.routes[nextState.index];
+
+    if (prevRoute.key !== nextRoute.key) {
+      return false; // Route key changed, re-render
+    }
+
+    // Only deep compare params (much smaller than full props)
+    return isEqual(prevRoute.params, nextRoute.params);
   }
-}, isEqual);
+);
 
 DrawerContent.displayName = 'MessagesSidebarDrawerContent';
 
