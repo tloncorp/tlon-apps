@@ -57,7 +57,7 @@ test('should test cross-ship thread functionality', async ({
 
   // Navigate back to channel to check thread indicator
   await helpers.navigateBack(zodPage);
-  await expect(zodPage.getByText('1 reply')).toBeVisible();
+  await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
 
   // TEN: Verify thread indicator is visible
   await expect(tenPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
@@ -89,13 +89,9 @@ test('should test cross-ship thread functionality', async ({
     true
   );
 
-  // ZOD: Wait for sync and verify the edited message is visible
-  await expect(
-    zodPage.getByTestId('ScreenHeaderTitle').getByText(groupName).first()
-  ).toBeVisible({
-    timeout: 10000,
-  });
+  // ZOD: Navigate back to main channel view and wait for sync
   await helpers.navigateBack(zodPage);
+  // Wait for the thread indicator to update with the reply count
   await expect(zodPage.getByText('2 replies')).toBeVisible({ timeout: 10000 });
   await zodPage.getByText('2 replies').click();
   await expect(

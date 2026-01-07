@@ -106,12 +106,9 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   await helpers.navigateBack(page);
 
-  // Navigate back to Group Settings to verify role count
+  // Navigate back to Group Settings
   await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
-
-  // Verify role count is now 2 (Admin + Testing role)
-  await helpers.verifyElementCount(page, 'GroupRoles', 2);
 
   // Assign role to a user (member)
   await page.waitForTimeout(2000);

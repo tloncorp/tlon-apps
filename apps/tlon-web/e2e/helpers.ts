@@ -856,6 +856,18 @@ export async function setGroupPrivacy(
       .getByText('Public', { exact: true })
       .click();
   }
+
+  // Wait for the privacy change to be processed
+  await page.waitForTimeout(2000);
+
+  // Navigate back to close the privacy screen
+  await page.getByTestId('HeaderBackButton').first().click();
+
+  // Wait for navigation and verify we're back on group settings
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+
+  // Wait additional time for the privacy change to sync
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -1398,6 +1410,15 @@ export async function deletePost(page: Page, postText: string) {
  */
 export async function waitForSessionStability(page: Page) {
   await page.waitForTimeout(200);
+
+  // Check if we're in a context where ScreenHeaderSubtitle exists (chat/channel context)
+  const subtitleCount = await page.getByTestId('ScreenHeaderSubtitle').count();
+
+  if (subtitleCount === 0) {
+    // Not in a chat/channel context, skip stability checks
+    return;
+  }
+
   await page.waitForSelector('[data-testid="ScreenHeaderSubtitle"]', {
     state: 'attached',
     timeout: 5000,
