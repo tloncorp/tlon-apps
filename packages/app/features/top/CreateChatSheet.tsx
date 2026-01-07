@@ -508,10 +508,10 @@ function TypeSelectionContent({
       >
         <Button
           fill="text"
-          type="helper"
+          type="secondary"
+          size="small"
           onPress={() => onSelectType('joinGroup')}
           label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
-          size="small"
         />
       </View>
     </>
