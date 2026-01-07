@@ -120,7 +120,10 @@ export async function finalizeAndSendPost(
   }
 }
 
-export async function sendPost(postData: domain.PostDataFinalizedParent) {
+/** @deprecated use `finalizeAndSendPost` instead for optimistic attachments */
+export async function legacy_sendPost(
+  postData: domain.PostDataFinalizedParent
+) {
   return await _sendPost({
     channelId: postData.channelId,
     buildOptimisticPostData: () => postData,
@@ -410,7 +413,7 @@ export async function forwardPost({
     return;
   }
 
-  return sendPost({
+  return legacy_sendPost({
     channelId,
     content: [{ block: { cite: urbitReference } }],
     replyToPostId: null,
@@ -457,7 +460,7 @@ export async function forwardGroup({
       return;
     }
 
-    return sendPost({
+    return legacy_sendPost({
       channelId: channel.id,
       content: [{ block: { cite: urbitReference } }],
       replyToPostId: null,

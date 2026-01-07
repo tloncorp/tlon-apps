@@ -7,7 +7,7 @@ import * as db from '../db';
 import { Attachment, ImageAttachment } from '../domain/attachment';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import * as urbit from '../urbit';
-import { finalizeAndSendPost, sendPost, sendReply } from './postActions';
+import { finalizeAndSendPost, legacy_sendPost, sendReply } from './postActions';
 import { updateSession } from './session';
 import { setUploadState } from './storage';
 
@@ -38,7 +38,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = sendPost({
+    const sendPostPromise = legacy_sendPost({
       channelId: TEST_CHANNEL,
       content: buildPostContent(),
       replyToPostId: null,
@@ -86,7 +86,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = sendPost({
+    const sendPostPromise = legacy_sendPost({
       channelId: TEST_CHANNEL,
       content: buildPostContent(),
       replyToPostId: null,
@@ -274,8 +274,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('send image attachment shortly before session reconnects', async () => {
-    const { sendPostPromise, uploadKey } =
-      beginSendPostWithAttachments();
+    const { sendPostPromise, uploadKey } = beginSendPostWithAttachments();
 
     // immediately lose session so we enqueue the post
     updateSession({ channelStatus: 'reconnecting' });

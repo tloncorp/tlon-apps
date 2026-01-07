@@ -5,7 +5,7 @@ import {
   UploadedImageAttachment,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
-  sendPost,
+  legacy_sendPost,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -249,7 +249,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             ];
 
             // Send the post with just this image
-            await sendPost({
+            await legacy_sendPost({
               channelId: channel.id,
               content: story,
               replyToPostId: null,
@@ -294,7 +294,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
         legacy_sendPost: async (content, channelId, metadata, blob) => {
-          await sendPost({
+          await legacy_sendPost({
             channelId,
             content,
             metadata,
