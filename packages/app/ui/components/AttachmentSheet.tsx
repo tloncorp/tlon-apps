@@ -190,6 +190,8 @@ export default function AttachmentSheet({
 
     // Then initiate the actual image picking process after a small delay to ensure sheet is closed
     setTimeout(async () => {
+      let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
+
       try {
         if (mediaLibraryPermissionStatus?.granted === false) {
           const permissionResult = await requestMediaLibraryPermission();
@@ -200,7 +202,7 @@ export default function AttachmentSheet({
 
         // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        setTimeout(() => {
+        placeholderTimeout = setTimeout(() => {
           if (Platform.OS !== 'web') {
             attachAssets([placeholderUploadIntent]);
           }
@@ -212,6 +214,11 @@ export default function AttachmentSheet({
           quality: 0.5,
           exif: false,
         });
+
+        // Cancel placeholder timeout - either we're replacing with real image or user cancelled
+        if (placeholderTimeout) {
+          clearTimeout(placeholderTimeout);
+        }
 
         if (!result.canceled) {
           // Replace the placeholder with the real image data
@@ -228,6 +235,10 @@ export default function AttachmentSheet({
           clearAttachments();
         }
       } catch (e) {
+        // Cancel placeholder timeout to prevent it from firing after clear
+        if (placeholderTimeout) {
+          clearTimeout(placeholderTimeout);
+        }
         console.error('Error picking image', e);
         logger.trackError('Error picking image', e);
 
