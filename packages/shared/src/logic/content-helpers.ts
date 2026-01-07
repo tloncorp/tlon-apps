@@ -615,7 +615,7 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   });
 }
 
-function toPostDataGallery({
+function toPostDataNonlinkGallery({
   content,
   attachments,
 }: {
@@ -654,8 +654,8 @@ export function toPostData({
   image?: string;
   isEdit?: boolean;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
-  if (channelType === 'gallery') {
-    return toPostDataGallery({
+  if (channelType === 'gallery' && attachments.length > 0) {
+    return toPostDataNonlinkGallery({
       attachments,
       content,
     });
