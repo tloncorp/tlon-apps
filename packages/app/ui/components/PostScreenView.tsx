@@ -47,6 +47,8 @@ import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { DraftInputContext } from './draftInputs';
 
+const noop = async () => {};
+
 const FocusedPostContext = createContext<{
   focusedPost: db.Post | null;
   setFocusedPost: (post: db.Post | null) => void;
@@ -116,15 +118,6 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
     [channel.contentConfiguration]
   );
 
-  const noOpCallbacks = useMemo(
-    () => ({
-      onPresentationModeChange: () => {},
-      sendPost: async () => {},
-      sendPostFromDraft: async () => {},
-    }),
-    []
-  );
-
   const draftInputContext = useMemo(
     (): DraftInputContext => ({
       configuration,
@@ -135,9 +128,9 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       group,
       channel,
       clearDraft,
-      onPresentationModeChange: noOpCallbacks.onPresentationModeChange,
-      legacy_sendPost: noOpCallbacks.sendPost,
-      sendPostFromDraft: noOpCallbacks.sendPostFromDraft,
+      onPresentationModeChange: noop,
+      legacy_sendPost: noop,
+      sendPostFromDraft: store.finalizeAndSendPost,
       setEditingPost,
       setShouldBlur,
       shouldBlur,
@@ -151,9 +144,6 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       group,
       channel,
       clearDraft,
-      noOpCallbacks.onPresentationModeChange,
-      noOpCallbacks.sendPost,
-      noOpCallbacks.sendPostFromDraft,
       setEditingPost,
       setShouldBlur,
       shouldBlur,
