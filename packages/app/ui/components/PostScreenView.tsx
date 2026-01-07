@@ -116,7 +116,10 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       clearDraft,
       onPresentationModeChange: noop,
       legacy_sendPost: noop,
-      sendPostFromDraft: store.finalizeAndSendPost,
+      sendPostFromDraft: async (draft) => {
+        setEditingPost?.(undefined);
+        await store.finalizeAndSendPost(draft);
+      },
       setEditingPost,
       setShouldBlur,
       shouldBlur,
@@ -601,6 +604,7 @@ function SinglePostView({
     async (draft: domain.PostDataDraft) => {
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft);
+        setEditingPost?.(undefined);
       } else {
         const finalized = await store.finalizePostDraft(draft);
         await store.sendReply({
@@ -612,7 +616,7 @@ function SinglePostView({
         scrollToNewReply();
       }
     },
-    [channel, parentPost, store, scrollToNewReply]
+    [channel, parentPost, store, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
@@ -711,7 +715,10 @@ function SinglePostView({
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
             sendPost={async () => {}}
-            sendPostFromDraft={async () => {}}
+            sendPostFromDraft={async (draft) => {
+              setEditingPost?.(undefined);
+              await store.finalizeAndSendPost(draft);
+            }}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}

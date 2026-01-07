@@ -301,6 +301,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           scrollToNewMessage();
         },
         sendPostFromDraft: async (draft) => {
+          setEditingPost?.(undefined);
           await finalizeAndSendPost(draft);
           if (!draft.isEdit) {
             scrollToNewMessage();

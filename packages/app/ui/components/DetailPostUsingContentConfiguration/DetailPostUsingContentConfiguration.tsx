@@ -76,10 +76,12 @@ export function DetailPostView({
     return {
       // TODO: pass draft configuration values?
       legacy_sendPost: async (content) => {
+        channelCtx.setEditingPost(undefined);
         await sendReply(content);
         listRef.current?.scrollToEnd();
       },
       sendPostFromDraft: async (draft) => {
+        channelCtx.setEditingPost(undefined);
         await store.finalizeAndSendPost(draft);
         listRef.current?.scrollToEnd();
       },
