@@ -103,7 +103,6 @@ interface ChannelProps {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
   onPressRetrySend: (post: db.Post) => Promise<void>;
   onPressRetryLoad: () => void;
   onPressDelete: (post: db.Post) => void;
@@ -152,7 +151,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       getDraft,
       editingPost,
       setEditingPost,
-      editPost,
       onPressRetryLoad,
       onPressRetrySend,
       onPressDelete,
@@ -288,7 +286,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 channel.contentConfiguration
               ).configuration,
         draftInputRef,
-        editPost,
         editingPost,
         getDraft,
         group,
@@ -318,7 +315,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         scrollToNewMessage,
         channel,
         clearDraft,
-        editPost,
         editingPost,
         getDraft,
         group,

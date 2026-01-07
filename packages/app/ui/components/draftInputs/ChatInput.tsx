@@ -16,7 +16,6 @@ export function ChatInput({
   const {
     channel,
     clearDraft,
-    editPost,
     editingPost,
     getDraft,
     group,
@@ -48,7 +47,6 @@ export function ChatInput({
           getDraft={getDraft}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           channelType={channel.type}
           shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
           showInlineAttachments

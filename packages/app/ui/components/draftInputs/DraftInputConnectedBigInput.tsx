@@ -27,7 +27,6 @@ export function DraftInputConnectedBigInput({
   const {
     channel,
     clearDraft,
-    editPost,
     editingPost,
     getDraft,
     group,
@@ -61,7 +60,6 @@ export function DraftInputConnectedBigInput({
         getDraft={getDraft}
         editingPost={editingPost}
         setEditingPost={setEditingPost}
-        editPost={editPost}
         setShowBigInput={setShowBigInput}
         placeholder=""
       />

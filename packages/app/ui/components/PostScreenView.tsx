@@ -68,12 +68,6 @@ interface ChannelContext {
   group: db.Group | null;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   negotiationMatch: boolean;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
@@ -81,12 +75,6 @@ interface ChannelContext {
 
 interface GalleryDraftInputProps {
   channel: db.Channel;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   getDraft: (draftType?: string) => Promise<JSONContent | null>;
   group: db.Group | null;
@@ -99,7 +87,6 @@ interface GalleryDraftInputProps {
 
 const GalleryDraftInput = memo(function GalleryDraftInput({
   channel,
-  editPost,
   editingPost,
   getDraft,
   group,
@@ -122,7 +109,6 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
     (): DraftInputContext => ({
       configuration,
       draftInputRef: { current: null },
-      editPost,
       editingPost,
       getDraft,
       group,
@@ -138,7 +124,6 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
     }),
     [
       configuration,
-      editPost,
       editingPost,
       getDraft,
       group,
@@ -168,7 +153,6 @@ export function PostScreenView({
   handleGoToUserProfile,
   editingPost,
   setEditingPost,
-  editPost,
   onPressRetry,
   onPressDelete,
   onGroupAction,
@@ -331,7 +315,6 @@ export function PostScreenView({
                       <YStack flex={1} backgroundColor="$background">
                         <GalleryDraftInput
                           channel={channel}
-                          editPost={editPost}
                           editingPost={editingPost}
                           getDraft={
                             draftCallbacks?.getDraft ?? (async () => null)
@@ -352,7 +335,6 @@ export function PostScreenView({
                       <SinglePostView
                         {...{
                           channel,
-                          editPost,
                           editingPost,
                           goBack,
                           group,
@@ -371,7 +353,6 @@ export function PostScreenView({
                         channelId={channel.id}
                         initialPostId={parentPost.id}
                         channelContext={{
-                          editPost,
                           editingPost,
                           group,
                           negotiationMatch,
@@ -469,7 +450,6 @@ function useMarkThreadAsReadEffect(
 function SinglePostView({
   channel,
   group,
-  editPost,
   editingPost,
   goBack,
   handleGoToImage,
@@ -480,12 +460,6 @@ function SinglePostView({
   setEditingPost,
 }: {
   channel: db.Channel;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   goBack?: () => void;
   group: db.Group | null;
@@ -692,7 +666,6 @@ function SinglePostView({
               {...bareInputDraftProps}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
-              editPost={editPost}
               channelType="chat"
               showAttachmentButton={isChatLike}
               showInlineAttachments
@@ -735,7 +708,6 @@ function SinglePostView({
             channelId={parentPost?.channelId}
             editingPost={editingPost}
             setEditingPost={setEditingPost}
-            editPost={editPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
             sendPost={async () => {}}
