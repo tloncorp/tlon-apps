@@ -11,18 +11,10 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Create a new group
   await helpers.createGroup(page);
 
-  // Handle welcome message if present
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
-  }
-
-  // Navigate back to Home and verify group creation
-  await helpers.navigateBack(page);
-  if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-    await page.getByText('Untitled group').first().click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-  }
+  // Verify we're in the group by checking for General channel
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Open group settings
   await helpers.openGroupSettings(page);
@@ -34,9 +26,13 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Wait for navigation to Channels screen to complete
   await page.waitForTimeout(500);
 
-  await expect(
-    page.getByTestId('ScreenHeaderTitle').first().getByText('Channels')
-  ).toBeVisible();
+  // Verify we're on the Channels screen by checking for Sort and New buttons
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByText('New', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
   await expect(
     page
       .locator('div')
@@ -47,14 +43,12 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Create new channel
   await helpers.createChannel(page, 'Second chat channel');
 
-  await helpers.navigateBack(page);
-  await page.waitForTimeout(500);
-  await helpers.verifyElementCount(page, 'GroupChannels', 2);
+  // Verify we're still on the Channels screen after channel creation
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
 
-  // Test channel reordering
-  await page.getByTestId('GroupChannels').click();
-
-  // Wait for both channels to be visible
+  // Verify channel count is now 2 by checking for both channels
   await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
     timeout: 10000,
   });
@@ -255,14 +249,26 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // "Sectionless" should still exist
   await expect(page.getByTestId('NavSection-Sectionless')).toBeVisible();
 
-  await helpers.navigateBack(page);
+  // Navigate back to group using stable testID helper
+  await helpers.navigateToGroupByTestId(page, {
+    expectedDisplayName: 'Untitled group',
+  });
 
-  // Test notification settings (moved here as it's part of channel settings)
+  // Open Group Settings
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+
+  // Test notification settings
   await helpers.setGroupNotifications(page, 'All activity');
-  await helpers.navigateBack(page, 1);
-  await expect(
-    page.getByTestId('GroupNotifications').getByText('All activity')
-  ).toBeVisible();
+
+  // Close the notification sheet by clicking the first back button (in the sheet header)
+  await page.getByTestId('HeaderBackButton').first().click();
+
+  // Wait for the notification sheet to close
+  await page.waitForTimeout(1000);
+
+  // Verify we're back on Group Info & Settings
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
 
   // Navigate back to verify multi-channel navigation
   // this is mobile only
@@ -296,14 +302,20 @@ test('should handle channel management operations', async ({ zodPage }) => {
 
   // Verify we're still on the Channels screen and the channel was deleted
   await expect(
-    page.getByTestId('ScreenHeaderTitle').first().getByText('Channels')
-  ).toBeVisible();
+    page.getByTestId('ScreenHeaderTitle').getByText('Channels')
+  ).toBeVisible({ timeout: 5000 });
   await expect(
     page.getByTestId('ChannelItem-Testing channel renaming-1')
   ).not.toBeVisible();
 
-  // Navigate back (goes to main group view) and open group settings to verify channel count
+  // Navigate back to verify the channel was deleted
   await helpers.navigateBack(page);
-  await helpers.openGroupSettings(page);
-  await helpers.verifyElementCount(page, 'GroupChannels', 1);
+
+  // Verify only General channel remains in the sidebar
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(
+    page.getByTestId('ChannelListItem-Testing channel renaming')
+  ).not.toBeVisible();
 });

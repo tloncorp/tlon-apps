@@ -32,7 +32,7 @@ test('should customize group name, icon, and description', async ({
   await expect(page.getByText('Edit group info')).toBeVisible();
 
   // Click Cancel to verify navigation back to blank channel
-  await page.getByTestId('HeaderBackButton').nth(2).click();
+  await page.getByTestId('HeaderBackButton').last().click();
 
   // Verify we're back to the blank channel state
   await expect(page.getByText('Welcome to your group!')).toBeVisible();

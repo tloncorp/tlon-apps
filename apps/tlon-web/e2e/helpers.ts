@@ -34,17 +34,28 @@ export async function createGroup(page: Page) {
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+    await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
       timeout: 3000,
     });
   } catch {
     // If not automatically navigated, go to the group manually
     await page.getByTestId('HomeNavIcon').click();
+
+    // Wait for navigation to complete
+    await page.waitForTimeout(500);
+
+    // Ensure we're actually on Home before proceeding
+    await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({
+      timeout: 5000
+    });
+
     await expect(
       page.getByTestId('GroupListItem-Untitled group-unpinned')
     ).toBeVisible({ timeout: 10000 });
     await page.getByTestId('GroupListItem-Untitled group-unpinned').click();
-    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+
+    // Verify we're in the group by checking for the General channel
+    await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
       timeout: 5000,
     });
   }
@@ -288,7 +299,7 @@ export async function navigateToGroupByTestId(
   }
 }
 
-export async function acceptGroupInvite(page: Page, groupName?: string) {
+export async function acceptGroupInvite(page: Page, _groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
