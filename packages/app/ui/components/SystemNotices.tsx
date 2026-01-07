@@ -109,11 +109,14 @@ export function NotificationsPrompt() {
             type="notice"
             fill="outline"
             label="Not Now"
+            size="medium"
+            height={32}
             onPress={handleDismiss}
           />
           <Button
             type="notice"
             fill="solid"
+            size="medium"
             label={perms.canAskPermission ? 'Enable' : 'Settings'}
             onPress={handlePrimaryAction}
           />
@@ -182,13 +185,15 @@ export function ContactBookPrompt(props: {
             <Button
               type="notice"
               fill="outline"
-              label="Not Now"
+              label="Not Now2"
+              size="small"
               onPress={handleDismiss}
             />
             <Button
               type="notice"
               fill="solid"
               label="Continue"
+              size="small"
               onPress={handlePrimaryAction}
             />
           </XStack>

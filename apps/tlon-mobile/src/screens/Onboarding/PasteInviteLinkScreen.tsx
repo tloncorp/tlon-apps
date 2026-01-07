@@ -191,7 +191,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
               </YStack>
               <Button
                 type="secondary"
-                fill="text"
+                fill="outline"
                 marginBottom="$l"
                 width="100%"
                 onPress={() => navigation.navigate('JoinWaitList', {})}

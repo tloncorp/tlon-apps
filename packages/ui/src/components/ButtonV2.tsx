@@ -153,7 +153,7 @@ const ButtonFrame = styled(Pressable, {
         borderRadius: '$l',
       },
       small: {
-        height: 42,
+        height: 44,
         paddingLeft: '$xl',
         paddingRight: '$m',
         paddingVertical: '$m',
