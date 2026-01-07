@@ -3,7 +3,6 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
-  ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -18,7 +17,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ChatListItem } from './ChatListItem';
@@ -248,8 +247,8 @@ function BaseRightActions({
           handleAction={handlePin}
         />
         <Action
-          backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
-          color={isMuted ? '$secondaryText' : '$secondaryText'}
+          backgroundColor={(isMuted ? '$darkBackground' : '$secondaryBackground') as ColorTokens}
+          color={"$secondaryText" as ColorTokens}
           iconType={isMuted ? 'Notifications' : 'Muted'}
           handleAction={handleMute}
         />
