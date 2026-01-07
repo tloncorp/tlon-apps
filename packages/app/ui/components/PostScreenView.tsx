@@ -45,6 +45,7 @@ import { DraftInputView } from './Channel/DraftInputView';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { DraftInputContext } from './draftInputs';
 
 const FocusedPostContext = createContext<{
   focusedPost: db.Post | null;
@@ -125,7 +126,7 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
   );
 
   const draftInputContext = useMemo(
-    () => ({
+    (): DraftInputContext => ({
       configuration,
       draftInputRef: { current: null },
       editPost,
@@ -135,7 +136,7 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       channel,
       clearDraft,
       onPresentationModeChange: noOpCallbacks.onPresentationModeChange,
-      sendPost: noOpCallbacks.sendPost,
+      legacy_sendPost: noOpCallbacks.sendPost,
       sendPostFromDraft: noOpCallbacks.sendPostFromDraft,
       setEditingPost,
       setShouldBlur,

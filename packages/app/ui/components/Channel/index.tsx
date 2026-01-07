@@ -293,7 +293,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        sendPost: async (content, channelId, metadata, blob) => {
+        legacy_sendPost: async (content, channelId, metadata, blob) => {
           await sendPost({
             channelId,
             content,

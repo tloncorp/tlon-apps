@@ -31,7 +31,7 @@ export function DraftInputConnectedBigInput({
     editingPost,
     getDraft,
     group,
-    sendPost,
+    legacy_sendPost: sendPost,
     sendPostFromDraft,
     setEditingPost,
     setShouldBlur,

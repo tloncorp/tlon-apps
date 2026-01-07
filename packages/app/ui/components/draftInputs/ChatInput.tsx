@@ -20,7 +20,7 @@ export function ChatInput({
     editingPost,
     getDraft,
     group,
-    sendPost,
+    legacy_sendPost: sendPost,
     sendPostFromDraft,
     setEditingPost,
     setShouldBlur,

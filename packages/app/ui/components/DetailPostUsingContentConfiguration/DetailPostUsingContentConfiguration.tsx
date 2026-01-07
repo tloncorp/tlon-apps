@@ -75,7 +75,7 @@ export function DetailPostView({
   const draftInputContext = useMemo((): DraftInputContext => {
     return {
       // TODO: pass draft configuration values?
-      sendPost: async (content) => {
+      legacy_sendPost: async (content) => {
         await sendReply(content);
         listRef.current?.scrollToEnd();
       },
