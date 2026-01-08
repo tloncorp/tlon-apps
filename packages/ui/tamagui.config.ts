@@ -278,9 +278,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#4C566A',
-    // systemNoticeBackground: '#F5FAFF',
-    // systemNoticeBorder: '#CCDCF3',
-    // systemNoticeText: '#FFFFFF',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   greenscreen: {

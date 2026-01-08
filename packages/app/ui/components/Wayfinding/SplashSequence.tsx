@@ -6,10 +6,10 @@ import {
 } from '@tloncorp/shared';
 import {
   Button,
-  Icon,
+  ButtonIntent,
+  ButtonStyle,
   LoadingSpinner,
   Text,
-  triggerHaptic,
 } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -20,15 +20,7 @@ import React, {
 } from 'react';
 import { Alert, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ColorTokens,
-  View,
-  XStack,
-  YStack,
-  ZStack,
-  isWeb,
-  styled,
-} from 'tamagui';
+import { View, XStack, YStack, ZStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import { useActiveTheme } from '../../../provider';
@@ -91,45 +83,45 @@ const SplashParagraph = styled(Text, {
   marginHorizontal: '$xl',
 });
 
+type SplashButtonVariant = 'primary' | 'hero' | 'secondary';
+
+const variantMapping: Record<
+  SplashButtonVariant,
+  { type: ButtonIntent; fill: ButtonStyle; fullWidth?: boolean }
+> = {
+  primary: { type: 'primary', fill: 'solid' },
+  hero: { type: 'positive', fill: 'solid' },
+  secondary: { type: 'secondary', fill: 'ghost', fullWidth: true },
+};
+
 const SplashButton = ({
   children,
-  textProps = {},
+  variant = 'primary',
+  onPress,
+  disabled,
   ...rest
-}: PropsWithChildren<
-  {
-    onPress: () => void;
-    textProps?: ComponentProps<typeof Button.Text>;
-  } & ComponentProps<typeof Button>
->) => {
-  const handlePress = useCallback(() => {
-    triggerHaptic('baseButtonClick');
-    rest.onPress();
-  }, [rest]);
+}: PropsWithChildren<{
+  onPress: () => void;
+  variant?: SplashButtonVariant;
+  disabled?: boolean;
+}> &
+  Omit<ComponentProps<typeof View>, 'onPress' | 'children'>) => {
+  const { type, fill, fullWidth } = variantMapping[variant];
+  const width = fullWidth ? '100%' : isWeb ? 300 : '100%';
 
   return (
-    <Button
-      hero
-      height={72}
-      width={isWeb ? 300 : 'unset'}
-      padding={isWeb ? 30 : 'unset'}
-      {...rest}
-      onPress={handlePress}
-    >
-      <XStack width="100%" justifyContent="space-between" alignItems="center">
-        <Button.Text
-          flexShrink={1}
-          textAlign="left"
-          marginLeft="$l"
-          {...textProps}
-        >
-          {children}
-        </Button.Text>
-        <Icon
-          type="ChevronRight"
-          color={(textProps.color as ColorTokens) ?? '$background'}
-        />
-      </XStack>
-    </Button>
+    <View width={width} {...rest}>
+      <Button
+        size="large"
+        type={type}
+        fill={fill}
+        onPress={onPress}
+        disabled={disabled}
+        trailingIcon="ChevronRight"
+        label={typeof children === 'string' ? children : undefined}
+        justifyContent="space-between"
+      />
+    </View>
   );
 };
 
@@ -171,12 +163,13 @@ export function WelcomePane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </View>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
-        <SplashButton
-          data-testid="lets-get-started"
-          onPress={props.onActionPress}
-          marginHorizontal="$2xl"
-        >
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal="$2xl"
+      >
+        <SplashButton data-testid="lets-get-started" onPress={props.onActionPress}>
           Let's get started
         </SplashButton>
       </XStack>
@@ -222,13 +215,13 @@ export function GroupsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
-        <SplashButton
-          data-testid="got-it"
-          marginTop="$l"
-          onPress={props.onActionPress}
-          marginHorizontal={isWeb ? '$4xl' : '$2xl'}
-        >
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal={isWeb ? '$4xl' : '$2xl'}
+      >
+        <SplashButton data-testid="got-it" marginTop="$l" onPress={props.onActionPress}>
           Got it
         </SplashButton>
       </XStack>
@@ -273,12 +266,16 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal="$2xl"
+      >
         <SplashButton
           data-testid="one-quick-thing"
           marginTop="$l"
           onPress={props.onActionPress}
-          marginHorizontal="$2xl"
         >
           One quick thing
         </SplashButton>
@@ -318,12 +315,16 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             </SplashParagraph>
           </YStack>
         </YStack>
-        <XStack width="100%" justifyContent="center" marginTop="$2xl">
+        <XStack
+          width="100%"
+          justifyContent="center"
+          marginTop="$2xl"
+          paddingHorizontal="$2xl"
+        >
           <SplashButton
             data-testid="invite-friends"
             marginTop="$l"
             onPress={props.onActionPress}
-            marginHorizontal="$2xl"
           >
             Invite friends
           </SplashButton>
@@ -430,6 +431,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
         width="100%"
         justifyContent="center"
         marginTop="$2xl"
+        paddingHorizontal="$2xl"
         marginBottom={
           isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
         }
@@ -439,17 +441,12 @@ export function InvitePane(props: { onActionPress: () => void }) {
             <LoadingSpinner />
           </YStack>
         )}
-        <YStack
-          width={isWeb ? 'auto' : '100%'}
-          paddingHorizontal={isWeb ? 'unset' : '$2xl'}
-        >
+        <YStack width={isWeb ? 'auto' : '100%'}>
           <SplashButton
             data-testid="connect-contact-book"
             marginTop="$l"
             onPress={handleAction}
-            marginHorizontal={isWeb ? '$2xl' : 'unset'}
-            backgroundColor="$positiveActionText"
-            textProps={{ color: '$white' }}
+            variant="hero"
             disabled={isProcessing}
           >
             {shouldPromptForPermission ? 'Connect contact book' : 'Finish'}
@@ -457,9 +454,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
           {shouldPromptForPermission && (
             <SplashButton
               marginTop="$l"
-              secondary
-              textProps={{ color: '$secondaryText' }}
-              backgroundColor="$background"
+              variant="secondary"
               disabled={isProcessing}
               onPress={handleSkip}
             >

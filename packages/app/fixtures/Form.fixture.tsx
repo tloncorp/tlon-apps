@@ -128,16 +128,16 @@ const FormFixture = () => {
 
         <Form.Field label="Button input">
           <Button
-            secondary
+            fill="outline"
+            type="secondary"
             onPress={() =>
               reset({
                 title: 'monk',
                 description: '',
               })
             }
-          >
-            <Button.Text>Reseet</Button.Text>
-          </Button>
+            label="Reseet"
+          />
         </Form.Field>
 
         <Form.Field label="Find Friends">

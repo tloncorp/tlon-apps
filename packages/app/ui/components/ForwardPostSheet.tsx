@@ -104,18 +104,17 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         paddingHorizontal="$xl"
       >
         <Button
-          hero
+          fill="solid"
+          type="primary"
           onPress={handleSendItem}
           disabled={isSending || !!errorMessage}
-        >
-          <Button.Text>
-            {isSending
-              ? 'Forwarding...'
-              : errorMessage
-                ? errorMessage
-                : `Forward to ${selectedChannelTitle}`}
-          </Button.Text>
-        </Button>
+          label={isSending
+            ? 'Forwarding...'
+            : errorMessage
+              ? errorMessage
+              : `Forward to ${selectedChannelTitle}`}
+          centered
+        />
       </YStack>
     );
   }, [

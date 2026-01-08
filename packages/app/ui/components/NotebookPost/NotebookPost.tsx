@@ -210,15 +210,14 @@ export function NotebookPost({
               onReply={handlePress}
               mode="await-trigger"
               trigger={
-                <Button
+                <Button.Frame
                   backgroundColor="$secondaryBackground"
                   borderWidth="unset"
-                  size="$l"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
-                </Button>
+                </Button.Frame>
               }
             />
           </Pressable>

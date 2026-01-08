@@ -1,9 +1,9 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getNativeEmoji } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
 import { SizableEmoji } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
@@ -92,9 +92,9 @@ export function EmojiToolbar({
           handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-last"
         />
-        <Button padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
+        <Pressable padding="$xs" onPress={handleSheetOpen}>
           <Icon type="ChevronDown" size="$l" />
-        </Button>
+        </Pressable>
       </XStack>
       <EmojiPickerSheet
         open={sheetOpen}
@@ -117,9 +117,8 @@ function EmojiToolbarButton({
   testID: string;
 }) {
   return (
-    <Button
+    <Pressable
       padding="$xs"
-      borderWidth={0}
       backgroundColor={
         details.self.didReact && details.self.value.includes(shortCode)
           ? '$positiveBackground'
@@ -129,6 +128,6 @@ function EmojiToolbarButton({
       testID={testID}
     >
       <SizableEmoji emojiInput={shortCode} fontSize={32} />
-    </Button>
+    </Pressable>
   );
 }

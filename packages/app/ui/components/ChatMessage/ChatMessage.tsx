@@ -314,14 +314,13 @@ const ChatMessage = ({
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
             trigger={
-              <Button
+              <Button.Frame
                 backgroundColor="transparent"
                 borderWidth="unset"
-                size="$l"
                 testID="MessageActionsTrigger"
               >
                 <Icon type="Overflow" />
-              </Button>
+              </Button.Frame>
             }
             mode="await-trigger"
           />

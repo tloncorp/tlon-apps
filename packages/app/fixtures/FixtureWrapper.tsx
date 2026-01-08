@@ -12,6 +12,7 @@ import type { ColorProp } from '../ui';
 import {
   AppDataContextProvider,
   ChatOptionsProvider,
+  NavigationProvider,
   Theme,
   ToastProvider,
   View,
@@ -85,8 +86,9 @@ const InnerWrapper = ({
             disableNicknames: false,
           }}
         >
-          <ChatOptionsProvider {...useChatSettingsNavigation()}>
-            <Theme name={theme}>
+          <NavigationProvider>
+            <ChatOptionsProvider {...useChatSettingsNavigation()}>
+              <Theme name={theme}>
               <View
                 flex={1}
                 paddingBottom={safeArea ? insets.bottom : 0}
@@ -124,6 +126,7 @@ const InnerWrapper = ({
               </View>
             </Theme>
           </ChatOptionsProvider>
+          </NavigationProvider>
         </AppDataContextProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

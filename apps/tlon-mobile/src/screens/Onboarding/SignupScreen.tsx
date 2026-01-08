@@ -13,13 +13,13 @@ import {
   KeyboardAvoidingView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
-  PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { Button } from '@tloncorp/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
@@ -255,7 +255,7 @@ export const SignupScreen = ({ navigation }: Props) => {
               />
             )}
 
-            <PrimaryButton
+            <Button
               onPress={onSubmit}
               loading={isSubmitting}
               disabled={
@@ -264,11 +264,9 @@ export const SignupScreen = ({ navigation }: Props) => {
                   ? !phoneForm.formState.isValid
                   : !emailForm.formState.isValid)
               }
-            >
-              <TlonText.Text color="$background" size="$label/l">
-                Sign up
-              </TlonText.Text>
-            </PrimaryButton>
+              label="Sign up"
+              centered
+            />
             <TlonText.Text
               marginTop="$m"
               textAlign="center"

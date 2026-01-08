@@ -60,19 +60,18 @@ export function ChannelListItem({
 
   const triggerButton = useMemo(
     () => (
-      <Button
+      <Button.Frame
         backgroundColor="transparent"
         borderWidth="unset"
         paddingLeft={0}
         paddingRight="$s"
         marginHorizontal="$-m"
-        minimal
         onPress={(e) => {
           e.stopPropagation();
         }}
       >
         <Icon type="Overflow" />
-      </Button>
+      </Button.Frame>
     ),
     []
   );

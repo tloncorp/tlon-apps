@@ -327,12 +327,12 @@ export default function AttachmentSheet({
           testID="AttachmentSheetCloseButton"
         >
           <Button
-            minimal
+            fill="text"
+            type="primary"
             onPress={() => onOpenChange(false)}
             testID="AttachmentSheetCloseButton"
-          >
-            <Button.Text>Cancel</Button.Text>
-          </Button>
+            label="Cancel"
+          />
         </ListItem.EndContent>
       </ActionSheet.Header>
       <ActionSheet.Content>

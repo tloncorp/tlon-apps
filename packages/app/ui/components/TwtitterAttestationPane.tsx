@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
@@ -9,7 +9,6 @@ import { View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
-import { PrimaryButton, TextButton } from './Buttons';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 
@@ -232,25 +231,22 @@ ${proof}`;
           </Text>
         )}
 
-        <PrimaryButton
+        <Button
           onPress={onSubmit}
           loading={isLoading}
           disabled={isLoading || !isDirty || !isValid}
-        >
-          Submit
-        </PrimaryButton>
+          label="Submit"
+          centered
+        />
         {!keyboardVisible && (
-          <TextButton
-            textProps={{
-              size: '$label/s',
-              color: '$tertiaryText',
-              textDecorationLine: 'underline',
-              textDecorationColor: '$tertiaryText',
-            }}
+          <Button
+            fill="text"
+            type="primary"
+            size="small"
+            centered
+            label="Wrong account?"
             onPress={handleRevoke}
-          >
-            Wrong account?
-          </TextButton>
+          />
         )}
       </YStack>
     </TouchableWithoutFeedback>
@@ -314,13 +310,13 @@ function InitiateTwitterPane() {
         }}
       />
       {error && <Text color="$negativeActionText">{error}</Text>}
-      <PrimaryButton
+      <Button
         onPress={onSubmit}
         loading={isLoading}
         disabled={isLoading || !isDirty || !isValid}
-      >
-        Submit
-      </PrimaryButton>
+        label="Submit"
+        centered
+      />
     </YStack>
   );
 }

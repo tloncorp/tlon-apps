@@ -3,7 +3,6 @@ import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   ActionSheet,
-  Button,
   Image,
   OnboardingButton,
   OnboardingInviteBlock,
@@ -93,9 +92,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                   borderWidth={1}
                 >
                   <OnboardingInviteBlock metadata={lureMeta} />
-                  <OnboardingButton onPress={handlePressInvite}>
-                    <Button.Text>Join with new account</Button.Text>
-                  </OnboardingButton>
+                  <OnboardingButton
+                    onPress={handlePressInvite}
+                    label="Join with new account"
+                  />
                 </YStack>
               </Pressable>
             ) : (
@@ -104,9 +104,8 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                   onPress={() => {
                     navigation.navigate('PasteInviteLink');
                   }}
-                >
-                  <Button.Text>Sign up</Button.Text>
-                </OnboardingButton>
+                  label="Sign up"
+                />
               </>
             )}
           </YStack>

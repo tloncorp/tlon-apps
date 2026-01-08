@@ -10,13 +10,13 @@ import {
   KeyboardAvoidingView,
   OnboardingTextBlock,
   Pressable,
-  PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { Button } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useEffect, useState } from 'react';
@@ -232,7 +232,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               />
             )}
 
-            <PrimaryButton
+            <Button
               onPress={onSubmit}
               loading={isSubmitting}
               disabled={
@@ -241,11 +241,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   ? !phoneForm.formState.isValid
                   : !emailForm.formState.isValid)
               }
-            >
-              <TlonText.Text color="$background" size="$label/l">
-                Send code to log in
-              </TlonText.Text>
-            </PrimaryButton>
+              label="Send code to log in"
+              centered
+            />
 
             <TlonText.Text
               textAlign="center"

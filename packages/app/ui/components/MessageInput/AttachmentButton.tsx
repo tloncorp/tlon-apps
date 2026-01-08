@@ -22,12 +22,11 @@ export default function AttachmentButton({
   return (
     <>
       <Button
-        backgroundColor="unset"
-        borderColor="transparent"
+        fill="ghost"
+        size="small"
+        leadingIcon={'Add'}
         onPress={() => setShowInputSelector(true)}
-      >
-        <Icon type="Add" />
-      </Button>
+      />
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}

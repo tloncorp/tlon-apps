@@ -3,7 +3,6 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
-  ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -18,7 +17,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ChatListItem } from './ChatListItem';
@@ -194,8 +193,8 @@ function BaseLeftActions({
     <View width={80} justifyContent="flex-start" flexDirection="row">
       <Animated.View style={containerStyle}>
         <Action
-          backgroundColor="$green"
-          color="$darkBackground"
+          backgroundColor={"$green" as ColorTokens}
+          color={"$darkBackground" as ColorTokens}
           iconType="Checkmark"
           handleAction={handleRead}
         />
@@ -242,14 +241,14 @@ function BaseRightActions({
     <View width={160} justifyContent="flex-end" flexDirection="row">
       <Animated.View style={containerStyle}>
         <Action
-          backgroundColor="$blueSoft"
-          color="$darkBackground"
+          backgroundColor={"$blueSoft" as ColorTokens}
+          color={"$darkBackground" as ColorTokens}
           iconType="Pin"
           handleAction={handlePin}
         />
         <Action
-          backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
-          color={isMuted ? '$secondaryText' : '$secondaryText'}
+          backgroundColor={(isMuted ? '$darkBackground' : '$secondaryBackground') as ColorTokens}
+          color={"$secondaryText" as ColorTokens}
           iconType={isMuted ? 'Notifications' : 'Muted'}
           handleAction={handleMute}
         />
@@ -265,7 +264,7 @@ function Action({
   handleAction,
   color,
   iconType,
-}: ComponentProps<typeof Stack> & {
+}: {
   backgroundColor: ColorTokens;
   color: ColorTokens;
   iconType: IconType;

@@ -8,9 +8,39 @@ type NoOpFunction = (() => void) & { [key: string]: NoOpFunction };
 
 const logger = createDevLogger('StoreContext', true);
 
+// Mock return values for hooks that get destructured
+const HOOK_MOCKS: Record<string, unknown> = {
+  usePostDraftCallbacks: {
+    getDraft: async () => null,
+    storeDraft: async () => {},
+    clearDraft: async () => {},
+  },
+  useThreadPosts: {
+    data: [],
+  },
+  useChannel: {
+    data: null,
+  },
+  useGroup: {
+    data: null,
+  },
+  usePost: {
+    data: null,
+  },
+  useContacts: {
+    data: [],
+  },
+};
+
 function createNoOpFunction(key: string): NoOpFunction {
   return new Proxy(() => {}, {
-    apply: () => undefined,
+    apply: () => {
+      // For hooks that return objects that get destructured, return a proper mock object
+      if (key in HOOK_MOCKS) {
+        return HOOK_MOCKS[key];
+      }
+      return undefined;
+    },
     get: () => createNoOpFunction(`${key}.property`),
   }) as unknown as NoOpFunction;
 }

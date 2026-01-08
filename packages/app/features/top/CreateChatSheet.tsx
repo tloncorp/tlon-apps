@@ -241,15 +241,15 @@ const CreateChatFormContent = ({
           maxHeight={isWindowNarrow ? undefined : 500}
         />
         {chatType === 'group' && (
-          <Button marginTop="$l" hero onPress={onCreateGroup}>
-            {!isCreating ? (
-              <Button.Text>Create group</Button.Text>
-            ) : (
-              <View width={30} paddingHorizontal="$2xl">
-                <LoadingSpinner color="$background" />
-              </View>
-            )}
-          </Button>
+          <Button
+            fill="solid"
+            type="primary"
+            marginTop="$l"
+            onPress={onCreateGroup}
+            loading={isCreating}
+            label={isCreating ? '' : 'Create group'}
+            centered
+          />
         )}
       </YStack>
     </YStack>
@@ -507,16 +507,12 @@ function TypeSelectionContent({
         alignItems="center"
       >
         <Button
+          fill="text"
+          type="secondary"
+          size="small"
           onPress={() => onSelectType('joinGroup')}
-          backgroundColor="transparent"
-          minimal
-          paddingVertical="$m"
-          paddingHorizontal="$l"
-        >
-          <Button.Text color="$tertiaryText" size="$label/m">
-            {CHAT_TYPE_CONFIG.joinGroup.actionTitle}
-          </Button.Text>
-        </Button>
+          label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+        />
       </View>
     </>
   );

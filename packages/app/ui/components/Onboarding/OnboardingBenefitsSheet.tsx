@@ -1,4 +1,4 @@
-import { Text, Button } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 
 import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
 
@@ -45,7 +45,8 @@ export function OnboardingBenefitsSheet({
                 Tlon is a peer-to-peer network.
               </Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                Each account is a personal cloud computer—run it yourself or let us host it. Either way, it's truly yours.
+                Each account is a personal cloud computer—run it yourself or let
+                us host it. Either way, it's truly yours.
               </Text>
             </YStack>
           </XStack>
@@ -61,9 +62,12 @@ export function OnboardingBenefitsSheet({
               </View>
             </View>
             <YStack gap="$xs" flex={1}>
-              <Text fontSize={'$l'} fontWeight="$xl">Hassle-free messaging you can trust.</Text>
+              <Text fontSize={'$l'} fontWeight="$xl">
+                Hassle-free messaging you can trust.
+              </Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                We handle uptime, security, and updates—your node is always up to date.
+                We handle uptime, security, and updates—your node is always up
+                to date.
               </Text>
             </YStack>
           </XStack>
@@ -79,7 +83,9 @@ export function OnboardingBenefitsSheet({
               </View>
             </View>
             <YStack gap="$xs" flex={1}>
-              <Text fontSize={'$l'} fontWeight="$xl">Sign via email or phone.</Text>
+              <Text fontSize={'$l'} fontWeight="$xl">
+                Sign via email or phone.
+              </Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
                 Claim your node in seconds and start connecting right away.
               </Text>
@@ -87,10 +93,9 @@ export function OnboardingBenefitsSheet({
           </XStack>
           <Button
             onPress={() => onOpenChange(false)}
-            hero
-          >
-            <Text fontSize={'$l'} color="$background">Continue</Text>
-          </Button>
+            label="Continue"
+            centered
+          />
         </YStack>
       </ActionSheet.Content>
     </ActionSheet>

@@ -2,20 +2,13 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { Text, View, XStack, useStyle } from 'tamagui';
 
 import { NavigationProvider, useStore } from '../../contexts';
-import { PrimaryButton } from '../Buttons';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
@@ -52,8 +45,8 @@ export function ActivityScreenView({
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
-  const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
-
+  // const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
+  const allTabsAreEmpty = true;
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
@@ -312,13 +305,15 @@ export function ActivityScreenContent({
                 to get started.
               </Text>
               <View gap="$m" width="100%" maxWidth={300}>
-                <PrimaryButton onPress={() => setPersonalInviteOpen(true)}>
-                  Invite Friends
-                </PrimaryButton>
+                <Button
+                  label="Invite Friends"
+                  onPress={() => setPersonalInviteOpen(true)}
+                />
                 {onNavigateToContacts && (
-                  <PrimaryButton onPress={onNavigateToContacts}>
-                    View Contacts
-                  </PrimaryButton>
+                  <Button
+                    label="View Contacts"
+                    onPress={onNavigateToContacts}
+                  />
                 )}
               </View>
             </View>
