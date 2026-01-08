@@ -30,7 +30,6 @@ export function DraftInputConnectedBigInput({
     editingPost,
     getDraft,
     group,
-    legacy_sendPost: sendPost,
     sendPostFromDraft,
     setEditingPost,
     setShouldBlur,
@@ -53,7 +52,6 @@ export function DraftInputConnectedBigInput({
         groupRoles={group?.roles ?? []}
         shouldBlur={shouldBlur}
         setShouldBlur={setShouldBlur}
-        sendPost={sendPost}
         sendPostFromDraft={sendPostFromDraft}
         storeDraft={storeDraft}
         clearDraft={clearDraft}

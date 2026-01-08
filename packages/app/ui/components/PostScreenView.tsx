@@ -9,7 +9,7 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -587,19 +587,6 @@ function SinglePostView({
         }
   );
 
-  const sendReply = useCallback(
-    async (content: urbit.Story) => {
-      await store.sendReply({
-        content,
-        channel: channel,
-        parentId: parentPost.id,
-        parentAuthor: parentPost.authorId,
-      });
-      scrollToNewReply();
-    },
-    [channel, parentPost, store, scrollToNewReply]
-  );
-
   const sendReplyFromDraft = useCallback(
     async (draft: domain.PostDataDraft) => {
       if (draft.isEdit) {
@@ -657,7 +644,6 @@ function SinglePostView({
               groupId={channel.groupId}
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
-              sendPost={sendReply}
               sendPostFromDraft={sendReplyFromDraft}
               channelId={channel.id}
               groupMembers={groupMembers}
@@ -709,7 +695,6 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            sendPost={async () => {}}
             sendPostFromDraft={async (draft) => {
               setEditingPost?.(undefined);
               await store.finalizeAndSendPost(draft);

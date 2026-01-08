@@ -1,11 +1,8 @@
 import {
   Attachment,
-  FinalizedAttachment,
   PostDataDraft,
   createDevLogger,
-  finalizeAndSendPost,
   tiptap,
-  toPostData,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
 } from '@tloncorp/shared';
@@ -47,7 +44,6 @@ export function BigInput({
   editingPost,
   setShowBigInput,
   clearDraft,
-  sendPost,
   ...props
 }: MessageInputProps & {
   channelId: string;
@@ -442,7 +438,6 @@ export function BigInput({
             )}
           <MessageInput
             ref={editorRef}
-            sendPost={handleSend}
             sendPostFromDraft={sendPostFromDraft}
             channelId={channelId}
             channelType={channelType}
