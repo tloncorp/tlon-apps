@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import type { Post, PostMetadata } from '../db';
+import type { Post } from '../db';
 import { isDmChannelId, isGroupDmChannelId } from '../logic';
-import type { Story } from '../urbit';
 import * as dbHooks from './dbHooks';
-import * as postActions from './postActions';
 import { SyncPriority, syncGroup } from './sync';
 import { useNegotiate, useNegotiateMulti } from './useNegotiation';
 import { usePostDraftCallbacks } from './usePostDraftCallbacks';
@@ -34,24 +32,6 @@ export const useChannelContext = ({
 
   // Post editing
   const [editingPost, setEditingPost] = useState<Post>();
-
-  const editPost = useCallback(
-    async (
-      post: Post,
-      content: Story,
-      parentId?: string,
-      metadata?: PostMetadata
-    ) => {
-      postActions.editPost({
-        post,
-        content,
-        parentId,
-        metadata,
-      });
-      setEditingPost(undefined);
-    },
-    []
-  );
 
   // Version negotiation
   const isDM = isDmChannelId(channelId);
@@ -85,7 +65,6 @@ export const useChannelContext = ({
     clearDraft,
     setEditingPost,
     editingPost,
-    editPost,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
     groupIsLoading: groupQuery.isLoading,

@@ -2,7 +2,6 @@ import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Block, constructStory } from '@tloncorp/shared/urbit';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -39,20 +38,15 @@ export function GalleryInput({
     editingPost,
     getDraft,
     onPresentationModeChange,
-    sendPost,
+    sendPostFromDraft,
     storeDraft,
-    editPost,
     setEditingPost,
   } = draftInputContext;
 
   const safeAreaInsets = useSafeAreaInsets();
   const captionInputRef = useRef<TextInput>(null);
-  const {
-    resetAttachments,
-    waitForAttachmentUploads,
-    addAttachment,
-    attachAssets,
-  } = useAttachmentContext();
+  const { resetAttachments, attachments, addAttachment, attachAssets } =
+    useAttachmentContext();
   const theme = useTheme();
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
@@ -204,82 +198,38 @@ export function GalleryInput({
     try {
       setIsPosting(true);
 
-      // Wait for image attachments to finish uploading
-      const finalAttachments = await waitForAttachmentUploads();
+      const draft: domain.PostDataDraft = {
+        channelId: channel.id,
+        content: caption ? [caption] : [],
+        attachments: attachments,
+        channelType: channel.type,
+        replyToPostId: null,
+        ...(isEditingPost && editingPost
+          ? {
+              isEdit: true,
+              editTargetPostId: editingPost.id,
+            }
+          : {
+              isEdit: false,
+            }),
+      };
+      await sendPostFromDraft(draft);
 
-      // Filter for image attachments with completed uploads
-      const imageAttachments = finalAttachments.filter(
-        (attachment) =>
-          attachment.type === 'image' &&
-          'uploadState' in attachment &&
-          attachment.uploadState &&
-          attachment.uploadState.status === 'success' &&
-          'remoteUri' in attachment.uploadState &&
-          attachment.uploadState.remoteUri
-      );
+      // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+      // First reset all gallery-related state to clean up the editing environment
+      resetGalleryState();
 
-      if (imageAttachments.length === 0) {
-        console.error('No image attachments found for gallery post');
-        setIsPosting(false);
-        return;
+      // Then clear the editing state to prevent BigInput from showing
+      // This must happen after resetGalleryState to avoid triggering the BigInput display
+      if (setEditingPost) {
+        setEditingPost(undefined);
       }
 
-      // Create a story with the caption and image blocks
-      // Only include caption if it exists (avoid empty strings)
-      const story = caption ? constructStory([caption]) : constructStory([]);
-
-      // Extract and add image blocks to the story
-      const blocks = imageAttachments.map((attachment) => {
-        const imageAttachment = attachment as {
-          type: 'image';
-          file: ImagePickerAsset;
-          uploadState: { remoteUri: string };
-        };
-
-        return {
-          image: {
-            src: imageAttachment.uploadState.remoteUri,
-            height: imageAttachment.file.height,
-            width: imageAttachment.file.width,
-            alt: 'image',
-          },
-        } as Block;
-      });
-
-      story.push(...blocks.map((block) => ({ block })));
-
-      // Create metadata with the first image
-      const metadata: Record<string, any> = {};
-      if (imageAttachments[0]) {
-        const firstImage = imageAttachments[0] as {
-          uploadState: { remoteUri: string };
-        };
-        metadata.image = firstImage.uploadState.remoteUri;
-      }
-
-      // If editing, use the editPost function from the context
-      if (isEditingPost && editPost && editingPost) {
-        await editPost(editingPost, story);
-
-        // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-        // First reset all gallery-related state to clean up the editing environment
-        resetGalleryState();
-
-        // Then clear the editing state to prevent BigInput from showing
-        // This must happen after resetGalleryState to avoid triggering the BigInput display
-        if (setEditingPost) {
-          setEditingPost(undefined);
-        }
-
-        // Force inline presentation mode to return to the gallery view
-        // This ensures we exit the fullscreen editing mode completely
+      // Force inline presentation mode to return to the gallery view
+      // This ensures we exit the fullscreen editing mode completely
+      if (draft.isEdit) {
         onPresentationModeChange?.('inline');
-      } else {
-        // Otherwise send as a new post
-        await sendPost(story, channel.id, metadata);
-        resetGalleryState();
       }
-
       // Reset posting state after a short delay
       setTimeout(() => setIsPosting(false), 500);
     } catch (error) {
@@ -287,14 +237,14 @@ export function GalleryInput({
       setIsPosting(false);
     }
   }, [
+    channel.type,
+    sendPostFromDraft,
+    attachments,
     caption,
     isPosting,
-    sendPost,
     channel.id,
-    waitForAttachmentUploads,
     resetGalleryState,
     isEditingPost,
-    editPost,
     editingPost,
     setEditingPost,
     onPresentationModeChange,
@@ -318,28 +268,40 @@ export function GalleryInput({
       try {
         setIsPosting(true);
 
-        const story = constructStory([content]);
-        // If editing, use the editPost function from the context
-        if (isEditingPost && editPost && editingPost) {
-          await editPost(editingPost, story, undefined, meta);
+        const draft: domain.PostDataDraft = {
+          channelId: channel.id,
+          content: [content],
+          attachments: [],
+          channelType: channel.type,
+          replyToPostId: null,
+          ...(isEditingPost && editingPost
+            ? {
+                isEdit: true,
+                editTargetPostId: editingPost.id,
+              }
+            : {
+                isEdit: false,
+              }),
 
-          // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-          // First reset all gallery-related state to clean up the editing environment
-          resetGalleryState();
+          title: meta?.title,
+          image: meta?.image,
+        };
+        await sendPostFromDraft(draft);
 
-          // Then clear the editing state to prevent BigInput from showing
-          // This must happen after resetGalleryState to avoid triggering the BigInput display
-          if (setEditingPost) {
-            setEditingPost(undefined);
-          }
+        // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+        // First reset all gallery-related state to clean up the editing environment
+        resetGalleryState();
 
-          // Force inline presentation mode to return to the gallery view
-          // This ensures we exit the fullscreen editing mode completely
+        // Then clear the editing state to prevent BigInput from showing
+        // This must happen after resetGalleryState to avoid triggering the BigInput display
+        if (setEditingPost) {
+          setEditingPost(undefined);
+        }
+
+        // Force inline presentation mode to return to the gallery view
+        // This ensures we exit the fullscreen editing mode completely
+        if (draft.isEdit) {
           onPresentationModeChange?.('inline');
-        } else {
-          // Otherwise send as a new post
-          await sendPost(story, channel.id, meta);
-          resetGalleryState();
         }
 
         // Reset posting state after a short delay
@@ -350,14 +312,14 @@ export function GalleryInput({
       }
     },
     [
+      channel.type,
+      sendPostFromDraft,
       isPosting,
       isEditingPost,
-      editPost,
       editingPost,
       resetGalleryState,
       setEditingPost,
       onPresentationModeChange,
-      sendPost,
       channel.id,
     ]
   );

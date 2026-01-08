@@ -80,7 +80,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   goToUserProfile: () => {},
   goToGroupSettings: () => {},
   markRead: () => {},
-  editPost: async () => {},
   onPressRef: () => {},
   usePost: usePostWithRelations,
   usePostReference: usePostReference,

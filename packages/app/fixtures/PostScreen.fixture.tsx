@@ -53,7 +53,6 @@ export default {
       <FixtureWrapper fillWidth fillHeight>
         <PostScreenView
           handleGoToUserProfile={() => {}}
-          editPost={async () => {}}
           onPressRetry={async () => {}}
           onPressDelete={() => {}}
           editingPost={undefined}
@@ -131,7 +130,6 @@ export default {
         clearDraft: fail,
         editingPost: undefined,
         setEditingPost: fail,
-        editPost: fail,
       }));
     }, [data.channel]);
 
@@ -161,7 +159,6 @@ export default {
                 group: data.channel.group || null,
                 editingPost: undefined,
                 setEditingPost: undefined,
-                editPost: noop,
                 negotiationMatch: true,
                 onPressRetry: undefined,
                 onPressDelete: noop,

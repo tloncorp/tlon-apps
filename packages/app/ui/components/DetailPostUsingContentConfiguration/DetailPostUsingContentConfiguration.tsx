@@ -75,11 +75,13 @@ export function DetailPostView({
   const draftInputContext = useMemo((): DraftInputContext => {
     return {
       // TODO: pass draft configuration values?
-      sendPost: async (content) => {
+      legacy_sendPost: async (content) => {
+        channelCtx.setEditingPost(undefined);
         await sendReply(content);
         listRef.current?.scrollToEnd();
       },
       sendPostFromDraft: async (draft) => {
+        channelCtx.setEditingPost(undefined);
         await store.finalizeAndSendPost(draft);
         listRef.current?.scrollToEnd();
       },
@@ -174,7 +176,6 @@ function useSendReplyCallback(
         content,
         channel,
         parentId: parent.id,
-        parentAuthor: parent.authorId,
       });
     },
     [opts]

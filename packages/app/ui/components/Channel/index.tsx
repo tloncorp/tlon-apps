@@ -2,10 +2,10 @@ import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
   DraftInputId,
-  UploadedImageAttachment,
+  PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
-  sendPost,
+  legacy_sendPost,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -17,8 +17,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -104,7 +103,6 @@ interface ChannelProps {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
   onPressRetrySend: (post: db.Post) => Promise<void>;
   onPressRetryLoad: () => void;
   onPressDelete: (post: db.Post) => void;
@@ -128,7 +126,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       selectedPostId,
       group,
       groupIsLoading,
-      groupError, // Not currently used but available if needed for error handling
+      // groupError, // Not currently used but available if needed for error handling
       goBack,
       goToChatDetails,
       goToSearch,
@@ -153,7 +151,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       getDraft,
       editingPost,
       setEditingPost,
-      editPost,
       onPressRetryLoad,
       onPressRetrySend,
       onPressDelete,
@@ -220,7 +217,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onPressRef, posts, channel]
     );
 
-    const { uploadAssets, clearAttachments } = useAttachmentContext();
+    const { clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
       async (uploadIntents: Attachment.UploadIntent[]) => {
@@ -230,38 +227,24 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(uploadIntents);
-
-          for (const attachment of uploadedAttachments) {
-            if (attachment.type !== 'image') {
-              throw new Error('Not implemented');
-            }
-            const story: Story = [
-              {
-                block: {
-                  image: {
-                    src: UploadedImageAttachment.uri(attachment),
-                    height: attachment.file.height || 0,
-                    width: attachment.file.width || 0,
-                    alt: 'image',
-                  },
-                },
-              },
-            ];
-
-            // Send the post with just this image
-            await sendPost({
-              channelId: channel.id,
-              content: story,
-            });
-          }
+          const draft: PostDataDraft = {
+            channelId: channel.id,
+            content: [],
+            attachments: uploadIntents.map((x) =>
+              Attachment.fromUploadIntent(x)
+            ),
+            channelType: channel.type,
+            isEdit: false,
+            replyToPostId: null,
+          };
+          await finalizeAndSendPost(draft);
         } catch (error) {
           console.error('Error handling image drop:', error);
         } finally {
           clearAttachments();
         }
       },
-      [channel, uploadAssets, attachAssets, clearAttachments]
+      [channel, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -288,21 +271,22 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 channel.contentConfiguration
               ).configuration,
         draftInputRef,
-        editPost,
         editingPost,
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        sendPost: async (content, channelId, metadata, blob) => {
-          await sendPost({
+        legacy_sendPost: async (content, channelId, metadata, blob) => {
+          await legacy_sendPost({
             channelId,
             content,
             metadata,
             blob,
+            replyToPostId: null,
           });
           scrollToNewMessage();
         },
         sendPostFromDraft: async (draft) => {
+          setEditingPost?.(undefined);
           await finalizeAndSendPost(draft);
           if (!draft.isEdit) {
             scrollToNewMessage();
@@ -314,9 +298,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         storeDraft,
       }),
       [
+        scrollToNewMessage,
         channel,
         clearDraft,
-        editPost,
         editingPost,
         getDraft,
         group,

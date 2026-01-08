@@ -16,11 +16,9 @@ export function ChatInput({
   const {
     channel,
     clearDraft,
-    editPost,
     editingPost,
     getDraft,
     group,
-    sendPost,
     sendPostFromDraft,
     setEditingPost,
     setShouldBlur,
@@ -37,7 +35,6 @@ export function ChatInput({
         <BareChatInput
           shouldBlur={shouldBlur}
           setShouldBlur={setShouldBlur}
-          sendPost={sendPost}
           sendPostFromDraft={sendPostFromDraft}
           groupId={channel.groupId}
           channelId={channel.id}
@@ -48,7 +45,6 @@ export function ChatInput({
           getDraft={getDraft}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           channelType={channel.type}
           shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
           showInlineAttachments

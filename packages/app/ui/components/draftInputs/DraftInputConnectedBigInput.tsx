@@ -27,11 +27,9 @@ export function DraftInputConnectedBigInput({
   const {
     channel,
     clearDraft,
-    editPost,
     editingPost,
     getDraft,
     group,
-    sendPost,
     sendPostFromDraft,
     setEditingPost,
     setShouldBlur,
@@ -54,14 +52,12 @@ export function DraftInputConnectedBigInput({
         groupRoles={group?.roles ?? []}
         shouldBlur={shouldBlur}
         setShouldBlur={setShouldBlur}
-        sendPost={sendPost}
         sendPostFromDraft={sendPostFromDraft}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
         editingPost={editingPost}
         setEditingPost={setEditingPost}
-        editPost={editPost}
         setShowBigInput={setShowBigInput}
         placeholder=""
       />

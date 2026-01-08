@@ -25,7 +25,7 @@ export function MicInput({
     }
     try {
       const u = await performUpload({ uri: recordingUri });
-      await draftInputContext.sendPost(
+      await draftInputContext.legacy_sendPost(
         audioPost(u),
         draftInputContext.channel.id
       );

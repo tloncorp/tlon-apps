@@ -9,7 +9,7 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -45,6 +45,9 @@ import { DraftInputView } from './Channel/DraftInputView';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { DraftInputContext } from './draftInputs';
+
+const noop = async () => {};
 
 const FocusedPostContext = createContext<{
   focusedPost: db.Post | null;
@@ -65,12 +68,6 @@ interface ChannelContext {
   group: db.Group | null;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   negotiationMatch: boolean;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
@@ -78,12 +75,6 @@ interface ChannelContext {
 
 interface GalleryDraftInputProps {
   channel: db.Channel;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   getDraft: (draftType?: string) => Promise<JSONContent | null>;
   group: db.Group | null;
@@ -96,7 +87,6 @@ interface GalleryDraftInputProps {
 
 const GalleryDraftInput = memo(function GalleryDraftInput({
   channel,
-  editPost,
   editingPost,
   getDraft,
   group,
@@ -115,28 +105,21 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
     [channel.contentConfiguration]
   );
 
-  const noOpCallbacks = useMemo(
-    () => ({
-      onPresentationModeChange: () => {},
-      sendPost: async () => {},
-      sendPostFromDraft: async () => {},
-    }),
-    []
-  );
-
   const draftInputContext = useMemo(
-    () => ({
+    (): DraftInputContext => ({
       configuration,
       draftInputRef: { current: null },
-      editPost,
       editingPost,
       getDraft,
       group,
       channel,
       clearDraft,
-      onPresentationModeChange: noOpCallbacks.onPresentationModeChange,
-      sendPost: noOpCallbacks.sendPost,
-      sendPostFromDraft: noOpCallbacks.sendPostFromDraft,
+      onPresentationModeChange: noop,
+      legacy_sendPost: noop,
+      sendPostFromDraft: async (draft) => {
+        setEditingPost?.(undefined);
+        await store.finalizeAndSendPost(draft);
+      },
       setEditingPost,
       setShouldBlur,
       shouldBlur,
@@ -144,15 +127,11 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
     }),
     [
       configuration,
-      editPost,
       editingPost,
       getDraft,
       group,
       channel,
       clearDraft,
-      noOpCallbacks.onPresentationModeChange,
-      noOpCallbacks.sendPost,
-      noOpCallbacks.sendPostFromDraft,
       setEditingPost,
       setShouldBlur,
       shouldBlur,
@@ -177,7 +156,6 @@ export function PostScreenView({
   handleGoToUserProfile,
   editingPost,
   setEditingPost,
-  editPost,
   onPressRetry,
   onPressDelete,
   onGroupAction,
@@ -340,7 +318,6 @@ export function PostScreenView({
                       <YStack flex={1} backgroundColor="$background">
                         <GalleryDraftInput
                           channel={channel}
-                          editPost={editPost}
                           editingPost={editingPost}
                           getDraft={
                             draftCallbacks?.getDraft ?? (async () => null)
@@ -361,7 +338,6 @@ export function PostScreenView({
                       <SinglePostView
                         {...{
                           channel,
-                          editPost,
                           editingPost,
                           goBack,
                           group,
@@ -380,7 +356,6 @@ export function PostScreenView({
                         channelId={channel.id}
                         initialPostId={parentPost.id}
                         channelContext={{
-                          editPost,
                           editingPost,
                           group,
                           negotiationMatch,
@@ -478,7 +453,6 @@ function useMarkThreadAsReadEffect(
 function SinglePostView({
   channel,
   group,
-  editPost,
   editingPost,
   goBack,
   handleGoToImage,
@@ -489,12 +463,6 @@ function SinglePostView({
   setEditingPost,
 }: {
   channel: db.Channel;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   goBack?: () => void;
   group: db.Group | null;
@@ -619,35 +587,18 @@ function SinglePostView({
         }
   );
 
-  const sendReply = useCallback(
-    async (content: urbit.Story) => {
-      await store.sendReply({
-        content,
-        channel: channel,
-        parentId: parentPost.id,
-        parentAuthor: parentPost.authorId,
-      });
-      scrollToNewReply();
-    },
-    [channel, parentPost, store, scrollToNewReply]
-  );
-
   const sendReplyFromDraft = useCallback(
     async (draft: domain.PostDataDraft) => {
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft);
+        setEditingPost?.(undefined);
       } else {
-        const finalized = await store.finalizePostDraft(draft);
-        await store.sendReply({
-          content: finalized.content,
-          channel: channel,
-          parentId: parentPost.id,
-          parentAuthor: parentPost.authorId,
-        });
+        draft.replyToPostId = parentPost.id;
+        await store.finalizeAndSendPost(draft);
         scrollToNewReply();
       }
     },
-    [channel, parentPost, store, scrollToNewReply]
+    [parentPost, store, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
@@ -693,7 +644,6 @@ function SinglePostView({
               groupId={channel.groupId}
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
-              sendPost={sendReply}
               sendPostFromDraft={sendReplyFromDraft}
               channelId={channel.id}
               groupMembers={groupMembers}
@@ -701,7 +651,6 @@ function SinglePostView({
               {...bareInputDraftProps}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
-              editPost={editPost}
               channelType="chat"
               showAttachmentButton={isChatLike}
               showInlineAttachments
@@ -744,11 +693,12 @@ function SinglePostView({
             channelId={parentPost?.channelId}
             editingPost={editingPost}
             setEditingPost={setEditingPost}
-            editPost={editPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            sendPost={async () => {}}
-            sendPostFromDraft={async () => {}}
+            sendPostFromDraft={async (draft) => {
+              setEditingPost?.(undefined);
+              await store.finalizeAndSendPost(draft);
+            }}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}

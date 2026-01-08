@@ -40,12 +40,6 @@ export interface DraftInputContext {
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
   draftInputRef?: React.Ref<DraftInputHandle>;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
@@ -60,7 +54,11 @@ export interface DraftInputContext {
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
-  sendPost: (
+  /**
+   * @deprecated use `sendPostFromDraft` instead.
+   * This is used by our more bohemian draft inputs, which we couldn't possibly remove.
+   */
+  legacy_sendPost: (
     content: Story,
     channelId: string,
     metadata?: db.PostMetadata,
