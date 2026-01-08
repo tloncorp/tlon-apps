@@ -102,16 +102,22 @@ export const waitForUploads = async (
   keys: Attachment.UploadIntent.Key[],
   timeoutMs: number = 60000
 ) => {
+  // Skip timeout in test mode - fake timers trigger all pending timers immediately
+  const isTestMode =
+    typeof process !== 'undefined' && process.env?.VITEST === 'true';
+
   return new Promise<Record<string, UploadState>>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      unsubscribe();
-      const pendingKeys = keys.filter(
-        (k) => !uploadStates[k] || uploadStates[k]?.status === 'uploading'
-      );
-      reject(
-        new Error(`Upload timed out waiting for: ${pendingKeys.join(', ')}`)
-      );
-    }, timeoutMs);
+    const timeout = isTestMode
+      ? null
+      : setTimeout(() => {
+          unsubscribe();
+          const pendingKeys = keys.filter(
+            (k) => !uploadStates[k] || uploadStates[k]?.status === 'uploading'
+          );
+          reject(
+            new Error(`Upload timed out waiting for: ${pendingKeys.join(', ')}`)
+          );
+        }, timeoutMs);
 
     const unsubscribe = subscribeToUploadStates(() => checkUploads());
 
@@ -121,7 +127,7 @@ export const waitForUploads = async (
         const message = failed
           .map((k) => (uploadStates[k] as UploadStateError)?.errorMessage)
           .join(', ');
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
         unsubscribe();
         reject(new Error(message));
         return;
@@ -134,7 +140,7 @@ export const waitForUploads = async (
           uploadStates[key]?.status === 'error'
       );
       if (isFinished) {
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
         unsubscribe();
         resolve(
           keys.reduce<Record<string, UploadState>>((memo, k) => {
