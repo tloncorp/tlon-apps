@@ -1,11 +1,13 @@
 import {
   Attachment,
   JSONToInlines,
+  LinkAttachment,
   REF_REGEX,
   TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
+  useDebouncedValue,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
@@ -270,6 +272,12 @@ export default function BareChatInput({
   const inputSessionRef = useRef(0);
   const disableSend = editorIsEmpty;
 
+  // Debounced text for URL watching - syncs link attachments with URLs in text
+  const debouncedText = useDebouncedValue(controlledText, 500);
+  const attachmentsRef = useRef(attachments);
+  attachmentsRef.current = attachments;
+  const prevUrlsRef = useRef<string[]>([]);
+
   const processReferences = useCallback(
     (text: string): string => {
       const references = text.match(REF_REGEX);
@@ -311,87 +319,6 @@ export default function BareChatInput({
 
       bareChatInputLogger.log('text change', newText);
 
-      const pastedSomething = newText.length > oldText.length + 10;
-      if (pastedSomething) {
-        const addedText = newText.substring(oldText.length);
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const matches = addedText.match(urlRegex);
-
-        if (matches && matches.length > 0) {
-          // Found a URL in what appears to be pasted text
-          const urlMatch = matches[0];
-          const parsedUrl = new URL(urlMatch);
-          parsedUrl.hash = '';
-          const url = parsedUrl.toString();
-
-          // Capture current session to check if request is still valid later
-          const currentSession = inputSessionRef.current;
-          setLinkMetaLoading(true);
-          bareChatInputLogger.log('getting link metadata', { url });
-
-          store
-            .getLinkMetaWithFallback(url)
-            .then((linkMetadata) => {
-              // Check if this request is still valid (message hasn't been sent)
-              if (currentSession !== inputSessionRef.current) {
-                bareChatInputLogger.log('ignoring stale link metadata', {
-                  url,
-                });
-                return;
-              }
-
-              // todo: handle error case with toast or similar
-              if (!linkMetadata) {
-                bareChatInputLogger.error('no link metadata', { url });
-                return;
-              }
-
-              bareChatInputLogger.log('link metadata', { linkMetadata });
-
-              // first add the link attachment
-              if (linkMetadata.type === 'page') {
-                const { type, ...rest } = linkMetadata;
-                addAttachment({
-                  type: 'link',
-                  resourceType: type,
-                  ...rest,
-                });
-              }
-
-              if (linkMetadata.type === 'file') {
-                if (linkMetadata.isImage) {
-                  addAttachment({
-                    type: 'image',
-                    file: {
-                      uri: url,
-                      height: 300,
-                      width: 300,
-                      mimeType: linkMetadata.mime,
-                    },
-                  });
-                }
-
-                const fileType = linkMetadata.mime.split('/')[1];
-                const fileName = url.split('/').pop();
-                console.log('fileName', fileName);
-
-                addAttachment({
-                  type: 'link',
-                  url: url,
-                  title: fileName,
-                  description: fileType,
-                });
-              }
-            })
-            .finally(() => {
-              // Only clear loading if this is still the current session
-              if (currentSession === inputSessionRef.current) {
-                setLinkMetaLoading(false);
-              }
-            });
-        }
-      }
-
       // Only process references if the text contains a reference and hasn't been processed before.
       // This check prevents infinite loops on native platforms where we manually update
       // the input's text value using setNativeProps after processing references.
@@ -426,15 +353,7 @@ export default function BareChatInput({
         storeDraft(jsonContent);
       }
     },
-    [
-      controlledText,
-      store,
-      addAttachment,
-      processReferences,
-      handleMention,
-      mentions,
-      storeDraft,
-    ]
+    [controlledText, processReferences, handleMention, mentions, storeDraft]
   );
 
   const onMentionSelect = useCallback(
@@ -590,6 +509,112 @@ export default function BareChatInput({
         attachments.length === 0
     );
   }, [controlledText, attachments]);
+
+  // Sync link attachments with URLs in text
+  // This effect watches for URL changes and updates link previews accordingly
+  useEffect(() => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = debouncedText.match(urlRegex) || [];
+
+    // Normalize URLs (remove hash) and deduplicate
+    const currentUrls = [
+      ...new Set(
+        matches.map((url) => {
+          try {
+            const parsedUrl = new URL(url);
+            parsedUrl.hash = '';
+            return parsedUrl.toString();
+          } catch {
+            return url;
+          }
+        })
+      ),
+    ];
+
+    const prevUrls = prevUrlsRef.current;
+    const currentAttachments = attachmentsRef.current;
+
+    // Find URLs that were removed from text
+    const removedUrls = prevUrls.filter((url) => !currentUrls.includes(url));
+
+    // Find URLs that were added to text
+    const addedUrls = currentUrls.filter((url) => !prevUrls.includes(url));
+
+    // Remove attachments for URLs no longer in text
+    removedUrls.forEach((url) => {
+      const attachment = currentAttachments.find(
+        (a): a is LinkAttachment => a.type === 'link' && a.url === url
+      );
+      if (attachment) {
+        bareChatInputLogger.log('removing stale link attachment', { url });
+        removeAttachment(attachment);
+      }
+    });
+
+    // Fetch metadata for new URLs
+    if (addedUrls.length > 0) {
+      setLinkMetaLoading(true);
+      const currentSession = inputSessionRef.current;
+
+      Promise.all(
+        addedUrls.map((url) =>
+          store.getLinkMetaWithFallback(url).then((linkMetadata) => {
+            // Check if this request is still valid
+            if (currentSession !== inputSessionRef.current) {
+              bareChatInputLogger.log('ignoring stale link metadata', { url });
+              return;
+            }
+
+            if (!linkMetadata) {
+              bareChatInputLogger.error('no link metadata', { url });
+              return;
+            }
+
+            bareChatInputLogger.log('link metadata', { linkMetadata });
+
+            if (linkMetadata.type === 'page') {
+              const { type, ...rest } = linkMetadata;
+              addAttachment({
+                type: 'link',
+                resourceType: type,
+                ...rest,
+              });
+            }
+
+            if (linkMetadata.type === 'file') {
+              if (linkMetadata.isImage) {
+                addAttachment({
+                  type: 'image',
+                  file: {
+                    uri: url,
+                    height: 300,
+                    width: 300,
+                    mimeType: linkMetadata.mime,
+                  },
+                });
+              } else {
+                const fileType = linkMetadata.mime.split('/')[1];
+                const fileName = url.split('/').pop();
+
+                addAttachment({
+                  type: 'link',
+                  url: url,
+                  title: fileName,
+                  description: fileType,
+                });
+              }
+            }
+          })
+        )
+      ).finally(() => {
+        if (currentSession === inputSessionRef.current) {
+          setLinkMetaLoading(false);
+        }
+      });
+    }
+
+    prevUrlsRef.current = currentUrls;
+  }, [debouncedText, store, addAttachment, removeAttachment]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
     if (!isWeb || !inputRef.current) {
