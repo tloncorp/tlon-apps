@@ -189,8 +189,14 @@
           sort+s+sort.channel
           perms+(perm perm.channel)
           meta+?~(meta.channel ~ s+u.meta.channel)
-          conn+(conn conn.net.channel)
+          conn+(cons cons.net.channel)
       ==
+    ++  cons
+      |=  cons=(map wire conn:v10:cv)
+      %-  pairs
+      %+  turn  ~(tap by cons)
+      |=  [=wire =conn:v10:cv]
+      [(spat wire) (^conn conn)]
     --
   ++  v9
     |%

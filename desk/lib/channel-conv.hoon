@@ -37,8 +37,10 @@
     ++  v10
       |=  vc=v-channel:v9:cv
       ^-  v-channel:v10:cv
+      =/  cons=(map wire conn:v10:cv)
+        (my `[wire conn:v10:cv]`[/updates &+%done] ~)
       %=  vc  net
-        [p.net.vc load.net.vc &+%done]
+        [p.net.vc load.net.vc cons]
       ==
     --
   ++  v-posts

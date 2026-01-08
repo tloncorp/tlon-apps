@@ -200,8 +200,7 @@
 ::  $net: subscriber-only state
 ::
 +$  net  
-  [p=ship load=_| =conn]
-::
+  [p=ship load=_| cons=(map wire conn)]
 ::  $unreads: a map of channel unread information, for clients
 ::  $unread: unread data for a specific channel, for clients
 ::    recency:   time of most recent message

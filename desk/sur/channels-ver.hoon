@@ -87,9 +87,10 @@
     (each conn-ok conn-error)
   ::  $net: modified
   ::
-  ::  add .conn field
+  ::  add .cons field
   ::
-  +$  net  [p=ship load=_| =conn]
+  +$  net
+    [p=ship load=_| cons=(map wire conn)]
   ::  $channels: depends on $channel
   +$  channels  (map nest channel)
   ::  $channel: depends on $net

@@ -868,7 +868,8 @@
     %+  roll
       ~(tap by v-channels)
     |=  [[=nest:c channel=v-channel:c] =_cor]
-    ?:  ?=([%& %suspend] conn.net.channel)  cor
+    =/  =conn:c  (~(gut by cons.net.channel) /updates &+%done)
+    ?:  ?=([%& %suspend] conn)  cor
     ca-abet:(ca-safe-sub:(ca-abed:ca-core:cor nest) |)
   ::
   cor
@@ -2101,21 +2102,24 @@
     (give %kick ~ ~)
   ::
   ++  ca-has-sub
-    ~>  %spin.['ca-has-sub']
+    |=  =wire
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest server])
+    (~(has by wex.bowl) [(weld ca-area wire) ship.nest server])
   ::
   ++  ca-safe-sub
     |=  delay=?
     ~>  %spin.['ca-safe-sub']
-    ?:  ca-has-sub
-      =*  conn  conn.net.channel
-      =?  cor  ?=(%| -.conn)
+    ?:  (ca-has-sub /updates)
+      =+  conn=(~(get by cons.net.channel) /updates)
+      =?  cor  &(?=(^ conn) ?=(%| -.u.conn))
         %-  emit:cor  %+  tell:plog  %warn
-        ~[leaf+"+ca-safe-sub already subscribed, but conn is {<conn>}"]
+        ~[leaf+"+ca-safe-sub already subscribed, but cons is {<cons>}"]
       ca-core
-    ?^  posts.channel  (ca-start-updates delay)
+    =+  posts=posts.channel  ::TMI
+    ?^  posts  (ca-start-updates delay)
     =.  load.net.channel  |
+    =?  ca-core  !(ca-has-sub /checkpoint)
+      (ca-u-connection /checkpoint &+%watch)
     %.  delay
     %^  safe-watch  (weld ca-area /checkpoint)  [ship.nest server]
     ?.  =(our.bowl ship.nest)
@@ -2127,12 +2131,12 @@
     |=  delay=?
     ~>  %spin.['ca-start-updates']
     ::  nb: only set %watch if we don't have a subscription.
-    ::  otherwise we wouldn't receive a watch-ack that would
-    ::  transition the connection state to %done.
+    ::  otherwise we wouldn't receive a watch-ack that
+    ::  transitions the connection state to %done.
     ::
-    =?  ca-core  !ca-has-sub
+    =?  ca-core  !(ca-has-sub /updates)
       (ca-u-connection /updates &+%watch)
-    ::  not most optimal time, should maintain last heard time instead
+    ::  not the most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
@@ -2166,15 +2170,19 @@
       =+  ?~  p.sign  ~
           %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
           ~
+      =?  ca-core  !(ca-has-sub /create)
+        (ca-u-connection /create &+%watch)
       =/  =path  /[kind.nest]/[name.nest]/create
       =/  =wire  (weld ca-area /create)
       ((safe-watch wire [our.bowl server] path) |)
     ::
-        %kick       (ca-safe-sub &)
+      %kick  (ca-safe-sub &)
+    ::
         %watch-ack
-      ?~  p.sign  ca-core
+      ?~  p.sign
+        (ca-u-connection /create &+%done)
       %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
-      ca-core
+      (ca-u-connection /create |+%fail)
     ::
         %fact
       =*  cage  cage.sign
@@ -2195,19 +2203,20 @@
     |=  =sign:agent:gall
     ~>  %spin.['ca-take-update']
     ^+  ca-core
-    =*  net  net.channel
     ?+    -.sign  ca-core
-        %kick       
+        %kick
       ::  nb: only attempt to resubscribe if the connection is active.
       ::  othewise this would trigger when the channel host sends an error
       ::  fact that is followed by a kick closing the subscription.
       ::
-      ?:  &(?=(%& -.conn.net) ?=(?(%watch %done) p.conn.net))
+      =/  =conn:c
+        (~(gut by cons.net.channel) /update &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
         (ca-safe-sub &)
       ca-core
     ::
         %watch-ack
-      ?~  p.sign  
+      ?~  p.sign
         (ca-u-connection /updates &+%done)
       %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
       (ca-u-connection /updates |+%fail)
@@ -2226,12 +2235,19 @@
     ~>  %spin.['ca-take-checkpoint']
     ^+  ca-core
     ?+    -.sign  ca-core
-        :: only if kicked prematurely
-        %kick       ?:(load.net.channel ca-core (ca-safe-sub &))
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
+        %kick
+      ?:  load.net.channel  ca-core
+      =/  =conn:c
+        (~(gut by cons.net.channel) /checkpoint &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
+        (ca-sync-backlog &)
       ca-core
+      ::
+        %watch-ack
+      ?~  p.sign
+        (ca-u-connection /checkpoint &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
+      (ca-u-connection /checkpoint |+%fail)
     ::
         %fact
       =*  cage  cage.sign
@@ -2250,11 +2266,18 @@
     ^+  ca-core
     ?+    -.sign  ca-core
         ::  only hit if kicked prematurely (we %leave after the first %fact)
-        %kick  (ca-sync-backlog &)
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
+        %kick
+      =/  =conn:c
+        (~(gut by cons.net.channel) /backlog &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
+        (ca-sync-backlog &)
       ca-core
+    ::
+        %watch-ack
+      ?~  p.sign
+        (ca-u-connection /backlog &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
+      (ca-u-connection /backlog |+%fail)
     ::
         %fact
       =*  cage  cage.sign
@@ -2326,6 +2349,8 @@
     ~>  %spin.['ca-sync-backlog']
     =/  checkpoint-start  (pry:on-v-posts:c posts.channel)
     ?~  checkpoint-start  ca-core
+    =?  ca-core  !(ca-has-sub /backlog)
+      (ca-u-connection /backlog &+%watch)
     %.  delay
     %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
     %+  welp
@@ -2612,25 +2637,9 @@
   ++  ca-u-connection
     |=  [=wire =conn:c]
     ^+  ca-core
-    =*  net  net.channel
-    =+  wir=wire  ::TMI
-    ?.  ?=([%updates ~] wir)
-      ::  connection updates on wires other than /updates are not
-      ::  tracked in the state. here we should only ever get updates about
-      ::  errors.
-      ::
-      ?>  ?=(%| -.conn)
-      =.  ca-core  (ca-response %connection wire conn)
-      ca-simple-leave
-    ::  we only maintain the connection status on the /updates wire,
-    ::  which is the main source of updates from the channel host.
-    ::  we do receive updates on other wires, but these other
-    ::  subscriptions are transient, and when we subscribe on any of
-    ::  them, we establish the main subscription at the same time.
-    ::
-    =.  conn.net  conn
     =.  ca-core  (ca-response %connection wire conn)
-    ?:  =(%& -.conn.net)  ca-core
+    =.  cons.net.channel  (~(put by cons.net.channel) wire conn)
+    ?:  =(%& -.conn)  ca-core
     =.  ca-core  (unsubscribe (weld ca-area wire) [ship.nest server])
     ca-core
   ::

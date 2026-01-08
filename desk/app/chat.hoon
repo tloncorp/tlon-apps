@@ -1641,9 +1641,10 @@
         remark  :_  remark.chat
                 ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
         net
+      =+  cons=(my [/updates &+%done] ~)
       ?-  -.net.chat
-        %pub  [*ship & &+%done]
-        %sub  [host load &+%done]:net.chat
+        %pub  [*ship & cons]
+        %sub  [host.net.chat load.net.chat cons]
       ==
     ==
   ::
