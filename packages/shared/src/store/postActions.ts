@@ -15,7 +15,7 @@ import {
   rollbackDeletedChannelPost,
 } from './useChannelPosts';
 
-export const logger = createDevLogger('postActions', true);
+export const logger = createDevLogger('postActions', false);
 
 export async function failEnqueuedPosts() {
   const enqueuedPosts = await db.getEnqueuedPosts();
