@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
   DraftInputId,
-  UploadedImageAttachment,
+  PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   legacy_sendPost,
@@ -17,7 +17,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -217,7 +217,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onPressRef, posts, channel]
     );
 
-    const { uploadAssets, clearAttachments } = useAttachmentContext();
+    const { clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
       async (uploadIntents: Attachment.UploadIntent[]) => {
@@ -227,39 +227,24 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(uploadIntents);
-
-          for (const attachment of uploadedAttachments) {
-            if (attachment.type !== 'image') {
-              throw new Error('Not implemented');
-            }
-            const story: Story = [
-              {
-                block: {
-                  image: {
-                    src: UploadedImageAttachment.uri(attachment),
-                    height: attachment.file.height || 0,
-                    width: attachment.file.width || 0,
-                    alt: 'image',
-                  },
-                },
-              },
-            ];
-
-            // Send the post with just this image
-            await legacy_sendPost({
-              channelId: channel.id,
-              content: story,
-              replyToPostId: null,
-            });
-          }
+          const draft: PostDataDraft = {
+            channelId: channel.id,
+            content: [],
+            attachments: uploadIntents.map((x) =>
+              Attachment.fromUploadIntent(x)
+            ),
+            channelType: channel.type,
+            isEdit: false,
+            replyToPostId: null,
+          };
+          await finalizeAndSendPost(draft);
         } catch (error) {
           console.error('Error handling image drop:', error);
         } finally {
           clearAttachments();
         }
       },
-      [channel, uploadAssets, attachAssets, clearAttachments]
+      [channel, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
