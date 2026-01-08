@@ -18,6 +18,7 @@ import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+import { FacePile } from './FacePile';
 
 const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -115,23 +116,66 @@ export interface GroupImageShim {
   iconImage?: string;
   iconImageColor?: string;
 }
+const SMALL_AVATAR_SIZES = ['$xl', '$2xl', '$3xl', '$3.5xl'] as const;
+
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
+  memberCount,
   ...props
-}: { model: db.Group | GroupImageShim } & AvatarProps) {
+}: { model: db.Group | GroupImageShim; memberCount?: number } & AvatarProps) {
   const { disableNicknames } = useCalm();
   const fallbackTitle = useMemo(() => {
     return isGroupImageShim(model)
       ? model.title
       : utils.getGroupTitle(model, disableNicknames);
   }, [disableNicknames, model]);
-  const fallback = (
+
+  const memberContactIds = useMemo(() => {
+    if (isGroupImageShim(model)) {
+      return [];
+    }
+    return model.members?.map((m) => m.contactId) ?? [];
+  }, [model]);
+
+  const isSmallSize = SMALL_AVATAR_SIZES.includes(
+    (props.size ?? '$4xl') as (typeof SMALL_AVATAR_SIZES)[number]
+  );
+
+  const textFallback = (
     <TextAvatar
       text={fallbackTitle ?? 'G'}
       backgroundColor={model.iconImageColor ?? undefined}
       {...props}
     />
   );
+
+  const fallback =
+    memberContactIds.length > 0 ? (
+      isSmallSize ? (
+        <FacePile
+          contactIds={memberContactIds}
+          maxVisible={2}
+          totalCount={memberCount}
+        />
+      ) : (
+        <AvatarFrame
+          {...props}
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor="$secondaryBackground"
+        >
+          <FacePile
+            contactIds={memberContactIds}
+            maxVisible={3}
+            totalCount={memberCount}
+            grid
+          />
+        </AvatarFrame>
+      )
+    ) : (
+      textFallback
+    );
+
   return (
     <ImageAvatar
       imageUrl={model.iconImage ?? undefined}

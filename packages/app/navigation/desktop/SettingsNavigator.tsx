@@ -2,7 +2,7 @@ import {
   DrawerContentComponentProps,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
-import { View, getVariableValue, useTheme } from '@tamagui/core';
+import { getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -15,6 +15,7 @@ import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../../features/settings/PushNotificationSettingsScreen';
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
+import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -130,12 +131,7 @@ export const SettingsNavigator = () => {
 };
 
 function EmptySettingsScreen() {
-  return (
-    <View
-      flex={1}
-      backgroundColor={getVariableValue(useTheme().secondaryBackground)}
-    />
-  );
+  return <SettingsEmptyState />;
 }
 
 function useHasHostedAuth() {

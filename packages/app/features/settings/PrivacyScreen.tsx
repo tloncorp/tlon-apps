@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
 import { YStack } from 'tamagui';
@@ -122,10 +122,15 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [state.disableTlonInfraEnhancement, store]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backAction={() => props.navigation.goBack()}
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
         title="Privacy Settings"
       />
       <View

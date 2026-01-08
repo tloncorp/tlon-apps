@@ -13,6 +13,8 @@ import {
   ScreenHeader,
   ScrollView,
   View,
+  YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
 
@@ -73,11 +75,15 @@ function GroupRolesScreenView({
     });
   }, [navigation, groupId, fromChatDetails]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backAction={handleGoBack}
         title={'Group Roles'}
+        backgroundColor="$secondaryBackground"
+        useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
           <ScreenHeader.TextButton
             color={'$positiveActionText'}

@@ -2,12 +2,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
+import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
-import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -131,10 +131,7 @@ export function RootStack() {
         name="InviteSystemContacts"
         component={InviteSystemContactsScreen}
       />
-      <Root.Screen
-        name="InviteUsers"
-        component={InviteUsersScreen}
-      />
+      <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
     </Root.Navigator>
   );
 }

@@ -122,10 +122,10 @@ test('should edit a notebook post', async ({ zodSetup, tenSetup }) => {
     timeout: 5000,
   });
 
-  // Edit the post - handle potential DOM detachment with retry logic
+  // Edit the post - handle potential DOM detachment with retry logic (use .last() to get the one in main content, not sidebar)
   await helpers.retryInteraction(
     async () => {
-      const editButton = zodPage.getByTestId('ChannelHeaderEditButton');
+      const editButton = zodPage.getByTestId('ChannelHeaderEditButton').last();
       await expect(editButton).toBeVisible({ timeout: 5000 });
       await expect(editButton).toBeAttached({ timeout: 3000 });
       await editButton.click();

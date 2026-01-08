@@ -20,6 +20,7 @@ import {
   TlonText,
   View,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
@@ -54,6 +55,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   );
 
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <ChatOptionsProvider {...useChatSettingsNavigation()}>
@@ -64,7 +66,8 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
       >
         <ScreenHeader
           title="Notifications"
-          backAction={() => navigation.goBack()}
+          backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
+          borderBottom
         />
         <ScrollView
           flex={1}
@@ -72,7 +75,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
           maxWidth={600}
           marginHorizontal="auto"
         >
-          <TlonText.Text size={'$label/m'} marginVertical={'$l'}>
+          <TlonText.Text size={'$body'} marginVertical={'$xl'}>
             Configure what kinds of messages will send you
             {isNative ? ` device push notifications and ` : ' '}in-app alerts.
           </TlonText.Text>

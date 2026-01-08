@@ -134,9 +134,9 @@ export const useCanUpload = () => {
 };
 
 export const useContact = (options: { id: string }) => {
-  const deps = useKeyFromQueryDeps(db.getContact);
+  const deps = useKeyFromQueryDeps(db.getContact, options);
   return useQuery({
-    queryKey: [['contact', deps]],
+    queryKey: [['contact', options.id], deps],
     queryFn: () => db.getContact(options),
   });
 };

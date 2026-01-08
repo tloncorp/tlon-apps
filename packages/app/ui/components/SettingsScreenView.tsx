@@ -1,4 +1,10 @@
-import { Button, IconType, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  IconType,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { AlertDialog, ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
@@ -43,9 +49,15 @@ export function SettingsScreenView(props: Props) {
     }
   };
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <>
-      <ScreenHeader title="Settings" backAction={props.onBackPressed} />
+      <ScreenHeader
+        title="Settings"
+        backAction={props.onBackPressed}
+        borderBottom={isWindowNarrow}
+      />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
           <SettingsAction
@@ -67,7 +79,7 @@ export function SettingsScreenView(props: Props) {
             leftIcon="Lock"
             rightIcon={'ChevronRight'}
             onPress={props.onPrivacyPressed}
-            isFocused={props.focusedRouteName === 'BlockedUsers'}
+            isFocused={props.focusedRouteName === 'PrivacySettings'}
           />
           {props.hasHostedAuth && (
             <SettingsAction

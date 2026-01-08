@@ -38,7 +38,7 @@ appId: io.tlon.groups
 - tapOn: 'OK'
 - assertVisible: 'Settings'
 - tapOn: 'Experimental features'
-- assertVisible: 'Feature Previews'
+- assertVisible: 'Experimental features'
 - tapOn:
     id: 'HeaderBackButton'
 - tapOn: 'Log out'

@@ -1176,6 +1176,12 @@ export const insertGroups = createWriteQuery(
           logger.log('insertGroups: inserting members', group.members);
           await insertMembers({ members: group.members }, txCtx);
 
+          // Update member count
+          await txCtx.db
+            .update($groups)
+            .set({ memberCount: group.members.length })
+            .where(eq($groups.id, group.id));
+
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
             return (m.roles ?? []).flatMap((r) => {

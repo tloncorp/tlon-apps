@@ -41,7 +41,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(zodPage.getByText('Profile')).toBeVisible();
 
   // Edit ~ten's profile (setting a custom nickname)
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
   // Set custom nickname for ~ten
@@ -66,7 +66,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await zodPage.getByTestId('AvatarNavIcon').click();
   await zodPage.getByText('You').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage
@@ -110,7 +110,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(tenPage.getByText('Profile')).toBeVisible();
 
   // ~ten edits ~zod's profile (sets a custom nickname for ~zod)
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage

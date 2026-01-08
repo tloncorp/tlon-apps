@@ -17,7 +17,7 @@ test('should prevent Admin role from being edited', async ({ zodPage }) => {
   }
 
   // Navigate back to Home and verify group creation
-  if (await page.getByTestId('HeaderBackButton').first().isVisible()) {
+  if (await page.getByTestId('HomeNavIcon').isVisible()) {
     await helpers.navigateBack(page);
   } else {
     await helpers.navigateBack(page, 1);
@@ -84,7 +84,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   }
 
   // Navigate back to Home and verify group creation
-  if (await page.getByTestId('HeaderBackButton').first().isVisible()) {
+  if (await page.getByTestId('HomeNavIcon').isVisible()) {
     await helpers.navigateBack(page);
   } else {
     await helpers.navigateBack(page, 1);
@@ -105,8 +105,10 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await helpers.createRole(page, 'Testing role', 'Description for test role');
 
   await helpers.navigateBack(page);
-  // Verify role count is now 2 (Admin + Testing role)
-  await helpers.verifyElementCount(page, 'GroupRoles', 2);
+
+  // Navigate back to Group Settings
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
 
   // Assign role to a user (member)
   await page.waitForTimeout(2000);

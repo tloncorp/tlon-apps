@@ -1,65 +1,134 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text } from '@tloncorp/ui';
-import { ComponentProps, PropsWithChildren, ReactNode } from 'react';
+import { useDebouncedValue } from '@tloncorp/shared';
+import { Icon, Text, View } from '@tloncorp/ui';
+import { Children, PropsWithChildren, ReactNode } from 'react';
+import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
+import { XStack, styled, withStaticProperties } from 'tamagui';
 
 export const ScreenHeaderComponent = ({
   children,
   title,
-  titleWidth = 100,
+  titleIcon,
+  subtitle,
+  showSubtitle = false,
+  backgroundColor,
   leftControls,
   rightControls,
   isLoading,
   backAction,
-  showSessionStatus,
+  borderBottom,
+  onTitlePress,
+  useHorizontalTitleLayout = false,
+  testID,
 }: PropsWithChildren<{
   title?: string | ReactNode;
-  titleWidth?: 100 | 75 | 55;
+  titleIcon?: ReactNode;
+  subtitle?: string | ReactNode;
+  showSubtitle?: boolean;
+  backgroundColor?: string;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   isLoading?: boolean;
   backAction?: () => void;
   showSessionStatus?: boolean;
+  borderBottom?: boolean;
+  onTitlePress?: () => void;
+  useHorizontalTitleLayout?: boolean;
+  testID?: string;
 }>) => {
   const { top } = useSafeAreaInsets();
-  const resolvedTitle = useDebouncedValue(isLoading ? 'Loading…' : title, 200);
-  const connectionStatus = useConnectionStatus();
-  const textColor =
-    showSessionStatus === false
-      ? '$primaryText'
-      : connectionStatus !== 'Connected'
-        ? '$tertiaryText'
-        : '$primaryText';
+  const resolvedSubtitle = useDebouncedValue(
+    isLoading ? 'Loading…' : subtitle,
+    200
+  );
+
+  const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
+  const backButtonCount = backAction ? 1 : 0;
+
+  const horizontalTitleStack: ViewStyle = {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
+    paddingLeft: 18 + leftControlsCount * 28 + backButtonCount * 28,
+    alignItems: 'center',
+  };
+
+  const getWrapperStyle = () => {
+    if (useHorizontalTitleLayout) {
+      return horizontalTitleStack;
+    }
+  };
+
+  const renderTitleWrapper = (children: ReactNode) => {
+    const wrapperStyle = getWrapperStyle();
+    if (onTitlePress) {
+      return (
+        <Pressable style={wrapperStyle} onPress={onTitlePress}>
+          {children}
+        </Pressable>
+      );
+    }
+    return <View style={wrapperStyle}>{children}</View>;
+  };
 
   return (
-    <View paddingTop={top} zIndex={50}>
-      <XStack
-        height="$4xl"
-        paddingHorizontal="$2xl"
-        paddingVertical="$l"
-        alignItems="center"
-        justifyContent="center"
-      >
-        {typeof resolvedTitle === 'string' ? (
-          <HeaderTitle
-            title={resolvedTitle}
-            color={textColor}
-            titleWidth={titleWidth}
-            testID="ScreenHeaderTitle"
-          />
-        ) : (
-          resolvedTitle
-        )}
-        <HeaderControls side="left">
-          {backAction ? <HeaderBackButton onPress={backAction} /> : null}
-          {leftControls}
-        </HeaderControls>
-        <HeaderControls flex={1} side="right">
-          {rightControls}
-        </HeaderControls>
-        {children}
-      </XStack>
+    <View
+      paddingTop={top}
+      zIndex={50}
+      backgroundColor={backgroundColor ?? '$background'}
+      borderColor="$border"
+      borderBottomWidth={borderBottom ? 1 : 0}
+      testID={testID}
+    >
+      {renderTitleWrapper(
+        <>
+          {showSubtitle && (
+            <View
+              height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
+              alignItems="center"
+              justifyContent="center"
+              paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$2xl'}
+            >
+              <Text
+                color={'$secondaryText'}
+                size="$label/s"
+                numberOfLines={1}
+                paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                testID={'ScreenHeaderSubtitle'}
+              >
+                {resolvedSubtitle}
+              </Text>
+            </View>
+          )}
+          <XStack
+            alignItems="center"
+            justifyContent="center"
+            gap={'$s'}
+            height={'$4xl'}
+          >
+            {titleIcon}
+            <Text
+              size={'$label/2xl'}
+              color={'$primaryText'}
+              numberOfLines={1}
+              maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
+              testID={'ScreenHeaderTitle'}
+            >
+              {title}
+            </Text>
+            {onTitlePress && (
+              <Icon type="ChevronDown" color="$primaryText" size="$s" />
+            )}
+          </XStack>
+        </>
+      )}
+      <HeaderControls side="left">
+        {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+        {leftControls}
+      </HeaderControls>
+      <HeaderControls flex={1} side="right">
+        {rightControls}
+      </HeaderControls>
+      {children}
     </View>
   );
 };
@@ -76,6 +145,7 @@ const HeaderIconButton = styled(Icon, {
 const HeaderTextButton = styled(Text, {
   size: '$label/2xl',
   paddingHorizontal: '$s',
+  paddingVertical: '$m',
   cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
@@ -84,6 +154,10 @@ const HeaderTextButton = styled(Text, {
     disabled: {
       true: {
         color: '$tertiaryText',
+        cursor: 'default',
+        pressStyle: {
+          opacity: 1,
+        },
       },
     },
   },
@@ -101,52 +175,21 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 
 const HeaderTitleText = styled(Text, {
   size: '$label/2xl',
-  textAlign: 'center',
-  width: '100%',
-  paddingHorizontal: '$2xl',
   numberOfLines: 1,
 });
 
-function HeaderTitle({
-  title,
-  titleWidth = 100,
-  ...props
-}: {
-  title: string;
-  titleWidth?: 100 | 75 | 55;
-} & ComponentProps<typeof HeaderTitleText>) {
-  const renderedTitle = <HeaderTitleText {...props}>{title}</HeaderTitleText>;
-
-  return isWeb ? (
-    renderedTitle
-  ) : (
-    <View
-      style={{
-        flex: 1,
-        maxWidth: `${titleWidth}%`,
-      }}
-    >
-      {renderedTitle}
-    </View>
-  );
-}
-
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  top: 0,
-  bottom: 0,
-  gap: '$xl',
-  alignItems: 'center',
+  bottom: '$m',
+  gap: '$l',
   zIndex: 1,
   variants: {
     side: {
       left: {
         left: '$xl',
-        justifyContent: 'flex-start',
       },
       right: {
         right: '$xl',
-        justifyContent: 'flex-end',
       },
     },
   } as const,

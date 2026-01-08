@@ -93,6 +93,14 @@ function isValidImageSource(source: any) {
       return true;
     }
 
+    if (
+      typeof uri === 'string' &&
+      (uri.startsWith('./') || uri.startsWith('/'))
+    ) {
+      // permit relative paths (for web public assets)
+      return true;
+    }
+
     return isURL(uri) || isDataURI(uri);
   } catch (e) {
     logger.trackError('Failed to validate image source', {

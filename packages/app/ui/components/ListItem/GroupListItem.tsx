@@ -129,14 +129,14 @@ export const GroupListItem = ({
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
-        testID={`GroupListItem-${model.title || 'Untitled group'}`}
+        testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
       >
         <ListItem
           {...props}
           alignItems={isPending ? 'center' : 'stretch'}
           backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
         >
-          <ListItem.GroupIcon model={model} />
+          <ListItem.GroupIcon model={model} memberCount={model.memberCount ?? undefined} />
           <ListItem.MainContent>
             {isPending && model.hostUserId ? (
               <ListItem.Title numberOfLines={1} ellipsizeMode="tail" flexShrink={1} maxWidth="100%">
