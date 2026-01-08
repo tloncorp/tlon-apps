@@ -277,8 +277,6 @@ export function LinkBlock({
     );
   }
 
-  console.log('block', block);
-
   return (
     <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
       <Reference.Header>
