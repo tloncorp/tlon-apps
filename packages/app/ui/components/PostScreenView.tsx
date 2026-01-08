@@ -606,17 +606,12 @@ function SinglePostView({
         await store.finalizeAndSendPost(draft);
         setEditingPost?.(undefined);
       } else {
-        const finalized = await store.finalizePostDraft(draft);
-        await store.sendReply({
-          content: finalized.content,
-          channel: channel,
-          parentId: parentPost.id,
-          parentAuthor: parentPost.authorId,
-        });
+        draft.replyToPostId = parentPost.id;
+        await store.finalizeAndSendPost(draft);
         scrollToNewReply();
       }
     },
-    [channel, parentPost, store, scrollToNewReply, setEditingPost]
+    [parentPost, store, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
