@@ -392,6 +392,96 @@ export namespace Attachment {
   }
 }
 
+/**
+ * Serializable representation of an attachment for persistence.
+ * Used to store pending uploads alongside posts so retry logic can re-upload.
+ * Note: Web `File` objects cannot be serialized, so we store the blob URL instead.
+ */
+export type SerializedImageAttachment = {
+  type: 'image';
+  uri: string;
+  width?: number;
+  height?: number;
+  fileSize?: number;
+  mimeType?: string;
+};
+
+export type SerializedFileAttachment = {
+  type: 'file';
+  localUri: string;
+  name?: string;
+  size: number;
+  mimeType?: string;
+};
+
+export type SerializedAttachment =
+  | SerializedImageAttachment
+  | SerializedFileAttachment
+  | TextAttachment
+  | LinkAttachment
+  | ReferenceAttachment;
+
+export namespace SerializedAttachment {
+  /**
+   * Serialize attachments for database persistence.
+   * Only includes attachments that need uploading (images, files).
+   */
+  export function fromAttachments(attachments: Attachment[]): SerializedAttachment[] {
+    return attachments.map((att): SerializedAttachment => {
+      switch (att.type) {
+        case 'image':
+          return {
+            type: 'image',
+            uri: att.file.uri,
+            width: att.file.width,
+            height: att.file.height,
+            fileSize: att.file.fileSize,
+            mimeType: att.file.mimeType,
+          };
+        case 'file': {
+          // For web File objects, create a blob URL; for mobile, use the string URI directly
+          const localUri =
+            att.localFile instanceof File
+              ? URL.createObjectURL(att.localFile)
+              : att.localFile;
+          return {
+            type: 'file',
+            localUri,
+            name: att.name,
+            size: att.size,
+            mimeType: att.mimeType,
+          };
+        }
+        case 'text':
+        case 'link':
+        case 'reference':
+          return att;
+      }
+    });
+  }
+
+  /**
+   * Get the local URI from a serialized attachment that needs uploading.
+   */
+  export function getLocalUri(att: SerializedAttachment): string | null {
+    switch (att.type) {
+      case 'image':
+        return att.uri;
+      case 'file':
+        return att.localUri;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Check if a serialized attachment needs uploading.
+   */
+  export function needsUpload(att: SerializedAttachment): att is SerializedImageAttachment | SerializedFileAttachment {
+    return att.type === 'image' || att.type === 'file';
+  }
+}
+
 function uploadStateUri(
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>
 ): string {
