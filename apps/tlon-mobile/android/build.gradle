@@ -41,3 +41,13 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 }
+
+subprojects {
+  configurations.all {
+    it.resolutionStrategy.activateDependencyLocking()
+  }
+}
+
+dependencyLocking {
+  lockAllConfigurations()
+}
