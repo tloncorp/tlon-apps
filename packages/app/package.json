@@ -17,7 +17,7 @@
     "@tloncorp/ui": "workspace:*",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
-    "sqlocal": "^0.11.1"
+    "sqlocal": "^0.14.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",

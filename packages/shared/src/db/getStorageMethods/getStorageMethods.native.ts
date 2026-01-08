@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-export function getStorageMethods(isSecure: boolean) {
+import { GetStorageMethods } from './types';
+
+export const getStorageMethods: GetStorageMethods = ({ isSecure }) => {
   if (isSecure) {
     return {
       getItem: SecureStore.getItemAsync,
@@ -27,4 +29,4 @@ export function getStorageMethods(isSecure: boolean) {
     setItem: AsyncStorage.setItem,
     removeItem: AsyncStorage.removeItem,
   };
-}
+};

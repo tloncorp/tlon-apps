@@ -127,7 +127,7 @@
     "react-helmet": "^6.1.0",
     "react-intersection-observer": "^9.4.0",
     "react-native-web": "0.19.12",
-    "sqlocal": "^0.11.1",
+    "sqlocal": "^0.14.1",
     "urbit-ob": "^5.0.1",
     "use-pwa-install": "^1.0.1",
     "validator": "^13.7.0",

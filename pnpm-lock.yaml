@@ -46,7 +46,7 @@ patchedDependencies:
     hash: 5ofxtlxe6za2xqrbq5pqbz7wb4
     path: patches/any-ascii@0.3.2.patch
   drizzle-orm@0.39.3:
-    hash: fgfowqwijxaynyk2usehnwtmvm
+    hash: wokcg55yjcq5vebl5wtmbpawhe
     path: patches/drizzle-orm@0.39.3.patch
   expo-background-task@0.1.4:
     hash: fm3phmeo2l3p6d5p6sf6p3tlqm
@@ -759,8 +759,8 @@ importers:
         specifier: 0.19.12
         version: 0.19.12(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       sqlocal:
-        specifier: ^0.11.1
-        version: 0.11.1(drizzle-orm@0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1))
+        specifier: ^0.14.1
+        version: 0.14.2(drizzle-orm@0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1))
       urbit-ob:
         specifier: ^5.0.1
         version: 5.0.1
@@ -994,8 +994,8 @@ importers:
         specifier: ^4.8.0
         version: 4.8.0
       sqlocal:
-        specifier: ^0.11.1
-        version: 0.11.1(drizzle-orm@0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1))
+        specifier: ^0.14.1
+        version: 0.14.2(drizzle-orm@0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1))
       tamagui:
         specifier: ~1.126.12
         version: 1.126.12(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
@@ -1109,7 +1109,7 @@ importers:
         version: 3.0.0
       drizzle-orm:
         specifier: 0.39.3
-        version: 0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)
+        version: 0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)
       expo-contacts:
         specifier: '*'
         version: 14.0.5(expo@52.0.47(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))
@@ -5028,8 +5028,8 @@ packages:
   '@skidding/launch-editor@2.2.3':
     resolution: {integrity: sha512-0SuGEsWdulnbryUJ6humogFuuDMWMb4VJyhOc3FGVkibxVdECYDDkGx8VjS/NePZSegNONDIVhCEVZLTv4ycTQ==}
 
-  '@sqlite.org/sqlite-wasm@3.46.0-build2':
-    resolution: {integrity: sha512-10s/u/Main1RGO+jjzK+mgC/zh1ls1CEnq3Dujr03TwvzLg+j4FAohOmlYkQj8KQOj1vGR9cuB9F8tVBTwVGVA==}
+  '@sqlite.org/sqlite-wasm@3.50.1-build1':
+    resolution: {integrity: sha512-yH4M/SHN98NibniIwTVk6rwTJjy7n39l7zwWY3u+qsfZBGTi4lC1uEl2NDvIlkzsFtfCBvHBJJFJ1iuU3UzzEQ==}
     hasBin: true
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
@@ -12645,8 +12645,8 @@ packages:
   sprintf-js@1.1.3:
     resolution: {integrity: sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA==}
 
-  sqlocal@0.11.1:
-    resolution: {integrity: sha512-vg0j6WGleDvBJlG3p3hEVZ01j+X83O8kZMTao01g7XoIJUB6dmFEWu5ePY5Rhg36J61zP5/+hhSUQi7GD4+/PA==}
+  sqlocal@0.14.2:
+    resolution: {integrity: sha512-U2NLx7rUABfBaOc9404gljuMirpXR7Tlvza/oA2A5yFfKG1ntCNvxEe4cdNKsirjZyI8ri8uW5Ise9NJOyBrBw==}
     peerDependencies:
       drizzle-orm: '*'
       kysely: '*'
@@ -20587,7 +20587,7 @@ snapshots:
       chalk: 2.4.2
       shell-quote: 1.8.1
 
-  '@sqlite.org/sqlite-wasm@3.46.0-build2': {}
+  '@sqlite.org/sqlite-wasm@3.50.1-build1': {}
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     dependencies:
@@ -24768,7 +24768,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1):
+  drizzle-orm@0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1):
     optionalDependencies:
       '@op-engineering/op-sqlite': 11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       '@opentelemetry/api': 1.9.0
@@ -24776,7 +24776,7 @@ snapshots:
       better-sqlite3: 11.8.1
     optional: true
 
-  drizzle-orm@0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1):
+  drizzle-orm@0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1):
     optionalDependencies:
       '@op-engineering/op-sqlite': 11.4.2(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       '@opentelemetry/api': 1.9.0
@@ -31126,13 +31126,12 @@ snapshots:
   sprintf-js@1.1.3:
     optional: true
 
-  sqlocal@0.11.1(drizzle-orm@0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)):
+  sqlocal@0.14.2(drizzle-orm@0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)):
     dependencies:
-      '@sqlite.org/sqlite-wasm': 3.46.0-build2
+      '@sqlite.org/sqlite-wasm': 3.50.1-build1
       coincident: 1.2.3
-      nanoid: 5.1.5
     optionalDependencies:
-      drizzle-orm: 0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)
+      drizzle-orm: 0.39.3(patch_hash=wokcg55yjcq5vebl5wtmbpawhe)(@op-engineering/op-sqlite@11.4.2(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate

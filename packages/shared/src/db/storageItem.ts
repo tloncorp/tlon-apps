@@ -13,6 +13,8 @@ export type StorageItemConfig<T> = {
   defaultValue: T;
   isSecure?: boolean;
   persistAfterLogout?: boolean;
+  /** Set to true to avoid 5mb max size limit in web AsyncStorage */
+  isLarge?: boolean;
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
 };
@@ -54,7 +56,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     serialize = JSON.stringify,
     deserialize = JSON.parse,
   } = config;
-  const storage = getStorageMethods(config.isSecure ?? false);
+  const storage = getStorageMethods(config);
   let updateLock = Promise.resolve();
 
   const getValue = async (waitForLock = false): Promise<T> => {
