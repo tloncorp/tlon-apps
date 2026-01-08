@@ -17,6 +17,8 @@ const baseContentProps = {
   onEndReached: () => {},
   isFetching: false,
   isRefreshing: false,
+  allTabsAreEmpty: false,
+  currentTabIsEmpty: false,
   onRefreshTriggered: () => {},
 } as const;
 

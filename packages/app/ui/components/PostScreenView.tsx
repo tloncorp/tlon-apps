@@ -26,7 +26,6 @@ import { FlatList, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
-import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
@@ -197,14 +196,13 @@ export function PostScreenView({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const hostConnectionStatus = useConnectionStatus(
-    groupPreview?.hostUserId ?? ''
-  );
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+
+  const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
     if (Platform.OS === 'web' || !isWindowNarrow) {
@@ -338,7 +336,28 @@ export function PostScreenView({
                     goToEdit={handleEditPress}
                   />
                   {parentPost &&
-                    (mode === 'single' ? (
+                    (editingPost && channel.type === 'gallery' ? (
+                      <YStack flex={1} backgroundColor="$background">
+                        <GalleryDraftInput
+                          channel={channel}
+                          editPost={editPost}
+                          editingPost={editingPost}
+                          getDraft={
+                            draftCallbacks?.getDraft ?? (async () => null)
+                          }
+                          group={group}
+                          clearDraft={
+                            draftCallbacks?.clearDraft ?? (async () => {})
+                          }
+                          setEditingPost={setEditingPost}
+                          setShouldBlur={setGalleryEditShouldBlur}
+                          shouldBlur={galleryEditShouldBlur}
+                          storeDraft={
+                            draftCallbacks?.storeDraft ?? (async () => {})
+                          }
+                        />
+                      </YStack>
+                    ) : mode === 'single' ? (
                       <SinglePostView
                         {...{
                           channel,
@@ -375,7 +394,6 @@ export function PostScreenView({
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
                     onOpenChange={() => setGroupPreview(null)}
-                    hostStatus={hostConnectionStatus}
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
@@ -711,9 +729,8 @@ function SinglePostView({
         </View>
       )}
 
-      {parentPost &&
-      isEditingParent &&
-      (channel.type === 'notebook' || channel.type === 'gallery') ? (
+      {/* Notebook editing handled here; gallery editing is at PostScreenView level */}
+      {parentPost && isEditingParent && channel.type === 'notebook' ? (
         <View
           position="absolute"
           top={0}
@@ -722,37 +739,22 @@ function SinglePostView({
           bottom={0}
           backgroundColor="$background"
         >
-          {channel.type === 'gallery' ? (
-            <GalleryDraftInput
-              channel={channel}
-              editPost={editPost}
-              editingPost={editingPost}
-              getDraft={getDraft}
-              group={group}
-              clearDraft={clearDraft}
-              setEditingPost={setEditingPost}
-              setShouldBlur={setInputShouldBlur}
-              shouldBlur={inputShouldBlur}
-              storeDraft={storeDraft}
-            />
-          ) : (
-            <BigInput
-              channelType={urbit.getChannelType(parentPost.channelId)}
-              channelId={parentPost?.channelId}
-              editingPost={editingPost}
-              setEditingPost={setEditingPost}
-              editPost={editPost}
-              shouldBlur={inputShouldBlur}
-              setShouldBlur={setInputShouldBlur}
-              sendPost={async () => {}}
-              sendPostFromDraft={async () => {}}
-              getDraft={getDraft}
-              storeDraft={storeDraft}
-              clearDraft={clearDraft}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-            />
-          )}
+          <BigInput
+            channelType={urbit.getChannelType(parentPost.channelId)}
+            channelId={parentPost?.channelId}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            editPost={editPost}
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
+            getDraft={getDraft}
+            storeDraft={storeDraft}
+            clearDraft={clearDraft}
+            groupMembers={groupMembers}
+            groupRoles={groupRoles}
+          />
         </View>
       ) : null}
     </YStack>
