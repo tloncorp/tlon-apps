@@ -599,7 +599,6 @@ export async function sendReply({
 }: {
   channel: db.Channel;
   parentId: string;
-  parentAuthor: string; // unused
   content: urbit.Story;
 }) {
   logger.crumb('sending reply', channel.type);

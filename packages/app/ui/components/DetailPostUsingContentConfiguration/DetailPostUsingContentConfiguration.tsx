@@ -176,7 +176,6 @@ function useSendReplyCallback(
         content,
         channel,
         parentId: parent.id,
-        parentAuthor: parent.authorId,
       });
     },
     [opts]

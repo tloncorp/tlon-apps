@@ -533,7 +533,6 @@ describe('finalizeAndSendPost', () => {
     const sendReplyPromise = sendReply({
       channel: channel!,
       parentId: parentPost.id,
-      parentAuthor: parentAuthorId,
       content: replyContent,
     });
 
