@@ -3,7 +3,6 @@ import {
   extractContentTypesFromPost,
   getRichLinkMetadata,
   isRichLinkPost,
-  isTrustedEmbed,
   isValidUrl,
   useDebouncedValue,
 } from '@tloncorp/shared';
@@ -116,9 +115,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   }, [form.url, url]);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
-  const isEmbed = useMemo(() => {
-    return isTrustedEmbed(url);
-  }, [url]);
 
   useEffect(() => {
     if (data && data.type === 'page') {
@@ -154,13 +150,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
   const block: BlockData | null = useMemo(() => {
     if (!data || hasIssue) {
-      if (isEmbed) {
-        return {
-          type: 'embed',
-          url,
-        };
-      }
-
       return null;
     }
 
@@ -193,7 +182,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       type: 'link',
       url,
     };
-  }, [data, hasIssue, isEmbed, url]);
+  }, [data, hasIssue, url]);
 
   const handlePressDone = useCallback(() => {
     if ((editingPost || isDirty) && isValid) {
@@ -211,18 +200,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               link: {
                 url: formData.url,
                 meta: {},
-              },
-            },
-            meta: defaultMeta,
-          });
-        }
-
-        if (block.type === 'embed') {
-          return onSave({
-            content: {
-              link: {
-                href: block.url,
-                content: block.url,
               },
             },
             meta: defaultMeta,
@@ -315,7 +292,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         >
           <FormFrame paddingBottom="$4xl">
             {block && <PostRenderer content={[block]} />}
-            {hasIssue && !isEmbed && (
+            {hasIssue && (
               <View
                 padding="$l"
                 backgroundColor="$secondaryBackground"

@@ -1,4 +1,4 @@
-import { isTrustedEmbed, isValidUrl, trustedProviders } from '@tloncorp/shared';
+import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
@@ -22,7 +22,6 @@ import {
   Reference,
 } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
-import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -226,7 +225,6 @@ export function LinkBlock({
   renderTitle = true,
   renderImage = true,
   clickable = true,
-  renderEmbed = false,
   ...props
 }: {
   block: cn.LinkBlockData;
@@ -234,7 +232,6 @@ export function LinkBlock({
   renderDescription?: boolean;
   renderTitle?: boolean;
   renderImage?: boolean;
-  renderEmbed?: boolean;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof Reference.Frame>) {
   const urlIsValid = useMemo(() => isValidUrl(block.url), [block.url]);
@@ -260,21 +257,6 @@ export function LinkBlock({
     }
   }, [block.url, urlIsValid]);
 
-  const embedProviders = useMemo(() => {
-    // for now, avoid showing twitter embeds on web
-    return Platform.OS === 'web'
-      ? trustedProviders.filter((tp) => tp.name !== 'Twitter')
-      : trustedProviders;
-  }, []);
-
-  if (renderEmbed && isTrustedEmbed(block.url, embedProviders) && urlIsValid) {
-    const embedBlock: cn.EmbedBlockData = {
-      type: 'embed',
-      url: block.url,
-    };
-    return <EmbedBlock block={embedBlock} {...props} />;
-  }
-
   if (!urlIsValid) {
     return (
       <Reference.Frame {...props}>
@@ -294,6 +276,8 @@ export function LinkBlock({
       </Reference.Frame>
     );
   }
+
+  console.log('block', block);
 
   return (
     <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
@@ -503,34 +487,6 @@ export const HeaderText = styled(Text, {
 });
 HeaderText.displayName = 'HeaderText';
 
-export function EmbedBlock({
-  block,
-  ...props
-}: { block: cn.EmbedBlockData } & ComponentProps<typeof View>) {
-  if (!block.url) {
-    return null;
-  }
-
-  // Extract height from props if available
-  const embedHeight =
-    typeof props.height === 'number' ? props.height : undefined;
-
-  return (
-    <EmbedContent
-      url={block.url}
-      content={block.content}
-      height={embedHeight}
-      renderWrapper={(children) =>
-        children ? (
-          <View width="100%" {...props}>
-            {children}
-          </View>
-        ) : null
-      }
-    />
-  );
-}
-
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
 }) => React.ReactNode;
@@ -560,7 +516,6 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   rule: RuleBlock,
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
-  embed: EmbedBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -581,7 +536,6 @@ export type DefaultRendererProps = {
   rule: BlockSettings<typeof RuleBlock>;
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
-  embed: BlockSettings<typeof EmbedBlock>;
 };
 
 interface BlockRendererContextValue {
@@ -611,34 +565,6 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
   const { wrapperProps, ...defaultPropsForBlock } =
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
-
-  // Special handling for embed blocks - let EmbedContent decide if wrapper should render
-  if (block.type === 'embed') {
-    // Extract height from wrapperProps if available
-    const embedHeight =
-      typeof wrapperProps?.height === 'number'
-        ? wrapperProps.height
-        : undefined;
-
-    return (
-      <EmbedContent
-        url={block.url}
-        content={block.content}
-        height={embedHeight}
-        renderWrapper={(children) =>
-          children ? (
-            <Wrapper
-              {...defaultPropsForBlockWrapper}
-              {...wrapperProps}
-              block={block}
-            >
-              {children}
-            </Wrapper>
-          ) : null
-        }
-      />
-    );
-  }
 
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
