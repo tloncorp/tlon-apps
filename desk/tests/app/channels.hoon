@@ -89,11 +89,15 @@
   ;<  caz=(list card)  bind:m  (do-agent sub dock %kick ~)
   =/  next=time  (add now ~s30)
   ;<  *  bind:m
-  (ex-cards caz (ex-arvo retry-wire %b %wait next) ~)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(now next)))
-  ::  wakeup & resubscribe no delay
-  ;<  caz=(list card)  bind:m  (do-arvo retry-wire %behn %wake ~)
-  (ex-cards caz (ex-task resub dock %watch path) ~)
+    %+  ex-cards  caz
+    :~  (ex-fact-paths ~[/v3 /v3/chat/~zod/test])  ::  connection update
+        (ex-arvo retry-wire %b %wait next)
+    ==
+  (pure:m ~)
+  :: ;<  *  bind:m  (jab-bowl |=(b=bowl b(now next)))
+  :: ::  wakeup & resubscribe no delay
+  :: ;<  caz=(list card)  bind:m  (do-arvo retry-wire %behn %wake ~)
+  :: (ex-cards caz (ex-task resub dock %watch path) ~)
 ++  channel-join
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -191,7 +195,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  %*(. *net:c conn &+%watch)
+    :*  %*(. *net:c cons (my [/updates &+%watch] ~))
         *log:c
         *remark:c
         *window:v-channel:c
@@ -297,7 +301,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  %*(. *net:c conn &+%watch)
+    :*  %*(. *net:c cons (my [/updates &+%watch] ~))
         *log:c
         *remark:c
         *window:v-channel:c

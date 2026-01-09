@@ -2240,7 +2240,7 @@
       =/  =conn:c
         (~(gut by cons.net.channel) /checkpoint &+%done)
       ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
-        (ca-sync-backlog &)
+        (ca-safe-sub &)
       ca-core
       ::
         %watch-ack

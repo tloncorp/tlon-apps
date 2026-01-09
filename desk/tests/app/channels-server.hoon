@@ -202,7 +202,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c cons (my /updates^&+%done ~))
       ::
         ^=  log
         %+  gas:log-on:c  ~
