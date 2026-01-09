@@ -233,7 +233,6 @@ const ChatMessage = ({
           </View>
         ) : null}
 
-
         {deliveryFailed ? (
           <Pressable
             onPress={handleRetryPressed}
@@ -350,8 +349,7 @@ const ChatContentRenderer = createContentRenderer({
     },
     image: isWeb ? WebChatImageRenderer : undefined,
     link: {
-      renderDescription: false,
-      renderEmbed: true,
+      renderDescription: true,
       maxWidth: 600,
       imageProps: {
         aspectRatio: 2,
