@@ -36,6 +36,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
@@ -151,7 +152,10 @@ const App = () => {
             <LoadingSpinner />
           </View>
         ) : showSplashSequence ? (
-          <SplashSequence onCompleted={clearNeedsSplashSequence} />
+          <SplashSequence
+            onCompleted={clearNeedsSplashSequence}
+            inviteSystemContacts={inviteSystemContacts}
+          />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
