@@ -517,6 +517,17 @@ export function InvitePane(props: {
     try {
       setIsProcessing(true);
       await storeContext.syncSystemContacts();
+
+      // Check if any contacts were imported - skip invite screen if none
+      const syncedContacts = await db.getSystemContacts();
+      if (!syncedContacts || syncedContacts.length === 0) {
+        logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
+          reason: 'no_contacts_synced',
+        });
+        props.onActionPress();
+        return;
+      }
+
       setShowInviteContacts(true);
     } catch (err) {
       setError('Something went wrong, please try again.');
@@ -531,6 +542,7 @@ export function InvitePane(props: {
     } finally {
       setIsProcessing(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasProvidedContacts, props.onActionPress, storeContext]);
 
   useEffect(() => {

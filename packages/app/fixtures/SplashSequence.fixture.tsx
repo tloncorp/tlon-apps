@@ -1,4 +1,6 @@
-import React from 'react';
+import * as db from '@tloncorp/shared/db';
+import React, { useEffect } from 'react';
+import { useValue } from 'react-cosmos/client';
 
 import {
   InviteContactsContent,
@@ -23,15 +25,28 @@ function SplashSequenceFixture() {
 }
 
 function InviteContactsFixture() {
+  const [isLoading] = useValue('Loading State', { defaultValue: false });
+  const [hasNoContacts] = useValue('No Contacts', { defaultValue: false });
+
   const handleComplete = React.useCallback(() => {
     console.log('Invite contacts completed');
   }, []);
+
+  useEffect(() => {
+    if (isLoading) {
+      db.personalInviteLink.setValue(null);
+    } else {
+      db.personalInviteLink.setValue('https://join.tlon.io/example-invite-link');
+    }
+  }, [isLoading]);
+
+  const contacts = hasNoContacts ? [] : initialSystemContacts;
 
   return (
     <FixtureWrapper fillWidth fillHeight>
       <InviteContactsContent
         onComplete={handleComplete}
-        systemContacts={initialSystemContacts}
+        systemContacts={contacts}
       />
     </FixtureWrapper>
   );
