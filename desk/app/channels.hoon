@@ -13,8 +13,8 @@
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
     sparse, kol, imp=import-aid
-/+  utils=channel-utils, volume, s=subscriber,
-    em=emojimart, ccv=channel-conv
+/+  utils=channel-utils, hutils=http-utils, volume, s=subscriber,
+    em=emojimart, ccv=channel-conv, cj=channel-json
 ::  performance, keep warm
 /+  channel-json
 ::
@@ -143,6 +143,8 @@
           [/v5 %channel-response-5 ~]
           [/request/$ %channel-response-5 ~]
           [/v5/$/$/$/request/$ %channel-response-5 ~]
+        ::
+          [/http-response/$ %http-response-header %http-response-data ~]
       ==
     ::  scries
     ::
@@ -835,8 +837,8 @@
       ~(tap by v-channels)
     |=  [[=nest:c *] core=_cor]
     ca-abet:(ca-safe-sub:(ca-abed:ca-core:core nest) |)
-  ::
-  cor
+  ::  rebind eyre path
+  (emit [%pass /eyre/bind %arvo %e %connect [~ /apps/channels/~/v1] dap.bowl])
 ::
 ++  poke
   |=  [=mark =vase]
@@ -1089,6 +1091,39 @@
       (cat 3 kind '-migrate-refs')
     !>([host name])
   ::
+      %handle-http-request
+    ::
+    =+  !<(order:hutils vase)
+    =+  (purse:hutils url.request)
+    =*  not-found
+      (spout:hutils id [404 ~] `(as-octs:mimes:html 'bad path'))
+    ?+  site  (emil not-found)
+        [%apps %channels %~.~ %v1 *]
+      ?>  from-self
+      =/  site=(list @t)  t.t.t.t.site  ::  tmi
+      ?+  method.request  (emil not-found)
+          %'GET'
+        ?>  ?=([%request @ ~] site)
+        =/  =request-id:v9:c  (slav %uv i.t.site)
+        ?~  request=(~(get by requests) request-id)
+          (emil not-found)
+        =/  =response:v9:c
+          :-  request-id
+          ?~  result.u.request  [%pending poke-status.u.request]
+          u.result.u.request
+        (give-http-response id response)
+      ::
+          %'POST'
+        ?~  body.request  (emil not-found)
+        ?~  json=(de:json:html q.u.body.request)  (emil not-found)
+        =/  =action:v9:c  (action:dejs:cj u.json)
+        =.  requests
+          %+  ~(put by requests)  request-id.action
+          [request-id.action `id %sending ~]
+        $(+< channel-action-2+!>(action))
+      ==
+    ==
+  ::
       %egg-any
     =+  !<(=egg-any:gall vase)
     ?-  pimp
@@ -1131,9 +1166,10 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %http-response) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
+    [%http-response @ ~]  cor
     [?(%v0 %v1 %v2 %v3) ~]                    ?>(from-self cor)
     [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
     [?(%v0 %v1 %v2 %v3) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
@@ -1594,6 +1630,12 @@
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
   ::
+      [%eyre %bind ~]
+    ?>  ?=(%bound +<.sign)
+    ?:  accepted.sign  cor
+    %-  (slog dap.bowl 'failed to eyre-bind' ~)
+    (emit (tell:plog %crit ~['failed to eyre-bind'] ~))
+  ::
       [=kind:c ship=@ name=@ %request id=@ ~]
     ?>  ?=([%behn %wake ~] sign)
     ::  request timeout
@@ -1673,6 +1715,13 @@
     /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
 ++  size-limit  256.000  :: 256KB
+++  give-http-response
+  |=  [id=@ta =response:v9:c]
+  =/  =json  (response:v9:enjs:cj response)
+  =/  body  (as-octs:mimes:html (en:json:html json))
+  %-  emil
+  %+  spout:hutils  id
+  [[200 ['content-type' 'application/json']~] `body]
 ++  ca-core
   |_  $:  =nest:c
           channel=v-channel:c
@@ -2204,7 +2253,8 @@
     =/  =response:v9:c  [req-id body]
     =.  ca-core
       (give %fact ~[path] channel-response-5+!>(response))
-    ::  TODO HTTP API handling
+    =?  cor  ?=(^ http-id.u.request)
+        (give-http-response u.http-id.u.request response)
     =/  =wire  (weld ca-area /request/(scot %uv req-id))
     (emit %pass wire %agent [ship.nest server] %leave ~)
   ::
@@ -2257,7 +2307,8 @@
         (emit (tell:plog %dbug ~[>[%sending-response-to-client req-id path]<] ~))
       =.  ca-core
         (give %fact ~[path] channel-response-5+!>(response))
-      :: TODO: HTTP API handling
+      =?  cor  ?=(^ http-id.u.request)
+          (give-http-response u.http-id.u.request response)
       ::  if we haven't heard a final response yet, keep sub open
       ?:  ?=(%pending -.body.response)
         ca-core
@@ -2280,9 +2331,11 @@
     =.  requests
       (~(put by requests) req-id u.request(result `result))
     =/  =response:v9:c  [req-id result]
-    ::  TODO: HTTP API handling
     =/  =path  :(weld /v5 ca-area /request/(scot %uv req-id))
-    (give %fact ~[path] channel-response-5+!>(response))
+    =.  ca-core  (give %fact ~[path] channel-response-5+!>(response))
+    ?~  http-id.u.request  ca-core
+    =.  cor  (give-http-response u.http-id.u.request response)
+    ca-core
   ::
   ++  ca-ingest-checkpoint
     |=  chk=u-checkpoint:c

@@ -457,36 +457,6 @@ async function requestResponse(action: ub.GroupActionV5) {
     method: 'POST',
     body: JSON.stringify(action),
   });
-
-  // return new Promise<ub.GroupResponseOKV5>((resolve, reject) => {
-  //   console.log('starting requestResponse', { id, flag, args });
-  //   const sub = subscribe<ub.GroupActionResponseV5>(
-  //     {
-  //       app: 'groups',
-  //       path: `/v1/groups/${flag}/request/${id}`,
-  //     },
-  //     (response) => {
-  //       console.log('received response', { id, flag, response });
-  //       if ('pending' in response.body) {
-  //         reject(new Error('Awaiting host confirmation'));
-  //         return;
-  //       }
-
-  //       // if we got a final response, unsubscribe
-  //       sub.then(unsubscribe);
-  //       if ('error' in response.body) {
-  //         reject(new Error(response.body.error.message));
-  //         return;
-  //       }
-
-  //       resolve(response.body);
-  //     }
-  //   );
-  //   console.log('subscribed to response', { id, flag });
-
-  //   poke(args);
-  //   console.log('poke sent, awaiting response', { id, flag });
-  // });
 }
 
 export const updateGroupMeta = async ({

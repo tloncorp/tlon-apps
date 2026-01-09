@@ -15,19 +15,33 @@ import {
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
-  PokeParams,
   poke,
+  request,
   scry,
   subscribe,
   subscribeOnce,
   thread,
   trackedPoke,
-  unsubscribe,
 } from './urbit';
 
 const logger = createDevLogger('channelsApi', false);
 
 export function channelAction(
+  channelId: string,
+  action: ChannelsSubAction
+): ChannelAction {
+  return {
+    id: getRequestId(),
+    'a-channels': {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}
+
+export function channelPokeAction(
   channelId: string,
   action: ChannelsSubAction
 ): Poke<ChannelAction> {
@@ -603,7 +617,7 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'add-writers': writers }));
+  return poke(channelPokeAction(channelId, { 'add-writers': writers }));
 }
 
 export async function removeChannelWriters({
@@ -613,43 +627,34 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'del-writers': writers }));
+  return poke(channelPokeAction(channelId, { 'del-writers': writers }));
 }
 
 export async function requestResponse(
-  channelId: string,
-  args: PokeParams
+  action: ub.ChannelAction
 ): Promise<ub.Response> {
-  return new Promise<ub.Response>((resolve, reject) => {
-    console.log('starting requestResponse', { channelId, args });
-    const sub = subscribe<ub.ChannelActionResponse>(
-      {
-        app: 'channels',
-        path: `/v5/${channelId}/request/${args.json.id}`,
-      },
-      (response) => {
-        console.log('received response', { channelId, response });
-        if ('pending' in response.body) {
-          reject(new Error('Awaiting host confirmation'));
-          return;
-        }
+  const response = await request<ub.ChannelActionResponse>(
+    '/apps/channels/~/v1',
+    {
+      method: 'POST',
+      body: JSON.stringify(action),
+    }
+  );
 
-        // if we got a final response, unsubscribe
-        sub.then(unsubscribe);
-        if ('error' in response.body) {
-          reject(new Error(response.body.error.message));
-          return;
-        }
-
-        resolve(response.body.ok);
-      }
-    );
-    console.log('subscribed to response', { id: args.json.id, channelId });
-
-    poke(args);
-    console.log('poke sent, awaiting response', {
-      id: args.json.id,
-      channelId,
+  if ('error' in response.body) {
+    const { type, message } = response.body.error;
+    logger.trackError(message, {
+      type,
     });
-  });
+    if (response.body.error.type === 'unknown') {
+      throw new Error('An unknown error occurred');
+    }
+    throw new Error(response.body.error.message);
+  }
+
+  if ('pending' in response.body) {
+    throw new Error('Awaiting host confirmation');
+  }
+
+  return response.body.ok;
 }

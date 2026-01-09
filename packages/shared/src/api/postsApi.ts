@@ -41,7 +41,11 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { channelAction, requestResponse } from './channelsApi';
+import {
+  channelAction,
+  channelPokeAction,
+  requestResponse,
+} from './channelsApi';
 import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
@@ -194,7 +198,7 @@ export const sendPost = async ({
     add: essay,
   });
 
-  await requestResponse(channelId, action);
+  await requestResponse(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
@@ -230,7 +234,7 @@ export const editPost = async ({
       sent: sentAt,
     };
 
-    const action: ub.Action = {
+    const action: ub.ChannelsSubAction = {
       post: {
         reply: {
           id: parentId,
@@ -245,7 +249,7 @@ export const editPost = async ({
     };
 
     logger.log('sending action', action);
-    await poke(channelAction(channelId, action));
+    await poke(channelPokeAction(channelId, action));
     logger.log('action sent');
     return;
   }
@@ -275,7 +279,7 @@ export const editPost = async ({
   });
 
   logger.log('sending action', action);
-  await poke(action);
+  await requestResponse(action);
   logger.log('action sent');
 };
 
@@ -331,7 +335,7 @@ export const sendReply = async ({
   };
 
   const action = channelPostAction(channelId, postAction);
-  await poke(action);
+  await requestResponse(action);
 };
 export interface GetSequencedPostsOptions {
   channelId: string;
@@ -726,7 +730,7 @@ export async function addReaction({
 
   if (parentId) {
     await poke(
-      channelAction(channelId, {
+      channelPokeAction(channelId, {
         post: {
           reply: {
             id: parentId,
@@ -743,7 +747,7 @@ export async function addReaction({
     );
   } else {
     await poke(
-      channelAction(channelId, {
+      channelPokeAction(channelId, {
         post: {
           'add-react': {
             id: postId,
@@ -839,7 +843,7 @@ export async function removeReaction({
 
   if (parentId) {
     return await poke(
-      channelAction(channelId, {
+      channelPokeAction(channelId, {
         post: {
           reply: {
             id: parentId,
@@ -855,7 +859,7 @@ export async function removeReaction({
     );
   } else {
     return await poke(
-      channelAction(channelId, {
+      channelPokeAction(channelId, {
         post: {
           'del-react': {
             id: postId,
@@ -994,7 +998,7 @@ export async function deletePost(
             },
           },
         })
-      : channelAction(channelId, {
+      : channelPokeAction(channelId, {
           post: {
             del: postId,
           },
