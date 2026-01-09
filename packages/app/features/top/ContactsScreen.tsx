@@ -1,13 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
-import SystemNotices from '../..//ui/components/SystemNotices';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
@@ -17,9 +16,9 @@ import {
   View,
   getDisplayName,
   isWeb,
-  triggerHaptic,
   useInviteSystemContacts,
 } from '../../ui';
+import SystemNotices from '../../ui/components/SystemNotices';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
@@ -30,6 +29,11 @@ export default function ContactsScreen(props: Props) {
   } = props;
 
   const inviteSystemContacts = useInviteSystemContacts();
+  const inviteLink = db.personalInviteLink.useValue();
+  const handleInviteSystemContact = useInviteSystemContactHandler(
+    inviteSystemContacts,
+    inviteLink
+  );
   const currentUser = useCurrentUserId();
 
   const { data: userContacts } = store.useUserContacts();
@@ -78,50 +82,6 @@ export default function ContactsScreen(props: Props) {
       ]);
     }
   }, []);
-
-  const handleInviteSystemContact = useCallback(
-    async (systemContact: db.SystemContact) => {
-      if (!inviteSystemContacts) {
-        triggerHaptic('error');
-        return;
-      }
-
-      const alreadyInvited = !!systemContact.sentInvites?.find(
-        (invite) => invite.invitedTo === domain.InvitedToPersonalKey
-      );
-      if (alreadyInvited) {
-        triggerHaptic('error');
-        return;
-      }
-
-      const inviteType = systemContact.phoneNumber ? 'sms' : 'email';
-      const recipient =
-        inviteType === 'sms' ? systemContact.phoneNumber : systemContact.email;
-      const personalInviteLink = await db.personalInviteLink.getValue();
-
-      if (!recipient || !personalInviteLink) {
-        triggerHaptic('error');
-        return;
-      }
-
-      triggerHaptic('baseButtonClick');
-      const params: domain.SystemContactInviteParams = {
-        type: inviteType,
-        recipients: [recipient],
-        invite: {
-          link: personalInviteLink,
-          message: domain.SystemContactInviteMessages.Personal,
-        },
-      };
-      const didSend = await inviteSystemContacts(params);
-      if (didSend) {
-        await store.recordSentInvites(domain.InvitedToPersonalKey, [
-          systemContact,
-        ]);
-      }
-    },
-    [inviteSystemContacts]
-  );
 
   return (
     <AppDataContextProvider
