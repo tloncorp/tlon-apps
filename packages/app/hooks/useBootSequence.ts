@@ -7,6 +7,7 @@ import {
   NodeBootPhase,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import { verifyUserInviteLink } from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -140,6 +141,13 @@ export function useBootSequence() {
         withRetry(() => store.syncStart(), {
           numOfAttempts: 3,
           startingDelay: 30000,
+        });
+
+        // Start verifying the personal invite link early so it's ready by the
+        // time the user reaches the invite screen in the splash sequence.
+        // This runs in parallel with the rest of the boot sequence.
+        verifyUserInviteLink().catch((e) => {
+          logger.trackError('early verifyUserInviteLink failed', e);
         });
 
         logger.crumb(`authenticated with node`);
