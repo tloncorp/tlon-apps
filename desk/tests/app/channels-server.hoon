@@ -6,7 +6,7 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-  [%13 =v-channels:v9:cv =hooks:h =pimp:imp]
+  [%14 =v-channels:v10:cv =hooks:h =pimp:imp]
 +$  state-8
   [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
@@ -72,7 +72,7 @@
   ++  tombstone-rescue-key
     ~2025.6.25..14.41.13..585b
   ++  tombstone-rescue-test-channel-old
-    =+  c=v8:cv
+    =*  c  v8:cv
     ^-  v-channel:c
     :-  ^-  global:v-channel:c
         :*  ^=  posts
@@ -202,7 +202,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c cons (my /updates^&+%done ~))
       ::
         ^=  log
         %+  gas:log-on:c  ~
@@ -288,7 +288,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%13 chans *hooks:h *pimp:imp]
+        [%14 chans *hooks:h *pimp:imp]
       =/  chan=v-channel:c
         tombstone-rescue-test-channel-new
       (~(put by *v-channels:c) *nest:c chan)

@@ -3,7 +3,7 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %16
+  $:  %17
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -89,11 +89,15 @@
   ;<  caz=(list card)  bind:m  (do-agent sub dock %kick ~)
   =/  next=time  (add now ~s30)
   ;<  *  bind:m
-  (ex-cards caz (ex-arvo retry-wire %b %wait next) ~)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(now next)))
-  ::  wakeup & resubscribe no delay
-  ;<  caz=(list card)  bind:m  (do-arvo retry-wire %behn %wake ~)
-  (ex-cards caz (ex-task resub dock %watch path) ~)
+    %+  ex-cards  caz
+    :~  (ex-fact-paths ~[/v3 /v3/chat/~zod/test])  ::  connection update
+        (ex-arvo retry-wire %b %wait next)
+    ==
+  (pure:m ~)
+  :: ;<  *  bind:m  (jab-bowl |=(b=bowl b(now next)))
+  :: ::  wakeup & resubscribe no delay
+  :: ;<  caz=(list card)  bind:m  (do-arvo retry-wire %behn %wake ~)
+  :: (ex-cards caz (ex-task resub dock %watch path) ~)
 ++  channel-join
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -191,7 +195,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c cons (my [/updates &+%watch] ~))
         *log:c
         *remark:c
         *window:v-channel:c
@@ -204,7 +208,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -241,7 +245,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -297,7 +301,7 @@
             *(rev:c (unit @t))
         ==
     ^-  local:v-channel:c
-    :*  *net:c
+    :*  %*(. *net:c cons (my [/updates &+%watch] ~))
         *log:c
         *remark:c
         *window:v-channel:c
@@ -310,7 +314,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -364,7 +368,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)

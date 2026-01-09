@@ -24,11 +24,118 @@
 +$  client-id  [author=ship sent=time]
 +$  plan
   (pair time (unit time))
++$  unreads  (map nest unread)
++$  unread
+  $:  recency=time
+      count=@ud
+      unread=(unit [id=id-post count=@ud])
+      threads=(map id-post [id=id-reply count=@ud])
+  ==
 ::
 ++  rev
   |$  [data]
   [rev=@ud data]
 ::
+++  v10
+  =,  v9
+  |%
+  ::  $v-channels: depends on $v-channel
+  +$  v-channels  (map nest v-channel)
+  ::  $v-channel: depends on $net
+  ++  v-channel
+    |^  ,[global local]
+    ::  $global: should be identical between ships
+    ::
+    +$  global
+      $:  posts=v-posts
+          ::  .count: number of posts, for sequence nr generation
+          count=@ud
+          order=(rev arranged-posts)
+          view=(rev view)
+          sort=(rev sort)
+          perm=(rev perm)
+          meta=(rev (unit @t))
+      ==
+    ::  $window: sparse set of time ranges
+    ::
+    ::TODO  populate this
+    +$  window  (list [from=time to=time])
+    ::  .window: time range for requested posts that we haven't received
+    ::  .diffs: diffs for posts in the window, to apply on receipt
+    ::
+    +$  future
+      [=window diffs=(jug id-post u-post)]
+    ::  $local: local-only information
+    ::
+    +$  local
+      $:  =net
+          =log
+          =remark
+          =window
+          =future
+          pending=pending-messages
+          =last-updated
+      ==
+    --
+  ::  $conn-ok: positive subscription status
+  +$  conn-ok  ?(%watch %suspend %done)
+  ::  $conn-error: failed subscription status
+  +$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+  ::  $conn: subscription status
+  +$  conn
+    $~  &+%done
+    (each conn-ok conn-error)
+  ::  $net: modified
+  ::
+  ::  add .cons field
+  ::
+  +$  net
+    [p=ship load=_| cons=(map wire conn)]
+  ::  $channels: depends on $channel
+  +$  channels  (map nest channel)
+  ::  $channel: depends on $net
+  ::
+  ++  channel
+    |^  ,[global local]
+    +$  global
+      $:  =posts
+          ::  .count: number of posts, for sequence nr generation
+          count=@ud
+          order=arranged-posts
+          =view
+          =sort
+          =perm
+          meta=(unit @t)
+      ==
+    ::
+    +$  local
+      $:  =net
+          =remark
+          pending=pending-messages
+      ==
+    --
+  ::  $r-channels: depends on $r-channel
+  +$  r-channels  [=nest =r-channel]
+  ::  $r-channel: modified
+  ::
+  ::  %connection: subscription status
+  ::
+  +$  r-channel
+    $%  [%posts =posts]
+        [%post id=id-post =r-post]
+        [%pending id=client-id =r-pending]
+        [%order order=arranged-posts]
+        [%view =view]
+        [%sort =sort]
+        [%perm =perm]
+        [%meta meta=(unit @t)]
+        [%create =perm]
+        [%join group=flag:gv]
+        [%leave ~]
+        [%connection =wire =conn]
+        a-remark
+    ==
+  --
 ++  v9
   =,  v8
   |%
@@ -403,13 +510,6 @@
     ==
   +$  said  (pair nest reference)
   +$  net  [p=ship load=_|]
-  +$  unreads  (map nest unread)
-  +$  unread
-    $:  recency=time
-        count=@ud
-        unread=(unit [id=id-post count=@ud])
-        threads=(map id-post [id=id-reply count=@ud])
-    ==
   +$  remark  [recency=time last-read=time watching=_| unread-threads=(set id-post)]
   +$  perm
     $:  writers=(set sect:v0:gv)
@@ -897,13 +997,6 @@
     ==
   +$  net  [p=ship load=_|]
   +$  remark  [recency=time last-read=time watching=_| unread-threads=(set id-post)]
-  +$  unreads  (map nest unread)
-  +$  unread
-    $:  recency=time
-        count=@ud
-        unread=(unit [id=id-post count=@ud])
-        threads=(map id-post [id=id-reply count=@ud])
-    ==
   ++  story  story:v0:ver:s
   ++  verse  verse:v0:ver:s
   ++  inline  inline:v0:ver:s

@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid, em=emojimart
+/+  utils=channel-utils, ccv=channel-conv, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -14,6 +14,7 @@
 /%  m-channel-said-1        %channel-said-1
 /%  m-channel-said-2        %channel-said-2
 /%  m-channel-update        %channel-update
+/%  m-channel-error         %channel-error
 /%  m-hook-channel-preview  %hook-channel-preview
 /%  m-hook-full             %hook-full
 /%  m-hook-response-0       %hook-response-0
@@ -28,6 +29,7 @@
             :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2        |  -:!>(*vale:m-channel-said-2)
             :+  %channel-update        |  -:!>(*vale:m-channel-update)
+            :+  %channel-error         |  -:!>(*vale:m-channel-error)
             :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
             :+  %hook-full             |  -:!>(*vale:m-hook-full)
             :+  %hook-response-0       |  -:!>(*vale:m-hook-response-0)
@@ -35,9 +37,9 @@
         ==
       ::  facts
       ::
-      :~  [/$/$/checkpoint %channel-checkpoint ~]
-          [/$/$/create %channel-update ~]
-          [/$/$/updates %channel-update %channel-logs ~]
+      :~  [/$/$/checkpoint %channel-checkpoint %channel-error ~]
+          [/$/$/create %channel-update %channel-error ~]
+          [/$/$/updates %channel-update %channel-logs %channel-error ~]
           [/said %channel-said-2 %channel-said-1 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
@@ -52,8 +54,8 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%3 ~ ~]
-    (my %groups^[~.groups^%2 ~ ~] ~)
+      [~.channels^%4 ~ ~]
+    (my %groups^[~.groups^%3 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
 ::
@@ -62,8 +64,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
-        =v-channels:v9:cv
+    $:  %14
+        =v-channels:v10:cv
         =hooks:h
         =pimp:imp
     ==
@@ -160,12 +162,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -180,7 +184,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -212,6 +222,12 @@
       =v-channels:v7:cv
       =pimp:imp
     ==
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    s(- %14, v-channels (~(run by v-channels.s) v10:v-channel:v9:ccv))
   ::
   ++  state-12-to-13
     |=  s=state-12
@@ -307,10 +323,10 @@
   ++  v-channel-2
     |^  ,[global:v-channel:v7:cv local]
     +$  local
-      $:  =net:c
+      $:  =net:v7:cv
           =log:v7:cv
-          =remark:c
-          =window:v-channel:c
+          =remark:v7:cv
+          =window:v-channel:v7:cv
           =future:v-channel:v7:cv
       ==
     --
@@ -340,7 +356,7 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:c =window =future]
+    +$  local     [=net:v7:cv log=log-1 =remark:v7:cv =window =future]
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
@@ -423,7 +439,7 @@
     |^  ,[global:v-channel-1 local]
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
+    +$  local     [=net:v7:cv log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::
@@ -645,22 +661,28 @@
     ca-abet:ca-watch-create:(ca-abed:ca-core nest)
   ::
       [=kind:c name=@ %updates ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
     ?.  (can-read:ca-perms:ca src.bowl)
-      ~|(%permission-denied !!)
+      ca-abet:(ca-give-conn-error:ca-core %not-authorized)
     cor
   ::
       [=kind:c name=@ %updates after=@ ~]
-    =<  ca-abet
-    %-  ca-watch-updates:(ca-abed:ca-core kind.pole our.bowl name.pole)
-    (slav %da after.pole)
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
+    =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
+    ca-abet:(ca-watch-updates:ca (slav %da after.pole))
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ ~]
-    =<  ca-abet
-    %-  ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
-    [(slav %da from.pole) ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
+    =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
+    ca-abet:(ca-watch-checkpoint:ca (slav %da from.pole) ~)
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ to=@ ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =<  ca-abet
     %^    ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
         (slav %da from.pole)
@@ -668,6 +690,8 @@
     (slav %da to.pole)
   ::
       [=kind:c name=@ %checkpoint %before n=@ud ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      ca-abet:(ca-give-conn-error:ca-core %not-found)
     =<  ca-abet
     %-  ca-watch-checkpoint-page:(ca-abed:ca-core kind.pole our.bowl name.pole)
     (slav %ud n.pole)
@@ -718,7 +742,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v9:gv q.cage.sign))
+      (take-groups !<(r-groups:v10:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -769,7 +793,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v9:gv
+  |=  =r-groups:v10:gv
   ~>  %spin.['take-groups']
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -870,7 +894,7 @@
     ~>  %spin.['ca-watch-updates']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  =log:c  (lot:log-on:c log.channel `da ~)
     =.  ca-core  (give %fact ~ %channel-logs !>(log))
     ca-core
@@ -880,7 +904,7 @@
     ~>  %spin.['ca-watch-checkpoint']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (lot:on-v-posts:c posts.channel `from to)
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
@@ -891,7 +915,7 @@
     ~>  %spin.['ca-watch-checkpoint-page']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c (bat:mo-v-posts:c posts.channel ~ n))
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
@@ -1280,6 +1304,13 @@
     ?:  =(~ paths)
       ca-core
     (give %fact paths %channel-update !>(update))
+  ::
+  ++  ca-give-conn-error
+    |=  err=conn-error:c
+    ^+  ca-core
+    =.  ca-core
+      (give %fact ~ channel-error+!>(err))
+    (give %kick ~ ~)
   ::
   ++  ca-subscriptions
     ~>  %spin.['ca-subscriptions']

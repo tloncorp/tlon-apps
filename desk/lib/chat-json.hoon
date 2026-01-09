@@ -200,12 +200,12 @@
     ?-  -.delta
       %del       ~
       %add-react  (add-react +.delta)
-      %del-react  (author:enjs:dj author.delta)
+      %del-react  (author:v9:enjs:dj author.delta)
       %reply      (reply-delta +.delta)
     ::
         %add
       %-  pairs
-      :~  essay+(essay:enjs:dj essay.delta)
+      :~  essay+(essay:v9:enjs:dj essay.delta)
           time+?~(time.delta ~ (time-id u.time.delta))
       ==
     ==
@@ -223,11 +223,11 @@
     ?-  -.delta
         %del       ~
         %add-react  (add-react [author react]:delta)
-        %del-react  (author:enjs:dj author.delta)
+        %del-react  (author:v9:enjs:dj author.delta)
         %reply     (reply-response-delta +.delta)
         %add
       %-  pairs
-      :~  essay+(essay:enjs:dj essay.delta)
+      :~  essay+(essay:v9:enjs:dj essay.delta)
           seq+(numb seq.delta)
           time+(time-id time.delta)
       ==
@@ -238,17 +238,17 @@
     ^-  json
     %-  pairs
     :~  id+(id i)
-        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
+        meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
         :-  %delta
         %+  frond  -.delta
         ?-  -.delta
           %del       ~
           %add-react  (add-react +.delta)
-          %del-react  (author:enjs:dj author.delta)
+          %del-react  (author:v9:enjs:dj author.delta)
         ::
             %add
           %-  pairs
-          :~  memo+(memo:enjs:dj memo.delta)
+          :~  memo+(memo:v9:enjs:dj memo.delta)
               time+?~(time.delta ~ (time-id u.time.delta))
           ==
         ==
@@ -258,17 +258,17 @@
     ^-  json
     %-  pairs
     :~  id+(id i)
-        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
+        meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
         :-  %delta
         %+  frond  -.delta
         ?-  -.delta
           %del       ~
           %add-react  (add-react +.delta)
-          %del-react  (author:enjs:dj author.delta)
+          %del-react  (author:v9:enjs:dj author.delta)
         ::
             %add
           %-  pairs
-          :~  memo+(memo:enjs:dj memo.delta)
+          :~  memo+(memo:v9:enjs:dj memo.delta)
               time+(time-id time.delta)
           ==
         ==
@@ -276,8 +276,8 @@
   ++  add-react
     |=  [=author:c =react:c]
     %-  pairs
-    :~  react+(react:enjs:dj react)
-        author+(author:enjs:dj author)
+    :~  react+(react:v9:enjs:dj react)
+        author+(author:v9:enjs:dj author)
     ==
   ::
   ++  dm-action
@@ -320,7 +320,7 @@
     |=  =writ:c
     %-  pairs
     :~  seal+(seal -.writ)
-        essay+(essay:enjs:dj +.writ)
+        essay+(essay:v9:enjs:dj +.writ)
         type+s+%post
     ==
   ::
@@ -355,9 +355,9 @@
     :~  id+(id id.seal)
         seq+(numb seq.seal)
         time+(time-id time.seal)
-        reacts+(reacts:enjs:dj reacts.seal)
+        reacts+(reacts:v9:enjs:dj reacts.seal)
         replies+(replies replies.seal)
-        meta+(reply-meta:enjs:dj reply-meta.seal)
+        meta+(reply-meta:v9:enjs:dj reply-meta.seal)
     ==
   ::
   ++  replies
@@ -371,7 +371,7 @@
     |=  =reply:c
     %-  pairs
     :~  seal+(reply-seal -.reply)
-        memo+(memo:enjs:dj +.reply)
+        memo+(memo:v9:enjs:dj +.reply)
     ==
   ::
   ++  reply-seal
@@ -380,7 +380,7 @@
     :~  id+(id id.reply-seal)
         parent-id+(id parent-id.reply-seal)
         time+(time-id time.reply-seal)
-        reacts+(reacts:enjs:dj reacts.reply-seal)
+        reacts+(reacts:v9:enjs:dj reacts.reply-seal)
     ==
   ::
   ++  reference
@@ -400,7 +400,7 @@
     %-  pairs
     :~  id+(id id.tombstone)
         time+(time-id time.tombstone)
-        author+(author:enjs:dj author.tombstone)
+        author+(author:v9:enjs:dj author.tombstone)
         seq+(numb seq.tombstone)
         deleted-at+(time del-at.tombstone)
         type+s+%tombstone
@@ -421,7 +421,7 @@
       |=  =writ:v5:cv
       %-  pairs
       :~  seal+(seal -.writ)
-          essay+(essay:enjs:dj +.writ)
+          essay+(essay:v9:enjs:dj +.writ)
       ==
     ++  writs
       |=  =writs:v5:cv
@@ -435,9 +435,9 @@
       %-  pairs
       :~  id+(id id.seal)
           time+(time-id time.seal)
-          reacts+(reacts:enjs:dj reacts.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
           replies+(replies replies.seal)
-          meta+(reply-meta:enjs:dj reply-meta.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
       ==
     ++  replies
       |=  =replies:v5:cv
@@ -493,11 +493,11 @@
       ?-  -.delta
           %del       ~
           %add-react  (add-react [author react]:delta)
-          %del-react  (author:enjs:dj author.delta)
+          %del-react  (author:v9:enjs:dj author.delta)
           %reply     (reply-response-delta +.delta)
           %add
         %-  pairs
-        :~  essay+(essay:enjs:dj essay.delta)
+        :~  essay+(essay:v9:enjs:dj essay.delta)
             time+(time-id time.delta)
         ==
       ==
@@ -519,7 +519,7 @@
       |=  =writ:v4:cv
       %-  pairs
       :~  seal+(seal -.writ)
-          essay+(essay:enjs:dj +.writ)
+          essay+(essay:v9:enjs:dj +.writ)
       ==
     ::
     ++  chat-heads
@@ -547,9 +547,9 @@
       %-  pairs
       :~  id+(id id.seal)
           time+(time-id time.seal)
-          reacts+(reacts:enjs:dj reacts.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
           replies+(replies replies.seal)
-          meta+(reply-meta:enjs:dj reply-meta.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
       ==
     ::
     ++  reference
