@@ -663,6 +663,39 @@
   |=  v-reply=(may:c v-reply:c)
   ^-  (unit v-reply:c)
   ((bake (may-bind same) (may:c v-reply:c)) v-reply)
+++  r-update-to-response
+  |=  response-update:v9:c
+  ^-  response:v9:c
+  :-  id
+  ?.  ?=(%ok -.body)  body
+  =*  update  u-channel.update.body
+  :-  %ok
+  ?-  -.update
+    %create  [%create perm.update]
+    %order  [%order order.update]
+    %view  [%view view.update]
+    %sort  [%sort sort.update]
+    %perm  [%perm perm.update]
+    %meta  [%meta meta.update]
+  ::
+      %post
+    :-  %post
+    :-  id.update
+    =*  u-post  u-post.update
+    ?-  -.u-post
+      %essay  [%essay essay.u-post]
+      %reacts  [%reacts (uv-reacts reacts.u-post)]
+    ::
+        %set
+      :-  %set
+      ?:  ?=(%| -.post.u-post)  post.u-post
+      [%& (uv-post-3 +.post.u-post)]
+    ::
+        %reply
+      :: TODO
+      !!
+    ==
+  ==
 ++  was-mentioned
   |=  [=story:s who=ship seat=(unit seat:v7:gv)]
   ^-  ?

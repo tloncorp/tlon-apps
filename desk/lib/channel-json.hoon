@@ -8,6 +8,39 @@
   |%
   +|  %responses
   ::
+  ++  request-id
+    |=  rid=request-id:c
+    ^-  json
+    s+(scot %uv rid)
+  ::
+  ++  response
+    |=  =response:c
+    ^-  json
+    %-  pairs
+    :~  id+(request-id id.response)
+        body+(response-body body.response)
+    ==
+  ::
+  ++  response-body
+    |=  body=response-body:c
+    ^-  json
+    %+  frond  -.body
+    ?-  -.body
+      %no-change  ~
+      %ok       (r-channel r-channel.body)
+      %error    (pairs type+s+type.body message+a+(turn message.body tank) ~)
+      %pending  (pairs status+s+status.body ~)
+    ==
+  ++  poke-status
+    |=  status=poke-status:c
+    ^-  json
+    s+status
+  ::
+  ++  action-error
+    |=  err=action-error:c
+    ^-  json
+    s+err
+  ::
   ++  r-channels
     |=  [=nest:c =r-channel:c]
     %-  pairs
@@ -1215,6 +1248,17 @@
   |%
   +|  %actions
   ::
+  ++  request-id
+    ^-  $-(json request-id:c)
+    (se %uv)
+  ::
+  ++  action
+    ^-  $-(json action:c)
+    %-  ot
+    :~  id/request-id
+        a-channels/a-channels
+    ==
+  ::
   ++  a-channels
     ^-  $-(json a-channels:c)
     %-  of
@@ -1254,8 +1298,8 @@
         edit+(ot id+id essay+essay ~)
         del+id
         reply+(ot id+id action+a-reply ~)
-        add-react+(ot id+id ship+ship react+react ~)
-        del-react+(ot id+id ship+ship ~)
+        add-react+(ot id+id author+author react+react ~)
+        del-react+(ot id+id author+author ~)
     ==
 
   ++  a-reply
@@ -1264,8 +1308,8 @@
     :~  add+memo
         del+id
         edit+(ot id+id memo+memo ~)
-        add-react+(ot id+id ship+ship react+react ~)
-        del-react+(ot id+id ship+ship ~)
+        add-react+(ot id+id author+author react+react ~)
+        del-react+(ot id+id author+author ~)
     ==
   ++  meta
     ^-  $-(json data:^^meta)

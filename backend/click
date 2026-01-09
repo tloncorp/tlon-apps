@@ -233,7 +233,7 @@ if [[ -n $INPUT ]]; then
     if [[ $EXECUTE -eq 0 ]]; then
         # read from file, escape 's, replace newlines w/ gaps
         # Use paste for portable line joining (works on both GNU and BSD systems)
-        HOON="$(cat $INPUT | sed "s;';\\\\';g" | paste -sd'  ' -)"
+        HOON="$(cat $INPUT | sed "s;';\\\\';g" | perl -pe 's/\n/  /g')"
     fi
 else
     PIER=$1

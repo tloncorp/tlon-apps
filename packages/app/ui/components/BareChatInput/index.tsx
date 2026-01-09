@@ -21,9 +21,10 @@ import {
   RawText,
   Text,
   useGlobalSearch,
+  useToast,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Alert, Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -468,6 +469,8 @@ export default function BareChatInput({
     }
   }, [attachments, handleTextChange, removeAttachment, controlledText]);
 
+  const toast = useToast();
+
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
@@ -504,7 +507,13 @@ export default function BareChatInput({
       setEditingPost?.(undefined);
 
       try {
-        await sendPostFromDraft(draft);
+        await sendPostFromDraft(draft).catch((e) => {
+          console.error('Failed to send message (barechatinput)', e);
+          toast({
+            message: e.message || e.toString(),
+            duration: 3000,
+          });
+        });
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);

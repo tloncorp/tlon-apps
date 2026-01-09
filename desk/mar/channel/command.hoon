@@ -1,13 +1,13 @@
 /-  c=channels
 /+  j=channel-json
-|_  =c-channels:c
+|_  =command:v9:c
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  c-channels
+  ++  noun  command
   --
 ++  grab
   |%
-  ++  noun  c-channels:c
+  ++  noun  command:v9:c
   --
 --

@@ -89,6 +89,7 @@ export function finalizePostDraftUsingLocalAttachments(
 export async function finalizeAndSendPost(
   draft: domain.PostDataDraft
 ): Promise<void> {
+  console.trace('finalizeAndSendPost', { draft });
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
   } else {
@@ -242,6 +243,8 @@ async function _sendPost({
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
     }
+
+    throw e;
   }
 }
 

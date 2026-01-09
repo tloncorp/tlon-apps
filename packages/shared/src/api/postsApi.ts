@@ -41,7 +41,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { channelAction } from './channelsApi';
+import { channelAction, requestResponse } from './channelsApi';
 import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
@@ -194,7 +194,7 @@ export const sendPost = async ({
     add: essay,
   });
 
-  await poke(action);
+  await requestResponse(channelId, action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
@@ -734,7 +734,7 @@ export async function addReaction({
               'add-react': {
                 id: postId,
                 react: emoji,
-                ship: our,
+                author: our,
               },
             },
           },
@@ -748,7 +748,7 @@ export async function addReaction({
           'add-react': {
             id: postId,
             react: emoji,
-            ship: our,
+            author: our,
           },
         },
       })
@@ -846,7 +846,7 @@ export async function removeReaction({
             action: {
               'del-react': {
                 id: postId,
-                ship: our,
+                author: our,
               },
             },
           },
@@ -859,7 +859,7 @@ export async function removeReaction({
         post: {
           'del-react': {
             id: postId,
-            ship: our,
+            author: our,
           },
         },
       })
@@ -1126,7 +1126,7 @@ export function toPostData(
   if (isPostTombstone(post)) {
     return {
       id: getCanonicalPostId(post.id),
-      authorId: post.author,
+      authorId: ub.authorToId(post.author),
       channelId,
       type,
       sentAt: getReceivedAtFromId(post.id),
@@ -1194,7 +1194,7 @@ export function toPostData(
     image: post.essay.meta?.image ?? '',
     description: post.essay.meta?.description ?? '',
     cover: post.essay.meta?.cover ?? '',
-    authorId: post.essay.author,
+    authorId: ub.authorToId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
@@ -1290,7 +1290,7 @@ export function toPostReplyData(
     id,
     channelId,
     type: 'reply',
-    authorId: reply.memo.author,
+    authorId: ub.authorToId(reply.memo.author),
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),

@@ -55,16 +55,17 @@
       [~.channels^%3 ~ ~]
     (my %groups^[~.groups^%1 ~ ~] ~)
 %-  agent:dbug
-%^  verb  |  %warn
+%^  verb  &  %dbug
 ::
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
+    $:  %14
         =v-channels:v9:c
         =hooks:h
+        =requests:v9:c
         =pimp:imp
     ==
   --
@@ -159,12 +160,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -179,7 +182,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -211,6 +220,11 @@
       =v-channels:v7:c
       =pimp:imp
     ==
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ^-  state-14
+    [%14 v-channels.s hooks.s ~ pimp.s]
   ::
   ++  state-12-to-13
     |=  s=state-12
@@ -487,15 +501,20 @@
     ==
   ::
       %channel-command
-    =+  !<(=c-channels:c vase)
+    =+  !<(command:v9:c vase)
+    =.  cor  (emit (tell:log %dbug ~['request-id: ' >request-id< ' command: ' >c-channels<] ~))
+    =/  =incoming-request:v9:c
+      (~(gut by requests) request-id [request-id ~ %sending ~])
+    =.  requests
+      (~(put by requests) request-id incoming-request)
     ?-    -.c-channels
         %create
       =<  ca-abet
       =/  =nest:c  [kind.create-channel.c-channels our.bowl name.create-channel.c-channels]
-      (ca-create:ca-core nest create-channel.c-channels)
+      (ca-create:(ca-init-req:ca-core request-id) nest create-channel.c-channels)
     ::
         %channel
-      =/  channel-core  (ca-abed:ca-core nest.c-channels)
+      =/  channel-core  (ca-init-req:(ca-abed:ca-core nest.c-channels) request-id)
       ca-abet:(ca-c-channel:channel-core c-channel.c-channels)
     ==
   ::
@@ -597,6 +616,17 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+    pole  ~|(%bad-watch-path !!)
+      [%request ship=@ id=@ ~]
+    ::  handle request response subscription
+    =/  =ship  (slav %p ship.pole)
+    ?>  =(ship src.bowl)
+    =/  id=request-id:v9:c  (slav %uv id.pole)
+    =/  request=incoming-request:v9:c
+      (~(gut by requests) id [id ~ %sending ~])
+    =.  requests
+      (~(put by requests) id request)
+    cor
+  ::
       [%v0 %hooks ~]  cor
   ::
       [%v0 %hooks %full ~]
@@ -808,7 +838,11 @@
 ::
 ++  size-limit  256.000  :: 256KB
 ++  ca-core
-  |_  [=nest:c channel=v-channel:c gone=_|]
+  |_  $:  =nest:c
+          channel=v-channel:c
+          gone=_|
+          =request-id:v9:c
+      ==
   +*  ca-posts  ~(. not posts.channel)
   ++  ca-core  .
   ++  emit  |=(=card ca-core(cor (^emit card)))
@@ -825,6 +859,20 @@
     |=  n=nest:c
     ~|  nest=n
     ca-core(nest n, channel (~(got by v-channels) n))
+  ::
+  ++  ca-init-req
+    |=  req=request-id:v9:c
+    ^+  ca-core
+    ca-core(request-id req)
+  ::
+  ++  ca-give-response-update
+    |=  body=response-update-body:v9:c
+    ^+  ca-core
+    =/  =response-update:v9:c  [request-id body]
+    =/  =path  /request/(scot %p src.bowl)/(scot %uv request-id)
+    =.  ca-core
+      (emit (tell:log %dbug ~['giving response update for request ' >request-id< >response-update<] ~))
+    (give %fact ~[path] channel-response-update+!>(response-update))
   ::
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
@@ -870,10 +918,36 @@
     =.  nest  n
     ?:  (~(has by v-channels) n)
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
-      ca-core
-    ?>  can-nest
-    ?>  our-host:ca-perms
-    ?>  ((sane %tas) name.nest)
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Channel already exists']
+      ==
+    =/  nestable=?(%group-missing %not-admin %yes)  can-nest
+    ?:  ?=(%not-admin nestable)
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Not authorized to create channel in group']
+      ==
+    ?:  =(%group-missing nestable)
+      %-  ca-give-response-update
+      :*  %error
+          %not-found
+          ~['Group does not exist']
+      ==
+    ?.  our-host:ca-perms
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Not authorized to create channel for other ships']
+      ==
+    ?.  ((sane %tas) name.nest)
+      %-  ca-give-response-update
+      :*  %error
+          %invalid-name
+          ~['Channel name contains invalid characters']
+      ==
     =.  channel
       %*  .  *v-channel:c
         meta  [0 meta.new]
@@ -897,81 +971,120 @@
     ::  +can-nest: does the group exist, are we an admin
     ::
     ++  can-nest
-      ^-  ?
+      ^-  ?(%group-missing %not-admin %yes)
       =/  groups
         .^  groups:v7:gv
           %gx
           /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
         ==
       =+  group=(~(get by groups) group.new)
-      ?~  group  |
+      ?~  group  %group-missing
       =+  seat=(~(got by seats.u.group) our.bowl)
-      !=(~ (~(int in admins.u.group) roles.seat))
+      ?:(!=(~ (~(int in admins.u.group) roles.seat)) %yes %not-admin)
     --
   ::
   ++  ca-c-channel
     |=  =c-channel:c
     ^+  ca-core
     ?>  our-host:ca-perms
+    ?:  ?=(%post -.c-channel)
+      =^  update=(unit u-channel:c)  ca-core
+        (ca-c-post c-post.c-channel)
+      ::  if we have no update, ca-core should already have cards
+      ::  for an errored response
+      ?~  update
+        ~&  cards
+        ca-core
+      (ca-update u.update)
+    ?.  (is-admin:ca-perms src.bowl)
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Not authorized to modify channel']
+      ==
+    ::  if a command leaves the data unchanged we still want to give a
+    ::  response so that the client knows the operation completed
     ?-    -.c-channel
         %view
-      ?>  (is-admin:ca-perms src.bowl)
       =^  changed  view.channel  (next-rev:c view.channel view.c-channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %view view.channel)
     ::
         %sort
-      ?>  (is-admin:ca-perms src.bowl)
       =^  changed  sort.channel  (next-rev:c sort.channel sort.c-channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %sort sort.channel)
     ::
         %order
-      ?>  (is-admin:ca-perms src.bowl)
       =^  changed  order.channel  (next-rev:c order.channel order.c-channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %order order.channel)
     ::
         %meta
-      ?>  (is-admin:ca-perms src.bowl)
-      ?>  (lte (met 3 (jam meta.c-channel)) size-limit)
+      ?.  (lte (met 3 (jam meta.c-channel)) size-limit)
+        %-  ca-give-response-update
+        :*  %error
+            %request-too-large
+            ~['Metadata exceeds size limit']
+        ==
       =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %meta meta.channel)
     ::
         %add-writers
-      ?>  (is-admin:ca-perms src.bowl)
       =/  new-writers  (~(uni in writers.perm.channel) sects.c-channel)
       =^  changed  perm.channel
         (next-rev:c perm.channel new-writers group.perm.channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %perm perm.channel)
     ::
         %del-writers
-      ?>  (is-admin:ca-perms src.bowl)
       =/  new-writers  (~(dif in writers.perm.channel) sects.c-channel)
       =^  changed  perm.channel
         (next-rev:c perm.channel new-writers group.perm.channel)
-      ?.  changed  ca-core
+      ?.  changed
+        (ca-give-response-update %no-change ~)
       (ca-update %perm perm.channel)
-    ::
-        %post
-      =^  update=(unit u-channel:c)  ca-core
-        (ca-c-post c-post.c-channel)
-      ?~  update  ca-core
-      (ca-update u.update)
     ==
   ::
   ++  ca-c-post
     |=  =c-post:c
     ^-  [(unit u-channel:c) _ca-core]
-    ?>  (can-write:ca-perms src.bowl writers.perm.channel)
+    ?.  (can-write:ca-perms src.bowl writers.perm.channel)
+      :-  ~
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Not authorized to post in channel']
+      ==
     =*  no-op  `ca-core
-    ?-    -.c-post
-        %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
-      ?>  =(kind.nest -.kind.essay.c-post)
-      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
+    ?:  ?=(%add -.c-post)
+      ?.  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Cannot post as another ship unless host']
+        ==
+      ?.  =(kind.nest -.kind.essay.c-post)
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Invalid post kind for channel']
+        ==
+      ?.  (lte (met 3 (jam essay.c-post)) size-limit)
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %request-too-large
+            ~['Post exceeds size limit']
+        ==
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -983,24 +1096,65 @@
         =/  =event:h  [%on-post %add new]
         (run-hooks event nest 'post blocked')
       ?:  ?=(%.n -.result)
+        ::  TODO: send response based on hook outcome
         ((slog p.result) [~ ca-core])
       =.  new
         ?>  ?=([%on-post %add *] p.result)
         post.p.result
       :-  `[%post id %set &+new]
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
+    =/  post
+      %+  get:on-v-posts:c  posts.channel
+      ?-  -.c-post
+        %edit  id.c-post
+        %del   id.c-post
+        %reply  id.c-post
+        %add-react  id.c-post
+        %del-react  id.c-post
+      ==
+    ?~  post
+      :-  ~
+      %-  ca-give-response-update
+      :*  %error
+          %not-found
+          ~['Post not found']
+      ==
+    ?:  ?=(%| -.u.post)
+      :-  ~
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Cannot modify deleted post']
+      ==
+    ?-    -.c-post
     ::
         %edit
-      ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
-      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
-      =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  no-op
-      ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?.  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Cannot edit another author\'s post unless admin']
+        ==
+      ?.  (lte (met 3 (jam essay.c-post)) size-limit)
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %request-too-large
+            ~['Post exceeds size limit']
+        ==
+      ?.  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Cannot edit post from other authors unless admin']
+        ==
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
+        ::TODO  send response based on hook outcome
         ((slog p.result) no-op)
       =/  =essay:c
         ?>  ?=([%on-post %edit *] p.result)
@@ -1011,10 +1165,13 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post &+new))
     ::
         %del
-      =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  no-op
-      ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?.  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+        :-  ~
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Cannot delete post from other authors unless admin']
+        ==
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
@@ -1026,9 +1183,6 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post |+tombstone))
     ::
         ?(%add-react %del-react)
-      =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  no-op
-      ?:  ?=(%| -.u.post)  no-op
       =^  result=(each event:h tang)  cor
         =/  =event:h
           =*  post-author  (get-author-ship:utils p.c-post)
@@ -1038,6 +1192,7 @@
           ==
         (run-hooks event nest 'react action blocked')
       ?:  ?=(%.n -.result)
+        ::TODO  send response based on hook outcome
         ((slog p.result) no-op)
       =/  new=$>(?(%add-react %del-react) c-post:c)
         ?>  ?=([%on-post %react *] p.result)
@@ -1062,10 +1217,13 @@
             ==
           (emit (tell:log %crit message metadata))
         ca-core
-      =/  [update=? reacts=v-reacts:c]
+      =^  [update=? reacts=v-reacts:c]  ca-core
         (ca-c-react reacts.u.post new)
-      ?.  update  no-op
-      :-  `[%post id.c-post %reacts reacts]
+      =/  =u-channel:v9:c  [%post id.c-post %reacts reacts]
+      ?.  update
+        :-  ~
+        (ca-give-response-update %no-change ~)
+      :-  `u-channel
       %=  ca-core
           posts.channel
         %+  put:on-v-posts:c
@@ -1074,9 +1232,6 @@
       ==
     ::
         %reply
-      =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  no-op
-      ?:  ?=(%| -.u.post)  no-op
       ::  log shortcode reactions for replies
       ::
       =?  ca-core  ?=(%add-react -.c-reply.c-post)
@@ -1095,8 +1250,11 @@
             ==
           (emit (tell:log %crit message metadata))
         ca-core
-      =^  update=(unit u-post:c)  replies.u.post
+      =^  [update=(unit u-post:c) =v-replies:c]  ca-core
         (ca-c-reply +.u.post c-reply.c-post)
+      =.  replies.u.post  v-replies
+      ::  if we have no update, ca-core should already have cards
+      ::  for an errored response
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
       %=  ca-core
@@ -1109,12 +1267,23 @@
   ::
   ++  ca-c-reply
     |=  [parent=v-post:c =c-reply:c]
-    ^-  [(unit u-post:c) v-replies:c]
+    ^-  [[(unit u-post:c) v-replies:c] _ca-core]
     =*  replies  replies.parent
-    ?-    -.c-reply
-        %add
-      ?>  =(src.bowl author.memo.c-reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+    ?:  ?=(%add -.c-reply)
+      ?.  |(=(src.bowl author.memo.c-reply) =(src.bowl our.bowl))
+        :-  [~ replies]
+        %-  ca-give-response-update
+        :*  %error
+            %not-authorized
+            ~['Cannot reply as another ship unless host']
+        ==
+      ?.  (lte (met 3 (jam memo.c-reply)) size-limit)
+        :-  [~ replies]
+        %-  ca-give-response-update
+        :*  %error
+            %request-too-large
+            ~['Reply exceeds size limit']
+        ==
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
@@ -1126,81 +1295,121 @@
         =/  =event:h  [%on-reply %add parent new]
         (run-hooks event nest 'reply blocked')
       ?:  ?=(%.n -.result)
-        ((slog p.result) [~ replies])
+        ::TODO  send response based on hook outcome
+        ((slog p.result) [[~ replies] ca-core])
       =.  new
         ?>  ?=([%on-reply %add *] p.result)
         reply.p.result
+      :_  ca-core
       :-  `[%reply id %set &+new]
       (put:on-v-replies:c replies id &+new)
-    ::
+    =/  reply
+      %+  get:on-v-replies:c  replies
+      ?-  -.c-reply
+        %edit  id.c-reply
+        %del   id.c-reply
+        %add-react  id.c-reply
+        %del-react  id.c-reply
+      ==
+    ?~  reply
+      :-  [~ replies]
+      %-  ca-give-response-update
+      :*  %error
+          %not-found
+          ~['Reply not found']
+      ==
+    ?:  ?=(%| -.u.reply)
+      :-  [~ replies]
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Cannot modify deleted reply']
+      ==
+    ?.  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
+      :-  [~ replies]
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Cannot modify reply from other authors unless admin']
+      ==
+    ?-    -.c-reply
         %edit
-      =/  reply  (get:on-v-replies:c replies id.c-reply)
-      ?~  reply    `replies
-      ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl author.u.reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?.  (lte (met 3 (jam memo.c-reply)) size-limit)
+        :-  [~ replies]
+        %-  ca-give-response-update
+        :*  %error
+            %request-too-large
+            ~['Reply exceeds size limit']
+        ==
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
-        ((slog p.result) [~ replies])
+        ((slog p.result) [[~ replies] ca-core])
       =/  =memo:c
         ?>  ?=([%on-reply %edit *] p.result)
         memo.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) memo]
+      :_  ca-core
       :-  `[%reply id.c-reply %set &+new]
       (put:on-v-replies:c replies id.c-reply &+new)
     ::
         %del
-      =/  reply  (get:on-v-replies:c replies id.c-reply)
-      ?~  reply  `replies
-      ?:  ?=(%| -.u.reply)  `replies
-      ?>  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
+      ::  TODO: send response based on hook outcome
       ?>  =(& -.result)
       =/  =tombstone:c
         =,  +.u.reply
         [id author seq=0 now.bowl]
+      :_  ca-core
       :-  `[%reply id.c-reply %set |+tombstone]
       (put:on-v-replies:c replies id.c-reply |+tombstone)
     ::
         ?(%add-react %del-react)
-      =/  reply  (get:on-v-replies:c replies id.c-reply)
-      ?~  reply  `replies
-      ?:  ?=(%| -.u.reply)  `replies
       =^  result=(each event:h tang)  cor
         =/  =event:h
           :*  %on-reply  %react  parent  +.u.reply
               ?:  ?=(%del-react -.c-reply)  [(get-author-ship:utils p.c-reply) ~]
               [(get-author-ship:utils p.c-reply) `q.c-reply]
           ==
-        (run-hooks event nest 'delete blocked')
+        (run-hooks event nest 'react blocked')
       ?:  ?=(%.n -.result)
-        ((slog p.result) [~ replies])
+        ::TODO  send response based on hook outcome
+        ((slog p.result) [[~ replies] ca-core])
       =/  new=$>(?(%add-react %del-react) c-reply:c)
         ?>  ?=([%on-reply %react *] p.result)
         ?~  react.p.result  [%del-react id.c-reply ship.p.result]
         [%add-react id.c-reply [ship u.react]:p.result]
-      =/  [update=? reacts=v-reacts:c]
+      =^  [update=? reacts=v-reacts:c]  ca-core
         (ca-c-react reacts.u.reply new)
-      ?.  update  `replies
-      :-  `[%reply id.c-reply %reacts reacts]
+      =/  =u-post:v9:c  [%reply id.c-reply %reacts reacts]
+      ?.  update
+        :-  [~ replies]
+        (ca-give-response-update %no-change ~)
+      :_  ca-core
+      :-  `u-post
       (put:on-v-replies:c replies id.c-reply u.reply(reacts reacts))
     ==
   ::
   ++  ca-c-react
     |=  [reacts=v-reacts:c =c-react:c]
-    ^-  [changed=? v-reacts:c]
+    ^-  [[changed=? v-reacts:c] _ca-core]
     =/  =author:c
       ?:  ?=(%add-react -.c-react)
         p.c-react
       p.c-react
-    ?>  ?|  =(src.bowl our.bowl)
+    ?.  ?|  =(src.bowl our.bowl)
             =(src.bowl (get-author-ship:utils author))
         ==
+      :-  [| reacts]
+      %-  ca-give-response-update
+      :*  %error
+          %not-authorized
+          ~['Cannot react as another ship unless host']
+      ==
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
       =/  old-react  (~(get by reacts) author)
@@ -1208,8 +1417,10 @@
       ?:  =(new-react old-react)
         |+rev.u.old-react
       &++(rev.u.old-react)
-    ?.  changed  [| reacts]
-    &+(~(put by reacts) author new-rev new-react)
+    ?.  changed
+      ::  will handle sending a confirmation response at the call site
+      [[| reacts] ca-core]
+    [[& (~(put by reacts) author new-rev new-react)] ca-core]
   ::
   ++  ca-update
     |=  =u-channel:c
@@ -1222,6 +1433,7 @@
     =/  =update:c  [time u-channel]
     ::
     =.  log.channel  (put:log-on:c log.channel update)
+    =.  ca-core  (ca-give-response-update %ok time u-channel)
     (ca-give-update update)
   ::
   ++  ca-subscription-paths

@@ -41,6 +41,7 @@
 /%  m-channel-response-2      %channel-response-2
 /%  m-channel-response-3      %channel-response-3
 /%  m-channel-response-4      %channel-response-4
+/%  m-channel-response-5      %channel-response-5
 /%  m-channel-said            %channel-said
 /%  m-channel-said-1          %channel-said-1
 /%  m-channel-said-2          %channel-said-2
@@ -92,6 +93,7 @@
             :+  %channel-response-2      &  -:!>(*vale:m-channel-response-2)
             :+  %channel-response-3      &  -:!>(*vale:m-channel-response-3)
             :+  %channel-response-4      &  -:!>(*vale:m-channel-response-4)
+            :+  %channel-response-5      |  -:!>(*vale:m-channel-response-5)
             :+  %channel-said            &  -:!>(*vale:m-channel-said)
             :+  %channel-said-1          &  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2          &  -:!>(*vale:m-channel-said-2)
@@ -137,6 +139,10 @@
           [/v3/said %channel-said-1 %channel-denied ~]
         ::
           [/v4/said %channel-said-2 %channel-denied ~]
+        ::
+          [/v5 %channel-response-5 ~]
+          [/request/$ %channel-response-5 ~]
+          [/v5/$/$/$/request/$ %channel-response-5 ~]
       ==
     ::  scries
     ::
@@ -204,14 +210,14 @@
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
-%^  verb  |  %warn
+%^  verb  &  %dbug
 ::
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %16
+    $:  %17
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -223,6 +229,7 @@
         pending-ref-edits=(jug ship [=kind:c name=term])
         :: delayed resubscribes
         =^subs:s
+        =requests:v9:c
         =pimp:imp
     ==
   --
@@ -358,7 +365,8 @@
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
-  ?>  ?=(%16 -.old)
+  =?  old  ?=(%16 -.old)  (state-16-to-17 old)
+  ?>  ?=(%17 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -366,7 +374,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-16
+    $%  state-17
+        state-16
         state-15
         state-14
         state-13
@@ -384,7 +393,18 @@
         state-1
         state-0
     ==
-  +$  state-16  current-state
+  +$  state-17  current-state
+  +$  state-16
+    $:  %16
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+        debounce=(jug nest:c @da)
+        last-updated=(list [=nest:c =time])
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-15
     $:  %15
         =v-channels:c
@@ -464,6 +484,11 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-16-to-17
+    |=  state-16
+    ^-  state-17
+    [%17 v-channels voc hidden-posts debounce last-updated pending-ref-edits subs requests=~ pimp]
   ::
   ++  state-15-to-16
     |=  state-15
@@ -897,6 +922,25 @@
       cor
     ==
   ::
+      %channel-action-2
+    =+  !<(=action:c vase)
+    ?>  from-self
+    =/  =incoming-request:v9:c
+      (~(gut by requests) request-id.action [request-id.action ~ %sending ~])
+    =.  requests
+      (~(put by requests) request-id.action incoming-request)
+    ?:  ?=(%create -.a-channels.action)
+      =/  core  (ca-init-req:ca-core request-id.action)
+      ca-abet:(ca-create:core create-channel.a-channels.action)
+    ?:  ?=(%pin -.a-channels.action)
+      ~&  %channels-vestigial-pin-action
+      cor
+    ?:  ?=(%toggle-post -.a-channels.action)
+      (toggle-post toggle.a-channels.action)
+    =/  core
+      (ca-init-req:(ca-abed:ca-core nest.a-channels.action) request-id.action)
+    ca-abet:(ca-a-channel:core a-channel.a-channels.action)
+  ::
     :: TODO: add transfer/import channels
       ?(%channel-action %channel-action-1)
     =/  =a-channels:c
@@ -1087,12 +1131,23 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2 %v3) ~]                    ?>(from-self cor)
     [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
     [?(%v0 %v1 %v2 %v3) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ::
+      [%v5 =kind:c ship=@ name=@ %request id=@ ~]
+    ?>  from-self
+    =/  req-id=request-id:c  (slav %uv id.pole)
+    =.  cor
+      (emit (tell:plog %dbug leaf+"received request {<req-id>} from {<src.bowl>}" ~))
+    =/  request=incoming-request:v9:c
+      (~(gut by requests) req-id [req-id ~ %sending ~])
+    =.  requests
+      (~(put by requests) req-id request)
+    cor
   ::
       [%v1 %hooks %preview =kind:c host=@ name=@ ~]
     =/  host=ship   (slav %p host.pole)
@@ -1539,6 +1594,13 @@
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
   ::
+      [=kind:c ship=@ name=@ %request id=@ ~]
+    ?>  ?=([%behn %wake ~] sign)
+    ::  request timeout
+    =/  =ship  (slav %p ship.pole)
+    =/  req-id=request-id:c  (slav %uv id.pole)
+    ca-abet:(ca-timeout-request:(ca-abed:ca-core kind.pole ship name.pole) req-id)
+  ::
       [%~.~ %retry rest=*]
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
@@ -1612,7 +1674,11 @@
   ==
 ++  size-limit  256.000  :: 256KB
 ++  ca-core
-  |_  [=nest:c channel=v-channel:c gone=_|]
+  |_  $:  =nest:c
+          channel=v-channel:c
+          gone=_|
+          =request-id:v9:c
+      ==
   ++  ca-core  .
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
@@ -1636,7 +1702,13 @@
     |=  n=nest:c
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
+  ++  ca-init-req
+    |=  req=request-id:v9:c
+    ^+  ca-core
+    ca-core(request-id req)
+  ::
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
+  ++  ca-server-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
@@ -1758,8 +1830,17 @@
     =.  meta.channel  [0 meta.create]
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  (send:ca-activity [%add %chan-init nest group.create] ~)
-    =/  =cage  [%channel-command !>([%create create])]
-    (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
+    =/  req-wire=wire  (weld ca-area /request/(scot %uv request-id))
+    =/  =path  /request/(scot %p our.bowl)/(scot %uv request-id)
+    =.  ca-core
+      (emit (tell:plog %dbug ~[>[%sending-command-to-host nest request-id path]<] ~))
+    =.  ca-core
+      (emit %pass req-wire %agent [our.bowl server] %watch path)
+    =.  ca-core
+      (emit %pass req-wire %arvo %b %wait (add now.bowl ~s5))
+    =/  =wire  (weld ca-area /(scot %uv request-id)/command/create)
+    =/  =cage  [%channel-command !>(`command:v9:c`[request-id %create create])]
+    (emit %pass wire %agent [our.bowl server] %poke cage)
   ::
   ::  handle joining a channel
   ::
@@ -1797,7 +1878,7 @@
   ++  ca-a-channel
     |=  =a-channel:c
     ?>  from-self
-    ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
+    ?+  -.a-channel  (ca-send-command /command/[-.a-channel] [%channel nest a-channel])
       %join       !!  ::  handled elsewhere
       %leave      ca-leave
       ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
@@ -1823,7 +1904,7 @@
           [[(get-author-ship:utils author.post) id] id]
         `[%thread [message-key nest group.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
-      (ca-send-command [%channel nest a-channel])
+      (ca-send-command /command/[-.a-channel] [%channel nest a-channel])
     ==
   ::
   ++  ca-a-remark
@@ -1852,7 +1933,7 @@
   ::  proxy command to host
   ::
   ++  ca-send-command
-    |=  command=c-channels:c
+    |=  [wir=wire command=c-channels:c]
     ^+  ca-core
     ?>  ?=(%channel -.command)
     ::  don't allow anyone else to proxy through us
@@ -1912,13 +1993,19 @@
         ==
       ==
     =.  pending.channel  new-pending
-    =/  =cage  [%channel-command !>(command)]
-    ::  NB: we must have already subscribed to something from this ship,
-    ::  so that we have negotiated a matching version.  If we want to do
-    ::  anything in particular on a mismatched version, we can call
-    ::  +can-poke:neg.
+    ::  if we have a request-id, subscribe to responses and wrap command
     ::
-    (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
+    =/  req-wire=wire  (weld ca-area /request/(scot %uv request-id))
+    =/  =path  /request/(scot %p our.bowl)/(scot %uv request-id)
+    =.  ca-core  (emit (tell:plog %dbug ~[>[%sending-command-to-host nest request-id path]<] ~))
+    =.  ca-core
+      (emit %pass req-wire %agent [ship.nest.command server] %watch path)
+    =.  ca-core
+      (emit %pass req-wire %arvo %b %wait (add now.bowl ~s5))
+    =/  =wire  (weld ca-area [(scot %uv request-id) wir])
+    =/  =cage
+      channel-command+!>(`command:c`[request-id %channel nest.command c-channel.command])
+    (emit %pass wire %agent [ship.nest.command server] %poke cage)
   ::
   ++  ca-know-said
     |=  =plan:c
@@ -1978,8 +2065,8 @@
     %^  safe-watch  (weld ca-area /checkpoint)  [ship.nest server]
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary kind.nest) '20' '100')
-      /[kind.nest]/[name.nest]/checkpoint/before/[count]
-    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+      (weld ca-server-area /checkpoint/before/[count])
+    (weld ca-server-area /checkpoint/time-range/(scot %da *@da))
   ::
   ++  ca-start-updates
     |=  delay=?
@@ -1988,55 +2075,52 @@
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
     %^  safe-watch  ca-sub-wire  [ship.nest server]
-    /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
+    (weld ca-server-area /updates/(scot %da (fall tim *@da)))
   ::
   ++  ca-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=(pole knot) =sign:agent:gall]
     ^+  ca-core
     =?  last-updated  ?=(%fact -.sign)
       (~(put ol last-updated) nest now.bowl)
-    ?+    wire  ~|(channel-strange-agent-wire+wire !!)
+    ?+  pole  ~|(channel-strange-agent-wire+pole !!)
         ~
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  ca-core
       ((slog %ca-agent u.p.sign) ca-core)
       :: ca-core  :: no-op wire, should only send pokes
-      [%create ~]       (ca-take-create sign)
+    ::
+        [id=@ %command cmd=@t ~]
+      (ca-take-command (slav %uv id.pole) cmd.pole sign)
+    ::
+      [%request id=@ ~]  (ca-take-response (slav %uv id.pole) sign)
+      :: [%create ~]       (ca-take-create sign)
       [%updates ~]      (ca-take-update sign)
       [%backlog ~]      (ca-take-backlog sign)
       [%checkpoint ~]   (ca-take-checkpoint sign)
     ==
   ::
-  ++  ca-take-create
-    |=  =sign:agent:gall
-    ^+  ca-core
-    ?-    -.sign
-        %poke-ack
-      =+  ?~  p.sign  ~
-          %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
-          ~
-      =/  =path  /[kind.nest]/[name.nest]/create
-      =/  =wire  (weld ca-area /create)
-      ((safe-watch wire [our.bowl server] path) |)
-    ::
-        %kick       (ca-safe-sub &)
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
-      ca-core
-    ::
-        %fact
-      =*  cage  cage.sign
-      ?.  =(%channel-update p.cage)
-        ~|(diary-strange-fact+p.cage !!)
-      =+  !<(=update:c q.cage)
-      =?  meta.channel  ?=(%create -.u-channel.update)
-        [0 meta.u-channel.update]
-      =.  ca-core  (ca-u-channels update)
-      =.  ca-core  ca-give-unread
-      =.  ca-core  (unsubscribe (weld ca-area /create) [ship.nest server])
-      (ca-safe-sub |)
-    ==
+  :: ++  ca-take-create
+  ::   |=  =sign:agent:gall
+  ::   ^+  ca-core
+  ::   ?+    -.sign  ~|(channel-strange-agent-sign+sign !!)
+  ::       %kick       (ca-safe-sub &)
+  ::       %watch-ack
+  ::     ?~  p.sign  ca-core
+  ::     %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
+  ::     ca-core
+  ::   ::
+  ::       %fact
+  ::     =*  cage  cage.sign
+  ::     ?.  =(%channel-update p.cage)
+  ::       ~|(diary-strange-fact+p.cage !!)
+  ::     =+  !<(=update:c q.cage)
+  ::     =?  meta.channel  ?=(%create -.u-channel.update)
+  ::       [0 meta.u-channel.update]
+  ::     =.  ca-core  (ca-u-channels update)
+  ::     =.  ca-core  ca-give-unread
+  ::     =.  ca-core  (unsubscribe (weld ca-area /create) [ship.nest server])
+  ::     (ca-safe-sub |)
+  ::   ==
   ::
   ++  ca-take-update
     |=  =sign:agent:gall
@@ -2093,6 +2177,112 @@
         (ca-ingest-backlog !<(u-checkpoint:c q.cage))
       ==
     ==
+  ::
+  ++  ca-take-command
+    |=  [req-id=request-id:c cmd=@tas =sign:agent:gall]
+    ^+  ca-core
+    ?>  ?=(%poke-ack -.sign)
+    =/  request  (~(get by requests) req-id)
+    =.  ca-core
+      (emit (tell:plog %dbug ~[>[%received-command-ack req-id cmd]<] ~))
+    ?~  p.sign
+      ?~  request  ca-core
+      =?  ca-core  =(%create cmd)
+        =/  =path  /[kind.nest]/[name.nest]/create
+        =/  =wire  (weld ca-area /create)
+        ((safe-watch wire [our.bowl server] path) |)
+      =.  requests
+        (~(put by requests) req-id u.request(poke-status %acked))
+      ca-core
+    =.  ca-core
+      (emit (fail:plog %poke-ack [leaf+"channel command {<cmd>} failed" u.p.sign] ~))
+    ?~  request  ca-core
+    =/  body=response-body:v9:c  [%error %unknown u.p.sign]
+    =.  requests
+      (~(put by requests) req-id u.request(poke-status %nacked, result `body))
+    =/  =path  (weld ca-area /request/(scot %uv req-id))
+    =/  =response:v9:c  [req-id body]
+    =.  ca-core
+      (give %fact ~[path] channel-response-5+!>(response))
+    ::  TODO HTTP API handling
+    =/  =wire  (weld ca-area /request/(scot %uv req-id))
+    (emit %pass wire %agent [ship.nest server] %leave ~)
+  ::
+  ++  ca-take-response
+    |=  [req-id=request-id:c =sign:agent:gall]
+    ^+  ca-core
+    ?+    -.sign  ~|(channel-strange-agent-sign+sign !!)
+        %kick
+      =/  =wire  (weld ca-area /request/(scot %uv req-id))
+      =/  =path  (weld ca-server-area /request/(scot %uv req-id))
+      =/  =dock  [ship.nest server]
+      ((safe-watch wire [our.bowl server] path) &)
+    ::
+        %watch-ack
+      ::  if watch failed, mark request as failed
+      ?~  p.sign  ca-core
+      =/  request=incoming-request:v9:c
+        (~(gut by requests) req-id [req-id ~ %nacked ~])
+      =.  result.request
+        `[%error %unknown u.p.sign]
+      =.  requests
+        (~(put by requests) req-id request)
+      ::  the behn timer will still fire for the timeout, but it should be fine
+      ca-core
+    ::
+        %fact
+      =*  cage  cage.sign
+      ?.  =(%channel-response-update p.cage)
+        ~|(strange-response-fact+p.cage !!)
+      =+  !<(=response-update:v9:c q.cage)
+      =/  =response:v9:c  (r-update-to-response:utils response-update)
+      =.  ca-core
+        (emit (tell:plog %dbug ~[>[%received-response req-id response]<] ~))
+      ?~  request=(~(get by requests) req-id)
+        ~|(ca-agent-bad-request+req-id !!)
+      =.  requests
+        (~(put by requests) id.response u.request(result `body.response))
+      ::  if this is a successful create response, set up the channel
+      =*  body  body.response-update
+      =^  meta  ca-core
+        ?.  ?=(%ok -.body)  [meta.channel ca-core]
+        ?.  ?=(%create -.u-channel.update.body)  [meta.channel ca-core]
+        :-  [0 meta.u-channel.update.body]
+        =.  ca-core  (ca-u-channels update.body)
+        =.  ca-core  ca-give-unread
+        (ca-safe-sub |)
+      =.  meta.channel  meta
+      =/  =path  :(weld /v5 ca-area /request/(scot %uv req-id))
+      =.  ca-core
+        (emit (tell:plog %dbug ~[>[%sending-response-to-client req-id path]<] ~))
+      =.  ca-core
+        (give %fact ~[path] channel-response-5+!>(response))
+      :: TODO: HTTP API handling
+      ::  if we haven't heard a final response yet, keep sub open
+      ?:  ?=(%pending -.body.response)
+        ca-core
+      ::  timeout may still fire but should no-op
+      =/  req-wire=wire  (weld ca-area /request/(scot %uv req-id))
+      (emit %pass req-wire %agent [ship.nest server] %leave ~)
+    ==
+  ::
+  ++  ca-timeout-request
+    |=  req-id=request-id:c
+    ^+  ca-core
+    ?~  request=(~(get by requests) req-id)
+      ::  request no longer valid
+      ca-core
+    ::  if we already have a final result, do nothing
+    ?:  &(?=(^ result.u.request) !?=(%pending -.u.result.u.request))
+      ca-core
+    ::  mark as timed out
+    =/  result=response-body:v9:c  [%pending poke-status.u.request]
+    =.  requests
+      (~(put by requests) req-id u.request(result `result))
+    =/  =response:v9:c  [req-id result]
+    ::  TODO: HTTP API handling
+    =/  =path  :(weld /v5 ca-area /request/(scot %uv req-id))
+    (give %fact ~[path] channel-response-5+!>(response))
   ::
   ++  ca-ingest-checkpoint
     |=  chk=u-checkpoint:c
@@ -2152,7 +2342,7 @@
     %.  delay
     %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
     %+  welp
-      /[kind.nest]/[name.nest]/checkpoint/time-range
+      (weld ca-server-area /checkpoint/time-range)
     ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::

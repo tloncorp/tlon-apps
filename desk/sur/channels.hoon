@@ -279,14 +279,66 @@
     |+old
   &+old(rev +(rev.old), + new)
 ::
++$  request-id  @uv
++$  action
+  $:  =request-id
+      =a-channels
+  ==
++$  command
+  $:  =request-id
+      =c-channels
+  ==
++$  response
+  $:  id=request-id
+      body=response-body
+  ==
++$  response-update
+  $:  id=request-id
+      body=response-update-body
+  ==
++$  response-body
+  $%  [%no-change ~]
+      [%ok =r-channel]
+      [%error type=action-error message=tang]
+      [%pending status=poke-status]
+  ==
++$  response-update-body
+  $%  [%no-change ~]
+      [%ok =update]
+      [%error type=action-error message=tang]
+  ==
+::
++$  requests  (map request-id incoming-request)
+::  $incoming-request: a request coming into the agent
+::
+::  .id: request id
+::  .http-id: http request id, if any. means we should give a response
+::  .poke-status: request status
+::  .result: response body, if any. if null, means request is in progress
+::
++$  incoming-request
+  $:  id=request-id
+      http-id=(unit @ta)
+      =poke-status
+      result=(unit response-body)
+  ==
++$  poke-status  ?(%sending %acked %nacked)
++$  action-error
+  $?  %not-authorized
+      %not-found
+      %invalid-name
+      %request-too-large
+      %unknown
+  ==
+::
 +|  %actions
 ::
-::  some actions happen to be the same as commands, but this can freely
-::  change
+::  $a-channels: channels actions
 ::
-::NOTE  we might want to add a action-id=uuid to this eventually, threading
-::      that through all the way, so that an $r-channels may indicate what
-::      originally caused it
+::  actions are requests to the agent as a channel client. most actions
+::  become commands which are then passed on to the channel host. actions
+::  can only originate locally.
+::
 +$  a-channels
   $%  [%create =create-channel]
       [%pin pins=(list nest)]
@@ -312,6 +364,11 @@
 +$  a-reply  c-reply
 ::
 +|  %commands
+::
+::  $c-channels: channel commands
+::
+::  commands are requests to the agent as a channel host. they are checked
+::  for permissions.
 ::
 +$  c-channels
   $%  [%create =create-channel]
@@ -349,6 +406,11 @@
 ::
 +|  %updates
 ::
+::  $u-channels: channel updates
+::
+::  updates are generated in response to a channel change and disseminated
+::  to channel subscribers.
+::
 +$  update   [=time =u-channel]
 +$  u-channels  [=nest =u-channel]
 +$  u-channel
@@ -377,6 +439,11 @@
 +$  u-checkpoint  global:v-channel
 ::
 +|  %responses
+::
+::  $r-channels: channel responses
+::
+::  responses are generated in response to a channel change, and are
+::  disseminated to clients we ourselves are using.
 ::
 +$  r-channels  [=nest =r-channel]
 +$  r-channel

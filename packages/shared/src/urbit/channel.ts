@@ -38,6 +38,18 @@ export type Author = Ship | BotProfile;
 export type Nest = string;
 export type React = string | { any: string };
 
+/**
+ * Convert an Author to a string ID.
+ * For ships, returns the ship string.
+ * For bots, returns "ship/nickname".
+ */
+export function authorToId(author: Author): string {
+  if (typeof author === 'string') {
+    return author;
+  }
+  return `${author.ship}/${author.nickname ?? ''}`;
+}
+
 export interface ReplyMeta {
   replyCount: number;
   lastRepliers: Ship[];
@@ -104,7 +116,7 @@ export type Kind = 'heap' | 'diary' | 'chat';
 
 export interface PostEssay {
   content: Story;
-  author: Ship;
+  author: Author;
   sent: number;
   kind: string;
   blob: string | null;
@@ -112,7 +124,7 @@ export interface PostEssay {
 }
 
 export type PostTombstone = {
-  author: Ship;
+  author: Author;
   id: string;
   ['deleted-at']: number;
   seq: number;
@@ -163,7 +175,7 @@ export interface Reply {
 
 export interface Memo {
   content: Story;
-  author: Ship;
+  author: Author;
   sent: number;
 }
 
@@ -196,14 +208,14 @@ interface PostActionAddReact {
   'add-react': {
     id: string;
     react: React;
-    ship: string;
+    author: Author;
   };
 }
 
 interface PostActionDelReact {
   'del-react': {
     id: string;
-    ship: string;
+    author: Author;
   };
 }
 
@@ -373,7 +385,7 @@ export interface Init {
 
 export type Diff = CreateDiff | Command;
 
-export type Action =
+export type ChannelsSubAction =
   | { join: Flag } // group flag
   | { leave: null }
   | { read: null }
@@ -382,9 +394,13 @@ export type Action =
   | { unwatch: null }
   | Command;
 
-export type ChannelsAction =
-  | { channel: { nest: Nest; action: Action } }
-  | { create: Create };
+export interface ChannelActionCreate {
+  create: Create;
+}
+
+export interface ChannelActionChannel {
+  channel: { nest: Nest; action: ChannelsSubAction };
+}
 
 export type Command =
   | { post: PostAction }
@@ -394,6 +410,33 @@ export type Command =
   | DiffArrangedPosts
   | DiffSort
   | DiffMeta;
+
+// Request/response wrapper types for async tracking
+export type RequestId = string; // @uv
+
+export interface ChannelAction {
+  id: RequestId;
+  'a-channels': ChannelActionChannel | ChannelActionCreate;
+}
+
+export type ActionError =
+  | 'not-authorized'
+  | 'not-found'
+  | 'invalid-name'
+  | 'request-too-large'
+  | 'unknown';
+
+export type PokeStatus = 'sending' | 'acked' | 'nacked';
+
+export type ResponseBody =
+  | { ok: Response }
+  | { error: { type: ActionError; message: string } }
+  | { pending: { status: PokeStatus } };
+
+export interface ChannelActionResponse {
+  id: RequestId;
+  body: ResponseBody;
+}
 
 export type PostResponse =
   | { set: Post | null }

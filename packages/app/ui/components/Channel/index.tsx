@@ -28,6 +28,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -36,6 +37,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -43,7 +45,6 @@ import {
   useCurrentUserId,
 } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useConnectionStatus } from '../../../features/top/useConnectionStatus';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
@@ -289,6 +290,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             channelId,
             content,
             metadata,
+          }).catch((e) => {
+            console.error('Failed to send message', e);
+            Alert.alert('Failed to send message', e.message || e.toString());
           });
         },
         sendPostFromDraft: finalizeAndSendPost,

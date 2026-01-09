@@ -68,45 +68,50 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 **CRITICAL**: The app has completely different navigation implementations for mobile vs desktop/web. When making UI changes or adding testIDs for E2E tests, you MUST modify the correct platform-specific component.
 
 ### Navigation Entry Points
-- **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
-- **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
+
+-   **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+-   **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
 
 The platform is determined by `BasePathNavigator` using the `isMobile` prop:
-- `isMobile={true}` → Renders `RootStack` (mobile navigation)
-- `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+
+-   `isMobile={true}` → Renders `RootStack` (mobile navigation)
+-   `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
 
 ### Main Navigation Components
 
-| Screen | Mobile Component | Desktop Component |
-|---|---|---|
-| **Contacts** | `features/top/ContactsScreen.tsx` | `navigation/desktop/ProfileNavigator.tsx` |
+| Screen       | Mobile Component                       | Desktop Component                          |
+| ------------ | -------------------------------------- | ------------------------------------------ |
+| **Contacts** | `features/top/ContactsScreen.tsx`      | `navigation/desktop/ProfileNavigator.tsx`  |
 | **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
-| **Activity** | `features/top/ActivityScreen.tsx` | `navigation/desktop/ActivityNavigator.tsx` |
-| **Messages** | `features/top/ChatListScreen.tsx` | `navigation/desktop/MessagesNavigator.tsx` |
-| **Home** | N/A (uses bottom tabs) | `navigation/desktop/HomeNavigator.tsx` |
+| **Activity** | `features/top/ActivityScreen.tsx`      | `navigation/desktop/ActivityNavigator.tsx` |
+| **Messages** | `features/top/ChatListScreen.tsx`      | `navigation/desktop/MessagesNavigator.tsx` |
+| **Home**     | N/A (uses bottom tabs)                 | `navigation/desktop/HomeNavigator.tsx`     |
 
 ### E2E Testing Guidelines
 
 **Web E2E tests ALWAYS use desktop navigation components!**
 
 When adding testIDs for web E2E tests:
+
 1. Identify which main navigation component handles your screen (see table above)
 2. Add testID to the desktop component in `packages/app/navigation/desktop/`
 3. DO NOT modify the mobile component in `packages/app/features/`
 
 Example: To add a testID for the "Add Contact" button:
-- ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
-- ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
+
+-   ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
+-   ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
 
 ### Debugging Platform-Specific Issues
 
 To identify which component to modify:
+
 1. **Check the file path pattern**:
-   - `/features/` = Mobile component
-   - `/navigation/desktop/` = Desktop component
+    - `/features/` = Mobile component
+    - `/navigation/desktop/` = Desktop component
 2. **Find screen mappings**:
-   - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
-   - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
+    - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
+    - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
 3. **For testID issues**: Web builds render `testID` as `data-testid` in the DOM
 
 ## Key Technologies
@@ -118,7 +123,7 @@ To identify which component to modify:
 -   **Backend**: Urbit (Hoon)
 -   **Build**: Vite, Metro, pnpm workspaces
 
-## Development Workflow
+## Client Development Workflow
 
 1. Install dependencies: `pnpm install`
 2. Build packages: `pnpm run build:packages`
@@ -144,11 +149,24 @@ To identify which component to modify:
 ### Shell Script Compatibility
 
 When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
+
 -   Use `#!/bin/bash` shebang (not `#!/bin/sh`) for consistent behavior
 -   Avoid bash-specific features that vary by version (e.g., associative arrays with `declare -A`)
 -   Handle differences between BSD (macOS) and GNU (Linux) tools, especially `tar`, `sed`, `grep`
 -   Test scripts on both macOS and Linux when possible
 -   Use portable command options (e.g., `grep -E` instead of `egrep`)
+
+## Backend Development Workflow
+
+The backend requires a running urbit to compile changes. When working with these you'll need to prompt for path to said urbit pier. Additionally you'll need the pier to be run with a prefix of `script -F <pier-path>/logs.log` so that you can tail the logs.
+
+Use this flow when modifying any files under `desk/*`
+
+1. Copy the changed files to the pier: `rsync -avL desk/* <path-to-pier>/groups/`
+2. Run `backend/commit-groups.sh` passing the pier path as an argument to compile the synced changes
+3. Wait and check for changes to the logs, sometimes commits can take upwards of 30s to 2 mins.
+4. Generally an error will be in the last 100 lines, but sometimes errors can be much larger. Errors will generally be written out after a large stack of clay line numbers, then a stack of line numbers within the relevant agent call-sites will follow the error. Usually the very first line number after the error is where the problem is.
+5. Modify code based on said errors and repeat
 
 ## Testing
 
@@ -284,10 +302,10 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
 3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
 4. **Common pollution sources**:
-   -   `invite-service.spec.ts` - creates contacts via invite links
-   -   Tests with profile editing - may leave custom nicknames
-   -   Tests creating DMs - both ships must clean up
-   -   Tests with group invites - may leave pending invitations
+    - `invite-service.spec.ts` - creates contacts via invite links
+    - Tests with profile editing - may leave custom nicknames
+    - Tests creating DMs - both ships must clean up
+    - Tests with group invites - may leave pending invitations
 
 **E2E Helper Function Design Principles:**
 
@@ -301,6 +319,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 ### E2E Test Infrastructure
 
 **Understanding the rube script:**
+
 -   `pnpm rube` or `pnpm e2e` runs the core test infrastructure
 -   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, configures S3 storage (if env vars set), applies desk updates
 -   Ships are considered ready when rube outputs "SHIP_SETUP_COMPLETE" signal
@@ -308,6 +327,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Default timeout is 30 seconds (can be extended with FORCE_EXTRACTION=true environment variable)
 
 **S3 Storage Configuration for E2E Tests:**
+
 -   Optional: Image upload tests will be skipped if not configured
 -   Set these environment variables to enable image uploads in e2e tests:
     -   `E2E_S3_ENDPOINT` - S3 endpoint URL (e.g., `https://s3.amazonaws.com`)
@@ -319,6 +339,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Each test ship gets the same S3 configuration
 
 **Pier Archiving and Updates:**
+
 -   Test piers are pre-configured Urbit ships stored as archives in GCS
 -   Archives are referenced in `apps/tlon-web/e2e/shipManifest.json`
 -   To update pier archives: `./apps/tlon-web/rube/archive-piers.sh`
@@ -327,6 +348,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
 
 **Important Scripts:**
+
 -   `./start-playwright-dev.sh` - Starts ships in background, returns when ready
 -   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
 -   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
@@ -335,17 +357,20 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
 
 **Process Cleanup Improvements:**
+
 -   **Automatic cleanup**: Ctrl+C now properly cleans up all processes including Urbit serf sub-processes
 -   **Emergency cleanup**: Run `./apps/tlon-web/rube-cleanup.sh` if processes get stuck
 -   **Pattern-based killing**: Infrastructure uses pattern matching to find and kill all related processes
 
 **Common E2E Testing Pitfalls:**
+
 -   **Ship readiness**: Checking for `.http.ports` files doesn't mean ships are ready - wait for SHIP_SETUP_COMPLETE
 -   **Desk updates**: Applying desk updates can take 5-10 minutes, default timeouts may be too short
 -   **Process cleanup**: Now handled automatically, but use `rube-cleanup.sh` for emergency recovery
 -   **Manifest changes**: Always backup `shipManifest.json` before modifying - it's critical for e2e tests
 
 **GCP Integration for E2E Archives:**
+
 -   E2E test piers are stored in GCS: `gs://bootstrap.urbit.org/`
 -   GCP project: `tlon-groups-mobile` (hardcoded for security)
 -   Archives are publicly readable once uploaded
@@ -353,6 +378,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
 
 **Test State Persistence Issues:**
+
 -   Ship state is nuked between full test runs, but NOT between individual tests in the same run
 -   Contact relationships persist across tests within a run
 -   Profile modifications (nicknames, status, bio) persist

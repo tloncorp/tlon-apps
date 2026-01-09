@@ -10,6 +10,7 @@ import {
   PostContentRendererId,
 } from '../api/channelContentConfig';
 import * as db from '../db';
+import * as ub from '../urbit';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
 import rawChannelPostsData from '../test/channelPosts.json';
@@ -327,7 +328,7 @@ test('syncs thread posts', async () => {
   await db.insertChannels([{ id: channelId, type: 'chat' }]);
   await syncThreadPosts({
     postId: channelPostWithRepliesData.seal.id,
-    authorId: channelPostWithRepliesData.essay.author,
+    authorId: ub.authorToId(channelPostWithRepliesData.essay.author),
     channelId,
   });
   const posts = await db.getPosts();
