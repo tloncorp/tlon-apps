@@ -1123,6 +1123,12 @@ export const posts = sqliteTable(
     backendTime: text('backend_time'),
     /** freeform data associated with this post */
     blob: text('blob'),
+    /**
+     * Serialized attachment metadata for posts with pending uploads.
+     * Used by retry logic to re-upload attachments if initial send failed.
+     * Cleared when post is successfully sent.
+     */
+    pendingAttachments: text('pending_attachments', { mode: 'json' }),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(

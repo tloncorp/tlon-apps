@@ -4,11 +4,18 @@ import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
-import { AnalyticsEvent } from '../domain';
+import {
+  AnalyticsEvent,
+  SerializedAttachment,
+  SerializedFileAttachment,
+  SerializedImageAttachment,
+} from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
+import { isImage } from '../urbit/content';
 import { sessionActionQueue } from './SessionActionQueue';
 import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
+import { performUpload } from './storage/storageActions';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
@@ -16,6 +23,56 @@ import {
 } from './useChannelPosts';
 
 export const logger = createDevLogger('postActions', false);
+
+const LOCAL_URI_PATTERN = /^(file:\/\/\/|content:\/\/)/;
+
+function isLocalUri(uri: string): boolean {
+  return LOCAL_URI_PATTERN.test(uri);
+}
+
+/**
+ * Uploads a serialized attachment and returns the remote URI.
+ */
+async function uploadSerializedAttachment(
+  att: SerializedImageAttachment | SerializedFileAttachment,
+  isWeb: boolean
+): Promise<string> {
+  const localUri = SerializedAttachment.getLocalUri(att);
+  if (!localUri) {
+    throw new Error('Attachment has no local URI');
+  }
+
+  logger.log('uploadSerializedAttachment: uploading', { localUri, type: att.type });
+  const remoteUri = await performUpload({ uri: localUri }, isWeb);
+  logger.log('uploadSerializedAttachment: success', { localUri, remoteUri });
+  return remoteUri;
+}
+
+/**
+ * Replaces a URI in a Story with a new URI.
+ * Used to replace local file URIs with remote URLs after upload.
+ */
+function replaceUriInStory(
+  story: urbit.Story,
+  oldUri: string,
+  newUri: string
+): urbit.Story {
+  return story.map((verse) => {
+    if ('block' in verse && isImage(verse.block)) {
+      if (verse.block.image.src === oldUri) {
+        return {
+          block: {
+            image: {
+              ...verse.block.image,
+              src: newUri,
+            },
+          },
+        };
+      }
+    }
+    return verse;
+  });
+}
 
 export async function failEnqueuedPosts() {
   const enqueuedPosts = await db.getEnqueuedPosts();
@@ -94,11 +151,21 @@ export async function finalizeAndSendPost(
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
   } else {
+    // Serialize attachments that need uploading so retry can re-upload if needed
+    const attachmentsNeedingUpload = draft.attachments.filter(
+      (att) => att.type === 'image' || att.type === 'file'
+    );
+    const pendingAttachments =
+      attachmentsNeedingUpload.length > 0
+        ? SerializedAttachment.fromAttachments(attachmentsNeedingUpload)
+        : undefined;
+
     await _sendPost({
       channelId: draft.channelId,
       buildOptimisticPostData: () =>
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
+      pendingAttachments,
     });
   }
 }
@@ -115,10 +182,13 @@ async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
   channelId,
+  pendingAttachments,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData: () => domain.PostDataFinalizedParent;
   channelId: string;
+  /** Serialized attachments that need uploading, stored for retry logic */
+  pendingAttachments?: SerializedAttachment[];
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -178,6 +248,18 @@ async function _sendPost({
 
   logger.crumb('insert channel posts');
   await sync.handleAddPost(cachePost);
+
+  // Store pending attachments for retry logic if any attachments need uploading
+  if (pendingAttachments && pendingAttachments.length > 0) {
+    logger.crumb('storing pending attachments', {
+      count: pendingAttachments.length,
+    });
+    await db.updatePost({
+      id: cachePost.id,
+      pendingAttachments: JSON.stringify(pendingAttachments),
+    });
+  }
+
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
@@ -213,6 +295,15 @@ async function _sendPost({
     });
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
+
+    // Clear pending attachments on success - they're no longer needed
+    if (pendingAttachments && pendingAttachments.length > 0) {
+      await db.updatePost({
+        id: cachePost.id,
+        pendingAttachments: null,
+      });
+    }
+
     logger.crumb('done sending post');
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
@@ -283,7 +374,69 @@ export async function retrySendPost({
   await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
 
   const content = JSON.parse(post.content as string) as PostContent;
-  const story = toUrbitStory(content);
+  let story = toUrbitStory(content);
+  let metadataImage = post.image;
+
+  // Check for pending attachments that need re-uploading
+  // This happens when the original upload failed but we stored the attachment metadata
+  if (post.pendingAttachments) {
+    logger.log('retrySendPost: found pending attachments, attempting re-upload');
+    try {
+      const pendingAttachments = JSON.parse(
+        post.pendingAttachments as string
+      ) as SerializedAttachment[];
+
+      // Re-upload each attachment that needs uploading
+      for (const att of pendingAttachments) {
+        if (SerializedAttachment.needsUpload(att)) {
+          const localUri = SerializedAttachment.getLocalUri(att);
+          if (localUri) {
+            // Local URIs (file://, content://) are mobile-only, so isWeb = false
+            const remoteUri = await uploadSerializedAttachment(att, false);
+            // Replace the local URI with the remote URI in the story
+            story = replaceUriInStory(story, localUri, remoteUri);
+          }
+        }
+      }
+
+      // Update the post content in DB with new remote URIs and clear pending attachments
+      const [updatedContent] = toPostContent(story);
+      await db.updatePost({
+        id: post.id,
+        content: JSON.stringify(updatedContent),
+        pendingAttachments: null,
+      });
+      logger.log('retrySendPost: re-upload successful, updated DB');
+    } catch (e) {
+      logger.trackError('retrySendPost: re-upload failed', {
+        error: e.message,
+        postId: post.id,
+      });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      throw e;
+    }
+  }
+
+  // Also check metadata image (notebook cover image) which might have local URIs
+  if (metadataImage && isLocalUri(metadataImage)) {
+    logger.log('retrySendPost: re-uploading metadata image', {
+      src: metadataImage,
+    });
+    try {
+      metadataImage = await performUpload({ uri: metadataImage }, false);
+      await db.updatePost({
+        id: post.id,
+        image: metadataImage,
+      });
+    } catch (e) {
+      logger.trackError('retrySendPost: metadata image re-upload failed', {
+        error: e.message,
+        postId: post.id,
+      });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      throw e;
+    }
+  }
 
   logger.log('retrySendPost: sending post', { post, story });
 
@@ -314,10 +467,10 @@ export async function retrySendPost({
           content: story,
           blob: post.blob || undefined,
           metadata:
-            post.image || post.title
+            metadataImage || post.title
               ? {
                   title: post.title,
-                  image: post.image,
+                  image: metadataImage,
                 }
               : undefined,
           sentAt: post.sentAt,
