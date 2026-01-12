@@ -6,13 +6,11 @@ import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import {
   AnalyticsEvent,
-  SerializedAttachment,
-  SerializedFileAttachment,
-  SerializedImageAttachment,
+  PostDataDraft,
+  SerializablePostDataDraft,
 } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
-import { isImage } from '../urbit/content';
 import { sessionActionQueue } from './SessionActionQueue';
 import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
 import { performUpload } from './storage/storageActions';
@@ -28,50 +26,6 @@ const LOCAL_URI_PATTERN = /^(file:\/\/\/|content:\/\/)/;
 
 function isLocalUri(uri: string): boolean {
   return LOCAL_URI_PATTERN.test(uri);
-}
-
-/**
- * Uploads a serialized attachment and returns the remote URI.
- */
-async function uploadSerializedAttachment(
-  att: SerializedImageAttachment | SerializedFileAttachment,
-  isWeb: boolean
-): Promise<string> {
-  const localUri = SerializedAttachment.getLocalUri(att);
-  if (!localUri) {
-    throw new Error('Attachment has no local URI');
-  }
-
-  logger.log('uploadSerializedAttachment: uploading', { localUri, type: att.type });
-  const remoteUri = await performUpload({ uri: localUri }, isWeb);
-  logger.log('uploadSerializedAttachment: success', { localUri, remoteUri });
-  return remoteUri;
-}
-
-/**
- * Replaces a URI in a Story with a new URI.
- * Used to replace local file URIs with remote URLs after upload.
- */
-function replaceUriInStory(
-  story: urbit.Story,
-  oldUri: string,
-  newUri: string
-): urbit.Story {
-  return story.map((verse) => {
-    if ('block' in verse && isImage(verse.block)) {
-      if (verse.block.image.src === oldUri) {
-        return {
-          block: {
-            image: {
-              ...verse.block.image,
-              src: newUri,
-            },
-          },
-        };
-      }
-    }
-    return verse;
-  });
 }
 
 export async function failEnqueuedPosts() {
@@ -151,21 +105,15 @@ export async function finalizeAndSendPost(
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
   } else {
-    // Serialize attachments that need uploading so retry can re-upload if needed
-    const attachmentsNeedingUpload = draft.attachments.filter(
-      (att) => att.type === 'image' || att.type === 'file'
-    );
-    const pendingAttachments =
-      attachmentsNeedingUpload.length > 0
-        ? SerializedAttachment.fromAttachments(attachmentsNeedingUpload)
-        : undefined;
+    // Serialize the entire draft for retry logic
+    const pendingDraft = PostDataDraft.serialize(draft);
 
     await _sendPost({
       channelId: draft.channelId,
       buildOptimisticPostData: () =>
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
-      pendingAttachments,
+      pendingDraft,
     });
   }
 }
@@ -182,13 +130,13 @@ async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
   channelId,
-  pendingAttachments,
+  pendingDraft,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData: () => domain.PostDataFinalizedParent;
   channelId: string;
-  /** Serialized attachments that need uploading, stored for retry logic */
-  pendingAttachments?: SerializedAttachment[];
+  /** Serialized draft stored for retry logic */
+  pendingDraft?: SerializablePostDataDraft;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -249,14 +197,12 @@ async function _sendPost({
   logger.crumb('insert channel posts');
   await sync.handleAddPost(cachePost);
 
-  // Store pending attachments for retry logic if any attachments need uploading
-  if (pendingAttachments && pendingAttachments.length > 0) {
-    logger.crumb('storing pending attachments', {
-      count: pendingAttachments.length,
-    });
+  // Store pending draft for retry logic
+  if (pendingDraft) {
+    logger.crumb('storing pending draft');
     await db.updatePost({
       id: cachePost.id,
-      pendingAttachments: JSON.stringify(pendingAttachments),
+      pendingDraft: JSON.stringify(pendingDraft),
     });
   }
 
@@ -296,11 +242,11 @@ async function _sendPost({
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
-    // Clear pending attachments on success - they're no longer needed
-    if (pendingAttachments && pendingAttachments.length > 0) {
+    // Clear pending draft on success - it's no longer needed
+    if (pendingDraft) {
       await db.updatePost({
         id: cachePost.id,
-        pendingAttachments: null,
+        pendingDraft: null,
       });
     }
 
@@ -357,6 +303,35 @@ export async function retrySendPost({
     return;
   }
 
+  // If we have a stored draft, use it to retry with the same code path as initial send
+  if (post.pendingDraft) {
+    logger.log('retrySendPost: found pending draft, using draft-based retry');
+    try {
+      const serializedDraft = JSON.parse(
+        post.pendingDraft as string
+      ) as SerializablePostDataDraft;
+      const draft = PostDataDraft.deserialize(serializedDraft);
+
+      // Reset upload states to allow fresh uploads
+      const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
+
+      // Delete the existing failed post - finalizeAndSendPost will create a new one
+      await db.deletePost(post.id);
+
+      // Use the same code path as initial send
+      await finalizeAndSendPost(draftWithResetStates);
+      return;
+    } catch (e) {
+      logger.trackError('retrySendPost: draft-based retry failed', {
+        error: e.message,
+        postId: post.id,
+      });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      throw e;
+    }
+  }
+
+  // Fallback for posts without a pending draft (legacy posts or text-only)
   // if first message of a pending group dm, we need to first create
   // it on the backend
   if (channel.type === 'groupDm' && channel.isPendingChannel) {
@@ -374,50 +349,10 @@ export async function retrySendPost({
   await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
 
   const content = JSON.parse(post.content as string) as PostContent;
-  let story = toUrbitStory(content);
+  const story = toUrbitStory(content);
   let metadataImage = post.image;
 
-  // Check for pending attachments that need re-uploading
-  // This happens when the original upload failed but we stored the attachment metadata
-  if (post.pendingAttachments) {
-    logger.log('retrySendPost: found pending attachments, attempting re-upload');
-    try {
-      const pendingAttachments = JSON.parse(
-        post.pendingAttachments as string
-      ) as SerializedAttachment[];
-
-      // Re-upload each attachment that needs uploading
-      for (const att of pendingAttachments) {
-        if (SerializedAttachment.needsUpload(att)) {
-          const localUri = SerializedAttachment.getLocalUri(att);
-          if (localUri) {
-            // Local URIs (file://, content://) are mobile-only, so isWeb = false
-            const remoteUri = await uploadSerializedAttachment(att, false);
-            // Replace the local URI with the remote URI in the story
-            story = replaceUriInStory(story, localUri, remoteUri);
-          }
-        }
-      }
-
-      // Update the post content in DB with new remote URIs and clear pending attachments
-      const [updatedContent] = toPostContent(story);
-      await db.updatePost({
-        id: post.id,
-        content: JSON.stringify(updatedContent),
-        pendingAttachments: null,
-      });
-      logger.log('retrySendPost: re-upload successful, updated DB');
-    } catch (e) {
-      logger.trackError('retrySendPost: re-upload failed', {
-        error: e.message,
-        postId: post.id,
-      });
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-      throw e;
-    }
-  }
-
-  // Also check metadata image (notebook cover image) which might have local URIs
+  // Check metadata image (notebook cover image) which might have local URIs
   if (metadataImage && isLocalUri(metadataImage)) {
     logger.log('retrySendPost: re-uploading metadata image', {
       src: metadataImage,
@@ -438,7 +373,7 @@ export async function retrySendPost({
     }
   }
 
-  logger.log('retrySendPost: sending post', { post, story });
+  logger.log('retrySendPost: sending post (legacy path)', { post, story });
 
   try {
     await sessionActionQueue.add(async () => {

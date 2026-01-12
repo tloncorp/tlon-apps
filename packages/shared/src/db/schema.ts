@@ -1124,11 +1124,11 @@ export const posts = sqliteTable(
     /** freeform data associated with this post */
     blob: text('blob'),
     /**
-     * Serialized attachment metadata for posts with pending uploads.
-     * Used by retry logic to re-upload attachments if initial send failed.
+     * Serialized PostDataDraft for posts with pending uploads.
+     * Used by retry logic to re-send with the original draft data.
      * Cleared when post is successfully sent.
      */
-    pendingAttachments: text('pending_attachments', { mode: 'json' }),
+    pendingDraft: text('pending_draft', { mode: 'json' }),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(

@@ -426,7 +426,9 @@ export namespace SerializedAttachment {
    * Serialize attachments for database persistence.
    * Only includes attachments that need uploading (images, files).
    */
-  export function fromAttachments(attachments: Attachment[]): SerializedAttachment[] {
+  export function fromAttachments(
+    attachments: Attachment[]
+  ): SerializedAttachment[] {
     return attachments.map((att): SerializedAttachment => {
       switch (att.type) {
         case 'image':
@@ -477,8 +479,42 @@ export namespace SerializedAttachment {
   /**
    * Check if a serialized attachment needs uploading.
    */
-  export function needsUpload(att: SerializedAttachment): att is SerializedImageAttachment | SerializedFileAttachment {
+  export function needsUpload(
+    att: SerializedAttachment
+  ): att is SerializedImageAttachment | SerializedFileAttachment {
     return att.type === 'image' || att.type === 'file';
+  }
+
+  /**
+   * Deserialize a serialized attachment back to an Attachment.
+   * Note: File attachments will have localFile as a string URI, not a File object.
+   */
+  export function toAttachment(att: SerializedAttachment): Attachment {
+    switch (att.type) {
+      case 'image':
+        return {
+          type: 'image',
+          file: {
+            uri: att.uri,
+            width: att.width ?? 0,
+            height: att.height ?? 0,
+            fileSize: att.fileSize,
+            mimeType: att.mimeType,
+          },
+        };
+      case 'file':
+        return {
+          type: 'file',
+          localFile: att.localUri,
+          name: att.name,
+          size: att.size,
+          mimeType: att.mimeType,
+        };
+      case 'text':
+      case 'link':
+      case 'reference':
+        return att;
+    }
   }
 }
 
