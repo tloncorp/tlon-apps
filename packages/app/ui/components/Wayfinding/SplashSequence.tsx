@@ -6,7 +6,13 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Icon, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Text,
+  triggerHaptic,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
@@ -16,7 +22,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Alert, Dimensions, FlatList, Image, Platform } from 'react-native';
+import { Dimensions, FlatList, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -27,6 +33,7 @@ import {
   getTokenValue,
   isWeb,
   styled,
+  useThemeName,
 } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
@@ -37,6 +44,7 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem, SystemContactListItem } from '../ListItem';
+import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
@@ -360,6 +368,7 @@ export function InviteContactsContent(props: {
   const { data: storeSystemContacts } = store.useSystemContacts();
   const systemContacts = props.systemContacts ?? storeSystemContacts;
   const isReady = !!inviteLink;
+  const hasContacts = systemContacts && systemContacts.length > 0;
 
   return (
     <YStack flex={1}>
@@ -374,34 +383,97 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      <SplashParagraph marginTop="$l">
-        Tap a contact to send them an invite to join you on Tlon Messenger.
-      </SplashParagraph>
-      {!isReady ? (
-        <YStack flex={1} justifyContent="center" alignItems="center">
-          <LoadingSpinner />
-          <Text marginTop="$l" color="$secondaryText">
-            Preparing your invite link...
-          </Text>
-        </YStack>
+      {!hasContacts ? (
+        <ShareInviteLinkEmptyState />
+      ) : !isReady ? (
+        <LoadingState />
       ) : (
-        <FlatList
-          data={systemContacts ?? []}
-          keyExtractor={(item) => item.id}
-          style={{ flex: 1, marginTop: getTokenValue('$l', 'size') }}
-          contentContainerStyle={{
-            padding: getTokenValue('$l', 'size'),
-            paddingBottom: getTokenValue('$4xl', 'size'),
-          }}
-          renderItem={({ item: contact }) => (
-            <SystemContactListItem
-              systemContact={contact}
-              onPress={() => handleInviteContact(contact)}
-              showInvitedStatus
-            />
-          )}
-        />
+        <>
+          <SplashParagraph marginTop="$l">
+            Tap a contact to send them an invite to join you on Tlon Messenger.
+          </SplashParagraph>
+          <FlatList
+            data={systemContacts}
+            keyExtractor={(item) => item.id}
+            style={{ flex: 1, marginTop: getTokenValue('$l', 'size') }}
+            contentContainerStyle={{
+              padding: getTokenValue('$l', 'size'),
+              paddingBottom: getTokenValue('$4xl', 'size'),
+            }}
+            renderItem={({ item: contact }) => (
+              <SystemContactListItem
+                systemContact={contact}
+                onPress={() => handleInviteContact(contact)}
+                showInvitedStatus
+              />
+            )}
+          />
+        </>
       )}
+    </YStack>
+  );
+}
+
+function LoadingState() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <YStack
+      flex={1}
+      paddingHorizontal="$xl"
+      paddingBottom={insets.bottom + getTokenValue('$6xl', 'size')}
+    >
+      <SplashParagraph marginTop="$l">
+        Anyone you invite will skip the waitlist and be added to your contacts.
+        You&apos;ll receive a DM when they join.
+      </SplashParagraph>
+      <YStack flex={1} justifyContent="center" alignItems="center" gap="$xl">
+        <LoadingSpinner size="large" />
+        <Text size="$body" color="$secondaryText">
+          Preparing your invite link
+        </Text>
+      </YStack>
+    </YStack>
+  );
+}
+
+function ShareInviteLinkEmptyState() {
+  const insets = useSafeAreaInsets();
+  const themeName = useThemeName();
+  const isDark = themeName === 'dark';
+
+  const facesImage = isDark
+    ? isWeb
+      ? `./faces-dark.png`
+      : require(`../../assets/raster/faces-dark.png`)
+    : isWeb
+      ? `./faces.png`
+      : require(`../../assets/raster/faces.png`);
+
+  return (
+    <YStack
+      flex={1}
+      justifyContent="flex-start"
+      alignItems="center"
+      paddingHorizontal="$xl"
+      paddingBottom={insets.bottom}
+    >
+      <YStack alignItems="center" gap="$3xl" width="100%" maxWidth={340}>
+        <View paddingTop="$5xl" paddingBottom={'$2xl'}>
+          <Image
+            style={{ width: 200, height: 141 }}
+            resizeMode="contain"
+            source={facesImage}
+          />
+        </View>
+        <SplashParagraph marginHorizontal={0}>
+          Anyone you invite will skip the waitlist and be added to your
+          contacts. You&apos;ll receive a DM when they join.
+        </SplashParagraph>
+        <View width="100%">
+          <PersonalInviteButton />
+        </View>
+      </YStack>
     </YStack>
   );
 }
@@ -410,7 +482,6 @@ function ConnectContactBookContent(props: {
   onConnectContacts: () => void;
   onSkip: () => void;
   isProcessing: boolean;
-  error: string | null;
   forceShowConnect?: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -441,11 +512,6 @@ function ConnectContactBookContent(props: {
             <SplashParagraph marginTop="$xl">
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
-          )}
-          {props.error && !isWeb && (
-            <Text marginTop="$m" size="$label/m" color="$red">
-              {props.error}
-            </Text>
           )}
         </YStack>
       </YStack>
@@ -501,7 +567,6 @@ export function InvitePane(props: {
   inviteSystemContacts?: InviteSystemContactsFn;
 }) {
   const storeContext = useStore();
-  const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const hasAutoProcessed = useRef(false);
@@ -518,32 +583,20 @@ export function InvitePane(props: {
       setIsProcessing(true);
       await storeContext.syncSystemContacts();
 
-      // Check if any contacts were imported - skip invite screen if none
+      // Log analytics if no contacts were found
       const syncedContacts = await db.getSystemContacts();
       if (!syncedContacts || syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
         });
-        props.onActionPress();
-        return;
       }
-
-      setShowInviteContacts(true);
     } catch (err) {
-      setError('Something went wrong, please try again.');
-      Alert.alert('Error', "We weren't able to sync your contacts.", [
-        {
-          text: 'OK',
-          onPress: () => {
-            props.onActionPress();
-          },
-        },
-      ]);
+      logger.trackError('Failed to sync system contacts', { error: err });
     } finally {
       setIsProcessing(false);
+      setShowInviteContacts(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasProvidedContacts, props.onActionPress, storeContext]);
+  }, [hasProvidedContacts, storeContext]);
 
   useEffect(() => {
     if (
@@ -556,7 +609,12 @@ export function InvitePane(props: {
       hasAutoProcessed.current = true;
       processContacts();
     }
-  }, [perms.hasPermission, perms.isLoading, hasProvidedContacts, processContacts]);
+  }, [
+    perms.hasPermission,
+    perms.isLoading,
+    hasProvidedContacts,
+    processContacts,
+  ]);
 
   const handleConnectContacts = async () => {
     if (hasProvidedContacts) {
@@ -582,7 +640,7 @@ export function InvitePane(props: {
 
   const handleSkip = () => {
     logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
-    props.onActionPress();
+    setShowInviteContacts(true);
   };
 
   if (showInviteContacts) {
@@ -600,7 +658,6 @@ export function InvitePane(props: {
       onConnectContacts={handleConnectContacts}
       onSkip={handleSkip}
       isProcessing={isProcessing}
-      error={error}
       forceShowConnect={hasProvidedContacts}
     />
   );
