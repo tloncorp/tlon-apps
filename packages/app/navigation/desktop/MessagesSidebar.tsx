@@ -206,11 +206,7 @@ export const MessagesSidebar = memo(
                 }
               />
               {chats && chats.unpinned.length ? (
-                <ChatList
-                  data={displayData}
-                  onPressItem={onPressChat}
-                  focusedChannelId={focusedChannelId}
-                />
+                <ChatList data={displayData} onPressItem={onPressChat} />
               ) : null}
               <GroupPreviewSheet
                 open={!!selectedGroup}

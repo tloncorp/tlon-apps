@@ -251,11 +251,7 @@ export const HomeSidebar = memo(
                   </Text>
                 </View>
               ) : (
-                <ChatList
-                  data={displayData}
-                  onPressItem={onPressChat}
-                  focusedChannelId={focusedChannelId}
-                />
+                <ChatList data={displayData} onPressItem={onPressChat} />
               )}
               <GroupPreviewSheet
                 open={!!selectedGroup}

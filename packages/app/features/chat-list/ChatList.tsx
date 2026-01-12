@@ -21,11 +21,9 @@ export type ChatListItemData = db.Chat | SectionHeaderData;
 export const ChatList = React.memo(function ChatListComponent({
   data,
   onPressItem,
-  focusedChannelId,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
-  focusedChannelId?: string;
 }) {
   const listItems: ChatListItemData[] = useMemo(
     () =>
@@ -147,7 +145,6 @@ export const ChatList = React.memo(function ChatListComponent({
   return (
     <FlashList
       data={listItems}
-      extraData={focusedChannelId}
       contentContainerStyle={contentContainerStyle}
       keyExtractor={getChatKey}
       renderItem={renderItem}
