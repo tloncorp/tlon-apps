@@ -162,10 +162,6 @@ export namespace PostDataDraft {
       return att;
     });
 
-    if (draft.isEdit) {
-      return { ...draft, attachments: resetAttachments };
-    } else {
-      return { ...draft, attachments: resetAttachments };
-    }
+    return { ...draft, attachments: resetAttachments };
   }
 }

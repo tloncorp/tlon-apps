@@ -202,7 +202,7 @@ async function _sendPost({
     logger.crumb('storing pending draft');
     await db.updatePost({
       id: cachePost.id,
-      pendingDraft: JSON.stringify(pendingDraft),
+      pendingDraft,
     });
   }
 
@@ -306,29 +306,28 @@ export async function retrySendPost({
   // If we have a stored draft, use it to retry with the same code path as initial send
   if (post.pendingDraft) {
     logger.log('retrySendPost: found pending draft, using draft-based retry');
+    const serializedDraft = post.pendingDraft as SerializablePostDataDraft;
+    const draft = PostDataDraft.deserialize(serializedDraft);
+
+    // Reset upload states to allow fresh uploads
+    const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
+
     try {
-      const serializedDraft = JSON.parse(
-        post.pendingDraft as string
-      ) as SerializablePostDataDraft;
-      const draft = PostDataDraft.deserialize(serializedDraft);
-
-      // Reset upload states to allow fresh uploads
-      const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
-
-      // Delete the existing failed post - finalizeAndSendPost will create a new one
-      await db.deletePost(post.id);
-
       // Use the same code path as initial send
       await finalizeAndSendPost(draftWithResetStates);
-      return;
+
+      // Success - now safe to delete the old failed post
+      await db.deletePost(post.id);
     } catch (e) {
       logger.trackError('retrySendPost: draft-based retry failed', {
         error: e.message,
         postId: post.id,
       });
+      // Old post still exists, mark it as failed
       await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
       throw e;
     }
+    return;
   }
 
   // Fallback for posts without a pending draft (legacy posts or text-only)
