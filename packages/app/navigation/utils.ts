@@ -16,7 +16,7 @@ import {
 } from './BasePathNavigator';
 import { CombinedParamList, RootStackParamList } from './types';
 
-const logger = createDevLogger('nav-utils', false);
+const logger = createDevLogger('nav-utils', true);
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
@@ -142,8 +142,15 @@ function useNavigateToChannel() {
 
   return useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
+      logger.log(
+        `useNavigateToChannel CALLED | channelId=${channel.id} | channelTitle=${channel.title ?? 'null'} | isWindowNarrow=${isWindowNarrow}`
+      );
+
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
+        logger.log(
+          `useNavigateToChannel (mobile) | screenName=${screenName} | channelId=${channel.id}`
+        );
         navigation.navigate(screenName, {
           channelId: channel.id,
           selectedPostId,
@@ -157,13 +164,9 @@ function useNavigateToChannel() {
           channel.groupId ?? undefined,
           selectedPostId
         );
-        logger.log('navigateToChannel', {
-          channelRoute,
-          tab,
-          channelId: channel.id,
-          groupId: channel.groupId,
-          selectedPostId,
-        });
+        logger.log(
+          `useNavigateToChannel (desktop) | tab=${tab} | channelId=${channel.id} | channelRoute=${JSON.stringify(channelRoute)}`
+        );
         navigation.navigate(channelRoute);
       }
     },

@@ -36,7 +36,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 
-const logger = createDevLogger('ChannelScreen', false);
+const logger = createDevLogger('ChannelScreen', true);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
@@ -54,9 +54,41 @@ export default function ChannelScreen(props: Props) {
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
+  // Track previous values for logging
+  const prevPropsChannelIdRef = useRef(channelId);
+  const prevCurrentChannelIdRef = useRef(currentChannelId);
+
+  // Log mount/unmount
   useEffect(() => {
+    logger.log(`MOUNT | propsChannelId=${channelId}`);
+    return () => {
+      logger.log(
+        `UNMOUNT | initialPropsChannelId=${channelId} | finalCurrentChannelId=${prevCurrentChannelIdRef.current}`
+      );
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Log when props.route.params.channelId changes and update state
+  useEffect(() => {
+    if (channelId !== prevPropsChannelIdRef.current) {
+      logger.log(
+        `props.channelId CHANGED | from=${prevPropsChannelIdRef.current} | to=${channelId} | currentState=${currentChannelId}`
+      );
+      prevPropsChannelIdRef.current = channelId;
+    }
     setCurrentChannelId(channelId);
-  }, [channelId]);
+  }, [channelId, currentChannelId]);
+
+  // Log when currentChannelId state changes
+  useEffect(() => {
+    if (currentChannelId !== prevCurrentChannelIdRef.current) {
+      logger.log(
+        `currentChannelId state CHANGED | from=${prevCurrentChannelIdRef.current} | to=${currentChannelId}`
+      );
+      prevCurrentChannelIdRef.current = currentChannelId;
+    }
+  }, [currentChannelId]);
 
   const {
     negotiationStatus,
@@ -74,6 +106,13 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     draftKey: currentChannelId,
   });
+
+  // Log what channel we got from useChannelContext
+  useEffect(() => {
+    logger.log(
+      `useChannelContext result | requestedChannelId=${currentChannelId} | returnedChannelId=${channel?.id ?? 'null'} | channelTitle=${channel?.title ?? 'null'}`
+    );
+  }, [currentChannelId, channel?.id, channel?.title]);
 
   const groupId = channel?.groupId ?? group?.id;
 

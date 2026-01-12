@@ -5,8 +5,9 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
+import { createDevLogger } from '@tloncorp/shared';
 import { isEqual } from 'lodash';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
@@ -24,6 +25,8 @@ import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
 import { HomeSidebar } from './HomeSidebar';
+
+const logger = createDevLogger('HomeNavigator', true);
 
 const HomeDrawer = createDrawerNavigator();
 
@@ -70,6 +73,27 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const focusedRouteParams = focusedRoute.params;
   // @ts-expect-error - nested params is not in the type
   const nestedFocusedRouteParams = focusedRouteParams?.params;
+
+  // Extract channelId and groupId for logging
+  const channelId =
+    (focusedRouteParams && 'channelId' in focusedRouteParams
+      ? focusedRouteParams.channelId
+      : undefined) ??
+    (nestedFocusedRouteParams && 'channelId' in nestedFocusedRouteParams
+      ? nestedFocusedRouteParams.channelId
+      : undefined);
+  const groupId =
+    (focusedRouteParams && 'groupId' in focusedRouteParams
+      ? focusedRouteParams.groupId
+      : undefined) ??
+    (nestedFocusedRouteParams && 'groupId' in nestedFocusedRouteParams
+      ? nestedFocusedRouteParams.groupId
+      : undefined);
+
+  logger.log(
+    `DrawerContent render | routeName=${focusedRoute.name} | channelId=${channelId ?? 'none'} | groupId=${groupId ?? 'none'} | stateIndex=${state.index}`
+  );
+
   if (
     focusedRouteParams &&
     'groupId' in focusedRouteParams &&
@@ -156,6 +180,32 @@ function ChannelStack(
 
     return 'none';
   };
+
+  const channelId = navKey();
+  const prevChannelIdRef = useRef(channelId);
+
+  useEffect(() => {
+    logger.log(
+      `ChannelStack render | channelId=${channelId} | prevChannelId=${prevChannelIdRef.current} | routeName=${props.route.name}`
+    );
+    if (channelId !== prevChannelIdRef.current) {
+      logger.log(
+        `ChannelStack channelId CHANGED | from=${prevChannelIdRef.current} | to=${channelId}`
+      );
+      prevChannelIdRef.current = channelId;
+    }
+  }, [channelId, props.route.name]);
+
+  // Log on mount/unmount
+  useEffect(() => {
+    const initialChannelId = prevChannelIdRef.current;
+    logger.log(`ChannelStack MOUNT | channelId=${initialChannelId}`);
+    return () => {
+      logger.log(
+        `ChannelStack UNMOUNT | initialChannelId=${initialChannelId} | currentChannelId=${prevChannelIdRef.current}`
+      );
+    };
+  }, []);
 
   return (
     <ChannelStackNavigator.Navigator

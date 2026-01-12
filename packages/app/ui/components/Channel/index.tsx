@@ -3,6 +3,7 @@ import {
   Attachment,
   DraftInputId,
   UploadedImageAttachment,
+  createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   sendPost,
@@ -65,6 +66,8 @@ import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+
+const logger = createDevLogger('ChannelComponent', true);
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
@@ -174,6 +177,30 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const canWrite = utils.useCanWrite(channel, currentUserId);
     const canRead = utils.useCanRead(channel, currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
+
+    // Track previous channel for logging
+    const prevChannelIdRef = useRef(channel.id);
+
+    // Log on mount/unmount
+    useEffect(() => {
+      logger.log(`MOUNT | channelId=${channel.id} | channelTitle=${title}`);
+      return () => {
+        logger.log(
+          `UNMOUNT | initialChannelId=${channel.id} | finalChannelId=${prevChannelIdRef.current}`
+        );
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Log when channel.id prop changes
+    useEffect(() => {
+      if (channel.id !== prevChannelIdRef.current) {
+        logger.log(
+          `channel prop CHANGED | from=${prevChannelIdRef.current} | to=${channel.id} | title=${title}`
+        );
+        prevChannelIdRef.current = channel.id;
+      }
+    }, [channel.id, title]);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);

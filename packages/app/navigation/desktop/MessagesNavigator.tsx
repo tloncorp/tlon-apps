@@ -5,8 +5,9 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
+import { createDevLogger } from '@tloncorp/shared';
 import { isEqual } from 'lodash';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
@@ -23,6 +24,8 @@ import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
 import { MessagesSidebar } from './MessagesSidebar';
+
+const logger = createDevLogger('MessagesNavigator', true);
 
 const MessagesDrawer = createDrawerNavigator();
 
@@ -66,8 +69,17 @@ export const MessagesNavigator = () => {
 const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return <MessagesSidebar focusedChannelId={focusedRoute.params.channelId} />;
+  const channelId =
+    focusedRoute.params && 'channelId' in focusedRoute.params
+      ? focusedRoute.params.channelId
+      : undefined;
+
+  logger.log(
+    `DrawerContent render | routeName=${focusedRoute.name} | channelId=${channelId ?? 'none'} | stateIndex=${state.index}`
+  );
+
+  if (channelId) {
+    return <MessagesSidebar focusedChannelId={channelId} />;
   } else {
     return <MessagesSidebar />;
   }
@@ -105,6 +117,32 @@ function ChannelStack(
 
     return 'none';
   };
+
+  const channelId = navKey();
+  const prevChannelIdRef = useRef(channelId);
+
+  useEffect(() => {
+    logger.log(
+      `ChannelStack render | channelId=${channelId} | prevChannelId=${prevChannelIdRef.current} | routeName=${props.route.name}`
+    );
+    if (channelId !== prevChannelIdRef.current) {
+      logger.log(
+        `ChannelStack channelId CHANGED | from=${prevChannelIdRef.current} | to=${channelId}`
+      );
+      prevChannelIdRef.current = channelId;
+    }
+  }, [channelId, props.route.name]);
+
+  // Log on mount/unmount
+  useEffect(() => {
+    const initialChannelId = prevChannelIdRef.current;
+    logger.log(`ChannelStack MOUNT | channelId=${initialChannelId}`);
+    return () => {
+      logger.log(
+        `ChannelStack UNMOUNT | initialChannelId=${initialChannelId} | currentChannelId=${prevChannelIdRef.current}`
+      );
+    };
+  }, []);
 
   return (
     <ChannelStackNavigator.Navigator
