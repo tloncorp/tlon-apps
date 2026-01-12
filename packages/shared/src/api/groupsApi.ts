@@ -465,7 +465,7 @@ export const updateGroupMeta = async ({
 }: {
   groupId: string;
   meta: ub.GroupMeta;
-}) => {
+}): Promise<ub.GroupResponseV5> => {
   const id = getRequestId();
   const response = await requestResponse({
     id: id,
@@ -495,22 +495,7 @@ export const updateGroupMeta = async ({
   }
 
   console.log('updateGroupMeta response', response);
-  return response;
-  // return await trackedPoke<ub.GroupAction>(
-  //   groupAction(groupId, {
-  //     meta,
-  //   }),
-  //   { app: 'groups', path: '/groups/ui' },
-  //   (event) => {
-  //     if (!('update' in event)) {
-  //       return false;
-  //     }
-
-  //     const { update } = event;
-  //     return 'meta' in update.diff && event.flag === groupId;
-  //   },
-  //   { tag: 'updateGroupMeta' }
-  // );
+  return response.body.ok;
 };
 
 export const deleteGroup = async (groupId: string) => {

@@ -446,7 +446,7 @@ export function useUpdateGroupMeta() {
         },
       });
 
-      return response.ok;
+      return response;
     },
     onMutate: async (group) => {
       const existingGroup = await db.getGroup({ id: group.id });
@@ -490,7 +490,7 @@ export async function updateGroupMeta(group: db.Group) {
       },
     });
 
-    return response.ok;
+    return response;
   } catch (e) {
     logger.error('Failed to update group', e);
     // rollback optimistic update
