@@ -2,8 +2,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { Theme } from '@tloncorp/app/ui';
-import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
+import { StoreProvider, Theme } from '@tloncorp/app/ui';
+import {
+  AppInvite,
+  HostedNodeStatus,
+  QueryClientProvider,
+  queryClient,
+} from '@tloncorp/shared';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 
@@ -26,6 +31,7 @@ import { ShipLoginScreen } from '../screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from '../screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from '../screens/Onboarding/TlonLogin';
 import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
+import { UnderMaintenanceScreen } from '../screens/Onboarding/UnderMaintenance';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList, User } from '../types';
 
@@ -250,5 +256,32 @@ export default {
       Component={GettingNodeReadyScreen}
       params={{ waitType: 'Paused', wasLoggedIn: true }}
     />
+  ),
+  UnderMaintenance: (
+    <SingleScreenFixture
+      routeName={'UnderMaintenance'}
+      Component={UnderMaintenanceScreen}
+    />
+  ),
+  UnderMaintenanceChecked: (
+    <OnboardingFixture hasGroupInvite={false}>
+      <StoreProvider
+        stub={{
+          checkHostingNodeStatus: async () => ({
+            status: HostedNodeStatus.UnderMaintenance,
+            isBeingRevived: false,
+          }),
+        }}
+      >
+        <OnboardingStackNavigator.Navigator
+          screenOptions={{ headerShown: false }}
+        >
+          <OnboardingStackNavigator.Screen
+            name="UnderMaintenance"
+            component={UnderMaintenanceScreen}
+          />
+        </OnboardingStackNavigator.Navigator>
+      </StoreProvider>
+    </OnboardingFixture>
   ),
 };

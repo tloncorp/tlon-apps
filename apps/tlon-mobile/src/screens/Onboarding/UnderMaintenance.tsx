@@ -88,9 +88,9 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
           <Button.Text>Check Again</Button.Text>
         </PrimaryButton>
         {checkedAt && (
-          <PrimaryButton onPress={handleEmailSupport}>
+          <Button secondary onPress={handleEmailSupport}>
             <Button.Text>Email Support</Button.Text>
-          </PrimaryButton>
+          </Button>
         )}
       </OnboardingTextBlock>
     </View>
