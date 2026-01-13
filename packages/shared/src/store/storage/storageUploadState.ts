@@ -23,6 +23,13 @@ export const setUploadState = (
   uploadStateListeners.forEach((listener) => listener(uploadStates[key]));
 };
 
+export const clearUploadState = (key: Attachment.UploadIntent.Key) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { [key]: _removed, ...rest } = uploadStates;
+  uploadStates = rest;
+  logger.log('upload state cleared', key, uploadStates);
+};
+
 export function subscribeToUploadStates(listener: UploadStateListener) {
   uploadStateListeners.push(listener);
   return () => {

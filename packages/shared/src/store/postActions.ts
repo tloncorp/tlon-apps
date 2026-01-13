@@ -3,11 +3,16 @@ import { toPostContent } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
-import { AnalyticsEvent, PostDataDraft } from '../domain';
+import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
-import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
+import {
+  clearUploadState,
+  finalizeAttachments,
+  finalizeAttachmentsLocal,
+  uploadAsset,
+} from './storage';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
@@ -311,6 +316,18 @@ export async function retrySendPost({
 
   // Reset upload states to allow fresh uploads
   const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
+
+  // Clear stale upload states from the global store and re-trigger uploads.
+  // Without this, waitForUploads will see the old error state and reject immediately.
+  for (const att of draft.attachments) {
+    const uploadIntent = Attachment.toUploadIntent(att);
+    if (uploadIntent.needsUpload) {
+      const key = Attachment.UploadIntent.extractKey(uploadIntent);
+      clearUploadState(key);
+      // Re-trigger the upload (don't await - let it run in parallel)
+      uploadAsset(uploadIntent);
+    }
+  }
 
   // Use the same code path as initial send.
   // The callback deletes the old post once the new optimistic post is written,
