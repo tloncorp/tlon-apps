@@ -100,7 +100,11 @@ export function finalizePostDraftUsingLocalAttachments(
 }
 
 export async function finalizeAndSendPost(
-  draft: domain.PostDataDraft
+  draft: domain.PostDataDraft,
+  options?: {
+    /** Called after optimistic post is written to DB. Used by retry to delete old post. */
+    onOptimisticPostWrite?: () => Promise<void>;
+  }
 ): Promise<void> {
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
@@ -114,6 +118,7 @@ export async function finalizeAndSendPost(
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
       pendingDraft,
+      onOptimisticPostWrite: options?.onOptimisticPostWrite,
     });
   }
 }
@@ -131,12 +136,15 @@ async function _sendPost({
   buildOptimisticPostData,
   channelId,
   pendingDraft,
+  onOptimisticPostWrite,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData: () => domain.PostDataFinalizedParent;
   channelId: string;
   /** Serialized draft stored for retry logic */
   pendingDraft?: SerializablePostDataDraft;
+  /** Called after optimistic post is written to DB. Used by retry to delete old post. */
+  onOptimisticPostWrite?: () => Promise<void>;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -204,6 +212,12 @@ async function _sendPost({
       id: cachePost.id,
       pendingDraft,
     });
+  }
+
+  // Notify caller that optimistic post is written (used by retry to delete old post)
+  if (onOptimisticPostWrite) {
+    logger.crumb('calling onOptimisticPostWrite callback');
+    await onOptimisticPostWrite();
   }
 
   logger.crumb('done optimistic update');
@@ -312,21 +326,17 @@ export async function retrySendPost({
     // Reset upload states to allow fresh uploads
     const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
 
-    try {
-      // Use the same code path as initial send
-      await finalizeAndSendPost(draftWithResetStates);
-
-      // Success - now safe to delete the old failed post
-      await db.deletePost(post.id);
-    } catch (e) {
-      logger.trackError('retrySendPost: draft-based retry failed', {
-        error: e.message,
-        postId: post.id,
-      });
-      // Old post still exists, mark it as failed
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-      throw e;
-    }
+    // Use the same code path as initial send.
+    // The callback deletes the old post once the new optimistic post is written,
+    // ensuring we never have duplicate posts regardless of where errors occur.
+    await finalizeAndSendPost(draftWithResetStates, {
+      onOptimisticPostWrite: async () => {
+        logger.log(
+          'retrySendPost: deleting old post after new optimistic post written'
+        );
+        await db.deletePost(post.id);
+      },
+    });
     return;
   }
 
