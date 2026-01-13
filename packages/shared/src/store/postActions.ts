@@ -179,6 +179,7 @@ async function _sendPost({
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
     blob: optimisticPostData.blob,
+    pendingDraft,
   });
 
   let group: null | db.Group = null;
@@ -192,15 +193,6 @@ async function _sendPost({
 
   logger.crumb('insert channel posts');
   await sync.handleAddPost(cachePost);
-
-  // Store pending draft for retry logic
-  if (pendingDraft) {
-    logger.crumb('storing pending draft');
-    await db.updatePost({
-      id: cachePost.id,
-      pendingDraft,
-    });
-  }
 
   // Notify caller that optimistic post is written (used by retry to delete old post)
   if (onOptimisticPostWrite) {
