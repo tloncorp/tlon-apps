@@ -1,7 +1,7 @@
 import type { ChannelType } from '../db/schema';
 import type { PostMetadata } from '../db/types';
 import { Block, Inline, Story } from '../urbit';
-import { Attachment, SerializedAttachment } from './attachment';
+import { Attachment } from './attachment';
 
 interface _PostDataDraftBase {
   channelId: string;
@@ -51,99 +51,16 @@ export interface PostDataFinalizedEdit extends _PostDataFinalizedBase {
  */
 export type PostDataFinalized = PostDataFinalizedParent | PostDataFinalizedEdit;
 
-/**
- * Serializable version of PostDataDraft for database persistence.
- * Used to store drafts alongside failed posts for retry logic.
- */
-interface _SerializablePostDataDraftBase {
-  channelId: string;
-  content: (Inline | Block)[];
-  attachments: SerializedAttachment[];
-  channelType: ChannelType;
-  title?: string;
-  image?: string;
-}
-
-export interface SerializablePostDataDraftParent
-  extends _SerializablePostDataDraftBase {
-  isEdit?: false;
-}
-
-export interface SerializablePostDataDraftEdit
-  extends _SerializablePostDataDraftBase {
-  isEdit: true;
-  editTargetPostId: string;
-}
-
-export type SerializablePostDataDraft =
-  | SerializablePostDataDraftParent
-  | SerializablePostDataDraftEdit;
-
 export namespace PostDataDraft {
   /**
-   * Serialize a PostDataDraft for database persistence.
-   * Converts attachments to a serializable form.
+   * Make a PostDataDraft safe for JSON serialization.
+   * Converts web File objects in attachments to blob URLs.
    */
-  export function serialize(draft: PostDataDraft): SerializablePostDataDraft {
-    const serializedAttachments = SerializedAttachment.fromAttachments(
-      draft.attachments
-    );
-
-    if (draft.isEdit) {
-      return {
-        channelId: draft.channelId,
-        content: draft.content,
-        attachments: serializedAttachments,
-        channelType: draft.channelType,
-        title: draft.title,
-        image: draft.image,
-        isEdit: true,
-        editTargetPostId: draft.editTargetPostId,
-      };
-    } else {
-      return {
-        channelId: draft.channelId,
-        content: draft.content,
-        attachments: serializedAttachments,
-        channelType: draft.channelType,
-        title: draft.title,
-        image: draft.image,
-      };
-    }
-  }
-
-  /**
-   * Deserialize a SerializablePostDataDraft back to a PostDataDraft.
-   * Note: File attachments will have localFile as string URIs, not File objects.
-   */
-  export function deserialize(
-    serialized: SerializablePostDataDraft
-  ): PostDataDraft {
-    const attachments = serialized.attachments.map(
-      SerializedAttachment.toAttachment
-    );
-
-    if (serialized.isEdit) {
-      return {
-        channelId: serialized.channelId,
-        content: serialized.content,
-        attachments,
-        channelType: serialized.channelType,
-        title: serialized.title,
-        image: serialized.image,
-        isEdit: true,
-        editTargetPostId: serialized.editTargetPostId,
-      };
-    } else {
-      return {
-        channelId: serialized.channelId,
-        content: serialized.content,
-        attachments,
-        channelType: serialized.channelType,
-        title: serialized.title,
-        image: serialized.image,
-      };
-    }
+  export function serialize(draft: PostDataDraft): PostDataDraft {
+    return {
+      ...draft,
+      attachments: draft.attachments.map(Attachment.makeSerializable),
+    };
   }
 
   /**

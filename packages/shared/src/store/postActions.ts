@@ -3,11 +3,7 @@ import { toPostContent } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
-import {
-  AnalyticsEvent,
-  PostDataDraft,
-  SerializablePostDataDraft,
-} from '../domain';
+import { AnalyticsEvent, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
@@ -134,7 +130,7 @@ async function _sendPost({
   buildOptimisticPostData: () => domain.PostDataFinalizedParent;
   channelId: string;
   /** Serialized draft stored for retry logic */
-  pendingDraft?: SerializablePostDataDraft;
+  pendingDraft?: domain.PostDataDraft;
   /** Called after optimistic post is written to DB. Used by retry to delete old post. */
   onOptimisticPostWrite?: () => Promise<void>;
 }) {
@@ -319,8 +315,7 @@ export async function retrySendPost({
   }
 
   logger.log('retrySendPost: found pending draft, using draft-based retry');
-  const serializedDraft = post.pendingDraft as SerializablePostDataDraft;
-  const draft = PostDataDraft.deserialize(serializedDraft);
+  const draft = post.pendingDraft as domain.PostDataDraft;
 
   // Reset upload states to allow fresh uploads
   const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
