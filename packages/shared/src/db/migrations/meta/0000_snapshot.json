@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "49bd23e2-a209-44a2-a790-9d4c9ec4dde6",
+  "id": "32af0900-c865-429f-9607-ced24fbd4909",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2485,8 +2485,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "pending_draft": {
-          "name": "pending_draft",
+        "draft": {
+          "name": "draft",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

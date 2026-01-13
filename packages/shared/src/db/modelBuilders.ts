@@ -171,7 +171,7 @@ export function buildPost({
   parentId,
   deliveryStatus = 'pending',
   blob,
-  pendingDraft,
+  draft,
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -182,7 +182,7 @@ export function buildPost({
   parentId?: string;
   deliveryStatus?: db.PostDeliveryStatus;
   blob?: string;
-  pendingDraft?: unknown;
+  draft?: unknown;
 }): types.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
@@ -216,7 +216,7 @@ export function buildPost({
     hidden: false,
     parentId,
     syncedAt: Date.now(),
-    pendingDraft,
+    draft,
     ...contentUpdate,
   };
 }

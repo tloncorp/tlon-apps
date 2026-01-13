@@ -98,14 +98,14 @@ export async function finalizeAndSendPost(
     await editPostUsingDraft(draft);
   } else {
     // Serialize the entire draft for retry logic
-    const pendingDraft = PostDataDraft.serialize(draft);
+    const serializedDraft = PostDataDraft.serialize(draft);
 
     await _sendPost({
       channelId: draft.channelId,
       buildOptimisticPostData: () =>
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
-      pendingDraft,
+      draft: serializedDraft,
       onOptimisticPostWrite: options?.onOptimisticPostWrite,
     });
   }
@@ -123,14 +123,14 @@ async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
   channelId,
-  pendingDraft,
+  draft,
   onOptimisticPostWrite,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData: () => domain.PostDataFinalizedParent;
   channelId: string;
   /** Serialized draft stored for retry logic */
-  pendingDraft?: domain.PostDataDraft;
+  draft?: domain.PostDataDraft;
   /** Called after optimistic post is written to DB. Used by retry to delete old post. */
   onOptimisticPostWrite?: () => Promise<void>;
 }) {
@@ -179,7 +179,7 @@ async function _sendPost({
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
     blob: optimisticPostData.blob,
-    pendingDraft,
+    draft,
   });
 
   let group: null | db.Group = null;
@@ -237,10 +237,10 @@ async function _sendPost({
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
     // Clear pending draft on success - it's no longer needed
-    if (pendingDraft) {
+    if (draft) {
       await db.updatePost({
         id: cachePost.id,
-        pendingDraft: null,
+        draft: null,
       });
     }
 
@@ -297,17 +297,17 @@ export async function retrySendPost({
     return;
   }
 
-  // Require pendingDraft for retry - posts without it cannot be retried
-  if (!post.pendingDraft) {
-    logger.trackError('retrySendPost: missing pendingDraft, cannot retry', {
+  // Require draft for retry - posts without it cannot be retried
+  if (!post.draft) {
+    logger.trackError('retrySendPost: missing draft, cannot retry', {
       postId: post.id,
       channelId: post.channelId,
     });
-    throw new Error('Cannot retry post without pendingDraft');
+    throw new Error('Cannot retry post without draft');
   }
 
   logger.log('retrySendPost: found pending draft, using draft-based retry');
-  const draft = post.pendingDraft as domain.PostDataDraft;
+  const draft = post.draft as domain.PostDataDraft;
 
   // Reset upload states to allow fresh uploads
   const draftWithResetStates = PostDataDraft.resetUploadStates(draft);

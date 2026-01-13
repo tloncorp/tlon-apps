@@ -1128,7 +1128,7 @@ export const posts = sqliteTable(
      * Used by retry logic to re-send with the original draft data.
      * Cleared when post is successfully sent.
      */
-    pendingDraft: text('pending_draft', { mode: 'json' }),
+    draft: text('draft', { mode: 'json' }),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(
