@@ -221,15 +221,6 @@ async function _sendPost({
 
     logger.crumb('insert channel posts');
     await sync.handleAddPost(cachePost);
-
-    // If this is a reply, update the parent post's reply metadata
-    if (parentId) {
-      await db.addReplyToPost({
-        parentId,
-        replyAuthor: cachePost.authorId,
-        replyTime: cachePost.sentAt,
-      });
-    }
   }
 
   logger.crumb('done optimistic update');
