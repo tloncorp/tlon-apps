@@ -1713,11 +1713,6 @@
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
-  ++  safe-watch
-    |=  [=wire =dock =path]
-    ~>  %spin.['safe-watch']
-    |=  delay=?
-    ca-core(cor ((^safe-watch wire dock path) delay))
   ++  unsubscribe
     |=  [=wire =dock]
     ~>  %spin.['unsubscribe']
@@ -2106,6 +2101,17 @@
     ^-  ?
     (~(has by wex.bowl) [(weld ca-area wire) ship.nest server])
   ::
+  ++  ca-safe-watch
+    |=  [=wire =dock =path]
+    |=  delay=?
+    ^+  ca-core
+    =?  ca-core  !(ca-has-sub wire)
+      (ca-u-connection wire &+%watch)
+    =.  cor
+      %.  delay
+      (safe-watch (weld ca-area wire) dock path)
+    ca-core
+  ::
   ++  ca-safe-sub
     |=  delay=?
     ~>  %spin.['ca-safe-sub']
@@ -2118,10 +2124,8 @@
     =+  posts=posts.channel  ::TMI
     ?^  posts  (ca-start-updates delay)
     =.  load.net.channel  |
-    =?  ca-core  !(ca-has-sub /checkpoint)
-      (ca-u-connection /checkpoint &+%watch)
     %.  delay
-    %^  safe-watch  (weld ca-area /checkpoint)  [ship.nest server]
+    %^  ca-safe-watch  /checkpoint  [ship.nest server]
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary kind.nest) '20' '100')
       /[kind.nest]/[name.nest]/checkpoint/before/[count]
@@ -2134,13 +2138,12 @@
     ::  otherwise we wouldn't receive a watch-ack that
     ::  transitions the connection state to %done.
     ::
-    =?  ca-core  !(ca-has-sub /updates)
-      (ca-u-connection /updates &+%watch)
     ::  not the most optimal time, should maintain last heard time instead
+    ::
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
-    %^  safe-watch  ca-sub-wire  [ship.nest server]
+    %^  ca-safe-watch  /updates  [ship.nest server]
     /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
   ::
   ++  ca-agent
@@ -2170,11 +2173,8 @@
       =+  ?~  p.sign  ~
           %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
           ~
-      =?  ca-core  !(ca-has-sub /create)
-        (ca-u-connection /create &+%watch)
       =/  =path  /[kind.nest]/[name.nest]/create
-      =/  =wire  (weld ca-area /create)
-      ((safe-watch wire [our.bowl server] path) |)
+      ((ca-safe-watch /create [our.bowl server] path) |)
     ::
       %kick  (ca-safe-sub &)
     ::
@@ -2349,10 +2349,8 @@
     ~>  %spin.['ca-sync-backlog']
     =/  checkpoint-start  (pry:on-v-posts:c posts.channel)
     ?~  checkpoint-start  ca-core
-    =?  ca-core  !(ca-has-sub /backlog)
-      (ca-u-connection /backlog &+%watch)
     %.  delay
-    %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
+    %^  ca-safe-watch  /backlog  [ship.nest server]
     %+  welp
       /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
