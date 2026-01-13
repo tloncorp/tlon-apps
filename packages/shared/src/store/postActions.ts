@@ -15,6 +15,7 @@ import {
 } from './storage';
 import * as sync from './sync';
 import {
+  clearChannelPostsQueries,
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from './useChannelPosts';
@@ -93,11 +94,7 @@ export function finalizePostDraftUsingLocalAttachments(
 }
 
 export async function finalizeAndSendPost(
-  draft: domain.PostDataDraft,
-  options?: {
-    /** Called after optimistic post is written to DB. Used by retry to delete old post. */
-    onOptimisticPostWrite?: () => Promise<void>;
-  }
+  draft: domain.PostDataDraft
 ): Promise<void> {
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
@@ -111,7 +108,6 @@ export async function finalizeAndSendPost(
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
-      onOptimisticPostWrite: options?.onOptimisticPostWrite,
     });
   }
 }
@@ -129,15 +125,15 @@ async function _sendPost({
   buildOptimisticPostData,
   channelId,
   draft,
-  onOptimisticPostWrite,
+  existingPost,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
-  buildOptimisticPostData: () => domain.PostDataFinalizedParent;
+  buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
   channelId: string;
   /** Serialized draft stored for retry logic */
   draft?: domain.PostDataDraft;
-  /** Called after optimistic post is written to DB. Used by retry to delete old post. */
-  onOptimisticPostWrite?: () => Promise<void>;
+  /** Existing post to retry (updates in place instead of creating new) */
+  existingPost?: db.Post;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -147,62 +143,72 @@ async function _sendPost({
     return;
   }
 
-  logger.crumb('sending post', `channel type: ${channel.type}`);
-  if (channel.isPendingChannel) {
-    logger.trackEvent(
-      AnalyticsEvent.ActionStartedDM,
-      logic.getModelAnalytics({ channel })
-    );
-    // if first message of a pending group dm, we need to first create
-    // it on the backend
-    if (channel.type === 'groupDm') {
-      logger.crumb('is pending multi DM, need to create first');
-      await api.createGroupDm({
-        id: channel.id,
-        members:
-          channel.members
-            ?.map((m) => m.contactId)
-            .filter((m) => m !== authorId) ?? [],
-      });
+  let cachePost: db.Post;
+
+  if (existingPost) {
+    // Retry mode: update existing post in place
+    logger.crumb('retrying existing post', existingPost.id);
+    cachePost = existingPost;
+
+    // Update status to enqueued immediately
+    await db.updatePost({ id: cachePost.id, deliveryStatus: 'enqueued' });
+
+    // Invalidate channel posts cache AFTER the DB update so the UI picks up
+    // the new status (otherwise stale cached data overrides the fresh data)
+    clearChannelPostsQueries();
+  } else {
+    // New post mode: create and insert
+    logger.crumb('sending post', `channel type: ${channel.type}`);
+    if (channel.isPendingChannel) {
+      logger.trackEvent(
+        AnalyticsEvent.ActionStartedDM,
+        logic.getModelAnalytics({ channel })
+      );
+      // if first message of a pending group dm, we need to first create
+      // it on the backend
+      if (channel.type === 'groupDm') {
+        logger.crumb('is pending multi DM, need to create first');
+        await api.createGroupDm({
+          id: channel.id,
+          members:
+            channel.members
+              ?.map((m) => m.contactId)
+              .filter((m) => m !== authorId) ?? [],
+        });
+      }
+
+      // either way, we have to mark it as non-pending
+      await db.updateChannel({ id: channel.id, isPendingChannel: false });
     }
+    // optimistic update
+    // TODO: make author available more efficiently
+    logger.crumb('get author');
+    const author = await db.getContact({ id: authorId });
+    logger.crumb('build pending post');
+    const optimisticPostData = buildOptimisticPostData!();
+    cachePost = db.buildPost({
+      authorId,
+      author,
+      channel,
+      sequenceNum: 0, // placeholder, this will be overwritten by the server
+      content: optimisticPostData.content,
+      metadata: optimisticPostData.metadata,
+      deliveryStatus: 'enqueued',
+      blob: optimisticPostData.blob,
+      draft,
+    });
 
-    // either way, we have to mark it as non-pending
-    await db.updateChannel({ id: channel.id, isPendingChannel: false });
-  }
-  // optimistic update
-  // TODO: make author available more efficiently
-  logger.crumb('get author');
-  const author = await db.getContact({ id: authorId });
-  logger.crumb('build pending post');
-  const optimisticPostData = buildOptimisticPostData();
-  const cachePost = db.buildPost({
-    authorId,
-    author,
-    channel,
-    sequenceNum: 0, // placeholder, this will be overwritten by the server
-    content: optimisticPostData.content,
-    metadata: optimisticPostData.metadata,
-    deliveryStatus: 'enqueued',
-    blob: optimisticPostData.blob,
-    draft,
-  });
+    let group: null | db.Group = null;
+    if (channel.groupId) {
+      group = await db.getGroup({ id: channel.groupId });
+    }
+    logger.trackEvent(
+      AnalyticsEvent.ActionSendPost,
+      logic.getModelAnalytics({ post: cachePost, channel, group })
+    );
 
-  let group: null | db.Group = null;
-  if (channel.groupId) {
-    group = await db.getGroup({ id: channel.groupId });
-  }
-  logger.trackEvent(
-    AnalyticsEvent.ActionSendPost,
-    logic.getModelAnalytics({ post: cachePost, channel, group })
-  );
-
-  logger.crumb('insert channel posts');
-  await sync.handleAddPost(cachePost);
-
-  // Notify caller that optimistic post is written (used by retry to delete old post)
-  if (onOptimisticPostWrite) {
-    logger.crumb('calling onOptimisticPostWrite callback');
-    await onOptimisticPostWrite();
+    logger.crumb('insert channel posts');
+    await sync.handleAddPost(cachePost);
   }
 
   logger.crumb('done optimistic update');
@@ -314,9 +320,6 @@ export async function retrySendPost({
   logger.log('retrySendPost: found pending draft, using draft-based retry');
   const draft = post.draft as domain.PostDataDraft;
 
-  // Reset upload states to allow fresh uploads
-  const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
-
   // Clear stale upload states from the global store and re-trigger uploads.
   // Without this, waitForUploads will see the old error state and reject immediately.
   for (const att of draft.attachments) {
@@ -329,16 +332,13 @@ export async function retrySendPost({
     }
   }
 
-  // Use the same code path as initial send.
-  // The callback deletes the old post once the new optimistic post is written,
-  // ensuring we never have duplicate posts regardless of where errors occur.
-  await finalizeAndSendPost(draftWithResetStates, {
-    onOptimisticPostWrite: async () => {
-      logger.log(
-        'retrySendPost: deleting old post after new optimistic post written'
-      );
-      await db.deletePost(post.id);
-    },
+  // Update existing post in place (no duplicate created)
+  // Note: retry only applies to parent posts (not edits), so we can safely cast
+  await _sendPost({
+    channelId: draft.channelId,
+    buildFinalizedPostData: () =>
+      finalizePostDraft(draft as domain.PostDataDraftParent),
+    existingPost: post,
   });
 }
 
