@@ -25,6 +25,7 @@ export type AssignmentResponse = {
     status: HostedShipStatus;
   };
   code?: string;
+  personalLureToken?: string;
 };
 
 export type BootPhase =

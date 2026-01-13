@@ -1,10 +1,16 @@
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  extractNormalizedInviteLink,
+  withRetry,
+} from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
   BootPhaseNames,
   NodeBootPhase,
+  getConstants,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
@@ -57,6 +63,7 @@ export function useBootSequence() {
     id: string;
     code?: string;
     isReady?: boolean;
+    personalInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -86,6 +93,23 @@ export function useBootSequence() {
       setReservedNode(reservedNode);
       logger.crumb(`reserved node`, reservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
+
+      // handle personal DM invite cacheing if available
+      if (
+        reservedNode.personalInviteToken &&
+        reservedNode.personalInviteToken.startsWith('0v')
+      ) {
+        const env = getConstants();
+        const inviteLink = extractNormalizedInviteLink(
+          `https://${env.BRANCH_DOMAIN}/${reservedNode.personalInviteToken}`
+        );
+        await db.personalInviteLink.setValue(inviteLink);
+      } else {
+        logger.trackError('Signup missing DM invite token', {
+          nodeId: reservedNode.id,
+          tokenReceived: reservedNode.personalInviteToken,
+        });
+      }
       return NodeBootPhase.BOOTING;
     }
 
