@@ -33,7 +33,7 @@ interface ImportMetaEnv
   readonly VITE_GIT_HASH: string | undefined;
   readonly VITE_DISABLE_SPLASH_MODAL: 'true' | 'false' | undefined;
   readonly VITE_AUTOMATED_TEST: 'true' | 'false' | undefined;
-  readonly VITE_OPENROUTER_API_KEY: string | undefined;
+  readonly VITE_TLON_LLM_ENDPOINT: string | undefined;
 }
 
 interface ImportMeta {

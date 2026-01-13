@@ -714,9 +714,9 @@ export function ChannelOptionsSheetContent({
           'AI provider is rate-limited. Please try again in a few moments.'
         ) {
           message = errorMessage;
-        } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
+        } else if (errorMessage.includes('TLON_LLM_ENDPOINT')) {
           message = 'AI summarization not configured';
-        } else if (errorMessage.includes('OpenRouter API error')) {
+        } else if (errorMessage.includes('LLM API error')) {
           // Extract just the error part without the full technical details
           message = 'AI service error. Please try again.';
         } else {

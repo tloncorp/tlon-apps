@@ -307,9 +307,9 @@ export async function handleAction({
           let message: string;
           if (errorMessage === 'AI provider is rate-limited. Please try again in a few moments.') {
             message = errorMessage;
-          } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
+          } else if (errorMessage.includes('TLON_LLM_ENDPOINT')) {
             message = 'AI summarization not configured';
-          } else if (errorMessage.includes('OpenRouter API error')) {
+          } else if (errorMessage.includes('LLM API error')) {
             message = 'AI service error. Please try again.';
           } else {
             message = `Failed to summarize ${itemType}: ${errorMessage}`;

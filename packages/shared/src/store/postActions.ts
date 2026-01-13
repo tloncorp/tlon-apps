@@ -1042,13 +1042,13 @@ export async function summarizeMessages({
       });
     }
 
-    // Call AI API
-    logger.crumb('calling AI API for summarization', {
+    // Call LLM API
+    logger.crumb('calling LLM API for summarization', {
       textLength: combinedText.length,
     });
     const response = await api.summarizeMessage({ messageText: combinedText });
 
-    logger.crumb('AI API response received', {
+    logger.crumb('LLM API response received', {
       hasError: !!response.error,
       hasSummary: !!response.summary,
       summaryLength: response.summary?.length,
@@ -1056,11 +1056,11 @@ export async function summarizeMessages({
 
     if (response.error || !response.summary) {
       const errorMessage = response.error || 'No summary returned';
-      logger.trackError('summarizeMessages: AI API returned error', {
+      logger.trackError('summarizeMessages: LLM API returned error', {
         error: errorMessage,
         responseError: response.error,
         hasSummary: !!response.summary,
-        // Include full error details from OpenRouter API
+        // Include full error details from LLM API
         errorDetails: response.errorDetails,
         responseStatus: response.errorDetails?.responseStatus,
         responseData: response.errorDetails?.responseData,

@@ -37,6 +37,7 @@ function getBucket(key: string): string {
     case 'completedWayfindingTutorial':
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
+    case 'llmservice':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -83,6 +84,23 @@ export const getSettings = async (): Promise<{
   const pendingMemberDismissals = parsePendingMemberDismissals(results);
 
   return { settings, pendingMemberDismissals };
+};
+
+export const getSetting = async (key: string): Promise<string | null> => {
+  try {
+    const bucket = getBucket(key);
+    const results = await scry<ub.GroupsDeskSettings>({
+      app: 'settings',
+      path: '/desk/groups',
+    });
+
+    // Navigate to the bucket and get the key
+    const value = results?.desk?.[bucket]?.[key];
+    return value != null ? String(value) : null;
+  } catch (error) {
+    console.error(`Failed to get setting ${key}:`, error);
+    return null;
+  }
 };
 
 type SidebarSortMode = 'alphabetical' | 'arranged' | 'recent';

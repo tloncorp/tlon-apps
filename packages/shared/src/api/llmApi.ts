@@ -1,10 +1,14 @@
 /**
- * OpenRouter API integration for AI-powered message summarization
+ * LLM API integration for AI-powered message summarization
+ *
+ * Uses serverless endpoint to interface with LLM provider
  */
 
-import { getConstants } from '../domain/constants';
+import { createDevLogger } from '../debug';
+import { getConstants } from '../domain';
+import { getSetting } from './settingsApi';
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const logger = createDevLogger('llmApi', false);
 
 const SUMMARIZATION_PROMPT = `Summarize this software development technical conversation concisely. Each message shows the author's user ID.
 
@@ -13,10 +17,6 @@ Instructions:
 - Use bullet points
 - Preserve technical terms, ship names (~zod, ~bus), and code exactly
 - Focus on key points and decisions
-
-Conversation:
-
-[CONVERSATION]
 
 Format:
 TOPIC: [one sentence]
@@ -44,41 +44,80 @@ export interface SummarizeMessageResponse {
 }
 
 /**
- * Summarizes a message using OpenRouter's API
- * @throws {Error} If OPENROUTER_API_KEY is not configured
+ * Formats conversation text into message objects for the LLM API
+ * Expected format: "~author1: message1\n\n~author2: message2\n\n..."
+ */
+function formatMessagesForLLM(conversationText: string): Array<{
+  author: string;
+  content: string;
+}> {
+  const messages: Array<{ author: string; content: string }> = [];
+
+  // Split by double newlines to separate messages
+  const rawMessages = conversationText.split('\n\n');
+
+  for (const msg of rawMessages) {
+    const trimmed = msg.trim();
+    if (!trimmed) continue;
+
+    // Check for author: content format
+    const colonIndex = trimmed.indexOf(':');
+    if (colonIndex > 0) {
+      const author = trimmed.substring(0, colonIndex).trim();
+      const content = trimmed.substring(colonIndex + 1).trim();
+      if (content) {
+        messages.push({ author, content });
+      }
+    } else {
+      // Message without author prefix, treat as system message
+      messages.push({ author: 'system', content: trimmed });
+    }
+  }
+
+  return messages;
+}
+
+/**
+ * Summarizes a message using the serverless LLM API endpoint
  */
 export async function summarizeMessage({
   messageText,
 }: SummarizeMessageParams): Promise<SummarizeMessageResponse> {
   const constants = getConstants();
 
-  if (!constants.OPENROUTER_API_KEY || constants.OPENROUTER_API_KEY.length === 0) {
+  if (!constants.TLON_LLM_ENDPOINT || constants.TLON_LLM_ENDPOINT.length === 0) {
     throw new Error(
-      'OPENROUTER_API_KEY is not configured. Please set either OPENROUTER_API_KEY (native/mobile) or VITE_OPENROUTER_API_KEY (web) environment variable.'
+      'TLON_LLM_ENDPOINT is not configured. Please set the environment variable.'
     );
   }
 
   try {
-    const prompt = SUMMARIZATION_PROMPT.replace('[CONVERSATION]', messageText);
+    const messages = formatMessagesForLLM(messageText);
 
-    const response = await fetch(OPENROUTER_API_URL, {
+    // Get LLM service auth key from user's settings
+    const llmServiceKey = await getSetting('llmservice');
+
+    logger.log('Calling LLM API', {
+      endpoint: constants.TLON_LLM_ENDPOINT,
+      messageCount: messages.length,
+      hasAuthKey: !!llmServiceKey,
+    });
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if key exists
+    if (llmServiceKey) {
+      headers['Authorization'] = `Bearer ${llmServiceKey}`;
+    }
+
+    const response = await fetch(`${constants.TLON_LLM_ENDPOINT}/gemini`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${constants.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://tlon.io',
-        'X-Title': 'Tlon Messenger',
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
-        model: 'amazon/nova-2-lite-v1:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 900,
+        prompt: SUMMARIZATION_PROMPT,
+        messages,
       }),
     });
 
@@ -97,7 +136,7 @@ export async function summarizeMessage({
         throw new Error('AI provider is rate-limited. Please try again in a few moments.');
       }
 
-      const error = new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      const error = new Error(`LLM API error: ${response.status} - ${errorText}`);
       // Attach additional context for PostHog tracking
       (error as any).responseStatus = response.status;
       (error as any).responseText = errorText;
@@ -108,23 +147,25 @@ export async function summarizeMessage({
 
     const data = await response.json();
 
-    if (!data.choices || data.choices.length === 0) {
-      const error = new Error('No response from OpenRouter API');
+    if (!data.success) {
+      const error = new Error('LLM API returned unsuccessful response');
       (error as any).responseData = data;
       throw error;
     }
 
-    const summary = data.choices[0].message?.content;
-
-    if (!summary) {
-      const error = new Error('Empty summary received from OpenRouter API');
+    if (!data.result) {
+      const error = new Error('Empty result received from LLM API');
       (error as any).responseData = data;
       throw error;
     }
 
-    return { summary };
+    logger.log('LLM API response received', {
+      resultLength: data.result.length,
+    });
+
+    return { summary: data.result };
   } catch (error) {
-    console.error('Error summarizing message:', error);
+    console.error('Error summarizing message with LLM:', error);
 
     // Extract all error details for logging
     const errorDetails: any = {

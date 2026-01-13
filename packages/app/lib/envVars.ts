@@ -34,7 +34,7 @@ const envVars = {
   gitHash: env.VITE_GIT_HASH,
   disableSplashModal: env.VITE_DISABLE_SPLASH_MODAL,
   automatedTest: env.VITE_AUTOMATED_TEST,
-  openRouterApiKey: env.VITE_OPENROUTER_API_KEY,
+  tlonLlmEndpoint: env.VITE_TLON_LLM_ENDPOINT,
   sentryDsn: env.VITE_SENTRY_DSN,
 } as Record<string, string | undefined>;
 
@@ -79,7 +79,7 @@ export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
 export const DISABLE_SPLASH_MODAL = envVars.disableSplashModal === 'true';
-export const OPENROUTER_API_KEY = envVars.openRouterApiKey ?? '';
+export const TLON_LLM_ENDPOINT = envVars.tlonLlmEndpoint ?? '';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
 
 export const ENV_VARS = {
@@ -114,6 +114,6 @@ export const ENV_VARS = {
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
   DISABLE_SPLASH_MODAL,
-  OPENROUTER_API_KEY,
+  TLON_LLM_ENDPOINT,
   SENTRY_DSN,
 };
