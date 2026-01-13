@@ -1,6 +1,5 @@
 import * as api from '../api';
 import { toPostContent } from '../api';
-import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
@@ -13,7 +12,6 @@ import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
 import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
-import { performUpload } from './storage/storageActions';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
@@ -21,12 +19,6 @@ import {
 } from './useChannelPosts';
 
 export const logger = createDevLogger('postActions', false);
-
-const LOCAL_URI_PATTERN = /^(file:\/\/\/|content:\/\/)/;
-
-function isLocalUri(uri: string): boolean {
-  return LOCAL_URI_PATTERN.test(uri);
-}
 
 export async function failEnqueuedPosts() {
   const enqueuedPosts = await db.getEnqueuedPosts();
@@ -317,115 +309,33 @@ export async function retrySendPost({
     return;
   }
 
-  // If we have a stored draft, use it to retry with the same code path as initial send
-  if (post.pendingDraft) {
-    logger.log('retrySendPost: found pending draft, using draft-based retry');
-    const serializedDraft = post.pendingDraft as SerializablePostDataDraft;
-    const draft = PostDataDraft.deserialize(serializedDraft);
-
-    // Reset upload states to allow fresh uploads
-    const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
-
-    // Use the same code path as initial send.
-    // The callback deletes the old post once the new optimistic post is written,
-    // ensuring we never have duplicate posts regardless of where errors occur.
-    await finalizeAndSendPost(draftWithResetStates, {
-      onOptimisticPostWrite: async () => {
-        logger.log(
-          'retrySendPost: deleting old post after new optimistic post written'
-        );
-        await db.deletePost(post.id);
-      },
+  // Require pendingDraft for retry - posts without it cannot be retried
+  if (!post.pendingDraft) {
+    logger.trackError('retrySendPost: missing pendingDraft, cannot retry', {
+      postId: post.id,
+      channelId: post.channelId,
     });
-    return;
+    throw new Error('Cannot retry post without pendingDraft');
   }
 
-  // Fallback for posts without a pending draft (legacy posts or text-only)
-  // if first message of a pending group dm, we need to first create
-  // it on the backend
-  if (channel.type === 'groupDm' && channel.isPendingChannel) {
-    await api.createGroupDm({
-      id: channel.id,
-      members:
-        channel.members
-          ?.map((m) => m.contactId)
-          .filter((m) => m !== post.authorId) ?? [],
-    });
-    await db.updateChannel({ id: channel.id, isPendingChannel: false });
-  }
+  logger.log('retrySendPost: found pending draft, using draft-based retry');
+  const serializedDraft = post.pendingDraft as SerializablePostDataDraft;
+  const draft = PostDataDraft.deserialize(serializedDraft);
 
-  // optimistic update
-  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
+  // Reset upload states to allow fresh uploads
+  const draftWithResetStates = PostDataDraft.resetUploadStates(draft);
 
-  const content = JSON.parse(post.content as string) as PostContent;
-  const story = toUrbitStory(content);
-  let metadataImage = post.image;
-
-  // Check metadata image (notebook cover image) which might have local URIs
-  if (metadataImage && isLocalUri(metadataImage)) {
-    logger.log('retrySendPost: re-uploading metadata image', {
-      src: metadataImage,
-    });
-    try {
-      metadataImage = await performUpload({ uri: metadataImage }, false);
-      await db.updatePost({
-        id: post.id,
-        image: metadataImage,
-      });
-    } catch (e) {
-      logger.trackError('retrySendPost: metadata image re-upload failed', {
-        error: e.message,
-        postId: post.id,
-      });
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-      throw e;
-    }
-  }
-
-  logger.log('retrySendPost: sending post (legacy path)', { post, story });
-
-  try {
-    await sessionActionQueue.add(async () => {
-      await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
-
-      if (post.parentId) {
-        const parentPost = await db.getPost({ postId: post.parentId });
-        if (!parentPost) {
-          throw new Error(
-            `Parent post ${post.parentId} not found for thread retry`
-          );
-        }
-
-        return api.sendReply({
-          channelId: post.channelId,
-          parentId: post.parentId,
-          parentAuthor: parentPost.authorId,
-          authorId: post.authorId,
-          content: story,
-          sentAt: post.sentAt,
-        });
-      } else {
-        return api.sendPost({
-          channelId: post.channelId,
-          authorId: post.authorId,
-          content: story,
-          blob: post.blob || undefined,
-          metadata:
-            metadataImage || post.title
-              ? {
-                  title: post.title,
-                  image: metadataImage,
-                }
-              : undefined,
-          sentAt: post.sentAt,
-        });
-      }
-    });
-    await sync.syncChannelMessageDelivery({ channelId: post.channelId });
-  } catch (e) {
-    console.error('Failed to retry send post', e);
-    await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-  }
+  // Use the same code path as initial send.
+  // The callback deletes the old post once the new optimistic post is written,
+  // ensuring we never have duplicate posts regardless of where errors occur.
+  await finalizeAndSendPost(draftWithResetStates, {
+    onOptimisticPostWrite: async () => {
+      logger.log(
+        'retrySendPost: deleting old post after new optimistic post written'
+      );
+      await db.deletePost(post.id);
+    },
+  });
 }
 
 export async function forwardPost({
