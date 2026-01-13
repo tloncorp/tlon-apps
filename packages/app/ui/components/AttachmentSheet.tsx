@@ -215,11 +215,6 @@ export default function AttachmentSheet({
           exif: false,
         });
 
-        // Cancel placeholder timeout - either we're replacing with real image or user cancelled
-        if (placeholderTimeout) {
-          clearTimeout(placeholderTimeout);
-        }
-
         if (!result.canceled) {
           // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
@@ -235,15 +230,15 @@ export default function AttachmentSheet({
           clearAttachments();
         }
       } catch (e) {
-        // Cancel placeholder timeout to prevent it from firing after clear
-        if (placeholderTimeout) {
-          clearTimeout(placeholderTimeout);
-        }
         console.error('Error picking image', e);
         logger.trackError('Error picking image', e);
 
         // In case of error, remove the placeholder
         clearAttachments();
+      } finally {
+        if (placeholderTimeout) {
+          clearTimeout(placeholderTimeout);
+        }
       }
     }, 50); // Small delay to ensure the sheet closes first
   }, [
