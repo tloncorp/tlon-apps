@@ -394,9 +394,14 @@ export namespace Attachment {
   /**
    * Make an attachment safe for JSON serialization.
    * Converts web File objects to blob URLs.
+   * On non-web platforms (React Native), localFile is already a string path.
    */
   export function makeSerializable(att: Attachment): Attachment {
-    if (att.type === 'file' && att.localFile instanceof File) {
+    if (
+      att.type === 'file' &&
+      att.localFile instanceof File &&
+      typeof URL.createObjectURL === 'function'
+    ) {
       return {
         ...att,
         localFile: URL.createObjectURL(att.localFile),

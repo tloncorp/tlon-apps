@@ -193,7 +193,10 @@ async function _sendPost({
     logger.crumb('get author');
     const author = await db.getContact({ id: authorId });
     logger.crumb('build pending post');
-    const optimisticPostData = buildOptimisticPostData!();
+    if (!buildOptimisticPostData) {
+      throw new Error('buildOptimisticPostData is required for new posts');
+    }
+    const optimisticPostData = buildOptimisticPostData();
     cachePost = db.buildPost({
       authorId,
       author,
@@ -379,7 +382,7 @@ export async function retrySendPost({
     }
   }
 
-  // Update existing post in place (no duplicate created)
+  // Update existing post in place
   // Note: retry applies to parent posts and replies (not edits), so we can safely cast
   const parentDraft = draft as domain.PostDataDraftParent;
   await _sendPost({
