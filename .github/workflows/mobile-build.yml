@@ -50,6 +50,11 @@ jobs:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          APP_VARIANT: ${{ steps.vars.outputs.profile }}
           NOTIFY_PROVIDER:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'binnec-dozzod-marnus' || 'rivfur-livmet' }}"

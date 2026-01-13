@@ -17,7 +17,6 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { useConnectionStatus } from './useConnectionStatus';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
@@ -83,9 +82,6 @@ export function ChatListScreenView({
     previewGroupId ?? null
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
@@ -125,7 +121,10 @@ export function ChatListScreenView({
     }
 
     // if still loading the screen data, show loading
-    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+    if (
+      !chats ||
+      (!chats.unpinned.length && !chats.pinned.length && !chats.pending.length)
+    ) {
       return 'Loading...';
     }
 
@@ -322,7 +321,10 @@ export function ChatListScreenView({
                 </>
               }
             />
-            {chats && chats.unpinned.length ? (
+            {chats &&
+            (chats.unpinned.length ||
+              chats.pending.length ||
+              chats.pinned.length) ? (
               <>
                 <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
                 <ChatListSearch
@@ -347,7 +349,6 @@ export function ChatListScreenView({
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}
               group={selectedGroup ?? undefined}
-              hostStatus={hostConnectionStatus}
               onActionComplete={handleGroupAction}
             />
           </View>

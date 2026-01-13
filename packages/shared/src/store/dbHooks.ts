@@ -206,6 +206,14 @@ export const useBaseVolumeLevel = (): ub.NotificationLevel => {
   return 'medium';
 };
 
+export const useActivityIsEmpty = () => {
+  const depsKey = useKeyFromQueryDeps(db.checkActivityEmpty);
+  return useQuery({
+    queryKey: ['activityIsEmpty', depsKey],
+    queryFn: () => db.checkActivityEmpty(),
+  });
+};
+
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();

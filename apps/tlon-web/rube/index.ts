@@ -1408,6 +1408,31 @@ const setReelServiceShip = async () => {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
+const enableVerb = async () => {
+  console.log('Enabling verb on all ships');
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    try {
+      console.log(`Enabling verb on ${ship.ship}`);
+
+      // add a sleep to make sure the ship is ready
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      // Execute the click command using the generalized function
+      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %chat] %verb !>([%volume %dbug]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      const hoonCommand2 = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %chat] %verb !>(%loud))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand2, { useKhan: true });
+    } catch (e) {
+      console.error(`Error enabling verb on ${ship.ship}:`, e);
+    }
+  }
+
+  // Give the command time to complete
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+};
+
 const setStorageConfiguration = async () => {
   // Check if storage configuration environment variables are set
   const s3Endpoint = process.env.E2E_S3_ENDPOINT;
@@ -1565,6 +1590,8 @@ const main = async () => {
     await commitDesks(shipsNeedingUpdates);
     await checkShipReadinessForTests(shipsNeedingUpdates);
 
+    // uncomment to enable verb logging for all ships
+    // await enableVerb();
     // Check if we should skip running tests (for single test runner)
     if (process.env.SKIP_TESTS === 'true') {
       console.log(

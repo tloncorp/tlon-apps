@@ -116,11 +116,20 @@ export const BottomSheetWrapper = forwardRef<
       snapPoints,
       footerComponent,
       hasScrollableContent = false,
+      enableContentPanningGesture,
+      enableDynamicSizing,
     },
     ref
   ) => {
     const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    /**
+     * Tracks whether the current sheet state change was triggered programmatically
+     * (via prop changes) vs user-initiated (via gestures). This prevents feedback
+     * loops where programmatic dismissals trigger onOpenChange callbacks during
+     * sheet transitions.
+     */
+    const isProgrammaticChange = useRef(false);
     const theme = useTheme();
 
     const backgroundColor = useMemo(
@@ -160,6 +169,19 @@ export const BottomSheetWrapper = forwardRef<
       return snapPoints;
     }, [snapPoints, snapPointsMode]);
 
+    // Resolve enableDynamicSizing: explicit prop takes precedence, otherwise
+    // default to false for percent-mode sheets (they should expand to the percentage,
+    // not fit content) and true for fit/constant modes (gorhom's default behavior)
+    const resolvedEnableDynamicSizing = useMemo(() => {
+      if (enableDynamicSizing !== undefined) {
+        return enableDynamicSizing;
+      }
+      if (snapPointsMode === 'percent') {
+        return false;
+      }
+      return true;
+    }, [enableDynamicSizing, snapPointsMode]);
+
     React.useImperativeHandle(
       ref,
       () => {
@@ -192,10 +214,12 @@ export const BottomSheetWrapper = forwardRef<
       if (open) {
         // Small delay to ensure modal is mounted before presenting
         const timer = setTimeout(() => {
+          isProgrammaticChange.current = true;
           bottomSheetModalRef.current?.present();
         }, 50);
         return () => clearTimeout(timer);
       } else {
+        isProgrammaticChange.current = true;
         bottomSheetModalRef.current?.dismiss();
       }
     }, [open, modal]);
@@ -204,6 +228,7 @@ export const BottomSheetWrapper = forwardRef<
     useEffect(() => {
       if (modal) return;
 
+      isProgrammaticChange.current = true;
       if (!open) {
         bottomSheetRef.current?.close();
       } else {
@@ -219,9 +244,18 @@ export const BottomSheetWrapper = forwardRef<
 
     const handleSheetChanges = useCallback(
       (index: number) => {
-        // When sheet is closed (index -1), notify parent
-        if (index === -1 && dismissOnSnapToBottom) {
-          onOpenChange(false);
+        // When sheet is closed (index -1), handle cleanup and callbacks
+        if (index === -1) {
+          // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
+          if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
+            onOpenChange(false);
+          }
+          // Reset flag when reaching closed state
+          isProgrammaticChange.current = false;
+        } else if (index >= 0) {
+          // Reset flag when sheet reaches any open snap point
+          // This ensures the flag only protects the specific operation that set it
+          isProgrammaticChange.current = false;
         }
       },
       [dismissOnSnapToBottom, onOpenChange]
@@ -247,6 +281,7 @@ export const BottomSheetWrapper = forwardRef<
     const commonProps = useMemo(
       () => ({
         enablePanDownToClose,
+        enableDynamicSizing: resolvedEnableDynamicSizing,
         keyboardBehavior,
         keyboardBlurBehavior: 'restore' as const,
         android_keyboardInputMode,
@@ -261,9 +296,14 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle: {
           backgroundColor: backgroundColor,
         },
+        // Prevents pan gesture from being activated unless user has scrolled
+        // this much vertical distance. Important for nested horizontal
+        // scrollviews.
+        activeOffsetY: [-10, 10] as [number, number],
       }),
       [
         enablePanDownToClose,
+        resolvedEnableDynamicSizing,
         keyboardBehavior,
         android_keyboardInputMode,
         animation,
@@ -277,6 +317,12 @@ export const BottomSheetWrapper = forwardRef<
         backgroundColor,
       ]
     );
+
+    const commonOverrides = useMemo(() => {
+      return {
+        enableContentPanningGesture,
+      };
+    }, [enableContentPanningGesture]);
 
     const nonModalProps = useMemo(
       () => ({
@@ -293,11 +339,17 @@ export const BottomSheetWrapper = forwardRef<
       isNested ||
       hasScrollableContent
     );
-    const useBottomSheetViewForNonModal = !footerComponent;
+    const useBottomSheetViewForNonModal = !(
+      footerComponent || hasScrollableContent
+    );
 
     if (modal) {
       return (
-        <BottomSheetModal ref={bottomSheetModalRef} {...commonProps}>
+        <BottomSheetModal
+          ref={bottomSheetModalRef}
+          {...commonProps}
+          {...commonOverrides}
+        >
           {/* BottomSheetView is only for simple static content. Use plain View for:
               - footerComponent: BottomSheetView interferes with gorhom's footer layout system
               - isNested: Avoids gesture conflicts between parent/child sheets

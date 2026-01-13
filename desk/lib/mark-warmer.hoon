@@ -45,7 +45,6 @@
 /$  writs-2     %chat-paged-writs-2   %json
 /$  clubs       %clubs                %json
 /$  ch-hidden   %hidden-messages      %json
-/$  crew        %chat-club-crew       %json
 /$  c-scan      %chat-scan            %json
 /$  c-scam      %chat-scam            %json
 /$  c-scan-2    %chat-scan-2          %json

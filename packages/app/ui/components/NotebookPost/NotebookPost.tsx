@@ -1,6 +1,13 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Image, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import {
   ComponentProps,
   useCallback,
@@ -17,6 +24,7 @@ import {
   styled,
 } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -28,7 +36,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { SendPostRetrySheet } from '../SendPostRetrySheet';
+import { PostErrorMessage } from '../PostErrorMessage';
 
 const IMAGE_HEIGHT = 268;
 
@@ -38,7 +46,6 @@ export function NotebookPost({
   onPressEdit,
   onLongPress,
   onPressRetry,
-  onPressDelete,
   showReplies = true,
   showAuthor = true,
   showDate = false,
@@ -52,9 +59,9 @@ export function NotebookPost({
   size?: '$l' | '$s' | '$xs';
   hideOverflowMenu?: boolean;
 }) {
-  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
@@ -63,19 +70,20 @@ export function NotebookPost({
     [channel, canWrite]
   );
 
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
+
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
 
-  const handleRetryPressed = useCallback(() => {
-    onPressRetry?.(post);
-    setShowRetrySheet(false);
+  const handleRetryPressed = useCallback(async () => {
+    try {
+      await onPressRetry?.(post);
+    } catch (e) {
+      console.error('Failed to retry post', e);
+    }
   }, [onPressRetry, post]);
-
-  const handleDeletePressed = useCallback(() => {
-    onPressDelete?.(post);
-    setShowRetrySheet(false);
-  }, [onPressDelete, post]);
 
   const handleEditPostPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -91,13 +99,8 @@ export function NotebookPost({
       return;
     }
 
-    if (deliveryFailed) {
-      setShowRetrySheet(true);
-      return;
-    }
-
     onPress?.(post);
-  }, [post, onPress, deliveryFailed]);
+  }, [post, onPress]);
 
   const onHoverIn = useCallback(() => {
     setIsHovered(true);
@@ -107,13 +110,27 @@ export function NotebookPost({
     setIsHovered(false);
   }, []);
 
-  const handleOverflowPress = useCallback((e: any) => {
-    // Stop propagation to prevent parent onPress from firing
-    e.stopPropagation();
-  }, []);
+  const handleOverflowPress = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      // Stop propagation to prevent parent onPress from firing
+      e.stopPropagation();
+    },
+    []
+  );
 
   if (!post || post.isDeleted) {
     return null;
+  }
+
+  if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        message="Post from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedPostButton"
+      />
+    );
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
@@ -132,16 +149,7 @@ export function NotebookPost({
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
-          <XStack
-            gap="$s"
-            paddingVertical="$xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text color="$tertiaryText" size="$body">
-              You have hidden or reported this post.
-            </Text>
-          </XStack>
+          <PostErrorMessage message="You have hidden or reported this post." />
         ) : (
           <>
             <NotebookPostHeader
@@ -173,12 +181,14 @@ export function NotebookPost({
           </>
         )}
 
-        {post.deliveryStatus === 'failed' ? (
-          <XStack alignItems="center" justifyContent="flex-end">
-            <Text color="$negativeActionText" fontSize="$xs">
-              Message failed to send
-            </Text>
-          </XStack>
+        {deliveryFailed ? (
+          <Pressable onPress={handleRetryPressed}>
+            <XStack alignItems="center" justifyContent="flex-end">
+              <Text color="$negativeActionText" size="$label/m">
+                {isWindowNarrow ? 'Tap' : 'Click'} to retry
+              </Text>
+            </XStack>
+          </Pressable>
         ) : null}
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
           <Pressable
@@ -214,13 +224,6 @@ export function NotebookPost({
           </Pressable>
         )}
       </NotebookPostFrame>
-      <SendPostRetrySheet
-        open={showRetrySheet}
-        post={post}
-        onOpenChange={setShowRetrySheet}
-        onPressRetry={handleRetryPressed}
-        onPressDelete={handleDeletePressed}
-      />
     </Pressable>
   );
 }

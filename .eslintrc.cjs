@@ -23,6 +23,7 @@ module.exports = {
   rules: {
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-namespace': 'off',
     '@typescript-eslint/no-var-requires': 'off',
     '@typescript-eslint/no-unused-vars': [
       'warn',

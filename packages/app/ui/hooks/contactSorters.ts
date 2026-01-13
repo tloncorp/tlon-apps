@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { preSig } from '@tloncorp/shared/urbit';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
-import { isValidPatp } from 'urbit-ob';
+import { valid } from '@urbit/aura';
 
 import * as utils from '../utils';
 
@@ -104,7 +104,7 @@ export function useSortedContacts({
     if (isValidQuery(query)) {
       const filtered = filterContactsOnQuery(sortedContacts, query);
       const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
-      if (isValidPatp(exactMatchCheck)) {
+      if (valid('p', exactMatchCheck)) {
         const exactMatch = db.getFallbackContact(exactMatchCheck);
         if (filtered.find((c) => c.id === exactMatchCheck)) {
           return filtered;
@@ -171,8 +171,8 @@ function nicknameSorter(a: db.Contact, b: db.Contact): number {
 
   // prioritize nicknames that aren't just @p's
   if (b.nickname && a.nickname) {
-    const aIsPatp = isValidPatp(anyAscii(a.nickname!.trim()));
-    const bIsPatp = isValidPatp(anyAscii(b.nickname!.trim()));
+    const aIsPatp = valid('p', anyAscii(a.nickname!.trim()));
+    const bIsPatp = valid('p', anyAscii(b.nickname!.trim()));
     if (aIsPatp && !bIsPatp) {
       return 1;
     }

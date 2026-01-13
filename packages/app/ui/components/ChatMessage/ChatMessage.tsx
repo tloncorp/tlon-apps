@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -14,7 +15,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { SendPostRetrySheet } from '../SendPostRetrySheet';
+import { PostErrorMessage } from '../PostErrorMessage';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -29,7 +30,6 @@ const ChatMessage = ({
   onPress,
   onLongPress,
   onPressRetry,
-  onPressDelete,
   onShowEmojiPicker,
   onPressEdit,
   showReplies,
@@ -58,7 +58,6 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
-  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
@@ -68,6 +67,9 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
 
   const isNotice = post.type === 'notice';
 
@@ -87,16 +89,12 @@ const ChatMessage = ({
   }, [onPressReplies, post]);
 
   const shouldHandlePress = useMemo(() => {
-    return Boolean(onPress || deliveryFailed);
-  }, [onPress, deliveryFailed]);
+    return Boolean(onPress);
+  }, [onPress]);
 
   const handlePress = useCallback(() => {
-    if (onPress && !deliveryFailed) {
-      onPress(post);
-    } else if (deliveryFailed) {
-      setShowRetrySheet(true);
-    }
-  }, [post, onPress, deliveryFailed]);
+    onPress?.(post);
+  }, [post, onPress]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -115,13 +113,7 @@ const ChatMessage = ({
     } catch (e) {
       console.error('Failed to retry post', e);
     }
-    setShowRetrySheet(false);
   }, [onPressRetry, post]);
-
-  const handleDeletePressed = useCallback(() => {
-    onPressDelete?.(post);
-    setShowRetrySheet(false);
-  }, [onPressDelete, post]);
 
   const handleEditPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -164,18 +156,33 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return <ErrorMessage testID="MessageDeleted" message="Message deleted" />;
+    return (
+      <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
+    );
   } else if (post.hidden) {
     return (
-      <ErrorMessage
+      <PostErrorMessage
         testID="MessageHidden"
         message="Message hidden or flagged"
+      />
+    );
+  } else if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        testID="MessageBlocked"
+        message="Message from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedMessageButton"
       />
     );
   }
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
+
+  const shouldRenderReplySummary =
+    shouldRenderReplies || (!showAuthor && post.isEdited);
 
   return (
     <Pressable
@@ -201,7 +208,7 @@ const ChatMessage = ({
             sent={post.sentAt ?? 0}
             type={post.type}
             disabled={hideProfilePreview}
-            deliveryStatus={post.deliveryStatus}
+            deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
             deleteStatus={post.deleteStatus}
             showEditedIndicator={!!post.isEdited}
@@ -226,17 +233,10 @@ const ChatMessage = ({
           </View>
         ) : null}
 
-        {!showAuthor && post.isEdited ? (
-          <View position="absolute" right={12} top={8} zIndex={199}>
-            <Text size="$label/s" color="$tertiaryText">
-              Edited
-            </Text>
-          </View>
-        ) : null}
 
-        {!showAuthor && deliveryFailed ? (
+        {deliveryFailed ? (
           <Pressable
-            onPress={() => setShowRetrySheet(true)}
+            onPress={handleRetryPressed}
             position="absolute"
             right={12}
             top={8}
@@ -263,6 +263,7 @@ const ChatMessage = ({
                   channelId: post.channelId,
                   authorId: post.authorId,
                   deliveryStatus: post.deliveryStatus,
+                  blob: post.blob,
                 },
                 null,
                 2
@@ -288,23 +289,15 @@ const ChatMessage = ({
           </View>
         )}
 
-        {shouldRenderReplies ? (
+        {shouldRenderReplySummary ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-            {shouldRenderReplies ? (
-              <ChatMessageReplySummary
-                post={post}
-                onPress={handleRepliesPressed}
-              />
-            ) : null}
+            <ChatMessageReplySummary
+              post={post}
+              onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
+              showEditedIndicator={!showAuthor && !!post.isEdited}
+            />
           </XStack>
         ) : null}
-        <SendPostRetrySheet
-          open={showRetrySheet}
-          post={post}
-          onOpenChange={setShowRetrySheet}
-          onPressRetry={handleRetryPressed}
-          onPressDelete={handleDeletePressed}
-        />
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
         <View position="absolute" top={0} right={12}>
@@ -369,29 +362,6 @@ const ChatContentRenderer = createContentRenderer({
     },
   },
 });
-
-function ErrorMessage({
-  message,
-  testID,
-}: {
-  message: string;
-  testID?: string;
-}) {
-  return (
-    <XStack
-      gap="$s"
-      paddingVertical="$xl"
-      justifyContent={'center'}
-      alignItems={'center'}
-      testID={testID}
-    >
-      <Icon size="$s" type="Placeholder" color="$tertiaryText" />
-      <Text size="$label/m" color="$tertiaryText">
-        {message}
-      </Text>
-    </XStack>
-  );
-}
 
 export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);

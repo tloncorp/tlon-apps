@@ -89,7 +89,7 @@
 ::      agents.
 +$  bowl
   $:  channel=(unit [=nest v-channel])
-      group=(unit group:v7:gv)
+      group=(unit group:v9:gv)
       channels=v-channels
       =hook
       =config

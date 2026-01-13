@@ -108,11 +108,13 @@ type ChatOptionsProviderProps = {
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
+  onLeaveChannel?: (groupId: string, channelId: string) => void;
   onPressConfigureChannel?: () => void;
   onPressDeleteGroup?: () => void;
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
+    groupId?: string;
   };
 };
 
@@ -133,12 +135,18 @@ export const ChatOptionsProvider = ({
   onPressRoles,
   onPressChatDetails = noop,
   onLeaveGroup: navigateOnLeave,
+  onLeaveChannel: navigateToGroupOnLeave,
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
-  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(null);
+  const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
+    null
+  );
+  const [leaveChannelData, setLeaveChannelData] = useState<db.Channel | null>(
+    null
+  );
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
@@ -172,6 +180,18 @@ export const ChatOptionsProvider = ({
     []
   );
 
+  // Defensive: restore chat from initialChat if cleared unexpectedly.
+  // This handles edge cases where setChat(null) is called (e.g., when
+  // ChatOptionsSheet closes) but we're still on a screen that needs
+  // the chat context (e.g., after navigating to ChatDetailsScreen and back).
+  // Without this, groupId becomes undefined and actions like "Customize"
+  // in EmptyChannelNotice fail silently.
+  useEffect(() => {
+    if (chat === null && initialChat) {
+      setChat(initialChat);
+    }
+  }, [chat, initialChat]);
+
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
 
@@ -179,7 +199,9 @@ export const ChatOptionsProvider = ({
     id: isChannel ? chat.id : undefined,
   });
   const channelTitle = useChannelTitle(channel ?? null);
-  const groupId = isGroup ? chat.id : channel?.groupId ?? undefined;
+  const groupId = isGroup
+    ? chat.id
+    : channel?.groupId ?? initialChat?.groupId ?? undefined;
   const channelId = isChannel ? chat.id : undefined;
   const { data: group } = useGroup({
     id: groupId,
@@ -257,26 +279,41 @@ export const ChatOptionsProvider = ({
     closeSheet();
   }, [closeSheet, groupId, navigateOnLeave]);
 
-  const onLeaveChannelConfirmed = useCallback(() => {
-    if (!channel) {
+  const onLeaveChannelConfirmed = useCallback(async () => {
+    if (!leaveChannelData) {
       return;
     }
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
+    const isDm =
+      leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm';
+
+    if (isDm) {
+      // Leaving a DM - navigate to Messages tab
       store.respondToDMInvite({
-        channel,
+        channel: leaveChannelData,
         accept: false,
       });
       navigateOnLeave?.();
+    } else if (leaveChannelData.groupId) {
+      // Leaving a channel in a group - navigate to the first available channel
+      store.leaveGroupChannel(leaveChannelData.id);
+      await navigateToGroupOnLeave?.(
+        leaveChannelData.groupId,
+        leaveChannelData.id
+      );
     } else {
-      store.leaveGroupChannel(channel.id);
+      // Fallback
+      store.leaveGroupChannel(leaveChannelData.id);
+      navigateOnLeave?.();
     }
+    setLeaveChannelData(null);
     closeSheet();
-  }, [channel, closeSheet, navigateOnLeave]);
+  }, [leaveChannelData, closeSheet, navigateOnLeave, navigateToGroupOnLeave]);
 
   const leaveChannel = useCallback(() => {
     setLeaveChannelTitle(channelTitle);
+    setLeaveChannelData(channel ?? null);
     setLeaveChannelDialogOpen(true);
-  }, [channelTitle]);
+  }, [channelTitle, channel]);
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
@@ -482,6 +519,7 @@ export const ChatOptionsProvider = ({
           setLeaveChannelDialogOpen(open);
           if (!open) {
             setLeaveChannelTitle(null);
+            setLeaveChannelData(null);
           }
         }}
         title={`Leave ${leaveChannelTitle ?? 'channel'}?`}

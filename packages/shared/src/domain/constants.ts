@@ -32,6 +32,7 @@ interface Constants {
   GIT_HASH: string;
   DISABLE_SPLASH_MODAL: boolean;
   AUTOMATED_TEST: boolean;
+  OPENROUTER_API_KEY: string;
 }
 
 export function getConstants(): Constants {
@@ -44,4 +45,9 @@ export function getConstants(): Constants {
   }
 
   return (global as any)[TLON_NAMESPACE] as Constants;
+}
+
+export function isOpenRouterConfigured(): boolean {
+  const constants = getConstants();
+  return !!constants.OPENROUTER_API_KEY && constants.OPENROUTER_API_KEY.length > 0;
 }

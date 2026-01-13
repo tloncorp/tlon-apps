@@ -20,10 +20,11 @@ test.skip('should handle gallery posts in activity without crashing', async ({
   // Invite ~ten to the group immediately
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to the group
+  // Navigate back to the group using stable testID
   await helpers.navigateBack(zodPage);
-  await expect(zodPage.getByText('Home')).toBeVisible();
-  await zodPage.getByText(groupName).first().click();
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Create a gallery channel
   await helpers.openGroupSettings(zodPage);

@@ -1,4 +1,4 @@
-import { formatDa, unixToDa } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
@@ -131,7 +131,7 @@ function toPostReference(said: ub.Said) {
   }
 }
 
-export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   checkNest(nest);
 
   return channelAction(nest, {
@@ -144,12 +144,14 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  blob,
   metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  blob?: string;
   metadata?: db.PostMetadata;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
@@ -164,7 +166,7 @@ export const sendPost = async ({
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: null,
+          blob: blob ?? null,
         },
         time: null,
       },
@@ -172,7 +174,7 @@ export const sendPost = async ({
 
     const action = chatAction(
       channelId,
-      `${delta.add.essay.author}/${formatUd(unixToDa(delta.add.essay.sent).toString())}`,
+      `${delta.add.essay.author}/${formatUd(da.fromUnix(delta.add.essay.sent).toString())}`,
       delta
     );
     await poke(action);
@@ -181,6 +183,7 @@ export const sendPost = async ({
 
   const essay = toPostEssay({
     content,
+    blob,
     authorId,
     sentAt,
     channelType,
@@ -210,6 +213,7 @@ export const editPost = async ({
   content,
   parentId,
   metadata,
+  blob,
 }: {
   channelId: string;
   postId: string;
@@ -218,6 +222,7 @@ export const editPost = async ({
   content: Story;
   parentId?: string;
   metadata?: db.PostMetadata;
+  blob?: string;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -261,6 +266,7 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
+    blob,
     metadata: metadata
       ? {
           title: metadata.title || '',
@@ -301,7 +307,7 @@ export const sendReply = async ({
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: ub.ReplyDelta = {
       reply: {
-        id: `${authorId}/${formatUd(unixToDa(sentAt).toString())}`,
+        id: `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`,
         meta: null,
         delta: {
           add: {
@@ -581,7 +587,10 @@ export const getLatestPosts = async ({
       };
     });
   } catch (e) {
-    logger.trackError('failed to sync heads');
+    logger.trackError('failed to sync heads', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     return [];
   }
 };
@@ -613,7 +622,7 @@ export const getChangedPosts = async ({
       `v1/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
-      formatDa(unixToDa(afterTime.valueOf()).toString())
+      render('da', da.fromUnix(afterTime.valueOf()))
     ),
   });
   return toPagedPostsData(channelId, response);
@@ -940,19 +949,18 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-3',
+    mark: 'group-action-4',
     json: {
-      flag: groupId,
-      update: {
-        time: '',
-        diff: {
+      group: {
+        flag: groupId,
+        'a-group': {
           'flag-content': {
             nest: channelId,
-            src: currentUserId,
             'post-key': {
               post: post.parentId ? post.parentId : post.id,
               reply: post.parentId ? post.id : null,
             },
+            src: currentUserId,
           },
         },
       },
@@ -1006,6 +1014,60 @@ export async function deletePost(
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
+  return await poke(action);
+}
+
+export async function deleteReply(params: {
+  channelId: string;
+  parentId: string;
+  parentAuthorId: string;
+  postId: string;
+  authorId: string;
+}) {
+  let action = null;
+
+  if (isDmChannelId(params.channelId)) {
+    action = chatAction(
+      params.channelId,
+      `${params.parentAuthorId}/${params.parentId}`,
+      {
+        reply: {
+          id: `${params.authorId}/${params.postId}`,
+          meta: null,
+          delta: {
+            del: null,
+          },
+        },
+      }
+    );
+  } else if (isGroupDmChannelId(params.channelId)) {
+    action = multiDmAction(params.channelId, {
+      writ: {
+        id: `${params.parentAuthorId}/${params.parentId}`,
+        delta: {
+          reply: {
+            id: `${params.authorId}/${params.postId}`,
+            meta: null,
+            delta: {
+              del: null,
+            },
+          },
+        },
+      },
+    });
+  } else {
+    action = channelAction(params.channelId, {
+      post: {
+        reply: {
+          id: params.parentId,
+          action: {
+            del: params.postId,
+          },
+        },
+      },
+    });
+  }
+
   return await poke(action);
 }
 
@@ -1239,6 +1301,7 @@ export function toPostData(
     replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
+    blob: post.essay.blob ?? null,
     ...flags,
   };
 }
@@ -1254,7 +1317,13 @@ function isPostDataResponse(
 }
 
 function isPostTombstone(
-  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  post:
+    | ub.Post
+    | ub.PostTombstone
+    | ub.Writ
+    | ub.PostDataResponse
+    | ub.WritReply
+    | ub.Reply
 ): post is ub.PostTombstone {
   return 'type' in post && post.type === 'tombstone';
 }
@@ -1282,8 +1351,24 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply | ub.WritReply
+  reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
+  if (isPostTombstone(reply)) {
+    return {
+      id: getCanonicalPostId(reply.id),
+      parentId: getCanonicalPostId(postId),
+      authorId: reply.author,
+      channelId,
+      type: 'reply',
+      sentAt: getReceivedAtFromId(reply.id),
+      isDeleted: true,
+      deletedAt: reply['deleted-at'],
+      receivedAt: getReceivedAtFromId(reply.id),
+      sequenceNum: null,
+      syncedAt: Date.now(),
+    };
+  }
+
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =

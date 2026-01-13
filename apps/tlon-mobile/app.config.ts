@@ -24,6 +24,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ? process.env.POST_HOG_API_KEY_TEST
       : process.env.POST_HOG_API_KEY_PROD,
     postHogInDev: process.env.POST_HOG_IN_DEV,
+    sentryDsn: process.env.SENTRY_DSN,
+    appVariant: process.env.APP_VARIANT || 'production',
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
     apiUrl: process.env.API_URL,
@@ -54,6 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
+    openRouterApiKey: process.env.OPENROUTER_API_KEY,
   },
   ios: {
     runtimeVersion: '4.0.2',

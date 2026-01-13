@@ -6,8 +6,10 @@ import AttachmentSheet from '../AttachmentSheet';
 
 export default function AttachmentButton({
   setShouldBlur,
+  mediaType,
 }: {
   setShouldBlur: (shouldBlur: boolean) => void;
+  mediaType: 'image' | 'all';
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
 
@@ -29,6 +31,7 @@ export default function AttachmentButton({
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
+        mediaType={mediaType}
       />
     </>
   );

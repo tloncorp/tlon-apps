@@ -1,8 +1,8 @@
 import {
-  formatUd as baseFormatUd,
-  daToUnix,
-  parseUd,
-  unixToDa,
+  render,
+  parse,
+  tryParse,
+  da
 } from '@urbit/aura';
 import bigInt from 'big-integer';
 
@@ -56,18 +56,27 @@ export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
   };
 }
 
-export function formatUd(ud: string) {
-  // @ts-expect-error string will get converted internally, so doesn't actually have to
-  //be a bigint
-  return baseFormatUd(ud);
+export function formatUd(ud: string) {  //REVIEW
+  return render('ud', BigInt(ud));
 }
 
-export function udToDate(da: string) {
-  return daToUnix(parseUd(da));
+export function udToDate(das: string) {
+  return da.toUnix(parseIdNumber(das));
+}
+
+//  parses either a @ud-formatted string (dot-separated decimal) or a plain
+//  decimal number string (aka @ui without the prefix).
+//  we try both instead of being precise at the callsites, because historically
+//  we used a too-lenient @ud parser, which also accepted dotless
+//  representations, making it slightly unclear/ambiguous what we were actually
+//  *intending* to parse. the backend is wildly inconsistent, so this is easier
+//  and safer than figuring all that out. (we'll tighten things up Soon™.)
+export function parseIdNumber(id: string): bigint {
+  return tryParse('ud', id) || BigInt(id);
 }
 
 export function formatDateParam(date: Date) {
-  return baseFormatUd(unixToDa(date!.getTime()));
+  return render('ud', da.fromUnix(date!.getTime()));
 }
 
 export function isDmChannelId(channelId: string) {
@@ -147,7 +156,7 @@ export function getCanonicalPostId(inputId: string) {
   }
   // The id in group post ids doesn't come dot separated, so we format it
   if (id[3] !== '.') {
-    id = formatUd(id);
+    id = render('ud', BigInt(id));  //REVIEW  weird, and dot check is not ideal
   }
   return id;
 }
@@ -192,7 +201,7 @@ export function deriveFullWrit(
 ): ub.Writ {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
-    : unixToDa(delta.add.essay.sent).toString();
+    : da.fromUnix(delta.add.essay.sent).toString();
 
   const seq = delta.add.seq ?? undefined;
 
@@ -223,7 +232,7 @@ export function deriveFullWritReply({
 }): ub.WritReply {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
-    : unixToDa(delta.add.memo.sent).toString();
+    : da.fromUnix(delta.add.memo.sent).toString();
 
   const seal: ub.WritReplySeal = {
     id,

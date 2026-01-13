@@ -35,7 +35,7 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: await finalizeAttachments(draft.attachments),
   });
@@ -44,6 +44,7 @@ export async function finalizePostDraft(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
 
   if (draft.isEdit) {
@@ -66,7 +67,7 @@ export function finalizePostDraftUsingLocalAttachments(
 export function finalizePostDraftUsingLocalAttachments(
   draft: domain.PostDataDraft
 ): domain.PostDataFinalized {
-  const { story, metadata } = logic.toPostData({
+  const { story, metadata, blob } = logic.toPostData({
     ...draft,
     attachments: finalizeAttachmentsLocal(draft.attachments),
   });
@@ -74,6 +75,7 @@ export function finalizePostDraftUsingLocalAttachments(
     channelId: draft.channelId,
     content: story,
     metadata,
+    blob,
   };
   if (draft.isEdit) {
     return {
@@ -163,6 +165,7 @@ async function _sendPost({
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
+    blob: optimisticPostData.blob,
   });
 
   let group: null | db.Group = null;
@@ -196,6 +199,7 @@ async function _sendPost({
           content: finalizedPostData.content,
           metadata: finalizedPostData.metadata,
           deliveryStatus: 'pending',
+          blob: finalizedPostData.blob,
         }),
       });
       logger.crumb('sending post to API');
@@ -203,6 +207,7 @@ async function _sendPost({
         channelId: channel.id,
         authorId,
         content: finalizedPostData.content,
+        blob: finalizedPostData.blob,
         metadata: finalizedPostData.metadata,
         sentAt: cachePost.sentAt,
       });
@@ -212,9 +217,8 @@ async function _sendPost({
     logger.crumb('done sending post');
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
-      errorMessage: e.message,
+      error: e,
       errorType: e.constructor?.name,
-      errorStack: e.stack,
       errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
@@ -311,6 +315,7 @@ export async function retrySendPost({
           channelId: post.channelId,
           authorId: post.authorId,
           content: story,
+          blob: post.blob || undefined,
           metadata:
             post.image || post.title
               ? {
@@ -486,6 +491,7 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
+    blob: optimisticPostData.blob,
     ...flags,
   });
   logger.log('editPost optimistic update done');
@@ -503,6 +509,7 @@ async function _editPost({
         postId: finalized.editTargetPostId,
         authorId: postBeforeEdit.authorId,
         sentAt: postBeforeEdit.sentAt,
+        blob: postBeforeEdit.blob ?? undefined, // NB: blob is not editable - so you can't e.g. change or remove a file attachment
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,
@@ -589,7 +596,7 @@ export async function sendReply({
   } catch (e) {
     logger.crumb('failed to send reply');
     logger.trackEvent(AnalyticsEvent.ErrorSendReply, {
-      errorMessage: e.message,
+      error: e,
     });
     console.error('Failed to send reply', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
@@ -635,6 +642,9 @@ export async function deletePost({ post }: { post: db.Post }) {
     logic.getModelAnalytics({ post })
   );
   const existingPost = await db.getPost({ postId: post.id });
+  const existingParent = existingPost?.parentId
+    ? await db.getPost({ postId: existingPost.parentId })
+    : null;
 
   // optimistic update
   deleteFromChannelPosts(post);
@@ -645,7 +655,16 @@ export async function deletePost({ post }: { post: db.Post }) {
   try {
     await db.updatePost({ id: post.id, deleteStatus: 'pending' });
     await sessionActionQueue.add(() =>
-      api.deletePost(post.channelId, post.id, post.authorId)
+      post.parentId
+        ? api.deleteReply({
+            channelId: post.channelId,
+            postId: post.id,
+            authorId: post.authorId,
+            parentId: post.parentId!,
+            parentAuthorId:
+              post.parent?.authorId || existingParent?.authorId || '',
+          })
+        : api.deletePost(post.channelId, post.id, post.authorId)
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
@@ -767,7 +786,7 @@ export async function addPostReaction(
   } catch (e) {
     console.error('Failed to add post reaction', e);
     logger.trackEvent(AnalyticsEvent.ErrorReact, {
-      errorMessage: e.message,
+      error: e,
     });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
@@ -862,7 +881,7 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
     );
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorUnreact, {
-      errorMessage: e.message,
+      error: e,
     });
     console.error('Failed to remove post reaction', e);
 
@@ -878,5 +897,211 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
         ],
       });
     }
+  }
+}
+
+/**
+ * Summarizes messages and sends the summary as a DM to the current user.
+ *
+ * For thread summarization: provide postId
+ * For channel time range summarization: provide channelId + startTime
+ */
+export async function summarizeMessages({
+  postId,
+  channelId,
+  startTime,
+  channelTitle,
+  timeLabel,
+  currentUserId,
+  limit = 500,
+  maxChars = 10000,
+}: {
+  postId?: string;
+  channelId?: string;
+  startTime?: number;
+  channelTitle?: string;
+  timeLabel?: string;
+  currentUserId: string;
+  limit?: number;
+  maxChars?: number;
+}): Promise<void> {
+  logger.crumb('summarizeMessages starting', {
+    postId,
+    channelId,
+    startTime,
+    limit,
+    maxChars,
+  });
+
+  try {
+    let combinedText: string;
+    let summaryPrefix: string;
+
+    // Reduce character limit for channel summaries to avoid overwhelming model
+    const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
+
+    // Thread summarization
+    if (postId) {
+      logger.crumb('thread summarization mode', { postId });
+      const post = await db.getPost({ postId });
+      if (!post || !post.textContent) {
+        const error = new Error('Post not found or has no text content');
+        logger.trackError('summarizeMessages: post fetch failed', {
+          postId,
+          postFound: !!post,
+          hasTextContent: post?.textContent ? 'yes' : 'no',
+        });
+        throw error;
+      }
+
+      const hasReplies = post.replyCount && post.replyCount > 0;
+      if (!hasReplies) {
+        combinedText = post.textContent;
+        logger.crumb('single post, no replies', {
+          textLength: combinedText.length,
+        });
+      } else {
+        try {
+          const replies = await db.getThreadPosts({ parentId: post.id });
+          logger.crumb('fetched thread replies', { count: replies.length });
+          const allMessages = [
+            `${post.authorId}: ${post.textContent}`,
+            ...replies
+              .filter((reply) => reply.textContent)
+              .map((reply) => `${reply.authorId}: ${reply.textContent}`),
+          ];
+          combinedText = allMessages.join('\n\n');
+          logger.crumb('combined thread messages', {
+            totalMessages: allMessages.length,
+            textLength: combinedText.length,
+          });
+        } catch (error) {
+          logger.trackError('Error fetching thread for summarization', error);
+          combinedText = post.textContent;
+        }
+      }
+      summaryPrefix = 'AI Summary:';
+    }
+    // Channel time range summarization
+    else if (channelId && startTime !== undefined) {
+      logger.crumb('channel time range summarization mode', {
+        channelId,
+        startTime,
+        limit,
+      });
+      const posts = await db.getChannelPostsByTimeRange({
+        channelId,
+        startTime,
+        limit,
+      });
+
+      logger.crumb('fetched channel posts', { count: posts.length });
+
+      if (posts.length === 0) {
+        const error = new Error('No messages found in time range');
+        logger.trackError('summarizeMessages: no posts in time range', {
+          channelId,
+          startTime,
+          limit,
+        });
+        throw error;
+      }
+
+      const allMessages = posts
+        .filter((post: db.Post) => post.textContent)
+        .map((post: db.Post) => {
+          return `${post.authorId}: ${post.textContent}`;
+        });
+
+      combinedText = allMessages.join('\n\n');
+      summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
+
+      logger.crumb('combined channel messages', {
+        totalMessages: allMessages.length,
+        textLength: combinedText.length,
+      });
+    } else {
+      const error = new Error(
+        'Must provide either postId or (channelId + startTime)'
+      );
+      logger.trackError('summarizeMessages: invalid parameters', {
+        hasPostId: !!postId,
+        hasChannelId: !!channelId,
+        hasStartTime: startTime !== undefined,
+      });
+      throw error;
+    }
+
+    // Apply character limit
+    const originalLength = combinedText.length;
+    if (combinedText.length > effectiveMaxChars) {
+      combinedText =
+        combinedText.substring(0, effectiveMaxChars) +
+        '\n\n[... conversation truncated ...]';
+      logger.crumb('text truncated', {
+        originalLength,
+        truncatedLength: combinedText.length,
+        effectiveMaxChars,
+      });
+    }
+
+    // Call AI API
+    logger.crumb('calling AI API for summarization', {
+      textLength: combinedText.length,
+    });
+    const response = await api.summarizeMessage({ messageText: combinedText });
+
+    logger.crumb('AI API response received', {
+      hasError: !!response.error,
+      hasSummary: !!response.summary,
+      summaryLength: response.summary?.length,
+    });
+
+    if (response.error || !response.summary) {
+      const errorMessage = response.error || 'No summary returned';
+      logger.trackError('summarizeMessages: AI API returned error', {
+        error: errorMessage,
+        responseError: response.error,
+        hasSummary: !!response.summary,
+        // Include full error details from OpenRouter API
+        errorDetails: response.errorDetails,
+        responseStatus: response.errorDetails?.responseStatus,
+        responseData: response.errorDetails?.responseData,
+        responseHeaders: response.errorDetails?.responseHeaders,
+      });
+      throw new Error(errorMessage);
+    }
+
+    // Send DM to self
+    logger.crumb('sending summary DM', {
+      summaryLength: response.summary.length,
+      currentUserId,
+    });
+    await api.sendPost({
+      channelId: currentUserId,
+      authorId: currentUserId,
+      sentAt: Date.now(),
+      content: [
+        {
+          inline: [`${summaryPrefix}\n\n${response.summary}`],
+        },
+      ],
+    });
+
+    logger.crumb('summarizeMessages completed successfully');
+  } catch (error) {
+    logger.trackError('summarizeMessages failed', {
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error?.constructor?.name,
+      errorStack: error instanceof Error ? error.stack : undefined,
+      postId,
+      channelId,
+      startTime,
+    });
+    logger.error('summarizeMessages error', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
 }

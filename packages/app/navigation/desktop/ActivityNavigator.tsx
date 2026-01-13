@@ -72,6 +72,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     [props.navigation]
   );
 
+  const handleInviteFriends = useCallback(() => {
+    props.navigation.navigate('InviteSystemContacts' as any);
+  }, [props.navigation]);
+
   return (
     <ActivityScreenView
       bucketFetchers={bucketedActivity}
@@ -82,6 +86,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       goToUserProfile={handleGoToUserProfile}
       refresh={handleRefreshActivity}
       onGroupAction={performGroupAction}
+      onInviteFriends={handleInviteFriends}
     />
   );
 }

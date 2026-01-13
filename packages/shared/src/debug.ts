@@ -40,7 +40,7 @@ interface Log {
 export type Logger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
-  trackError: (message: string, data?: Record<string, any>) => void;
+  trackError: (message: string, data?: Error | Record<string, any>) => void;
   trackEvent: (eventId: string, data?: Record<string, any>) => void;
 };
 
@@ -257,21 +257,36 @@ export function createDevLogger(tag: string, enabled: boolean) {
         if (prop === 'trackError') {
           const customProps =
             args[1] && typeof args[1] === 'object' ? args[1] : {};
-          const report = (debugInfo: any = undefined) =>
+          const errorMessage =
+            typeof args[0] === 'string' ? `[${tag}] ${args[0]}` : 'no message';
+          const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+
+          // Extract error from various patterns:
+          // - logger.trackError('msg', error) -> customProps is Error
+          // - logger.trackError('msg', { error }) -> customProps.error is Error
+          let errorObj: Error | undefined;
+          if (customProps instanceof Error) {
+            errorObj = customProps;
+          } else if (
+            'error' in customProps &&
+            customProps.error instanceof Error
+          ) {
+            errorObj = customProps.error;
+          }
+
+          const report = (debugInfo: any = undefined) => {
+            // Send to error logger (PostHog, Sentry, or both via composite logger)
             errorLogger?.capture('app_error', {
               debugInfo,
-              message:
-                typeof args[0] === 'string'
-                  ? `[${tag}] ${args[0]}`
-                  : 'no message',
-              breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
-              errorMessage:
-                customProps instanceof Error ? customProps.message : undefined,
-              errorStack:
-                customProps instanceof Error ? customProps.stack : undefined,
+              message: errorMessage,
+              breadcrumbs,
+              errorMessage: errorObj?.message,
+              errorStack: errorObj?.stack,
               logLevel: 'error',
               ...customProps,
             });
+          };
+
           getDebugInfo()
             .then(report)
             .catch(() => report());

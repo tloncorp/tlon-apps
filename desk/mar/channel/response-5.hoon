@@ -1,14 +1,14 @@
-/-  c=channels
+/-  cv=channels-ver
 /+  j=channel-json
-|_  =response:v9:c
+|_  =response:v10:cv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  response
-  ++  json  (response:v9:enjs:j response)
+  ++  json  (response:enjs:j response)
   --
 ++  grab
   |%
-  ++  noun  response:v9:c
+  ++  noun  response:v10:cv
   --
 --

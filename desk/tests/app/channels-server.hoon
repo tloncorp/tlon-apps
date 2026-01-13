@@ -1,4 +1,4 @@
-/-  c=channels, h=hooks
+/-  c=channels, cv=channels-ver, h=hooks
 /+  *test-agent, imp=import-aid
 /=  agent  /app/channels-server
 ::
@@ -6,9 +6,9 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-  [%13 =v-channels:v9:c =hooks:h =pimp:imp]
+  [%13 =v-channels:v9:cv =hooks:h =pimp:imp]
 +$  state-8
-  [%8 =v-channels:v8:c =hooks:h =pimp:imp]
+  [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
 ::
 |%
@@ -26,7 +26,7 @@
   ::  channel exists, should send list of seqs nrs
   ::
   =/  state=state-8
-    =+  c=v8:c
+    =+  c=v8:cv
     =;  chan=v-channel:c
       [%8 (~(put by *v-channels:c) *nest:c chan) *hooks:h *pimp:imp]
     =;  posts
@@ -72,7 +72,7 @@
   ++  tombstone-rescue-key
     ~2025.6.25..14.41.13..585b
   ++  tombstone-rescue-test-channel-old
-    =+  c=v8:c
+    =+  c=v8:cv
     ^-  v-channel:c
     :-  ^-  global:v-channel:c
         :*  ^=  posts
@@ -260,7 +260,7 @@
     %-  eval-mare
     =/  m  (mare ,~)
     =/  bad-state=state-8
-      =+  c=v8:c
+      =+  c=v8:cv
       =;  chans=v-channels:c
         [%8 chans *hooks:h *pimp:imp]
       =/  chan=v-channel:c

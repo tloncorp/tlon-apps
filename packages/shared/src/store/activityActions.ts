@@ -3,6 +3,7 @@ import * as db from '../db';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { isGroupChannelId } from '../logic';
+import * as logic from '../logic';
 import * as ub from '../urbit';
 import { whomIsMultiDm } from '../urbit';
 
@@ -27,7 +28,15 @@ export async function muteChat(chat: db.Chat) {
     const volume = ub.getVolumeMap(muteLevel, true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
-    logger.log(`failed to mute chat ${chat.id}`, e);
+    logger.trackError('ActivityAction: Failed to mute chat', {
+      error: e,
+      ...logic.getModelAnalytics({
+        channel: chat.type === 'channel' ? chat.channel : undefined,
+        group: chat.type === 'group' ? chat.group : undefined,
+      }),
+      chatType: chat.type,
+      muteLevel,
+    });
     // revert the optimistic update
     if (initialSettings) {
       await db.setVolumes({ volumes: [initialSettings] });
@@ -52,7 +61,14 @@ export async function unmuteChat(chat: db.Chat) {
     const { source } = api.getRootSourceFromChat(chat);
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
-    logger.log(`failed to unmute chat ${chat.id}`, e);
+    logger.trackError('ActivityAction: Failed to unmute chat', {
+      error: e,
+      ...logic.getModelAnalytics({
+        channel: chat.type === 'channel' ? chat.channel : undefined,
+        group: chat.type === 'group' ? chat.group : undefined,
+      }),
+      chatType: chat.type,
+    });
     // revert the optimistic update
     if (initialSettings) {
       await db.setVolumes({ volumes: [initialSettings] });
@@ -88,7 +104,10 @@ export async function muteThread({
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
-    logger.log(`failed to mute thread ${channel.id}/${thread.id}`, e);
+    logger.trackError('ActivityAction: Failed to mute thread', {
+      error: e,
+      ...logic.getModelAnalytics({ channel, post: thread }),
+    });
     if (initialSettings) {
       db.setVolumes({ volumes: [initialSettings] });
     } else {
@@ -114,7 +133,10 @@ export async function unmuteThread({
     const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
-    logger.log(`failed to unmute thread ${channel.id}/${thread.id}`, e);
+    logger.trackError('ActivityAction: Failed to unmute thread', {
+      error: e,
+      ...logic.getModelAnalytics({ channel, post: thread }),
+    });
     if (initialSettings) {
       db.setVolumes({ volumes: [initialSettings] });
     } else {
@@ -134,7 +156,14 @@ export async function setDefaultNotificationLevel(
   try {
     await api.setPushNotificationsSetting(level);
   } catch (e) {
-    logger.log(`failed to set default notification level`, e);
+    logger.trackError(
+      'ActivityAction: Failed to set default notification level',
+      {
+        error: e,
+        ...logic.getModelAnalytics({}),
+        level,
+      }
+    );
     await db.pushNotificationSettings.setValue(currentSetting);
   }
 }
@@ -181,7 +210,11 @@ export async function setBaseVolumeLevel(params: {
       ub.getVolumeMap(params.level, true)
     );
   } catch (e) {
-    logger.log(`failed to set base volume level`, e);
+    logger.trackError('ActivityAction: Failed to set base volume level', {
+      error: e,
+      ...logic.getModelAnalytics({}),
+      level: params.level,
+    });
     if (existingSetting) {
       await db.setVolumes({ volumes: [existingSetting] });
     }
@@ -214,7 +247,11 @@ export async function setGroupVolumeLevel(params: {
     );
   } catch (e) {
     // rollback
-    logger.log(`failed to set volume level`, e);
+    logger.trackError('ActivityAction: Failed to set group volume level', {
+      error: e,
+      ...logic.getModelAnalytics({ group: params.group }),
+      level: params.level ?? 'removed',
+    });
     if (existingGroup?.volumeSettings) {
       await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
@@ -268,7 +305,11 @@ export async function setChannelVolumeLevel(params: {
     );
   } catch (e) {
     // rollback
-    logger.log(`failed to set volume level`, e);
+    logger.trackError('ActivityAction: Failed to set channel volume level', {
+      error: e,
+      ...logic.getModelAnalytics({ channel: params.channel }),
+      level: params.level ?? 'removed',
+    });
     if (existingVolumeSetting) {
       await db.setVolumes({
         volumes: [

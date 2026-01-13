@@ -17,12 +17,10 @@ export function ManageChannelsScreen(props: Props) {
   const {
     group,
     groupNavSectionsWithChannels,
-    moveNavSection,
-    moveChannel,
-    moveChannelToNavSection,
     createNavSection,
     deleteNavSection,
     updateNavSection,
+    updateGroupNavigation,
   } = useGroupContext({ groupId });
 
   const handleGoBack = useCallback(() => {
@@ -52,12 +50,10 @@ export function ManageChannelsScreen(props: Props) {
       goBack={handleGoBack}
       goToEditChannel={goToEditChannel}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-      moveNavSection={moveNavSection}
-      moveChannelWithinNavSection={moveChannel}
-      moveChannelToNavSection={moveChannelToNavSection}
       createNavSection={createNavSection}
       deleteNavSection={deleteNavSection}
       updateNavSection={updateNavSection}
+      updateGroupNavigation={updateGroupNavigation}
     />
   );
 }

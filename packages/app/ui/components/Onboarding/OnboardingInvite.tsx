@@ -50,7 +50,11 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
     iconImageColor: invitedGroupiconImageColor,
   } as GroupShim;
 
-  if (inviteType === 'user') {
+  // workaround for our generic invites that boot you into empty state. Should be
+  // removed once a better backend solution is in place
+  const isWorkaroundInvite = inviteType === 'user' && groupShim.title;
+
+  if (inviteType === 'user' && !isWorkaroundInvite) {
     return <UserInvite inviter={inviter} {...rest} />;
   }
 

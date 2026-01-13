@@ -19,14 +19,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { FlatList, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
-import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -196,14 +196,13 @@ export function PostScreenView({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const hostConnectionStatus = useConnectionStatus(
-    groupPreview?.hostUserId ?? ''
-  );
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+
+  const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
     if (Platform.OS === 'web' || !isWindowNarrow) {
@@ -278,11 +277,11 @@ export function PostScreenView({
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
+    // Always clear attachments when leaving thread to prevent them from
+    // appearing in the main chat input
+    clearAttachments();
     if (isEditingParent) {
       setEditingPost?.(undefined);
-      // Clear attachments when exiting edit mode to prevent them from
-      // appearing in the reply input
-      clearAttachments();
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
@@ -337,7 +336,28 @@ export function PostScreenView({
                     goToEdit={handleEditPress}
                   />
                   {parentPost &&
-                    (mode === 'single' ? (
+                    (editingPost && channel.type === 'gallery' ? (
+                      <YStack flex={1} backgroundColor="$background">
+                        <GalleryDraftInput
+                          channel={channel}
+                          editPost={editPost}
+                          editingPost={editingPost}
+                          getDraft={
+                            draftCallbacks?.getDraft ?? (async () => null)
+                          }
+                          group={group}
+                          clearDraft={
+                            draftCallbacks?.clearDraft ?? (async () => {})
+                          }
+                          setEditingPost={setEditingPost}
+                          setShouldBlur={setGalleryEditShouldBlur}
+                          shouldBlur={galleryEditShouldBlur}
+                          storeDraft={
+                            draftCallbacks?.storeDraft ?? (async () => {})
+                          }
+                        />
+                      </YStack>
+                    ) : mode === 'single' ? (
                       <SinglePostView
                         {...{
                           channel,
@@ -374,7 +394,6 @@ export function PostScreenView({
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
                     onOpenChange={() => setGroupPreview(null)}
-                    hostStatus={hostConnectionStatus}
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
@@ -491,6 +510,19 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+
+  // Auto-scroll setup for gallery/notebook posts:
+  // Chat channels use an inverted Scroller component and don't need auto-scroll here.
+  // Gallery/notebook posts use a FlatList in DetailView with data: ['header', 'posts']
+  // where index 0 is the post header (gallery/notebook content) and index 1 is the entire
+  // replies section (Scroller container). Scrolling to index 1 shows new replies because
+  // they appear at the bottom of the inverted list inside the Scroller.
+  const flatListRef = useRef<FlatList>(null);
+  const scrollerRef = useRef<{
+    scrollToStart: (opts: { animated?: boolean }) => void;
+  }>(null);
+  const REPLIES_SECTION_INDEX = 1;
+
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
@@ -559,6 +591,22 @@ function SinglePostView({
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
+  // Helper to scroll to new reply - shared by sendReply and sendReplyFromDraft
+  const scrollToNewReply = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (isChatChannel) {
+        // Chat threads: scroll the inner Scroller directly
+        scrollerRef.current?.scrollToStart({ animated: true });
+      } else {
+        // Notebook/gallery: scroll the outer FlatList to the replies section
+        flatListRef.current?.scrollToIndex({
+          index: REPLIES_SECTION_INDEX,
+          animated: true,
+        });
+      }
+    });
+  }, [isChatChannel, REPLIES_SECTION_INDEX]);
+
   const hasLoadedReplies = !!(posts && channel && parentPost);
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
@@ -579,8 +627,9 @@ function SinglePostView({
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
+      scrollToNewReply();
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const sendReplyFromDraft = useCallback(
@@ -595,9 +644,10 @@ function SinglePostView({
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
         });
+        scrollToNewReply();
       }
     },
-    [channel, parentPost, store]
+    [channel, parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(
@@ -625,6 +675,8 @@ function SinglePostView({
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
           editorIsFocused={false}
+          flatListRef={flatListRef}
+          scrollerRef={scrollerRef}
         />
       ) : null}
 
@@ -677,9 +729,8 @@ function SinglePostView({
         </View>
       )}
 
-      {parentPost &&
-      isEditingParent &&
-      (channel.type === 'notebook' || channel.type === 'gallery') ? (
+      {/* Notebook editing handled here; gallery editing is at PostScreenView level */}
+      {parentPost && isEditingParent && channel.type === 'notebook' ? (
         <View
           position="absolute"
           top={0}
@@ -688,37 +739,22 @@ function SinglePostView({
           bottom={0}
           backgroundColor="$background"
         >
-          {channel.type === 'gallery' ? (
-            <GalleryDraftInput
-              channel={channel}
-              editPost={editPost}
-              editingPost={editingPost}
-              getDraft={getDraft}
-              group={group}
-              clearDraft={clearDraft}
-              setEditingPost={setEditingPost}
-              setShouldBlur={setInputShouldBlur}
-              shouldBlur={inputShouldBlur}
-              storeDraft={storeDraft}
-            />
-          ) : (
-            <BigInput
-              channelType={urbit.getChannelType(parentPost.channelId)}
-              channelId={parentPost?.channelId}
-              editingPost={editingPost}
-              setEditingPost={setEditingPost}
-              editPost={editPost}
-              shouldBlur={inputShouldBlur}
-              setShouldBlur={setInputShouldBlur}
-              sendPost={async () => {}}
-              sendPostFromDraft={async () => {}}
-              getDraft={getDraft}
-              storeDraft={storeDraft}
-              clearDraft={clearDraft}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-            />
-          )}
+          <BigInput
+            channelType={urbit.getChannelType(parentPost.channelId)}
+            channelId={parentPost?.channelId}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            editPost={editPost}
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
+            getDraft={getDraft}
+            storeDraft={storeDraft}
+            clearDraft={clearDraft}
+            groupMembers={groupMembers}
+            groupRoles={groupRoles}
+          />
         </View>
       ) : null}
     </YStack>

@@ -5,7 +5,7 @@ import { Mention, textAndMentionsToContent } from './content-helpers';
 test('textAndMentionsToContent: multiline mentions', () => {
   const text = "User One Hello, world! here's more to the message.\nUser Two";
   const mentions: Mention[] = [
-    { id: 'user1', display: 'User One', start: 0, end: 7 },
+    { id: 'user1', display: 'User One', start: 0, end: 8 },
     { id: 'user2', display: 'User Two', start: 51, end: 59 },
   ];
 
@@ -25,7 +25,7 @@ test('textAndMentionsToContent: multiline mentions', () => {
           },
           {
             type: 'text',
-            text: "  Hello, world! here's more to the message. ",
+            text: " Hello, world! here's more to the message. ",
           },
         ],
       },
@@ -37,10 +37,6 @@ test('textAndMentionsToContent: multiline mentions', () => {
             attrs: {
               id: 'user2',
             },
-          },
-          {
-            type: 'text',
-            text: ' ',
           },
         ],
       },
@@ -86,7 +82,7 @@ test('textAndMentionsToContent: mixed text mentions with code blocks in between'
   const text =
     'This is a code block:\n```\nconst x = 42;\n```\nUser One Hello, world!';
   const mentions: Mention[] = [
-    { id: 'user1', display: 'User One', start: 45, end: 52 },
+    { id: 'user1', display: 'User One', start: 44, end: 52 },
   ];
 
   const result = textAndMentionsToContent(text, mentions);
@@ -266,6 +262,98 @@ test('textAndMentionsToContent: inline code followed multipl chars', () => {
           {
             type: 'text',
             text: '!! with multiple characters in the same word after ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: mention followed by punctuation (no space)', () => {
+  // This test verifies the fix for TLON-5039: characters immediately after mentions are eaten
+  const text = '~sampel-palnet, how are you?';
+  const mentions: Mention[] = [
+    { id: 'sampel-palnet', display: '~sampel-palnet', start: 0, end: 14 },
+  ];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'mention',
+            attrs: {
+              id: 'sampel-palnet',
+            },
+          },
+          {
+            type: 'text',
+            text: ', how are you? ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: mention followed by colon', () => {
+  const text = '~sampel-palnet: hello there';
+  const mentions: Mention[] = [
+    { id: 'sampel-palnet', display: '~sampel-palnet', start: 0, end: 14 },
+  ];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'mention',
+            attrs: {
+              id: 'sampel-palnet',
+            },
+          },
+          {
+            type: 'text',
+            text: ': hello there ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: text immediately before mention (no space)', () => {
+  // Verify text directly before a mention is not truncated
+  const text = 'Hello~sampel-palnet';
+  const mentions: Mention[] = [
+    { id: 'sampel-palnet', display: '~sampel-palnet', start: 5, end: 19 },
+  ];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Hello ',
+          },
+          {
+            type: 'mention',
+            attrs: {
+              id: 'sampel-palnet',
+            },
           },
         ],
       },

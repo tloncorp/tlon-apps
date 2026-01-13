@@ -2,6 +2,11 @@ import * as db from '../db';
 import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
 
+const PENDING_MEMBER_DISMISSAL_PREFIX = 'pendingMemberDismissal:';
+export function getPendingMemberDismissalKey(groupId: string) {
+  return `${PENDING_MEMBER_DISMISSAL_PREFIX}${groupId}`;
+}
+
 export function getMessagesFilter(
   value: string | null | undefined
 ): ub.TalkSidebarFilter {
@@ -20,6 +25,10 @@ export function getMessagesFilter(
 }
 
 function getBucket(key: string): string {
+  if (key.startsWith(PENDING_MEMBER_DISMISSAL_PREFIX)) {
+    return 'groups';
+  }
+
   switch (key) {
     case 'messagesFilter':
       return 'talk';
@@ -61,12 +70,19 @@ export const setSetting = async (key: string, val: any) => {
   });
 };
 
-export const getSettings = async () => {
+export const getSettings = async (): Promise<{
+  settings: db.Settings;
+  pendingMemberDismissals: db.PendingMemberDismissals;
+}> => {
   const results = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
     path: '/desk/groups',
   });
-  return toClientSettings(results);
+
+  const settings = toClientSettings(results);
+  const pendingMemberDismissals = parsePendingMemberDismissals(results);
+
+  return { settings, pendingMemberDismissals };
 };
 
 type SidebarSortMode = 'alphabetical' | 'arranged' | 'recent';
@@ -119,6 +135,28 @@ export const toClientSettings = (
     disableTlonInfraEnhancement:
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
   };
+};
+
+export const parsePendingMemberDismissals = (
+  settings: ub.GroupsDeskSettings
+) => {
+  const dismissals: db.PendingMemberDismissals = [];
+
+  Object.entries(settings.desk.groups || {})
+    .filter(([key]) => key.startsWith(PENDING_MEMBER_DISMISSAL_PREFIX))
+    .forEach(([key, value]) => {
+      const groupId = key.slice(PENDING_MEMBER_DISMISSAL_PREFIX.length);
+      console.log(`Pending member dismissal for group ${groupId}: ${value}`);
+      const parsedVal = Number(value);
+      if (!isNaN(parsedVal)) {
+        dismissals.push({
+          groupId,
+          dismissedAt: parsedVal,
+        });
+      }
+    });
+
+  return dismissals;
 };
 
 export interface ChargeUpdateInitial {

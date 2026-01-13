@@ -63,9 +63,8 @@ export const useLureState = create<LureState>((set, get) => ({
       );
     } catch (e) {
       lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+        error: e,
         context: 'failed to get bait on start',
-        errorMessage: e.message,
-        errorStack: e.stack,
       });
     }
   },
@@ -85,9 +84,8 @@ export const useLureState = create<LureState>((set, get) => ({
       })
       .catch((e) => {
         lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+          error: e,
           context: `id-link failed`,
-          errorMessage: e.message,
-          errorStack: e.stack,
         });
         return prevLure?.url;
       });
@@ -111,9 +109,8 @@ export const useLureState = create<LureState>((set, get) => ({
           })
           .catch((e) => {
             lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+              error: e,
               context: `id-link failed`,
-              errorMessage: e.message,
-              errorStack: e.stack,
             });
             return prevLure?.url;
           });

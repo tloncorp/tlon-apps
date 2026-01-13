@@ -6,7 +6,7 @@ import { createStyledContext } from 'tamagui';
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.content);
+      return convertContent(post.content, post.blob ?? undefined);
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
@@ -17,7 +17,7 @@ export function usePostContent(post: Post): BlockData[] {
 export function usePostLastEditContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.lastEditContent);
+      return convertContent(post.lastEditContent, post.blob ?? undefined);
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];

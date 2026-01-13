@@ -102,8 +102,11 @@ async function sendBundlerRequest(
     console.warn('no metroBundlerURL');
     return;
   }
+
+  const formattedUrl = `http://${metroBundlerURL}/`;
+
   const url =
-    metroBundlerURL + path + '?' + new URLSearchParams(params).toString();
+    formattedUrl + path + '?' + new URLSearchParams(params).toString();
   console.log('sending request to metro bundler:', url);
   try {
     await fetch(url);

@@ -26,6 +26,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
           navigation.navigate('Channel', {
             channelId: channel.id,
             selectedPostId: post.id,
+            groupId: channel.groupId ?? undefined,
           });
         } else {
           navigateToChannel(channel, post.id);

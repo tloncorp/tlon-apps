@@ -7,6 +7,7 @@ import {
   NativeSyntheticEvent,
   StyleSheet,
 } from 'react-native';
+import { Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Edges, SafeAreaView } from 'react-native-safe-area-context';
@@ -147,46 +148,42 @@ const _Carousel = React.forwardRef<
 
   return (
     <GestureDetector gesture={tap}>
-      <View {...passedProps}>
+      {/* onLayout is on the parent View so we can get dimensions before
+          rendering FlatList. This ensures FlatList's first render has valid
+          data, getItemLayout, and initialScrollIndex all at once. */}
+      <View {...passedProps} onLayout={handleLayout}>
         <CarouselContext.Provider value={ctxValue}>
-          <FlatList<React.ReactNode>
-            data={
-              // Carousel's items will likely be sized to the viewport - if
-              // they are shown before the viewport is measured, there's a good
-              // chance that there will be a flash of 0-length items. If this
-              // happens, the initial scroll position will be incorrect (once
-              // the viewport length is resolved).
-              // To avoid, only render once the viewport length is known.
-              rect == null ? undefined : childrenArray
-            }
-            decelerationRate="fast"
-            disableIntervalMomentum
-            scrollEnabled={!disableCarouselInteraction}
-            initialScrollIndex={initialVisibleIndex}
-            style={[
-              {
-                flexDirection:
-                  scrollDirection === 'horizontal' ? 'row' : 'column',
-              },
-              StyleSheet.absoluteFill,
-            ]}
-            horizontal={scrollDirection === 'horizontal'}
-            onLayout={handleLayout}
-            onScroll={handleScroll}
-            ref={scrollRef}
-            scrollEventThrottle={33}
-            showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
-            showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
-            snapToInterval={snapToInterval}
-            renderItem={({ item, index }) => (
-              <CarouselItemContext.Provider value={{ index }}>
-                {item}
-              </CarouselItemContext.Provider>
-            )}
-            getItemLayout={getItemLayout}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-            {...flatListProps}
-          />
+          {rect != null && (
+            <FlatList<React.ReactNode>
+              data={childrenArray}
+              decelerationRate="fast"
+              disableIntervalMomentum
+              scrollEnabled={!disableCarouselInteraction}
+              initialScrollIndex={initialVisibleIndex}
+              style={[
+                {
+                  flexDirection:
+                    scrollDirection === 'horizontal' ? 'row' : 'column',
+                },
+                StyleSheet.absoluteFill,
+              ]}
+              horizontal={scrollDirection === 'horizontal'}
+              onScroll={handleScroll}
+              ref={scrollRef}
+              scrollEventThrottle={33}
+              showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
+              showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
+              snapToInterval={snapToInterval}
+              renderItem={({ item, index }) => (
+                <CarouselItemContext.Provider value={{ index }}>
+                  {item}
+                </CarouselItemContext.Provider>
+              )}
+              getItemLayout={getItemLayout}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              {...flatListProps}
+            />
+          )}
         </CarouselContext.Provider>
         <AnimatePresence>
           {(!hideOverlayOnTap || isOverlayShown) && (
@@ -292,6 +289,10 @@ function ContentImage({
   uri: string;
   safeAreaEdges?: Edges;
 }) {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={safeAreaEdges}>
       <ImageZoom style={{ flex: 1 }} resizeMode="contain" uri={uri} />

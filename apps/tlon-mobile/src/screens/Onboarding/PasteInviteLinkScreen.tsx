@@ -18,7 +18,7 @@ import {
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { checkInputForInvite, createDevLogger } from '@tloncorp/shared';
 import { debounce } from 'lodash';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,11 +55,17 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
 
   const [metadataError, setMetadataError] = useState<string | null>(null);
 
+  const timedInputError = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleInputChange = useCallback(
     async (input: string) => {
       setMetadataError(null);
+      if (timedInputError.current) {
+        clearTimeout(timedInputError.current);
+      }
+      timedInputError.current = null;
       try {
-        if (input.length > 3) {
+        if (input.length > 4) {
           setCheckingInput(true);
         }
         const appInvite = await checkInputForInvite(input, {
@@ -68,6 +74,12 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         if (appInvite) {
           setLure(appInvite);
           return;
+        } else {
+          if (input.length > 4) {
+            timedInputError.current = setTimeout(() => {
+              setMetadataError('No invite found');
+            }, 500);
+          }
         }
       } catch (e) {
         setMetadataError('Unable to check invite');

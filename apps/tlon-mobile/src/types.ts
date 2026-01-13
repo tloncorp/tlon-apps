@@ -17,6 +17,8 @@ export type OnboardingStackParamList = {
   CheckVerify: { phoneNumber: string; mode: 'signup' | 'login' };
   ReserveShip: undefined;
   SetNickname: undefined;
+  SetNotifications: undefined;
+  AllowNotifications: undefined;
   SetTelemetry: undefined;
   TlonLogin: { initialLoginMethod?: 'email' | 'phone' } | undefined;
   TlonLoginLegacy: undefined;

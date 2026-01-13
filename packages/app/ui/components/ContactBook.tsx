@@ -1,12 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { BlockSectionList } from '@tloncorp/ui';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Insets,
   Keyboard,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
@@ -35,6 +33,8 @@ export function ContactBook({
   quickActions,
   height,
   width,
+  minHeight,
+  maxHeight,
 }: {
   autoFocus?: boolean;
   immutableIds?: string[];
@@ -48,6 +48,8 @@ export function ContactBook({
   quickActions?: React.ReactElement;
   height?: number;
   width?: number;
+  minHeight?: number;
+  maxHeight?: number;
 }) {
   const contacts = useContacts();
   const contactsForBook = useMemo(() => {
@@ -155,16 +157,18 @@ export function ContactBook({
         overflow: 'scroll' as const,
       };
     }
-    return undefined;
+    return { flex: 1 };
   }, [isWindowNarrow]);
 
   return (
     <View
       flex={1}
-      height={isWindowNarrow ? undefined : height || '100%'}
-      width={isWindowNarrow ? undefined : width || '100%'}
-      display={isWindowNarrow ? undefined : 'flex'}
-      flexDirection={isWindowNarrow ? undefined : 'column'}
+      height={height || '100%'}
+      width={width || '100%'}
+      display={'flex'}
+      minHeight={minHeight}
+      maxHeight={maxHeight}
+      flexDirection={'column'}
     >
       {searchable && (
         <XStack

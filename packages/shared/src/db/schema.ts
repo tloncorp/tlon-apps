@@ -355,6 +355,7 @@ export const baseUnreads = sqliteTable('base_unreads', {
   count: integer('count'),
   notifyCount: integer('notify_count'),
   updatedAt: timestamp('updated_at').notNull(),
+  notifTimestamp: text('notif_timestamp'), // used for ordering against notification identifiers (uid)
 });
 
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
@@ -500,6 +501,7 @@ export const groups = sqliteTable('groups', {
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   syncedAt: timestamp('synced_at'),
+  pendingMembersDismissedAt: timestamp('pending_members_dismissed_at'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -1119,6 +1121,8 @@ export const posts = sqliteTable(
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.
     backendTime: text('backend_time'),
+    /** freeform data associated with this post */
+    blob: text('blob'),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(

@@ -1,4 +1,3 @@
-import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -33,14 +32,22 @@ export function GroupChannelsScreenContent({
   groupId: string;
   focusedChannelId?: string;
 }) {
-  const isFocused = useIsFocused();
   const isWindowNarrow = useIsWindowNarrow();
-  const { group } = useGroupContext({ groupId: id, isFocused });
+  const { group } = useGroupContext({ groupId: id });
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+
+  const handleGoToGroupMembers = useCallback(() => {
+    if (group) {
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, navigation]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -92,17 +99,27 @@ export function GroupChannelsScreenContent({
     [isWindowNarrow, navigation]
   );
 
+  const chatSettingsNav = useChatSettingsNavigation();
+
+  const handleLeaveChannel = useCallback(() => {
+    // When leaving a channel from the channels list, don't navigate
+    // This should be a no-op as the channel will be removed from the list
+  }, []);
+
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
       initialChat={{ type: 'group', id }}
-      {...useChatSettingsNavigation()}
+      {...chatSettingsNav}
+      onLeaveChannel={handleLeaveChannel}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
         <GroupChannelsScreenView
           onChannelPressed={handleChannelSelected}
           onBackPressed={handleGoBackPressed}
           onJoinChannel={handleJoinChannel}
+          onGoToGroupMembers={handleGoToGroupMembers}
+          onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

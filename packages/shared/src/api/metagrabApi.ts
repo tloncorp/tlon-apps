@@ -1,4 +1,4 @@
-import { formatUw } from '@urbit/aura';
+import { render } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
 import { createDevLogger } from '../debug';
@@ -13,7 +13,7 @@ export async function getLinkMetadata(
   url: string
 ): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
-    const encodedUrl = formatUw(Atom.fromCord(url).number);
+    const encodedUrl = render('uw', Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
     const response = await request<ub.LinkMetadataResponse>(
       `/apps/groups/~/metagrab/${encodedUrl}`,
@@ -170,9 +170,7 @@ export async function getFallbackLinkMetadata(
     return meta;
   } catch (e) {
     console.log('fallback no good', e);
-    logger.trackError('Failed to get fallback link metadata response', {
-      errorMessage: e.message,
-    });
+    logger.trackError('Failed to get fallback link metadata response', e);
     return { type: 'error', reason: 'unknown error' };
   }
 }

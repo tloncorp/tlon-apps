@@ -1,9 +1,6 @@
 ::  create and preset a group
 ::
-::  run via web at
-::  TODO modify spider to expose a new /v1 endpoint with a
-::  /thread/input/output syntax.
-::
+::  run via web with
 ::  https://ship/spider/groups/group-create-thread/group-create/group-ui-1
 ::
 /-  spider
@@ -91,8 +88,8 @@
       [group-id.create now.bowl %channel channel-id.create-channel %add channel]
     (poke:io [our.bowl %groups] group-action-3+!>(action))
   $(channels t.channels)
-::  skip a beat to allow channels to register
-;<  ~  bind:m  (sleep:io ~s0)
+::  skip a tick to allow channels to register
+;<  ~  bind:m  (sleep:io `@dr`1)
 ;<  group-ui-5=group-ui:v5:gv  bind:m
   %+  scry:io  group-ui:v5:gv
   /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun

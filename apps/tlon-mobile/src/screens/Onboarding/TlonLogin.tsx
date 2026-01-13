@@ -21,7 +21,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Platform, TouchableOpacity } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -275,22 +274,20 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   marginTop="$xl"
                   textAlign="center"
                 >
-                  We&apos;ll email you a 6-digit code to log in. Otherwise, you
-                  can{' '}
+                  We&apos;ll email you a 6-digit code to log in.
                   <Pressable
                     testID="Legacy login"
                     pressStyle={{
                       opacity: 0.5,
                     }}
                     onPress={() => navigation.navigate('TlonLoginLegacy')}
-                    style={{ marginBottom: -3 }}
                   >
                     <TlonText.Text
                       color="$secondaryText"
                       textDecorationLine="underline"
                       textDecorationDistance={10}
                     >
-                      log in with a password
+                      Or, log in with a password
                     </TlonText.Text>
                   </Pressable>
                 </TlonText.Text>

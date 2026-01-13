@@ -24,7 +24,12 @@ export function PersonalInviteSheet({
   }
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} snapPointsMode="fit">
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPointsMode="fit"
+      modal
+    >
       <ActionSheet.SimpleHeader title="Invite Friends to Tlon Messenger" />
       <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>
@@ -54,7 +59,7 @@ const PersonalInviteSheetContent = ({
   }, [systemContacts]);
 
   return (
-    <YStack flex={1} paddingHorizontal={40} gap="$m">
+    <YStack flex={1} paddingHorizontal={40} gap="$m" paddingBottom="$5xl">
       <Text size="$label/m" color="$secondaryText" marginBottom="$2xl">
         Anyone you invite will skip the waitlist and be added to your contacts.
         You&apos;ll receive a DM when they join.

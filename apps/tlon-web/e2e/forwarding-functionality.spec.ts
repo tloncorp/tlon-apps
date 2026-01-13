@@ -49,25 +49,10 @@ test('Forward chat message from group channel to DM - verify toast and reference
   // Navigate back to the main channel view after inviting members
   await zodPage.getByTestId('HomeNavIcon').click();
 
-  if (await zodPage.getByText('Home').isVisible()) {
-    // Wait for the group to be available
-    await zodPage.waitForTimeout(2000);
-
-    // Click on the group (it stays as "Untitled group")
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({
-      timeout: 10000,
-    });
-    await zodPage.getByText(groupName).first().click();
-
-    // Wait for group to load by checking for a non-loading header
-    await expect(
-      zodPage
-        .getByTestId('ScreenHeaderTitle')
-        .filter({ hasNotText: 'Loading…' })
-    ).toBeVisible({
-      timeout: 5000,
-    });
-  }
+  // Navigate to group using stable testID
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Test message content
   const testMessage = 'This is a test chat message to forward to DM';

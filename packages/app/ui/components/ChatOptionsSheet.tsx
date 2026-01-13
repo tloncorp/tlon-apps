@@ -2,7 +2,7 @@ import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
@@ -26,6 +27,7 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
+import { useNotificationLevelOptions } from './NotificationLevelSelector';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -135,7 +137,7 @@ export function GroupOptionsSheetLoader({
 }: {
   groupId: string;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
   trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
@@ -177,7 +179,7 @@ export function GroupOptionsSheetLoader({
     return (
       <Popover
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={(open) => onOpenChange(open, false)}
         placement="top-end"
         allowFlip
         offset={-12}
@@ -353,7 +355,7 @@ export function GroupOptionsSheetContent({
               },
           {
             title: 'Group info & settings',
-            action: wrappedAction.bind(null, handlePressChatDetails),
+            action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
           },
         ],
@@ -445,16 +447,16 @@ function EditGroupSheetContent({
 }: {
   chatTitle: string;
   onPressBack: () => void;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
 
   const wrappedAction = useCallback(
-    (action: () => void) => {
+    (action: () => void, clearChat = true) => {
       action();
-      onOpenChange(false);
+      onOpenChange(false, clearChat);
     },
     [onOpenChange]
   );
@@ -466,19 +468,19 @@ function EditGroupSheetContent({
         {
           title: 'Edit group info',
           description: 'Change name, description, and image',
-          action: wrappedAction.bind(null, onPressGroupMeta),
+          action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Manage channels',
           description: 'Add or remove channels in this group',
-          action: wrappedAction.bind(null, onPressManageChannels),
+          action: wrappedAction.bind(null, onPressManageChannels, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
           description: 'Change who can find or join this group',
-          action: wrappedAction.bind(null, onPressGroupPrivacy),
+          action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
         !isWindowNarrow && {
@@ -519,7 +521,7 @@ const ChannelOptionsSheetLoader = memo(
   }: {
     channelId: string;
     open: boolean;
-    onOpenChange: (open: boolean) => void;
+    onOpenChange: (open: boolean, clearChat?: boolean) => void;
     trigger?: React.ReactNode;
     onPressConfigureChannel?: () => void;
   }) => {
@@ -567,7 +569,7 @@ const ChannelOptionsSheetLoader = memo(
       return (
         <Popover
           open={open}
-          onOpenChange={onOpenChange}
+          onOpenChange={(open) => onOpenChange(open, false)}
           placement="top-end"
           allowFlip
           offset={-12}
@@ -638,7 +640,7 @@ export function ChannelOptionsSheetContent({
   channel: db.Channel;
   onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
   const {
     group,
@@ -652,6 +654,7 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -665,6 +668,7 @@ export function ChannelOptionsSheetContent({
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
+  const showToast = useToast();
 
   const handlePressChatDetails = useCallback(() => {
     if (!group) {
@@ -673,10 +677,64 @@ export function ChannelOptionsSheetContent({
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group, onPressChatDetails]);
 
+  const handleSummarizeChannel = useCallback(
+    async (timeRange: 'day' | 'week') => {
+      const now = Date.now();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
+
+      showToast({
+        message: `Summarizing ${timeLabel}...`,
+        duration: 2000,
+      });
+
+      try {
+        await store.summarizeMessages({
+          channelId: channel.id,
+          startTime: timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay,
+          channelTitle: chatTitle,
+          timeLabel,
+          currentUserId,
+        });
+
+        showToast({
+          message: 'Summary sent to your DMs',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Error summarizing channel:', error);
+        let message: string;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        if (errorMessage === 'No messages found in time range') {
+          message = `No messages found in ${timeLabel}`;
+        } else if (
+          errorMessage ===
+          'AI provider is rate-limited. Please try again in a few moments.'
+        ) {
+          message = errorMessage;
+        } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
+          message = 'AI summarization not configured';
+        } else if (errorMessage.includes('OpenRouter API error')) {
+          // Extract just the error part without the full technical details
+          message = 'AI service error. Please try again.';
+        } else {
+          message = `Failed to summarize: ${errorMessage}`;
+        }
+        showToast({
+          message,
+          duration: 4000,
+        });
+      }
+    },
+    [channel.id, chatTitle, currentUserId, showToast]
+  );
+
   const wrappedAction = useCallback(
-    (action: () => void) => {
+    (action: () => void, clearChat = true) => {
       action();
-      onOpenChange(false);
+      onOpenChange(false, clearChat);
     },
     [onOpenChange]
   );
@@ -709,29 +767,50 @@ export function ChannelOptionsSheetContent({
             ),
           },
         ],
+        aiSummarizationEnabled && [
+          'neutral',
+          {
+            title: 'Summarize last 24 hours',
+            description: 'Get AI summary of recent messages',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('day')
+            ),
+          },
+          {
+            title: 'Summarize last week',
+            description: 'Get AI summary of the past week',
+            action: wrappedAction.bind(null, () =>
+              handleSummarizeChannel('week')
+            ),
+          },
+        ],
         channel.type === 'groupDm' && [
           'neutral',
           {
             title: 'Edit group info',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressChannelMeta),
+            action: wrappedAction.bind(null, onPressChannelMeta, false),
           },
           {
             title: 'Members',
             endIcon: 'ChevronRight',
-            action: wrappedAction.bind(null, onPressChannelMembers),
+            action: wrappedAction.bind(null, onPressChannelMembers, false),
           },
         ],
         group && [
           'neutral',
           {
             title: 'Group info & settings',
-            action: wrappedAction.bind(null, handlePressChatDetails),
+            action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin && {
             title: 'Channel settings',
-            action: wrappedAction.bind(null, () => onPressEditChannel(false)),
+            action: wrappedAction.bind(
+              null,
+              () => onPressEditChannel(false),
+              false
+            ),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin &&
@@ -777,6 +856,8 @@ export function ChannelOptionsSheetContent({
       togglePinned,
       canMarkRead,
       markChannelRead,
+      aiSummarizationEnabled,
+      handleSummarizeChannel,
       onPressChannelMeta,
       onPressEditChannel,
       onPressChannelMembers,
@@ -854,28 +935,6 @@ export function ChatOptionsSheetContent({
   );
 }
 
-export const notificationOptions: {
-  title: string;
-  value: ub.NotificationLevel;
-}[] = [
-  {
-    title: 'All activity',
-    value: 'loud',
-  },
-  {
-    title: 'Posts, mentions, and replies',
-    value: 'medium',
-  },
-  {
-    title: 'Mentions and replies',
-    value: 'soft',
-  },
-  {
-    title: 'Nothing',
-    value: 'hush',
-  },
-];
-
 function NotificationsSheetContent({
   chatTitle,
   onPressBack,
@@ -895,6 +954,12 @@ function NotificationsSheetContent({
     ? currentChannelVolume
     : currentGroupVolume;
 
+  // Use shared hook with 'loud' level for channel/group overrides
+  const notificationOptions = useNotificationLevelOptions({
+    includeLoud: true,
+    shortDescriptions: true,
+  });
+
   const notificationActions = useMemo(
     () =>
       createActionGroups([
@@ -913,7 +978,13 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [currentVolumeLevel, updateVolume, isWindowNarrow, onPressBack]
+    [
+      currentVolumeLevel,
+      updateVolume,
+      isWindowNarrow,
+      onPressBack,
+      notificationOptions,
+    ]
   );
   return (
     <ChatOptionsSheetContent

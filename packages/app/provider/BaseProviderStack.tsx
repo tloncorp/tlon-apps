@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
-import { PortalProvider, StoreProvider } from '../ui';
+import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
 import { Provider as TamaguiProvider } from './';
 import { TelemetryProvider } from './TelemetryProvider';
 
@@ -99,7 +99,17 @@ function MigrationCheck({
   children,
 }: PropsWithChildren<MigrationState>) {
   if (!success && !error) {
-    return null;
+    return (
+      <View
+        height="100%"
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <LoadingSpinner color="$primaryText" />
+      </View>
+    );
   }
   if (error) {
     throw error;

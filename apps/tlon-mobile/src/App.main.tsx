@@ -60,9 +60,7 @@ const useSplashHider = () => {
           splashscreenLogger.trackEvent('Splash screen hidden');
         });
       } catch (err) {
-        splashscreenLogger.trackError('Failed to hide splash screen', {
-          errorMessage: err.message,
-        });
+        splashscreenLogger.trackError('Failed to hide splash screen', err);
       }
     };
 
@@ -81,8 +79,6 @@ const useSplashHider = () => {
 
   return splashHidden;
 };
-
-registerBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {
@@ -106,6 +102,10 @@ const App = () => {
   }, [signupContext.email, signupContext.phoneNumber]);
 
   usePreloadedEmojis();
+
+  useEffect(() => {
+    registerBackgroundSyncTask();
+  }, []);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(

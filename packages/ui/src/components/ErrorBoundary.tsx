@@ -30,8 +30,7 @@ export class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     logger.trackError('Error boundary triggered', {
-      errorMessage: error.message,
-      errorStack: error.stack,
+      error,
       componentStack: info.componentStack,
     });
   }

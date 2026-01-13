@@ -11,8 +11,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
+import io.tlon.landscape.storage.SecureStorage
 import org.json.JSONObject
 import expo.modules.constants.ConstantsService
 import io.tlon.landscape.notifications.NotificationException
@@ -56,6 +58,13 @@ class TalkMessagingService : FirebaseMessagingService() {
                         host = "https://eu.i.posthog.com"
                     )
                     PostHogAndroid.setup(applicationContext, config)
+
+                    val shipName = SecureStorage.getString(SecureStorage.SHIP_NAME_KEY)
+                    if (!shipName.isNullOrEmpty()) {
+                        PostHog.identify(shipName)
+                        Log.d(TALK_MESSAGING_SERVICE, "PostHog identified user: $shipName")
+                    }
+
                     isPostHogInitialized = true
                     Log.d(TALK_MESSAGING_SERVICE, "PostHog initialized in service")
                 } catch (e: Exception) {

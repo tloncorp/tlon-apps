@@ -1,5 +1,3 @@
-import { Poke } from '@urbit/http-api';
-
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
@@ -9,17 +7,15 @@ import { getRequestId } from '../logic';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
-  GroupChannel,
+  GroupChannelV7,
   Rank,
   extractGroupPrivacy,
   getChannelType,
-  getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   BadResponseError,
-  PokeParams,
   getCurrentUserId,
   poke,
   request,
@@ -28,30 +24,18 @@ import {
   subscribeOnce,
   thread,
   trackedPoke,
-  unsubscribe,
 } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
-function groupAction(flag: string, diff: ub.GroupDiff): Poke<ub.GroupAction> {
-  return {
-    app: 'groups',
-    mark: 'group-action-3',
-    json: {
-      flag,
-      update: {
-        time: '',
-        diff,
-      },
-    },
-  };
-}
-
-function groupAction5(action: ub.GroupActionV5) {
+function groupAction5(action: ub.GroupActionV5['a-groups']) {
   return {
     app: 'groups',
     mark: 'group-action-5',
-    json: action,
+    json: {
+      id: getRequestId(),
+      action,
+    },
   };
 }
 
@@ -85,12 +69,15 @@ export function acceptGroupJoin({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        shut: {
-          'add-ships': {
-            ships: contactIds,
-            kind: 'pending',
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ask: {
+              ships: contactIds,
+              'a-ask': 'approve',
+            },
           },
         },
       },
@@ -106,12 +93,15 @@ export function rejectGroupJoin({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        shut: {
-          'del-ships': {
-            ships: contactIds,
-            kind: 'ask',
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ask: {
+              ships: contactIds,
+              'a-ask': 'deny',
+            },
           },
         },
       },
@@ -136,15 +126,12 @@ export function inviteGroupMembers({
 }) {
   return poke(
     groupAction5({
-      id: getRequestId(),
-      'a-groups': {
-        invite: {
-          flag: groupId,
-          ships: contactIds,
-          'a-invite': {
-            token: null,
-            note: null,
-          },
+      invite: {
+        flag: groupId,
+        ships: contactIds,
+        'a-invite': {
+          token: null,
+          note: null,
         },
       },
     })
@@ -168,11 +155,16 @@ export async function kickUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      fleet: {
-        ships: contactIds,
-        diff: {
-          del: null,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: contactIds,
+            'a-seat': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -187,10 +179,15 @@ export async function banUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        open: {
-          'add-ships': contactIds,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ban: {
+              'add-ships': contactIds,
+            },
+          },
         },
       },
     })
@@ -205,10 +202,15 @@ export async function unbanUsersFromGroup({
   contactIds: string[];
 }) {
   return poke(
-    groupAction(groupId, {
-      cordon: {
-        open: {
-          'del-ships': contactIds,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            ban: {
+              'del-ships': contactIds,
+            },
+          },
         },
       },
     })
@@ -237,40 +239,19 @@ export async function updateGroupPrivacy(params: {
   oldPrivacy: GroupPrivacy;
   newPrivacy: GroupPrivacy;
 }) {
-  if (params.newPrivacy === 'public') {
-    const action = groupAction(params.groupId, {
-      cordon: {
-        swap: {
-          open: {
-            ships: [],
-            ranks: [],
+  // In v8/v9, privacy is a single unified setting that includes secret/private/public
+  return poke(
+    groupAction5({
+      group: {
+        flag: params.groupId,
+        'a-group': {
+          entry: {
+            privacy: params.newPrivacy,
           },
         },
       },
-    });
-    await poke(action);
-  } else {
-    // Only swap if it's currently public. If moving between secret and private, we keep
-    // the existing cordon to avoid losing pending requests.
-    if (params.oldPrivacy === 'public') {
-      const cordonSwapAction = groupAction(params.groupId, {
-        cordon: {
-          swap: {
-            shut: {
-              pending: [],
-              ask: [],
-            },
-          },
-        },
-      });
-      await poke(cordonSwapAction);
-    }
-  }
-
-  const secretAction = groupAction(params.groupId, {
-    secret: params.newPrivacy === 'secret',
-  });
-  await poke(secretAction);
+    })
+  );
 }
 
 export const getPinnedItemType = (rawItem: string) => {
@@ -399,18 +380,18 @@ export const createGroup = async ({
   };
 
   try {
-    const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
+    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
       desk: 'groups',
       inputMark: 'group-create-thread',
-      threadName: 'group-create',
-      outputMark: 'group-ui-1',
+      threadName: 'group-create-1',
+      outputMark: 'group-ui-2',
       body: payload,
     });
     logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroup(group.id, result, true);
+    return toClientGroupV7(group.id, result, true);
   } catch (err) {
     if (err instanceof BadResponseError) {
       logger.trackEvent('Create Group Error', {
@@ -432,24 +413,19 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/groups/${groupId}/v1`;
+  const path = `/v2/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.Group>({ app: 'groups', path });
-  return toClientGroup(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
+  return toClientGroupV7(groupId, groupData, true);
 };
 
-export const getGroups = async (
-  {
-    includeMembers,
-  }: {
-    includeMembers: boolean;
-  } = {
-    includeMembers: false,
-  }
-) => {
-  const path = includeMembers ? '/groups' : '/groups/light';
-  const groupData = await scry<ub.Groups>({ app: 'groups', path });
-  return toClientGroups(groupData, true);
+export const getGroups = async () => {
+  // v2 scry path returns v9 format (with admissions/seats)
+  const groupData = await scry<ub.GroupsV7>({
+    app: 'groups',
+    path: '/v2/groups',
+  });
+  return toClientGroupsV7(groupData, true);
 };
 
 async function requestResponse(action: ub.GroupActionV5) {
@@ -499,18 +475,22 @@ export const updateGroupMeta = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      del: null,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          delete: null,
+        },
+      },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'del' in update.diff && event.flag === groupId;
+      return 'delete' in event['r-group'] && event.flag === groupId;
     },
     { tag: 'deleteGroup' }
   );
@@ -523,28 +503,34 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      zone: {
-        zone: navSection.sectionId,
-        delta: {
-          add: {
-            title: navSection.title ?? '',
-            description: navSection.description ?? '',
-            image: navSection.iconImage ?? navSection.coverImageColor ?? '',
-            cover: navSection.coverImage ?? navSection.coverImageColor ?? '',
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': navSection.sectionId,
+            'a-section': {
+              add: {
+                title: navSection.title ?? '',
+                description: navSection.description ?? '',
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
+              },
+            },
           },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'zone' in update.diff && event.flag === groupId;
+      const rGroup = event['r-group'];
+      return 'section' in rGroup && event.flag === groupId;
     },
     { tag: 'addNavSection' }
   );
@@ -558,11 +544,16 @@ export const deleteNavSection = async ({
   groupId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: sectionId,
-        delta: {
-          del: null,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': sectionId,
+            'a-section': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -577,37 +568,22 @@ export const updateNavSection = async ({
   navSection: db.GroupNavSection;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSection.sectionId,
-        delta: {
-          edit: {
-            title: navSection.title ?? '',
-            description: navSection.description ?? '',
-            image: navSection.iconImage ?? navSection.coverImageColor ?? '',
-            cover: navSection.coverImage ?? navSection.coverImageColor ?? '',
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          section: {
+            'section-id': navSection.sectionId,
+            'a-section': {
+              edit: {
+                title: navSection.title ?? '',
+                description: navSection.description ?? '',
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
+              },
+            },
           },
-        },
-      },
-    })
-  );
-};
-
-export const moveNavSection = async ({
-  groupId,
-  navSectionId,
-  index,
-}: {
-  groupId: string;
-  navSectionId: string;
-  index: number;
-}) => {
-  return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          mov: index,
         },
       },
     })
@@ -624,23 +600,32 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          zone: navSectionId,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              section: navSectionId,
+            },
+          },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+      const rGroup = event['r-group'];
+      return (
+        'channel' in rGroup &&
+        rGroup.channel.nest === channelId &&
+        'section' in rGroup.channel['r-channel']
+      );
     },
     { tag: 'addChannelToNavSection' }
   );
@@ -655,23 +640,32 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.GroupAction>(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          zone: sectionId,
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              section: sectionId,
+            },
+          },
         },
       },
     }),
-    { app: 'groups', path: '/groups/ui' },
+    { app: 'groups', path: '/v1/groups' },
     (event) => {
-      if (!('update' in event)) {
+      if (!('r-group' in event)) {
         return false;
       }
 
-      const { update } = event;
-      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+      const rGroup = event['r-group'];
+      return (
+        'channel' in rGroup &&
+        rGroup.channel.nest === channelId &&
+        'section' in rGroup.channel['r-channel']
+      );
     },
     { tag: 'addChannelToGroup' }
   );
@@ -684,14 +678,19 @@ export const updateChannel = async ({
 }: {
   groupId: string;
   channelId: string;
-  channel: GroupChannel;
+  channel: GroupChannelV7;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          edit: channel,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              edit: channel,
+            },
+          },
         },
       },
     })
@@ -706,37 +705,59 @@ export const deleteChannel = async ({
   channelId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      channel: {
-        nest: channelId,
-        diff: {
-          del: null,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              del: null,
+            },
+          },
         },
       },
     })
   );
 };
 
-export const moveChannel = async ({
+export const updateGroupNavigation = async ({
   groupId,
-  channelId,
-  navSectionId,
-  index,
+  navSections,
 }: {
   groupId: string;
-  channelId: string;
-  navSectionId: string;
-  index: number;
+  navSections: db.GroupNavSection[];
 }) => {
+  const sections: Record<string, ub.GroupSectionV5> = {};
+
+  for (const section of navSections) {
+    sections[section.sectionId] = {
+      meta: {
+        title: section.title ?? '',
+        description: section.description ?? '',
+        image: section.iconImage ?? section.coverImageColor ?? '',
+        cover: section.coverImage ?? section.coverImageColor ?? '',
+      },
+      order: (section.channels ?? [])
+        .sort((a, b) => (a.channelIndex ?? 0) - (b.channelIndex ?? 0))
+        .map((c) => c.channelId)
+        .filter((id): id is string => !!id),
+    };
+  }
+
+  const navigation: ub.GroupNavigationActionV5 = {
+    sections,
+    order: navSections
+      .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
+      .map((s) => s.sectionId),
+  };
+
   return await poke(
-    groupAction(groupId, {
-      zone: {
-        zone: navSectionId,
-        delta: {
-          'mov-nest': {
-            nest: channelId,
-            idx: index,
-          },
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          navigation,
         },
       },
     })
@@ -753,15 +774,20 @@ export const addGroupRole = async ({
   meta: db.ClientMeta;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          add: {
-            title: meta.title ?? '',
-            description: meta.description ?? '',
-            image: '',
-            cover: '',
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              add: {
+                title: meta.title ?? '',
+                description: meta.description ?? '',
+                image: '',
+                cover: '',
+              },
+            },
           },
         },
       },
@@ -777,11 +803,16 @@ export const deleteGroupRole = async ({
   roleId: string;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          del: null,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              del: null,
+            },
+          },
         },
       },
     })
@@ -798,15 +829,20 @@ export const updateGroupRole = async ({
   meta: db.ClientMeta;
 }) => {
   return await poke(
-    groupAction(groupId, {
-      cabal: {
-        sect: roleId,
-        diff: {
-          edit: {
-            title: meta.title ?? '',
-            description: meta.description ?? '',
-            image: '',
-            cover: '',
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          role: {
+            roles: [roleId],
+            'a-role': {
+              edit: {
+                title: meta.title ?? '',
+                description: meta.description ?? '',
+                image: '',
+                cover: '',
+              },
+            },
           },
         },
       },
@@ -824,11 +860,16 @@ export const addMembersToRole = async ({
   ships: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships,
-        diff: {
-          'add-sects': [roleId],
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships,
+            'a-seat': {
+              'add-roles': [roleId],
+            },
+          },
         },
       },
     })
@@ -845,11 +886,16 @@ export const removeMembersFromRole = async ({
   ships: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships,
-        diff: {
-          'del-sects': [roleId],
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships,
+            'a-seat': {
+              'del-roles': [roleId],
+            },
+          },
         },
       },
     })
@@ -866,11 +912,16 @@ export const removeAllRolesFromMembers = async ({
   roleIds: string[];
 }) => {
   return await poke(
-    groupAction(groupId, {
-      fleet: {
-        ships: contactIds,
-        diff: {
-          'del-sects': roleIds,
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: contactIds,
+            'a-seat': {
+              'del-roles': roleIds,
+            },
+          },
         },
       },
     })
@@ -963,6 +1014,12 @@ export type GroupnavSectionMoveChannel = {
   index: number;
 };
 
+export type GroupSectionOrderUpdate = {
+  type: 'updateSectionOrder';
+  groupId: string;
+  sectionIds: string[];
+};
+
 export type GroupAddMembers = {
   type: 'addGroupMembers';
   ships: string[];
@@ -1023,8 +1080,7 @@ export type GroupRevokeMemberInvites = {
 
 export type GroupJoinRequest = {
   type: 'groupJoinRequest';
-  groupId: string;
-  ships: string[];
+  request: db.GroupJoinRequest;
 };
 
 export type GroupRevokeJoinRequests = {
@@ -1057,13 +1113,13 @@ export type GroupUnbanAzimuthRanks = {
   ranks: Rank[];
 };
 
-export type GroupSetAsOpen = {
-  type: 'setGroupAsOpen';
+export type GroupSetAsPublic = {
+  type: 'setGroupAsPublic';
   groupId: string;
 };
 
-export type GroupSetAsShut = {
-  type: 'setGroupAsShut';
+export type GroupSetAsPrivate = {
+  type: 'setGroupAsPrivate';
   groupId: string;
 };
 
@@ -1109,6 +1165,7 @@ export type GroupUpdate =
   | GroupNavSectionAdd
   | GroupNavSectionMove
   | GroupnavSectionMoveChannel
+  | GroupSectionOrderUpdate
   | GroupAddMembers
   | GroupRemoveMembers
   | GroupAddMembersToRole
@@ -1124,8 +1181,8 @@ export type GroupUpdate =
   | GroupUnbanMembers
   | GroupBanAzimuthRanks
   | GroupUnbanAzimuthRanks
-  | GroupSetAsOpen
-  | GroupSetAsShut
+  | GroupSetAsPublic
+  | GroupSetAsPrivate
   | GroupSetAsSecret
   | GroupSetAsNotSecret
   | GroupFlagContent
@@ -1135,14 +1192,18 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  subscribe<ub.GroupAction>(
-    { app: 'groups', path: '/groups/ui' },
-    (groupUpdateEvent) => {
-      logger.log('groupUpdateEvent', groupUpdateEvent);
-      eventHandler(toGroupUpdate(groupUpdateEvent));
+  // Subscribe to v1/groups for all group updates (v9 response format)
+  subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v1/groups' },
+    (rawEvent) => {
+      const update = toV1GroupsUpdate(rawEvent);
+      if (update) {
+        eventHandler(update);
+      }
     }
   );
 
+  // Subscribe to v1/foreigns for foreign group updates
   subscribe(
     { app: 'groups', path: '/v1/foreigns' },
     (rawEvent: ub.Foreigns) => {
@@ -1152,46 +1213,57 @@ export const subscribeGroups = async (
   );
 };
 
-export const toGroupUpdate = (
-  groupUpdateEvent: ub.GroupAction
-): GroupUpdate => {
-  const groupId = groupUpdateEvent.flag;
-  const updateDiff = groupUpdateEvent.update.diff;
+export const toV1GroupsUpdate = (
+  rawEvent: ub.V1GroupResponse
+): GroupUpdate | null => {
+  const groupId = rawEvent.flag;
+  const event = rawEvent['r-group'];
 
-  if ('create' in updateDiff) {
+  // Handle group creation
+  if ('create' in event) {
     return {
       type: 'addGroup',
-      group: toClientGroup(groupId, updateDiff.create, true),
+      group: toClientGroupV7(groupId, event.create, true),
     };
   }
 
-  if ('del' in updateDiff) {
+  // Handle group deletion
+  if ('delete' in event) {
     return {
       type: 'deleteGroup',
       groupId,
     };
   }
 
-  if ('meta' in updateDiff) {
+  // Handle metadata updates
+  if ('meta' in event) {
     return {
       type: 'editGroup',
-      meta: toClientMeta(updateDiff.meta),
+      meta: toClientMeta(event.meta),
       groupId,
     };
   }
 
-  if ('cabal' in updateDiff) {
-    const roleId = updateDiff.cabal.sect;
-    if ('add' in updateDiff.cabal.diff) {
+  // Handle role operations
+  if ('role' in event) {
+    const roleData = event.role;
+    const roleId = roleData.roles?.[0];
+    if (!roleId) {
+      logger.warn('Role event received with empty roles array', event);
+      return null;
+    }
+    const rRole = roleData['r-role'];
+
+    if ('add' in rRole) {
       return {
         type: 'addRole',
         roleId,
-        meta: updateDiff.cabal.diff.add,
+        meta: rRole.add,
         groupId,
       };
     }
 
-    if ('del' in updateDiff.cabal.diff) {
+    if ('del' in rRole) {
       return {
         type: 'deleteRole',
         roleId,
@@ -1199,235 +1271,191 @@ export const toGroupUpdate = (
       };
     }
 
-    if ('edit' in updateDiff.cabal.diff) {
+    if ('edit' in rRole) {
       return {
         type: 'editRole',
         roleId,
-        meta: updateDiff.cabal.diff.edit,
+        meta: rRole.edit,
         groupId,
       };
     }
   }
 
-  if ('cordon' in updateDiff) {
-    if ('shut' in updateDiff.cordon) {
-      if ('add-ships' in updateDiff.cordon.shut) {
-        return {
-          type:
-            updateDiff.cordon.shut['add-ships'].kind === 'pending'
-              ? 'inviteGroupMembers'
-              : 'groupJoinRequest',
-          ships: updateDiff.cordon.shut['add-ships'].ships,
-          groupId,
-        };
-      }
+  // Handle member/seat operations
+  if ('seat' in event) {
+    const seatData = event.seat;
+    const ships = seatData.ships;
+    const rSeat = seatData['r-seat'];
 
-      if ('del-ships' in updateDiff.cordon.shut) {
-        return {
-          type:
-            updateDiff.cordon.shut['del-ships'].kind === 'pending'
-              ? 'revokeGroupMemberInvites'
-              : 'revokeGroupJoinRequests',
-          ships: updateDiff.cordon.shut['del-ships'].ships,
-          groupId,
-        };
-      }
-    }
-
-    if ('open' in updateDiff.cordon) {
-      if ('add-ships' in updateDiff.cordon.open) {
-        return {
-          type: 'banGroupMembers',
-          ships: updateDiff.cordon.open['add-ships'],
-          groupId,
-        };
-      }
-
-      if ('del-ships' in updateDiff.cordon.open) {
-        return {
-          type: 'unbanGroupMembers',
-          ships: updateDiff.cordon.open['del-ships'],
-          groupId,
-        };
-      }
-
-      if ('add-ranks' in updateDiff.cordon.open) {
-        return {
-          type: 'banAzimuthRanks',
-          ranks: updateDiff.cordon.open['add-ranks'] as Rank[],
-          groupId,
-        };
-      }
-
-      if ('del-ranks' in updateDiff.cordon.open) {
-        return {
-          type: 'unbanAzimuthRanks',
-          ranks: updateDiff.cordon.open['del-ranks'] as Rank[],
-          groupId,
-        };
-      }
-    }
-
-    if ('swap' in updateDiff.cordon) {
-      if ('open' in updateDiff.cordon.swap) {
-        return {
-          type: 'setGroupAsOpen',
-          groupId,
-        };
-      }
-
-      if ('shut' in updateDiff.cordon.swap) {
-        return {
-          type: 'setGroupAsShut',
-          groupId,
-        };
-      }
-    }
-  }
-
-  if ('secret' in updateDiff) {
-    if (updateDiff.secret) {
-      return {
-        type: 'setGroupAsSecret',
-        groupId,
-      };
-    } else {
-      return {
-        type: 'setGroupAsNotSecret',
-        groupId,
-      };
-    }
-  }
-
-  if ('flag-content' in updateDiff) {
-    return {
-      type: 'flagGroupPost',
-      groupId,
-      channelId: updateDiff['flag-content'].nest,
-      postId: updateDiff['flag-content']['post-key']?.reply
-        ? updateDiff['flag-content']['post-key'].reply
-        : updateDiff['flag-content']['post-key'].post,
-      flaggingUser: updateDiff['flag-content'].src,
-    };
-  }
-
-  if ('fleet' in updateDiff) {
-    if ('add' in updateDiff.fleet.diff) {
+    if ('add' in rSeat) {
       return {
         type: 'addGroupMembers',
-        ships: updateDiff.fleet.ships,
+        ships,
         groupId,
       };
     }
 
-    if ('del' in updateDiff.fleet.diff) {
+    if ('del' in rSeat) {
       return {
         type: 'removeGroupMembers',
-        ships: updateDiff.fleet.ships,
+        ships,
         groupId,
       };
     }
 
-    if ('add-sects' in updateDiff.fleet.diff) {
+    if ('add-roles' in rSeat) {
       return {
         type: 'addGroupMembersToRole',
-        ships: updateDiff.fleet.ships,
-        roles: updateDiff.fleet.diff['add-sects'],
+        ships,
+        roles: rSeat['add-roles'],
         groupId,
       };
     }
 
-    if ('del-sects' in updateDiff.fleet.diff) {
+    if ('del-roles' in rSeat) {
       return {
         type: 'removeGroupMembersFromRole',
-        ships: updateDiff.fleet.ships,
-        roles: updateDiff.fleet.diff['del-sects'],
+        ships,
+        roles: rSeat['del-roles'],
         groupId,
       };
     }
   }
 
-  if ('zone' in updateDiff) {
-    const zoneDelta = updateDiff.zone.delta;
-    const sectionId = updateDiff.zone.zone;
-    const navSectionId = `${groupId}-${sectionId}`;
+  // Handle entry operations (privacy, bans, invitations, join requests)
+  if ('entry' in event) {
+    const entry = event.entry;
 
-    if ('add' in zoneDelta) {
-      return {
-        type: 'addNavSection',
-        navSectionId,
-        sectionId,
-        groupId,
-        clientMeta: toClientMeta(zoneDelta.add),
-      };
+    // Handle privacy changes
+    if ('privacy' in entry) {
+      const privacy = entry.privacy;
+      if (privacy === 'secret') {
+        return { type: 'setGroupAsSecret', groupId };
+      } else if (privacy === 'private') {
+        return { type: 'setGroupAsPrivate', groupId };
+      } else if (privacy === 'public') {
+        return { type: 'setGroupAsPublic', groupId };
+      }
     }
 
-    if ('del' in zoneDelta) {
-      return { type: 'deleteNavSection', navSectionId };
+    // Handle ban operations
+    if ('ban' in entry) {
+      const ban = entry.ban;
+
+      if ('add-ships' in ban) {
+        return {
+          type: 'banGroupMembers',
+          ships: ban['add-ships'],
+          groupId,
+        };
+      }
+
+      if ('del-ships' in ban) {
+        return {
+          type: 'unbanGroupMembers',
+          ships: ban['del-ships'],
+          groupId,
+        };
+      }
+
+      if ('add-ranks' in ban) {
+        return {
+          type: 'banAzimuthRanks',
+          ranks: ban['add-ranks'] as Rank[],
+          groupId,
+        };
+      }
+
+      if ('del-ranks' in ban) {
+        return {
+          type: 'unbanAzimuthRanks',
+          ranks: ban['del-ranks'] as Rank[],
+          groupId,
+        };
+      }
     }
 
-    if ('edit' in zoneDelta) {
-      return {
-        type: 'editNavSection',
-        navSectionId,
-        sectionId,
-        clientMeta: toClientMeta(zoneDelta.edit),
-      };
+    // Handle join request operations
+    if ('ask' in entry) {
+      const askData = entry.ask;
+
+      if ('add' in askData) {
+        const joinRequestData = askData.add;
+        return {
+          type: 'groupJoinRequest',
+          request: {
+            groupId,
+            requestedAt: joinRequestData.requestedAt,
+            contactId: joinRequestData.ship,
+          },
+        };
+      }
+
+      if ('del' in askData) {
+        return {
+          type: 'revokeGroupJoinRequests',
+          ships: askData.del.ships,
+          groupId,
+        };
+      }
     }
 
-    if ('mov' in zoneDelta) {
-      return {
-        type: 'moveNavSection',
-        navSectionId,
-        sectionId,
-        index: zoneDelta.mov,
-      };
-    }
+    // Handle pending invitations
+    if ('pending' in entry) {
+      const pending = entry.pending;
 
-    if ('mov-nest' in zoneDelta) {
-      return {
-        type: 'moveChannel',
-        navSectionId,
-        sectionId,
-        groupId,
-        channelId: zoneDelta['mov-nest'].nest,
-        index: zoneDelta['mov-nest'].idx,
-      };
+      if ('add' in pending) {
+        return {
+          type: 'inviteGroupMembers',
+          ships: pending.add.ships,
+          groupId,
+        };
+      }
+
+      if ('del' in pending) {
+        return {
+          type: 'revokeGroupMemberInvites',
+          ships: pending.del.ships,
+          groupId,
+        };
+      }
     }
   }
 
-  if ('channel' in updateDiff) {
-    const channelDiff = updateDiff.channel.diff;
-    const channelId = updateDiff.channel.nest;
+  // Handle channel operations
+  if ('channel' in event) {
+    const channelData = event.channel;
+    const channelId = channelData.nest;
+    const rChannel = channelData['r-channel'];
 
-    if ('add' in channelDiff) {
+    if ('add' in rChannel) {
       return {
         type: 'addChannel',
         channel: toClientChannel({
           id: channelId,
-          channel: channelDiff.add,
+          channel: rChannel.add,
           groupId,
         }),
       };
     }
 
-    if ('edit' in channelDiff) {
-      const channelEdit = channelDiff.edit;
-
-      logger.log('channelEdit', { channelEdit });
-
+    if ('edit' in rChannel) {
       return {
         type: 'updateChannel',
         channel: toClientChannel({
           id: channelId,
-          channel: channelEdit,
+          channel: rChannel.edit,
           groupId,
         }),
       };
     }
 
-    if ('join' in channelDiff) {
-      const isJoined = channelDiff.join;
+    if ('del' in rChannel) {
+      return { type: 'deleteChannel', channelId };
+    }
+
+    if ('join' in rChannel) {
+      const isJoined = rChannel.join;
 
       if (!isJoined) {
         return { type: 'leaveChannel', channelId };
@@ -1436,13 +1464,8 @@ export const toGroupUpdate = (
       return { type: 'joinChannel', channelId, groupId };
     }
 
-    if ('del' in channelDiff) {
-      return { type: 'deleteChannel', channelId };
-    }
-
-    if ('zone' in channelDiff) {
-      const zoneId = channelDiff.zone;
-
+    if ('section' in rChannel) {
+      const zoneId = rChannel.section;
       return {
         type: 'addChannelToNavSection',
         channelId,
@@ -1453,19 +1476,81 @@ export const toGroupUpdate = (
     }
   }
 
-  return { type: 'unknown' };
-};
+  // Handle section/zone operations
+  if ('section' in event) {
+    const sectionData = event.section;
+    const sectionId = sectionData['section-id'];
+    const navSectionId = `${groupId}-${sectionId}`;
+    const rSection = sectionData['r-section'];
 
-export const extractChannelReaders = (groups: ub.Groups) => {
-  const channelReaders: Record<string, string[]> = {};
+    if ('add' in rSection) {
+      return {
+        type: 'addNavSection',
+        navSectionId,
+        sectionId,
+        groupId,
+        clientMeta: toClientMeta(rSection.add),
+      };
+    }
 
-  Object.entries(groups).forEach(([_groupId, group]) => {
-    Object.entries(group.channels).forEach(([channelId, channel]) => {
-      channelReaders[channelId] = channel.readers ?? [];
-    });
-  });
+    if ('del' in rSection) {
+      return { type: 'deleteNavSection', navSectionId };
+    }
 
-  return channelReaders;
+    if ('edit' in rSection) {
+      return {
+        type: 'editNavSection',
+        navSectionId,
+        sectionId,
+        clientMeta: toClientMeta(rSection.edit),
+      };
+    }
+
+    if ('move' in rSection) {
+      return {
+        type: 'moveNavSection',
+        navSectionId,
+        sectionId,
+        index: rSection.move.idx,
+      };
+    }
+
+    if ('move-nest' in rSection) {
+      return {
+        type: 'moveChannel',
+        navSectionId,
+        sectionId,
+        groupId,
+        channelId: rSection['move-nest'].nest,
+        index: rSection['move-nest'].idx,
+      };
+    }
+  }
+
+  // Handle section-order (batch reordering of all sections)
+  if ('section-order' in event) {
+    return {
+      type: 'updateSectionOrder',
+      groupId,
+      sectionIds: event['section-order'].order,
+    };
+  }
+
+  // Handle flag-content operations
+  if ('flag-content' in event) {
+    const flagData = event['flag-content'];
+    return {
+      type: 'flagGroupPost',
+      groupId,
+      channelId: flagData.nest,
+      postId: flagData['post-key'].reply
+        ? flagData['post-key'].reply
+        : flagData['post-key'].post,
+      flaggingUser: flagData.src,
+    };
+  }
+
+  return null;
 };
 
 const extractFlaggedPosts = (
@@ -1494,18 +1579,6 @@ const extractFlaggedPosts = (
   return flaggedPosts;
 };
 
-export function toClientGroups(
-  groups: Record<string, ub.Group>,
-  isJoined: boolean
-) {
-  if (!groups) {
-    return [];
-  }
-  return Object.entries(groups).map(([id, group]) => {
-    return toClientGroup(id, group, isJoined);
-  });
-}
-
 export function toClientGroupsV7(
   groups: Record<string, ub.GroupV7>,
   isJoined: boolean
@@ -1516,136 +1589,6 @@ export function toClientGroupsV7(
   return Object.entries(groups).map(([id, group]) => {
     return toClientGroupV7(id, group, isJoined);
   });
-}
-
-export function toClientGroup(
-  id: string,
-  group: ub.Group,
-  isJoined: boolean
-): db.Group {
-  const currentUserId = getCurrentUserId();
-  const { host: hostUserId } = parseGroupId(id);
-  const rolesById: Record<string, db.GroupRole> = {};
-  const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
-    id,
-    group['flagged-content']
-  );
-
-  logger.log('cordon', group.cordon);
-
-  const bannedMembers: db.GroupMemberBan[] =
-    'open' in group.cordon
-      ? group.cordon?.open.ships.map((ship) => ({
-          contactId: ship,
-          groupId: id,
-        }))
-      : [];
-
-  logger.log('bannedMembers', bannedMembers);
-
-  const joinRequests: db.GroupJoinRequest[] =
-    group.cordon && 'shut' in group.cordon
-      ? group.cordon.shut.ask.map((ask) => ({
-          contactId: ask,
-          groupId: id,
-        }))
-      : [];
-
-  const invitedMembers: db.ChatMember[] =
-    group.cordon && 'shut' in group.cordon
-      ? group.cordon.shut.pending
-          // filter out members who have already joined
-          // for some reason, joined members can get stuck in the pending list on the server
-          .filter((pending) => !group.fleet[pending])
-          .map((pending) => ({
-            membershipType: 'group',
-            contactId: pending,
-            chatId: id,
-            roles: [],
-            status: 'invited',
-            joinedAt: null,
-          }))
-      : [];
-
-  const members: db.ChatMember[] = Object.entries(group.fleet)
-    .map(([userId, vessel]) => {
-      return toClientGroupMember({
-        groupId: id,
-        contactId: userId,
-        vessel: vessel,
-        status: 'joined',
-      });
-    })
-    .concat(
-      invitedMembers.map((m) => {
-        return toClientGroupMember({
-          groupId: id,
-          contactId: m.contactId,
-          vessel: {
-            sects: [],
-            joined: 0,
-          },
-          status: 'invited',
-        });
-      })
-    );
-
-  logger.log('joinRequests', joinRequests);
-
-  const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
-    const data: db.GroupRole = {
-      id: roleId,
-      groupId: id,
-      ...toClientMeta(role.meta),
-    };
-    rolesById[roleId] = data;
-    return data;
-  });
-  return {
-    id,
-    roles,
-    privacy: extractGroupPrivacy(group),
-    ...toClientGroupMeta(group.meta),
-    haveInvite: isJoined ? false : undefined,
-    haveRequestedInvite: isJoined ? false : undefined,
-    currentUserIsMember: isJoined,
-    currentUserIsHost: hostUserId === currentUserId,
-    isPersonalGroup:
-      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
-    joinStatus: groupIsSyncing(group) ? 'joining' : undefined,
-    hostUserId,
-    flaggedPosts,
-    navSections: group['zone-ord']
-      ?.map((zoneId, i) => {
-        const zone = group.zones?.[zoneId];
-        if (!zone) {
-          return;
-        }
-        const data: db.GroupNavSection = {
-          id: `${id}-${zoneId}`,
-          sectionId: zoneId,
-          groupId: id,
-          ...toClientMeta(zone.meta),
-          sectionIndex: i,
-          channels: zone.idx.map((channelId, ci) => {
-            const data: db.GroupNavSectionChannel = {
-              channelIndex: ci,
-              channelId: channelId,
-              groupNavSectionId: `${id}-${zoneId}`,
-            };
-            return data;
-          }),
-        };
-        return data;
-      })
-      .filter((s): s is db.GroupNavSection => !!s),
-    members,
-    bannedMembers,
-    joinRequests,
-    channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
-      : [],
-  };
 }
 
 export function toClientGroupV7(
@@ -1674,9 +1617,10 @@ export function toClientGroupV7(
 
   // v7 uses admissions.requests instead of cordon.shut.ask
   const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
-    ? Object.keys(group.admissions.requests).map((ship) => ({
+    ? Object.entries(group.admissions.requests).map(([ship, request]) => ({
         contactId: ship,
         groupId: id,
+        requestedAt: request.requestedAt || null,
       }))
     : [];
 
@@ -1739,6 +1683,10 @@ export function toClientGroupV7(
     }
   );
 
+  // Extract current user's roles from seats for channel permission calculation
+  // v7 uses 'roles' instead of 'sects'
+  const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
+
   return {
     id,
     roles,
@@ -1765,7 +1713,7 @@ export function toClientGroupV7(
           groupId: id,
           ...toClientMeta(zone.meta),
           sectionIndex: i,
-          channels: (zone.idx ?? []).map((channelId, ci) => {
+          channels: (zone.order ?? []).map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
               channelIndex: ci,
               channelId: channelId,
@@ -1781,67 +1729,13 @@ export function toClientGroupV7(
     bannedMembers,
     joinRequests,
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id })
+      ? toClientChannels({
+          channels: group.channels,
+          groupId: id,
+          currentUserRoles,
+        })
       : [],
   };
-}
-
-export function groupIsSyncing(group: ub.Group) {
-  // if group host is slow, there's a transitional state during group join
-  // where the group exists on the user's ship, but has not yet synced
-  // channels, meta, etc. there's no perfect way to handle this, so we attempt
-  // to use a few different heuristics to detect it. example responses here:
-  // https://gist.github.com/dnbrwstr/747c3beaa216bc235880c77d55e06448
-
-  // Check for completely empty group (initial join state)
-  const isCompletelyEmpty =
-    !group['zone-ord'].length &&
-    !group.bloc.length &&
-    group.meta?.title === '' &&
-    group.meta?.description === '' &&
-    group.meta?.cover === '' &&
-    group.meta?.image === '' &&
-    Object.keys(group.channels).length === 0;
-
-  // Check for partially synced state where we have metadata but no channels
-  // This can happen when metadata syncs before channels
-  const hasMetadataButNoChannels =
-    (group.meta?.title !== '' ||
-      group.meta?.description !== '' ||
-      group['zone-ord'].length > 0 ||
-      group.bloc.length > 0) &&
-    Object.keys(group.channels).length === 0;
-
-  // Check if nav sections reference channels that don't exist yet
-  // This indicates channels haven't finished syncing
-  const hasNavSectionsButMissingChannels =
-    group['zone-ord'].length > 0 &&
-    group.zones &&
-    Object.values(group.zones).some(
-      (zone) => zone.idx && zone.idx.length > 0
-    ) &&
-    Object.keys(group.channels).length === 0;
-
-  // Additional check: if group has nav sections but all are empty,
-  // and there are no channels, it's likely legitimately empty, not syncing
-  const hasEmptyNavSections =
-    group['zone-ord'].length > 0 &&
-    group.zones &&
-    Object.values(group.zones).every(
-      (zone) => !zone.idx || zone.idx.length === 0
-    );
-
-  // If all nav sections are empty and there are no channels,
-  // this is likely a legitimate state, not a sync issue
-  if (hasEmptyNavSections && Object.keys(group.channels).length === 0) {
-    return false;
-  }
-
-  return (
-    isCompletelyEmpty ||
-    hasMetadataButNoChannels ||
-    hasNavSectionsButMissingChannels
-  );
 }
 
 export function toClientGroupsFromPreview(
@@ -1869,34 +1763,10 @@ export function toClientGroupFromPreview(
   };
 }
 
-export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
-  return Object.entries(gangs).map(([id, gang]) => {
-    return toClientGroupFromGang(id, gang);
-  });
-}
-
 const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
   const groups = toClientGroupsFromForeigns(foreignsEvent);
   return { type: 'setUnjoinedGroups', groups };
 };
-
-export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
-  const currentUserId = getCurrentUserId();
-  const { host: hostUserId } = parseGroupId(id);
-  const privacy = extractGroupPrivacy(gang.preview, gang.claim ?? undefined);
-  const joinStatus = getJoinStatusFromGang(gang);
-  return {
-    id,
-    hostUserId,
-    privacy,
-    currentUserIsMember: false,
-    currentUserIsHost: hostUserId === currentUserId, // should always be false
-    haveInvite: !!gang.invite,
-    haveRequestedInvite: gang.claim?.progress === 'knocking',
-    joinStatus,
-    ...(gang.preview ? toClientGroupMeta(gang.preview.meta) : {}),
-  };
-}
 
 export function toClientGroupFromForeign(
   id: string,
@@ -1937,7 +1807,6 @@ function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
     return undefined;
   }
   switch (foreign.progress) {
-    case 'ask':
     case 'join':
     case 'watch':
       return 'joining';
@@ -1968,12 +1837,14 @@ function toClientGroupTitle(title: string) {
 function toClientChannels({
   channels,
   groupId,
+  currentUserRoles = [],
 }: {
-  channels: Record<string, ub.GroupChannel>;
+  channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId })
+    toClientChannel({ id, channel, groupId, currentUserRoles })
   );
 }
 
@@ -1981,10 +1852,12 @@ function toClientChannel({
   id,
   channel,
   groupId,
+  currentUserRoles = [],
 }: {
   id: string;
-  channel: ub.GroupChannel;
+  channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
+  currentUserRoles?: string[];
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
@@ -1997,6 +1870,13 @@ function toClientChannel({
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
+  // Determine currentUserIsMember based on read permissions
+  const isOpenChannel = channel.readers.length === 0;
+  const userHasReadPermission = channel.readers.some((roleId) =>
+    currentUserRoles.includes(roleId)
+  );
+  const currentUserIsMember = isOpenChannel || userHasReadPermission;
+
   return {
     id,
     groupId,
@@ -2008,6 +1888,7 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
+    currentUserIsMember,
   };
 }
 

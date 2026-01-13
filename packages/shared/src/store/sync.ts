@@ -22,7 +22,7 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { Session, getSession, setSession, updateSession } from './session';
+import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -190,12 +190,17 @@ export const syncSince = async ({
             queryCtx: batchCtx,
             callCtx,
           });
+
+          // make sure we attempt to get latest posts if we haven't succeeded yet
+          const lastSyncedAt = await db.changesSyncedAt.getValue();
+          if (!lastSyncedAt) {
+            await syncLatestPosts();
+          }
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      error: e,
       ...callCtx,
-      errorMessage: e.message,
-      stack: e.stack,
     });
   }
   logger.log(`sync since complete`);
@@ -227,10 +232,7 @@ export const syncLatestChanges = async ({
       await debouncedSyncInit(syncCtx);
       await db.changesSyncedAt.setValue(start);
     } catch (e) {
-      logger.trackError('Failed latest changes fallback', {
-        errorMessage: e.message,
-        stack: e.stack,
-      });
+      logger.trackError('Failed latest changes fallback', e);
     }
     return;
   }
@@ -264,6 +266,7 @@ export const syncLatestChanges = async ({
     ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
+    hints: result.hints,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,
@@ -314,17 +317,24 @@ export const syncLatestPosts = async (
       return () => Promise.resolve();
     }
   } catch (e) {
-    logger.trackError('failed to sync latest posts');
+    logger.trackError('failed to sync latest posts', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     return () => Promise.resolve();
   }
 };
 
 export const syncSettings = async (ctx?: SyncCtx) => {
-  const settings = await syncQueue.add('settings', ctx, () =>
-    api.getSettings()
-  );
-  logger.log('got settings from api', settings);
-  return db.insertSettings(settings);
+  const result = await syncQueue.add('settings', ctx, () => api.getSettings());
+  logger.log('got settings from api', result);
+  await db.insertSettings(result.settings);
+
+  if (result.pendingMemberDismissals?.length) {
+    await db.insertPendingMemberDismissals({
+      dismissals: result.pendingMemberDismissals,
+    });
+  }
 };
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
@@ -508,9 +518,7 @@ export const syncPinnedItems = async (ctx?: SyncCtx) => {
 };
 
 export const syncGroups = async (ctx?: SyncCtx) => {
-  const groups = await syncQueue.add('groups', ctx, () =>
-    api.getGroups({ includeMembers: false })
-  );
+  const groups = await syncQueue.add('groups', ctx, () => api.getGroups());
   await db.insertGroups({ groups: groups });
 };
 
@@ -661,7 +669,7 @@ export async function syncGroup(
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
     });
   } catch (e) {
-    logger.trackError('group sync failed', { errorMessage: e.message });
+    logger.trackError('group sync failed', e);
     console.error(e);
     throw e;
   } finally {
@@ -778,13 +786,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       );
       break;
     case 'groupJoinRequest':
-      await db.addGroupJoinRequests(
-        {
-          groupId: update.groupId,
-          contactIds: update.ships,
-        },
-        ctx
-      );
+      await db.insertGroupJoinRequests([update.request], ctx);
       break;
     case 'revokeGroupJoinRequests':
       await db.deleteGroupJoinRequests(
@@ -851,10 +853,10 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'setGroupAsOpen':
+    case 'setGroupAsPublic':
       await db.updateGroup({ id: update.groupId, privacy: 'public' }, ctx);
       break;
-    case 'setGroupAsShut':
+    case 'setGroupAsPrivate':
       group = await db.getGroup({ id: update.groupId }, ctx);
 
       if (group?.privacy !== 'secret') {
@@ -1021,6 +1023,15 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
+    case 'updateSectionOrder':
+      await db.updateNavSectionOrder(
+        {
+          groupId: update.groupId,
+          sectionIds: update.sectionIds,
+        },
+        ctx
+      );
+      break;
     case 'moveChannel':
       logger.log('moving channel', update);
       await updateChannelSections({
@@ -1068,6 +1079,9 @@ const handleActivityUpdate = async (
         case 'updateItemVolume':
           memo.volumeUpdates.push(event.volumeUpdate);
           break;
+        case 'removeItemVolume':
+          memo.volumeRemovals.push(event.itemId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1083,6 +1097,7 @@ const handleActivityUpdate = async (
       channelUnreads: [],
       threadUnreads: [],
       volumeUpdates: [],
+      volumeRemovals: [],
       activityEvents: [],
     } as api.ActivityUpdateQueue
   );
@@ -1104,6 +1119,14 @@ const handleActivityUpdate = async (
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+
+  if (activitySnapshot.volumeRemovals.length > 0) {
+    await db.removeVolumeLevels(
+      { itemIds: activitySnapshot.volumeRemovals },
+      ctx
+    );
+  }
+
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
 
   // if we inserted new activity, invalidate the activity page
@@ -1886,9 +1909,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         updateSession({ startTime: Date.now() });
       });
     } catch (err) {
-      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
-        errorMessage: err.message,
-      });
+      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, err);
     }
 
     updateSession({ phase: 'low' });
@@ -1935,10 +1956,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         logger.crumb(`finished low priority sync`);
       })
       .catch((e) => {
-        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, e);
       });
 
     updateSession({ phase: 'ready' });

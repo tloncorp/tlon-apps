@@ -61,7 +61,7 @@ const ActionSheetFixture = () => {
   return (
     <FixtureWrapper fillWidth>
       <ActionSheet
-        snapPointsMode="mixed"
+        snapPointsMode="percent"
         snapPoints={['90%']}
         open={true}
         onOpenChange={(open: boolean) => console.log('Open Change', open)}

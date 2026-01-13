@@ -1,18 +1,23 @@
+import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
+import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
   SizableEmoji,
+  View,
   getNativeEmoji,
   searchEmojis,
   usePreloadedEmojis,
 } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { FlatList } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
+import { getTokenValue } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { SearchBar } from '../SearchBar';
 
 const EMOJI_SIZE = 32;
+const EMOJI_ROW_HEIGHT = EMOJI_SIZE + 16; // emoji size + padding
 const logger = createDevLogger('EmojiPickerSheet', false);
 
 const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
@@ -26,7 +31,8 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
     <Button
       borderWidth={0}
       paddingHorizontal={0}
-      flex={1 / 6}
+      width="100%"
+      height={EMOJI_ROW_HEIGHT}
       onPress={() => onSelect(item)}
       justifyContent="center"
       alignItems="center"
@@ -41,11 +47,21 @@ export function EmojiPickerSheet(
     onEmojiSelect: (value: string) => void;
   }
 ) {
-  const [snapToLarge, setSnapToLarge] = useState(false);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const { onEmojiSelect, ...rest } = props;
   const ALL_EMOJIS = usePreloadedEmojis();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  // Estimate list container size to enable immediate rendering (native only)
+  // Sheet is ~60% height (from snapPoints), minus search bar + handle + padding (~100px)
+  const estimatedListSize = useMemo(() => {
+    const horizontalPadding = getTokenValue('$m', 'space') * 2;
+    return {
+      width: screenWidth - horizontalPadding,
+      height: screenHeight * 0.6 - 100,
+    };
+  }, [screenWidth, screenHeight]);
 
   const listData = useMemo(() => {
     return query ? searchResults : ALL_EMOJIS;
@@ -54,10 +70,6 @@ export function EmojiPickerSheet(
   const handleQueryChange = useCallback((query: string) => {
     setQuery(query);
     setSearchResults(searchEmojis(query).map((emoj) => emoj.id));
-  }, []);
-
-  const handleInputFocus = useCallback(() => {
-    setSnapToLarge(true);
   }, []);
 
   const handleEmojiSelect = useCallback(
@@ -85,9 +97,8 @@ export function EmojiPickerSheet(
 
   return (
     <ActionSheet
-      title="Emoji Picker"
       snapPointsMode="percent"
-      snapPoints={[snapToLarge ? 80 : 60]}
+      snapPoints={[60]}
       dialogContentProps={{
         width: 350,
         height: 600,
@@ -97,33 +108,53 @@ export function EmojiPickerSheet(
       dismissOnOverlayPress
       animation="quick"
       modal
+      hasScrollableContent={Platform.OS !== 'web'}
       {...rest}
     >
-      <ActionSheet.Content padding="$m" flex={1}>
-        <SearchBar
-          debounceTime={300}
-          marginHorizontal="$m"
-          onChangeQuery={handleQueryChange}
-          onFocus={handleInputFocus}
-          inputProps={{ spellCheck: false, autoComplete: 'off' }}
-        />
-        <FlatList
-          style={{ width: '100%' }}
-          horizontal={false}
-          contentContainerStyle={{ flexGrow: 1 }}
-          data={listData}
-          keyExtractor={keyExtractor}
-          numColumns={6}
-          renderItem={renderItem}
-          renderScrollComponent={(props) => (
-            <ActionSheet.ScrollableContent
-              {...(props as ComponentProps<
-                typeof ActionSheet.ScrollableContent
-              >)}
+      {Platform.OS === 'web' ? (
+        <ActionSheet.Content padding="$m" flex={1}>
+          <SearchBar
+            debounceTime={300}
+            marginHorizontal="$m"
+            onChangeQuery={handleQueryChange}
+            inputProps={{ spellCheck: false, autoComplete: 'off' }}
+          />
+          <View style={{ height: 480, width: '100%' }}>
+            <FlashList
+              data={listData}
+              keyExtractor={keyExtractor}
+              numColumns={6}
+              renderItem={renderItem}
+              estimatedItemSize={EMOJI_ROW_HEIGHT}
             />
-          )}
-        />
-      </ActionSheet.Content>
+          </View>
+        </ActionSheet.Content>
+      ) : (
+        <ActionSheet.Content padding="$m">
+          <SearchBar
+            debounceTime={300}
+            marginHorizontal="$m"
+            onChangeQuery={handleQueryChange}
+            inputProps={{ spellCheck: false, autoComplete: 'off' }}
+          />
+          <View
+            style={{
+              height: estimatedListSize.height,
+              width: estimatedListSize.width,
+            }}
+          >
+            <BottomSheetFlashList
+              data={listData}
+              keyExtractor={keyExtractor}
+              numColumns={6}
+              renderItem={renderItem}
+              extraData={listData}
+              estimatedItemSize={EMOJI_ROW_HEIGHT}
+              estimatedListSize={estimatedListSize}
+            />
+          </View>
+        </ActionSheet.Content>
+      )}
     </ActionSheet>
   );
 }

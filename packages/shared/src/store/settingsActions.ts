@@ -1,6 +1,6 @@
 import { ThemeName } from 'tamagui';
 
-import { setSetting } from '../api';
+import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -18,7 +18,7 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   try {
     // optimistic update
     await db.insertSettings({ messagesFilter: filter });
-    return setSetting('messagesFilter', filter);
+    return api.setSetting('messagesFilter', filter);
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
@@ -36,18 +36,17 @@ export async function updateCalmSetting(
     // optimistic update
     await db.insertSettings({ [calmKey]: value });
 
-    await setSetting(calmKey, value);
+    await api.setSetting(calmKey, value);
     logger.trackEvent(AnalyticsEvent.ActionCalmSettingsUpdate, {
       calmKey,
       value,
     });
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorCalmSettingsUpdate, {
+      error,
       calmKey,
       value,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: error.message,
-      errorStack: error.stack,
     });
     // rollback optimistic update
     await db.insertSettings({ [calmKey]: oldValue });
@@ -59,7 +58,7 @@ export async function completeWayfindingSplash() {
   // optimistic update
   await db.insertSettings({ completedWayfindingSplash: true });
   try {
-    await withRetry(() => setSetting('completedWayfindingSplash', true));
+    await withRetry(() => api.setSetting('completedWayfindingSplash', true));
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
@@ -76,7 +75,7 @@ export async function completeWayfindingTutorial() {
   // optimistic update
   await db.insertSettings({ completedWayfindingTutorial: true });
   try {
-    await withRetry(() => setSetting('completedWayfindingTutorial', true));
+    await withRetry(() => api.setSetting('completedWayfindingTutorial', true));
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
@@ -131,14 +130,13 @@ export async function updateTheme(theme: AppTheme) {
 
   try {
     await db.insertSettings({ theme });
-    await setSetting('theme', theme);
+    await api.setSetting('theme', theme);
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, { theme });
   } catch (error) {
     logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
+      error,
       theme,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: error.message,
-      errorStack: error.stack,
     });
     await db.insertSettings({ theme: oldTheme });
     throw new Error('Failed to update theme setting');
@@ -152,13 +150,12 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
   try {
     // optimistic update
     await db.insertSettings({ disableTlonInfraEnhancement: disabled });
-    await setSetting('disableTlonInfraEnhancement', disabled);
+    await api.setSetting('disableTlonInfraEnhancement', disabled);
   } catch (e) {
     logger.trackError('Error updating disable tlon infra setting', {
+      error: e,
       disabled,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
   }
@@ -171,14 +168,40 @@ export async function updateEnableTelemetry(value: boolean) {
   try {
     // optimistic update
     await db.insertSettings({ enableTelemetry: value });
-    await setSetting('enableTelemetry', value);
+    await api.setSetting('enableTelemetry', value);
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
+      error: e,
       value,
       severity: AnalyticsSeverity.Medium,
-      errorMessage: e.message,
-      errorStack: e.stack,
     });
     await db.insertSettings({ enableTelemetry: oldValue });
+  }
+}
+
+export async function updatePendingMemberDismissal(
+  dismissal: db.PendingMemberDismissal
+) {
+  const existing = await db.getGroup({ id: dismissal.groupId });
+
+  // optimistic update
+  await db.updateGroup({
+    id: dismissal.groupId,
+    pendingMembersDismissedAt: dismissal.dismissedAt,
+  });
+
+  try {
+    const settingsKey = api.getPendingMemberDismissalKey(dismissal.groupId);
+    await api.setSetting(settingsKey, dismissal.dismissedAt);
+  } catch (e) {
+    logger.trackError('failed to set pending member dismissal', e);
+
+    // rollback optimistic update
+    if (existing) {
+      await db.updateGroup({
+        id: dismissal.groupId,
+        pendingMembersDismissedAt: existing.pendingMembersDismissedAt,
+      });
+    }
   }
 }

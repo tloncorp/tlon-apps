@@ -50,7 +50,7 @@
 +$  card  card:agent:gall
 --
 ::
-%+  verb  |
+%^  verb  |  %warn
 %-  agent:dbug
 ^-  agent:gall
 ::

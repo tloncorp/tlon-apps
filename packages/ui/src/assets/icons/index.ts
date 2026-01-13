@@ -73,6 +73,7 @@ export { default as RightSidebar } from './RightSidebar.svg';
 export { default as Search } from './Search.svg';
 export { default as Send } from './Send.svg';
 export { default as Settings } from './Settings.svg';
+export { default as Sorter } from './Sorter.svg';
 export { default as Stop } from './Stop.svg';
 export { default as Strikethrough } from './Strikethrough.svg';
 export { default as TBlock } from './TBlock.svg';

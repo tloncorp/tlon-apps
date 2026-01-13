@@ -17,15 +17,20 @@ struct GroupChannel: Codable {
     let meta: GroupMeta
 }
 
-struct Group: Codable {
-    let channels: [String: GroupChannel]
+struct Cabal: Codable {
     let meta: GroupMeta
 }
 
-struct Gang: Codable {
-    let preview: GangPreview?
+struct Group: Codable {
+    let channels: [String: GroupChannel]
+    let cabals: [String: Cabal]?
+    let meta: GroupMeta
 }
 
-struct GangPreview: Codable {
+struct ForeignGroup: Codable {
+    let preview: ForeignGroupPreview?
+}
+
+struct ForeignGroupPreview: Codable {
   let meta: GroupMeta
 }

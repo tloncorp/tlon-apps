@@ -58,10 +58,7 @@ export function useStoppedNodeSequence(params: {
       logger.crumb('checked status, not running yet', { status });
       return NodeResumeState.WaitingForRunning;
     } catch (e) {
-      logger.trackError('Login: Check node booted request failed', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      logger.trackError('Login: Check node booted request failed', e);
       return NodeResumeState.WaitingForRunning;
     }
   }, [bootStepCounter, store]);

@@ -1,8 +1,9 @@
-import { parseUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
+//REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { parseIdNumber } from '../api/apiUtils';
 import { Stringified } from '../utils';
 import { Block, Image, Inline, isBlock, isImage } from './content';
 import { Flag } from './hark';
@@ -182,7 +183,7 @@ export interface Memo {
 export type ReplyMap = BTree<BigInteger, Reply>;
 
 export interface Replies {
-  [id: string]: Reply;
+  [id: string]: Reply | PostTombstone;
 }
 
 interface PostActionAdd {
@@ -658,7 +659,7 @@ export function newPostTupleArray(
     data.pages
       .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [bigInt(parseUd(k)), v] as PostTuple
+          ([k, v]) => [bigInt(parseIdNumber(k)), v] as PostTuple
         );
 
         return pagePosts;

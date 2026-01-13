@@ -1,4 +1,5 @@
 import {
+  Attachment,
   FinalizedAttachment,
   createDevLogger,
   tiptap,
@@ -17,7 +18,6 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -285,15 +285,24 @@ export function BigInput({
   }, []);
 
   // Handle selecting a new header image
-  const handleImageSelect = useCallback((assets: ImagePickerAsset[]) => {
-    if (assets.length > 0) {
-      setImageUri(assets[0].uri);
-    }
-    setShowAttachmentSheet(false);
-  }, []);
+  const handleImageSelect = useCallback(
+    (intents: Attachment.UploadIntent[]) => {
+      // We only allow image uploads, so we can simplify and only handle images
+      // here.
+      const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
+      if (assets.length > 0) {
+        setImageUri(assets[0].uri);
+      }
+      setShowAttachmentSheet(false);
+    },
+    []
+  );
 
   const handleInlineImageSelect = useCallback(
-    async (assets: ImagePickerAsset[]) => {
+    async (intents: Attachment.UploadIntent[]) => {
+      // We only allow image uploads, so we can simplify and only handle images
+      // here.
+      const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
       if (assets.length > 0 && editorRef.current?.editor) {
         const asset = assets[0];
 
@@ -303,12 +312,16 @@ export function BigInput({
         // Instead, we upload directly and wait for the URL
         try {
           // Upload the image directly without adding to attachments
-          await uploadAssetToStorage(asset, true);
+          const uploadIntent =
+            Attachment.UploadIntent.fromImagePickerAsset(asset);
+          await uploadAssetToStorage(uploadIntent, true);
 
           if (!isMountedRef.current) return;
 
           // Wait for the upload to complete and get the S3 URL
-          const uploadStates = await waitForUploads([asset.uri]);
+          const uploadStates = await waitForUploads([
+            Attachment.UploadIntent.extractKey(uploadIntent),
+          ]);
 
           // Check again after await
           if (!isMountedRef.current) return;
@@ -330,7 +343,7 @@ export function BigInput({
           }
         } catch (error) {
           if (isMountedRef.current) {
-            logger.trackError('notebook:inline-image:upload-error', { error });
+            logger.trackError('notebook:inline-image:upload-error', error);
             showToast({
               message:
                 'Error uploading image. Please check your connection and try again.',
@@ -543,6 +556,7 @@ export function BigInput({
           onAttach={handleImageSelect}
           showClearOption={!!imageUri}
           onClearAttachments={handleClearImage}
+          mediaType="image"
         />
       )}
 
@@ -552,6 +566,7 @@ export function BigInput({
           onOpenChange={setShowInlineImageSheet}
           onAttach={handleInlineImageSelect}
           showClearOption={false}
+          mediaType="image"
         />
       )}
     </KeyboardAvoidingView>

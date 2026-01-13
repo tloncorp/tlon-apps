@@ -244,7 +244,6 @@ export type Block =
   | Code
   | LinkBlock;
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Block {
   export function is<K extends keyof UnionToIntersection<Block>>(
     poly: Block,

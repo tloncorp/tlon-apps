@@ -1,6 +1,6 @@
 /-  gv=groups-ver
 /+  j=groups-json
-|_  =response-update:v8:gv
+|_  =response-update:v10:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -8,6 +8,6 @@
   --
 ++  grab
   |%
-  ++  noun  response-update:v8:gv
+  ++  noun  response-update:v10:gv
   --
 --

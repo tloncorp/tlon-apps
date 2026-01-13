@@ -44,9 +44,7 @@ export function useCheckNodeStopped() {
         clearShip();
       }
     } catch (e) {
-      logger.trackError('Failed to confirm logged in node is running', {
-        errorMessage: e.message,
-      });
+      logger.trackError('Failed to confirm logged in node is running', e);
       // fall through
     }
   }, [clearShip, store]);

@@ -408,26 +408,30 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       });
     }, [editor, attachments, editorIsEmpty, initialHeight]);
 
-    editor._onContentUpdate = async () => {
-      messageInputLogger.log(
-        'Content updated, update draft and check for mention text'
-      );
+    useEffect(() => {
+      if (!editor) return;
 
-      const json = (await editor.getJSON()) as JSONContent;
-      messageInputLogger.log('Storing draft', json);
+      editor._onContentUpdate = async () => {
+        messageInputLogger.log(
+          'Content updated, update draft and check for mention text'
+        );
 
-      if (
-        json.content?.length === 1 &&
-        json.content[0].type === 'paragraph' &&
-        !json.content[0].content
-      ) {
-        clearDraft(draftType);
-        return; // Don't store empty draft after clearing!
-      }
+        const json = (await editor.getJSON()) as JSONContent;
+        messageInputLogger.log('Storing draft', json);
 
-      messageInputLogger.log('Storing draft', json);
-      storeDraft(json, draftType);
-    };
+        if (
+          json.content?.length === 1 &&
+          json.content[0].type === 'paragraph' &&
+          !json.content[0].content
+        ) {
+          clearDraft(draftType);
+          return; // Don't store empty draft after clearing!
+        }
+
+        messageInputLogger.log('Storing draft', json);
+        storeDraft(json, draftType);
+      };
+    }, [editor, storeDraft, clearDraft, draftType]);
 
     const handlePaste = useCallback(
       async (pastedText: string) => {

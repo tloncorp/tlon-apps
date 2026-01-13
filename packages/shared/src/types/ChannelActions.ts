@@ -12,7 +12,8 @@ export type Id =
   | 'report'
   | 'visibility'
   | 'delete'
-  | 'forward';
+  | 'forward'
+  | 'summarize';
 
 /**
  * Info about a channel action type that should not change based on context.
@@ -45,6 +46,7 @@ export function channelActionIdsFor({
         'report',
         'visibility',
         'delete',
+        'summarize',
       ];
       break;
     case 'notebook':
@@ -57,6 +59,7 @@ export function channelActionIdsFor({
         'report',
         'visibility',
         'delete',
+        'summarize',
       ];
       break;
     case 'dm':
@@ -69,6 +72,7 @@ export function channelActionIdsFor({
         'copyText',
         'visibility',
         'delete',
+        'summarize',
       ];
       break;
     case 'chat':
@@ -84,6 +88,7 @@ export function channelActionIdsFor({
         'visibility',
         'report',
         'delete',
+        'summarize',
       ];
       if (__DEV__) {
         actions.unshift('debugJson');
@@ -116,4 +121,5 @@ const STATIC_SPECS = {
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
   debugJson: { isNetworkDependent: false },
+  summarize: { isNetworkDependent: true },
 } satisfies Record<Id, StaticSpec>;
