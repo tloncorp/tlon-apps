@@ -4,21 +4,19 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import {
-  Button,
-  Icon,
-  LoadingSpinner,
-  Text,
-  triggerHaptic,
-} from '@tloncorp/ui';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { Button, Icon, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Alert, Dimensions, Image, Platform } from 'react-native';
+import { Alert, Dimensions, FlatList, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -26,14 +24,20 @@ import {
   XStack,
   YStack,
   ZStack,
+  getTokenValue,
   isWeb,
   styled,
 } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
+import {
+  InviteSystemContactsFn,
+  useInviteSystemContactHandler,
+} from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
-import { ListItem } from '../ListItem';
+import { ListItem, SystemContactListItem } from '../ListItem';
+import { ScreenHeader } from '../ScreenHeader';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -44,7 +48,11 @@ enum SplashPane {
   Invite = 'Invite',
 }
 
-function SplashSequenceComponent(props: { onCompleted: () => void }) {
+function SplashSequenceComponent(props: {
+  onCompleted: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
   const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
@@ -72,7 +80,11 @@ function SplashSequenceComponent(props: { onCompleted: () => void }) {
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
       )}
       {currentPane === 'Invite' && (
-        <InvitePane onActionPress={handleSplashCompleted} />
+        <InvitePane
+          onActionPress={handleSplashCompleted}
+          systemContacts={props.systemContacts}
+          inviteSystemContacts={props.inviteSystemContacts}
+        />
       )}
     </View>
   );
@@ -335,68 +347,79 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 
 const logger = createDevLogger('SplashSequence', true);
 
-export function InvitePane(props: { onActionPress: () => void }) {
-  const insets = useSafeAreaInsets();
-  const store = useStore();
-  const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const perms = useContactPermissions();
+export function InviteContactsContent(props: {
+  onComplete: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
+  const inviteLink = db.personalInviteLink.useValue();
+  const handleInviteContact = useInviteSystemContactHandler(
+    props.inviteSystemContacts,
+    inviteLink
+  );
+  const { data: storeSystemContacts } = store.useSystemContacts();
+  const systemContacts = props.systemContacts ?? storeSystemContacts;
+  const isReady = !!inviteLink;
 
-  const processContacts = async () => {
-    try {
-      setIsProcessing(true);
-      await store.syncSystemContacts();
-      Alert.alert('Success', 'Your contacts have been synced.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            props.onActionPress();
-          },
-        },
-      ]);
-    } catch (error) {
-      setError('Something went wrong, please try again.');
-      Alert.alert('Error', "We weren't able to sync your contacts.", [
-        {
-          text: 'OK',
-          onPress: () => {
-            props.onActionPress();
-          },
-        },
-      ]);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleShareContacts = async () => {
-    try {
-      if (perms.canAskPermission) {
-        const status = await perms.requestPermissions();
-        if (status === 'granted') {
-          await processContacts();
+  return (
+    <YStack flex={1}>
+      <ScreenHeader
+        title="Invite your friends"
+        rightControls={
+          <ScreenHeader.TextButton
+            testID="finish-invites"
+            onPress={props.onComplete}
+          >
+            Next
+          </ScreenHeader.TextButton>
         }
-      }
-    } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
-        context: 'handleShareContacts threw',
-        error: e,
-        severity: AnalyticsSeverity.Critical,
-      });
-    }
-  };
+      />
+      <SplashParagraph marginTop="$l">
+        Tap a contact to send them an invite to join you on Tlon Messenger.
+      </SplashParagraph>
+      {!isReady ? (
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <LoadingSpinner />
+          <Text marginTop="$l" color="$secondaryText">
+            Preparing your invite link...
+          </Text>
+        </YStack>
+      ) : (
+        <FlatList
+          data={systemContacts ?? []}
+          keyExtractor={(item) => item.id}
+          style={{ flex: 1, marginTop: getTokenValue('$l', 'size') }}
+          contentContainerStyle={{
+            padding: getTokenValue('$l', 'size'),
+            paddingBottom: getTokenValue('$4xl', 'size'),
+          }}
+          renderItem={({ item: contact }) => (
+            <SystemContactListItem
+              systemContact={contact}
+              onPress={() => handleInviteContact(contact)}
+              showInvitedStatus
+            />
+          )}
+        />
+      )}
+    </YStack>
+  );
+}
 
-  const handleSkip = () => {
-    logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
-    props.onActionPress();
-  };
+function ConnectContactBookContent(props: {
+  onConnectContacts: () => void;
+  onSkip: () => void;
+  isProcessing: boolean;
+  error: string | null;
+  forceShowConnect?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
 
-  const shouldPromptForPermission = useMemo(() => {
-    return !isWeb && !perms.hasPermission;
-  }, [perms]);
-  const handleAction = shouldPromptForPermission
-    ? handleShareContacts
-    : props.onActionPress;
+  const shouldShowConnectOption = props.forceShowConnect || !isWeb;
+
+  const handleAction = shouldShowConnectOption
+    ? props.onConnectContacts
+    : props.onSkip;
 
   return (
     <YStack flex={1} justifyContent="space-between">
@@ -404,7 +427,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
         <InviteFriendsDisplay />
         <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
           <SplashTitle
-            marginTop={isWeb || !shouldPromptForPermission ? '$4xl' : 'unset'}
+            marginTop={isWeb || !shouldShowConnectOption ? '$4xl' : 'unset'}
           >
             Tlon is better{' '}
             <Text color="$positiveActionText">with friends.</Text>
@@ -414,14 +437,14 @@ export function InvitePane(props: { onActionPress: () => void }) {
             Messenger, they get their own cloud computer. You can all post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
-          {shouldPromptForPermission && (
+          {shouldShowConnectOption && (
             <SplashParagraph marginTop="$xl">
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
           )}
-          {error && !isWeb && (
+          {props.error && !isWeb && (
             <Text marginTop="$m" size="$label/m" color="$red">
-              {error}
+              {props.error}
             </Text>
           )}
         </YStack>
@@ -434,7 +457,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
           isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
         }
       >
-        {isProcessing && !isWeb && (
+        {props.isProcessing && !isWeb && (
           <YStack alignItems="center" marginBottom="$l">
             <LoadingSpinner />
           </YStack>
@@ -450,18 +473,18 @@ export function InvitePane(props: { onActionPress: () => void }) {
             marginHorizontal={isWeb ? '$2xl' : 'unset'}
             backgroundColor="$positiveActionText"
             textProps={{ color: '$white' }}
-            disabled={isProcessing}
+            disabled={props.isProcessing}
           >
-            {shouldPromptForPermission ? 'Connect contact book' : 'Finish'}
+            {shouldShowConnectOption ? 'Connect contact book' : 'Finish'}
           </SplashButton>
-          {shouldPromptForPermission && (
+          {shouldShowConnectOption && (
             <SplashButton
               marginTop="$l"
               secondary
               textProps={{ color: '$secondaryText' }}
               backgroundColor="$background"
-              disabled={isProcessing}
-              onPress={handleSkip}
+              disabled={props.isProcessing}
+              onPress={props.onSkip}
             >
               Skip
             </SplashButton>
@@ -469,6 +492,117 @@ export function InvitePane(props: { onActionPress: () => void }) {
         </YStack>
       </XStack>
     </YStack>
+  );
+}
+
+export function InvitePane(props: {
+  onActionPress: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
+  const storeContext = useStore();
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showInviteContacts, setShowInviteContacts] = useState(false);
+  const hasAutoProcessed = useRef(false);
+  const perms = useContactPermissions();
+  const hasProvidedContacts = !!props.systemContacts?.length;
+
+  const processContacts = useCallback(async () => {
+    if (hasProvidedContacts) {
+      setShowInviteContacts(true);
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      await storeContext.syncSystemContacts();
+
+      // Check if any contacts were imported - skip invite screen if none
+      const syncedContacts = await db.getSystemContacts();
+      if (!syncedContacts || syncedContacts.length === 0) {
+        logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
+          reason: 'no_contacts_synced',
+        });
+        props.onActionPress();
+        return;
+      }
+
+      setShowInviteContacts(true);
+    } catch (err) {
+      setError('Something went wrong, please try again.');
+      Alert.alert('Error', "We weren't able to sync your contacts.", [
+        {
+          text: 'OK',
+          onPress: () => {
+            props.onActionPress();
+          },
+        },
+      ]);
+    } finally {
+      setIsProcessing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasProvidedContacts, props.onActionPress, storeContext]);
+
+  useEffect(() => {
+    if (
+      !isWeb &&
+      !hasProvidedContacts &&
+      perms.hasPermission &&
+      !perms.isLoading &&
+      !hasAutoProcessed.current
+    ) {
+      hasAutoProcessed.current = true;
+      processContacts();
+    }
+  }, [perms.hasPermission, perms.isLoading, hasProvidedContacts, processContacts]);
+
+  const handleConnectContacts = async () => {
+    if (hasProvidedContacts) {
+      await processContacts();
+      return;
+    }
+
+    try {
+      if (perms.canAskPermission) {
+        const status = await perms.requestPermissions();
+        if (status === 'granted') {
+          await processContacts();
+        }
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+        context: 'handleConnectContacts threw',
+        error: e,
+        severity: AnalyticsSeverity.Critical,
+      });
+    }
+  };
+
+  const handleSkip = () => {
+    logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
+    props.onActionPress();
+  };
+
+  if (showInviteContacts) {
+    return (
+      <InviteContactsContent
+        onComplete={props.onActionPress}
+        systemContacts={props.systemContacts}
+        inviteSystemContacts={props.inviteSystemContacts}
+      />
+    );
+  }
+
+  return (
+    <ConnectContactBookContent
+      onConnectContacts={handleConnectContacts}
+      onSkip={handleSkip}
+      isProcessing={isProcessing}
+      error={error}
+      forceShowConnect={hasProvidedContacts}
+    />
   );
 }
 

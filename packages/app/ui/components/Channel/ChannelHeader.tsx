@@ -6,6 +6,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import {
   Fragment,
   createContext,
@@ -167,7 +168,9 @@ export function ChannelHeader({
                       type="indicator"
                     />
                   )}
-                  {displayTitle}
+                  <Text numberOfLines={1} size="$label/2xl">
+                    {displayTitle}
+                  </Text>
                 </XStack>
               </ScreenHeader.Title>
             </Pressable>
