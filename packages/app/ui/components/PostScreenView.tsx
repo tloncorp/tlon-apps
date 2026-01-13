@@ -637,17 +637,17 @@ function SinglePostView({
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft);
       } else {
-        const finalized = await store.finalizePostDraft(draft);
-        await store.sendReply({
-          content: finalized.content,
-          channel: channel,
+        const replyDraft: domain.PostDataDraftParent = {
+          ...draft,
+          isEdit: false,
           parentId: parentPost.id,
           parentAuthor: parentPost.authorId,
-        });
+        };
+        await store.finalizeAndSendPost(replyDraft);
         scrollToNewReply();
       }
     },
-    [channel, parentPost, store, scrollToNewReply]
+    [parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(

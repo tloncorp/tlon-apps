@@ -13,6 +13,10 @@ interface _PostDataDraftBase {
 }
 export interface PostDataDraftParent extends _PostDataDraftBase {
   isEdit?: false;
+  /** If present, this post is a reply to the specified parent post */
+  parentId?: string;
+  /** Required when parentId is present - the author of the parent post */
+  parentAuthor?: string;
 }
 export interface PostDataDraftEdit extends _PostDataDraftBase {
   isEdit: true;
@@ -64,21 +68,53 @@ export namespace PostDataDraft {
   }
 
   /**
-   * Reset upload states on all attachments to allow re-uploading.
-   * Used when retrying a failed post.
+   * Type guard to validate that an unknown value is a valid PostDataDraft.
+   * Used when deserializing drafts from the database.
    */
-  export function resetUploadStates(draft: PostDataDraft): PostDataDraft {
-    const resetAttachments = draft.attachments.map((att) => {
-      if (att.type === 'image' || att.type === 'file') {
-        // Remove uploadState to allow fresh upload
-        const { uploadState, ...rest } = att as {
-          uploadState?: unknown;
-        } & Omit<typeof att, 'uploadState'>;
-        return rest as Attachment;
-      }
-      return att;
-    });
+  export function isValid(value: unknown): value is PostDataDraft {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const obj = value as Record<string, unknown>;
+    const hasRequiredFields =
+      typeof obj.channelId === 'string' &&
+      Array.isArray(obj.content) &&
+      Array.isArray(obj.attachments) &&
+      typeof obj.channelType === 'string';
 
-    return { ...draft, attachments: resetAttachments };
+    if (!hasRequiredFields) {
+      return false;
+    }
+
+    // If parentId is present, parentAuthor must also be present
+    if (obj.parentId !== undefined) {
+      if (
+        typeof obj.parentId !== 'string' ||
+        typeof obj.parentAuthor !== 'string'
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Revoke any blob URLs created during serialization.
+   * Call this when the draft is no longer needed (e.g., after successful send).
+   */
+  export function revokeBlobUrls(draft: PostDataDraft): void {
+    for (const att of draft.attachments) {
+      if (att.type === 'file' && typeof att.localFile === 'string') {
+        // Only revoke blob: URLs, not file:// or other URLs
+        if (att.localFile.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(att.localFile);
+          } catch {
+            // Ignore errors - URL may have already been revoked
+          }
+        }
+      }
+    }
   }
 }
