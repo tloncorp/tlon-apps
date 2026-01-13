@@ -717,7 +717,7 @@ export function getRandomId() {
 }
 
 export function getRequestId() {
-  return formatUv(Math.floor(Math.random() * 0xffffffff).toString());
+  return render('uv', BigInt(Math.floor(Math.random() * 0xffffffff)));
 }
 
 /**
