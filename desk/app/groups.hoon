@@ -1015,7 +1015,42 @@
   ::
   =.  cor  (watch-contacts |)
   =.  cor  (watch-channels |)
+  ::  clean up group updates subscriptions
   ::
+  =.  cor
+    %+  roll  ~(tap by wex.bowl)
+    |=  [[[=(pole knot) sub-ship=ship =dude:gall] acked=? =path] =_cor]
+    =/  keep=?
+      ?+    pole  |
+          [%contacts ~]
+        ?.  =(%contacts dude)       |
+        ?.  =(sub-ship our.bowl)    |
+        ?.  ?=([%v1 %news ~] path)  |
+        &
+      ::
+          [%channels ~]
+        ?.  =(%channels dude)       |
+        ?.  =(sub-ship our.bowl)    |
+        ?.  ?=([%v1 ~] path)        |
+        &
+      ::
+          [%groups ship=@ name=@ %updates ~]
+        ?.  =(server dude)  |
+        ?.  =((scot %p sub-ship) ship.pole)  |
+        ?~  (~(get by groups) sub-ship name.pole)  |
+        ?.  ?=([%server %groups host=@ name=@ %updates subscriber=@ time=@ ~] path)  |
+        =*  host  i.t.t.path
+        =*  name  i.t.t.t.path
+        =*  subscriber  i.t.t.t.t.t.path
+        ?&  =(host (scot %p sub-ship))
+            =(name name.pole)
+            =(subscriber (scot %p our.bowl))
+        ==
+      ==
+    ?:  keep  cor
+    =^  caz=(list card)  subs.cor
+      (~(unsubscribe s [subs.cor bowl]) pole sub-ship dude)
+    (emil:cor caz)
   =.  cor
     %+  roll
       ~(tap by groups)
@@ -1349,7 +1384,9 @@
     ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=([%command %leave ~] rest.pole)
+            ?|  ?=(%kick -.sign)
+              ::
+                ?=([%command %leave ~] rest.pole)
                 ?=([%comand %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
