@@ -14,9 +14,7 @@ export default {
   getInvitedGroupAndDm,
 };
 
-export async function reserveNode(
-  hostingUserId: string
-): Promise<{
+export async function reserveNode(hostingUserId: string): Promise<{
   id: string;
   code?: string;
   isReady: boolean;
