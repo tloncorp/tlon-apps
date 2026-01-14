@@ -274,6 +274,9 @@ const ButtonText = styled(Text, {
 
 type IconProp = IconType | React.ReactElement;
 
+const renderIcon = (icon: IconProp) =>
+  typeof icon === 'string' ? <ButtonIconFrame type={icon} /> : icon;
+
 export type ButtonProps = Omit<
   React.ComponentProps<typeof ButtonFrame>,
   'children'
@@ -322,14 +325,15 @@ function ButtonImpl({
     [haptic, onPress]
   );
 
-  const renderIcon = (icon: IconProp) =>
-    typeof icon === 'string' ? <ButtonIconFrame type={icon} /> : icon;
+  const leading = React.useMemo(
+    () => leadingIcon && renderIcon(leadingIcon),
+    [leadingIcon]
+  );
 
-  const trailing = loading ? (
-    <ButtonSpinner />
-  ) : trailingIcon ? (
-    renderIcon(trailingIcon)
-  ) : null;
+  const trailing = React.useMemo(
+    () => (loading ? <ButtonSpinner /> : trailingIcon && renderIcon(trailingIcon)),
+    [loading, trailingIcon]
+  );
 
   const hasOnlyTrailing = !label && !leadingIcon && trailing;
 
@@ -358,7 +362,7 @@ function ButtonImpl({
         {...props}
         onPress={handlePress}
       >
-        {leadingIcon && renderIcon(leadingIcon)}
+        {leading}
         {label && (
           <ButtonText
             size={fill === 'text' ? 'medium' : size}
