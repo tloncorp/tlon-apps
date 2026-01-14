@@ -43,9 +43,11 @@ import {
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
+import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
+import { SearchBar } from '../SearchBar';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -370,6 +372,10 @@ export function InviteContactsContent(props: {
   const isReady = !!inviteLink;
   const hasContacts = systemContacts && systemContacts.length > 0;
 
+  const { displayContacts, handleSearch } = useSystemContactSearch(
+    systemContacts ?? []
+  );
+
   return (
     <YStack flex={1}>
       <ScreenHeader
@@ -389,13 +395,27 @@ export function InviteContactsContent(props: {
         <LoadingState />
       ) : (
         <>
-          <SplashParagraph marginTop="$l">
+          <SplashParagraph marginTop="$l" marginBottom="$xl">
             Tap a contact to send them an invite to join you on Tlon Messenger.
           </SplashParagraph>
+          <XStack paddingHorizontal="$xl">
+            <SearchBar
+              height="$4xl"
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          </XStack>
           <FlatList
-            data={systemContacts}
+            data={displayContacts}
             keyExtractor={(item) => item.id}
-            style={{ flex: 1, marginTop: getTokenValue('$l', 'size') }}
+            style={{ flex: 1 }}
             contentContainerStyle={{
               padding: getTokenValue('$l', 'size'),
               paddingBottom: getTokenValue('$4xl', 'size'),
