@@ -42,6 +42,7 @@ import {
   useNotificationLevelOptions,
   useToast,
 } from '../../ui';
+import ConnectionStatus from '../../ui/components/ConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
@@ -221,6 +222,14 @@ function ChatDetailsScreenContent({
           </ListItem.Title>
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
+        {chatType === 'group' && group && (
+          <ListItem.EndContent>
+            <ConnectionStatus
+              contactId={group.hostUserId}
+              type="indicator-with-text"
+            />
+          </ListItem.EndContent>
+        )}
       </ListItem>
 
       <YStack gap="$l">
