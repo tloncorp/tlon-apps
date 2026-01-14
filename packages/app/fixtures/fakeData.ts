@@ -206,6 +206,127 @@ export const edContact: db.Contact = {
   color: '#C0C3D8',
 };
 
+// Mock system contacts for fixtures
+export const emptySystemContact: db.SystemContact = {
+  id: '',
+  firstName: null,
+  lastName: null,
+  phoneNumber: null,
+  email: null,
+  contactId: null,
+};
+
+export const aliceSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-1',
+  firstName: 'Alice',
+  lastName: 'Johnson',
+  phoneNumber: '+1 (555) 123-4567',
+};
+
+export const bobSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-2',
+  firstName: 'Bob',
+  lastName: 'Smith',
+  phoneNumber: '+1 (555) 234-5678',
+};
+
+export const carolSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-3',
+  firstName: 'Carol',
+  lastName: 'Williams',
+  email: 'carol.williams@email.com',
+};
+
+export const davidSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-4',
+  firstName: 'David',
+  lastName: 'Brown',
+  phoneNumber: '+1 (555) 345-6789',
+};
+
+export const eveSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-5',
+  firstName: 'Eve',
+  lastName: 'Davis',
+  email: 'eve.davis@email.com',
+};
+
+export const frankSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-6',
+  firstName: 'Frank',
+  lastName: 'Miller',
+  phoneNumber: '+1 (555) 456-7890',
+};
+
+export const graceSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-7',
+  firstName: 'Grace',
+  lastName: 'Wilson',
+  phoneNumber: '+1 (555) 567-8901',
+};
+
+export const henrySystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-8',
+  firstName: 'Henry',
+  lastName: 'Moore',
+  email: 'henry.moore@email.com',
+};
+
+export const ivySystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-9',
+  firstName: 'Ivy',
+  lastName: 'Taylor',
+  phoneNumber: '+1 (555) 678-9012',
+};
+
+export const jackSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-10',
+  firstName: 'Jack',
+  lastName: 'Anderson',
+  phoneNumber: '+1 (555) 789-0123',
+};
+
+export const kateSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-11',
+  firstName: 'Kate',
+  lastName: 'Thomas',
+  email: 'kate.thomas@email.com',
+};
+
+export const liamSystemContact: db.SystemContact = {
+  ...emptySystemContact,
+  id: 'system-contact-12',
+  firstName: 'Liam',
+  lastName: 'Jackson',
+  phoneNumber: '+1 (555) 890-1234',
+};
+
+export const initialSystemContacts: db.SystemContact[] = [
+  aliceSystemContact,
+  bobSystemContact,
+  carolSystemContact,
+  davidSystemContact,
+  eveSystemContact,
+  frankSystemContact,
+  graceSystemContact,
+  henrySystemContact,
+  ivySystemContact,
+  jackSystemContact,
+  kateSystemContact,
+  liamSystemContact,
+];
+
 export const initialContacts: db.Contact[] = [
   galenContact,
   jamesContact,

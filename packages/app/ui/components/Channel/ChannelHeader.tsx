@@ -6,6 +6,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import {
   Fragment,
   createContext,
@@ -158,7 +159,7 @@ export function ChannelHeader({
       <ScreenHeader
         title={
           <XStack alignItems="center" gap="$m">
-            <Pressable flex={1} onPress={goToChatDetails}>
+            <Pressable onPress={goToChatDetails}>
               <ScreenHeader.Title testID="ChannelHeaderTitle">
                 <XStack alignItems="center">
                   {channelHost && isWindowNarrow && (
@@ -167,7 +168,13 @@ export function ChannelHeader({
                       type="indicator"
                     />
                   )}
-                  {displayTitle}
+                  {isWindowNarrow ? (
+                    <Text numberOfLines={1} size="$label/2xl">
+                      {displayTitle}
+                    </Text>
+                  ) : (
+                    displayTitle
+                  )}
                 </XStack>
               </ScreenHeader.Title>
             </Pressable>
