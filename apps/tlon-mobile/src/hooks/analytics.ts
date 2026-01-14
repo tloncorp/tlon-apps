@@ -1,7 +1,10 @@
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { AnalyticsEvent, createDevLogger, deleteGroup } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect } from 'react';
+import * as Contacts from 'expo-contacts';
+import * as Notifications from 'expo-notifications';
+import { useEffect } from 'react';
 
 import { checkLatestVersion } from '../lib/lifecycleEvents';
 
@@ -37,6 +40,12 @@ export function useCheckAppUpdated() {
 }
 
 export async function checkAnalyticsDigest() {
+  const currentUserId = api.getCurrentUserId();
+  const { status } = await Contacts.getPermissionsAsync();
+  const isHosted = api.getCurrentUserIsHosted();
+  const { status: pushNotificationStatus, canAskAgain } =
+    await Notifications.getPermissionsAsync();
+
   const userHasCompletedFirstSync =
     await db.userHasCompletedFirstSync.getValue();
   const analyticsDigestUpdatedAt = await db.anyalticsDigestUpdatedAt.getValue();
@@ -52,6 +61,12 @@ export async function checkAnalyticsDigest() {
         $set: {
           ...digest,
           analyticsDigestUpdatedAt: Date.now(),
+          userId: currentUserId || undefined,
+          contactBookPermissionGranted: status === 'granted',
+          pushNotificationPermissionGranted:
+            pushNotificationStatus === 'granted',
+          pushNotificationCanAskAgain: canAskAgain,
+          isHosted,
         },
       });
       await db.anyalticsDigestUpdatedAt.setValue(Date.now());
