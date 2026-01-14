@@ -1015,7 +1015,7 @@
   ::
   =.  cor  (watch-contacts |)
   =.  cor  (watch-channels |)
-  ::  clean up group updates subscriptions
+  ::  clean up outgoing subscriptions
   ::
   =.  cor
     %+  roll  ~(tap by wex.bowl)
