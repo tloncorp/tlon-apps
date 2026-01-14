@@ -383,10 +383,6 @@ const ButtonIconFrame = styled(Icon, {
       const c = resolveColors(val, props.fill ?? 'solid', !!props.disabled);
       return { color: c.foreground };
     },
-    disabled: {
-      true: {},
-      false: {},
-    },
   } as const,
 });
 
