@@ -1658,11 +1658,15 @@ export async function syncChannelPreivews(channelIds: string[]) {
   return Promise.all(promises);
 }
 
-const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
+const currentPendingMessageSyncs = new Map<string, Promise<any>>();
 export async function syncChannelMessageDelivery({
   channelId,
+  requestId,
+  postId,
 }: {
   channelId: string;
+  requestId?: string;
+  postId?: string;
 }) {
   if (currentPendingMessageSyncs.has(channelId)) {
     logger.log(`message delivery sync already in progress for ${channelId}`);
@@ -1670,7 +1674,10 @@ export async function syncChannelMessageDelivery({
 
   try {
     logger.log(`syncing messsage delivery for ${channelId}`);
-    const syncPromise = syncChannelWithBackoff({ channelId });
+    const syncPromise =
+      requestId && postId
+        ? syncChannelRequestWithBackoff(channelId, requestId, postId)
+        : syncChannelWithBackoff({ channelId });
     currentPendingMessageSyncs.set(channelId, syncPromise);
     await syncPromise;
     logger.crumb(`all messages in channel are delivered`);
@@ -1712,6 +1719,42 @@ export async function syncChannelWithBackoff({
   };
 
   return backOff(checkDelivered, {
+    delayFirstAttempt: true,
+    startingDelay: 3000, // 3 seconds
+    maxDelay: 3 * 60 * 1000, // 3 minutes
+    numOfAttempts: 20,
+  });
+}
+
+export async function syncChannelRequestWithBackoff(
+  channelId: string,
+  requestId: string,
+  postId: string
+): Promise<void> {
+  async function isStillPending() {
+    return (await db.getPendingPosts(channelId)).length > 0;
+  }
+
+  const updateDeliveryStatus = async () => {
+    if (!(await isStillPending())) {
+      return;
+    }
+
+    logger.log(`request still pending, syncing...`);
+    const result = await api.getChannelRequestResult(requestId);
+
+    if ('pending' in result.body) {
+      // still waiting to hear back, nothing to do
+      throw new Error('Request still pending');
+    }
+
+    db.updatePost({
+      id: postId,
+      deliveryStatus: 'error' in result.body ? 'failed' : 'sent',
+    });
+  };
+
+  return backOff(updateDeliveryStatus, {
     delayFirstAttempt: true,
     startingDelay: 3000, // 3 seconds
     maxDelay: 3 * 60 * 1000, // 3 minutes

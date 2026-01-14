@@ -429,14 +429,14 @@ export type ActionError =
 
 export type PokeStatus = 'sending' | 'acked' | 'nacked';
 
-export type ResponseBody =
-  | { ok: Response }
+export type ChannelResponseBody =
+  | { ok: ChannelResponse }
   | { error: { type: ActionError; message: string } }
   | { pending: { status: PokeStatus } };
 
 export interface ChannelActionResponse {
   id: RequestId;
-  body: ResponseBody;
+  body: ChannelResponseBody;
 }
 
 export type PostResponse =
@@ -471,7 +471,7 @@ export interface ChannelPendingResponse {
   };
 }
 
-export type Response =
+export type ChannelResponse =
   | { posts: Posts }
   | ChannelPostResponse
   | ChannelPendingResponse
@@ -490,7 +490,7 @@ export type Response =
 
 export interface ChannelsResponse {
   nest: Nest;
-  response: Response;
+  response: ChannelResponse;
 }
 
 export interface ChannelsSubscribeResponse extends ChannelsResponse {

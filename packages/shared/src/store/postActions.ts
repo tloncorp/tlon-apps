@@ -188,7 +188,7 @@ async function _sendPost({
     // SessionActionQueue.
     const finalizedPostDataPromise = buildFinalizedPostData();
 
-    await sessionActionQueue.add(async () => {
+    const result = await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
       const finalizedPostData = await finalizedPostDataPromise;
       logger.crumb('updating post in db with finalized data');
@@ -212,9 +212,22 @@ async function _sendPost({
         sentAt: cachePost.sentAt,
       });
     });
-    logger.crumb('sent post to backend, syncing channel message delivery');
-    sync.syncChannelMessageDelivery({ channelId: channel.id });
+
     logger.crumb('done sending post');
+    if (result === null || 'pending' in result.body) {
+      logger.crumb('sent post to backend, syncing channel message delivery');
+      sync.syncChannelMessageDelivery({
+        channelId: channel.id,
+        requestId: result ? result.id : undefined,
+        postId: cachePost.id,
+      });
+      return;
+    }
+
+    if ('error' in result.body) {
+      logger.crumb('error sending post', { error: result.body.error });
+      throw new Error(result.body.error.message);
+    }
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
       error: e,
@@ -291,7 +304,7 @@ export async function retrySendPost({
   logger.log('retrySendPost: sending post', { post, story });
 
   try {
-    await sessionActionQueue.add(async () => {
+    const result = await sessionActionQueue.add(async () => {
       await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
 
       if (post.parentId) {
@@ -327,7 +340,19 @@ export async function retrySendPost({
         });
       }
     });
-    await sync.syncChannelMessageDelivery({ channelId: post.channelId });
+    if (!result || 'pending' in result.body) {
+      const requestId = result ? result.id : undefined;
+      await sync.syncChannelMessageDelivery({
+        channelId: post.channelId,
+        postId: post.id,
+        requestId,
+      });
+      return;
+    }
+
+    if ('error' in result.body) {
+      throw new Error(result.body.error.message);
+    }
   } catch (e) {
     console.error('Failed to retry send post', e);
     await db.updatePost({ id: post.id, deliveryStatus: 'failed' });

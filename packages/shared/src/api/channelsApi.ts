@@ -632,29 +632,35 @@ export async function removeChannelWriters({
 
 export async function requestResponse(
   action: ub.ChannelAction
-): Promise<ub.Response> {
-  const response = await request<ub.ChannelActionResponse>(
-    '/apps/channels/~/v1',
+): Promise<ub.ChannelActionResponse> {
+  return request<ub.ChannelActionResponse>('/apps/channels/~/v1', {
+    method: 'POST',
+    body: JSON.stringify(action),
+  });
+
+  // if ('error' in response.body) {
+  //   const { type, message } = response.body.error;
+  //   logger.trackError(message, {
+  //     type,
+  //   });
+  //   if (response.body.error.type === 'unknown') {
+  //     throw new Error('An unknown error occurred');
+  //   }
+  //   throw new Error(response.body.error.message);
+  // }
+
+  // if ('pending' in response.body) {
+  //   throw new Error('Awaiting host confirmation');
+  // }
+
+  // return response.body;
+}
+
+export async function getChannelRequestResult(requestId: string) {
+  return request<ub.ChannelActionResponse>(
+    `/apps/channels/~/v1/request/${requestId}`,
     {
-      method: 'POST',
-      body: JSON.stringify(action),
+      method: 'GET',
     }
   );
-
-  if ('error' in response.body) {
-    const { type, message } = response.body.error;
-    logger.trackError(message, {
-      type,
-    });
-    if (response.body.error.type === 'unknown') {
-      throw new Error('An unknown error occurred');
-    }
-    throw new Error(response.body.error.message);
-  }
-
-  if ('pending' in response.body) {
-    throw new Error('Awaiting host confirmation');
-  }
-
-  return response.body.ok;
 }

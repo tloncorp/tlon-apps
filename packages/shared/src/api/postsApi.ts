@@ -153,7 +153,7 @@ export const sendPost = async ({
   content: Story;
   blob?: string;
   metadata?: db.PostMetadata;
-}) => {
+}): Promise<ub.ChannelActionResponse | null> => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
 
@@ -178,7 +178,7 @@ export const sendPost = async ({
       delta
     );
     await poke(action);
-    return;
+    return null;
   }
 
   const essay = toPostEssay({
@@ -201,8 +201,8 @@ export const sendPost = async ({
     add: essay,
   });
 
-  await requestResponse(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
+  return await requestResponse(action);
 };
 
 export const editPost = async ({
@@ -1056,7 +1056,7 @@ export async function deleteReply(params: {
       },
     });
   } else {
-    action = channelAction(params.channelId, {
+    action = channelPokeAction(params.channelId, {
       post: {
         reply: {
           id: params.parentId,
