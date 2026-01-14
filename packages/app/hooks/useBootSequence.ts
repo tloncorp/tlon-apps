@@ -152,7 +152,10 @@ export function useBootSequence() {
           throw new Error('Could not authenticate with node');
         }
         setShip({ ...shipInfo, needsSplashSequence: true });
-        telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
+        telemetry?.identify(preSig(shipInfo.ship!), {
+          isHostedUser: true,
+          userId: preSig(shipInfo.ship!),
+        });
 
         // deeper logic relies on the setShip result being available, use small delay
         // to avoid race conditions
