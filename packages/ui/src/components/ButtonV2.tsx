@@ -317,12 +317,13 @@ function ButtonImpl({
 
   const handlePress = React.useCallback(
     (e: any) => {
+      if (disabled) return;
       if (!disableHaptic) {
         triggerHaptic('baseButtonClick');
       }
       onPress?.(e);
     },
-    [disableHaptic, onPress]
+    [disabled, disableHaptic, onPress]
   );
 
   const leading = React.useMemo(
@@ -331,7 +332,8 @@ function ButtonImpl({
   );
 
   const trailing = React.useMemo(
-    () => (loading ? <ButtonSpinner /> : trailingIcon && renderIcon(trailingIcon)),
+    () =>
+      loading ? <ButtonSpinner /> : trailingIcon && renderIcon(trailingIcon),
     [loading, trailingIcon]
   );
 
