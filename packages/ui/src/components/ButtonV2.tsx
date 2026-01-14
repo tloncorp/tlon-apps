@@ -294,8 +294,8 @@ export type ButtonProps = Omit<
   shadow?: boolean;
   // Additional props
   centered?: boolean;
-  /** Enable haptic feedback on press. Defaults to true. */
-  haptic?: boolean;
+  /** Disable haptic feedback on press. */
+  disableHaptic?: boolean;
 };
 
 function ButtonImpl({
@@ -309,7 +309,7 @@ function ButtonImpl({
   type = 'primary',
   centered = false,
   shadow = false,
-  haptic = true,
+  disableHaptic,
   onPress,
   ...props
 }: ButtonProps) {
@@ -317,12 +317,12 @@ function ButtonImpl({
 
   const handlePress = React.useCallback(
     (e: any) => {
-      if (haptic) {
+      if (!disableHaptic) {
         triggerHaptic('baseButtonClick');
       }
       onPress?.(e);
     },
-    [haptic, onPress]
+    [disableHaptic, onPress]
   );
 
   const leading = React.useMemo(
