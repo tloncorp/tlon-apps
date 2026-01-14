@@ -29,6 +29,7 @@ import {
   postWithCode,
   postWithDeleted,
   postWithEmoji,
+  postWithFileUpload,
   postWithGalleryReference,
   postWithGroupReference,
   postWithHidden,
@@ -337,24 +338,49 @@ const PostSpecimen = ({
 const SearchHighlightFixture = () => {
   const searchPost = makePost(
     exampleContacts.mark,
-    [content.verse.inline('This is a message with some text that contains search terms like hello and world.')],
+    [
+      content.verse.inline(
+        'This is a message with some text that contains search terms like hello and world.'
+      ),
+    ],
     { replyCount: 0 }
   );
-  
+
   return (
     <ChatMessageFixtureWrapper>
       <View gap="$xl">
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "hello"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="hello" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "hello"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="hello"
+          />
         </View>
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "world"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="world" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "world"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="world"
+          />
         </View>
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "message text"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="message text" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "message text"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="message text"
+          />
         </View>
       </View>
     </ChatMessageFixtureWrapper>
@@ -385,6 +411,7 @@ export default {
   ),
   MessageStates: <PostVariantsFixture post={postWithText} />,
   SearchHighlight: <SearchHighlightFixture />,
+  File: <SinglePostFixture post={postWithFileUpload} />,
   Image: <SinglePostFixture post={postWithImage} />,
   Video: <SinglePostFixture post={postWithVideo} />,
   Text: <SinglePostFixture post={postWithText} />,
