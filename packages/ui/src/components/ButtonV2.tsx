@@ -414,9 +414,8 @@ function ButtonSpinner({
 }
 
 export const Button = withStaticProperties(ButtonImpl, {
+  /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button */
   Frame: ButtonFrame,
+  /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button */
   Text: ButtonText,
-  Icon: ButtonIconFrame,
-  Spinner: ButtonSpinner,
-  Context: ButtonContext,
 });
