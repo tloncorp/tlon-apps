@@ -282,12 +282,15 @@ export type ButtonProps = Omit<
   leadingIcon?: IconProp;
   trailingIcon?: IconProp;
   loading?: boolean;
-  disabled?: boolean;
+  // ButtonFrame variant props
   size?: ButtonSize;
   fill?: ButtonStyle;
   type?: ButtonIntent;
-  centered?: boolean;
+  disabled?: boolean;
+  dimmed?: boolean;
   shadow?: boolean;
+  // Additional props
+  centered?: boolean;
   /** Enable haptic feedback on press. Defaults to true. */
   haptic?: boolean;
 };
