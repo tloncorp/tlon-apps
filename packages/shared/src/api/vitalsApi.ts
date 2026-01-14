@@ -11,26 +11,35 @@ export const getLastConnectionStatus = async (contactId: string) => {
 
 export const checkConnectionStatus = async (
   contactId: string,
-  callback: (data: ConnectionStatus) => void
+  callback: (data: ConnectionStatus) => boolean
 ) => {
+  let unsubscribed = false;
   const subscription = await subscribe<ub.ConnectionUpdate>(
     {
       app: 'vitals',
       path: `/status/${contactId}`,
     },
-    (e) => {
-      callback(toConnectionStatus(e));
-      if ('complete' in e.status) {
-        setTimeout(() => unsubscribe(subscription), 1000);
+    (e, id) => {
+      if (unsubscribed) {
+        return;
+      }
+
+      const shouldUnsubscribe = callback(toConnectionStatus(e));
+
+      if (shouldUnsubscribe && id) {
+        unsubscribed = true;
+        unsubscribe(id);
       }
     }
   );
 
-  return poke({
+  poke({
     app: 'vitals',
     mark: 'run-check',
     json: contactId,
   });
+
+  return subscription;
 };
 
 export type ConnectionState =
@@ -52,13 +61,18 @@ export type ConnectionState =
 export type ConnectionStatus = {
   status: ConnectionState;
   complete: boolean;
+  timestamp?: number;
 };
 
 export const toConnectionStatus = (
   data: ub.ConnectionUpdate
 ): ConnectionStatus => {
   if ('complete' in data.status) {
-    return { complete: true, status: data.status.complete };
+    return {
+      complete: true,
+      status: data.status.complete,
+      timestamp: data.timestamp,
+    };
   } else {
     return { complete: false, status: data.status.pending };
   }

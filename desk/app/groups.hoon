@@ -3678,7 +3678,11 @@
           go-core
         ::
             %leave-channels
-          =.  cor  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
+          ::  this error is reported at a warning, not a failure level,
+          ::  because we proactively leave all channels when leaving the
+          ::  group.
+          ::
+          =.  cor  (tell:l %warn %poke-ack 'failed to leave channels' u.p.sign)
           go-core
       ==
     ::
