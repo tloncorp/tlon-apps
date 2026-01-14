@@ -357,6 +357,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 
 const logger = createDevLogger('SplashSequence', true);
 
+const INVITE_EXPLANATION_TEXT =
+  "Anyone you invite will skip the waitlist and be added to your contacts. You'll receive a DM when they join.";
+
 export function InviteContactsContent(props: {
   onComplete: () => void;
   systemContacts?: db.SystemContact[];
@@ -396,7 +399,7 @@ export function InviteContactsContent(props: {
       ) : (
         <>
           <SplashParagraph marginTop="$l" marginBottom="$xl">
-            Tap a contact to send them an invite to join you on Tlon Messenger.
+            {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
           <XStack paddingHorizontal="$xl">
             <SearchBar
@@ -444,8 +447,7 @@ function LoadingState() {
       paddingBottom={insets.bottom + getTokenValue('$6xl', 'size')}
     >
       <SplashParagraph marginTop="$l">
-        Anyone you invite will skip the waitlist and be added to your contacts.
-        You&apos;ll receive a DM when they join.
+        {INVITE_EXPLANATION_TEXT}
       </SplashParagraph>
       <YStack flex={1} justifyContent="center" alignItems="center" gap="$xl">
         <LoadingSpinner size="large" />
@@ -487,8 +489,7 @@ function ShareInviteLinkEmptyState() {
           />
         </View>
         <SplashParagraph marginHorizontal={0}>
-          Anyone you invite will skip the waitlist and be added to your
-          contacts. You&apos;ll receive a DM when they join.
+          {INVITE_EXPLANATION_TEXT}
         </SplashParagraph>
         <View width="100%">
           <PersonalInviteButton />
