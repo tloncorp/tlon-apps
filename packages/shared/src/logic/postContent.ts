@@ -313,20 +313,10 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
-          const { fileUri } = entry;
-          const isUploading =
-            fileUri.startsWith('file://') || fileUri.startsWith('blob:');
-          if (isUploading) {
-            out.push({
-              type: 'blockquote',
-              content: [{ type: 'text', text: 'Uploading attachment...' }],
-            });
-          } else {
-            out.push({
-              type: 'file',
-              file: entry,
-            });
-          }
+          out.push({
+            type: 'file',
+            file: entry,
+          });
           break;
         }
 

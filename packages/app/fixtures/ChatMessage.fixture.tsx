@@ -6,7 +6,8 @@ import {
   plaintextPreviewOf,
 } from '@tloncorp/shared/logic';
 import { RawText, Text } from '@tloncorp/ui';
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useMemo } from 'react';
+import { useSelect, useValue } from 'react-cosmos/client';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,6 +39,7 @@ import {
   postWithList,
   postWithMention,
   postWithNotebookReference,
+  postWithOptimisticIncompleteFileUpload,
   postWithSingleEmoji,
   postWithText,
   postWithVideo,
@@ -387,6 +389,25 @@ const SearchHighlightFixture = () => {
   );
 };
 
+const FileUploadFixture = () => {
+  const [uploadState] = useSelect('Upload state', {
+    options: ['uploading', 'completed'],
+    defaultValue: 'completed',
+  });
+
+  const post = useMemo(() => {
+    switch (uploadState) {
+      case 'uploading':
+        return postWithOptimisticIncompleteFileUpload;
+
+      case 'completed':
+        return postWithFileUpload;
+    }
+  }, [uploadState]);
+
+  return <SinglePostFixture post={post} />;
+};
+
 export default {
   All: (
     <ScrollFixture
@@ -411,7 +432,7 @@ export default {
   ),
   MessageStates: <PostVariantsFixture post={postWithText} />,
   SearchHighlight: <SearchHighlightFixture />,
-  File: <SinglePostFixture post={postWithFileUpload} />,
+  File: <FileUploadFixture />,
   Image: <SinglePostFixture post={postWithImage} />,
   Video: <SinglePostFixture post={postWithVideo} />,
   Text: <SinglePostFixture post={postWithText} />,

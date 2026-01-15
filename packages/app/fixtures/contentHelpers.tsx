@@ -565,6 +565,20 @@ export const postWithFileUpload = makePost(
   }
 );
 
+export const postWithOptimisticIncompleteFileUpload = makePost(
+  exampleContacts.ed,
+  [verse.inline('Look at this file')],
+  {
+    isEdited: false,
+    blob: appendFileUploadToPostBlob('', {
+      fileUri: 'file://local/path/to/file.pdf',
+      name: 'The Impact of Remote Work on Urban Economies.pdf',
+      mimeType: 'application/pdf',
+      size: 2048,
+    }),
+  }
+);
+
 export const postWithEverything = makePost(exampleContacts.mark, [
   block.header('h1', inline.text('All Features Test')),
   verse.inline(

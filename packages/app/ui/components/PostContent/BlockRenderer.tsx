@@ -214,10 +214,29 @@ export function ReferenceBlock({
 }
 
 export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
+  const isUploading = useMemo(
+    () =>
+      block.file.fileUri.startsWith('file://') ||
+      block.file.fileUri.startsWith('blob:'),
+    [block.file.fileUri]
+  );
+
   const formattedSize = useMemo(
     () => formatMemorySize(block.file.size),
     [block.file.size]
   );
+
+  // TODO
+  const fileExtension = useMemo(() => 'pdf', []);
+
+  if (isUploading) {
+    return (
+      <YStack paddingLeft="$l">
+        <BlockquoteSideBorder />
+        <Text color="$tertiaryText">Uploading attachment...</Text>
+      </YStack>
+    );
+  }
 
   return (
     <Reference.Frame>
@@ -234,7 +253,7 @@ export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
       </Reference.Header>
       <Reference.Body>
         <XStack padding={12} gap={8}>
-          <FilePreview fileExtensionLabel="pdf" />
+          <FilePreview fileExtensionLabel={fileExtension} />
           <YStack
             gap={14}
             flex={1}
