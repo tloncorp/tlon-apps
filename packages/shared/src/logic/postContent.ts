@@ -2,7 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
-import { parsePostBlob } from './content-helpers';
+import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
@@ -93,6 +93,11 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type FileUploadBlockData = {
+  type: 'file';
+  file: PostBlobDataEntry;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -139,6 +144,7 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | VideoBlockData
+  | FileUploadBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData

@@ -1,6 +1,14 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
-import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import { formatMemorySize } from '@tloncorp/shared/utils';
+import {
+  FilePreview,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useCopy,
+} from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -203,6 +211,45 @@ export function ReferenceBlock({
   }
 
   return <ContentReferenceLoader reference={block} {...props} />;
+}
+
+export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
+  const formattedSize = useMemo(
+    () => formatMemorySize(block.file.size),
+    [block.file.size]
+  );
+
+  return (
+    <Reference.Frame>
+      <Reference.Header>
+        <Reference.Title>
+          <Icon
+            type="ChannelNote"
+            color="$tertiaryText"
+            customSize={[12, 12]}
+          />
+          <Reference.TitleText>File Upload</Reference.TitleText>
+        </Reference.Title>
+        <Reference.ActionIcon />
+      </Reference.Header>
+      <Reference.Body>
+        <XStack padding={12} gap={8}>
+          <FilePreview fileExtensionLabel="pdf" />
+          <YStack
+            gap={14}
+            flex={1}
+          >
+            <Text size="$label/xl" numberOfLines={1} ellipsizeMode="middle">
+              {block.file.name}
+            </Text>
+            <Text size="$label/m" color="$secondaryText">
+              {formattedSize}
+            </Text>
+          </YStack>
+        </XStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
 }
 
 export function BigEmojiBlock({
@@ -514,6 +561,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   rule: RuleBlock,
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
+  file: FileUploadBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -534,6 +582,7 @@ export type DefaultRendererProps = {
   rule: BlockSettings<typeof RuleBlock>;
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
+  file: BlockSettings<typeof FileUploadBlock>;
 };
 
 interface BlockRendererContextValue {

@@ -546,7 +546,7 @@ type BuildPostBlobDataEntry<
   version: Config['version'];
 } & Payload;
 
-type PostBlobDataEntry = BuildPostBlobDataEntry<
+export type PostBlobDataEntry = BuildPostBlobDataEntry<
   'file',
   { version: 1 },
   {
