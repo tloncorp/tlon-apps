@@ -313,7 +313,7 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
-          const { fileUri, name } = entry;
+          const { fileUri } = entry;
           const isUploading =
             fileUri.startsWith('file://') || fileUri.startsWith('blob:');
           if (isUploading) {
@@ -323,11 +323,8 @@ export function convertContent(
             });
           } else {
             out.push({
-              type: 'link',
-              url: fileUri,
-              siteName: name ?? 'Attached file',
-              description: 'Press to download',
-              title: summarizeFilesize(entry.size),
+              type: 'file',
+              file: entry,
             });
           }
           break;
@@ -671,14 +668,4 @@ export function getTextContent(
   return postContent == null
     ? null
     : plaintextPreviewOf(convertContentSafe(postContent), config);
-}
-
-function summarizeFilesize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  } else if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  } else {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
 }
