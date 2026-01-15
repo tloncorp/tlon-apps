@@ -157,11 +157,17 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         return undefined;
       }
 
+      // can't fetch newer if we have no posts to cursor from
+      const newestPost = firstPage.posts[0];
+      if (!newestPost?.sequenceNum) {
+        return undefined;
+      }
+
       return {
         channelId: options.channelId,
         count: options.count ?? 50,
         mode: 'newer',
-        cursorSequenceNum: firstPage.posts[0].sequenceNum!,
+        cursorSequenceNum: newestPost.sequenceNum,
       };
     },
   });
@@ -346,7 +352,7 @@ async function hasNewerPosts(channelId: string, posts: db.Post[]) {
     return false;
   }
 
-  const largestSeq = posts?.[0].sequenceNum;
+  const largestSeq = posts?.[0]?.sequenceNum;
   if (!largestSeq) {
     return true;
   }
