@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "793a834e-2fcd-4601-99ec-bc8aede23daf",
+  "id": "04c52350-44b5-41a4-90a0-4c2d120aebb3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2415,8 +2415,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "delivery_status": {
           "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "delivery_failure": {
+          "name": "delivery_failure",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

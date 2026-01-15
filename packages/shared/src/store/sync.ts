@@ -1751,6 +1751,7 @@ export async function syncChannelRequestWithBackoff(
     db.updatePost({
       id: postId,
       deliveryStatus: 'error' in result.body ? 'failed' : 'sent',
+      requestId: null,
     });
   };
 

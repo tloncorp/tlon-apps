@@ -34,7 +34,7 @@ function groupAction5(action: ub.GroupActionV5['a-groups']) {
     mark: 'group-action-5',
     json: {
       id: getRequestId(),
-      action,
+      'a-groups': action,
     },
   };
 }

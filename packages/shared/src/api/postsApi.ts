@@ -131,12 +131,20 @@ function toPostReference(said: ub.Said) {
   }
 }
 
-function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+function channelPostAction(
+  nest: ub.Nest,
+  action: ub.PostAction,
+  requestId?: string
+) {
   checkNest(nest);
 
-  return channelAction(nest, {
-    post: action,
-  });
+  return channelAction(
+    nest,
+    {
+      post: action,
+    },
+    requestId
+  );
 }
 
 export const sendPost = async ({
@@ -146,6 +154,7 @@ export const sendPost = async ({
   content,
   blob,
   metadata,
+  requestId,
 }: {
   channelId: string;
   authorId: string;
@@ -153,6 +162,7 @@ export const sendPost = async ({
   content: Story;
   blob?: string;
   metadata?: db.PostMetadata;
+  requestId: string;
 }): Promise<ub.ChannelActionResponse | null> => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -197,9 +207,13 @@ export const sendPost = async ({
       : undefined,
   });
 
-  const action = channelPostAction(channelId, {
-    add: essay,
-  });
+  const action = channelPostAction(
+    channelId,
+    {
+      add: essay,
+    },
+    requestId
+  );
 
   logger.log('post sent', { channelId, authorId, sentAt, content });
   return await requestResponse(action);
@@ -296,6 +310,7 @@ export const sendReply = async ({
   content,
   sentAt,
   authorId,
+  requestId,
 }: {
   authorId: string;
   channelId: string;
@@ -303,6 +318,7 @@ export const sendReply = async ({
   parentAuthor: string;
   content: Story;
   sentAt: number;
+  requestId: string;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: ub.ReplyDelta = {
@@ -324,7 +340,7 @@ export const sendReply = async ({
 
     const action = chatAction(channelId, `${parentAuthor}/${parentId}`, delta);
     await poke(action);
-    return;
+    return null;
   }
 
   const postAction: ub.PostAction = {
@@ -340,8 +356,8 @@ export const sendReply = async ({
     },
   };
 
-  const action = channelPostAction(channelId, postAction);
-  await requestResponse(action);
+  const action = channelPostAction(channelId, postAction, requestId);
+  return await requestResponse(action);
 };
 export interface GetSequencedPostsOptions {
   channelId: string;

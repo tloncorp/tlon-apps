@@ -1326,11 +1326,6 @@
     --
   ++  v8
     |%
-    ++  action
-      %-  ot
-      :~  id+(se %uv)
-          a-groups+a-groups
-      ==
     ++  a-groups
       ^-  $-(json a-groups:v8:gv)
       %-  of

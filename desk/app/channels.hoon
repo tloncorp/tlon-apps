@@ -147,6 +147,7 @@
         ::
           [/v5 %channel-response-5 ~]
           [/request/$ %channel-response-5 ~]
+          [/$/$/$/request/$ %channel-response-5 ~]
           [/v5/$/$/$/request/$ %channel-response-5 ~]
         ::
           [/http-response/$ %http-response-header %http-response-data ~]
@@ -2375,7 +2376,12 @@
       ?.  =(%channel-response-update p.cage)
         ~|(strange-response-fact+p.cage !!)
       =+  !<(=response-update:v10:cv q.cage)
-      =/  =response:v10:cv  (r-update-to-response:utils response-update)
+      =/  posts=v-posts:v9:cv
+        ?.  ?=(%ok -.body.response-update)
+          posts.channel
+        posts.channel:(ca-u-channels update.body.response-update)
+      =/  =response:v10:cv
+        (r-update-to-response:utils response-update posts.channel)
       =.  ca-core
         (emit (tell:plog %dbug ~[>[%received-response req-id response]<] ~))
       ?~  request=(~(get by requests) req-id)

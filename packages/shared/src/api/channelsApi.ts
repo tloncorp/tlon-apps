@@ -28,10 +28,11 @@ const logger = createDevLogger('channelsApi', false);
 
 export function channelAction(
   channelId: string,
-  action: ChannelsSubAction
+  action: ChannelsSubAction,
+  requestId?: string
 ): ChannelAction {
   return {
-    id: getRequestId(),
+    id: requestId ?? getRequestId(),
     'a-channels': {
       channel: {
         nest: channelId,
@@ -658,7 +659,7 @@ export async function requestResponse(
 
 export async function getChannelRequestResult(requestId: string) {
   return request<ub.ChannelActionResponse>(
-    `/apps/channels/~/v1/request/${requestId}`,
+    `/apps/channels/~/v1/request/${requestId}.json`,
     {
       method: 'GET',
     }

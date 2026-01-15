@@ -721,7 +721,8 @@
   ^-  (unit v-reply:c)
   ((bake (may-bind same) (may:c v-reply:c)) v-reply)
 ++  r-update-to-response
-  |=  response-update:v10:cv
+  |=  [response-update:v10:cv =v-posts:v9:cv]
+  ~>  %spin.['libcu-r-update-to-response']
   ^-  response:v10:cv
   :-  id
   ?.  ?=(%ok -.body)  body
@@ -749,8 +750,21 @@
       [%& (uv-post-3 +.post.u-post)]
     ::
         %reply
-      :: TODO
-      !!
+      ::  should we return bunts here or crash?
+      =/  =reply-meta:v9:cv
+        ?~  post=(~(get by v-posts) id.update)  *reply-meta:v9:cv
+        ?:  ?=(%| -.u.post)  *reply-meta:v9:cv
+        (get-reply-meta +.u.post)
+      =;  =r-reply:v9:cv
+        [%reply id.u-post reply-meta r-reply]
+      ?-  -.u-reply.u-post
+        %reacts  [%reacts (uv-reacts reacts.u-reply.u-post)]
+      ::
+          %set
+        :-  %set
+        ?:  ?=(%| -.reply.u-reply.u-post)  reply.u-reply.u-post
+        [%& (uv-reply-2 id.u-post +.reply.u-reply.u-post)]
+      ==
     ==
   ==
 ++  was-mentioned

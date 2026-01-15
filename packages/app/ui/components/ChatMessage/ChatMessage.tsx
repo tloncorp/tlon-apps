@@ -232,7 +232,15 @@ const ChatMessage = ({
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
         ) : null}
-
+        {/* <View
+          pointerEvents="none"
+          position="absolute"
+          right={12}
+          top={8}
+          zIndex={199}
+        >
+          <ChatMessageDeliveryStatus status="failed" />
+        </View> */}
 
         {deliveryFailed ? (
           <Pressable

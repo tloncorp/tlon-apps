@@ -622,7 +622,7 @@
           %'POST'
         ?~  body.request  (emil not-found)
         ?~  json=(de:json:html q.u.body.request)  (emil not-found)
-        =/  =action:v10:gv  (action:v8:dejs:gj u.json)
+        =/  =action:v10:gv  (action:v10:dejs:gj u.json)
         =.  requests
           %+  ~(put by requests)  request-id.action
           [request-id.action `id %sending ~]

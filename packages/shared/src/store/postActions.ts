@@ -6,6 +6,7 @@ import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
+import { getRequestId } from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
 import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
@@ -122,6 +123,7 @@ async function _sendPost({
   channelId: string;
 }) {
   const authorId = api.getCurrentUserId();
+  const requestId = getRequestId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
@@ -165,6 +167,7 @@ async function _sendPost({
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
+    requestId,
     blob: optimisticPostData.blob,
   });
 
@@ -210,6 +213,7 @@ async function _sendPost({
         blob: finalizedPostData.blob,
         metadata: finalizedPostData.metadata,
         sentAt: cachePost.sentAt,
+        requestId,
       });
     });
 
@@ -228,6 +232,12 @@ async function _sendPost({
       logger.crumb('error sending post', { error: result.body.error });
       throw new Error(result.body.error.message);
     }
+
+    db.updatePost({
+      id: cachePost.id,
+      deliveryStatus: 'sent',
+      requestId: null,
+    });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
       error: e,
@@ -249,7 +259,8 @@ async function _sendPost({
     const isConnectionRelated =
       errorMsg === 'aborted' ||
       errorMsg.includes('channel was reaped') ||
-      errorMsg.includes('fetch timed out');
+      errorMsg.includes('fetch timed out') ||
+      errorMsg.includes('network request');
 
     if (isConnectionRelated) {
       logger.crumb('connection issue detected, marking for verification');
@@ -258,7 +269,11 @@ async function _sendPost({
         deliveryStatus: 'needs_verification',
       });
     } else {
-      await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      await db.updatePost({
+        id: cachePost.id,
+        deliveryStatus: 'failed',
+        deliveryFailureReason: e.message,
+      });
     }
 
     throw e;
@@ -296,7 +311,8 @@ export async function retrySendPost({
   }
 
   // optimistic update
-  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
+  const requestId = getRequestId();
+  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued', requestId });
 
   const content = JSON.parse(post.content as string) as PostContent;
   const story = toUrbitStory(content);
@@ -322,6 +338,7 @@ export async function retrySendPost({
           authorId: post.authorId,
           content: story,
           sentAt: post.sentAt,
+          requestId,
         });
       } else {
         return api.sendPost({
@@ -337,6 +354,7 @@ export async function retrySendPost({
                 }
               : undefined,
           sentAt: post.sentAt,
+          requestId,
         });
       }
     });
@@ -355,7 +373,11 @@ export async function retrySendPost({
     }
   } catch (e) {
     console.error('Failed to retry send post', e);
-    await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    await db.updatePost({
+      id: post.id,
+      deliveryStatus: 'failed',
+      deliveryFailureReason: e.message,
+    });
   }
 }
 
@@ -579,6 +601,7 @@ export async function sendReply({
   // TODO: make author available more efficiently
   const authorId = api.getCurrentUserId();
   const author = await db.getContact({ id: authorId });
+  const requestId = getRequestId();
   const cachePost = db.buildPost({
     authorId,
     author,
@@ -587,6 +610,7 @@ export async function sendReply({
     content,
     parentId,
     deliveryStatus: 'enqueued',
+    requestId,
   });
   await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
@@ -607,7 +631,7 @@ export async function sendReply({
 
   try {
     logger.crumb('sending reply to backend');
-    await sessionActionQueue.add(() =>
+    const result = await sessionActionQueue.add(() =>
       api.sendReply({
         channelId: channel.id,
         parentId,
@@ -615,16 +639,41 @@ export async function sendReply({
         authorId,
         content,
         sentAt: cachePost.sentAt,
+        requestId,
       })
     );
-    sync.syncChannelMessageDelivery({ channelId: channel.id });
+
+    logger.crumb('done sending reply');
+    if (result === null || 'pending' in result.body) {
+      sync.syncChannelMessageDelivery({
+        channelId: channel.id,
+        requestId: result ? result.id : undefined,
+        postId: cachePost.id,
+      });
+      return;
+    }
+
+    if ('error' in result.body) {
+      logger.crumb('error sending reply', { error: result.body.error });
+      throw new Error(result.body.error.message);
+    }
+
+    db.updatePost({
+      id: cachePost.id,
+      deliveryStatus: 'sent',
+      requestId: null,
+    });
   } catch (e) {
     logger.crumb('failed to send reply');
     logger.trackEvent(AnalyticsEvent.ErrorSendReply, {
       error: e,
     });
     console.error('Failed to send reply', e);
-    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+    await db.updatePost({
+      id: cachePost.id,
+      deliveryStatus: 'failed',
+      deliveryFailureReason: e.message,
+    });
   }
 }
 
@@ -1111,6 +1160,7 @@ export async function summarizeMessages({
           inline: [`${summaryPrefix}\n\n${response.summary}`],
         },
       ],
+      requestId: getRequestId(),
     });
 
     logger.crumb('summarizeMessages completed successfully');
