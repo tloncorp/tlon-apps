@@ -1349,7 +1349,9 @@
     ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=([%command %leave ~] rest.pole)
+            ?|  ?=(%kick -.sign)
+              ::
+                ?=([%command %leave ~] rest.pole)
                 ?=([%comand %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
