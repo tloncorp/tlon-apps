@@ -3,8 +3,15 @@ import {
   AppState,
   AppStateStatus,
   Appearance,
+  NativeModules,
+  Platform,
   useColorScheme,
 } from 'react-native';
+
+// Native module that queries Android's Configuration directly, bypassing
+// React Native's Appearance module which can return stale values when the
+// system theme changes while the app is backgrounded.
+const TlonTheme = NativeModules.TlonTheme;
 
 export const useIsDarkMode = () => {
   const colorScheme = useColorScheme();
@@ -14,10 +21,10 @@ export const useIsDarkMode = () => {
   // backgrounded, regardless of actual system appearance settings. We ignore
   // scheme changes that occur while backgrounded to avoid flickering.
   //
-  // Android: useColorScheme() doesn't reliably update when the system theme
-  // changes while the app is backgrounded for extended periods. We query
-  // Appearance.getColorScheme() directly when returning to foreground to get
-  // a fresh (non-cached) value and ensure theme sync after long background periods.
+  // Android: React Native's Appearance API returns stale values when the system
+  // theme changes while the app is backgrounded. We use a native module
+  // (TlonTheme) to query Android's Configuration.uiMode directly when returning
+  // to foreground.
   const isInForeground = useRef<boolean>(AppState.currentState === 'active');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(colorScheme === 'dark');
 
@@ -32,11 +39,22 @@ export const useIsDarkMode = () => {
         isInForeground.current = isNowInForeground;
 
         // When returning to foreground, query the color scheme directly to get
-        // a fresh value. This works around Android's issue where useColorScheme()
-        // may have a stale value after long background periods.
+        // a fresh value.
         if (wasInBackground && isNowInForeground) {
-          const freshColorScheme = Appearance.getColorScheme();
-          setIsDarkMode(freshColorScheme === 'dark');
+          if (Platform.OS === 'android' && TlonTheme) {
+            // Android: use native module (Appearance API returns stale values)
+            TlonTheme.getColorScheme()
+              .then((scheme: string) => setIsDarkMode(scheme === 'dark'))
+              .catch(() => {
+                // Fallback to Appearance API
+                const freshColorScheme = Appearance.getColorScheme();
+                setIsDarkMode(freshColorScheme === 'dark');
+              });
+          } else {
+            // iOS: Appearance API works correctly
+            const freshColorScheme = Appearance.getColorScheme();
+            setIsDarkMode(freshColorScheme === 'dark');
+          }
         }
       }
     );
@@ -53,7 +71,7 @@ export const useIsDarkMode = () => {
   }, [colorScheme]);
 
   // Add Appearance change listener as backup to catch theme changes
-  // while app is active (supplements useColorScheme hook on Android)
+  // while app is active (supplements useColorScheme hook)
   useEffect(() => {
     const appearanceSubscription = Appearance.addChangeListener(
       ({ colorScheme: newColorScheme }) => {
