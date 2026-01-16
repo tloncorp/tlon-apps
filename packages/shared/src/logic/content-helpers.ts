@@ -6,7 +6,6 @@ import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
-  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '../domain';
 import {
@@ -615,36 +614,11 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   });
 }
 
-function toPostDataNonlinkGallery({
-  content,
-  attachments,
-}: {
-  content: (Inline | Block)[];
-  attachments: FinalizedAttachment[];
-}) {
-  // Only include caption if it exists (avoid empty strings)
-  const story = content ? constructStory(content) : constructStory([]);
-
-  // Extract and add image blocks to the story
-  const imageAttachments = attachments.filter(
-    (a): a is UploadedImageAttachment => a.type === 'image'
-  );
-  story.push(...imageAttachments.map((a) => ({ block: createImageBlock(a) })));
-
-  // Create metadata with the first image
-  const metadata = imageAttachments[0]
-    ? { image: UploadedImageAttachment.uri(imageAttachments[0]) }
-    : {};
-
-  return { story, metadata };
-}
-
 export function toPostData({
   attachments,
   content,
   image,
   channelType,
-  isEdit,
   title,
 }: {
   content: (Inline | Block)[];
@@ -652,15 +626,7 @@ export function toPostData({
   channelType: ChannelType;
   title?: string;
   image?: string;
-  isEdit?: boolean;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
-  if (channelType === 'gallery' && attachments.length > 0) {
-    return toPostDataNonlinkGallery({
-      attachments,
-      content,
-    });
-  }
-
   const blocks: Block[] = [];
   let blob: string | undefined = undefined;
 
@@ -677,15 +643,7 @@ export function toPostData({
         }
 
         case 'image': {
-          if (
-            !image ||
-            attachment.file.uri !== image ||
-            (attachment.file.uri === image &&
-              isEdit &&
-              channelType === 'gallery')
-          ) {
-            blocks.push(createImageBlock(attachment));
-          }
+          blocks.push(createImageBlock(attachment));
           break;
         }
 

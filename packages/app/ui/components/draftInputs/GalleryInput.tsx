@@ -198,6 +198,10 @@ export function GalleryInput({
     try {
       setIsPosting(true);
 
+      const heroImageAttachment = attachments.find(
+        (att) => att.type === 'image'
+      ) as domain.UploadedImageAttachment | undefined;
+
       const draft: domain.PostDataDraft = {
         channelId: channel.id,
         content: caption ? [caption] : [],
@@ -212,6 +216,13 @@ export function GalleryInput({
           : {
               isEdit: false,
             }),
+
+        // This URI is used in `toPostData` to find the corresponding uploaded
+        // attachment URL and attach as post image.
+        image:
+          heroImageAttachment == null
+            ? undefined
+            : heroImageAttachment.file.uri,
       };
       await sendPostFromDraft(draft);
 
