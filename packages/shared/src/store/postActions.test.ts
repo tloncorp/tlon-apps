@@ -5,9 +5,10 @@ import * as api from '../api';
 import { poke, scry } from '../api/urbit';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '../domain/attachment';
+import { PostDataDraft } from '../domain/post';
+import { toPostData } from '../logic';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
-import * as urbit from '../urbit';
-import { finalizeAndSendPost, legacy_sendPost, sendReply } from './postActions';
+import { finalizeAndSendPost } from './postActions';
 import { updateSession } from './session';
 import { setUploadState } from './storage';
 
@@ -38,10 +39,13 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = legacy_sendPost({
+    const sendPostPromise = finalizeAndSendPost({
       channelId: TEST_CHANNEL,
-      content: buildPostContent(),
+      content: [friendlyUniqueString()],
+      attachments: [],
+      channelType: 'chat',
       replyToPostId: null,
+      isEdit: false,
     });
     await vi.runOnlyPendingTimersAsync();
     // post starts as enqueued (since we don't have an active session)
@@ -86,10 +90,13 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = legacy_sendPost({
+    const sendPostPromise = finalizeAndSendPost({
       channelId: TEST_CHANNEL,
-      content: buildPostContent(),
+      content: [friendlyUniqueString()],
+      attachments: [],
+      channelType: 'chat',
       replyToPostId: null,
+      isEdit: false,
     });
     await vi.runOnlyPendingTimersAsync();
     expect(await fetchLatestPostFromDb()).toMatchObject({
@@ -529,12 +536,15 @@ describe('finalizeAndSendPost', () => {
     expect(poke).not.toHaveBeenCalled();
 
     // send reply
-    const replyContent = buildPostContent();
-    const sendReplyPromise = sendReply({
-      channel: channel!,
-      parentId: parentPost.id,
-      content: replyContent,
-    });
+    const replyContent = friendlyUniqueString();
+    const draft: PostDataDraft = {
+      replyToPostId: parentPost.id,
+      channelId: channel!.id,
+      content: [replyContent],
+      attachments: [],
+      channelType: 'chat',
+    };
+    const sendReplyPromise = finalizeAndSendPost(draft);
 
     await vi.runOnlyPendingTimersAsync();
     await sendReplyPromise;
@@ -560,7 +570,7 @@ describe('finalizeAndSendPost', () => {
                   id: parentPost.id,
                   action: {
                     add: {
-                      content: replyContent,
+                      content: toPostData({ ...draft, attachments: [] }).story,
                       author: api.getCurrentUserId(),
                       sent: expect.any(Number),
                     },
@@ -606,10 +616,6 @@ function buildFakeImageAttachment(uri: string): ImageAttachment {
     type: 'image',
     file: { width: 1, height: 1, uri },
   };
-}
-
-function buildPostContent(): urbit.Story {
-  return [{ inline: [friendlyUniqueString()] }];
 }
 
 function unsafe_extractUploadKey(att: Attachment): Attachment.UploadIntent.Key {

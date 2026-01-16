@@ -54,16 +54,6 @@ export interface DraftInputContext {
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
-  /**
-   * @deprecated use `sendPostFromDraft` instead.
-   * This is used by our more bohemian draft inputs, which we couldn't possibly remove.
-   */
-  legacy_sendPost: (
-    content: Story,
-    channelId: string,
-    metadata?: db.PostMetadata,
-    blob?: string
-  ) => Promise<void>;
   sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;

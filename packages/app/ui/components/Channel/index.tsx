@@ -5,7 +5,6 @@ import {
   PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
-  legacy_sendPost,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -275,16 +274,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        legacy_sendPost: async (content, channelId, metadata, blob) => {
-          await legacy_sendPost({
-            channelId,
-            content,
-            metadata,
-            blob,
-            replyToPostId: null,
-          });
-          scrollToNewMessage();
-        },
         sendPostFromDraft: async (draft) => {
           setEditingPost?.(undefined);
           await finalizeAndSendPost(draft);

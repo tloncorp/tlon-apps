@@ -115,7 +115,6 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       channel,
       clearDraft,
       onPresentationModeChange: noop,
-      legacy_sendPost: noop,
       sendPostFromDraft: async (draft) => {
         setEditingPost?.(undefined);
         await store.finalizeAndSendPost(draft);

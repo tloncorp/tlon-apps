@@ -120,10 +120,8 @@ export async function finalizeAndSendPost(
   }
 }
 
-/** @deprecated use `finalizeAndSendPost` instead for optimistic attachments */
-export async function legacy_sendPost(
-  postData: domain.PostDataFinalizedParent
-) {
+/** Prefer using finalizeAndSendPost where possible for optimistic updates. */
+async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
   return await _sendPost({
     channelId: postData.channelId,
     buildOptimisticPostData: () => postData,
@@ -413,7 +411,7 @@ export async function forwardPost({
     return;
   }
 
-  return legacy_sendPost({
+  return sendFinalizedPost({
     channelId,
     content: [{ block: { cite: urbitReference } }],
     replyToPostId: null,
@@ -460,7 +458,7 @@ export async function forwardGroup({
       return;
     }
 
-    return legacy_sendPost({
+    return sendFinalizedPost({
       channelId: channel.id,
       content: [{ block: { cite: urbitReference } }],
       replyToPostId: null,
@@ -590,29 +588,6 @@ async function _editPost({
     });
     logger.log('editPost rollback done');
   }
-}
-
-export async function sendReply({
-  parentId,
-  content,
-  channel,
-}: {
-  channel: db.Channel;
-  parentId: string;
-  content: urbit.Story;
-}) {
-  logger.crumb('sending reply', channel.type);
-  const finalizedPost: domain.PostDataFinalized = {
-    channelId: channel.id,
-    content,
-    replyToPostId: parentId,
-    isEdit: false,
-  };
-  await _sendPost({
-    channelId: channel.id,
-    buildOptimisticPostData: () => finalizedPost,
-    buildFinalizedPostData: async () => finalizedPost,
-  });
 }
 
 export async function hidePost({ post }: { post: db.Post }) {
