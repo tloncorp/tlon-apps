@@ -1,4 +1,5 @@
 import { performUpload } from '@tloncorp/shared';
+import * as domain from '@tloncorp/shared/domain';
 import { Story } from '@tloncorp/shared/urbit';
 import { Audio } from 'expo-av';
 import { useCallback, useState } from 'react';
@@ -24,11 +25,23 @@ export function MicInput({
       return;
     }
     try {
-      const u = await performUpload({ uri: recordingUri });
-      await draftInputContext.legacy_sendPost(
-        audioPost(u),
-        draftInputContext.channel.id
-      );
+      const draft: domain.PostDataDraft = {
+        channelId: draftInputContext.channel.id,
+        content: [],
+        attachments: [
+          {
+            type: 'image',
+            file: {
+              uri: recordingUri,
+              width: 0,
+              height: 0,
+            },
+          },
+        ],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+      };
+      await draftInputContext.sendPostFromDraft(draft);
     } catch (err) {
       console.error('failed upload', err);
     }
@@ -89,19 +102,4 @@ export function MicInput({
       </Button>
     </SafeAreaView>
   );
-}
-
-function audioPost(remoteSrc: string): Story {
-  return [
-    {
-      block: {
-        image: {
-          src: remoteSrc,
-          height: 0,
-          width: 0,
-          alt: 'lights on the river',
-        },
-      },
-    },
-  ];
 }
