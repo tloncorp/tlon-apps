@@ -6,6 +6,7 @@ import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '../domain';
 import {
@@ -659,22 +660,12 @@ export function toPostData({
               ? attachment.localFile.name
               : fileFromPath(attachment.localFile, { decodeURI: true })) ??
             undefined;
-          if (attachment.uploadState.status === 'success') {
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.remoteUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          } else if (attachment.uploadState.status === 'uploading') {
-            // necessary for optimistic preview
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.localUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          }
+          blob = appendFileUploadToPostBlob(blob, {
+            fileUri: UploadedFileAttachment.uri(attachment),
+            name,
+            mimeType: attachment.type,
+            size: attachment.size,
+          });
           break;
         }
       }
