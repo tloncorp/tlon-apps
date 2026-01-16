@@ -277,13 +277,10 @@ type IconProp = IconType | React.ReactElement;
 const renderIcon = (icon: IconProp) =>
   typeof icon === 'string' ? <ButtonIconFrame type={icon} /> : icon;
 
-export type ButtonProps = Omit<
+type ButtonBaseProps = Omit<
   React.ComponentProps<typeof ButtonFrame>,
   'children'
 > & {
-  label?: string;
-  leadingIcon?: IconProp;
-  trailingIcon?: IconProp;
   loading?: boolean;
   // ButtonFrame variant props
   size?: ButtonSize;
@@ -298,8 +295,25 @@ export type ButtonProps = Omit<
   disableHaptic?: boolean;
 };
 
+type TextButtonProps = ButtonBaseProps & {
+  label: string;
+  leadingIcon?: IconProp;
+  trailingIcon?: IconProp;
+  icon?: never;
+};
+
+type IconOnlyButtonProps = ButtonBaseProps & {
+  icon: IconProp;
+  label?: never;
+  leadingIcon?: never;
+  trailingIcon?: never;
+};
+
+export type ButtonProps = TextButtonProps | IconOnlyButtonProps;
+
 function ButtonImpl({
   label,
+  icon,
   leadingIcon,
   trailingIcon,
   loading = false,
@@ -314,6 +328,7 @@ function ButtonImpl({
   ...props
 }: ButtonProps) {
   const isInteractive = !disabled && !loading;
+  const isIconOnly = !!icon;
 
   const handlePress = React.useCallback(
     (e: any) => {
@@ -337,7 +352,10 @@ function ButtonImpl({
     [loading, trailingIcon]
   );
 
-  const hasOnlyTrailing = !label && !leadingIcon && trailing;
+  const iconContent = React.useMemo(
+    () => (loading ? <ButtonSpinner /> : icon && renderIcon(icon)),
+    [loading, icon]
+  );
 
   return (
     <ButtonContext.Provider
@@ -350,7 +368,7 @@ function ButtonImpl({
         size={size}
         fill={fill}
         intent={type}
-        iconOnly={!!hasOnlyTrailing}
+        iconOnly={isIconOnly}
         hasLeadingIcon={leadingIcon && size === 'small' ? 'small' : undefined}
         symmetricPadding={
           size === 'small' && !leadingIcon && (centered || !trailing)
@@ -364,16 +382,19 @@ function ButtonImpl({
         {...props}
         onPress={handlePress}
       >
-        {leading}
-        {label && (
-          <ButtonText
-            size={fill === 'text' ? 'medium' : size}
-            centered={!!hasOnlyTrailing || centered}
-          >
-            {label}
-          </ButtonText>
+        {isIconOnly ? (
+          iconContent
+        ) : (
+          <>
+            {leading}
+            {label && (
+              <ButtonText size={fill === 'text' ? 'medium' : size} centered={centered}>
+                {label}
+              </ButtonText>
+            )}
+            {trailing}
+          </>
         )}
-        {trailing}
       </ButtonFrame>
     </ButtonContext.Provider>
   );
