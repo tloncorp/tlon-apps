@@ -82,7 +82,7 @@ export default function ProfileStatusSheet({
               size="small"
               onPress={handleSave}
               disabled={!isValid}
-              trailingIcon="ArrowUp"
+              icon="ArrowUp"
             />
           </XStack>
         </YStack>

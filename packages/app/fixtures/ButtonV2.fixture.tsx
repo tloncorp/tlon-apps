@@ -85,7 +85,7 @@ function ButtonRow({
         size={size}
         disabled={disabled}
         loading={loading}
-        trailingIcon="Placeholder"
+        icon="Placeholder"
       />
     </XStack>
   );

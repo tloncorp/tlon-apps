@@ -24,7 +24,7 @@ export default function AttachmentButton({
       <Button
         fill="ghost"
         size="small"
-        leadingIcon={'Add'}
+        icon="Add"
         onPress={() => setShowInputSelector(true)}
       />
       <AttachmentSheet

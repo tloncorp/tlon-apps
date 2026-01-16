@@ -135,6 +135,7 @@ const SplashButton = ({
   Omit<ComponentProps<typeof View>, 'onPress' | 'children'>) => {
   const { type, fill, fullWidth } = variantMapping[variant];
   const width = fullWidth ? '100%' : isWeb ? 300 : '100%';
+  const label = typeof children === 'string' ? children : '';
 
   return (
     <View width={width} {...rest}>
@@ -145,7 +146,7 @@ const SplashButton = ({
         onPress={onPress}
         disabled={disabled}
         trailingIcon="ChevronRight"
-        label={typeof children === 'string' ? children : undefined}
+        label={label}
         justifyContent="space-between"
       />
     </View>

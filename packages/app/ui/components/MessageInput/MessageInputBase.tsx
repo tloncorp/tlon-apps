@@ -161,7 +161,7 @@ export const MessageInputContainer = memo(
                 <Button
                   fill="ghost"
                   size="small"
-                  leadingIcon="ChevronLeft"
+                  icon="ChevronLeft"
                   onPress={goBack}
                 />
               </View>
@@ -172,7 +172,7 @@ export const MessageInputContainer = memo(
                 <Button
                   fill="ghost"
                   size="small"
-                  leadingIcon="Close"
+                  icon="Close"
                   onPress={cancelEditing}
                 />
               </View>
@@ -212,7 +212,7 @@ export const MessageInputContainer = memo(
                   loading={isSending}
                   onPress={isEditing ? onPressEdit : onPressSend}
                   testID="MessageInputSendButton"
-                  leadingIcon={
+                  icon={
                     isEditing ? (
                       'Checkmark'
                     ) : (
