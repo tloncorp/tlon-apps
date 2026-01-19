@@ -15,8 +15,6 @@
 ++  ph-test-dm-init
   =/  m  (strand ,~)
   ^-  form:m
-  ::
-  ;<  ~  bind:m  ph-test-init
   ;<  ~  bind:m  (watch-app /~bud/chat/v3 [~bud %chat] /v3)
   ;<  =bowl:strand  bind:m  get-bowl
   ::  ~zod greets ~bud with a message
@@ -31,9 +29,7 @@
   ;<  =cage  bind:m  (wait-for-app-fact /~bud/chat/v3 [~bud %chat])
   ;<  ~  bind:m  (ex-equal !>(p.cage) !>(%ships))
   ;<  ~  bind:m
-    (ex-equal q.cage !>((sy ~zod ~)))
+    (ex-equal q.cage !>((sy ~bud ~)))
   ;<  =^cage  bind:m  (wait-for-app-fact /~bud/chat/v3 [~bud %chat])
-  ::
-  ;<  ~  bind:m  ph-test-shut
   (pure:m ~)
 --
