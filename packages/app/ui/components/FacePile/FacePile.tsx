@@ -53,7 +53,7 @@ export const FacePile = React.memo(function FacePileComponent({
               alignItems="center"
               justifyContent="center"
             >
-              <Text fontSize={'$2xs'} color="$primaryText" letterSpacing={-0.5}>
+              <Text fontSize={8} color="$primaryText" letterSpacing={-0.5}>
                 {countSymbol}
                 {formattedCount.text}
               </Text>
@@ -86,7 +86,7 @@ export const FacePile = React.memo(function FacePileComponent({
           alignItems="center"
           justifyContent="center"
         >
-          <Text fontSize="$2xs" color="$primaryText" letterSpacing={-0.5}>
+          <Text fontSize={8} color="$primaryText" letterSpacing={-0.5}>
             {countSymbol}
             {formattedCount.text}
           </Text>
