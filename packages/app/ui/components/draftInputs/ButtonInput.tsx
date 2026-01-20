@@ -1,3 +1,4 @@
+import * as domain from '@tloncorp/shared/domain';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'tamagui';
 
@@ -21,10 +22,14 @@ export function ButtonInput({
           fontWeight: 'bold',
         }}
         onPress={() => {
-          draftInputContext.sendPost(
-            [{ inline: [messageText] }],
-            draftInputContext.channel.id
-          );
+          const draft: domain.PostDataDraft = {
+            channelId: draftInputContext.channel.id,
+            content: [messageText],
+            attachments: [],
+            channelType: draftInputContext.channel.type,
+            replyToPostId: null,
+          };
+          draftInputContext.sendPostFromDraft(draft);
         }}
       >
         {labelText}
