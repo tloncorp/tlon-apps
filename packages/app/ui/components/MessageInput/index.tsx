@@ -532,7 +532,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         };
 
         await sendPostFromDraft(draft);
-        setEditingPost?.(undefined);
 
         setEditingPost?.(undefined);
         onSend?.();

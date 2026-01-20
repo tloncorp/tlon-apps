@@ -543,6 +543,7 @@ describe('finalizeAndSendPost', () => {
       content: [replyContent],
       attachments: [],
       channelType: 'chat',
+      isEdit: false,
     };
     const sendReplyPromise = finalizeAndSendPost(draft);
 

@@ -258,7 +258,7 @@ export function GalleryInput({
   }, [channel.id]);
 
   const handleLinkPost = useCallback(
-    async ({ content, meta }: LinkInputSaveParams) => {
+    async ({ content }: LinkInputSaveParams) => {
       if (isPosting) return;
 
       try {
