@@ -19,7 +19,7 @@ export const FacePile = React.memo(function FacePileComponent({
   grid = false,
   totalCount,
 }: FacePileProps) {
-  const effectiveMaxVisible = grid ? Math.min(maxVisible, 3) : maxVisible;
+  const effectiveMaxVisible = grid ? Math.min(maxVisible, 4) : maxVisible;
   const visibleContactIds = useMemo(
     () => contactIds.slice(0, effectiveMaxVisible),
     [contactIds, effectiveMaxVisible]
@@ -30,7 +30,6 @@ export const FacePile = React.memo(function FacePileComponent({
     () => formatCount(overflowCount),
     [overflowCount]
   );
-  const countSymbol = formattedCount.isRounded ? '⨦' : '+';
 
   if (grid) {
     return (
@@ -40,25 +39,10 @@ export const FacePile = React.memo(function FacePileComponent({
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
         </XStack>
-        <XStack gap={'$xs'} justifyContent="center">
-          {visibleContactIds.slice(2, 3).map((contactId) => (
+        <XStack gap={'$xs'}>
+          {visibleContactIds.slice(2, 4).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
-          {overflowCount > 0 && (
-            <View
-              width="$xl"
-              height="$xl"
-              borderRadius="$xs"
-              backgroundColor="$tertiaryBackground"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Text fontSize={8} color="$primaryText" letterSpacing={-0.5}>
-                {countSymbol}
-                {formattedCount.text}
-              </Text>
-            </View>
-          )}
         </XStack>
       </YStack>
     );
@@ -87,8 +71,7 @@ export const FacePile = React.memo(function FacePileComponent({
           justifyContent="center"
         >
           <Text fontSize={8} color="$primaryText" letterSpacing={-0.5}>
-            {countSymbol}
-            {formattedCount.text}
+            +{formattedCount.text}
           </Text>
         </View>
       )}
