@@ -50,10 +50,10 @@
 ::
 ?:  ?=(%| -.minted)
   =/  err=tape
-    %-  zing
+    %-  of-wall:format
     %+  turn  p.minted
     |=  =tank
-    "{(of-wall:format (~(win re tank) 0 80))}\0a"
+    (of-wall:format (wash [0 80] tank))
   (pure:m !>(`eval-output:e`[%error (crip err)]))
 ::  Execute the compiled nock (sandboxed - no scry allowed)
 ::  The empty gate |=(^ ~) ensures all .^ calls return null
