@@ -31,6 +31,11 @@ export const featureMeta = {
     label: 'Enable AI-powered message and channel summarization',
     onlyTlon: true,
   },
+  hoonEval: {
+    default: false,
+    label: 'Enable inline Hoon evaluation in chat',
+    onlyTlon: false,
+  },
 } satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;
 
 export type FeatureName = keyof typeof featureMeta;

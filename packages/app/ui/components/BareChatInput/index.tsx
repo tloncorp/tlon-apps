@@ -40,6 +40,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -249,6 +250,7 @@ export default function BareChatInput({
     useState(false);
   const [isEvalMode, setIsEvalMode] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [hoonEvalEnabled] = useFeatureFlag('hoonEval');
 
   const roleOptions = useMemo(() => {
     return createMentionRoleOptions(groupRoles);
@@ -968,8 +970,8 @@ ${result.output}
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
       goBack={goBack}
-      isEvalMode={isEvalMode}
-      onToggleEvalMode={handleToggleEvalMode}
+      isEvalMode={hoonEvalEnabled ? isEvalMode : undefined}
+      onToggleEvalMode={hoonEvalEnabled ? handleToggleEvalMode : undefined}
     >
       <YStack
         flex={1}
