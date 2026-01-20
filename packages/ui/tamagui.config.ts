@@ -549,12 +549,6 @@ export const config =
         media,
         settings: {
           defaultFont: 'body',
-          allowedStyleValues: {
-            space: 'somewhat-strict',
-            size: 'somewhat-strict',
-            radius: 'somewhat-strict',
-            zIndex: 'somewhat-strict',
-          },
         },
         animations,
       })
@@ -565,12 +559,6 @@ export const config =
         media,
         settings: {
           defaultFont: 'body',
-          allowedStyleValues: {
-            space: 'somewhat-strict',
-            size: 'somewhat-strict',
-            radius: 'somewhat-strict',
-            zIndex: 'somewhat-strict',
-          },
         },
         animations,
       });
