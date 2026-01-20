@@ -340,9 +340,13 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigationRef.current.navigate('UserProfile', { userId });
+      navigationRef.current.navigate('UserProfile', {
+        userId,
+        groupId,
+        channelId: currentChannelId,
+      });
     },
-    [navigationRef]
+    [navigationRef, groupId, currentChannelId]
   );
 
   const handleGoToGroupSettings = useCallback(() => {
