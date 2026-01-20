@@ -86,7 +86,7 @@ export const ScreenHeaderComponent = ({
               height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
               alignItems="center"
               justifyContent="center"
-              paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$2xl'}
+              paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
             >
               <Text
                 color={'$secondaryText'}
