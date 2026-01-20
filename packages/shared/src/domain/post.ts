@@ -15,10 +15,6 @@ interface _PostDataDraftBase {
 /** Draft for an original, non-edit post */
 export interface PostDataDraftPost extends _PostDataDraftBase {
   isEdit?: false;
-  /** If present, this post is a reply to the specified parent post */
-  parentId?: string;
-  /** Required when parentId is present - the author of the parent post */
-  parentAuthor?: string;
 }
 export interface PostDataDraftEdit extends _PostDataDraftBase {
   isEdit: true;
@@ -89,14 +85,9 @@ export namespace PostDataDraft {
       return false;
     }
 
-    // If parentId is present, parentAuthor must also be present
-    if (obj.parentId !== undefined) {
-      if (
-        typeof obj.parentId !== 'string' ||
-        typeof obj.parentAuthor !== 'string'
-      ) {
-        return false;
-      }
+    // Validate replyToPostId is string or null
+    if (obj.replyToPostId !== null && typeof obj.replyToPostId !== 'string') {
+      return false;
     }
 
     return true;

@@ -16,6 +16,20 @@ const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
 const REMOTE_URI = 'REMOTE_URI';
 
+function buildTestDraft(
+  overrides: Partial<Omit<PostDataDraft, 'isEdit'>> = {}
+): PostDataDraft {
+  return {
+    channelId: TEST_CHANNEL,
+    content: ['test message'],
+    attachments: [],
+    channelType: 'chat',
+    replyToPostId: null,
+    isEdit: false as const,
+    ...overrides,
+  };
+}
+
 setupDatabaseTestSuite();
 
 describe('sendPost', () => {
@@ -39,14 +53,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = finalizeAndSendPost({
-      channelId: TEST_CHANNEL,
-      content: [friendlyUniqueString()],
-      attachments: [],
-      channelType: 'chat',
-      replyToPostId: null,
-      isEdit: false,
-    });
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft());
     await vi.runOnlyPendingTimersAsync();
     // post starts as enqueued (since we don't have an active session)
     expect(await fetchLatestPostFromDb()).toMatchObject({
@@ -90,14 +97,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = finalizeAndSendPost({
-      channelId: TEST_CHANNEL,
-      content: [friendlyUniqueString()],
-      attachments: [],
-      channelType: 'chat',
-      replyToPostId: null,
-      isEdit: false,
-    });
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft());
     await vi.runOnlyPendingTimersAsync();
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'enqueued',

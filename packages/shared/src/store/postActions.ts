@@ -125,8 +125,6 @@ export async function finalizeAndSendPost(
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
-      parentId: draft.parentId,
-      parentAuthor: draft.parentAuthor,
     });
   }
 }
@@ -140,14 +138,15 @@ async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
   });
 }
 
+/** @internal Exported for tests only. Use finalizeAndSendPost in application code. */
+export const sendPost = sendFinalizedPost;
+
 async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
   channelId,
   draft,
   existingPost,
-  parentId,
-  parentAuthor,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -156,10 +155,6 @@ async function _sendPost({
   draft?: domain.PostDataDraft;
   /** Existing post to retry (updates in place instead of creating new) */
   existingPost?: db.Post;
-  /** If present, this is a reply to the specified parent post */
-  parentId?: string;
-  /** Required when parentId is present - the author of the parent post */
-  parentAuthor?: string;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -225,7 +220,7 @@ async function _sendPost({
       deliveryStatus: 'enqueued',
       blob: optimisticPostData.blob,
       draft,
-      parentId,
+      parentId: optimisticPostData.replyToPostId ?? undefined,
     });
 
     let group: null | db.Group = null;
@@ -233,44 +228,16 @@ async function _sendPost({
       group = await db.getGroup({ id: channel.groupId });
     }
     logger.trackEvent(
-      parentId ? AnalyticsEvent.ActionSendReply : AnalyticsEvent.ActionSendPost,
+      optimisticPostData.replyToPostId != null
+        ? AnalyticsEvent.ActionSendReply
+        : AnalyticsEvent.ActionSendPost,
       logic.getModelAnalytics({ post: cachePost, channel, group })
     );
 
     logger.crumb('insert channel posts');
     await sync.handleAddPost(cachePost);
   }
-  // optimistic update
-  // TODO: make author available more efficiently
-  logger.crumb('get author');
-  const author = await db.getContact({ id: authorId });
-  logger.crumb('build pending post');
-  const optimisticPostData = buildOptimisticPostData();
-  const cachePost = db.buildPost({
-    authorId,
-    author,
-    channel,
-    sequenceNum: 0, // placeholder, this will be overwritten by the server
-    content: optimisticPostData.content,
-    metadata: optimisticPostData.metadata,
-    deliveryStatus: 'enqueued',
-    blob: optimisticPostData.blob,
-    parentId: optimisticPostData.replyToPostId ?? undefined,
-  });
 
-  let group: null | db.Group = null;
-  if (channel.groupId) {
-    group = await db.getGroup({ id: channel.groupId });
-  }
-  logger.trackEvent(
-    optimisticPostData.replyToPostId == null
-      ? AnalyticsEvent.ActionSendPost
-      : AnalyticsEvent.ActionSendReply,
-    logic.getModelAnalytics({ post: cachePost, channel, group })
-  );
-
-  logger.crumb('insert channel posts');
-  await sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
@@ -291,23 +258,14 @@ async function _sendPost({
           content: finalizedPostData.content,
           metadata: finalizedPostData.metadata,
           blob: finalizedPostData.blob,
-          parentId: finalizedPostData.replyToPostId,
           deliveryStatus: 'pending',
+          parentId: finalizedPostData.replyToPostId,
         }),
       });
-      logger.crumb('sending post to API');
-      if (finalizedPostData.replyToPostId == null) {
-        // Non-reply
-        return api.sendPost({
-          channelId: channel.id,
-          authorId,
-          content: finalizedPostData.content,
-          blob: finalizedPostData.blob,
-          metadata: finalizedPostData.metadata,
-          sentAt: cachePost.sentAt,
-        });
-      } else {
-        // Reply
+
+      // Send to the appropriate API endpoint based on whether this is a reply
+      if (finalizedPostData.replyToPostId != null) {
+        // Reply - look up parent author from DB
         const parentPost = await db.getPost({
           postId: finalizedPostData.replyToPostId,
         });
@@ -316,12 +274,24 @@ async function _sendPost({
             `Parent post ${finalizedPostData.replyToPostId} not found for thread send`
           );
         }
+        logger.crumb('sending reply to API');
         return api.sendReply({
           channelId: channel.id,
           parentId: finalizedPostData.replyToPostId,
           parentAuthor: parentPost.authorId,
           authorId,
           content: finalizedPostData.content,
+          sentAt: cachePost.sentAt,
+        });
+      } else {
+        // Non-reply
+        logger.crumb('sending post to API');
+        return api.sendPost({
+          channelId: channel.id,
+          authorId,
+          content: finalizedPostData.content,
+          blob: finalizedPostData.blob,
+          metadata: finalizedPostData.metadata,
           sentAt: cachePost.sentAt,
         });
       }
@@ -342,7 +312,7 @@ async function _sendPost({
     logger.crumb('done sending post');
   } catch (e) {
     logger.trackEvent(
-      optimisticPostData.replyToPostId == null
+      cachePost.parentId == null
         ? AnalyticsEvent.ErrorSendPost
         : AnalyticsEvent.ErrorSendReply,
       {
@@ -351,7 +321,7 @@ async function _sendPost({
         errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
       }
     );
-    if (optimisticPostData.replyToPostId == null) {
+    if (cachePost.parentId == null) {
       logger.crumb('failed to send post');
     } else {
       logger.crumb('failed to send reply');
@@ -402,8 +372,6 @@ export async function retrySendPost({
   }
 
   // Require draft for retry - posts without it cannot be retried.
-  // Note: Legacy reply posts sent via sendReply() don't have drafts.
-  // Replies sent via finalizeAndSendPost() do store drafts and can be retried.
   if (!post.draft) {
     logger.trackError('retrySendPost: missing draft, cannot retry', {
       postId: post.id,
@@ -439,14 +407,12 @@ export async function retrySendPost({
   }
 
   // Update existing post in place
-  // Note: retry applies to parent posts and replies (not edits), so we can safely cast
-  const parentDraft = draft as domain.PostDataDraftParent;
+  // Note: retry applies to posts and replies (not edits), so we can safely cast
+  const postDraft = draft as domain.PostDataDraftPost;
   await _sendPost({
     channelId: draft.channelId,
-    buildFinalizedPostData: () => finalizePostDraft(parentDraft),
+    buildFinalizedPostData: () => finalizePostDraft(postDraft),
     existingPost: post,
-    parentId: parentDraft.parentId,
-    parentAuthor: parentDraft.parentAuthor,
   });
 }
 
