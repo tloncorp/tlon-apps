@@ -1,3 +1,4 @@
+import { formatCount } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
@@ -25,16 +26,21 @@ export const FacePile = React.memo(function FacePileComponent({
   );
   const total = totalCount ?? contactIds.length;
   const overflowCount = Math.max(0, total - effectiveMaxVisible);
+  const formattedCount = useMemo(
+    () => formatCount(overflowCount),
+    [overflowCount]
+  );
+  const countSymbol = formattedCount.isRounded ? '⨦' : '+';
 
   if (grid) {
     return (
-      <YStack gap={2}>
-        <XStack gap={2}>
+      <YStack gap={'$s'}>
+        <XStack gap={'$s'}>
           {visibleContactIds.slice(0, 2).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
         </XStack>
-        <XStack gap={2}>
+        <XStack gap={'$s'} justifyContent="center">
           {visibleContactIds.slice(2, 3).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
@@ -47,8 +53,9 @@ export const FacePile = React.memo(function FacePileComponent({
               alignItems="center"
               justifyContent="center"
             >
-              <Text fontSize={'$2xs'} color="$primaryText">
-                +{overflowCount}
+              <Text fontSize={'$2xs'} color="$primaryText" letterSpacing={-0.5}>
+                {countSymbol}
+                {formattedCount.text}
               </Text>
             </View>
           )}
@@ -79,8 +86,9 @@ export const FacePile = React.memo(function FacePileComponent({
           alignItems="center"
           justifyContent="center"
         >
-          <Text fontSize="$2xs" color="$primaryText">
-            +{overflowCount}
+          <Text fontSize="$2xs" color="$primaryText" letterSpacing={-0.5}>
+            {countSymbol}
+            {formattedCount.text}
           </Text>
         </View>
       )}
