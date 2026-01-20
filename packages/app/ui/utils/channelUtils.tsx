@@ -119,6 +119,10 @@ export function getGroupTitle(
 ): string {
   const isPending = group.currentUserIsMember === false;
 
+  if (group?.privacy === 'secret' && isPending) {
+    return 'Secret Group';
+  }
+
   if (group?.title && group?.title !== '') {
     return group.title;
   } else if ((group?.members?.length ?? 0) > 1) {

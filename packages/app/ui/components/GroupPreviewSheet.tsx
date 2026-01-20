@@ -26,6 +26,7 @@ interface JoinStatus {
   isMember: boolean;
   isJoining: boolean;
   isErrored: boolean;
+  isSecret: boolean;
   needsInvite: boolean;
   hasInvite: boolean;
   requestedInvite: boolean;
@@ -102,6 +103,7 @@ export function GroupPreviewPane({
       isMember: group?.currentUserIsMember ?? false,
       isJoining: group?.joinStatus === 'joining' || isJoining,
       isErrored: group?.joinStatus === 'errored',
+      isSecret: group?.privacy === 'secret',
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
@@ -376,6 +378,16 @@ export function getActionGroups(
         title: 'Reject invite',
         accent: 'secondary',
         onPress: () => actions.respondToInvite(false),
+      },
+    ];
+  }
+  if (status.isSecret && !status.hasInvite) {
+    return [
+      {
+        title: 'This group is secret',
+        accent: 'secondary',
+        disabled: true,
+        description: 'You need an invite to join this group',
       },
     ];
   }
