@@ -181,15 +181,15 @@ jobs:
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
   # Backend aqua tests
-  backend-test:
+  backend-aqua-test:
     runs-on: ubuntu-latest
-    name: Backend Tests
+    name: Backend Aqua Tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           clean: false # Our cleanup step handles root-owned files
-      - name: Run Backend Tests for Groups
+      - name: Run Backend Aqua Tests for Groups
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
