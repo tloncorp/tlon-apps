@@ -74,7 +74,7 @@
     ::  Blocked on scry - not allowed in chat eval
     ::
     %1
-  [%error '.^ (scry) is not supported in chat eval']
+  [%error '.^ (scry) is not supported in eval']
     ::  Crash during execution
     ::
     %2
