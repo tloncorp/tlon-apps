@@ -53,7 +53,11 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       paddingBottom={insets.bottom}
       backgroundColor="$secondaryBackground"
     >
-      <ScreenHeader title="Notifications" showSessionStatus={false} />
+      <ScreenHeader
+        title="Notifications"
+        showSessionStatus={false}
+        backgroundColor="$secondaryBackground"
+      />
       <View
         flex={1}
         paddingHorizontal="$2xl"

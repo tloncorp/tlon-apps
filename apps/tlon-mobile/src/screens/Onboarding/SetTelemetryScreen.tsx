@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import {
   ScreenHeader,
   SizableText,
@@ -8,6 +7,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
+import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
@@ -32,6 +32,7 @@ export const SetTelemetryScreen = () => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        backgroundColor="$secondaryBackground"
         title="Usage Statistics"
         showSessionStatus={false}
         rightControls={

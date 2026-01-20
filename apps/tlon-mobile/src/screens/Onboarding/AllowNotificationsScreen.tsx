@@ -83,7 +83,11 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         style={{ flex: 1 }}
         resizeMode="cover"
       >
-        <ScreenHeader title="Notifications" showSessionStatus={false} />
+        <ScreenHeader
+          backgroundColor="$secondaryBackground"
+          title="Notifications"
+          showSessionStatus={false}
+        />
         <YStack
           flex={1}
           paddingHorizontal="$2xl"
