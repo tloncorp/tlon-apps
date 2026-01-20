@@ -26,7 +26,7 @@ export function useOnboardingHelpers() {
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const signupContext = useSignupContext();
   const configureUrbitClient = useConfigureUrbitClient();
-  const { setShip } = useShip();
+  const { setShip, ship, shipUrl } = useShip();
 
   const checkAccountStatusAndNavigate = useCallback(async () => {
     const accountIssue = await store.checkAccountStatus();
@@ -71,37 +71,20 @@ export function useOnboardingHelpers() {
     return true;
   }, [navigation, store]);
 
-  const handleRevivalLogin = useCallback(
-    async (shipInfo: db.ShipInfo) => {
+  const handleGuidedLogin = useCallback(
+    async (inputShipInfo?: db.ShipInfo) => {
       try {
         logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
           context: 'revival login: starting',
         });
 
+        signupContext.setOnboardingValues({ isGuidedLogin: true });
+        navigation.navigate('SetNickname');
+
         // we won't have set up the connection yet, so do that first
-        configureUrbitClient({
-          shipName: shipInfo.ship,
-          shipUrl: shipInfo.shipUrl,
-        });
-        await store.syncStart();
-
-        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
-          context: 'revival login: completed sync start, scaffolding',
-        });
-
-        // once we're connected, scaffold the personal group
-        await withRetry(() => scaffoldPersonalGroup());
-
-        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
-          context: 'revival login: personal group ready',
-        });
-
-        db.wayfindingProgress.setValue((prev) => ({
-          ...prev,
-          tappedChatInput: false,
-          tappedAddCollection: false,
-          tappedAddNote: false,
-        }));
+        const storedShipInfo = { shipName: ship, shipUrl };
+        configureUrbitClient(inputShipInfo || storedShipInfo);
+        store.syncStart();
 
         // finally, reset the ships revival status in Hosting
         store
@@ -125,7 +108,7 @@ export function useOnboardingHelpers() {
         });
       }
     },
-    [configureUrbitClient, store]
+    [configureUrbitClient, navigation, signupContext, store]
   );
 
   const handleLogin = useCallback(
@@ -174,7 +157,7 @@ export function useOnboardingHelpers() {
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
-      const { status: nodeStatus, isBeingRevived } =
+      const { status: nodeStatus, guideFirstLogin } =
         await store.checkHostingNodeStatus();
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
@@ -197,6 +180,10 @@ export function useOnboardingHelpers() {
         }
       }
 
+      if (!guideFirstLogin) {
+        await db.hostedAccountIsInitialized.setValue(true);
+      }
+
       // Step 3: Authenticate with node
       console.log('authenticating with node', nodeId);
       const shipInfo = await store.authenticateWithReadyNode();
@@ -207,19 +194,19 @@ export function useOnboardingHelpers() {
       logger.log('authenticated with node', shipInfo);
 
       // make sure we show them the wayfinding splash if they're being revived
-      setShip({ ...shipInfo, needsSplashSequence: isBeingRevived });
+      setShip({ ...shipInfo, needsSplashSequence: guideFirstLogin });
 
       // Step 4: if they're being revived, attempt to scaffold the personal group
-      if (isBeingRevived) {
-        handleRevivalLogin(shipInfo);
+      if (guideFirstLogin) {
+        handleGuidedLogin(shipInfo);
       }
     },
-    [handleRevivalLogin, navigation, setShip, signupContext, store]
+    [handleGuidedLogin, navigation, setShip, signupContext, store]
   );
 
   return {
     handleLogin,
-    handleRevivalLogin,
+    handleGuidedLogin,
     checkAccountStatusAndNavigate,
     reviveLoggedInSession,
   };
