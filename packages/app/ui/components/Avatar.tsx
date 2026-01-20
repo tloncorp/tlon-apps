@@ -166,7 +166,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
         >
           <FacePile
             contactIds={memberContactIds}
-            maxVisible={3}
+            maxVisible={4}
             totalCount={memberCount}
             grid
           />
