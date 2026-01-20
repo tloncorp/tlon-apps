@@ -13,7 +13,7 @@ export interface EvalResult {
  * @returns The evaluation result with status and output
  */
 export async function evalHoon(code: string): Promise<EvalResult> {
-  const response = await thread<string>({
+  const result = await thread<string, EvalResult>({
     inputMark: 'eval-input',
     outputMark: 'eval-output',
     threadName: 'eval',
@@ -21,10 +21,5 @@ export async function evalHoon(code: string): Promise<EvalResult> {
     desk: 'groups',
   });
 
-  if (!response.ok) {
-    throw new Error(`Eval request failed: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result as EvalResult;
+  return result;
 }
