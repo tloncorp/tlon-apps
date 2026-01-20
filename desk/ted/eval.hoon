@@ -13,8 +13,12 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ::  Extract input cord from vase
+::  Handle both CLI format [~ cord] and HTTP format cord
 ::
-=+  !<(input=eval-input:e arg)
+=+  !<(arg-data=?(~ [~ eval-input:e]) arg)
+=/  input=eval-input:e
+  ?~  arg-data  ''
+  +.arg-data
 ::  Get bowl for entropy and time
 ::
 ;<  =bowl:spider  bind:m  get-bowl:strandio
