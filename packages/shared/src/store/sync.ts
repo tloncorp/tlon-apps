@@ -1559,10 +1559,12 @@ export async function syncSequencedPosts(
     updateLastActivityTime();
   }
 
-  await db.setLatestChannelSequenceNum({
-    channelId: options.channelId,
-    sequenceNum: result.newestSequenceNum,
-  });
+  if (result.newestSequenceNum != null) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: result.newestSequenceNum,
+    });
+  }
 
   return result;
 }
@@ -1618,10 +1620,12 @@ export async function syncPosts(
     updateLastActivityTime();
   }
 
-  await db.setLatestChannelSequenceNum({
-    channelId: options.channelId,
-    sequenceNum: response.newestSequenceNum,
-  });
+  if (response.newestSequenceNum != null) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: response.newestSequenceNum,
+    });
+  }
 
   if (response.deletedPosts?.length) {
     if (options.count && response.deletedPosts.length === options.count) {

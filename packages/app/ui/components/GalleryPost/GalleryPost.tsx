@@ -329,7 +329,7 @@ export function GalleryPostDetailView({
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
   const isTextPost = useMemo(() => {
     const type = content[0]?.type;
-    return !['embed', 'video', 'image', 'link', 'reference'].includes(type);
+    return !['video', 'image', 'link', 'reference'].includes(type);
   }, [content]);
 
   const handlePressImage = useCallback(
@@ -559,9 +559,6 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
-    if (content[0]?.type === 'embed') {
-      return { text: content[0].url, href: content[0].url };
-    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }
@@ -620,13 +617,9 @@ const LargeContentRenderer = createContentRenderer({
     link: {
       ...noWrapperPadding,
       minHeight: 300,
-      renderEmbed: true,
       imageProps: {
         aspectRatio: 1.5,
       },
-    },
-    embed: {
-      ...noWrapperPadding,
     },
   },
 });
@@ -671,7 +664,7 @@ const SmallContentRenderer = createContentRenderer({
     link: {
       borderRadius: 0,
       borderWidth: 0,
-      renderDescription: false,
+      renderDescription: true,
       imageProps: {
         height: '66%',
         aspectRatio: 'unset',
@@ -731,8 +724,7 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 
     // For text-only content, check if it's all text blocks
     const isTextContent = content.every(
-      (block) =>
-        !['image', 'video', 'reference', 'link', 'embed'].includes(block.type)
+      (block) => !['image', 'video', 'reference', 'link'].includes(block.type)
     );
 
     if (isTextContent) {

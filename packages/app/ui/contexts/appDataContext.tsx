@@ -133,9 +133,8 @@ export const useWebAppUpdate = () => {
 };
 
 export const useInviteSystemContacts = () => {
-  const context = useAppDataContext();
-
-  return context.inviteSystemContacts;
+  const context = useContext(Context);
+  return context?.inviteSystemContacts;
 };
 
 const useAppDataContext = (): CurrentAppDataState => {

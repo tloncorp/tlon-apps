@@ -15,6 +15,7 @@ import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useState } from 'react';
+import { openComposer } from 'react-native-email-link';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -55,6 +56,13 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
     navigation.navigate('Welcome');
   }, [handleLogout, navigation]);
 
+  const handleEmailSupport = useCallback(() => {
+    openComposer({
+      to: 'support@tlon.io',
+      subject: 'Help! My node needs repair.',
+    });
+  }, []);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
@@ -79,6 +87,11 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
         <PrimaryButton hero loading={rechecking} onPress={handleRecheckStatus}>
           <Button.Text>Check Again</Button.Text>
         </PrimaryButton>
+        {checkedAt && (
+          <PrimaryButton onPress={handleEmailSupport}>
+            <Button.Text>Email Support</Button.Text>
+          </PrimaryButton>
+        )}
       </OnboardingTextBlock>
     </View>
   );
