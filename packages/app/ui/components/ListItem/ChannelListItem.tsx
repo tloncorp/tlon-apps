@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, RawText } from '@tloncorp/ui';
@@ -16,6 +17,8 @@ import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
 import { ListItem, type ListItemProps } from './ListItem';
+
+const logger = createDevLogger('ChannelListItem', true);
 
 export function ChannelListItem({
   model,
@@ -106,6 +109,9 @@ export function ChannelListItem({
   };
 
   const handlePress = logic.useMutableCallback(() => {
+    logger.log(
+      `handlePress CALLED | channelId=${model.id} | channelTitle=${model.title ?? 'null'} | type=${model.type}`
+    );
     onPress?.(model);
   });
 

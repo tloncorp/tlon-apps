@@ -33,7 +33,7 @@ import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
 
-const logger = createDevLogger('HomeSidebar', false);
+const logger = createDevLogger('HomeSidebar', true);
 
 interface Props {
   previewGroupId?: string;
@@ -119,13 +119,23 @@ export const HomeSidebar = memo(
     const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
     const onPressChat = useCallback(
       async (item: db.Chat) => {
+        logger.log(
+          `onPressChat CALLED | type=${item.type} | id=${item.id} | isPending=${item.isPending ?? false}`
+        );
         if (item.type === 'group') {
           if (item.isPending) {
+            logger.log(`onPressChat | showing pending group preview`);
             setSelectedGroupId(item.id);
           } else {
+            logger.log(
+              `onPressChat | navigating to group | groupId=${item.group.id}`
+            );
             navigateToGroup(item.group.id);
           }
         } else {
+          logger.log(
+            `onPressChat | navigating to channel | channelId=${item.channel.id} | channelTitle=${item.channel.title ?? 'null'}`
+          );
           navigateToChannel(item.channel);
         }
       },
