@@ -180,6 +180,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
+  # Backend aqua tests
+  backend-test:
+    runs-on: ubuntu-latest
+    name: Backend Tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: false # Our cleanup step handles root-owned files
+      - name: Run Backend Tests for Groups
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat patch
+          ./backend/run-aqua-tests.sh
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     runs-on:
