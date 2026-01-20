@@ -30,11 +30,6 @@ export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
   sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
-  sendPost: (
-    content: Story,
-    channelId: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
   groupMembers: db.ChatMember[];

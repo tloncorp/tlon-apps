@@ -65,7 +65,6 @@ export default function ChannelScreen(props: Props) {
     clearDraft,
     editingPost,
     setEditingPost,
-    editPost,
     channel,
     group,
     groupIsLoading,
@@ -426,7 +425,6 @@ export default function ChannelScreen(props: Props) {
           onPressRetrySend={handleRetrySend}
           onPressRetryLoad={postsQuery.refetch}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           negotiationMatch={negotiationStatus.matchedOrPending}
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}
