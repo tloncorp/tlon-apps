@@ -47,7 +47,7 @@ export const FacePile = React.memo(function FacePileComponent({
               alignItems="center"
               justifyContent="center"
             >
-              <Text fontSize={8} color="$primaryText">
+              <Text fontSize={'$2xs'} color="$primaryText">
                 +{overflowCount}
               </Text>
             </View>
@@ -62,7 +62,7 @@ export const FacePile = React.memo(function FacePileComponent({
       {visibleContactIds.map((contactId, index) => (
         <View
           key={contactId}
-          marginLeft={index === 0 ? 0 : -12}
+          marginLeft={index === 0 ? 0 : '$-l'}
           zIndex={visibleContactIds.length + index}
         >
           <ContactAvatar contactId={contactId} size="$2xl" />
@@ -70,16 +70,16 @@ export const FacePile = React.memo(function FacePileComponent({
       ))}
       {overflowCount > 0 && (
         <View
-          marginLeft={-12}
-          zIndex={7}
-          width={24}
-          height={24}
-          borderRadius="$s"
+          marginLeft={'$-l'}
+          zIndex={'$l'}
+          width={'$2xl'}
+          height={'$2xl'}
+          borderRadius="$xs"
           backgroundColor="$secondaryBackground"
           alignItems="center"
           justifyContent="center"
         >
-          <Text fontSize="$xs" color="$primaryText">
+          <Text fontSize="$2xs" color="$primaryText">
             +{overflowCount}
           </Text>
         </View>

@@ -345,6 +345,7 @@ export const systemFont = createFont({
     default: 'System',
   }),
   size: {
+    '2xs': 8,
     xs: 12,
     s: 14,
     m: 16,
@@ -469,6 +470,7 @@ const desktopMeasures = addNegativeTokens(desktopRawMeasures);
 const desktopSystemFont = {
   ...systemFont,
   size: {
+    '2xs': 8,
     xs: 10,
     s: 12,
     m: 14,
@@ -480,6 +482,7 @@ const desktopSystemFont = {
     '3xl': 36,
   },
   lineHeight: {
+    '2xs': 12,
     xs: 14,
     s: 20,
     m: 22,
