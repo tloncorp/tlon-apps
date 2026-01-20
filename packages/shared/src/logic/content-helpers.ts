@@ -6,6 +6,7 @@ import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '../domain';
 import {
@@ -619,7 +620,6 @@ export function toPostData({
   content,
   image,
   channelType,
-  isEdit,
   title,
 }: {
   content: (Inline | Block)[];
@@ -627,7 +627,6 @@ export function toPostData({
   channelType: ChannelType;
   title?: string;
   image?: string;
-  isEdit?: boolean;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
   let blob: string | undefined = undefined;
@@ -645,15 +644,7 @@ export function toPostData({
         }
 
         case 'image': {
-          if (
-            !image ||
-            attachment.file.uri !== image ||
-            (attachment.file.uri === image &&
-              isEdit &&
-              channelType === 'gallery')
-          ) {
-            blocks.push(createImageBlock(attachment));
-          }
+          blocks.push(createImageBlock(attachment));
           break;
         }
 
@@ -669,22 +660,12 @@ export function toPostData({
               ? attachment.localFile.name
               : fileFromPath(attachment.localFile, { decodeURI: true })) ??
             undefined;
-          if (attachment.uploadState.status === 'success') {
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.remoteUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          } else if (attachment.uploadState.status === 'uploading') {
-            // necessary for optimistic preview
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.localUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          }
+          blob = appendFileUploadToPostBlob(blob, {
+            fileUri: UploadedFileAttachment.uri(attachment),
+            name,
+            mimeType: attachment.type,
+            size: attachment.size,
+          });
           break;
         }
       }
