@@ -17,6 +17,8 @@ const NoticeFrame = styled(YStack, {
   padding: '$2xl',
   marginHorizontal: '$l',
   borderRadius: '$l',
+  borderWidth: 1.6,
+  borderColor: '$systemNoticeBorder',
 });
 
 const NoticeBody = styled(Text, {
@@ -109,7 +111,7 @@ export function NotificationsPrompt() {
             padding="$xl"
             paddingHorizontal="$2xl"
             backgroundColor="$systemNoticeBackground"
-            borderColor="$positiveBorder"
+            borderColor="$systemNoticeBorder"
             borderWidth={1.6}
             pressStyle={{
               opacity: 0.7,
@@ -202,7 +204,7 @@ export function ContactBookPrompt(props: {
               padding="$xl"
               paddingHorizontal="$2xl"
               backgroundColor="$systemNoticeBackground"
-              borderColor="$positiveBorder"
+              borderColor="$systemNoticeBorder"
               borderWidth={1.6}
               pressStyle={{
                 opacity: 0.7,
@@ -253,7 +255,7 @@ export function JoinRequestNotice(params: {
           padding="$l"
           paddingHorizontal="$2xl"
           backgroundColor="$systemNoticeBackground"
-          borderColor="$positiveBorder"
+          borderColor="$systemNoticeBorder"
           borderWidth={1.6}
           pressStyle={{
             opacity: 0.7,
