@@ -38,7 +38,7 @@
   ?~  build
     ~>  %slog.0^leaf+"FAILED {filename} (build)"
     $(files t.files, fail [file fail])
-  ~>  %slog.0^leaf+"built thread {filename}"
+  ~>  %slog.0^leaf+"built file {filename}"
   $(files t.files, out [[file u.build] out])
 ::  +get-test-arms: get test arms contained in a core
 ::
