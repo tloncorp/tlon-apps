@@ -29,7 +29,7 @@
   ;<  =cage  bind:m  (wait-for-app-fact /~bud/chat/v3 [~bud %chat])
   ;<  ~  bind:m  (ex-equal !>(p.cage) !>(%ships))
   ;<  ~  bind:m
-    (ex-equal q.cage !>((sy ~bud ~)))
+    (ex-equal q.cage !>((sy ~zod ~)))
   ;<  =^cage  bind:m  (wait-for-app-fact /~bud/chat/v3 [~bud %chat])
   (pure:m ~)
 --
