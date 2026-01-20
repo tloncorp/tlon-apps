@@ -60,16 +60,20 @@ export const ScreenHeaderComponent = ({
     }
   };
 
-  const renderTitleWrapper = (children: ReactNode) => {
-    const wrapperStyle = getWrapperStyle();
+  const renderTitleContent = (titleContent: ReactNode) => {
     if (onTitlePress) {
       return (
-        <Pressable style={wrapperStyle} onPress={onTitlePress}>
-          {children}
+        <Pressable
+          onPress={onTitlePress}
+          style={{
+            alignSelf: useHorizontalTitleLayout ? 'flex-start' : 'center',
+          }}
+        >
+          {titleContent}
         </Pressable>
       );
     }
-    return <View style={wrapperStyle}>{children}</View>;
+    return titleContent;
   };
 
   return (
@@ -81,28 +85,16 @@ export const ScreenHeaderComponent = ({
       borderBottomWidth={borderBottom ? 1 : 0}
       testID={testID}
     >
-      {renderTitleWrapper(
-        <>
-          {showSubtitle && (
-            <View
-              height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
-              alignItems="center"
-              justifyContent="center"
-              paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
-            >
-              {typeof resolvedSubtitle === 'string' ? (
-                <LongPressDisclosure text={resolvedSubtitle}>
-                  <Text
-                    color={'$secondaryText'}
-                    size="$label/s"
-                    numberOfLines={1}
-                    paddingTop={useHorizontalTitleLayout ? 5 : undefined}
-                    testID={'ScreenHeaderSubtitle'}
-                  >
-                    {resolvedSubtitle}
-                  </Text>
-                </LongPressDisclosure>
-              ) : (
+      <View style={getWrapperStyle()}>
+        {showSubtitle && (
+          <View
+            height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
+            alignItems="center"
+            justifyContent="center"
+            paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
+          >
+            {typeof resolvedSubtitle === 'string' ? (
+              <LongPressDisclosure text={resolvedSubtitle}>
                 <Text
                   color={'$secondaryText'}
                   size="$label/s"
@@ -112,9 +104,21 @@ export const ScreenHeaderComponent = ({
                 >
                   {resolvedSubtitle}
                 </Text>
-              )}
-            </View>
-          )}
+              </LongPressDisclosure>
+            ) : (
+              <Text
+                color={'$secondaryText'}
+                size="$label/s"
+                numberOfLines={1}
+                paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                testID={'ScreenHeaderSubtitle'}
+              >
+                {resolvedSubtitle}
+              </Text>
+            )}
+          </View>
+        )}
+        {renderTitleContent(
           <XStack
             alignItems="center"
             justifyContent="center"
@@ -135,8 +139,8 @@ export const ScreenHeaderComponent = ({
               <Icon type="ChevronDown" color="$primaryText" size="$s" />
             )}
           </XStack>
-        </>
-      )}
+        )}
+      </View>
       <HeaderControls side="left">
         {backAction ? <HeaderBackButton onPress={backAction} /> : null}
         {leftControls}

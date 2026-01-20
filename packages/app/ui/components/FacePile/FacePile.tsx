@@ -34,13 +34,13 @@ export const FacePile = React.memo(function FacePileComponent({
 
   if (grid) {
     return (
-      <YStack gap={'$s'}>
-        <XStack gap={'$s'}>
+      <YStack gap={'$xs'}>
+        <XStack gap={'$xs'}>
           {visibleContactIds.slice(0, 2).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
         </XStack>
-        <XStack gap={'$s'} justifyContent="center">
+        <XStack gap={'$xs'} justifyContent="center">
           {visibleContactIds.slice(2, 3).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
@@ -48,7 +48,7 @@ export const FacePile = React.memo(function FacePileComponent({
             <View
               width="$xl"
               height="$xl"
-              borderRadius="$2xs"
+              borderRadius="$xs"
               backgroundColor="$tertiaryBackground"
               alignItems="center"
               justifyContent="center"
