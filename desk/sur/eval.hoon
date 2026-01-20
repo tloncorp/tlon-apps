@@ -1,13 +1,5 @@
-::  /sur/eval.hoon - Structures for inline Hoon evaluation
+::  /sur/eval.hoon
 ::
 |%
-::  Input for eval thread - the Hoon code to evaluate
-::
-+$  eval-input  cord
-::  Output from eval thread - status and result/error message
-::
-+$  eval-output
-  $:  status=?(%ok %error)
-      output=cord
-  ==
++$  eval-output  (each cord cord)
 --

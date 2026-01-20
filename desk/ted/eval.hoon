@@ -1,87 +1,48 @@
-::  /ted/eval.hoon - Inline Hoon evaluation for chat
-::
-::  Evaluates Hoon code in a sandboxed environment and returns
-::  the result as a formatted string. Scry (.^) is disabled for security.
+::  /ted/eval.hoon
 ::
 /-  spider, e=eval
 /+  strandio
-::
 =,  strand=strand:spider
-::
 ^-  thread:spider
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-::  Extract input cord from vase
-::  Handle both CLI format [~ cord] and HTTP format cord
-::
-=+  !<(arg-data=?(~ [~ eval-input:e]) arg)
-=/  input=eval-input:e
+::  handle both CLI [~ cord] and HTTP cord
+=+  !<(arg-data=?(~ [~ cord]) arg)
+=/  input=cord
   ?~  arg-data  ''
   +.arg-data
-::  Get bowl for entropy and time
-::
 ;<  =bowl:spider  bind:m  get-bowl:strandio
-::  Parse the input as Hoon
-::
 =/  ast=(unit hoon)  (rush input vest)
 ?~  ast
-  ::  Syntax error - return error message
-  ::
-  (pure:m !>(`eval-output:e`[%error 'syntax error']))
-::  Build a minimal subject with:
-::  - our: ship identity
-::  - now: current time
-::  - eny: entropy
-::  - ..zuse: standard library
-::
+  (pure:m !>(`eval-output:e`[%| 'syntax error']))
 =/  fowl=[our=@p now=@da eny=@uvJ]
-  :+  our.bowl
-    now.bowl
-  (shaz (cat 3 (mix [now eny]:bowl) %eny))
-::
+  [our.bowl now.bowl (shaz (cat 3 (mix [now eny]:bowl) %eny))]
 =/  subject  [fowl ..zuse]
-::  Compile the Hoon (catching crashes with mule)
-::
 =/  minted=(each [=type =nock] (list tank))
-  %-  mule  |.
-  (~(mint ut -:!>(subject)) %noun u.ast)
-::  If compilation failed, return the error
-::
+  (mule |.((~(mint ut -:!>(subject)) %noun u.ast)))
 ?:  ?=(%| -.minted)
   =/  err=tape
     %-  of-wall:format
     %+  turn  p.minted
     |=  =tank
     (of-wall:format (wash [0 80] tank))
-  (pure:m !>(`eval-output:e`[%error (crip err)]))
-::  Execute the compiled nock (sandboxed - no scry allowed)
-::  The empty gate |=(^ ~) ensures all .^ calls return null
-::
+  (pure:m !>(`eval-output:e`[%| (crip err)]))
+::  mock with |=(^ ~) blocks scry
 =/  =toon
   (mock [subject nock.p.minted] |=(^ ~))
-::  Format and return result based on execution outcome
-::
 %-  pure:m
 !>  ^-  eval-output:e
 ?-  -.toon
-    ::  Success - pretty print the result
-    ::
-    %0
-  =/  result=tape
-    (of-wall:format (~(win re (sell type.p.minted p.toon)) 0 80))
-  [%ok (crip result)]
-    ::  Blocked on scry - not allowed in chat eval
-    ::
-    %1
-  [%error '.^ (scry) is not supported in eval']
-    ::  Crash during execution
-    ::
-    %2
-  =/  err=tape
-    %-  zing
-    %+  turn  `(list tank)`p.toon
-    |=  =tank
-    "{(of-wall:format (~(win re tank) 0 80))}\0a"
-  [%error (crip ?~(err "crash" err))]
+  %0
+    =/  result=tape
+      (of-wall:format (~(win re (sell type.p.minted p.toon)) 0 80))
+    [%& (crip result)]
+  %1  [%| '.^ not supported']
+  %2
+    =/  err=tape
+      %-  zing
+      %+  turn  `(list tank)`p.toon
+      |=(=tank "{(of-wall:format (~(win re tank) 0 80))}\0a")
+    [%| (crip ?~(err "crash" err))]
 ==

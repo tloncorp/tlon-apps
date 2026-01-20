@@ -14,7 +14,7 @@ export interface EvalResult {
  */
 export async function evalHoon(code: string): Promise<EvalResult> {
   const result = await thread<string, EvalResult>({
-    inputMark: 'eval-input',
+    inputMark: 'hoon',
     outputMark: 'eval-output',
     threadName: 'eval',
     body: code,

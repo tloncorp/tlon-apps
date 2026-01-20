@@ -1,4 +1,4 @@
-::  /mar/eval/output.hoon - Mark for eval thread output
+::  /mar/eval/output.hoon
 ::
 /-  e=eval
 |_  =eval-output:e
@@ -8,9 +8,9 @@
   ++  noun  eval-output
   ++  json
     ^-  ^json
-    %-  pairs:enjs:format
-    :~  ['status' s+(scot %tas status.eval-output)]
-        ['output' s+output.eval-output]
+    ?-  -.eval-output
+      %&  (pairs:enjs:format ~[['status' s+'ok'] ['output' s+p.eval-output]])
+      %|  (pairs:enjs:format ~[['status' s+'error'] ['output' s+p.eval-output]])
     ==
   --
 ++  grab
