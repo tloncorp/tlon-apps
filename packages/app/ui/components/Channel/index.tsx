@@ -2,7 +2,6 @@ import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
   DraftInputId,
-  PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   useChannelPreview,
@@ -16,6 +15,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -226,17 +226,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          const draft: PostDataDraft = {
-            channelId: channel.id,
-            content: [],
-            attachments: uploadIntents.map((x) =>
-              Attachment.fromUploadIntent(x)
-            ),
-            channelType: channel.type,
-            isEdit: false,
-            replyToPostId: null,
-          };
-          await finalizeAndSendPost(draft);
+          // Build a draft with the attachments for each image
+          for (const uploadIntent of uploadIntents) {
+            const draft: domain.PostDataDraft = {
+              channelId: channel.id,
+              content: [],
+              attachments: [Attachment.fromUploadIntent(uploadIntent)],
+              channelType: channel.type,
+              replyToPostId: null,
+              isEdit: false,
+            };
+            await finalizeAndSendPost(draft);
+          }
         } catch (error) {
           console.error('Error handling image drop:', error);
         } finally {
