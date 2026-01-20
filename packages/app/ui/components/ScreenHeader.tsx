@@ -5,6 +5,8 @@ import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, styled, withStaticProperties } from 'tamagui';
 
+import { LongPressDisclosure } from './LongPressDisclosure';
+
 export const ScreenHeaderComponent = ({
   children,
   title,
@@ -88,15 +90,29 @@ export const ScreenHeaderComponent = ({
               justifyContent="center"
               paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
             >
-              <Text
-                color={'$secondaryText'}
-                size="$label/s"
-                numberOfLines={1}
-                paddingTop={useHorizontalTitleLayout ? 5 : undefined}
-                testID={'ScreenHeaderSubtitle'}
-              >
-                {resolvedSubtitle}
-              </Text>
+              {typeof resolvedSubtitle === 'string' ? (
+                <LongPressDisclosure text={resolvedSubtitle}>
+                  <Text
+                    color={'$secondaryText'}
+                    size="$label/s"
+                    numberOfLines={1}
+                    paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                    testID={'ScreenHeaderSubtitle'}
+                  >
+                    {resolvedSubtitle}
+                  </Text>
+                </LongPressDisclosure>
+              ) : (
+                <Text
+                  color={'$secondaryText'}
+                  size="$label/s"
+                  numberOfLines={1}
+                  paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                  testID={'ScreenHeaderSubtitle'}
+                >
+                  {resolvedSubtitle}
+                </Text>
+              )}
             </View>
           )}
           <XStack
