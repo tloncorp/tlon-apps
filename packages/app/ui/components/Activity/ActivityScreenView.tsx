@@ -2,19 +2,20 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
-import { Text, View, XStack, useStyle } from 'tamagui';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  RefreshControl,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
+import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { NavigationProvider, useStore } from '../../contexts';
+import { useIsDarkTheme } from '../../utils/colorUtils';
 import { PrimaryButton } from '../Buttons';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -293,36 +294,10 @@ export function ActivityScreenContent({
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
         {allTabsAreEmpty ? (
-          <>
-            <ScreenHeader title="Activity" />
-            <View
-              flex={1}
-              justifyContent="center"
-              alignItems="center"
-              padding="$xl"
-              gap="$xl"
-            >
-              <Text
-                color="$tertiaryText"
-                fontSize="$l"
-                textAlign="center"
-                marginBottom="$m"
-              >
-                No activity yet. Invite some of your contacts to Tlon Messenger
-                to get started.
-              </Text>
-              <View gap="$m" width="100%" maxWidth={300}>
-                <PrimaryButton onPress={() => setPersonalInviteOpen(true)}>
-                  Invite Friends
-                </PrimaryButton>
-                {onNavigateToContacts && (
-                  <PrimaryButton onPress={onNavigateToContacts}>
-                    View Contacts
-                  </PrimaryButton>
-                )}
-              </View>
-            </View>
-          </>
+          <ActivityEmptyState
+            onInviteFriends={() => setPersonalInviteOpen(true)}
+            onNavigateToContacts={onNavigateToContacts}
+          />
         ) : (
           <>
             <ActivityHeader
@@ -367,5 +342,63 @@ export function ActivityScreenContent({
         />
       </View>
     </NavigationProvider>
+  );
+}
+
+export function ActivityEmptyState({
+  onInviteFriends,
+  onNavigateToContacts,
+}: {
+  onInviteFriends: () => void;
+  onNavigateToContacts?: () => void;
+}) {
+  const isDark = useIsDarkTheme();
+
+  const blocksImage = isDark
+    ? isWeb
+      ? `./blocks-dark.png`
+      : require(`../../assets/raster/blocks-dark.png`)
+    : isWeb
+      ? `./blocks.png`
+      : require(`../../assets/raster/blocks.png`);
+
+  return (
+    <>
+      <ScreenHeader title="Activity" />
+      <View
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        padding="$xl"
+        gap="$2xl"
+      >
+        <Image
+          style={{ width: 130, height: 130 }}
+          resizeMode="contain"
+          source={blocksImage}
+        />
+        <Text
+          size="$label/m"
+          color="$tertiaryText"
+          textAlign="center"
+          maxWidth={350}
+          paddingBottom={'$m'}
+        >
+          There is no activity... yet.{'\n'}Invite some of your contacts to
+          {'\n'}
+          Tlon Messenger to get started.
+        </Text>
+        <View gap="$s" width="100%" maxWidth={300}>
+          <PrimaryButton onPress={onInviteFriends}>
+            Invite Friends
+          </PrimaryButton>
+          {onNavigateToContacts && (
+            <PrimaryButton onPress={onNavigateToContacts}>
+              View Contacts
+            </PrimaryButton>
+          )}
+        </View>
+      </View>
+    </>
   );
 }
