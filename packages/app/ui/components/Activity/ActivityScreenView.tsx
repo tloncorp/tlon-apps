@@ -54,8 +54,7 @@ export function ActivityScreenView({
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
-  // const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
-  const allTabsAreEmpty = true;
+  const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
