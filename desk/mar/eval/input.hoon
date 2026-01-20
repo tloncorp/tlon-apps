@@ -11,10 +11,6 @@
 ++  grab
   |%
   ++  noun  cord
-  ++  json
-    |=  =json
-    ^-  eval-input:e
-    ?>  ?=(%s -.json)
-    p.json
+  ++  json  so:dejs:format
   --
 --
