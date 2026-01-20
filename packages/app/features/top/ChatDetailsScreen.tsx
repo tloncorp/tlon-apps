@@ -232,7 +232,7 @@ function ChatDetailsScreenContent({
         maxWidth: 600,
         marginHorizontal: 'auto',
         gap: '$l',
-        paddingBottom: insets.bottom + getTokenValue('$3xl'),
+        paddingBottom: insets.bottom + getTokenValue('$3xl' as any),
       }}
     >
       <ListItem alignItems="center" gap="$xl" paddingHorizontal="$xl">
@@ -242,18 +242,18 @@ function ChatDetailsScreenContent({
           <ListItem.ChannelIcon model={channel} size="$5xl" />
         )}
         <ListItem.MainContent>
-          <ListItem.Title fontSize={24} lineHeight={24}>
+          <ListItem.Title fontSize={24} lineHeight={28} numberOfLines={0}>
             {title}
           </ListItem.Title>
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
       </ListItem>
-
       {chatType === 'group' && (
-        <GroupQuickActions group={group} canInvite={canInviteToGroup} />
-      )}
-      {chatType === 'group' && (
-        <GroupSettings group={group} actionsEnabled={actionsEnabled} />
+        <>
+          <GroupQuickActions group={group} canInvite={canInviteToGroup} />
+          <GroupDescription group={group} />
+          <GroupSettings group={group} actionsEnabled={actionsEnabled} />
+        </>
       )}
 
       {members?.length ? (
@@ -723,3 +723,22 @@ function GroupQuickActions({
     </ScrollView>
   );
 }
+
+const GroupDescription = ({ group }: { group: db.Group }) => {
+  if (!group.description) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$xl">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
+          Description
+        </TlonText.Text>
+        <TlonText.Text size="$body" color="$primaryText">
+          {group.description}
+        </TlonText.Text>
+      </PaddedBlock>
+    </View>
+  );
+};
