@@ -11,6 +11,7 @@ import {
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
+  evalHoon,
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
@@ -246,6 +247,8 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
+  const [isEvalMode, setIsEvalMode] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   const roleOptions = useMemo(() => {
     return createMentionRoleOptions(groupRoles);
@@ -475,9 +478,80 @@ export default function BareChatInput({
     [sendMessage]
   );
 
+  const handleEvalSend = useCallback(async () => {
+    if (!controlledText.trim()) return;
+
+    const codeToEval = controlledText;
+    setIsEvaluating(true);
+
+    // Cancel any pending link preview requests
+    inputSessionRef.current += 1;
+    setLinkMetaLoading(false);
+
+    // Clear the input immediately
+    setControlledText('');
+    clearAttachments();
+    setInputHeight(initialHeight);
+
+    try {
+      // Evaluate the Hoon code
+      const result = await evalHoon(codeToEval);
+
+      // Format the result as a code block message
+      const codeBlock = `\`\`\`hoon
+${codeToEval}
+\`\`\``;
+      const resultBlock =
+        result.status === 'ok'
+          ? `\`\`\`
+${result.output}
+\`\`\``
+          : `**Error:** \`${result.output}\``;
+
+      const messageText = `${codeBlock}\n${resultBlock}`;
+
+      // Create the draft with the formatted result
+      const jsonContent = textAndMentionsToContent(messageText, []);
+      const inlines = JSONToInlines(jsonContent);
+
+      const draft: domain.PostDataDraft = {
+        channelId,
+        content: inlines,
+        attachments: [],
+        channelType,
+        replyToPostId: null,
+      };
+
+      await sendPostFromDraft(draft);
+    } catch (e) {
+      bareChatInputLogger.error('Error evaluating Hoon', e);
+      setSendError(true);
+    } finally {
+      setIsEvaluating(false);
+      onSend?.();
+      setMentions([]);
+      await clearDraft();
+      setHasSetInitialContent(false);
+    }
+  }, [
+    controlledText,
+    channelId,
+    channelType,
+    sendPostFromDraft,
+    clearAttachments,
+    clearDraft,
+    initialHeight,
+    onSend,
+    setMentions,
+  ]);
+
   const handleSend = useCallback(async () => {
-    runSendMessage(false);
-  }, [runSendMessage]);
+    if (isEvalMode) {
+      handleEvalSend();
+    } else {
+      runSendMessage(false);
+    }
+  }, [isEvalMode, handleEvalSend, runSendMessage]);
 
   const handleEdit = useCallback(async () => {
     Keyboard.dismiss();
@@ -871,12 +945,17 @@ export default function BareChatInput({
     ]
   );
 
+  const handleToggleEvalMode = useCallback(() => {
+    setIsEvalMode((prev) => !prev);
+  }, []);
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
       containerHeight={48}
-      disableSend={disableSend}
+      disableSend={disableSend || isEvaluating}
+      isSending={isEvaluating}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
       isMentionModeActive={isMentionModeActive}
@@ -889,6 +968,8 @@ export default function BareChatInput({
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
       goBack={goBack}
+      isEvalMode={isEvalMode}
+      onToggleEvalMode={handleToggleEvalMode}
     >
       <YStack
         flex={1}
@@ -913,7 +994,7 @@ export default function BareChatInput({
           onFocus={handleFocus}
           onKeyPress={handleKeyPress}
           multiline
-          placeholder={placeholder}
+          placeholder={isEvalMode ? 'Enter Hoon code...' : placeholder}
           {...(!isWeb ? placeholderTextColor : {})}
           style={{
             backgroundColor: 'transparent',

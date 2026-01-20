@@ -75,6 +75,9 @@ export interface MessageInputProps {
   ref?: React.RefObject<{
     editor: EditorBridge | null;
   }>;
+  // Eval mode props
+  isEvalMode?: boolean;
+  onToggleEvalMode?: () => void;
 }
 
 const AttachmentButtonContainer = styled(View, {
@@ -105,6 +108,8 @@ export const MessageInputContainer = memo(
     goBack,
     mentionRef,
     frameless = false,
+    isEvalMode = false,
+    onToggleEvalMode,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
@@ -125,6 +130,8 @@ export const MessageInputContainer = memo(
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
     frameless?: boolean;
+    isEvalMode?: boolean;
+    onToggleEvalMode?: () => void;
   }>) => {
     const { canUpload } = useAttachmentContext();
     const theme = useTheme();
@@ -180,6 +187,22 @@ export const MessageInputContainer = memo(
                   onPress={cancelEditing}
                 >
                   <Icon size="$m" type="Close" />
+                </Button>
+              </View>
+            ) : null}
+            {onToggleEvalMode ? (
+              <View marginBottom="$xs">
+                <Button
+                  backgroundColor={isEvalMode ? '$positiveBackground' : 'unset'}
+                  borderColor={isEvalMode ? '$positiveBorder' : 'transparent'}
+                  onPress={onToggleEvalMode}
+                  testID="EvalModeToggle"
+                >
+                  <Icon
+                    size="$m"
+                    type="Code"
+                    color={isEvalMode ? '$positiveActionText' : undefined}
+                  />
                 </Button>
               </View>
             ) : null}
