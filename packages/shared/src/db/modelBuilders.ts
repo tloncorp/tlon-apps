@@ -137,6 +137,7 @@ export function buildPostUpdate({
   sequenceNum,
   deliveryStatus = 'pending',
   blob,
+  parentId,
 }: {
   id: types.Post['id'];
   content: ub.Story;
@@ -144,6 +145,7 @@ export function buildPostUpdate({
   sequenceNum?: number | null;
   deliveryStatus?: db.PostDeliveryStatus;
   blob?: string;
+  parentId: string | null;
 }) {
   const [postContent, postFlags] = api.toPostContent(content);
   return {
@@ -158,6 +160,7 @@ export function buildPostUpdate({
     deliveryStatus,
     sequenceNum,
     blob,
+    parentId,
     ...postFlags,
   } satisfies Partial<types.Post>;
 }
@@ -199,6 +202,7 @@ export function buildPost({
     deliveryStatus,
     sequenceNum,
     blob,
+    parentId: parentId ?? null,
   });
 
   return {
@@ -215,7 +219,6 @@ export function buildPost({
     replyContactIds: [],
     replyCount: 0,
     hidden: false,
-    parentId,
     syncedAt: Date.now(),
     draft,
     ...contentUpdate,

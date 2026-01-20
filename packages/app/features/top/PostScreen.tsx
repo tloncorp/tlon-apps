@@ -61,19 +61,13 @@ function PostScreenContent({
 }) {
   const postId = post.id;
   const navigation = useNavigation();
-  const {
-    group,
-    channel,
-    negotiationStatus,
-    editingPost,
-    setEditingPost,
-    editPost,
-  } = useStore().useChannelContext({
-    channelId: channelId,
-    draftKey: store.draftKeyFor.thread({
-      parentPostId: postId,
-    }),
-  });
+  const { group, channel, negotiationStatus, editingPost, setEditingPost } =
+    useStore().useChannelContext({
+      channelId: channelId,
+      draftKey: store.draftKeyFor.thread({
+        parentPostId: postId,
+      }),
+    });
 
   const { navigateToImage } = useChannelNavigation({
     channelId: channelId,
@@ -153,7 +147,6 @@ function PostScreenContent({
       // same editingPost.
       editingPost={editingPost}
       setEditingPost={setEditingPost}
-      editPost={editPost}
     />
   ) : null;
 }

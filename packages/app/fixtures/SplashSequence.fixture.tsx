@@ -25,8 +25,10 @@ function SplashSequenceFixture() {
 }
 
 function InviteContactsFixture() {
-  const [isLoading] = useValue('Loading State', { defaultValue: false });
-  const [hasNoContacts] = useValue('No Contacts', { defaultValue: false });
+  const [isLoading] = useValue('Show Loading State', { defaultValue: false });
+  const [showEmptyState] = useValue('Show Empty State (Share Link)', {
+    defaultValue: false,
+  });
 
   const handleComplete = React.useCallback(() => {
     console.log('Invite contacts completed');
@@ -40,7 +42,7 @@ function InviteContactsFixture() {
     }
   }, [isLoading]);
 
-  const contacts = hasNoContacts ? [] : initialSystemContacts;
+  const contacts = showEmptyState ? [] : initialSystemContacts;
 
   return (
     <FixtureWrapper fillWidth fillHeight>

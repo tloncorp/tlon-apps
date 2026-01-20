@@ -1,9 +1,8 @@
 import {
   Attachment,
-  FinalizedAttachment,
+  PostDataDraft,
   createDevLogger,
   tiptap,
-  toPostData,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
 } from '@tloncorp/shared';
@@ -39,20 +38,14 @@ import { ScreenHeader } from './ScreenHeader';
 const logger = createDevLogger('BigInput', false);
 
 export function BigInput({
-  sendPost,
-  editPost,
+  sendPostFromDraft,
   channelId,
   channelType,
   editingPost,
   setShowBigInput,
+  clearDraft,
   ...props
 }: MessageInputProps & {
-  editPost?: (
-    post: db.Post,
-    story: any,
-    replyTo?: string,
-    metadata?: any
-  ) => Promise<void>;
   channelId: string;
   channelType: string;
   editingPost?: db.Post;
@@ -77,8 +70,7 @@ export function BigInput({
   const theme = useTheme();
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
-  const { attachments, clearAttachments, waitForAttachmentUploads } =
-    useAttachmentContext();
+  const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
@@ -140,45 +132,28 @@ export function BigInput({
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
 
-    let finalizedAttachments: FinalizedAttachment[];
-    try {
-      finalizedAttachments = await waitForAttachmentUploads();
-    } catch (e) {
-      logger.error('Error processing attachments', e);
-      return;
-    }
-
-    // For notebooks, filter out image attachments that are inline (not header images)
-    // Inline images are already in the content from the editor
-    const attachmentsToPass =
-      channelType === 'notebook'
-        ? finalizedAttachments.filter(
-            (att) =>
-              att.type !== 'image' ||
-              (att.type === 'image' && att.file.uri === imageUri)
-          )
-        : finalizedAttachments;
-
-    const { story, metadata } = toPostData({
+    const draft: PostDataDraft = {
+      channelId,
       content: inlines,
+      attachments,
       title,
       image: imageUri ?? undefined,
-      attachments: attachmentsToPass,
       channelType,
-      isEdit: !!editingPost,
-    });
+      replyToPostId: null,
+      ...(editingPost == null
+        ? { isEdit: false }
+        : {
+            isEdit: true,
+            editTargetPostId: editingPost.id,
+          }),
+    };
 
     try {
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
 
-      if (editingPost && editPost) {
-        // If we're editing, use editPost with the correct parameters
-        await editPost(editingPost, story, undefined, metadata);
-      } else {
-        // If it's a new post, use send
-        await sendPost(story, channelId, metadata);
-      }
+      // TODO: since we froze data in the draft, we don't really need to `await` this
+      await sendPostFromDraft(draft);
 
       logger.log(
         `Post/save successful for channel type: ${currentChannelType}`
@@ -204,7 +179,7 @@ export function BigInput({
       const isGalleryText = currentChannelType === 'gallery';
 
       // Clear the draft after successful save for all channel types
-      if (!editingPost && props.clearDraft) {
+      if (!editingPost && clearDraft) {
         try {
           logger.log(
             `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
@@ -212,18 +187,18 @@ export function BigInput({
 
           if (isGalleryText) {
             // For Gallery text posts, explicitly clear 'text' drafts
-            await props.clearDraft('text');
+            await clearDraft('text');
 
             // If the gallery text draft persists, try calling with undefined as well
             setTimeout(async () => {
-              if (props.clearDraft) {
+              if (clearDraft) {
                 logger.log('Additional gallery draft clearing attempt');
-                await props.clearDraft(undefined);
+                await clearDraft(undefined);
               }
             }, 100);
           } else {
             // For other channel types, don't specify to clear all drafts
-            await props.clearDraft(undefined);
+            await clearDraft(undefined);
           }
           logger.log('Draft cleared successfully');
         } catch (e) {
@@ -237,20 +212,17 @@ export function BigInput({
       setIsSending(false);
     }
   }, [
-    sendPost,
-    editPost,
+    sendPostFromDraft,
     channelId,
     title,
     imageUri,
     channelType,
     setShowBigInput,
     editingPost,
-    props.clearDraft,
+    clearDraft,
     setShowFormatMenu,
     clearAttachments,
     attachments,
-    isSending,
-    waitForAttachmentUploads,
   ]);
 
   // Register the "Post" button in the header
@@ -466,12 +438,12 @@ export function BigInput({
             )}
           <MessageInput
             ref={editorRef}
-            sendPost={handleSend}
+            sendPostFromDraft={sendPostFromDraft}
             channelId={channelId}
             channelType={channelType}
             editingPost={editingPost}
             {...props}
-            clearDraft={props.clearDraft}
+            clearDraft={clearDraft}
             frameless={true}
             bigInput={true}
             shouldAutoFocus={true}
