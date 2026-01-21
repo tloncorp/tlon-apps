@@ -29,6 +29,7 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import {
@@ -516,7 +517,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       async (isEdit?: boolean) => {
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
-        const draft: PostDataDraft = {
+
+        const draft: domain.PostDataDraft = {
           channelId,
           content: inlines,
           attachments,
@@ -525,14 +527,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           image: image?.uri,
           replyToPostId: null,
           ...(isEdit && editingPost != null
-            ? {
-                isEdit: true,
-                editTargetPostId: editingPost.id,
-              }
-            : {
-                isEdit: false,
-              }),
+            ? { isEdit: true, editTargetPostId: editingPost.id }
+            : { isEdit: false }),
         };
+
         await sendPostFromDraft(draft);
 
         setEditingPost?.(undefined);

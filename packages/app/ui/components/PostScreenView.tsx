@@ -589,16 +589,12 @@ function SinglePostView({
 
   const sendReplyFromDraft = useCallback(
     async (draft: domain.PostDataDraft) => {
-      if (draft.isEdit) {
-        await store.finalizeAndSendPost(draft);
-        setEditingPost?.(undefined);
-      } else {
-        draft.replyToPostId = parentPost.id;
-        await store.finalizeAndSendPost(draft);
-        scrollToNewReply();
-      }
+      setEditingPost?.(undefined);
+      draft.replyToPostId = parentPost.id;
+      await store.finalizeAndSendPost(draft);
+      scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply, setEditingPost]
+    [parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(

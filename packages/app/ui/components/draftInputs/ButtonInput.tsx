@@ -28,6 +28,7 @@ export function ButtonInput({
             attachments: [],
             channelType: draftInputContext.channel.type,
             replyToPostId: null,
+            isEdit: false,
           };
           draftInputContext.sendPostFromDraft(draft);
         }}
