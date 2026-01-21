@@ -278,17 +278,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 });
               });
 
+              // Note: We don't add inline images from blocks to attachments here
+              // because they're already in the Tiptap editor content (via diaryMixedToJSON).
+              // Adding them as attachments would cause duplicates when saving.
+              // Only non-image blocks need to be handled as attachments.
               blocks.forEach((b) => {
+                // Skip image blocks - they're handled inline in the editor
                 if ('image' in b) {
-                  attachments.push({
-                    type: 'image',
-                    file: {
-                      uri: b.image.src,
-                      height: b.image.height,
-                      width: b.image.width,
-                    },
-                  });
+                  return;
                 }
+                // Handle other block types if needed in the future
               });
 
               resetAttachments(attachments);

@@ -520,12 +520,14 @@ export function tokenToBlock(
 
     case 'fence': {
       // Fenced code block
-      const code: Code = {
+      // Note: The Urbit backend doesn't support the 'lang' field in code blocks,
+      // so we strip it entirely. We use a type assertion since the TypeScript
+      // interface requires 'lang', but the backend rejects it.
+      const code = {
         code: {
           code: token.content.replace(/\n$/, ''), // Remove trailing newline
-          lang: token.info || '',
         },
-      };
+      } as Code;
       return { block: code, endIndex: startIndex };
     }
 

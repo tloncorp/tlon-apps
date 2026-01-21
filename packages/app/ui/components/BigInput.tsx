@@ -106,6 +106,23 @@ export function BigInput({
     setHasImageChanges(imageUri !== editingPost?.image);
   }, [title, imageUri, editingPost]);
 
+  // Update isEmpty state when in Markdown mode
+  useEffect(() => {
+    if (isMarkdownMode) {
+      const markdownIsEmpty = !markdownContent || markdownContent.trim() === '';
+      setIsEmpty(markdownIsEmpty);
+      // Also update hasContentChanges for editing mode
+      if (editingPost?.content) {
+        const originalContent = editingPost.content as { story?: any };
+        const hasOriginalContent =
+          originalContent.story && Array.isArray(originalContent.story);
+        setHasContentChanges(hasOriginalContent ? !markdownIsEmpty : false);
+      } else {
+        setHasContentChanges(!markdownIsEmpty);
+      }
+    }
+  }, [isMarkdownMode, markdownContent, editingPost?.content]);
+
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
     let enabled = false;
@@ -140,9 +157,15 @@ export function BigInput({
       try {
         const story = markdownToStory(markdownContent);
         // Flatten Story (Verse[]) into (Inline | Block)[] for the draft
-        content = story.flatMap((verse): (Inline | Block)[] => {
+        // Add breaks between paragraphs to preserve structure
+        content = story.flatMap((verse, index): (Inline | Block)[] => {
           if ('inline' in verse) {
-            return verse.inline;
+            // Add a break after each VerseInline (paragraph) except the last one
+            const isLast = index === story.length - 1;
+            if (isLast) {
+              return verse.inline;
+            }
+            return [...verse.inline, { break: null }];
           } else {
             return [verse.block];
           }
@@ -522,22 +545,47 @@ export function BigInput({
         )}
 
         <View flex={1}>
-          {!isWindowNarrow &&
-            editorRef.current?.editor &&
-            channelType === 'notebook' && (
-              <InputToolbar
-                editor={editorRef.current?.editor}
-                hidden={false}
-                items={toolbarItems}
-                style={{
-                  borderWidth: 0,
-                  borderTopWidth: 0,
-                  borderBottomWidth: 1,
-                  borderRadius: 0,
-                  backgroundColor: theme.background.val,
-                }}
-              />
-            )}
+          {!isWindowNarrow && channelType === 'notebook' && (
+            <>
+              {isMarkdownMode ? (
+                <XStack
+                  paddingHorizontal="$m"
+                  paddingVertical="$s"
+                  borderBottomWidth={1}
+                  borderBottomColor="$border"
+                  backgroundColor="$background"
+                >
+                  <TouchableOpacity onPress={handleMarkdownToggle}>
+                    <XStack alignItems="center" gap="$s" padding="$s">
+                      <Icon
+                        type="Markdown"
+                        size="$m"
+                        color={isMarkdownMode ? '$positiveActionText' : '$primaryText'}
+                      />
+                      <Text size="$label/s" color="$secondaryText">
+                        Switch to Rich Text
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                </XStack>
+              ) : (
+                editorRef.current?.editor && (
+                  <InputToolbar
+                    editor={editorRef.current.editor}
+                    hidden={false}
+                    items={toolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 1,
+                      borderRadius: 0,
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
+              )}
+            </>
+          )}
           {isMarkdownMode ? (
             <MarkdownEditor
               value={markdownContent}
@@ -569,7 +617,7 @@ export function BigInput({
         </View>
       </View>
 
-      {channelType === 'notebook' && editorRef.current?.editor && (
+      {channelType === 'notebook' && (
         <>
           {isWindowNarrow && showFormatMenu && (
             <View
@@ -577,7 +625,7 @@ export function BigInput({
               bottom={insets.bottom + 16}
               right={64}
               zIndex={1000}
-              width={310}
+              width={isMarkdownMode ? 180 : 310}
               shadowColor={theme.primaryText.val}
               shadowOffset={{ width: 0, height: 2 }}
               shadowOpacity={0.1}
@@ -587,21 +635,43 @@ export function BigInput({
               borderWidth={1}
               borderRadius={getTokenValue('$l', 'radius')}
             >
-              <InputToolbar
-                editor={editorRef.current?.editor}
-                hidden={false}
-                items={toolbarItems}
-                style={{
-                  borderWidth: 0,
-                  borderTopWidth: 0,
-                  borderBottomWidth: 0,
-                  borderRadius: getTokenValue('$l', 'radius'),
-                  backgroundColor: theme.background.val,
-                }}
-              />
+              {isMarkdownMode ? (
+                <TouchableOpacity onPress={handleMarkdownToggle}>
+                  <XStack
+                    alignItems="center"
+                    gap="$s"
+                    padding="$m"
+                    justifyContent="center"
+                  >
+                    <Icon
+                      type="Markdown"
+                      size="$m"
+                      color="$positiveActionText"
+                    />
+                    <Text size="$label/s" color="$secondaryText">
+                      Switch to Rich Text
+                    </Text>
+                  </XStack>
+                </TouchableOpacity>
+              ) : (
+                editorRef.current?.editor && (
+                  <InputToolbar
+                    editor={editorRef.current.editor}
+                    hidden={false}
+                    items={toolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 0,
+                      borderRadius: getTokenValue('$l', 'radius'),
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
+              )}
             </View>
           )}
-          {isWindowNarrow && (
+          {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode) && (
             <Button
               position="absolute"
               bottom={insets.bottom + 16}

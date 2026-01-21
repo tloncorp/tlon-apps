@@ -164,11 +164,13 @@ describe('Round-trip: Markdown → Story → Markdown', () => {
   });
 
   describe('code blocks', () => {
-    it('preserves fenced code block with language', () => {
+    // Note: Language is stripped from code blocks for Urbit backend compatibility
+    it('preserves fenced code block (lang stripped)', () => {
       const md = '```javascript\nconst x = 1;\n```';
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(md);
+      // Lang is stripped
+      expect(result).toBe('```\nconst x = 1;\n```');
     });
 
     it('preserves fenced code block without language', () => {
@@ -178,11 +180,12 @@ describe('Round-trip: Markdown → Story → Markdown', () => {
       expect(result).toBe(md);
     });
 
-    it('preserves multiline code block', () => {
+    it('preserves multiline code block (lang stripped)', () => {
       const md = '```ts\nfunction hello() {\n  return "world";\n}\n```';
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(md);
+      // Language is stripped for backend compatibility
+      expect(result).toBe('```\nfunction hello() {\n  return "world";\n}\n```');
     });
   });
 
@@ -267,7 +270,7 @@ describe('Round-trip: Markdown → Story → Markdown', () => {
   });
 
   describe('mixed content', () => {
-    it('preserves complex document', () => {
+    it('preserves complex document (lang stripped from code blocks)', () => {
       const md = `# Welcome
 
 This is **intro** text with ~zod mention.
@@ -287,7 +290,24 @@ const x = 1;
 
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(md);
+      // Language is stripped from code blocks for backend compatibility
+      const expected = `# Welcome
+
+This is **intro** text with ~zod mention.
+
+## Features
+
+- Feature one
+- Feature two
+
+\`\`\`
+const x = 1;
+\`\`\`
+
+---
+
+> Important note`;
+      expect(result).toBe(expected);
     });
   });
 });
@@ -439,20 +459,24 @@ describe('Round-trip: Story → Markdown → Story', () => {
   });
 
   describe('code blocks', () => {
-    it('preserves Code block structure', () => {
+    // Note: Code block language is stripped because Urbit backend doesn't support it
+    // This means round-trip is lossy for the lang field
+    it('preserves Code block code content (lang is stripped)', () => {
       const story: Story = [
         { block: { code: { code: 'const x = 1;', lang: 'javascript' } } as Code },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      // Lang is stripped, so result won't have it
+      expect(result).toEqual([{ block: { code: { code: 'const x = 1;' } } }]);
     });
 
     it('preserves Code block without language', () => {
       const story: Story = [{ block: { code: { code: 'plain code', lang: '' } } as Code }];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      // Lang is stripped from result
+      expect(result).toEqual([{ block: { code: { code: 'plain code' } } }]);
     });
   });
 

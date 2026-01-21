@@ -283,3 +283,56 @@ Thread: https://ampcode.com/threads/T-019be194-dba6-75db-aa93-b1e12ec108bf
   - The @10play/tentap-editor bridges pass through tiptap extensions with their input rules intact
   - Vitest is available in packages/editor for testing
 ---
+
+## 2026-01-21 - US-017 (Bug Fixes)
+Thread: BigInput Markdown mode fixes
+- Fixed Post button not enabling when typing in Markdown mode
+  - Added useEffect that updates `isEmpty` state based on `markdownContent` when in markdown mode
+  - Also updates `hasContentChanges` for editing mode
+- Fixed toolbar not showing when in Markdown mode
+  - Toolbar requires a valid TlonEditorBridge, but editor is unmounted in Markdown mode
+  - Created inline "Switch to Rich Text" toolbar bar for Markdown mode (both wide and narrow windows)
+  - Wide: XStack with Markdown icon and "Switch to Rich Text" label below editor
+  - Narrow: TouchableOpacity in floating format menu
+- Updated MarkdownEditor styling
+  - Added `minHeight={WINDOW_HEIGHT * 0.75}` for taller textarea (75% of viewport)
+  - Added `outlineWidth={0}`, `outlineColor="transparent"`, and `focusStyle` to remove focus border
+- Files changed: BigInput.tsx, MarkdownEditor.tsx
+- **Learnings for future iterations:**
+  - State updates in conditional editors need explicit handling - the main `handleEditorContentChanged` callback only fires from TipTap
+  - Tamagui TextArea doesn't accept string viewport units like "75vh" - use numeric pixels instead
+  - InputToolbar strictly requires a TlonEditorBridge - create alternative UI when editor unavailable
+  - Text component size prop uses semantic tokens like `$label/s`, not simple tokens like `$s`
+---
+
+## 2026-01-21 - US-018 (Bug Fixes - Code Block Handling)
+Thread: BigInput Markdown code block fixes
+- Fixed markdown parser to trim whitespace from language strings
+  - `token.info` from markdown-it may contain leading/trailing whitespace (e.g., ` js` instead of `js`)
+  - Now trims language string before creating Code block
+- Fixed HighlightedCode component to handle empty/invalid language strings
+  - Previously failed with "Unknown language" error when `lang` was empty string
+  - Now falls back to 'plaintext' for empty/falsy language strings
+  - Added try/catch to gracefully handle unregistered languages
+- Files changed: markdownToStory.ts, HighlightedCode.tsx
+- **Learnings for future iterations:**
+  - markdown-it `token.info` contains raw text after opening fence, may have whitespace
+  - refractor.highlight() throws for unregistered languages - need try/catch for graceful degradation
+  - Empty string `""` is falsy but !== undefined, so `lang ?? 'plaintext'` doesn't catch it (use `lang || 'plaintext'`)
+---
+
+## 2026-01-21 - US-019 (Code Block Backend Fix)
+Thread: Strip code block language for Urbit backend
+- Urbit backend doesn't support the `lang` field in code blocks - causes poke cast failures
+- Modified markdownToStory.ts to omit `lang` field entirely from Code blocks
+- Used TypeScript type assertion `as Code` since the interface requires `lang`
+- Updated HighlightedCode.tsx to gracefully handle missing/empty `lang` with try/catch fallback
+- Updated all related tests in markdownToStory.test.ts and roundTrip.test.ts
+- Round-trip conversion is now lossy for code block language (documented in tests)
+- Files changed: markdownToStory.ts, HighlightedCode.tsx, markdownToStory.test.ts, roundTrip.test.ts
+- **Learnings for future iterations:**
+  - Urbit backend (story-json Hoon lib) rejects Code blocks with `lang` field
+  - TypeScript interfaces don't always match what backend accepts
+  - Use type assertions cautiously when interface doesn't match actual requirements
+  - Document lossy conversions in tests with clear comments
+---
