@@ -610,6 +610,29 @@ describe('markdownToStory', () => {
       const result = markdownToStory('```\nplain code\n```');
       expect(result).toEqual([{ block: { code: { code: 'plain code' } } }]);
     });
+
+    it('converts indented code block to VerseBlock', () => {
+      const result = markdownToStory('    // Some comments\n    line 1 of code');
+      expect(result).toEqual([
+        { block: { code: { code: '// Some comments\nline 1 of code' } } },
+      ]);
+    });
+  });
+
+  describe('table conversion', () => {
+    it('converts table to VerseInline with text representation', () => {
+      const result = markdownToStory('| A | B |\n|---|---|\n| 1 | 2 |');
+      expect(result).toEqual([
+        { inline: ['| A | B |\n| 1 | 2 |'] },
+      ]);
+    });
+
+    it('handles tables with multiple rows', () => {
+      const result = markdownToStory('| Header1 | Header2 |\n|---------|--------|\n| Cell1   | Cell2   |\n| Cell3   | Cell4   |');
+      expect(result).toEqual([
+        { inline: ['| Header1 | Header2 |\n| Cell1 | Cell2 |\n| Cell3 | Cell4 |'] },
+      ]);
+    });
   });
 
   describe('horizontal rule conversion', () => {

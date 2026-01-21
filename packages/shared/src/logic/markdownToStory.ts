@@ -518,8 +518,9 @@ export function tokenToBlock(
       };
     }
 
-    case 'fence': {
-      // Fenced code block
+    case 'fence':
+    case 'code_block': {
+      // Fenced code block (fence) or indented code block (code_block)
       // Note: The Urbit backend doesn't support the 'lang' field in code blocks,
       // so we strip it entirely. We use a type assertion since the TypeScript
       // interface requires 'lang', but the backend rejects it.
@@ -575,6 +576,42 @@ export function tokenToBlock(
       }
 
       const verse = parseBlockquoteTokens(tokens, startIndex, closeIdx);
+      return { block: null, verse, endIndex: closeIdx };
+    }
+
+    case 'table_open': {
+      // Tables are converted to a simple text representation
+      // since the Story format doesn't support tables directly
+      const closeIdx = findBlockCloseToken(
+        tokens,
+        startIndex,
+        'table_open',
+        'table_close'
+      );
+      if (closeIdx === -1) {
+        return { block: null, endIndex: startIndex };
+      }
+
+      // Extract all inline content from table cells
+      const tableTokens = tokens.slice(startIndex + 1, closeIdx);
+      const rows: string[][] = [];
+      let currentRow: string[] = [];
+
+      for (const tableToken of tableTokens) {
+        if (tableToken.type === 'tr_open') {
+          currentRow = [];
+        } else if (tableToken.type === 'tr_close') {
+          if (currentRow.length > 0) {
+            rows.push(currentRow);
+          }
+        } else if (tableToken.type === 'inline' && tableToken.content) {
+          currentRow.push(tableToken.content);
+        }
+      }
+
+      // Convert to a simple text representation: "| col1 | col2 |"
+      const tableText = rows.map((row) => '| ' + row.join(' | ') + ' |').join('\n');
+      const verse: VerseInline = { inline: [tableText] };
       return { block: null, verse, endIndex: closeIdx };
     }
 
@@ -659,6 +696,7 @@ export function markdownToStory(markdown: string): Story {
     } else if (
       token.type === 'heading_open' ||
       token.type === 'fence' ||
+      token.type === 'code_block' ||
       token.type === 'hr' ||
       token.type === 'bullet_list_open' ||
       token.type === 'ordered_list_open'
@@ -672,6 +710,13 @@ export function markdownToStory(markdown: string): Story {
       i = result.endIndex + 1;
     } else if (token.type === 'blockquote_open') {
       // Blockquote returns a VerseInline
+      const result = tokenToBlock(tokens, i);
+      if (result.verse) {
+        verses.push(result.verse);
+      }
+      i = result.endIndex + 1;
+    } else if (token.type === 'table_open') {
+      // Table returns a VerseInline with text representation
       const result = tokenToBlock(tokens, i);
       if (result.verse) {
         verses.push(result.verse);
