@@ -2,6 +2,7 @@ import {
   Attachment,
   PostDataDraft,
   createDevLogger,
+  markdownToStory,
   storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
@@ -365,10 +366,24 @@ export function BigInput({
         });
       }
     } else {
-      // Switching FROM Markdown mode - will be handled in US-013
-      setIsMarkdownMode(false);
+      // Switching FROM Markdown mode: convert Markdown to rich text
+      try {
+        if (editorRef.current?.editor && markdownContent) {
+          const story = markdownToStory(markdownContent);
+          const tiptapContent = tiptap.diaryMixedToJSON(story);
+          // @ts-expect-error setContent does accept JSONContent
+          editorRef.current.editor.setContent(tiptapContent);
+        }
+        setIsMarkdownMode(false);
+      } catch (error) {
+        logger.error('Failed to convert from Markdown:', error);
+        showToast({
+          message: 'Failed to convert Markdown to rich text',
+          duration: 2000,
+        });
+      }
     }
-  }, [isMarkdownMode, showToast]);
+  }, [isMarkdownMode, markdownContent, showToast]);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
