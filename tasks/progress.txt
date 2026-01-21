@@ -110,3 +110,21 @@ Thread: https://ampcode.com/threads/T-019be15d-ee96-717a-a6da-68305d0a4966
   - Image tokens are inline children of paragraph tokens, not top-level block tokens
   - Blockquote converts to VerseInline with Blockquote inline (not a block type)
 ---
+
+## 2026-01-21 - US-007
+Thread: https://ampcode.com/threads/T-019be166-448f-737a-9a37-4e07c75e188d
+- Implemented `markdownToStory(markdown: string): Story` function
+- Added markdown-it parser instance with task-lists plugin to module
+- Parses markdown to tokens and dispatches to VerseInline or VerseBlock
+- Paragraph tokens → VerseInline with inline content
+- Block tokens (heading, fence, hr, lists) → VerseBlock
+- Blockquote tokens → VerseInline with Blockquote wrapper (via existing tokenToBlock)
+- Handles empty/null/undefined input gracefully
+- Added 21 new tests (total now 67 tests in markdownToStory.test.ts)
+- Files changed: markdownToStory.ts, markdownToStory.test.ts
+- **Learnings for future iterations:**
+  - Paragraph content is in inline tokens which are children of `paragraph_open`/`paragraph_close` pairs
+  - Use `tokenToBlock` to handle paragraph_open - it returns block for images, null for regular paragraphs
+  - The markdown-it parser must be configured with task-lists plugin at module level for consistent usage
+  - Story is `Verse[]` where each Verse is either `{ inline: Inline[] }` or `{ block: Block }`
+---
