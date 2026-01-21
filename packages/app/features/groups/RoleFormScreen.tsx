@@ -411,9 +411,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
             </ListItem>
           </Pressable>
           <Button
-            preset="primary"
-            size="large"
-            centered
+            preset="hero"
             onPress={handleSubmit(handleSave)}
             disabled={!isValid}
             label="Save"
@@ -421,9 +419,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
           {isEditMode && !isAdminRole && (
             <YStack gap="$l">
               <Button
-                preset="destructive"
-                size="large"
-                centered
+                preset="heroDestructive"
                 disabled={disableDelete}
                 onPress={handleDelete}
                 label="Delete role"

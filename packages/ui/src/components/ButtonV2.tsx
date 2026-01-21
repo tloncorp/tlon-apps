@@ -23,6 +23,8 @@ export type ButtonIntent =
   | 'notice';
 
 export type ButtonPreset =
+  | 'hero'
+  | 'heroDestructive'
   | 'positive'
   | 'primary'
   | 'secondary'
@@ -36,9 +38,12 @@ type PresetConfig = {
   intent: ButtonIntent;
   fill: ButtonStyle;
   size?: ButtonSize;
+  centered?: boolean;
 };
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
+  hero: { intent: 'primary', fill: 'solid', size: 'large', centered: true },
+  heroDestructive: { intent: 'negative', fill: 'solid', size: 'large', centered: true },
   positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
   secondary: { intent: 'secondary', fill: 'ghost', size: 'small' },
@@ -355,7 +360,7 @@ function ButtonImpl({
   intent: intentProp,
   type: typeProp,
   preset,
-  centered = false,
+  centered: centeredProp,
   shadow = false,
   disableHaptic,
   onPress,
@@ -366,6 +371,7 @@ function ButtonImpl({
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
   const fill = fillProp ?? presetConfig?.fill ?? 'solid';
   const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
+  const centered = centeredProp ?? presetConfig?.centered ?? false;
 
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;

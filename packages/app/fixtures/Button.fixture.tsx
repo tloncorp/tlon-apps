@@ -3,6 +3,16 @@ import { FixtureWrapper } from './FixtureWrapper';
 
 export default {
   // Presets
+  'preset/hero': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="hero" label="Hero Button" />
+    </FixtureWrapper>
+  ),
+  'preset/heroDestructive': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="heroDestructive" label="Hero Destructive" />
+    </FixtureWrapper>
+  ),
   'preset/positive': () => (
     <FixtureWrapper fillWidth safeArea={false}>
       <Button preset="positive" label="Positive Button" />

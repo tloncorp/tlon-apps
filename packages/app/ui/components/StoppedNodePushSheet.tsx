@@ -44,9 +44,7 @@ export function StoppedNodePushSheet({
               )}
             </Text>
             <Button
-              preset="primary"
-              size="large"
-              centered
+              preset="hero"
               onPress={
                 !notifPerms.hasPermission && !notifPerms.canAskPermission
                   ? notifPerms.openSettings
