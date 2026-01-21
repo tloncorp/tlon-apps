@@ -3,6 +3,10 @@
 - Story/Verse types are defined in `packages/shared/src/urbit/channel.ts`
 - Use Vitest for tests in `packages/shared` - import from `vitest`
 - Test files use `.test.ts` suffix in same directory as source files
+- Block types include: Image, Header, Rule, Code, ListingBlock (contains Listing = List | ListItem)
+- List structure: `{ list: { type: 'ordered'|'unordered'|'tasklist', contents: Inline[], items: Listing[] } }`
+- ListItem structure: `{ item: Inline[] }`
+- Task inline: `{ task: { checked: boolean, content: Inline[] } }` - used inside tasklist items
 
 ---
 
@@ -18,4 +22,20 @@ Thread: https://ampcode.com/threads/T-019be144-6510-7478-b334-d064c0dd0eea
   - Link has `{ link: { href: string, content: string } }` structure
   - Ship has `{ ship: string }` where the string is the ship name without the `~` prefix
   - Use existing type guards from content.ts rather than creating new ones
+---
+
+## 2026-01-21 - US-002
+Thread: https://ampcode.com/threads/T-019be146-9d5a-719c-8876-eb7257600a9e
+- Implemented `blockToMarkdown(block: Block): string` function
+- Added helper `listingToMarkdownLines()` for recursive list handling
+- Handles: Header (h1-h6), Code (fenced blocks), Image, Rule, ListingBlock (ordered, unordered, tasklist)
+- Supports nested lists with proper 2-space indentation
+- Also added Task inline handling to `inlineToMarkdown()` for tasklist checkboxes
+- Added 22 new tests (total now 35 tests in storyToMarkdown.test.ts)
+- **Learnings for future iterations:**
+  - List structure is complex: ListingBlock contains a Listing (which is List | ListItem)
+  - List has `contents` (parent item text) and `items` (child items), both may be present
+  - Nested lists pass down list type and adjust indentation
+  - Task inlines have `{ task: { checked, content } }` structure - checkbox rendered in inline conversion
+  - Rule block uses `{ rule: null }` similar to Break inline
 ---

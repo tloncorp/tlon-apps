@@ -44,7 +44,7 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "See Block types in packages/shared/src/urbit/content.ts"
     },
     {

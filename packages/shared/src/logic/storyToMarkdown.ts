@@ -1,5 +1,6 @@
 import {
   Block,
+  Blockquote,
   Bold,
   Break,
   Code,
@@ -17,6 +18,7 @@ import {
   Ship,
   Strikethrough,
   Task,
+  isBlockquote,
   isBold,
   isBreak,
   isCode,
@@ -32,6 +34,7 @@ import {
   isStrikethrough,
   isTask,
 } from '../urbit/content';
+import { isBlockVerse, Story, Verse } from '../urbit/channel';
 
 /**
  * Convert a single inline element to Markdown.
@@ -89,8 +92,18 @@ function inlineToMarkdown(inline: Inline): string {
     return `${checkbox} ${content}`;
   }
 
-  // Fallback for unhandled types (Sect, Tag, BlockReference, BlockCode, Blockquote)
-  // These will be handled in later stories or return empty
+  // Blockquote
+  if (isBlockquote(inline)) {
+    const blockquote = inline as Blockquote;
+    const content = inlinesToMarkdown(blockquote.blockquote);
+    // Prefix each line with '> '
+    return content
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n');
+  }
+
+  // Fallback for unhandled types (Sect, Tag, BlockReference, BlockCode)
   return '';
 }
 
@@ -210,4 +223,36 @@ export function blockToMarkdown(block: Block): string {
 
   // Fallback for unhandled block types (Cite, LinkBlock)
   return '';
+}
+
+/**
+ * Convert a Verse (VerseInline or VerseBlock) to Markdown.
+ */
+function verseToMarkdown(verse: Verse): string {
+  if (isBlockVerse(verse)) {
+    return blockToMarkdown(verse.block);
+  }
+  // VerseInline
+  return inlinesToMarkdown(verse.inline);
+}
+
+/**
+ * Convert a complete Story (array of Verse) to Markdown.
+ */
+export function storyToMarkdown(story: Story): string {
+  if (!story || story.length === 0) {
+    return '';
+  }
+
+  const parts: string[] = [];
+
+  for (const verse of story) {
+    const markdown = verseToMarkdown(verse);
+    if (markdown) {
+      parts.push(markdown);
+    }
+  }
+
+  // Join verses with double newlines for paragraph separation
+  return parts.join('\n\n');
 }

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
   Block,
+  Blockquote,
   Bold,
   Break,
   Code,
@@ -17,7 +18,12 @@ import {
   Strikethrough,
   Task,
 } from '../urbit/content';
-import { blockToMarkdown, inlinesToMarkdown } from './storyToMarkdown';
+import { Story } from '../urbit/channel';
+import {
+  blockToMarkdown,
+  inlinesToMarkdown,
+  storyToMarkdown,
+} from './storyToMarkdown';
 
 describe('inlinesToMarkdown', () => {
   test('converts plain string', () => {
@@ -365,5 +371,189 @@ describe('blockToMarkdown', () => {
   test('returns empty string for unhandled block types', () => {
     const block = { cite: { group: 'test-flag' } } as Block;
     expect(blockToMarkdown(block)).toBe('');
+  });
+});
+
+describe('inlinesToMarkdown - Blockquote', () => {
+  test('converts simple Blockquote to > prefixed lines', () => {
+    const inlines: Inline[] = [
+      { blockquote: ['This is a quote'] } as Blockquote,
+    ];
+    expect(inlinesToMarkdown(inlines)).toBe('> This is a quote');
+  });
+
+  test('converts Blockquote with multiple lines', () => {
+    const inlines: Inline[] = [
+      {
+        blockquote: ['Line 1', { break: null } as Break, 'Line 2'],
+      } as Blockquote,
+    ];
+    expect(inlinesToMarkdown(inlines)).toBe('> Line 1\n> Line 2');
+  });
+
+  test('converts Blockquote with inline formatting', () => {
+    const inlines: Inline[] = [
+      {
+        blockquote: [
+          'Quote with ',
+          { bold: ['bold'] } as Bold,
+          ' text',
+        ],
+      } as Blockquote,
+    ];
+    expect(inlinesToMarkdown(inlines)).toBe('> Quote with **bold** text');
+  });
+});
+
+describe('storyToMarkdown', () => {
+  test('converts empty story', () => {
+    const story: Story = [];
+    expect(storyToMarkdown(story)).toBe('');
+  });
+
+  test('handles null/undefined story gracefully', () => {
+    expect(storyToMarkdown(null as unknown as Story)).toBe('');
+    expect(storyToMarkdown(undefined as unknown as Story)).toBe('');
+  });
+
+  test('converts single VerseInline', () => {
+    const story: Story = [{ inline: ['Hello, world!'] }];
+    expect(storyToMarkdown(story)).toBe('Hello, world!');
+  });
+
+  test('converts single VerseBlock with header', () => {
+    const story: Story = [
+      {
+        block: {
+          header: { tag: 'h1', content: ['My Title'] },
+        } as Header,
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe('# My Title');
+  });
+
+  test('converts multiple VerseInlines with paragraph separation', () => {
+    const story: Story = [
+      { inline: ['First paragraph'] },
+      { inline: ['Second paragraph'] },
+    ];
+    expect(storyToMarkdown(story)).toBe('First paragraph\n\nSecond paragraph');
+  });
+
+  test('converts mixed inline and block verses', () => {
+    const story: Story = [
+      {
+        block: {
+          header: { tag: 'h1', content: ['Document Title'] },
+        } as Header,
+      },
+      { inline: ['This is the introduction.'] },
+      {
+        block: {
+          code: { code: 'const x = 1;', lang: 'javascript' },
+        } as Code,
+      },
+      { inline: ['Conclusion paragraph.'] },
+    ];
+    expect(storyToMarkdown(story)).toBe(
+      '# Document Title\n\nThis is the introduction.\n\n```javascript\nconst x = 1;\n```\n\nConclusion paragraph.'
+    );
+  });
+
+  test('converts VerseInline with blockquote', () => {
+    const story: Story = [
+      {
+        inline: [{ blockquote: ['This is a quoted text'] } as Blockquote],
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe('> This is a quoted text');
+  });
+
+  test('converts story with list blocks', () => {
+    const story: Story = [
+      { inline: ['Shopping list:'] },
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['Apples'] }, { item: ['Bananas'] }],
+            },
+          },
+        } as ListingBlock,
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe(
+      'Shopping list:\n\n- Apples\n- Bananas'
+    );
+  });
+
+  test('converts story with inline formatting', () => {
+    const story: Story = [
+      {
+        inline: [
+          'This has ',
+          { bold: ['bold'] } as Bold,
+          ' and ',
+          { italics: ['italic'] } as Italics,
+          ' text.',
+        ],
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe('This has **bold** and *italic* text.');
+  });
+
+  test('converts story with ship mentions', () => {
+    const story: Story = [
+      {
+        inline: [
+          'Hello ',
+          { ship: 'zod' } as Ship,
+          ' and ',
+          { ship: 'bus' } as Ship,
+          '!',
+        ],
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe('Hello ~zod and ~bus!');
+  });
+
+  test('skips empty verses', () => {
+    const story: Story = [
+      { inline: ['First'] },
+      { inline: [] },
+      { inline: ['Second'] },
+    ];
+    expect(storyToMarkdown(story)).toBe('First\n\nSecond');
+  });
+
+  test('converts complex mixed story', () => {
+    const story: Story = [
+      {
+        block: {
+          header: { tag: 'h1', content: ['Welcome'] },
+        } as Header,
+      },
+      { inline: ['This is an intro with ', { bold: ['emphasis'] } as Bold, '.'] },
+      { block: { rule: null } as Rule },
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'ordered',
+              contents: [],
+              items: [{ item: ['Step one'] }, { item: ['Step two'] }],
+            },
+          },
+        } as ListingBlock,
+      },
+      {
+        inline: [{ blockquote: ['Important note'] } as Blockquote],
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe(
+      '# Welcome\n\nThis is an intro with **emphasis**.\n\n---\n\n1. Step one\n2. Step two\n\n> Important note'
+    );
   });
 });
