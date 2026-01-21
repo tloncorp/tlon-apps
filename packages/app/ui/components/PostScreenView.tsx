@@ -588,6 +588,7 @@ function SinglePostView({
 
   const sendReplyFromDraft = useCallback(
     async (draft: domain.PostDataDraft) => {
+      setEditingPost?.(undefined);
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft);
       scrollToNewReply();
