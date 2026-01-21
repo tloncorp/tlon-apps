@@ -279,6 +279,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           console.error('Error handling image drop:', error);
         } finally {
           clearAttachments();
+          for (const intent of uploadIntents) {
+            if (
+              intent.type === 'image' &&
+              intent.asset.uri.startsWith('blob:')
+            ) {
+              URL.revokeObjectURL(intent.asset.uri);
+            }
+          }
         }
       },
       [channel, attachAssets, clearAttachments]
