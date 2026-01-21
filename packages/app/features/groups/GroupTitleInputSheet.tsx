@@ -55,7 +55,7 @@ export function GroupTitleInputSheet({
   );
 
   const nextButton = (
-    <Button fill="solid" type="primary" disabled={!title.trim()} onPress={handleNext} label="Next" centered />
+    <Button preset="primary" disabled={!title.trim()} onPress={handleNext} label="Next" centered />
   );
 
   const content = isWindowNarrow ? (

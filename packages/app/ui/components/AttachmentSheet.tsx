@@ -327,8 +327,7 @@ export default function AttachmentSheet({
           testID="AttachmentSheetCloseButton"
         >
           <Button
-            fill="text"
-            type="primary"
+            preset="minimal"
             onPress={() => onOpenChange(false)}
             testID="AttachmentSheetCloseButton"
             label="Cancel"

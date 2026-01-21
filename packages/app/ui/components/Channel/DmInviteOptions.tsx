@@ -39,10 +39,10 @@ export function DmInviteOptions({
       gap="$m"
       marginBottom={bottom}
     >
-      <Button fill="solid" type="primary" onPress={accept} label="Accept" centered />
-      <Button fill="outline" type="secondary" onPress={deny} label="Deny" centered />
+      <Button preset="primary" onPress={accept} label="Accept" centered />
+      <Button preset="secondaryOutline" onPress={deny} label="Deny" centered />
       {channel.type === 'dm' && (
-        <Button fill="outline" type="secondary" onPress={blockAndDeny} label="Block" centered />
+        <Button preset="secondaryOutline" onPress={blockAndDeny} label="Block" centered />
       )}
     </YStack>
   );

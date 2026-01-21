@@ -165,8 +165,7 @@ export function ChannelFromTemplateView({
           </View>
         </View>
         <Button
-          fill="solid"
-          type="primary"
+          preset="primary"
           marginHorizontal="$2xl"
           onPress={handleSubmit(onConfirm)}
           disabled={!channel || !selectedGroup || !isValid}

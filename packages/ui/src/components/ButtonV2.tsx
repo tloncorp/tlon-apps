@@ -22,6 +22,33 @@ export type ButtonIntent =
   | 'negative'
   | 'notice';
 
+export type ButtonPreset =
+  | 'hero'
+  | 'primary'
+  | 'secondary'
+  | 'secondaryOutline'
+  | 'outline'
+  | 'destructive'
+  | 'minimal'
+  | 'destructiveMinimal';
+
+type PresetConfig = {
+  intent: ButtonIntent;
+  fill: ButtonStyle;
+  size?: ButtonSize;
+};
+
+const presetConfigs: Record<ButtonPreset, PresetConfig> = {
+  hero: { intent: 'positive', fill: 'solid', size: 'large' },
+  primary: { intent: 'primary', fill: 'solid' },
+  secondary: { intent: 'secondary', fill: 'ghost' },
+  secondaryOutline: { intent: 'secondary', fill: 'outline' },
+  outline: { intent: 'primary', fill: 'outline' },
+  destructive: { intent: 'negative', fill: 'solid' },
+  minimal: { intent: 'primary', fill: 'text' },
+  destructiveMinimal: { intent: 'negative', fill: 'text' },
+};
+
 export const ButtonContext = createStyledContext<{
   size: ButtonSize;
   fill: ButtonStyle;
@@ -285,6 +312,9 @@ type ButtonBaseProps = Omit<
   // ButtonFrame variant props
   size?: ButtonSize;
   fill?: ButtonStyle;
+  /** Override the intent (semantic meaning) from the preset. Use sparingly - prefer presets. */
+  intent?: ButtonIntent;
+  /** @deprecated Use `preset` or `intent` instead */
   type?: ButtonIntent;
   disabled?: boolean;
   dimmed?: boolean;
@@ -293,6 +323,8 @@ type ButtonBaseProps = Omit<
   centered?: boolean;
   /** Disable haptic feedback on press. */
   disableHaptic?: boolean;
+  /** Preset configuration that sets intent, fill, and optionally size. Individual props override preset values. */
+  preset?: ButtonPreset;
 };
 
 type TextButtonProps = ButtonBaseProps & {
@@ -318,15 +350,23 @@ function ButtonImpl({
   trailingIcon,
   loading = false,
   disabled = false,
-  size = 'medium',
-  fill = 'solid',
-  type = 'primary',
+  size: sizeProp,
+  fill: fillProp,
+  intent: intentProp,
+  type: typeProp,
+  preset,
   centered = false,
   shadow = false,
   disableHaptic,
   onPress,
   ...props
 }: ButtonProps) {
+  // Apply preset values, allowing individual props to override
+  const presetConfig = preset ? presetConfigs[preset] : undefined;
+  const size = sizeProp ?? presetConfig?.size ?? 'medium';
+  const fill = fillProp ?? presetConfig?.fill ?? 'solid';
+  const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
+
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;
 
@@ -361,13 +401,13 @@ function ButtonImpl({
     <ButtonContext.Provider
       size={size}
       fill={fill}
-      intent={type}
+      intent={intent}
       disabled={disabled}
     >
       <ButtonFrame
         size={size}
         fill={fill}
-        intent={type}
+        intent={intent}
         iconOnly={isIconOnly}
         hasLeadingIcon={leadingIcon && size === 'small' ? 'small' : undefined}
         symmetricPadding={

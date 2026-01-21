@@ -58,8 +58,7 @@ export function AddContactsView(props: {
         />
 
         <Button
-          fill="solid"
-          type="primary"
+          preset="primary"
           marginTop="$m"
           onPress={handleAddContacts}
           disabled={newContacts.length === 0}

@@ -65,8 +65,7 @@ export const EditLinkBar = ({
         backgroundColor={bgColor}
       />
       <Button
-        fill="outline"
-        type="primary"
+        preset="outline"
         onPress={() => {
           onEditLink(link);
         }}

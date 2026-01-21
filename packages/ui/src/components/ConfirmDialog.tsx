@@ -83,11 +83,10 @@ export function ConfirmDialog({
             </YStack>
             <XStack gap="$m" justifyContent="flex-end">
               <Dialog.Close asChild>
-                <Button fill="text" type="primary" label={cancelText} />
+                <Button preset="minimal" label={cancelText} />
               </Dialog.Close>
               <Button
-                fill="text"
-                type={destructive ? 'negative' : 'primary'}
+                preset={destructive ? 'destructiveMinimal' : 'minimal'}
                 onPress={() => {
                   onConfirm();
                   onOpenChange?.(false);

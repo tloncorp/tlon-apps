@@ -7,7 +7,7 @@ function ToastFixture() {
 
   return (
     <View flex={1} alignItems="center" justifyContent="center" gap="$l">
-      <Button fill="outline" type="primary" onPress={() => showToast({ message: 'Info Toast' })} label="Show toast" />
+      <Button preset="outline" onPress={() => showToast({ message: 'Info Toast' })} label="Show toast" />
       <Button
         fill="outline"
         type="primary"

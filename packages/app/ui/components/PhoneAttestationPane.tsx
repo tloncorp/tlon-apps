@@ -212,8 +212,7 @@ function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
           </Text>
         )}
         <Button
-          fill="text"
-          type="primary"
+          preset="minimal"
           size="small"
           centered
           label="Wrong phone number?"
