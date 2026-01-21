@@ -219,7 +219,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": "Use existing tiptap.JSONToInlines pattern"
     },
     {

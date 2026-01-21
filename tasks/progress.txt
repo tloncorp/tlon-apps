@@ -197,3 +197,18 @@ Thread: https://ampcode.com/threads/T-019be17f-370c-717e-943d-1496069a5b91
   - Conditional rendering in JSX works well for switching between editor modes
   - Added import for MarkdownEditor from `./MarkdownEditor`
 ---
+
+## 2026-01-21 - US-012
+Thread: https://ampcode.com/threads/T-019be181-459e-750d-86d1-ca85ee0b66c3
+- Implemented rich text → Markdown conversion when toggling to Markdown mode
+- Created `handleMarkdownToggle` callback in BigInput component
+- Uses existing pattern: `tiptap.JSONToInlines(json)` → `constructStory(inlines)` → `storyToMarkdown(story)`
+- Added `storyToMarkdown` export to `@tloncorp/shared` package
+- Error handling with toast notification on conversion failure
+- Files changed: BigInput.tsx, packages/shared/src/logic/index.ts
+- **Learnings for future iterations:**
+  - The `tiptap.JSONToInlines` converts Tiptap editor JSON to Inline array
+  - `constructStory(inlines)` wraps inlines into proper Verse/Story structure
+  - Toolbar items use double-callback pattern: `onPress: () => () => action()`
+  - storyToMarkdown was not exported from shared package index - needed to add to logic/index.ts
+---
