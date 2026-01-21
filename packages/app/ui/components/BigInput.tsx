@@ -132,23 +132,10 @@ export function BigInput({
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
 
-    // For notebooks, filter out image attachments that are inline (not header images)
-    // Inline images are already in the content from the editor
-    const attachmentsToPass =
-      channelType === 'notebook'
-        ? attachments.filter(
-            (att) =>
-              att.type !== 'image' ||
-              (att.type === 'image' &&
-                'file' in att &&
-                att.file.uri === imageUri)
-          )
-        : attachments;
-
     const draft: domain.PostDataDraft = {
       channelId,
       content: inlines,
-      attachments: attachmentsToPass,
+      attachments,
       title,
       image: imageUri ?? undefined,
       channelType,
