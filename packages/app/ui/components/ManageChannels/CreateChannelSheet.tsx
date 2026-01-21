@@ -222,8 +222,7 @@ export function CreateChannelSheet({
               )}
               <ActionSheet.FormBlock>
                 <Button
-                  fill="solid"
-                  type="primary"
+                  preset="primary"
                   onPress={
                     isPrivate ? handlePressNext : handleSubmit(handlePressSave)
                   }
@@ -334,7 +333,7 @@ function PrivateChannelPermissionsView({
               <XStack flex={1.5} justifyContent="flex-end">
                 <Button
                   fill="solid"
-                  type="positive"
+                  intent="positive"
                   size="small"
                   onPress={() => setShowRoleSelector(true)}
                   label="Add roles"
@@ -364,8 +363,7 @@ function PrivateChannelPermissionsView({
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
           <Button
-            fill="solid"
-            type="primary"
+            preset="primary"
             onPress={onPressSave}
             label="Create channel"
             centered
@@ -532,8 +530,7 @@ export function UnconnectedChannelConfigurationBar({
         />
       </YStack>
       <Button
-        fill="solid"
-        type="primary"
+        preset="primary"
         onPress={onPressDone}
         label="Done"
         centered
@@ -656,8 +653,7 @@ function ConfigInput<
           {label}
         </Text>
         <Button
-          fill="outline"
-          type="secondary"
+          preset="secondaryOutline"
           size="medium"
           minWidth={140}
           onPress={() => setSheetOpen(true)}

@@ -192,16 +192,14 @@ export function EditChannelScreenView({
             )}
             <YStack gap="$xl" width={'100%'}>
               <Button
-                fill="solid"
-                type="primary"
+                preset="primary"
                 onPress={handleSubmit(handleSave)}
                 testID="ChannelSettingsSaveButton"
                 label="Save"
                 centered
               />
               <Button
-                fill="solid"
-                type="negative"
+                preset="destructive"
                 onPress={handlePressDelete}
                 label="Delete channel for everyone"
                 centered
@@ -392,7 +390,7 @@ export function ChannelPermissionsSelector({
             <XStack flex={1.5} justifyContent="flex-end">
               <Button
                 fill="solid"
-                type="positive"
+                intent="positive"
                 size="small"
                 onPress={() => setShowRoleSelector(true)}
                 label="Add roles"
@@ -786,8 +784,7 @@ export function RoleSelectionSheet({
           borderTopColor="$border"
         >
           <Button
-            fill="solid"
-            type="primary"
+            preset="primary"
             onPress={handleSave}
             testID="RoleSelectionSaveButton"
             label="Save"

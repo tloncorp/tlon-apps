@@ -63,8 +63,7 @@ export function InviteUsersScreen() {
 
           <PaddedBlock paddingBottom={bottom}>
             <Button
-              fill="solid"
-              type="primary"
+              preset="primary"
               onPress={handleInvite}
               disabled={invitees.length === 0 || loading}
               label={loading ? 'Inviting...' : buttonText}

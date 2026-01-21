@@ -78,7 +78,6 @@ export default function ProfileStatusSheet({
             />
             <Button
               fill="ghost"
-              type="primary"
               size="small"
               onPress={handleSave}
               disabled={!isValid}

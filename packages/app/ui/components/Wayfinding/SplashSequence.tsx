@@ -8,8 +8,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   Button,
-  ButtonIntent,
-  ButtonStyle,
+  ButtonPreset,
   LoadingSpinner,
   Text,
 } from '@tloncorp/ui';
@@ -110,15 +109,12 @@ const SplashParagraph = styled(Text, {
   marginHorizontal: '$xl',
 });
 
-type SplashButtonVariant = 'primary' | 'hero' | 'secondary';
+type SplashButtonPreset = 'primary' | 'hero' | 'secondary';
 
-const variantMapping: Record<
-  SplashButtonVariant,
-  { type: ButtonIntent; fill: ButtonStyle; fullWidth?: boolean }
-> = {
-  primary: { type: 'primary', fill: 'solid' },
-  hero: { type: 'positive', fill: 'solid' },
-  secondary: { type: 'secondary', fill: 'ghost', fullWidth: true },
+const presetMapping: Record<SplashButtonPreset, { preset: ButtonPreset; fullWidth?: boolean }> = {
+  primary: { preset: 'primary' },
+  hero: { preset: 'hero' },
+  secondary: { preset: 'secondary', fullWidth: true },
 };
 
 const SplashButton = ({
@@ -129,20 +125,19 @@ const SplashButton = ({
   ...rest
 }: PropsWithChildren<{
   onPress: () => void;
-  variant?: SplashButtonVariant;
+  variant?: SplashButtonPreset;
   disabled?: boolean;
 }> &
   Omit<ComponentProps<typeof View>, 'onPress' | 'children'>) => {
-  const { type, fill, fullWidth } = variantMapping[variant];
+  const { preset, fullWidth } = presetMapping[variant];
   const width = fullWidth ? '100%' : isWeb ? 300 : '100%';
   const label = typeof children === 'string' ? children : '';
 
   return (
     <View width={width} {...rest}>
       <Button
+        preset={preset}
         size="large"
-        type={type}
-        fill={fill}
         onPress={onPress}
         disabled={disabled}
         trailingIcon="ChevronRight"
@@ -197,7 +192,10 @@ export function WelcomePane(props: { onActionPress: () => void }) {
         marginTop="$2xl"
         paddingHorizontal="$2xl"
       >
-        <SplashButton data-testid="lets-get-started" onPress={props.onActionPress}>
+        <SplashButton
+          data-testid="lets-get-started"
+          onPress={props.onActionPress}
+        >
           Let's get started
         </SplashButton>
       </XStack>
@@ -249,7 +247,11 @@ export function GroupsPane(props: { onActionPress: () => void }) {
         marginTop="$2xl"
         paddingHorizontal={isWeb ? '$4xl' : '$2xl'}
       >
-        <SplashButton data-testid="got-it" marginTop="$l" onPress={props.onActionPress}>
+        <SplashButton
+          data-testid="got-it"
+          marginTop="$l"
+          onPress={props.onActionPress}
+        >
           Got it
         </SplashButton>
       </XStack>

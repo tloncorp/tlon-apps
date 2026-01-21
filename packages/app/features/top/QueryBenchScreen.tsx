@@ -445,20 +445,18 @@ export function QueryBenchScreen() {
       <Text size="$label/xl">Query Benchmarks</Text>
 
       <View flexDirection="row" gap="$m" alignItems="center">
-        <Button fill="outline" type="primary" disabled={isRunning || !benchmarkData} onPress={runBenchmarks} label={isRunning ? 'Running…' : 'Run all'} />
+        <Button preset="outline" disabled={isRunning || !benchmarkData} onPress={runBenchmarks} label={isRunning ? 'Running…' : 'Run all'} />
         <Text color="$secondaryText" fontSize="$s">
           {iterations} iterations
         </Text>
         <Button
-          fill="outline"
-          type="primary"
+          preset="outline"
           disabled={isRunning}
           onPress={() => setIterations((n) => Math.max(1, n - 5))}
           label="-5"
         />
         <Button
-          fill="outline"
-          type="primary"
+          preset="outline"
           disabled={isRunning}
           onPress={() => setIterations((n) => n + 5)}
           label="+5"

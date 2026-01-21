@@ -242,8 +242,7 @@ const CreateChatFormContent = ({
         />
         {chatType === 'group' && (
           <Button
-            fill="solid"
-            type="primary"
+            preset="primary"
             marginTop="$l"
             onPress={onCreateGroup}
             loading={isCreating}
@@ -508,7 +507,7 @@ function TypeSelectionContent({
       >
         <Button
           fill="text"
-          type="secondary"
+          intent="secondary"
           size="small"
           onPress={() => onSelectType('joinGroup')}
           label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}

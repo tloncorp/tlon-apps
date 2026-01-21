@@ -240,8 +240,7 @@ ${proof}`;
         />
         {!keyboardVisible && (
           <Button
-            fill="text"
-            type="primary"
+            preset="minimal"
             size="small"
             centered
             label="Wrong account?"

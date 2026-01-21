@@ -104,8 +104,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         paddingHorizontal="$xl"
       >
         <Button
-          fill="solid"
-          type="primary"
+          preset="primary"
           onPress={handleSendItem}
           disabled={isSending || !!errorMessage}
           label={isSending

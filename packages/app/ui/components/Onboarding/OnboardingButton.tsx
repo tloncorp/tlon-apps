@@ -19,9 +19,8 @@ export function OnboardingButton({
   return (
     <Button
       {...props}
+      preset="primary"
       size="large"
-      fill="solid"
-      type="primary"
       shadow
       label={label}
       centered

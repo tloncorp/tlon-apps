@@ -35,8 +35,7 @@ const InviteUsersWidgetComponent = ({
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>
         <Button
-          fill="solid"
-          type="primary"
+          preset="primary"
           onPress={handleInvite}
           disabled={invitees.length === 0 || loading}
           label={loading ? 'Inviting...' : buttonText}

@@ -201,7 +201,7 @@ export function ContactBookPrompt(props: {
           </XStack>
         )}
         {props.status === 'denied' && (
-          <Button fill="outline" type="primary" label="Open Settings" />
+          <Button preset="outline" label="Open Settings" />
         )}
       </YStack>
     </NoticeFrame>
