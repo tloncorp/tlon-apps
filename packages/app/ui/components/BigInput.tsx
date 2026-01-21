@@ -25,6 +25,7 @@ import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
+import { MarkdownEditor } from './MarkdownEditor';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
@@ -71,6 +72,7 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState('');
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -429,7 +431,7 @@ export function BigInput({
           </>
         )}
 
-        <View>
+        <View flex={1}>
           {!isWindowNarrow &&
             editorRef.current?.editor &&
             channelType === 'notebook' && (
@@ -446,25 +448,34 @@ export function BigInput({
                 }}
               />
             )}
-          <MessageInput
-            ref={editorRef}
-            sendPostFromDraft={sendPostFromDraft}
-            channelId={channelId}
-            channelType={channelType}
-            editingPost={editingPost}
-            {...props}
-            clearDraft={clearDraft}
-            frameless={true}
-            bigInput={true}
-            shouldAutoFocus={true}
-            showInlineAttachments={channelType === 'gallery'}
-            onEditorContentChange={handleEditorContentChanged}
-            title={title}
-            image={
-              imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
-            }
-            paddingHorizontal="$l"
-          />
+          {isMarkdownMode ? (
+            <MarkdownEditor
+              value={markdownContent}
+              onChange={setMarkdownContent}
+              placeholder="Write your content in Markdown..."
+              testID="BigInputMarkdownEditor"
+            />
+          ) : (
+            <MessageInput
+              ref={editorRef}
+              sendPostFromDraft={sendPostFromDraft}
+              channelId={channelId}
+              channelType={channelType}
+              editingPost={editingPost}
+              {...props}
+              clearDraft={clearDraft}
+              frameless={true}
+              bigInput={true}
+              shouldAutoFocus={true}
+              showInlineAttachments={channelType === 'gallery'}
+              onEditorContentChange={handleEditorContentChanged}
+              title={title}
+              image={
+                imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
+              }
+              paddingHorizontal="$l"
+            />
+          )}
         </View>
       </View>
 
