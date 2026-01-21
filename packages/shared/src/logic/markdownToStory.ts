@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import taskLists from 'markdown-it-task-lists';
 import type Token from 'markdown-it/lib/token.mjs';
 import {
   Block,
@@ -22,7 +23,9 @@ import {
   Strikethrough,
   Task,
 } from '../urbit/content';
-import { Verse, VerseInline } from '../urbit/channel';
+import { Story, Verse, VerseBlock, VerseInline } from '../urbit/channel';
+
+const md = new MarkdownIt().use(taskLists);
 
 // Ship name pattern: ~[a-z]{3,6}(-[a-z]{6})*
 const SHIP_PATTERN = /~[a-z]{3,6}(?:-[a-z]{6})*/g;
@@ -605,4 +608,78 @@ export function tokenToBlock(
     default:
       return { block: null, endIndex: startIndex };
   }
+}
+
+/**
+ * Convert a Markdown string to a Story (Verse[]).
+ *
+ * Parses the markdown using markdown-it and converts the token stream
+ * to Story format:
+ * - Paragraph tokens become VerseInline
+ * - Block tokens (headers, code, lists, etc.) become VerseBlock
+ * - Blockquotes become VerseInline with Blockquote inline
+ */
+export function markdownToStory(markdown: string): Story {
+  if (!markdown || markdown.trim() === '') {
+    return [];
+  }
+
+  const tokens = md.parse(markdown, {});
+  const verses: Verse[] = [];
+  let i = 0;
+
+  while (i < tokens.length) {
+    const token = tokens[i];
+
+    if (token.type === 'paragraph_open') {
+      // Handle paragraph - convert inline content to VerseInline
+      const result = tokenToBlock(tokens, i);
+
+      // If tokenToBlock found an image, it returns a block
+      if (result.block) {
+        const verseBlock: VerseBlock = { block: result.block };
+        verses.push(verseBlock);
+      } else {
+        // Regular paragraph - extract inline content
+        const closeIdx = result.endIndex;
+        const innerTokens = tokens.slice(i + 1, closeIdx);
+        const inlineToken = innerTokens.find((t) => t.type === 'inline');
+
+        if (inlineToken && inlineToken.children) {
+          const inlines = tokensToInlines(inlineToken.children);
+          if (inlines.length > 0) {
+            const verseInline: VerseInline = { inline: inlines };
+            verses.push(verseInline);
+          }
+        }
+      }
+      i = result.endIndex + 1;
+    } else if (
+      token.type === 'heading_open' ||
+      token.type === 'fence' ||
+      token.type === 'hr' ||
+      token.type === 'bullet_list_open' ||
+      token.type === 'ordered_list_open'
+    ) {
+      // Block-level elements
+      const result = tokenToBlock(tokens, i);
+      if (result.block) {
+        const verseBlock: VerseBlock = { block: result.block };
+        verses.push(verseBlock);
+      }
+      i = result.endIndex + 1;
+    } else if (token.type === 'blockquote_open') {
+      // Blockquote returns a VerseInline
+      const result = tokenToBlock(tokens, i);
+      if (result.verse) {
+        verses.push(result.verse);
+      }
+      i = result.endIndex + 1;
+    } else {
+      // Skip close tokens and other unhandled tokens
+      i++;
+    }
+  }
+
+  return verses;
 }

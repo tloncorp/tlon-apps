@@ -10,6 +10,9 @@
 - Verse is `VerseInline | VerseBlock`, use `isBlockVerse()` from channel.ts to distinguish
 - Blockquote is an Inline type with `{ blockquote: Inline[] }` structure
 - markdown-it tokens: inline tokens use open/close pairs (e.g., `strong_open`/`strong_close`), content is in `.content`, attributes in `.attrs` array
+- markdown-it block tokens: also use open/close pairs; use depth tracking to find matching close token
+- markdown-it-task-lists plugin: adds `class="contains-task-list"` to list, checkbox rendered as html_inline token
+- Type declarations for untyped npm packages go in `packages/shared/src/types/` as `.d.ts` files
 
 ---
 
@@ -86,4 +89,24 @@ Thread: https://ampcode.com/threads/T-019be156-4b11-70f3-9ef7-bfe475c300d2
   - Link href is in `token.attrs` as `[['href', 'url']]` array format
   - Ship pattern: `~[a-z]{3,6}(-[a-z]{6})*` covers galaxies, stars, planets, and moons
   - Use `parseInline` for inline-only parsing, but full `parse` gives block context
+---
+
+## 2026-01-21 - US-006
+Thread: https://ampcode.com/threads/T-019be15d-ee96-717a-a6da-68305d0a4966
+- Implemented `tokenToBlock(tokens, startIndex)` function in `markdownToStory.ts`
+- Returns `{ block, verse?, endIndex }` to support blockquotes returning VerseInline
+- Handles: heading_open → Header, fence → Code, hr → Rule, paragraph_open with image → Image
+- Handles: bullet_list_open → ListingBlock (unordered), ordered_list_open → ListingBlock (ordered)
+- Handles: bullet_list with contains-task-list class → ListingBlock (tasklist) with Task inlines
+- Handles: blockquote_open → VerseInline with Blockquote wrapper
+- Supports nested lists with recursive parseListTokens()
+- Created type declaration file for `markdown-it-task-lists` at `packages/shared/src/types/markdown-it-task-lists.d.ts`
+- Added 23 new tests (total now 46 tests in markdownToStory.test.ts)
+- Files changed: markdownToStory.ts, markdownToStory.test.ts, markdown-it-task-lists.d.ts
+- **Learnings for future iterations:**
+  - Block tokens use open/close pairs similar to inlines (e.g., `heading_open`/`heading_close`)
+  - Task lists are detected via `class="contains-task-list"` attribute on bullet_list_open token
+  - Task list items have an html_inline checkbox child; checked state is in `checked=""` attribute
+  - Image tokens are inline children of paragraph tokens, not top-level block tokens
+  - Blockquote converts to VerseInline with Blockquote inline (not a block type)
 ---
