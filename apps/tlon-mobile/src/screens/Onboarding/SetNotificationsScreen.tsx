@@ -79,13 +79,12 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
           />
         </YStack>
         <Button
-          onPress={handleNext}
+          preset="primary"
           size="large"
-          fill="solid"
-          type="primary"
           shadow
           centered
           label="Next"
+          onPress={handleNext}
         />
       </View>
     </View>

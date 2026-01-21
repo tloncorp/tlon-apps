@@ -332,11 +332,10 @@ function PrivateChannelPermissionsView({
               </Text>
               <XStack flex={1.5} justifyContent="flex-end">
                 <Button
-                  fill="solid"
-                  intent="positive"
+                  preset="hero"
                   size="small"
-                  onPress={() => setShowRoleSelector(true)}
                   label="Add roles"
+                  onPress={() => setShowRoleSelector(true)}
                 />
               </XStack>
             </XStack>

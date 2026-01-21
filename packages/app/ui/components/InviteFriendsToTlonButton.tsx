@@ -122,11 +122,11 @@ export function InviteFriendsToTlonButton({
 
   return (
     <Button.Frame
-      fill="outline"
+      preset="outline"
       size="medium"
       disabled={!linkIsReady}
-      onPress={handleInviteButtonPress}
       borderColor="$shadow"
+      onPress={handleInviteButtonPress}
       {...props}
     >
       {linkIsReady ? (

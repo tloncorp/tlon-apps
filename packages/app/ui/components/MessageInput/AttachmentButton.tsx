@@ -22,7 +22,7 @@ export default function AttachmentButton({
   return (
     <>
       <Button
-        fill="ghost"
+        preset="secondary"
         size="small"
         icon="Add"
         onPress={() => setShowInputSelector(true)}
