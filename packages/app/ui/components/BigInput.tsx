@@ -70,6 +70,7 @@ export function BigInput({
   const theme = useTheme();
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
+  const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -349,11 +350,20 @@ export function BigInput({
       icon: 'Camera',
     };
 
+    const markdownToggle: ToolbarItem = {
+      onPress: () => () => setIsMarkdownMode((prev) => !prev),
+      active: () => isMarkdownMode,
+      disabled: () => false,
+      icon: 'Markdown',
+    };
+
     const items = [...DEFAULT_TOOLBAR_ITEMS];
     // Between the Heading and Code buttons
     items.splice(5, 0, imageButton);
+    // Add Markdown toggle at the beginning
+    items.unshift(markdownToggle);
     return items;
-  }, []);
+  }, [isMarkdownMode]);
 
   return (
     <KeyboardAvoidingView
