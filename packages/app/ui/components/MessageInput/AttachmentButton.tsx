@@ -23,7 +23,6 @@ export default function AttachmentButton({
     <>
       <Button
         preset="secondary"
-        size="small"
         icon="Add"
         onPress={() => setShowInputSelector(true)}
       />

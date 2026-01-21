@@ -389,8 +389,7 @@ export function ChannelPermissionsSelector({
             </Text>
             <XStack flex={1.5} justifyContent="flex-end">
               <Button
-                preset="hero"
-                size="small"
+                preset="positive"
                 label="Add roles"
                 onPress={() => setShowRoleSelector(true)}
               />

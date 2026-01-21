@@ -3,9 +3,9 @@ import { FixtureWrapper } from './FixtureWrapper';
 
 export default {
   // Presets
-  'preset/hero': () => (
+  'preset/positive': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button preset="hero" label="Hero Button" />
+      <Button preset="positive" label="Positive Button" />
     </FixtureWrapper>
   ),
   'preset/primary': () => (
@@ -44,9 +44,9 @@ export default {
     </FixtureWrapper>
   ),
   // Disabled states
-  'disabled/hero': () => (
+  'disabled/positive': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button preset="hero" disabled label="Disabled Hero" />
+      <Button preset="positive" disabled label="Disabled Positive" />
     </FixtureWrapper>
   ),
   'disabled/primary': () => (

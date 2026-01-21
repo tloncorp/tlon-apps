@@ -160,7 +160,6 @@ export const MessageInputContainer = memo(
               <View paddingBottom="$xs">
                 <Button
                   preset="secondary"
-                  size="small"
                   icon="ChevronLeft"
                   onPress={goBack}
                 />
@@ -171,7 +170,6 @@ export const MessageInputContainer = memo(
               <View marginBottom="$2xs">
                 <Button
                   preset="secondary"
-                  size="small"
                   icon="Close"
                   onPress={cancelEditing}
                 />
@@ -207,7 +205,6 @@ export const MessageInputContainer = memo(
                 {showWayfindingTooltip && <Notices.ChatInputTooltip />}
                 <Button
                   preset="secondary"
-                  size="small"
                   disabled={disableSend}
                   loading={isSending}
                   testID="MessageInputSendButton"
