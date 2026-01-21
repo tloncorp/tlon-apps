@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import MarkdownIt from 'markdown-it';
-import { tokensToInlines } from './markdownToStory';
+import taskLists from 'markdown-it-task-lists';
+import { tokensToInlines, tokenToBlock } from './markdownToStory';
 
 const md = new MarkdownIt();
+const mdWithTasks = new MarkdownIt().use(taskLists);
 
 function getInlineTokens(markdown: string) {
   const tokens = md.parse(markdown, {});
@@ -231,6 +233,290 @@ describe('tokensToInlines', () => {
         { bold: [{ ship: 'sampel-palnet' }] },
         '!',
       ]);
+    });
+  });
+});
+
+describe('tokenToBlock', () => {
+  describe('heading tokens', () => {
+    it('converts # to h1 Header', () => {
+      const tokens = md.parse('# Hello World', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        header: { tag: 'h1', content: ['Hello World'] },
+      });
+    });
+
+    it('converts ## to h2 Header', () => {
+      const tokens = md.parse('## Level 2', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        header: { tag: 'h2', content: ['Level 2'] },
+      });
+    });
+
+    it('converts ### to h6 Headers correctly', () => {
+      const tokens = md.parse('###### Level 6', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        header: { tag: 'h6', content: ['Level 6'] },
+      });
+    });
+
+    it('handles header with inline formatting', () => {
+      const tokens = md.parse('# Hello **bold** world', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        header: {
+          tag: 'h1',
+          content: ['Hello ', { bold: ['bold'] }, ' world'],
+        },
+      });
+    });
+
+    it('returns correct endIndex for headers', () => {
+      const tokens = md.parse('# Header\n\nParagraph', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.endIndex).toBe(2); // heading_open, inline, heading_close
+    });
+  });
+
+  describe('fence (code block) tokens', () => {
+    it('converts fenced code block to Code', () => {
+      const tokens = md.parse('```js\nconst x = 1;\n```', {});
+      const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
+      const result = tokenToBlock(tokens, fenceIdx);
+      expect(result.block).toEqual({
+        code: { code: 'const x = 1;', lang: 'js' },
+      });
+    });
+
+    it('handles code block without language', () => {
+      const tokens = md.parse('```\nplain code\n```', {});
+      const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
+      const result = tokenToBlock(tokens, fenceIdx);
+      expect(result.block).toEqual({
+        code: { code: 'plain code', lang: '' },
+      });
+    });
+
+    it('preserves multiline code content', () => {
+      const tokens = md.parse('```\nline1\nline2\nline3\n```', {});
+      const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
+      const result = tokenToBlock(tokens, fenceIdx);
+      expect(result.block).toEqual({
+        code: { code: 'line1\nline2\nline3', lang: '' },
+      });
+    });
+  });
+
+  describe('hr (horizontal rule) tokens', () => {
+    it('converts --- to Rule', () => {
+      const tokens = md.parse('---', {});
+      const hrIdx = tokens.findIndex((t) => t.type === 'hr');
+      const result = tokenToBlock(tokens, hrIdx);
+      expect(result.block).toEqual({ rule: null });
+    });
+  });
+
+  describe('image tokens', () => {
+    it('converts ![alt](src) to Image block', () => {
+      const tokens = md.parse('![alt text](image.png)', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        image: { src: 'image.png', alt: 'alt text', height: 0, width: 0 },
+      });
+    });
+
+    it('handles image with empty alt', () => {
+      const tokens = md.parse('![](image.png)', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        image: { src: 'image.png', alt: '', height: 0, width: 0 },
+      });
+    });
+  });
+
+  describe('bullet_list tokens', () => {
+    it('converts unordered list to ListingBlock', () => {
+      const tokens = md.parse('- item1\n- item2', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'unordered',
+            contents: [],
+            items: [{ item: ['item1'] }, { item: ['item2'] }],
+          },
+        },
+      });
+    });
+
+    it('handles list items with formatting', () => {
+      const tokens = md.parse('- **bold** item\n- *italic* item', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'unordered',
+            contents: [],
+            items: [
+              { item: [{ bold: ['bold'] }, ' item'] },
+              { item: [{ italics: ['italic'] }, ' item'] },
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  describe('ordered_list tokens', () => {
+    it('converts ordered list to ListingBlock', () => {
+      const tokens = md.parse('1. first\n2. second', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'ordered',
+            contents: [],
+            items: [{ item: ['first'] }, { item: ['second'] }],
+          },
+        },
+      });
+    });
+  });
+
+  describe('task list tokens', () => {
+    it('converts task list with unchecked item', () => {
+      const tokens = mdWithTasks.parse('- [ ] unchecked task', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'tasklist',
+            contents: [],
+            items: [
+              {
+                item: [{ task: { checked: false, content: ['unchecked task'] } }],
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it('converts task list with checked item', () => {
+      const tokens = mdWithTasks.parse('- [x] checked task', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'tasklist',
+            contents: [],
+            items: [
+              {
+                item: [{ task: { checked: true, content: ['checked task'] } }],
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it('handles mixed checked and unchecked items', () => {
+      const tokens = mdWithTasks.parse('- [ ] todo\n- [x] done', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'tasklist',
+            contents: [],
+            items: [
+              { item: [{ task: { checked: false, content: ['todo'] } }] },
+              { item: [{ task: { checked: true, content: ['done'] } }] },
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  describe('nested lists', () => {
+    it('handles nested unordered list', () => {
+      const tokens = md.parse('- parent\n  - child', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'unordered',
+            contents: [],
+            items: [
+              {
+                list: {
+                  type: 'unordered',
+                  contents: ['parent'],
+                  items: [{ item: ['child'] }],
+                },
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it('handles nested ordered list inside unordered', () => {
+      const tokens = md.parse('- parent\n  1. numbered child', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toEqual({
+        listing: {
+          list: {
+            type: 'unordered',
+            contents: [],
+            items: [
+              {
+                list: {
+                  type: 'unordered',
+                  contents: ['parent'],
+                  items: [{ item: ['numbered child'] }],
+                },
+              },
+            ],
+          },
+        },
+      });
+    });
+  });
+
+  describe('blockquote tokens', () => {
+    it('converts blockquote to VerseInline with Blockquote', () => {
+      const tokens = md.parse('> quoted text', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.verse).toEqual({
+        inline: [{ blockquote: ['quoted text'] }],
+      });
+      expect(result.block).toBeNull();
+    });
+
+    it('handles blockquote with formatting', () => {
+      const tokens = md.parse('> **bold** quote', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.verse).toEqual({
+        inline: [{ blockquote: [{ bold: ['bold'] }, ' quote'] }],
+      });
+    });
+  });
+
+  describe('unhandled tokens', () => {
+    it('returns null block for paragraph without image', () => {
+      const tokens = md.parse('Just text', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toBeNull();
+    });
+
+    it('returns null block for unknown token types', () => {
+      const tokens = md.parse('<!-- comment -->', {});
+      const result = tokenToBlock(tokens, 0);
+      expect(result.block).toBeNull();
     });
   });
 });
