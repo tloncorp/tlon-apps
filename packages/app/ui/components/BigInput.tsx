@@ -9,7 +9,7 @@ import {
   waitForUploads,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { constructStory } from '@tloncorp/shared/urbit';
+import { Block, Inline, constructStory } from '@tloncorp/shared/urbit';
 import {
   Button,
   Icon,
@@ -132,14 +132,43 @@ export function BigInput({
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
     setIsSending(true);
-    if (!editorRef.current?.editor) return;
 
-    const json = await editorRef.current.editor.getJSON();
-    const inlines = tiptap.JSONToInlines(json);
+    let content: (Inline | Block)[];
+
+    if (isMarkdownMode) {
+      // Convert Markdown content to Story, then extract inlines and blocks
+      try {
+        const story = markdownToStory(markdownContent);
+        // Flatten Story (Verse[]) into (Inline | Block)[] for the draft
+        content = story.flatMap((verse): (Inline | Block)[] => {
+          if ('inline' in verse) {
+            return verse.inline;
+          } else {
+            return [verse.block];
+          }
+        });
+      } catch (error) {
+        logger.error('Failed to convert Markdown for send:', error);
+        showToast({
+          message: 'Failed to process Markdown content',
+          duration: 2000,
+        });
+        setIsSending(false);
+        return;
+      }
+    } else {
+      // Rich text mode: get content from Tiptap editor
+      if (!editorRef.current?.editor) {
+        setIsSending(false);
+        return;
+      }
+      const json = await editorRef.current.editor.getJSON();
+      content = tiptap.JSONToInlines(json);
+    }
 
     const draft: PostDataDraft = {
       channelId,
-      content: inlines,
+      content,
       attachments,
       title,
       image: imageUri ?? undefined,
@@ -173,6 +202,8 @@ export function BigInput({
       setShowFormatMenu(false);
       setShowBigInput?.(false);
       clearAttachments();
+      setMarkdownContent('');
+      setIsMarkdownMode(false);
 
       // For notebook posts, don't clear editor content since the component unmounts anyway
       // This prevents triggering _onContentUpdate which could save a draft after publish
@@ -228,6 +259,9 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
+    isMarkdownMode,
+    markdownContent,
+    showToast,
   ]);
 
   // Register the "Post" button in the header
