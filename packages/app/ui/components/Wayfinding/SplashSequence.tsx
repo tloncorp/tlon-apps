@@ -109,11 +109,11 @@ const SplashParagraph = styled(Text, {
   marginHorizontal: '$xl',
 });
 
-type SplashButtonPreset = 'primary' | 'hero' | 'secondary';
+type SplashButtonPreset = 'primary' | 'positive' | 'secondary';
 
 const presetMapping: Record<SplashButtonPreset, { preset: ButtonPreset; fullWidth?: boolean }> = {
   primary: { preset: 'primary' },
-  hero: { preset: 'hero' },
+  positive: { preset: 'positive' },
   secondary: { preset: 'secondary', fullWidth: true },
 };
 
@@ -545,7 +545,7 @@ function ConnectContactBookContent(props: {
             data-testid="connect-contact-book"
             marginTop="$l"
             onPress={handleAction}
-            variant="hero"
+            variant="positive"
             disabled={props.isProcessing}
           >
             {shouldShowConnectOption ? 'Connect contact book' : 'Finish'}

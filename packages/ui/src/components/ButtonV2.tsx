@@ -23,7 +23,7 @@ export type ButtonIntent =
   | 'notice';
 
 export type ButtonPreset =
-  | 'hero'
+  | 'positive'
   | 'primary'
   | 'secondary'
   | 'secondaryOutline'
@@ -39,9 +39,9 @@ type PresetConfig = {
 };
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
-  hero: { intent: 'positive', fill: 'solid', size: 'large' },
+  positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
-  secondary: { intent: 'secondary', fill: 'ghost' },
+  secondary: { intent: 'secondary', fill: 'ghost', size: 'small' },
   secondaryOutline: { intent: 'secondary', fill: 'outline' },
   outline: { intent: 'primary', fill: 'outline' },
   destructive: { intent: 'negative', fill: 'solid' },

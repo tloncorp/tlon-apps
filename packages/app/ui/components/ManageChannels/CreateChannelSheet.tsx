@@ -332,8 +332,7 @@ function PrivateChannelPermissionsView({
               </Text>
               <XStack flex={1.5} justifyContent="flex-end">
                 <Button
-                  preset="hero"
-                  size="small"
+                  preset="positive"
                   label="Add roles"
                   onPress={() => setShowRoleSelector(true)}
                 />
@@ -653,7 +652,6 @@ function ConfigInput<
         </Text>
         <Button
           preset="secondaryOutline"
-          size="medium"
           minWidth={140}
           onPress={() => setSheetOpen(true)}
           label={selectedOptionTitle ?? 'default'}

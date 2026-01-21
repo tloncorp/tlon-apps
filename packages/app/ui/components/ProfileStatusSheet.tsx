@@ -78,7 +78,6 @@ export default function ProfileStatusSheet({
             />
             <Button
               preset="secondary"
-              size="small"
               disabled={!isValid}
               icon="ArrowUp"
               onPress={handleSave}

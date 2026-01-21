@@ -123,7 +123,6 @@ export function InviteFriendsToTlonButton({
   return (
     <Button.Frame
       preset="outline"
-      size="medium"
       disabled={!linkIsReady}
       borderColor="$shadow"
       onPress={handleInviteButtonPress}
