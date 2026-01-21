@@ -183,3 +183,17 @@ Thread: https://ampcode.com/threads/T-019be17d-9178-747c-93dc-a49441269152
   - Use `borderWidth={0}` and `borderColor="transparent"` for frameless appearance
   - Use `$tertiaryText` for placeholder color to match other inputs
 ---
+
+## 2026-01-21 - US-011
+Thread: https://ampcode.com/threads/T-019be17f-370c-717e-943d-1496069a5b91
+- Integrated MarkdownEditor into BigInput component
+- Added `markdownContent` state to track raw Markdown text
+- Conditionally render MarkdownEditor or MessageInput based on `isMarkdownMode`
+- MarkdownEditor receives `markdownContent` as value and `setMarkdownContent` as onChange
+- Added `flex={1}` to the View wrapper so the MarkdownEditor fills available space
+- Files changed: BigInput.tsx
+- **Learnings for future iterations:**
+  - The MarkdownEditor component already exists and takes `value` and `onChange` props
+  - Conditional rendering in JSX works well for switching between editor modes
+  - Added import for MarkdownEditor from `./MarkdownEditor`
+---
