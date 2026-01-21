@@ -75,7 +75,7 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "markdown-it chosen for good AST access and plugin ecosystem"
     },
     {

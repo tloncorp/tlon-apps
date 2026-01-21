@@ -57,3 +57,15 @@ Thread: https://ampcode.com/threads/T-019be14d-84f9-7244-a38d-e283f417ddf9
   - Use `isBlockVerse()` from `channel.ts` to distinguish between verse types
   - Blockquote is an Inline type with `{ blockquote: Inline[] }` structure
 ---
+
+## 2026-01-21 - US-004
+Thread: https://ampcode.com/threads/T-019be154-8ebc-7588-bc70-f36ec9cd33cc
+- Added `markdown-it` and `markdown-it-task-lists` to packages/shared dependencies
+- Added `@types/markdown-it` to devDependencies
+- Verified packages install successfully with pnpm
+- Typecheck passes
+- **Learnings for future iterations:**
+  - Dependencies are added via `pnpm add` in the package directory
+  - The lockfile (pnpm-lock.yaml) is at the repo root and gets updated automatically
+  - Use `pnpm -r tsc` to run typecheck across all packages in the monorepo
+---
