@@ -138,9 +138,6 @@ async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
   });
 }
 
-/** @internal Exported for tests only. Use finalizeAndSendPost in application code. */
-export const sendPost = sendFinalizedPost;
-
 async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
@@ -407,11 +404,14 @@ export async function retrySendPost({
   }
 
   // Update existing post in place
-  // Note: retry applies to posts and replies (not edits), so we can safely cast
-  const postDraft = draft as domain.PostDataDraftPost;
+  // Retry only applies to posts (not edits)
+  if (draft.isEdit === true) {
+    throw new Error('Cannot retry an edit post');
+  }
+  // TypeScript now knows draft is PostDataDraftPost
   await _sendPost({
     channelId: draft.channelId,
-    buildFinalizedPostData: () => finalizePostDraft(postDraft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
     existingPost: post,
   });
 }

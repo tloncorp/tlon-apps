@@ -202,12 +202,22 @@ export function GalleryInput({
       // Caption goes in content, images go in attachments
       const captionContent = caption ? [caption] : [];
 
+      // Extract image URI from the first image attachment for the draft's image field
+      const imageAttachment = attachments.find(
+        (att) => att.type === 'image' && 'file' in att
+      );
+      const imageUri =
+        imageAttachment?.type === 'image' && 'file' in imageAttachment
+          ? imageAttachment.file.uri
+          : undefined;
+
       const draft: domain.PostDataDraft = {
         channelId: channel.id,
         content: captionContent,
         attachments,
         channelType: channel.type,
         replyToPostId: null,
+        image: imageUri,
         ...(isEditingPost && editingPost != null
           ? { isEdit: true, editTargetPostId: editingPost.id }
           : { isEdit: false }),
@@ -258,7 +268,7 @@ export function GalleryInput({
   }, [channel.id]);
 
   const handleLinkPost = useCallback(
-    async ({ content }: LinkInputSaveParams) => {
+    async ({ content, meta }: LinkInputSaveParams) => {
       if (isPosting) return;
 
       try {
@@ -267,9 +277,11 @@ export function GalleryInput({
         const draft: domain.PostDataDraft = {
           channelId: channel.id,
           content: [content],
-          attachments,
+          attachments: [],
           channelType: channel.type,
           replyToPostId: null,
+          title: meta?.title,
+          image: meta?.image,
           ...(isEditingPost && editingPost != null
             ? { isEdit: true, editTargetPostId: editingPost.id }
             : { isEdit: false }),
@@ -297,7 +309,6 @@ export function GalleryInput({
       }
     },
     [
-      attachments,
       isPosting,
       isEditingPost,
       editingPost,
