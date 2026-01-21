@@ -2039,6 +2039,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "member_count": {
+          "name": "member_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},

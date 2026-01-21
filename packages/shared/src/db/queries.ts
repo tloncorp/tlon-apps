@@ -882,9 +882,9 @@ export const getChats = createReadQuery(
             lastPost: true,
           },
         },
-        // Just need the first 3 members for possible title generation purposes
+        // Just need the first 4 members for avatar display
         members: {
-          limit: 3,
+          limit: 4,
           orderBy: [asc($chatMembers.joinedAt)],
           with: {
             contact: true,
@@ -1039,7 +1039,8 @@ export const insertGroups = createWriteQuery(
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
-                $groups.haveRequestedInvite
+                $groups.haveRequestedInvite,
+                $groups.memberCount
               ),
             });
         } else {

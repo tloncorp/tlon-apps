@@ -21,6 +21,7 @@ public class TalkPackage implements ReactPackage {
             ReactApplicationContext reactContext) {
         List<NativeModule> modules = new ArrayList<>();
         modules.add(new UrbitModule(reactContext));
+        modules.add(new ThemeModule(reactContext));
         return modules;
     }
 

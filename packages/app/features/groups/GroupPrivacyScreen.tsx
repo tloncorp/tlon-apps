@@ -6,7 +6,13 @@ import { useCallback } from 'react';
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
+import {
+  Form,
+  ScreenHeader,
+  View,
+  triggerHaptic,
+  useIsWindowNarrow,
+} from '../../ui';
 
 type GroupPrivacy = schema.GroupPrivacy;
 
@@ -26,7 +32,8 @@ const privacyOptions = [
   {
     title: 'Secret',
     value: 'secret',
-    description: 'Membership is invite only and private.',
+    description:
+      'Membership is invite only and private. Only administrators can invite new members.',
   },
 ];
 
@@ -49,9 +56,16 @@ export function GroupPrivacyScreen(props: Props) {
     fromChatDetails,
   });
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader title="Group privacy" backAction={handleGoBack} />
+      <ScreenHeader
+        title="Group privacy"
+        backgroundColor={'$secondaryBackground'}
+        backAction={handleGoBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
+      />
       <Form.FormFrame backgroundType="secondary">
         {group ? (
           <Form.RadioInput

@@ -194,7 +194,7 @@ function BaseLeftActions({
     <View width={80} justifyContent="flex-start" flexDirection="row">
       <Animated.View style={containerStyle}>
         <Action
-          backgroundColor="$green"
+          backgroundColor="$positiveBackground"
           color="$darkBackground"
           iconType="Checkmark"
           handleAction={handleRead}
@@ -242,7 +242,7 @@ function BaseRightActions({
     <View width={160} justifyContent="flex-end" flexDirection="row">
       <Animated.View style={containerStyle}>
         <Action
-          backgroundColor="$blueSoft"
+          backgroundColor="$systemNoticeBackground"
           color="$darkBackground"
           iconType="Pin"
           handleAction={handlePin}
@@ -266,8 +266,8 @@ function Action({
   color,
   iconType,
 }: ComponentProps<typeof Stack> & {
-  backgroundColor: ColorTokens;
-  color: ColorTokens;
+  backgroundColor: string;
+  color: string;
   iconType: IconType;
   handleAction?: () => void;
 }) {
@@ -276,11 +276,11 @@ function Action({
       <Icon
         minWidth={80}
         type={iconType}
-        color={color}
+        color={color as ColorTokens}
         flex={1}
         alignItems="center"
         justifyContent="center"
-        backgroundColor={backgroundColor}
+        backgroundColor={backgroundColor as ColorTokens}
         onPress={handleAction}
         pressStyle={{
           opacity: 0.8,

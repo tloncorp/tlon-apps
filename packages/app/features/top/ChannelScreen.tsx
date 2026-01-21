@@ -340,9 +340,13 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigationRef.current.navigate('UserProfile', { userId });
+      navigationRef.current.navigate('UserProfile', {
+        userId,
+        groupId,
+        channelId: currentChannelId,
+      });
     },
-    [navigationRef]
+    [navigationRef, groupId, currentChannelId]
   );
 
   const handleGoToGroupSettings = useCallback(() => {
@@ -353,6 +357,16 @@ export default function ChannelScreen(props: Props) {
       });
     }
   }, [group, navigationRef]);
+
+  const handleGoToEditChannel = useCallback(
+    (groupId: string, channelId: string) => {
+      props.navigation.navigate('GroupSettings', {
+        screen: 'EditChannel',
+        params: { groupId, channelId },
+      });
+    },
+    [props.navigation]
+  );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
   const handleConfigureChannel = useCallback(() => {
@@ -407,6 +421,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
+          goToEditChannel={handleGoToEditChannel}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

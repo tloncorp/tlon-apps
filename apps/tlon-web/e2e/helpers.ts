@@ -31,25 +31,31 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create group').click();
 
-  // Wait for group creation to complete and navigate to group
-  // Either we're already in the group or need to navigate to it
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+    await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
       timeout: 3000,
     });
   } catch {
     // If not automatically navigated, go to the group manually
     await page.getByTestId('HomeNavIcon').click();
+
+    // Wait for navigation to complete
+    await page.waitForTimeout(500);
+
+    // Ensure we're actually on Home before proceeding
+    await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({
+      timeout: 5000
+    });
+
     await expect(
-      page.getByTestId('ChatListItem-Untitled group-unpinned')
+      page.getByTestId('GroupListItem-Untitled group-unpinned')
     ).toBeVisible({ timeout: 10000 });
-    await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+    await page.getByTestId('GroupListItem-Untitled group-unpinned').click();
+
+    // Verify we're in the group by checking for the General channel
+    await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
       timeout: 5000,
     });
   }
@@ -223,7 +229,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await waitForSessionStability(page);
 
   await openGroupOptionsSheet(page);
-  await page.getByTestId('ActionSheetAction-Invite people').first().click();
+  await page.getByTestId('GroupQuickAction-Invite').first().click();
 
   for (const memberId of memberIds) {
     const filterInput = page.getByPlaceholder('Filter by nickname');
@@ -258,7 +264,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
 /**
  * Navigates to a group from the Home screen using the stable testID pattern.
- * Groups created without an explicit name have testID 'ChatListItem-Untitled group-unpinned'
+ * Groups created without an explicit name have testID 'GroupListItem-Untitled group-unpinned'
  * regardless of their computed display name (which depends on members).
  */
 export async function navigateToGroupByTestId(
@@ -270,7 +276,16 @@ export async function navigateToGroupByTestId(
   } = {}
 ) {
   const { expectedDisplayName, pinned = false, timeout = 10000 } = options;
-  const testId = `ChatListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+  const testId = `GroupListItem-Untitled group-${pinned ? 'pinned' : 'unpinned'}`;
+
+  // Navigate to Home screen first
+  await page.getByTestId('HomeNavIcon').click();
+
+  // Wait for navigation to complete
+  await page.waitForTimeout(500);
+
+  // Ensure we're on the Home screen
+  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
 
   // Navigate using stable testID
   await expect(page.getByTestId(testId)).toBeVisible({ timeout });
@@ -284,7 +299,7 @@ export async function navigateToGroupByTestId(
   }
 }
 
-export async function acceptGroupInvite(page: Page, groupName?: string) {
+export async function acceptGroupInvite(page: Page, _groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
@@ -347,10 +362,10 @@ export async function navigateToHomeAndVerifyGroup(
   page: Page,
   expectedStatus: 'pinned' | 'unpinned'
 ) {
-  await page.getByTestId('HeaderBackButton').nth(1).click();
-  if (await page.getByText('Home').isVisible()) {
+  await page.getByTestId('HomeNavIcon').click();
+  if (await page.getByTestId('HomeSidebarHeader').isVisible()) {
     await expect(
-      page.getByTestId(`ChatListItem-Untitled group-${expectedStatus}`)
+      page.getByTestId(`GroupListItem-Untitled group-${expectedStatus}`)
     ).toBeVisible();
   }
 }
@@ -841,6 +856,18 @@ export async function setGroupPrivacy(
       .getByText('Public', { exact: true })
       .click();
   }
+
+  // Wait for the privacy change to be processed
+  await page.waitForTimeout(2000);
+
+  // Navigate back to close the privacy screen
+  await page.getByTestId('HeaderBackButton').first().click();
+
+  // Wait for navigation and verify we're back on group settings
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+
+  // Wait additional time for the privacy change to sync
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -1383,12 +1410,21 @@ export async function deletePost(page: Page, postText: string) {
  */
 export async function waitForSessionStability(page: Page) {
   await page.waitForTimeout(200);
-  await page.waitForSelector('[data-testid="ScreenHeaderTitle"]', {
+
+  // Check if we're in a context where ScreenHeaderSubtitle exists (chat/channel context)
+  const subtitleCount = await page.getByTestId('ScreenHeaderSubtitle').count();
+
+  if (subtitleCount === 0) {
+    // Not in a chat/channel context, skip stability checks
+    return;
+  }
+
+  await page.waitForSelector('[data-testid="ScreenHeaderSubtitle"]', {
     state: 'attached',
     timeout: 5000,
   });
 
-  const screenHeaderTitle = page.getByTestId('ScreenHeaderTitle');
+  const screenHeaderSubtitle = page.getByTestId('ScreenHeaderSubtitle');
 
   const loadingStates = [
     'Loading…',
@@ -1399,7 +1435,7 @@ export async function waitForSessionStability(page: Page) {
   ];
 
   for (const state of loadingStates) {
-    await expect(screenHeaderTitle.getByText(state))
+    await expect(screenHeaderSubtitle.getByText(state))
       .not.toBeVisible({ timeout: 1000 })
       .catch(() => {}); // Element might not exist, that's okay
   }
@@ -1484,11 +1520,21 @@ export async function verifyChatUnreadCount(
   page: Page,
   chatName: string,
   expectedCount: number,
-  isPinned = false
+  isPinned = false,
+  isGroup = false
 ) {
+  // Navigate to Home screen first
+  await page.getByTestId('HomeNavIcon').click();
+
+  // Wait for navigation to complete
+  await page.waitForTimeout(500);
+
+  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
+
   await page.waitForTimeout(1000);
+  const itemType = isGroup ? 'GroupListItem' : 'ChatListItem';
   const chatItem = page.getByTestId(
-    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+    `${itemType}-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
   );
 
   if (expectedCount === 0) {
@@ -1700,7 +1746,7 @@ export async function cleanupOwnProfile(page: Page) {
   await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
 
   // Click Edit button
-  const editButton = page.getByText('Edit');
+  const editButton = page.getByTestId('ContactEditButton');
   if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await editButton.click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
@@ -1920,7 +1966,7 @@ export async function clearContactNickname(
     await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
 
     // Click Edit button
-    await page.getByText('Edit').click();
+    await page.getByTestId('ContactEditButton').click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
       timeout: 5000,
     });

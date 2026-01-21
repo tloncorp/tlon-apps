@@ -4,9 +4,6 @@ import {
   DEFAULT_TLON_LOGIN_PASSWORD,
   EMAIL_REGEX,
 } from '@tloncorp/app/constants';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
-import { storage } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -17,6 +14,9 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
+import { storage } from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -94,6 +94,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
       <ScreenHeader
         title="Tlon Login"
         showSessionStatus={false}
+        backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
         rightControls={

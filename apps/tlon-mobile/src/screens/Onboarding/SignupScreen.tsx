@@ -194,6 +194,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        backgroundColor="$secondaryBackground"
         title="Accept invite"
         showSessionStatus={false}
         backAction={goBack}

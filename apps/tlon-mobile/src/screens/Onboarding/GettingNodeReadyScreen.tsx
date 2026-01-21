@@ -186,6 +186,7 @@ export function GettingNodeReadyScreen({
     <AppDataContextProvider>
       <View flex={1} backgroundColor="$secondaryBackground">
         <ScreenHeader
+          backgroundColor="$secondaryBackground"
           rightControls={
             <ScreenHeader.TextButton
               onPress={onLogout}
