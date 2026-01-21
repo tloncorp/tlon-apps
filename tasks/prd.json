@@ -153,7 +153,7 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Some loss is acceptable (e.g., Cite blocks) but must be documented"
     },
     {

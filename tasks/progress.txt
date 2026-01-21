@@ -146,3 +146,24 @@ Thread: https://ampcode.com/threads/T-019be173-eb68-7449-9ff9-7c8f7de1e805
   - Icons are 32x32 SVG using `currentColor` for stroke/fill
   - Icons are added to `packages/ui/src/assets/icons/` and exported from `index.ts`
 ---
+
+## 2026-01-21 - US-008
+Thread: https://ampcode.com/threads/T-019be176-d446-728e-ba2b-4fba86e9619e
+- Created `packages/shared/src/logic/roundTrip.test.ts` with 55 round-trip conversion tests
+- Tests Markdown → Story → Markdown preservation for: paragraphs, inline formatting, links, ship mentions, headers, code blocks, images, lists, task lists, horizontal rules, blockquotes, mixed content
+- Tests Story → Markdown → Story preservation for all corresponding Story types
+- Documented known lossy conversions in file comments:
+  - Cite blocks: Story Cite type has no Markdown equivalent
+  - BlockReference: No Markdown equivalent
+  - Link content: Nested formatting in links is flattened to plain text
+  - Image dimensions: width/height are lost when converting to Markdown
+  - BlockCode: Different from fenced code blocks
+  - Sect (sections): No direct Markdown equivalent
+  - Tag: No direct Markdown equivalent
+- Files changed: roundTrip.test.ts (new)
+- **Learnings for future iterations:**
+  - Round-trip tests are valuable for validating bidirectional conversion fidelity
+  - Some loss is acceptable and documented (Cite, BlockReference, etc.)
+  - Image dimensions (width/height) default to 0 when parsed from Markdown
+  - Link content is always plain text in Story format, nested formatting is lost
+---
