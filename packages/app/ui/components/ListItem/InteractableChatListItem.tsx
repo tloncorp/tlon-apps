@@ -3,6 +3,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
+  ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -17,7 +18,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ChatListItem } from './ChatListItem';
