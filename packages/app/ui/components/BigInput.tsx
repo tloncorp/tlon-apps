@@ -384,13 +384,28 @@ export function BigInput({
     if (!isMarkdownMode) {
       // Switching TO Markdown mode: convert rich text to Markdown
       try {
+        let story = null;
+
+        // First, try to get content from the Tiptap editor
         if (editorRef.current?.editor) {
           const json = await editorRef.current.editor.getJSON();
-          const inlines = tiptap.JSONToInlines(json);
-          const story = constructStory(inlines);
-          const markdown = storyToMarkdown(story);
-          setMarkdownContent(markdown);
+          if (!contentIsEmpty(json)) {
+            const inlines = tiptap.JSONToInlines(json);
+            story = constructStory(inlines);
+          }
         }
+
+        // If editor is empty and we're editing an existing post, use the post's content
+        if (!story && editingPost?.content) {
+          const postContent = editingPost.content as { story?: any };
+          if (postContent.story && Array.isArray(postContent.story)) {
+            story = postContent.story;
+          }
+        }
+
+        // Convert story to markdown if we have content
+        const markdown = story ? storyToMarkdown(story) : '';
+        setMarkdownContent(markdown);
         setIsMarkdownMode(true);
       } catch (error) {
         logger.error('Failed to convert to Markdown:', error);
@@ -417,7 +432,7 @@ export function BigInput({
         });
       }
     }
-  }, [isMarkdownMode, markdownContent, showToast]);
+  }, [isMarkdownMode, markdownContent, showToast, editingPost]);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {

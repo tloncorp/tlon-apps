@@ -230,3 +230,38 @@ Thread: https://ampcode.com/threads/T-019be184-8d97-73d4-a167-91f6a9f648ed
   - Type declarations for npm packages without @types need to be added to each package that uses them
   - Must update tsconfig.json `include` arrays to reference new .d.ts files in non-src locations
 ---
+
+## 2026-01-21 - US-014
+Thread: https://ampcode.com/threads/T-019be189-7131-71b8-b0be-9d4fdd268040
+- Modified `handleSend` in BigInput.tsx to check `isMarkdownMode`
+- When in Markdown mode, converts `markdownContent` to Story using `markdownToStory`
+- Flattens Story (Verse[]) into (Inline | Block)[] for the draft content
+- Error handling with toast notification if Markdown conversion fails
+- Clears `markdownContent` and resets `isMarkdownMode` after successful send
+- Added `Inline` and `Block` type imports from `@tloncorp/shared/urbit`
+- Updated `handleSend` dependency array to include `isMarkdownMode`, `markdownContent`, and `showToast`
+- Files changed: BigInput.tsx
+- **Learnings for future iterations:**
+  - `PostDataDraft.content` expects `(Inline | Block)[]` array, not Story
+  - Story is `Verse[]` where `VerseInline` has `{ inline: Inline[] }` and `VerseBlock` has `{ block: Block }`
+  - Use `flatMap` with explicit return type annotation to flatten Verse[] into (Inline | Block)[]
+  - Type inference issues with flatMap require explicit type annotations: `(verse): (Inline | Block)[] => ...`
+---
+
+## 2026-01-21 - US-015
+Thread: https://ampcode.com/threads/T-019be18d-a1f1-7028-9f21-bdd5f49549fb
+- Enhanced `handleMarkdownToggle` in BigInput.tsx to handle existing post content
+- When switching to Markdown mode:
+  1. First tries to get content from Tiptap editor
+  2. If editor is empty and editing an existing post, falls back to `editingPost.content.story`
+  3. Converts story to Markdown using `storyToMarkdown`
+- Uses `contentIsEmpty()` helper to check if editor has content
+- Handles posts with no content gracefully (sets empty string)
+- Added `editingPost` to handleMarkdownToggle dependency array
+- Files changed: BigInput.tsx
+- **Learnings for future iterations:**
+  - `editingPost.content` has structure `{ story?: any }` where story is the Story array
+  - The existing `contentIsEmpty()` function can be reused to check editor state
+  - When editing a post, the Tiptap editor may not have loaded content yet when toggling modes
+  - Fall back to the post's stored content if the editor appears empty
+---
