@@ -14,3 +14,4 @@ export * from './wayfinding';
 export * from './postContent';
 export * from './content-helpers';
 export * from './pinning';
+export * from './storyToMarkdown';

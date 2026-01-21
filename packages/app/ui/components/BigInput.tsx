@@ -2,6 +2,7 @@ import {
   Attachment,
   PostDataDraft,
   createDevLogger,
+  storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
@@ -344,6 +345,31 @@ export function BigInput({
     };
   }, [editingPost, clearAttachments]);
 
+  const handleMarkdownToggle = useCallback(async () => {
+    if (!isMarkdownMode) {
+      // Switching TO Markdown mode: convert rich text to Markdown
+      try {
+        if (editorRef.current?.editor) {
+          const json = await editorRef.current.editor.getJSON();
+          const inlines = tiptap.JSONToInlines(json);
+          const story = constructStory(inlines);
+          const markdown = storyToMarkdown(story);
+          setMarkdownContent(markdown);
+        }
+        setIsMarkdownMode(true);
+      } catch (error) {
+        logger.error('Failed to convert to Markdown:', error);
+        showToast({
+          message: 'Failed to convert content to Markdown',
+          duration: 2000,
+        });
+      }
+    } else {
+      // Switching FROM Markdown mode - will be handled in US-013
+      setIsMarkdownMode(false);
+    }
+  }, [isMarkdownMode, showToast]);
+
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
       onPress: () => () => setShowInlineImageSheet(true),
@@ -353,7 +379,7 @@ export function BigInput({
     };
 
     const markdownToggle: ToolbarItem = {
-      onPress: () => () => setIsMarkdownMode((prev) => !prev),
+      onPress: () => () => handleMarkdownToggle(),
       active: () => isMarkdownMode,
       disabled: () => false,
       icon: 'Markdown',
@@ -365,7 +391,7 @@ export function BigInput({
     // Add Markdown toggle at the beginning
     items.unshift(markdownToggle);
     return items;
-  }, [isMarkdownMode]);
+  }, [isMarkdownMode, handleMarkdownToggle]);
 
   return (
     <KeyboardAvoidingView
