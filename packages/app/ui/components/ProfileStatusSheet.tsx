@@ -77,11 +77,11 @@ export default function ProfileStatusSheet({
               }}
             />
             <Button
-              fill="ghost"
+              preset="secondary"
               size="small"
-              onPress={handleSave}
               disabled={!isValid}
               icon="ArrowUp"
+              onPress={handleSave}
             />
           </XStack>
         </YStack>

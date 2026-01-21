@@ -153,7 +153,7 @@ export const MessageInputContainer = memo(
             {goBack ? (
               <View paddingBottom="$xs">
                 <Button
-                  fill="ghost"
+                  preset="secondary"
                   size="small"
                   icon="ChevronLeft"
                   onPress={goBack}
@@ -164,7 +164,7 @@ export const MessageInputContainer = memo(
             {isEditing ? (
               <View marginBottom="$2xs">
                 <Button
-                  fill="ghost"
+                  preset="secondary"
                   size="small"
                   icon="Close"
                   onPress={cancelEditing}
@@ -200,12 +200,12 @@ export const MessageInputContainer = memo(
               <View marginBottom="$xs">
                 {showWayfindingTooltip && <Notices.ChatInputTooltip />}
                 <Button
-                  fill="ghost"
+                  preset="secondary"
                   size="small"
                   disabled={disableSend}
                   loading={isSending}
-                  onPress={isEditing ? onPressEdit : onPressSend}
                   testID="MessageInputSendButton"
+                  onPress={isEditing ? onPressEdit : onPressSend}
                   icon={
                     isEditing ? (
                       'Checkmark'
