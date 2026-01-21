@@ -235,7 +235,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "notes": "May need to convert Story back to Tiptap JSON format"
     },
     {

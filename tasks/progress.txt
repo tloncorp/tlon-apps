@@ -13,6 +13,8 @@
 - markdown-it block tokens: also use open/close pairs; use depth tracking to find matching close token
 - markdown-it-task-lists plugin: adds `class="contains-task-list"` to list, checkbox rendered as html_inline token
 - Type declarations for untyped npm packages go in `packages/shared/src/types/` as `.d.ts` files
+- For re-exported modules, type declarations must exist in each consuming package; add to tsconfig `include` arrays
+- `tiptap.diaryMixedToJSON(story)` converts Story → TipTap JSONContent; `editor.setContent()` applies it
 
 ---
 
@@ -211,4 +213,20 @@ Thread: https://ampcode.com/threads/T-019be181-459e-750d-86d1-ca85ee0b66c3
   - `constructStory(inlines)` wraps inlines into proper Verse/Story structure
   - Toolbar items use double-callback pattern: `onPress: () => () => action()`
   - storyToMarkdown was not exported from shared package index - needed to add to logic/index.ts
+---
+
+## 2026-01-21 - US-013
+Thread: https://ampcode.com/threads/T-019be184-8d97-73d4-a167-91f6a9f648ed
+- Implemented Markdown → rich text conversion when toggling from Markdown mode
+- Exported `markdownToStory` from `@tloncorp/shared` package
+- Updated `handleMarkdownToggle` in BigInput.tsx to use `markdownToStory` and `tiptap.diaryMixedToJSON`
+- Added error handling with toast notifications for conversion failures
+- Added `markdown-it-task-lists.d.ts` type declarations to multiple packages (ui, app, tlon-web, tlon-mobile)
+- Updated tsconfig.json files to include the new type declaration files
+- Files changed: BigInput.tsx, packages/shared/src/logic/index.ts, multiple tsconfig.json files, 4 new .d.ts files
+- **Learnings for future iterations:**
+  - `tiptap.diaryMixedToJSON(story)` converts Story to TipTap JSONContent format
+  - `editor.setContent(jsonContent)` updates the TipTap editor with new content
+  - Type declarations for npm packages without @types need to be added to each package that uses them
+  - Must update tsconfig.json `include` arrays to reference new .d.ts files in non-src locations
 ---
