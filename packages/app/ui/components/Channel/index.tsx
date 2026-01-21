@@ -4,6 +4,7 @@ import {
   DraftInputId,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  uploadAsset,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -259,9 +260,11 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          // Build a draft with the attachments for each image
+          // Start uploads for gallery channels (uploads are started automatically
+          // via useEffect in AttachmentContext for non-gallery channels)
           // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
           for (const uploadIntent of uploadIntents) {
+            await uploadAsset(uploadIntent, true);
             const draft: domain.PostDataDraft = {
               channelId: channel.id,
               content: [],

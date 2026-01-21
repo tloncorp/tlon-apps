@@ -70,7 +70,6 @@ function getImageAsset(
       reject(e);
     };
     img.onload = function () {
-      URL.revokeObjectURL(objectUrl);
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;

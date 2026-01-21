@@ -158,12 +158,11 @@ export async function logInHostedUser({
 
   const nodeId = user.ships[0];
   await db.hostedUserNodeId.setValue(nodeId);
-  await db.hostedAccountIsInitialized.setValue(true);
 }
 
 export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
-): Promise<{ status: domain.HostedNodeStatus; isBeingRevived: boolean }> {
+): Promise<{ status: domain.HostedNodeStatus; guideFirstLogin: boolean }> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -173,7 +172,7 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const { status: nodeStatus, isBeingRevived } =
+    const { status: nodeStatus, showWayfinding } =
       await api.getNodeStatus(nodeId);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
@@ -200,13 +199,13 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    return { status: nodeStatus, isBeingRevived };
+    return { status: nodeStatus, guideFirstLogin: showWayfinding };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
       error: e,
       context: 'Failed to get node status',
     });
-    return { status: domain.HostedNodeStatus.Unknown, isBeingRevived: false };
+    return { status: domain.HostedNodeStatus.Unknown, guideFirstLogin: false };
   }
 }
 

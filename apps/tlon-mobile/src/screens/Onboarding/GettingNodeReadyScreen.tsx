@@ -133,7 +133,7 @@ export function GettingNodeReadyScreen({
             logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
               context: 'stopped revival ship is now ready, handling',
             });
-            onboardingHelpers.handleRevivalLogin(shipInfo);
+            onboardingHelpers.handleGuidedLogin(shipInfo);
           }
         }, 2000);
       }
