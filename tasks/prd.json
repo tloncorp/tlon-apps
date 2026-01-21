@@ -285,8 +285,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": "Tiptap has StarterKit extensions that may already support some of these. Check packages/editor/"
+      "passes": true,
+      "notes": "Tiptap extensions already include these input rules. Verified via tests and documentation in packages/editor/src/markdownInputRules.md"
     }
   ]
 }

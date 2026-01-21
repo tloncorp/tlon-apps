@@ -15,6 +15,7 @@
 - Type declarations for untyped npm packages go in `packages/shared/src/types/` as `.d.ts` files
 - For re-exported modules, type declarations must exist in each consuming package; add to tsconfig `include` arrays
 - `tiptap.diaryMixedToJSON(story)` converts Story → TipTap JSONContent; `editor.setContent()` applies it
+- Tiptap extensions in @10play/tentap-editor bridges include built-in input rules (Markdown shortcuts) enabled by default
 
 ---
 
@@ -264,4 +265,21 @@ Thread: https://ampcode.com/threads/T-019be18d-a1f1-7028-9f21-bdd5f49549fb
   - The existing `contentIsEmpty()` function can be reused to check editor state
   - When editing a post, the Tiptap editor may not have loaded content yet when toggling modes
   - Fall back to the post's stored content if the editor appears empty
+---
+
+## 2026-01-21 - US-016
+Thread: https://ampcode.com/threads/T-019be194-dba6-75db-aa93-b1e12ec108bf
+- Verified Tiptap extensions already include Markdown input rules
+- Created documentation at `packages/editor/src/markdownInputRules.md`
+- Created test file at `packages/editor/src/markdownInputRules.test.ts` with 8 pattern tests
+- Input rules already enabled via @tiptap/extension-* packages used by @10play/tentap-editor bridges
+- No code changes needed to extensions themselves - just verification and documentation
+- Files changed: markdownInputRules.md (new), markdownInputRules.test.ts (new)
+- **Learnings for future iterations:**
+  - Tiptap extensions (Bold, Italic, Code, Strike, Heading, BulletList, OrderedList, Blockquote, CodeBlock) have `addInputRules()` methods built-in
+  - Input rules are enabled by default in tiptap (enableInputRules: true)
+  - Mark input rules trigger on closing delimiter (e.g., `**text**`), not on space
+  - Block input rules trigger on space after prefix (e.g., `# ` for heading)
+  - The @10play/tentap-editor bridges pass through tiptap extensions with their input rules intact
+  - Vitest is available in packages/editor for testing
 ---
