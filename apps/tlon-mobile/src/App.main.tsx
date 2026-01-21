@@ -14,7 +14,6 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
@@ -36,6 +35,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
