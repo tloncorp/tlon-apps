@@ -82,8 +82,10 @@ export function useOnboardingHelpers() {
         navigation.navigate('SetNickname');
 
         // we won't have set up the connection yet, so do that first
-        const storedShipInfo = { shipName: ship, shipUrl };
-        configureUrbitClient(inputShipInfo || storedShipInfo);
+        const shipInfoToUse = inputShipInfo
+          ? { shipName: inputShipInfo.ship, shipUrl: inputShipInfo.shipUrl }
+          : { shipName: ship, shipUrl }; // default to existing if none passed in
+        configureUrbitClient(shipInfoToUse);
         store.syncStart();
 
         // finally, reset the ships revival status in Hosting
