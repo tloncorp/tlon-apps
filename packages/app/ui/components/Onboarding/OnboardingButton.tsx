@@ -19,11 +19,9 @@ export function OnboardingButton({
   return (
     <Button
       {...props}
-      preset="primary"
-      size="large"
+      preset="hero"
       shadow
       label={label}
-      centered
       width="100%"
       backgroundColor={color}
       borderColor={color}
