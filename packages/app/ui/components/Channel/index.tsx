@@ -5,6 +5,7 @@ import {
   PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  uploadAsset,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -259,6 +260,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
+          // Start uploads for gallery channels (uploads are started automatically
+          // via useEffect in AttachmentContext for non-gallery channels)
+          const isWeb = Platform.OS === 'web';
+          await Promise.all(
+            uploadIntents.map((intent) => uploadAsset(intent, isWeb))
+          );
+
           const draft: PostDataDraft = {
             channelId: channel.id,
             content: [],
