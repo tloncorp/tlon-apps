@@ -251,6 +251,15 @@ export function PostScreenView({
       : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
   );
 
+  // Separate draft callbacks for editing the parent post (gallery/notebook).
+  // This uses a different key to prevent edit drafts from leaking to
+  // BareChatInput, which uses the thread key for reply drafts.
+  const parentEditDraftCallbacks = store.usePostDraftCallbacks(
+    focusedPost == null
+      ? null
+      : { draftKey: store.draftKeyFor.postEdit({ postId: focusedPost.id }) }
+  );
+
   const { attachAssets, clearAttachments } = useAttachmentContext();
 
   const handleGoBack = useCallback(() => {
@@ -313,23 +322,26 @@ export function PostScreenView({
                     goToEdit={handleEditPress}
                   />
                   {parentPost &&
-                    (editingPost && channel.type === 'gallery' ? (
+                    (isEditingParent && channel.type === 'gallery' ? (
                       <YStack flex={1} backgroundColor="$background">
                         <GalleryDraftInput
                           channel={channel}
                           editingPost={editingPost}
                           getDraft={
-                            draftCallbacks?.getDraft ?? (async () => null)
+                            parentEditDraftCallbacks?.getDraft ??
+                            (async () => null)
                           }
                           group={group}
                           clearDraft={
-                            draftCallbacks?.clearDraft ?? (async () => {})
+                            parentEditDraftCallbacks?.clearDraft ??
+                            (async () => {})
                           }
                           setEditingPost={setEditingPost}
                           setShouldBlur={setGalleryEditShouldBlur}
                           shouldBlur={galleryEditShouldBlur}
                           storeDraft={
-                            draftCallbacks?.storeDraft ?? (async () => {})
+                            parentEditDraftCallbacks?.storeDraft ??
+                            (async () => {})
                           }
                         />
                       </YStack>
@@ -495,6 +507,13 @@ function SinglePostView({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
 
+  // Separate draft callbacks for editing the parent post (notebook).
+  // This uses a different key to prevent edit drafts from leaking to
+  // BareChatInput, which uses the thread key for reply drafts.
+  const parentEditDraftCallbacks = store.usePostDraftCallbacks({
+    draftKey: store.draftKeyFor.postEdit({ postId: parentPost.id }),
+  });
+
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time
   const [initialThreadUnread, setInitialThreadUnread] =
@@ -543,21 +562,12 @@ function SinglePostView({
         };
   }, [isChatChannel]);
   const bareInputDraftProps = useMemo(() => {
-    // For notebook post, the channel draft corresponds to the note
-    // itself (not the reply input)
-    if (channel.type === 'notebook') {
-      return {
-        getDraft: async () => null,
-        storeDraft: async () => {},
-        clearDraft: async () => {},
-      };
-    }
     return {
       getDraft,
       storeDraft,
       clearDraft,
     };
-  }, [channel.type, getDraft, storeDraft, clearDraft]);
+  }, [getDraft, storeDraft, clearDraft]);
 
   // Helper to scroll to new reply - shared by sendReply and sendReplyFromDraft
   const scrollToNewReply = useCallback(() => {
@@ -695,9 +705,9 @@ function SinglePostView({
               setEditingPost?.(undefined);
               await store.finalizeAndSendPost(draft);
             }}
-            getDraft={getDraft}
-            storeDraft={storeDraft}
-            clearDraft={clearDraft}
+            getDraft={parentEditDraftCallbacks.getDraft}
+            storeDraft={parentEditDraftCallbacks.storeDraft}
+            clearDraft={parentEditDraftCallbacks.clearDraft}
             groupMembers={groupMembers}
             groupRoles={groupRoles}
           />
