@@ -227,6 +227,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
         try {
           // Build a draft with the attachments for each image
+          // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
           for (const uploadIntent of uploadIntents) {
             const draft: domain.PostDataDraft = {
               channelId: channel.id,
