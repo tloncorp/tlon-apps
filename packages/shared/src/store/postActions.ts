@@ -403,12 +403,13 @@ export async function retrySendPost({
     }
   }
 
-  // Update existing post in place
-  // Retry only applies to posts (not edits)
+  // Retry only applies to posts (not edits), edit retries are handled
+  // separately in ChannelScreen.handleRetrySend via store.editPost
   if (draft.isEdit === true) {
-    throw new Error('Cannot retry an edit post');
+    throw new Error('Cannot retry an edit post via retrySendPost');
   }
-  // TypeScript now knows draft is PostDataDraftPost
+
+  // Retry the send using the same code path as the initial send
   await _sendPost({
     channelId: draft.channelId,
     buildFinalizedPostData: () => finalizePostDraft(draft),
