@@ -71,6 +71,11 @@ interface ChannelContext {
   negotiationMatch: boolean;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
+  parentEditDraftCallbacks?: {
+    getDraft: () => Promise<JSONContent | null>;
+    storeDraft: (draft: JSONContent) => Promise<void>;
+    clearDraft: () => Promise<void>;
+  } | null;
 }
 
 interface GalleryDraftInputProps {
@@ -230,7 +235,7 @@ export function PostScreenView({
   const { bottom } = useSafeAreaInsets();
 
   const isEditingParent = useMemo(() => {
-    return editingPost?.id === focusedPost?.id;
+    return editingPost != null && editingPost.id === focusedPost?.id;
   }, [editingPost, focusedPost]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
@@ -373,6 +378,7 @@ export function PostScreenView({
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
+                          parentEditDraftCallbacks,
                           setEditingPost,
                         }}
                       />
