@@ -27,7 +27,9 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           await db.nodeStoppedWhileLoggedIn.getValue();
         const hostingUserId = await db.hostingUserId.getValue();
         const hasPotentialSignupSession =
-          signupData.email || signupData.phoneNumber;
+          signupData.email ||
+          signupData.phoneNumber ||
+          signupData.isGuidedLogin;
         const hasPotentialLoggedInSession = !!hostingUserId;
 
         if (nodeStoppedWhileLoggedIn) {
