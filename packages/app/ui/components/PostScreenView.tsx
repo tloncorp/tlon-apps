@@ -388,7 +388,7 @@ function ConnectedHeader({
   {
     channel: db.Channel;
   },
-  'channel' | 'group' | 'title' | 'showSearchButton' | 'post'
+  'channel' | 'group' | 'title' | 'description' | 'showSearchButton' | 'post'
 >) {
   const isChatChannel = getIsChatChannel(channel);
 
@@ -408,6 +408,7 @@ function ConnectedHeader({
       channel={channel}
       group={channel.group}
       title={headerTitle}
+      description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
       {...passedProps}

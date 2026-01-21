@@ -13,7 +13,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
   await expect(zodPage.getByText('Profile')).toBeVisible();
   
   // Edit profile
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   
   // Update nickname

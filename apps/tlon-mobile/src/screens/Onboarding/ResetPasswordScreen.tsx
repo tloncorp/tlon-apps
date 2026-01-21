@@ -65,9 +65,10 @@ export const ResetPasswordScreen = ({
   });
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Reset Password"
+        backgroundColor="$secondaryBackground"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}

@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 

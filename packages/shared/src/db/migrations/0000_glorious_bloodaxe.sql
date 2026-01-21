@@ -300,7 +300,8 @@ CREATE TABLE `groups` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`synced_at` integer,
-	`pending_members_dismissed_at` integer
+	`pending_members_dismissed_at` integer,
+	`member_count` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (

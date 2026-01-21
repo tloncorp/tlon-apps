@@ -15,7 +15,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('You').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   
   await zodPage.getByTestId('ProfileNicknameInput').click();
@@ -73,7 +73,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   // First, ~ten sets up their profile
   await tenPage.getByTestId('AvatarNavIcon').click();
   await tenPage.getByText('You').click();
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   
   await tenPage.getByTestId('ProfileNicknameInput').click();
