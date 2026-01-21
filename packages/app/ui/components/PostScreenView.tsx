@@ -356,6 +356,7 @@ export function PostScreenView({
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
+                          parentEditDraftCallbacks,
                           parentPost,
                           setEditingPost,
                         }}
@@ -471,6 +472,7 @@ function SinglePostView({
   negotiationMatch,
   onPressDelete,
   onPressRetry,
+  parentEditDraftCallbacks,
   parentPost,
   setEditingPost,
 }: {
@@ -482,6 +484,11 @@ function SinglePostView({
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
+  parentEditDraftCallbacks?: {
+    getDraft: () => Promise<JSONContent | null>;
+    storeDraft: (draft: JSONContent) => Promise<void>;
+    clearDraft: () => Promise<void>;
+  } | null;
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
@@ -505,13 +512,6 @@ function SinglePostView({
 
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
-  });
-
-  // Separate draft callbacks for editing the parent post (notebook).
-  // This uses a different key to prevent edit drafts from leaking to
-  // BareChatInput, which uses the thread key for reply drafts.
-  const parentEditDraftCallbacks = store.usePostDraftCallbacks({
-    draftKey: store.draftKeyFor.postEdit({ postId: parentPost.id }),
   });
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
@@ -705,9 +705,9 @@ function SinglePostView({
               setEditingPost?.(undefined);
               await store.finalizeAndSendPost(draft);
             }}
-            getDraft={parentEditDraftCallbacks.getDraft}
-            storeDraft={parentEditDraftCallbacks.storeDraft}
-            clearDraft={parentEditDraftCallbacks.clearDraft}
+            getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
+            storeDraft={parentEditDraftCallbacks?.storeDraft ?? (async () => {})}
+            clearDraft={parentEditDraftCallbacks?.clearDraft ?? (async () => {})}
             groupMembers={groupMembers}
             groupRoles={groupRoles}
           />
