@@ -1,0 +1,21 @@
+## Codebase Patterns
+- Inline types are defined in `packages/shared/src/urbit/content.ts` with type guards like `isBold`, `isItalics`, etc.
+- Story/Verse types are defined in `packages/shared/src/urbit/channel.ts`
+- Use Vitest for tests in `packages/shared` - import from `vitest`
+- Test files use `.test.ts` suffix in same directory as source files
+
+---
+
+## 2026-01-21 - US-001
+Thread: https://ampcode.com/threads/T-019be144-6510-7478-b334-d064c0dd0eea
+- Implemented `inlinesToMarkdown(inlines: Inline[]): string` function
+- Created `packages/shared/src/logic/storyToMarkdown.ts`
+- Created `packages/shared/src/logic/storyToMarkdown.test.ts` with 13 tests
+- Handles: string, Bold, Italics, Strikethrough, InlineCode, Link, Ship, Break
+- Supports nested inlines recursively (e.g., bold within italic)
+- **Learnings for future iterations:**
+  - Inline type structure: strings are plain text, objects use specific keys (`bold`, `italics`, `strike`, `inline-code`, `link`, `ship`, `break`)
+  - Link has `{ link: { href: string, content: string } }` structure
+  - Ship has `{ ship: string }` where the string is the ship name without the `~` prefix
+  - Use existing type guards from content.ts rather than creating new ones
+---

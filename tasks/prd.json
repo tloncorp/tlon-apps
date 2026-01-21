@@ -23,7 +23,7 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Foundation for Story → Markdown. See packages/shared/src/urbit/content.ts for Inline types."
     },
     {
