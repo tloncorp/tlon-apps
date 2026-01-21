@@ -61,7 +61,7 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Combines US-001 and US-002 into complete Story conversion"
     },
     {

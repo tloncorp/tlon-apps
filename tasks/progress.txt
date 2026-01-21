@@ -7,6 +7,8 @@
 - List structure: `{ list: { type: 'ordered'|'unordered'|'tasklist', contents: Inline[], items: Listing[] } }`
 - ListItem structure: `{ item: Inline[] }`
 - Task inline: `{ task: { checked: boolean, content: Inline[] } }` - used inside tasklist items
+- Verse is `VerseInline | VerseBlock`, use `isBlockVerse()` from channel.ts to distinguish
+- Blockquote is an Inline type with `{ blockquote: Inline[] }` structure
 
 ---
 
@@ -38,4 +40,20 @@ Thread: https://ampcode.com/threads/T-019be146-9d5a-719c-8876-eb7257600a9e
   - Nested lists pass down list type and adjust indentation
   - Task inlines have `{ task: { checked, content } }` structure - checkbox rendered in inline conversion
   - Rule block uses `{ rule: null }` similar to Break inline
+---
+
+## 2026-01-21 - US-003
+Thread: https://ampcode.com/threads/T-019be14d-84f9-7244-a38d-e283f417ddf9
+- Implemented `storyToMarkdown(story: Story): string` function
+- Added `verseToMarkdown()` helper to dispatch VerseInline vs VerseBlock
+- Added Blockquote handling to `inlineToMarkdown()` - prefixes each line with `> `
+- Verses are joined with double newlines for paragraph separation
+- Empty verses are skipped
+- Handles null/undefined story gracefully
+- Added 15 new tests (total now 50 tests in storyToMarkdown.test.ts)
+- **Learnings for future iterations:**
+  - Story is `Verse[]` where Verse is `VerseInline | VerseBlock`
+  - VerseInline has `{ inline: Inline[] }`, VerseBlock has `{ block: Block }`
+  - Use `isBlockVerse()` from `channel.ts` to distinguish between verse types
+  - Blockquote is an Inline type with `{ blockquote: Inline[] }` structure
 ---
