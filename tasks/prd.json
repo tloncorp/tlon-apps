@@ -1,0 +1,292 @@
+{
+  "project": "TlonApps",
+  "branchName": "ralph/markdown-biginput",
+  "description": "Markdown Support in BigInput Editor - Add bidirectional Markdown ↔ Story conversion with mode toggle",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Implement storyToMarkdown for inline types",
+      "description": "As a developer, I need to convert Story inline content to Markdown syntax.",
+      "acceptanceCriteria": [
+        "Create `storyToMarkdown.ts` in `packages/shared/src/logic/`",
+        "Export function `inlinesToMarkdown(inlines: Inline[]): string`",
+        "Convert string → plain text",
+        "Convert Bold → `**text**`",
+        "Convert Italics → `*text*`",
+        "Convert Strikethrough → `~~text~~`",
+        "Convert InlineCode → `` `code` ``",
+        "Convert Link → `[content](href)`",
+        "Convert Ship → `~ship-name`",
+        "Convert Break → newline",
+        "Handle nested inlines recursively (e.g., bold within italic)",
+        "Unit tests for each inline type conversion",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Foundation for Story → Markdown. See packages/shared/src/urbit/content.ts for Inline types."
+    },
+    {
+      "id": "US-002",
+      "title": "Implement storyToMarkdown for block types",
+      "description": "As a developer, I need to convert Story block content to Markdown syntax.",
+      "acceptanceCriteria": [
+        "Add `blockToMarkdown(block: Block): string` function to storyToMarkdown.ts",
+        "Convert Header → `#`-`######` based on tag level",
+        "Convert Code → fenced code block with language",
+        "Convert Image → `![alt](src)`",
+        "Convert Rule → `---`",
+        "Convert List (ordered) → `1.` numbered items",
+        "Convert List (unordered) → `-` items",
+        "Convert List (tasklist) → `- [ ]` / `- [x]` items",
+        "Handle nested lists with proper indentation",
+        "Unit tests for each block type conversion",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "See Block types in packages/shared/src/urbit/content.ts"
+    },
+    {
+      "id": "US-003",
+      "title": "Implement full storyToMarkdown function",
+      "description": "As a developer, I need to convert a complete Story to Markdown.",
+      "acceptanceCriteria": [
+        "Export function `storyToMarkdown(story: Story): string`",
+        "Iterate through Verse[] and dispatch to inlinesToMarkdown or blockToMarkdown",
+        "VerseInline content joined with proper paragraph breaks",
+        "VerseBlock content rendered with appropriate spacing",
+        "Blockquote inlines → `> ` prefixed lines",
+        "Unit tests for mixed inline/block stories",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Combines US-001 and US-002 into complete Story conversion"
+    },
+    {
+      "id": "US-004",
+      "title": "Add markdown-it parser dependency",
+      "description": "As a developer, I need a Markdown parser to convert Markdown to Story format.",
+      "acceptanceCriteria": [
+        "Add `markdown-it` and `@types/markdown-it` to packages/shared dependencies",
+        "Add `markdown-it-task-lists` plugin for task list support",
+        "Verify package installs successfully with pnpm",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "markdown-it chosen for good AST access and plugin ecosystem"
+    },
+    {
+      "id": "US-005",
+      "title": "Implement markdownToStory for inline tokens",
+      "description": "As a developer, I need to parse Markdown inline tokens to Story Inline types.",
+      "acceptanceCriteria": [
+        "Create `markdownToStory.ts` in `packages/shared/src/logic/`",
+        "Function `tokensToInlines(tokens: Token[]): Inline[]`",
+        "Map text → string",
+        "Map strong → Bold",
+        "Map em → Italics",
+        "Map s → Strikethrough",
+        "Map code_inline → InlineCode",
+        "Map link → Link",
+        "Detect `~ship-name` pattern in text and convert to Ship",
+        "Map softbreak/hardbreak → Break",
+        "Unit tests for each inline token type",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Uses markdown-it token structure"
+    },
+    {
+      "id": "US-006",
+      "title": "Implement markdownToStory for block tokens",
+      "description": "As a developer, I need to parse Markdown block tokens to Story Block/Verse types.",
+      "acceptanceCriteria": [
+        "Function `tokenToBlock(token: Token): Block | null`",
+        "Map heading → Header with correct tag level",
+        "Map fence → Code block with lang",
+        "Map image → Image block",
+        "Map hr → Rule",
+        "Map bullet_list → List (unordered)",
+        "Map ordered_list → List (ordered)",
+        "Map task list items → List (tasklist) with checked state",
+        "Map blockquote → VerseInline with Blockquote wrapper",
+        "Unit tests for each block token type",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Implement full markdownToStory function",
+      "description": "As a developer, I need to convert complete Markdown text to Story format.",
+      "acceptanceCriteria": [
+        "Export function `markdownToStory(markdown: string): Story`",
+        "Parse markdown with markdown-it",
+        "Convert token stream to Verse[] array",
+        "Paragraph tokens become VerseInline",
+        "Block tokens become VerseBlock",
+        "Handle empty input gracefully",
+        "Unit tests for full document conversion",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Add round-trip conversion tests",
+      "description": "As a developer, I need to verify Markdown ↔ Story conversion preserves content.",
+      "acceptanceCriteria": [
+        "Test: Markdown → Story → Markdown produces equivalent output",
+        "Test: Story → Markdown → Story produces equivalent structure",
+        "Test coverage for: paragraphs, headers, lists, code blocks, images, inline formatting",
+        "Test coverage for @mentions (~ship)",
+        "Test coverage for task lists",
+        "Document any known lossy conversions in comments",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "Some loss is acceptable (e.g., Cite blocks) but must be documented"
+    },
+    {
+      "id": "US-009",
+      "title": "Add Markdown mode toggle button to BigInput toolbar",
+      "description": "As a user, I want to toggle between rich text and Markdown modes.",
+      "acceptanceCriteria": [
+        "Add toggle button to InputToolbar in BigInput",
+        "Use appropriate icon (code brackets or Markdown symbol)",
+        "Add `isMarkdownMode` state to BigInput component",
+        "Toggle button shows active state when in Markdown mode",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "See packages/app/ui/components/BigInput.tsx"
+    },
+    {
+      "id": "US-010",
+      "title": "Implement Markdown editor textarea",
+      "description": "As a user, I want to edit raw Markdown in a plain text editor.",
+      "acceptanceCriteria": [
+        "Create MarkdownEditor component in packages/app/ui/components/",
+        "Use monospace font (font-family: monospace)",
+        "Full-width textarea that expands with content",
+        "Support standard text editing (selection, copy/paste)",
+        "Pass value and onChange props for controlled input",
+        "Match BigInput padding and spacing",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Integrate Markdown editor into BigInput",
+      "description": "As a user, I want to see the Markdown editor when Markdown mode is active.",
+      "acceptanceCriteria": [
+        "Conditionally render MarkdownEditor or MessageInput based on isMarkdownMode",
+        "Add `markdownContent` state to track raw Markdown text",
+        "MarkdownEditor receives markdownContent as value",
+        "MarkdownEditor onChange updates markdownContent state",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Convert content when switching to Markdown mode",
+      "description": "As a user, I want my rich text content converted to Markdown when I switch modes.",
+      "acceptanceCriteria": [
+        "When toggling to Markdown mode, get current Tiptap content as inlines",
+        "Call storyToMarkdown to convert to Markdown string",
+        "Populate markdownContent state with result",
+        "Handle conversion errors with user-friendly toast/alert",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Use existing tiptap.JSONToInlines pattern"
+    },
+    {
+      "id": "US-013",
+      "title": "Convert content when switching to rich text mode",
+      "description": "As a user, I want my Markdown content converted to rich text when I switch modes.",
+      "acceptanceCriteria": [
+        "When toggling to rich text mode, read markdownContent state",
+        "Call markdownToStory to convert to Story",
+        "Update Tiptap editor with converted content",
+        "Handle conversion errors with user-friendly toast/alert",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "May need to convert Story back to Tiptap JSON format"
+    },
+    {
+      "id": "US-014",
+      "title": "Handle send/save from Markdown mode",
+      "description": "As a user, I want to save my post when editing in Markdown mode.",
+      "acceptanceCriteria": [
+        "Modify handleSend to check isMarkdownMode",
+        "If Markdown mode, convert markdownContent to Story before sending",
+        "Existing sendPostFromDraft flow receives Story as normal",
+        "Title and header image handled independently (existing behavior)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Load existing post content in Markdown mode",
+      "description": "As a user, I want to edit existing posts in Markdown mode.",
+      "acceptanceCriteria": [
+        "When editing a post (editingPost prop), convert content to Markdown if isMarkdownMode",
+        "Populate markdownContent with converted Markdown",
+        "Handle posts with no content gracefully",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Add Tiptap input rules for on-the-fly Markdown shortcuts",
+      "description": "As a user typing in rich text mode, I want Markdown shortcuts to auto-convert.",
+      "acceptanceCriteria": [
+        "Add input rule: `**text**` + space → bold",
+        "Add input rule: `*text*` + space → italic",
+        "Add input rule: `` `text` `` + space → inline code",
+        "Add input rule: `# ` at line start → H1 (## → H2, etc.)",
+        "Add input rule: `- ` at line start → bullet list",
+        "Add input rule: `1. ` at line start → numbered list",
+        "Add input rule: `> ` at line start → blockquote",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "Tiptap has StarterKit extensions that may already support some of these. Check packages/editor/"
+    }
+  ]
+}
