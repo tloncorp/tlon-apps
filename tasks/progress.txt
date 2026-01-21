@@ -128,3 +128,21 @@ Thread: https://ampcode.com/threads/T-019be166-448f-737a-9a37-4e07c75e188d
   - The markdown-it parser must be configured with task-lists plugin at module level for consistent usage
   - Story is `Verse[]` where each Verse is either `{ inline: Inline[] }` or `{ block: Block }`
 ---
+
+## 2026-01-21 - US-009
+Thread: https://ampcode.com/threads/T-019be173-eb68-7449-9ff9-7c8f7de1e805
+- Added Markdown mode toggle button to BigInput toolbar
+- Created new Markdown.svg icon (styled M with down arrow in rounded box)
+- Added `isMarkdownMode` state to BigInput component
+- Created markdownToggle toolbar item that:
+  - Shows active state when in Markdown mode
+  - Toggles `isMarkdownMode` state on press
+  - Uses new 'Markdown' icon
+- Toolbar item added at beginning of toolbar items list
+- Files changed: BigInput.tsx, Markdown.svg (new), icons/index.ts
+- **Learnings for future iterations:**
+  - Toolbar items use ToolbarItem interface with onPress, active, disabled, icon properties
+  - Custom toolbar items can be created without editor state by returning constant callbacks
+  - Icons are 32x32 SVG using `currentColor` for stroke/fill
+  - Icons are added to `packages/ui/src/assets/icons/` and exported from `index.ts`
+---

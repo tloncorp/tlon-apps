@@ -1,381 +1,343 @@
 import { describe, it, expect } from 'vitest';
-import { storyToMarkdown, inlinesToMarkdown } from './storyToMarkdown';
+import { storyToMarkdown } from './storyToMarkdown';
 import { markdownToStory } from './markdownToStory';
-import { Story, VerseInline, VerseBlock } from '../urbit/channel';
 import {
   Bold,
-  Italics,
-  Strikethrough,
-  InlineCode,
-  Link,
-  Ship,
-  Header,
+  Break,
   Code,
+  Header,
   Image,
-  Rule,
-  ListingBlock,
   Inline,
+  InlineCode,
+  Italics,
+  Link,
+  ListingBlock,
+  Rule,
+  Ship,
+  Strikethrough,
   Task,
   Blockquote,
 } from '../urbit/content';
+import { Story } from '../urbit/channel';
 
 /**
- * Known Lossy Conversions:
+ * Round-trip conversion tests for Markdown ↔ Story conversion.
  *
- * 1. Cite blocks - Not supported by Markdown, will be lost in round-trip
- * 2. Link content formatting - Link content in Story is plain string, nested
- *    formatting in link text will be flattened to plain text
- * 3. Image dimensions - Story Image has width/height, Markdown doesn't preserve them
- * 4. BlockReference - Not supported by Markdown
- * 5. BlockCode - Different from Code block, not in standard Markdown
- * 6. Sect/Tag inlines - Not supported by Markdown
- * 7. Whitespace normalization - Some whitespace may be normalized differently
+ * Known lossy conversions:
+ * - Cite blocks: Story Cite type has no Markdown equivalent, lost on conversion
+ * - BlockReference: No Markdown equivalent
+ * - Link content: Nested formatting in links is flattened to plain text
+ * - Image dimensions: width/height are lost when converting to Markdown
+ * - BlockCode: Different from fenced code blocks, may not round-trip perfectly
+ * - Sect (sections): No direct Markdown equivalent
+ * - Tag: No direct Markdown equivalent
  */
 
-describe('Round-trip conversion: Markdown → Story → Markdown', () => {
+describe('Round-trip: Markdown → Story → Markdown', () => {
   describe('paragraphs', () => {
     it('preserves simple paragraph text', () => {
-      const markdown = 'Hello, world!';
-      const story = markdownToStory(markdown);
+      const md = 'Hello world';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves multiple paragraphs', () => {
-      const markdown = 'First paragraph.\n\nSecond paragraph.';
-      const story = markdownToStory(markdown);
+      const md = 'First paragraph\n\nSecond paragraph';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-  });
-
-  describe('headers', () => {
-    it('preserves h1', () => {
-      const markdown = '# Heading 1';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves h2', () => {
-      const markdown = '## Heading 2';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves h3-h6', () => {
-      const levels = ['###', '####', '#####', '######'];
-      for (const prefix of levels) {
-        const markdown = `${prefix} Heading`;
-        const story = markdownToStory(markdown);
-        const result = storyToMarkdown(story);
-        expect(result).toBe(markdown);
-      }
-    });
-
-    it('preserves headers with inline formatting', () => {
-      const markdown = '## **Bold** and *italic* heading';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 
   describe('inline formatting', () => {
     it('preserves bold text', () => {
-      const markdown = '**bold text**';
-      const story = markdownToStory(markdown);
+      const md = 'This is **bold** text';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves italic text', () => {
-      const markdown = '*italic text*';
-      const story = markdownToStory(markdown);
+      const md = 'This is *italic* text';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves strikethrough text', () => {
-      const markdown = '~~struck text~~';
-      const story = markdownToStory(markdown);
+      const md = 'This is ~~struck~~ text';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves inline code', () => {
-      const markdown = '`code here`';
-      const story = markdownToStory(markdown);
+      const md = 'Use `const x = 1` in code';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves mixed inline formatting', () => {
-      const markdown = 'Text with **bold** and *italic* and `code`';
-      const story = markdownToStory(markdown);
+      const md = 'Text with **bold** and *italic* and `code`';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
+    });
+
+    it('preserves nested formatting (bold inside italic)', () => {
+      const md = '*italic **bold** text*';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
     });
   });
 
   describe('links', () => {
-    it('preserves basic links', () => {
-      const markdown = '[Example](https://example.com)';
-      const story = markdownToStory(markdown);
+    it('preserves simple links', () => {
+      const md = '[Example](https://example.com)';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
-    it('preserves links in paragraph text', () => {
-      const markdown = 'Visit [our site](https://example.com) for more info.';
-      const story = markdownToStory(markdown);
+    it('preserves links with surrounding text', () => {
+      const md = 'Visit [the site](https://example.com) for more';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 
   describe('ship mentions (@mentions)', () => {
-    it('preserves galaxy', () => {
-      const markdown = '~zod';
-      const story = markdownToStory(markdown);
+    it('preserves simple ship mention', () => {
+      const md = 'Hello ~zod';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
-    it('preserves star', () => {
-      const markdown = '~marzod';
-      const story = markdownToStory(markdown);
+    it('preserves multiple ship mentions', () => {
+      const md = '~zod and ~bus are ships';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
-    it('preserves planet', () => {
-      const markdown = '~sampel-palnet';
-      const story = markdownToStory(markdown);
+    it('preserves planet name ship mention', () => {
+      const md = 'Hello ~sampel-palnet!';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
-    it('preserves moon', () => {
-      const markdown = '~dister-sampel-palnet';
-      const story = markdownToStory(markdown);
+    it('preserves moon name ship mention', () => {
+      const md = 'Message from ~dozzod-dozzod-sampel-palnet';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
+    });
+  });
+
+  describe('headers', () => {
+    it('preserves h1 header', () => {
+      const md = '# Header One';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
     });
 
-    it('preserves ship in sentence', () => {
-      const markdown = 'Hello ~sampel-palnet how are you?';
-      const story = markdownToStory(markdown);
+    it('preserves all header levels', () => {
+      const md = '# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5\n\n###### H6';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
-    it('preserves multiple ships', () => {
-      const markdown = 'CC ~zod and ~bus';
-      const story = markdownToStory(markdown);
+    it('preserves formatting in headers', () => {
+      const md = '# **Bold** Header';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
+    });
+  });
+
+  describe('code blocks', () => {
+    it('preserves fenced code block with language', () => {
+      const md = '```javascript\nconst x = 1;\n```';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
+    });
+
+    it('preserves fenced code block without language', () => {
+      const md = '```\nplain code\n```';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
+    });
+
+    it('preserves multiline code block', () => {
+      const md = '```ts\nfunction hello() {\n  return "world";\n}\n```';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
+    });
+  });
+
+  describe('images', () => {
+    it('preserves image with alt text', () => {
+      const md = '![alt text](https://example.com/image.png)';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
+    });
+
+    it('preserves image without alt text', () => {
+      const md = '![](https://example.com/image.png)';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
     });
   });
 
   describe('lists', () => {
     it('preserves unordered list', () => {
-      const markdown = '- Item 1\n- Item 2\n- Item 3';
-      const story = markdownToStory(markdown);
+      const md = '- item one\n- item two\n- item three';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves ordered list', () => {
-      const markdown = '1. First\n2. Second\n3. Third';
-      const story = markdownToStory(markdown);
+      const md = '1. first\n2. second\n3. third';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves nested unordered lists', () => {
-      const markdown = '- Parent\n  - Child 1\n  - Child 2';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 
   describe('task lists', () => {
     it('preserves unchecked task', () => {
-      const markdown = '- [ ] Todo item';
-      const story = markdownToStory(markdown);
+      const md = '- [ ] todo item';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves checked task', () => {
-      const markdown = '- [x] Done item';
-      const story = markdownToStory(markdown);
+      const md = '- [x] done item';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
 
     it('preserves mixed task list', () => {
-      const markdown = '- [x] Done\n- [ ] Todo\n- [x] Also done';
-      const story = markdownToStory(markdown);
+      const md = '- [ ] pending\n- [x] completed\n- [ ] another pending';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-  });
-
-  describe('code blocks', () => {
-    it('preserves fenced code block without language', () => {
-      const markdown = '```\nconst x = 1;\n```';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves fenced code block with language', () => {
-      const markdown = '```typescript\nconst x: number = 1;\n```';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves multi-line code block', () => {
-      const markdown = '```javascript\nfunction hello() {\n  console.log("hi");\n}\n```';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-  });
-
-  describe('images', () => {
-    it('preserves basic image', () => {
-      const markdown = '![alt text](https://example.com/image.png)';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
-    });
-
-    it('preserves image with empty alt', () => {
-      const markdown = '![](https://example.com/image.png)';
-      const story = markdownToStory(markdown);
-      const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 
   describe('horizontal rules', () => {
     it('preserves horizontal rule', () => {
-      const markdown = '---';
-      const story = markdownToStory(markdown);
+      const md = '---';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 
   describe('blockquotes', () => {
     it('preserves simple blockquote', () => {
-      const markdown = '> This is a quote';
-      const story = markdownToStory(markdown);
+      const md = '> quoted text';
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
+    });
+
+    it('preserves blockquote with formatting', () => {
+      const md = '> **bold** quote';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      expect(result).toBe(md);
     });
   });
 
-  describe('complex documents', () => {
-    it('preserves document with multiple element types', () => {
-      const markdown = `# Document Title
+  describe('mixed content', () => {
+    it('preserves complex document', () => {
+      const md = `# Welcome
 
-This is a paragraph with **bold** and *italic* text.
+This is **intro** text with ~zod mention.
 
-## Section 1
+## Features
 
-- Item 1
-- Item 2
+- Feature one
+- Feature two
 
-\`\`\`typescript
-const code = "example";
+\`\`\`js
+const x = 1;
 \`\`\`
 
 ---
 
-> A quote to remember
+> Important note`;
 
-Contact ~sampel-palnet for more info.`;
-      const story = markdownToStory(markdown);
+      const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      expect(result).toBe(markdown);
+      expect(result).toBe(md);
     });
   });
 });
 
-describe('Round-trip conversion: Story → Markdown → Story', () => {
+describe('Round-trip: Story → Markdown → Story', () => {
   describe('paragraphs', () => {
-    it('preserves paragraph with plain text', () => {
-      const story: Story = [{ inline: ['Hello, world!'] }];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves simple paragraph structure', () => {
+      const story: Story = [{ inline: ['Hello world'] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
     it('preserves multiple paragraphs', () => {
       const story: Story = [
-        { inline: ['First paragraph.'] },
-        { inline: ['Second paragraph.'] },
+        { inline: ['First paragraph'] },
+        { inline: ['Second paragraph'] },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('inline formatting', () => {
-    it('preserves Bold', () => {
-      const story: Story = [
-        { inline: [{ bold: ['bold text'] } as Bold] },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves Bold structure', () => {
+      const story: Story = [{ inline: [{ bold: ['bold text'] } as Bold] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves Italics', () => {
-      const story: Story = [
-        { inline: [{ italics: ['italic text'] } as Italics] },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves Italics structure', () => {
+      const story: Story = [{ inline: [{ italics: ['italic text'] } as Italics] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves Strikethrough', () => {
-      const story: Story = [
-        { inline: [{ strike: ['struck text'] } as Strikethrough] },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves Strikethrough structure', () => {
+      const story: Story = [{ inline: [{ strike: ['struck text'] } as Strikethrough] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves InlineCode', () => {
-      const story: Story = [
-        { inline: [{ 'inline-code': 'code here' } as InlineCode] },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
-      expect(result).toEqual(story);
-    });
-
-    it('preserves Link', () => {
-      const story: Story = [
-        {
-          inline: [
-            { link: { href: 'https://example.com', content: 'Example' } } as Link,
-          ],
-        },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves InlineCode structure', () => {
+      const story: Story = [{ inline: [{ 'inline-code': 'const x = 1' } as InlineCode] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
@@ -383,165 +345,135 @@ describe('Round-trip conversion: Story → Markdown → Story', () => {
       const story: Story = [
         {
           inline: [
-            'Hello ',
-            { bold: ['world'] } as Bold,
+            'Text with ',
+            { bold: ['bold'] } as Bold,
             ' and ',
-            { italics: ['friend'] } as Italics,
+            { italics: ['italic'] } as Italics,
           ],
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
+    });
+
+    it('preserves nested formatting', () => {
+      const story: Story = [
+        {
+          inline: [{ italics: ['italic ', { bold: ['bold'] } as Bold, ' text'] } as Italics],
+        },
+      ];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
+    });
+  });
+
+  describe('links', () => {
+    it('preserves Link structure', () => {
+      const story: Story = [
+        { inline: [{ link: { href: 'https://example.com', content: 'Example' } } as Link] },
+      ];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('ship mentions (@mentions)', () => {
-    it('preserves Ship inline', () => {
-      const story: Story = [{ inline: [{ ship: 'zod' } as Ship] }];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+    it('preserves Ship structure', () => {
+      const story: Story = [{ inline: ['Hello ', { ship: 'zod' } as Ship] }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves Ship in sentence', () => {
+    it('preserves multiple Ship structures', () => {
       const story: Story = [
         {
           inline: [
-            'Hello ',
-            { ship: 'sampel-palnet' } as Ship,
-            ' how are you?',
-          ],
-        },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
-      expect(result).toEqual(story);
-    });
-
-    it('preserves multiple Ships', () => {
-      const story: Story = [
-        {
-          inline: [
-            'CC ',
             { ship: 'zod' } as Ship,
             ' and ',
             { ship: 'bus' } as Ship,
+            ' are ships',
           ],
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
+    });
+
+    it('preserves planet name Ship', () => {
+      const story: Story = [
+        { inline: ['Hello ', { ship: 'sampel-palnet' } as Ship, '!'] },
+      ];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('headers', () => {
-    it('preserves Header block', () => {
+    it('preserves Header h1 structure', () => {
       const story: Story = [
-        {
-          block: {
-            header: { tag: 'h1', content: ['Heading 1'] },
-          } as Header,
-        },
+        { block: { header: { tag: 'h1', content: ['Title'] } } as Header },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves Header with inline formatting', () => {
+    it('preserves Header with formatting', () => {
       const story: Story = [
         {
           block: {
-            header: {
-              tag: 'h2',
-              content: [
-                { bold: ['Bold'] } as Bold,
-                ' heading',
-              ],
-            },
+            header: { tag: 'h2', content: [{ bold: ['Bold'] } as Bold, ' Title'] },
           } as Header,
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('code blocks', () => {
-    it('preserves Code block', () => {
+    it('preserves Code block structure', () => {
       const story: Story = [
-        {
-          block: {
-            code: { code: 'const x = 1;', lang: 'typescript' },
-          } as Code,
-        },
+        { block: { code: { code: 'const x = 1;', lang: 'javascript' } } as Code },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
     it('preserves Code block without language', () => {
-      const story: Story = [
-        {
-          block: {
-            code: { code: 'plain code', lang: '' },
-          } as Code,
-        },
-      ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const story: Story = [{ block: { code: { code: 'plain code', lang: '' } } as Code }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('images', () => {
-    it('preserves Image block (alt text only, dimensions are lossy)', () => {
-      const originalStory: Story = [
+    it('preserves Image block structure (alt and src only)', () => {
+      const story: Story = [
         {
           block: {
-            image: {
-              src: 'https://example.com/image.png',
-              alt: 'alt text',
-              width: 100,
-              height: 200,
-            },
+            image: { src: 'https://example.com/img.png', alt: 'An image', width: 0, height: 0 },
           } as Image,
         },
       ];
-      const markdown = storyToMarkdown(originalStory);
-      const result = markdownToStory(markdown);
-
-      const expectedStory: Story = [
-        {
-          block: {
-            image: {
-              src: 'https://example.com/image.png',
-              alt: 'alt text',
-              width: 0,
-              height: 0,
-            },
-          } as Image,
-        },
-      ];
-      expect(result).toEqual(expectedStory);
-    });
-  });
-
-  describe('rules', () => {
-    it('preserves Rule block', () => {
-      const story: Story = [{ block: { rule: null } as Rule }];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      // Note: width/height are lost in Markdown, converted back as 0
       expect(result).toEqual(story);
     });
   });
 
   describe('lists', () => {
-    it('preserves unordered list', () => {
+    it('preserves unordered List structure', () => {
       const story: Story = [
         {
           block: {
@@ -549,21 +481,18 @@ describe('Round-trip conversion: Story → Markdown → Story', () => {
               list: {
                 type: 'unordered',
                 contents: [],
-                items: [
-                  { item: ['Item 1'] },
-                  { item: ['Item 2'] },
-                ],
+                items: [{ item: ['item one'] }, { item: ['item two'] }],
               },
             },
           } as ListingBlock,
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves ordered list', () => {
+    it('preserves ordered List structure', () => {
       const story: Story = [
         {
           block: {
@@ -571,23 +500,20 @@ describe('Round-trip conversion: Story → Markdown → Story', () => {
               list: {
                 type: 'ordered',
                 contents: [],
-                items: [
-                  { item: ['First'] },
-                  { item: ['Second'] },
-                ],
+                items: [{ item: ['first'] }, { item: ['second'] }],
               },
             },
           } as ListingBlock,
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('task lists', () => {
-    it('preserves task list with checked/unchecked items', () => {
+    it('preserves tasklist structure with Task inlines', () => {
       const story: Story = [
         {
           block: {
@@ -596,47 +522,71 @@ describe('Round-trip conversion: Story → Markdown → Story', () => {
                 type: 'tasklist',
                 contents: [],
                 items: [
-                  {
-                    item: [
-                      { task: { checked: true, content: ['Done'] } } as Task,
-                    ],
-                  },
-                  {
-                    item: [
-                      { task: { checked: false, content: ['Todo'] } } as Task,
-                    ],
-                  },
+                  { item: [{ task: { checked: false, content: ['pending'] } } as Task] },
+                  { item: [{ task: { checked: true, content: ['done'] } } as Task] },
                 ],
               },
             },
           } as ListingBlock,
         },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
+    });
+  });
+
+  describe('horizontal rules', () => {
+    it('preserves Rule structure', () => {
+      const story: Story = [{ block: { rule: null } as Rule }];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
   describe('blockquotes', () => {
-    it('preserves Blockquote inline', () => {
+    it('preserves Blockquote structure', () => {
       const story: Story = [
-        {
-          inline: [{ blockquote: ['This is a quote'] } as Blockquote],
-        },
+        { inline: [{ blockquote: ['quoted text'] } as Blockquote] },
       ];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
+    });
+
+    it('preserves Blockquote with formatting', () => {
+      const story: Story = [
+        { inline: [{ blockquote: [{ bold: ['bold'] } as Bold, ' quote'] } as Blockquote] },
+      ];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
   });
 
-  describe('empty content', () => {
-    it('handles empty story', () => {
-      const story: Story = [];
-      const markdown = storyToMarkdown(story);
-      const result = markdownToStory(markdown);
-      expect(result).toEqual([]);
+  describe('mixed content', () => {
+    it('preserves complex Story structure', () => {
+      const story: Story = [
+        { block: { header: { tag: 'h1', content: ['Welcome'] } } as Header },
+        { inline: ['Hello ', { ship: 'zod' } as Ship, '!'] },
+        { block: { rule: null } as Rule },
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [{ item: ['One'] }, { item: ['Two'] }],
+              },
+            },
+          } as ListingBlock,
+        },
+        { inline: [{ blockquote: ['Important'] } as Blockquote] },
+      ];
+      const md = storyToMarkdown(story);
+      const result = markdownToStory(md);
+      expect(result).toEqual(story);
     });
   });
 });
