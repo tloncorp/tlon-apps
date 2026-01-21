@@ -1,12 +1,12 @@
 import {
   Attachment,
-  PostDataDraft,
   createDevLogger,
   tiptap,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { constructStory } from '@tloncorp/shared/urbit';
 import {
   Button,
@@ -132,7 +132,7 @@ export function BigInput({
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
 
-    const draft: PostDataDraft = {
+    const draft: domain.PostDataDraft = {
       channelId,
       content: inlines,
       attachments,
@@ -152,7 +152,6 @@ export function BigInput({
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
 
-      // TODO: since we froze data in the draft, we don't really need to `await` this
       await sendPostFromDraft(draft);
 
       logger.log(

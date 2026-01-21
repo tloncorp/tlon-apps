@@ -3,6 +3,7 @@ import { da } from '@urbit/aura';
 import * as api from '../api';
 import { getCanonicalPostId } from '../api/apiUtils';
 import * as db from '../db';
+import * as domain from '../domain';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
 import * as ub from '../urbit';
@@ -174,6 +175,7 @@ export function buildPost({
   parentId,
   deliveryStatus = 'pending',
   blob,
+  draft,
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -184,6 +186,7 @@ export function buildPost({
   parentId?: string;
   deliveryStatus?: db.PostDeliveryStatus;
   blob?: string;
+  draft?: domain.PostDataDraft;
 }): types.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
@@ -217,6 +220,7 @@ export function buildPost({
     replyCount: 0,
     hidden: false,
     syncedAt: Date.now(),
+    draft,
     ...contentUpdate,
   };
 }

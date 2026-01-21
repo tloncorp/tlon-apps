@@ -147,6 +147,7 @@ export function GalleryPost({
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame
+  // These props come from parent components but shouldn't be passed to DOM elements
   const {
     onShowEmojiPicker: _onShowEmojiPicker,
     onPressImage: _onPressImage,
@@ -155,8 +156,13 @@ export function GalleryPost({
     showReplies: _showReplies,
     setViewReactionsPost: _setViewReactionsPost,
     onPressReplies: _onPressReplies,
+    displayDebugMode: _displayDebugMode,
+    onPressDelete: _onPressDelete,
     ...rest
-  } = props;
+  } = props as typeof props & {
+    displayDebugMode?: boolean;
+    onPressDelete?: (post: db.Post) => void;
+  };
 
   return (
     <Pressable
@@ -167,7 +173,7 @@ export function GalleryPost({
       flex={1}
       testID="Post"
     >
-      <GalleryPostFrame {...props}>
+      <GalleryPostFrame {...rest}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
         <GalleryContentRenderer
           testID="GalleryPostContentPreview"

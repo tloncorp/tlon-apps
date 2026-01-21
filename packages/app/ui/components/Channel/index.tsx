@@ -2,9 +2,9 @@ import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
   DraftInputId,
-  PostDataDraft,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  uploadAsset,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -16,6 +16,7 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -259,21 +260,33 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          const draft: PostDataDraft = {
-            channelId: channel.id,
-            content: [],
-            attachments: uploadIntents.map((x) =>
-              Attachment.fromUploadIntent(x)
-            ),
-            channelType: channel.type,
-            isEdit: false,
-            replyToPostId: null,
-          };
-          await finalizeAndSendPost(draft);
+          // Start uploads for gallery channels (uploads are started automatically
+          // via useEffect in AttachmentContext for non-gallery channels)
+          // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
+          for (const uploadIntent of uploadIntents) {
+            await uploadAsset(uploadIntent, true);
+            const draft: domain.PostDataDraft = {
+              channelId: channel.id,
+              content: [],
+              attachments: [Attachment.fromUploadIntent(uploadIntent)],
+              channelType: channel.type,
+              replyToPostId: null,
+              isEdit: false,
+            };
+            await finalizeAndSendPost(draft);
+          }
         } catch (error) {
           console.error('Error handling image drop:', error);
         } finally {
           clearAttachments();
+          for (const intent of uploadIntents) {
+            if (
+              intent.type === 'image' &&
+              intent.asset.uri.startsWith('blob:')
+            ) {
+              URL.revokeObjectURL(intent.asset.uri);
+            }
+          }
         }
       },
       [channel, attachAssets, clearAttachments]

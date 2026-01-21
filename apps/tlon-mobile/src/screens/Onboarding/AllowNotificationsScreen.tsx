@@ -11,6 +11,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect } from 'react';
 import { ImageBackground, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,7 +62,12 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
       notificationToken,
     });
 
-    navigation.push('ReserveShip');
+    if (signupContext.isGuidedLogin) {
+      signupContext.handlePostSignup();
+      await db.hostedAccountIsInitialized.setValue(true);
+    } else {
+      navigation.push('ReserveShip');
+    }
   }, [signupContext, navigation]);
 
   useEffect(

@@ -45,7 +45,7 @@ export function GalleryInput({
 
   const safeAreaInsets = useSafeAreaInsets();
   const captionInputRef = useRef<TextInput>(null);
-  const { resetAttachments, attachments, addAttachment, attachAssets } =
+  const { attachments, resetAttachments, addAttachment, attachAssets } =
     useAttachmentContext();
   const theme = useTheme();
 
@@ -198,47 +198,42 @@ export function GalleryInput({
     try {
       setIsPosting(true);
 
-      const heroImageAttachment = attachments.find(
-        (att) => att.type === 'image'
-      ) as domain.UploadedImageAttachment | undefined;
+      // Build the draft with caption content and image attachments
+      // Caption goes in content, images go in attachments
+      const captionContent = caption ? [caption] : [];
+
+      // Extract image URI from the first image attachment for the draft's image field
+      const imageAttachment = attachments.find(
+        (att) => att.type === 'image' && 'file' in att
+      );
+      const imageUri =
+        imageAttachment?.type === 'image' && 'file' in imageAttachment
+          ? imageAttachment.file.uri
+          : undefined;
 
       const draft: domain.PostDataDraft = {
         channelId: channel.id,
-        content: caption ? [caption] : [],
-        attachments: attachments,
+        content: captionContent,
+        attachments,
         channelType: channel.type,
         replyToPostId: null,
-        ...(isEditingPost && editingPost
-          ? {
-              isEdit: true,
-              editTargetPostId: editingPost.id,
-            }
-          : {
-              isEdit: false,
-            }),
-
-        // This URI is used in `toPostData` to find the corresponding uploaded
-        // attachment URL and attach as post image.
-        image:
-          heroImageAttachment == null
-            ? undefined
-            : heroImageAttachment.file.uri,
+        image: imageUri,
+        ...(isEditingPost && editingPost != null
+          ? { isEdit: true, editTargetPostId: editingPost.id }
+          : { isEdit: false }),
       };
+
       await sendPostFromDraft(draft);
 
       // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
       // First reset all gallery-related state to clean up the editing environment
       resetGalleryState();
 
-      // Then clear the editing state to prevent BigInput from showing
-      // This must happen after resetGalleryState to avoid triggering the BigInput display
-      if (setEditingPost) {
-        setEditingPost(undefined);
-      }
-
-      // Force inline presentation mode to return to the gallery view
-      // This ensures we exit the fullscreen editing mode completely
-      if (draft.isEdit) {
+      // If editing, force inline presentation mode to return to the gallery view
+      if (isEditingPost) {
+        if (setEditingPost) {
+          setEditingPost(undefined);
+        }
         onPresentationModeChange?.('inline');
       }
       // Reset posting state after a short delay
@@ -248,12 +243,12 @@ export function GalleryInput({
       setIsPosting(false);
     }
   }, [
-    channel.type,
-    sendPostFromDraft,
     attachments,
     caption,
     isPosting,
+    sendPostFromDraft,
     channel.id,
+    channel.type,
     resetGalleryState,
     isEditingPost,
     editingPost,
@@ -285,33 +280,24 @@ export function GalleryInput({
           attachments: [],
           channelType: channel.type,
           replyToPostId: null,
-          ...(isEditingPost && editingPost
-            ? {
-                isEdit: true,
-                editTargetPostId: editingPost.id,
-              }
-            : {
-                isEdit: false,
-              }),
-
           title: meta?.title,
           image: meta?.image,
+          ...(isEditingPost && editingPost != null
+            ? { isEdit: true, editTargetPostId: editingPost.id }
+            : { isEdit: false }),
         };
+
         await sendPostFromDraft(draft);
 
         // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
         // First reset all gallery-related state to clean up the editing environment
         resetGalleryState();
 
-        // Then clear the editing state to prevent BigInput from showing
-        // This must happen after resetGalleryState to avoid triggering the BigInput display
-        if (setEditingPost) {
-          setEditingPost(undefined);
-        }
-
-        // Force inline presentation mode to return to the gallery view
-        // This ensures we exit the fullscreen editing mode completely
-        if (draft.isEdit) {
+        // If editing, force inline presentation mode
+        if (isEditingPost) {
+          if (setEditingPost) {
+            setEditingPost(undefined);
+          }
           onPresentationModeChange?.('inline');
         }
 
@@ -323,15 +309,15 @@ export function GalleryInput({
       }
     },
     [
-      channel.type,
-      sendPostFromDraft,
       isPosting,
       isEditingPost,
       editingPost,
       resetGalleryState,
       setEditingPost,
       onPresentationModeChange,
+      sendPostFromDraft,
       channel.id,
+      channel.type,
     ]
   );
 

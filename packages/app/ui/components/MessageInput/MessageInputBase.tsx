@@ -40,12 +40,6 @@ export interface MessageInputProps {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
   showWayfindingTooltip?: boolean;
