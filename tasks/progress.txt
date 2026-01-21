@@ -167,3 +167,19 @@ Thread: https://ampcode.com/threads/T-019be176-d446-728e-ba2b-4fba86e9619e
   - Image dimensions (width/height) default to 0 when parsed from Markdown
   - Link content is always plain text in Story format, nested formatting is lost
 ---
+
+## 2026-01-21 - US-010
+Thread: https://ampcode.com/threads/T-019be17d-9178-747c-93dc-a49441269152
+- Created `packages/app/ui/components/MarkdownEditor.tsx` component
+- Uses monospace font (`fontFamily: '$mono'`) for code-like editing experience
+- Full-width TextArea that expands with content
+- Controlled input with `value` and `onChange` props
+- Matches BigInput padding with `paddingHorizontal="$l"` and `paddingVertical="$m"`
+- Supports placeholder text and testID for testing
+- Files changed: MarkdownEditor.tsx (new)
+- **Learnings for future iterations:**
+  - Tamagui has `$mono` font token defined in `packages/ui/tamagui.config.ts`
+  - TextArea from Tamagui is the standard multiline input component
+  - Use `borderWidth={0}` and `borderColor="transparent"` for frameless appearance
+  - Use `$tertiaryText` for placeholder color to match other inputs
+---
