@@ -13,6 +13,7 @@ import {
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
   CodeBlockBridge,
+  HorizontalRuleBridge,
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
@@ -184,12 +185,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
     );
+    const editorIsEmptyRef = useRef(editorIsEmpty);
 
     const bridgeExtensions = [
       ...TenTapStartKit,
       MentionsBridge,
       ShortcutsBridge,
       CodeBlockBridge,
+      HorizontalRuleBridge,
     ];
 
     if (placeholder) {
@@ -371,6 +374,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
+      editorIsEmptyRef.current = editorIsEmpty;
+    }, [editorIsEmpty]);
+
+    useEffect(() => {
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -395,13 +402,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        if (isEmpty !== editorIsEmpty) {
+        if (isEmpty !== editorIsEmptyRef.current) {
           messageInputLogger.log('Editor is empty?', isEmpty);
           setEditorIsEmpty(isEmpty);
+          editorIsEmptyRef.current = isEmpty;
           setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty, initialHeight]);
+    }, [editor, attachments, initialHeight]);
 
     useEffect(() => {
       if (!editor) return;
