@@ -1,11 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
-import { ScreenHeader } from '../ScreenHeader';
+import { ChannelEditFormLayout } from './ChannelEditFormLayout';
 import {
   ChannelPermissionsSelector,
   MEMBERS_MARKER,
@@ -93,44 +92,33 @@ export function EditChannelPrivacyScreenView({
     }
   }, [channel, reset]);
 
-  const insets = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
-
   return (
     <FormProvider {...form}>
-      <View backgroundColor="$secondaryBackground" flex={1}>
-        <ScreenHeader
-          title="Channel privacy"
-          subtitle={`${group?.title}: ${channel?.title}`}
-          showSubtitle={!!channel?.title && !!group?.title}
-          backgroundColor="$secondaryBackground"
-          backAction={goBack}
-          isLoading={isLoading}
-          useHorizontalTitleLayout={!isWindowNarrow}
-        />
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
-        >
-          <YStack gap="$2xl" padding="$xl" alignItems="center">
-            {!!group && !!channel && group.roles && (
-              <>
-                <ChannelPermissionsSelector groupRoles={group.roles} />
-                <PermissionTable groupRoles={group.roles} />
-              </>
-            )}
-            <YStack gap="$2xl" width="100%">
-              <Button
-                hero
-                onPress={handleSubmit(handleSave)}
-                testID="ChannelPrivacySaveButton"
-              >
-                <Button.Text>Save</Button.Text>
-              </Button>
-            </YStack>
+      <ChannelEditFormLayout
+        title="Channel privacy"
+        channel={channel}
+        group={group}
+        goBack={goBack}
+        isLoading={isLoading}
+      >
+        <YStack gap="$2xl" padding="$xl" alignItems="center">
+          {!!group && !!channel && group.roles && (
+            <>
+              <ChannelPermissionsSelector groupRoles={group.roles} />
+              <PermissionTable groupRoles={group.roles} />
+            </>
+          )}
+          <YStack gap="$2xl" width="100%">
+            <Button
+              hero
+              onPress={handleSubmit(handleSave)}
+              testID="ChannelPrivacySaveButton"
+            >
+              <Button.Text>Save</Button.Text>
+            </Button>
           </YStack>
-        </ScrollView>
-      </View>
+        </YStack>
+      </ChannelEditFormLayout>
     </FormProvider>
   );
 }
