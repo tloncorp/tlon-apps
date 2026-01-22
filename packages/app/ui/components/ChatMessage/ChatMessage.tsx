@@ -1,6 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -9,6 +9,7 @@ import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -299,7 +300,7 @@ const ChatMessage = ({
         ) : null}
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-        <View position="absolute" top={0} right={12}>
+        <View position="absolute" top={8} right={12}>
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
@@ -313,13 +314,7 @@ const ChatMessage = ({
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
             trigger={
-              <Button.Frame
-                backgroundColor="transparent"
-                borderWidth="unset"
-                testID="MessageActionsTrigger"
-              >
-                <Icon type="Overflow" />
-              </Button.Frame>
+              <OverflowTriggerButton testID="MessageActionsTrigger" />
             }
             mode="await-trigger"
           />

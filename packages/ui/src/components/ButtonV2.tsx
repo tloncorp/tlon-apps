@@ -43,7 +43,12 @@ type PresetConfig = {
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
   hero: { intent: 'primary', fill: 'solid', size: 'large', centered: true },
-  heroDestructive: { intent: 'negative', fill: 'solid', size: 'large', centered: true },
+  heroDestructive: {
+    intent: 'negative',
+    fill: 'solid',
+    size: 'large',
+    centered: true,
+  },
   positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
   secondary: { intent: 'secondary', fill: 'ghost', size: 'small' },
@@ -434,7 +439,10 @@ function ButtonImpl({
           <>
             {leading}
             {label && (
-              <ButtonText size={fill === 'text' ? 'medium' : size} centered={centered}>
+              <ButtonText
+                size={fill === 'text' ? 'medium' : size}
+                centered={centered}
+              >
                 {label}
               </ButtonText>
             )}
@@ -485,9 +493,17 @@ function ButtonSpinner({
   return <LoadingSpinner size="small" color={color as ColorTokens} />;
 }
 
+// Wrapper to prevent passing `preset` to Frame (presets are only resolved in ButtonImpl)
+type ButtonFrameProps = Omit<
+  React.ComponentProps<typeof ButtonFrame>,
+  'preset'
+>;
+const TypedButtonFrame = ButtonFrame as React.ComponentType<ButtonFrameProps>;
+
 export const Button = withStaticProperties(ButtonImpl, {
-  /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button */
-  Frame: ButtonFrame,
+  /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button.
+   * Note: `preset` is not supported on Frame - use `fill` and `intent` props directly. */
+  Frame: TypedButtonFrame,
   /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button */
   Text: ButtonText,
 });

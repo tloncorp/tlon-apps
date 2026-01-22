@@ -1,17 +1,18 @@
 // sort-imports-ignore
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Button, Icon, Pressable } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { View, isWeb } from 'tamagui';
 
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useChatOptions, useContact } from '../../contexts';
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
+import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
-import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useChatOptions, useContact } from '../../contexts';
 
 export const GroupListItem = ({
   model,
@@ -45,18 +46,13 @@ export const GroupListItem = ({
 
   const triggerButton = useMemo(
     () => (
-      <Button.Frame
-        backgroundColor="transparent"
-        borderWidth="unset"
-        paddingLeft={0}
+      <OverflowTriggerButton
         paddingRight="$s"
         marginHorizontal="$-m"
         onPress={(e) => {
           e.stopPropagation();
         }}
-      >
-        <Icon type="Overflow" />
-      </Button.Frame>
+      />
     ),
     []
   );
@@ -135,7 +131,10 @@ export const GroupListItem = ({
           alignItems={isPending ? 'center' : 'stretch'}
           backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
         >
-          <ListItem.GroupIcon model={model} memberCount={model.memberCount ?? undefined} />
+          <ListItem.GroupIcon
+            model={model}
+            memberCount={model.memberCount ?? undefined}
+          />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
             {customSubtitle ? (
@@ -198,7 +197,7 @@ export const GroupListItem = ({
           )}
         </ListItem>
         {isWeb && !isPending && !disableOptions && (isHovered || open) && (
-          <View position="absolute" right={10} top="$2xl">
+          <View position="absolute" right={10} top="$3xl">
             <ChatOptionsSheet
               open={open}
               onOpenChange={handleOpenChange}
