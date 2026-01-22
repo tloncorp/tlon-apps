@@ -2,6 +2,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -103,15 +104,16 @@ export function ChatDetailsScreenView() {
   const { channel, group } = useChatOptions();
   const {
     onPressGroupMeta: navigateToGroupMeta,
-    onPressChannelMeta: navigateToChannelMeta,
+    onPressEditChannelMeta: navigateToEditChannelMeta,
   } = useChatSettingsNavigation();
   const { navigateToGroup, navigateBack } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
+  // Check host status for both groups and channels (channels use the group's host)
   const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
-    enabled: chatType === 'group' && !!group,
+    enabled: !!group,
   });
   const actionsEnabled =
     currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
@@ -119,10 +121,16 @@ export function ChatDetailsScreenView() {
   const handlePressEdit = useCallback(() => {
     if (chatType === 'group' && group) {
       navigateToGroupMeta(group.id);
-    } else if (chatType === 'channel' && channel) {
-      navigateToChannelMeta(channel.id);
+    } else if (chatType === 'channel' && channel && channel.groupId) {
+      navigateToEditChannelMeta(channel.id, channel.groupId);
     }
-  }, [channel, chatType, group, navigateToChannelMeta, navigateToGroupMeta]);
+  }, [
+    channel,
+    chatType,
+    group,
+    navigateToEditChannelMeta,
+    navigateToGroupMeta,
+  ]);
 
   const handlePressBack = useCallback(() => {
     if (chatType === 'group' && group && !isWindowNarrow) {
@@ -132,13 +140,24 @@ export function ChatDetailsScreenView() {
     }
   }, [chatType, group, navigateToGroup, navigateBack, isWindowNarrow]);
 
+  const getTitle = () => {
+    switch (chatType) {
+      case 'group':
+        return 'Group info & settings';
+      case 'channel':
+        return 'Channel info';
+      default:
+        return 'Info';
+    }
+  };
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         backAction={handlePressBack}
         useHorizontalTitleLayout={!isWindowNarrow}
-        title={chatType === 'group' ? 'Group info & settings' : 'Channel info'}
+        title={getTitle()}
         rightControls={
           currentUserIsAdmin ? (
             <ScreenHeader.IconButton
@@ -152,7 +171,12 @@ export function ChatDetailsScreenView() {
         }
       />
       {chatType === 'channel' && channel ? (
-        <ChatDetailsScreenContent chatType="channel" channel={channel} />
+        <ChatDetailsScreenContent
+          chatType="channel"
+          channel={channel}
+          group={group}
+          actionsEnabled={actionsEnabled}
+        />
       ) : chatType === 'group' && group ? (
         <ChatDetailsScreenContent
           chatType="group"
@@ -172,19 +196,12 @@ function ChatDetailsScreenContent({
   channel,
   group,
   actionsEnabled = true,
-}:
-  | {
-      chatType: 'group';
-      channel?: db.Channel | null;
-      group: db.Group;
-      actionsEnabled?: boolean;
-    }
-  | {
-      chatType: 'channel';
-      channel: db.Channel;
-      group?: db.Group | null;
-      actionsEnabled?: boolean;
-    }) {
+}: {
+  chatType: 'group' | 'channel';
+  channel?: db.Channel | null;
+  group?: db.Group | null;
+  actionsEnabled?: boolean;
+}) {
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
   const canInviteToGroup =
@@ -204,6 +221,10 @@ function ChatDetailsScreenContent({
       ]
         .filter((n) => !!n)
         .join(' ');
+    }
+
+    if (!channel) {
+      return '';
     }
 
     switch (channel.type) {
@@ -243,9 +264,9 @@ function ChatDetailsScreenContent({
       >
         {chatType === 'group' ? (
           <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
-        ) : (
+        ) : chatType === 'channel' && channel ? (
           <ListItem.ChannelIcon model={channel} size="$5xl" />
-        )}
+        ) : null}
         <YStack gap="$l" flex={1}>
           <TlonText.Text>{title}</TlonText.Text>
           <TlonText.Text size={'$label/m'} color={'$secondaryText'}>
@@ -261,6 +282,17 @@ function ChatDetailsScreenContent({
         </>
       )}
 
+      {chatType === 'channel' && channel && channel.groupId && (
+        <>
+          <ChannelQuickActions channel={channel} canInvite={canInviteToGroup} />
+          <ChannelSettings
+            channel={channel}
+            group={group}
+            actionsEnabled={actionsEnabled}
+          />
+        </>
+      )}
+
       {members?.length ? (
         <ChatMembersList
           chatType={chatType}
@@ -270,7 +302,10 @@ function ChatDetailsScreenContent({
         />
       ) : null}
 
-      {group ? <GroupLeaveActions group={group} /> : null}
+      {chatType === 'group' && group ? <GroupLeaveActions group={group} /> : null}
+      {chatType === 'channel' && channel && channel.groupId && (
+        <ChannelLeaveActions channel={channel} />
+      )}
     </ScrollView>
   );
 }
@@ -513,9 +548,10 @@ function GroupSettingsAction({
         alignItems="center"
         testID={testID}
       >
-        <ActionSheet.ActionContent>
+        <ActionSheet.ActionContent flexShrink={0}>
           <ActionSheet.ActionTitle
             color={disabled ? '$tertiaryText' : undefined}
+            numberOfLines={0}
           >
             {title}
           </ActionSheet.ActionTitle>
@@ -746,3 +782,229 @@ const GroupDescription = ({ group }: { group: db.Group }) => {
     </View>
   );
 };
+
+// Channel-specific components
+
+function ChannelQuickActions({
+  channel,
+  canInvite,
+}: {
+  channel: db.Channel;
+  canInvite?: boolean;
+}) {
+  const { togglePinned, onPressInvite } = useChatOptions();
+  const isPinned = channel?.pin;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      width={'100%'}
+      paddingLeft={'$l'}
+    >
+      {canInvite && (
+        <ProfileButton
+          title="Invite"
+          onPress={onPressInvite}
+          testID="ChannelQuickAction-Invite"
+          hero
+        />
+      )}
+      <ProfileButton
+        title={isPinned ? 'Unpin' : 'Pin'}
+        onPress={togglePinned}
+        testID={`ChannelQuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
+      />
+    </ScrollView>
+  );
+}
+
+function ChannelSettings({
+  channel,
+  group,
+  actionsEnabled,
+}: {
+  channel: db.Channel;
+  group?: db.Group | null;
+  actionsEnabled: boolean;
+}) {
+  const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
+
+  const { onPressChatVolume, onPressEditChannelMeta, onPressEditChannelPrivacy } =
+    useChatSettingsNavigation();
+
+  const notificationOptions = useNotificationLevelOptions({
+    includeLoud: true,
+    shortDescriptions: true,
+  });
+
+  const handlePressNotificationSettings = useCallback(() => {
+    onPressChatVolume({ type: 'channel', id: channel.id });
+  }, [channel.id, onPressChatVolume]);
+
+  const handlePressEditChannelMeta = useCallback(() => {
+    if (channel.groupId) {
+      onPressEditChannelMeta(channel.id, channel.groupId);
+    }
+  }, [channel.id, channel.groupId, onPressEditChannelMeta]);
+
+  const handlePressEditChannelPrivacy = useCallback(() => {
+    if (channel.groupId) {
+      onPressEditChannelPrivacy(channel.id, channel.groupId);
+    }
+  }, [channel.id, channel.groupId, onPressEditChannelPrivacy]);
+
+  // Determine privacy status
+  const isPrivate =
+    (channel.readerRoles?.length ?? 0) > 0 ||
+    (channel.writerRoles?.length ?? 0) > 0;
+  const privacyDescription = isPrivate ? 'Private' : 'Public';
+
+  const actions = useMemo(() => {
+    const actionList: GroupSettingsActionProps[] = [
+      {
+        title: 'Notifications',
+        description: notificationOptions.find(
+          (o) => o.value === channel?.volumeSettings?.level
+        )?.title,
+        testID: 'ChannelNotifications',
+        disabled: false,
+        onPress: handlePressNotificationSettings,
+      },
+    ];
+
+    if (!currentUserIsAdmin) {
+      return actionList;
+    }
+
+    // Admin-only actions
+    return [
+      {
+        title: 'Privacy',
+        description: privacyDescription,
+        testID: 'ChannelPrivacy',
+        disabled: !actionsEnabled,
+        onPress: handlePressEditChannelPrivacy,
+      },
+      {
+        title: 'Edit name and description',
+        testID: 'ChannelEditMeta',
+        disabled: !actionsEnabled,
+        onPress: handlePressEditChannelMeta,
+      },
+      ...actionList,
+    ] as GroupSettingsActionProps[];
+  }, [
+    currentUserIsAdmin,
+    actionsEnabled,
+    notificationOptions,
+    channel?.volumeSettings?.level,
+    handlePressNotificationSettings,
+    privacyDescription,
+    handlePressEditChannelMeta,
+    handlePressEditChannelPrivacy,
+  ]);
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <ActionSheet.ActionGroup
+        padding={0}
+        contentProps={{
+          backgroundColor: '$background',
+          borderRadius: '$2xl',
+          borderWidth: 0,
+        }}
+      >
+        {actions.map((action, index) => (
+          <GroupSettingsAction
+            key={index}
+            {...action}
+            first={index === 0}
+            last={index === actions.length - 1}
+          />
+        ))}
+      </ActionSheet.ActionGroup>
+    </View>
+  );
+}
+
+function ChannelLeaveActions({ channel }: { channel: db.Channel }) {
+  const { onLeaveChannel } = useChatSettingsNavigation();
+  const { navigateBack } = useRootNavigation();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const currentUserIsHost = channel.currentUserIsHost ?? false;
+  const canLeave = !currentUserIsHost;
+  const canDelete = currentUserIsHost;
+  const channelTitle = channel.title ?? 'channel';
+
+  const { leaveChannel } = useChatOptions();
+
+  const handleDeleteChannel = useCallback(async () => {
+    if (!channel.groupId) return;
+
+    try {
+      await store.deleteChannel({
+        channelId: channel.id,
+        groupId: channel.groupId,
+      });
+      // Navigate away after deletion
+      if (channel.groupId) {
+        await onLeaveChannel(channel.groupId, channel.id);
+      } else {
+        navigateBack();
+      }
+    } catch (error) {
+      console.error('Failed to delete channel:', error);
+      if (isWeb) {
+        window.alert('Failed to delete channel. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to delete channel. Please try again.');
+      }
+    }
+  }, [channel.id, channel.groupId, onLeaveChannel, navigateBack]);
+
+  const leaveActions = createActionGroup(
+    'negative',
+    canLeave && {
+      title: 'Leave channel',
+      action: leaveChannel,
+    },
+    canDelete && {
+      title: 'Delete channel',
+      action: () => setShowDeleteDialog(true),
+    }
+  );
+
+  if (leaveActions.actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <ActionSheet.ActionGroup
+        padding={0}
+        contentProps={{ borderRadius: '$2xl' }}
+        accent="negative"
+      >
+        {leaveActions.actions.map((action, i) => (
+          <ActionSheet.Action
+            key={i}
+            action={action}
+            testID={`ChannelLeaveAction-${action.title}`}
+          />
+        ))}
+      </ActionSheet.ActionGroup>
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={`Delete ${channelTitle}?`}
+        description="This action cannot be undone. All messages in this channel will be permanently deleted."
+        confirmText="Delete channel"
+        cancelText="Cancel"
+        onConfirm={handleDeleteChannel}
+        destructive
+      />
+    </View>
+  );
+}
