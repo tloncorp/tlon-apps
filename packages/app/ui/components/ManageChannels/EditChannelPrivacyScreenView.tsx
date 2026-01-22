@@ -5,17 +5,12 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { ChannelEditFormLayout } from './ChannelEditFormLayout';
+import { ChannelPermissionsSelector, PermissionTable } from './ChannelPermissions';
 import {
-  ChannelPermissionsSelector,
-  MEMBERS_MARKER,
-  PermissionTable,
-} from './EditChannelScreenView';
-
-interface ChannelPrivacyFormSchema {
-  isPrivate: boolean;
-  readers: string[];
-  writers: string[];
-}
+  ChannelPrivacyFormSchema,
+  convertFormRolesToBackend,
+  getChannelPrivacyDefaults,
+} from './channelFormUtils';
 
 interface EditChannelPrivacyScreenViewProps {
   goBack: () => void;
@@ -25,36 +20,6 @@ interface EditChannelPrivacyScreenViewProps {
   onSubmit: (readers: string[], writers: string[]) => void;
 }
 
-const getDefaultFormValues = (
-  channel?: db.Channel | null
-): ChannelPrivacyFormSchema => {
-  const readerRoles = channel?.readerRoles?.map((r) => r.roleId) ?? [];
-  const writerRoles = channel?.writerRoles?.map((r) => r.roleId) ?? [];
-  const isPrivate = readerRoles.length > 0 || writerRoles.length > 0;
-
-  const readers = isPrivate
-    ? readerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER]
-      : readerRoles.includes('admin')
-        ? readerRoles
-        : ['admin', ...readerRoles]
-    : [];
-
-  const writers = isPrivate
-    ? writerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER]
-      : writerRoles.includes('admin')
-        ? writerRoles
-        : ['admin', ...writerRoles]
-    : [];
-
-  return {
-    readers,
-    writers,
-    isPrivate,
-  };
-};
-
 export function EditChannelPrivacyScreenView({
   goBack,
   isLoading,
@@ -63,7 +28,7 @@ export function EditChannelPrivacyScreenView({
   group,
 }: EditChannelPrivacyScreenViewProps) {
   const form = useForm<ChannelPrivacyFormSchema>({
-    defaultValues: getDefaultFormValues(channel),
+    defaultValues: getChannelPrivacyDefaults(channel),
     mode: 'onChange',
   });
 
@@ -71,16 +36,10 @@ export function EditChannelPrivacyScreenView({
 
   const handleSave = useCallback(
     (data: ChannelPrivacyFormSchema) => {
-      // If MEMBERS_MARKER is present, send empty array (everyone can access)
-      // Otherwise, ensure admin is included and send actual role IDs
-      const readers = data.readers.includes(MEMBERS_MARKER)
-        ? []
-        : data.readers.filter((r) => r !== MEMBERS_MARKER);
-
-      const writers = data.writers.includes(MEMBERS_MARKER)
-        ? []
-        : data.writers.filter((w) => w !== MEMBERS_MARKER);
-
+      const { readers, writers } = convertFormRolesToBackend(
+        data.readers,
+        data.writers
+      );
       onSubmit(readers, writers);
     },
     [onSubmit]
@@ -88,7 +47,7 @@ export function EditChannelPrivacyScreenView({
 
   useEffect(() => {
     if (channel) {
-      reset(getDefaultFormValues(channel));
+      reset(getChannelPrivacyDefaults(channel));
     }
   }, [channel, reset]);
 
