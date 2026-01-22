@@ -184,6 +184,16 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     fromChatDetails?: boolean;
   };
+  EditChannelMeta: {
+    channelId: string;
+    groupId: string;
+    fromChatDetails?: boolean;
+  };
+  EditChannelPrivacy: {
+    channelId: string;
+    groupId: string;
+    fromChatDetails?: boolean;
+  };
   GroupMeta: {
     groupId: string;
     fromBlankChannel?: boolean;
