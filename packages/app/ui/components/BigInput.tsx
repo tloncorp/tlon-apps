@@ -75,6 +75,7 @@ export function BigInput({
   const [isEmpty, setIsEmpty] = useState(true);
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const [markdownContent, setMarkdownContent] = useState('');
+  const [pendingEditorContent, setPendingEditorContent] = useState<object | null>(null);
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -99,6 +100,19 @@ export function BigInput({
       setIsEmpty(nextIsEmpty);
     },
     [editingPost?.content, attachments, channelType]
+  );
+
+  // Handle setting pending content when editor becomes ready after switching from Markdown mode
+  const handleEditorStateChange = useCallback(
+    (state: { isReady: boolean }) => {
+      if (state.isReady && pendingEditorContent && editorRef.current?.editor) {
+        logger.log('Editor ready, setting pending content from Markdown conversion');
+        // @ts-expect-error setContent does accept JSONContent
+        editorRef.current.editor.setContent(pendingEditorContent);
+        setPendingEditorContent(null);
+      }
+    },
+    [pendingEditorContent]
   );
 
   useEffect(() => {
@@ -441,11 +455,11 @@ export function BigInput({
     } else {
       // Switching FROM Markdown mode: convert Markdown to rich text
       try {
-        if (editorRef.current?.editor && markdownContent) {
+        if (markdownContent) {
           const story = markdownToStory(markdownContent);
           const tiptapContent = tiptap.diaryMixedToJSON(story);
-          // @ts-expect-error setContent does accept JSONContent
-          editorRef.current.editor.setContent(tiptapContent);
+          // Store the content to be set when editor becomes ready
+          setPendingEditorContent(tiptapContent);
         }
         setIsMarkdownMode(false);
       } catch (error) {
@@ -612,6 +626,7 @@ export function BigInput({
               shouldAutoFocus={true}
               showInlineAttachments={channelType === 'gallery'}
               onEditorContentChange={handleEditorContentChanged}
+              onEditorStateChange={handleEditorStateChange}
               title={title}
               image={
                 imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
