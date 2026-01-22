@@ -1,251 +1,22 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import {
-  Button,
-  ConfirmDialog,
-  FormInput,
-  Icon,
-  Pressable,
-  Text,
-} from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
-import { Alert, Platform, Switch } from 'react-native';
+import { useFormContext } from 'react-hook-form';
+import { Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { RadioControl, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
-import { ScreenHeader } from '../ScreenHeader';
-
-interface ChannelFormSchema {
-  title: string | null | undefined;
-  description: string | null | undefined;
-  isPrivate: boolean;
-  readers: string[];
-  writers: string[];
-}
-
-export interface RoleOption {
-  label: string;
-  value: string;
-}
-
-interface EditChannelScreenViewProps {
-  goBack: () => void;
-  isLoading: boolean;
-  channel?: db.Channel | null;
-  onSubmit: (
-    title: string,
-    readers: string[],
-    writers: string[],
-    description?: string
-  ) => void;
-  onDeleteChannel: () => void;
-}
-
-const getDefaultFormValues = (
-  channel?: db.Channel | null
-): ChannelFormSchema => {
-  const readerRoles = channel?.readerRoles?.map((r) => r.roleId) ?? [];
-  const writerRoles = channel?.writerRoles?.map((r) => r.roleId) ?? [];
-  const isPrivate = readerRoles.length > 0 || writerRoles.length > 0;
-
-  const readers = isPrivate
-    ? readerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER] // Empty readers means Members, but admin is always included
-      : readerRoles.includes('admin')
-        ? readerRoles
-        : ['admin', ...readerRoles] // Ensure admin is present
-    : [];
-
-  const writers = isPrivate
-    ? writerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER] // Empty writers means Members, but admin is always included
-      : writerRoles.includes('admin')
-        ? writerRoles
-        : ['admin', ...writerRoles] // Ensure admin is present
-    : [];
-
-  return {
-    title: channel?.title,
-    description: channel?.description,
-    readers,
-    writers,
-    isPrivate,
-  };
-};
-
-export function EditChannelScreenView({
-  goBack,
-  isLoading,
-  onSubmit,
-  channel,
-  onDeleteChannel,
-}: EditChannelScreenViewProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const form = useForm<ChannelFormSchema>({
-    defaultValues: getDefaultFormValues(channel),
-    mode: 'onChange',
-  });
-
-  const {
-    control,
-    reset,
-    handleSubmit,
-    formState: { errors },
-  } = form;
-
-  const { data: group } = store.useGroup({
-    id: channel?.groupId ?? '',
-  });
-
-  const handleSave = useCallback(
-    (data: ChannelFormSchema) => {
-      const title = data.title;
-      if (!title || typeof title !== 'string') {
-        return;
-      }
-
-      // If MEMBERS_MARKER is present, send empty array (everyone can access)
-      // Otherwise, ensure admin is included and send actual role IDs
-      const readers = data.readers.includes(MEMBERS_MARKER)
-        ? [] // Empty array means all members (including admin) can read
-        : data.readers.filter((r) => r !== MEMBERS_MARKER); // Admin should already be in the array
-
-      // Same for writers
-      const writers = data.writers.includes(MEMBERS_MARKER)
-        ? [] // Empty array means all members (including admin) can write
-        : data.writers.filter((w) => w !== MEMBERS_MARKER); // Admin should already be in the array
-
-      const formData = {
-        ...data,
-        title,
-        description: data.description ?? undefined,
-      };
-      onSubmit(title, readers, writers, formData.description);
-    },
-    [onSubmit]
-  );
-
-  const handlePressDelete = useCallback(() => {
-    const channelCount = group?.channels?.length ?? 0;
-    if (channelCount <= 1) {
-      Alert.alert(
-        'Cannot Delete Channel',
-        'A group must have at least one channel. Create another channel before deleting this one.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    setShowDeleteDialog(true);
-  }, [group?.channels?.length]);
-
-  useEffect(() => {
-    if (channel) {
-      reset(getDefaultFormValues(channel));
-    }
-  }, [channel, reset]);
-
-  const insets = useSafeAreaInsets();
-
-  return (
-    <FormProvider {...form}>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title="Channel settings"
-          backAction={goBack}
-          isLoading={isLoading}
-        />
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
-        >
-          <YStack gap="$2xl" padding="$xl" alignItems="center">
-            {isLoading || !channel ? null : (
-              <YStack width="100%" gap="$2xl">
-                <FormInput
-                  control={control}
-                  errors={errors}
-                  name="title"
-                  label="title"
-                  placeholder="Channel title"
-                  rules={{ required: 'Channel title is required' }}
-                  testID="ChannelTitleInput"
-                />
-                <FormInput
-                  control={control}
-                  errors={errors}
-                  name="description"
-                  label="Description"
-                  placeholder="Channel description"
-                  testID="ChannelDescriptionInput"
-                />
-              </YStack>
-            )}
-            {!!group && !!channel && (
-              <>
-                <ChannelPermissionsSelector groupRoles={group.roles} />
-                <PermissionTable groupRoles={group.roles} />
-              </>
-            )}
-            <YStack gap="$xl" width={'100%'}>
-              <Button
-                preset="primary"
-                onPress={handleSubmit(handleSave)}
-                testID="ChannelSettingsSaveButton"
-                label="Save"
-                centered
-              />
-              <Button
-                preset="destructive"
-                onPress={handlePressDelete}
-                label="Delete channel for everyone"
-                centered
-              />
-            </YStack>
-          </YStack>
-        </ScrollView>
-        <ConfirmDialog
-          open={showDeleteDialog}
-          onOpenChange={(show) => setShowDeleteDialog(show)}
-          title={`Delete ${channel?.title ?? 'channel'}?`}
-          description="This action cannot be undone."
-          confirmText="Delete channel"
-          cancelText="Cancel"
-          onConfirm={onDeleteChannel}
-          destructive
-        />
-      </View>
-    </FormProvider>
-  );
-}
-
-const mapRoleIdsToOptions = (
-  roleIds: string[],
-  allRoles: RoleOption[]
-): RoleOption[] =>
-  roleIds.map((roleId) => {
-    const role = allRoles.find((r) => r.value === roleId);
-    return { label: role?.label ?? roleId, value: roleId };
-  });
-
-export const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
-  groupRoles.map((role) => ({
-    label: role.title ?? 'Unknown role',
-    value: role.id ?? '',
-  }));
-
-// Special marker for members without explicit roles
-// In the backend, an empty readers/writers array means "accessible by all group members"
-// We use null as a marker in the UI to represent this "Members" concept
-export const MEMBERS_MARKER = null as unknown as string;
-
-export const MEMBER_ROLE_OPTION: RoleOption = {
-  label: 'Members',
-  value: MEMBERS_MARKER,
-};
+import {
+  ChannelPrivacyFormSchema,
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
+  RoleOption,
+  groupRolesToOptions,
+  mapRoleIdsToOptions,
+} from './channelFormUtils';
 
 export function PrivateChannelToggle({
   isPrivate,
@@ -305,7 +76,7 @@ export function ChannelPermissionsSelector({
 }: {
   groupRoles: db.GroupRole[];
 }) {
-  const { watch, setValue } = useFormContext<ChannelFormSchema>();
+  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
@@ -389,10 +160,18 @@ export function ChannelPermissionsSelector({
             </Text>
             <XStack flex={1.5} justifyContent="flex-end">
               <Button
-                preset="positive"
-                label="Add roles"
+                width={120}
                 onPress={() => setShowRoleSelector(true)}
-              />
+                size={'$l'}
+                backgroundColor="$positiveActionText"
+                pressStyle={{
+                  backgroundColor: '$positiveActionText',
+                  opacity: 0.9,
+                }}
+                borderColor="$positiveActionText"
+              >
+                <Button.Text color="$positiveBackground">Add roles</Button.Text>
+              </Button>
             </XStack>
           </XStack>
           <YStack gap="$l">
@@ -462,7 +241,7 @@ export function PermissionTable({
 }: {
   groupRoles: db.GroupRole[];
 }) {
-  const { watch, setValue } = useFormContext<ChannelFormSchema>();
+  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
@@ -781,13 +560,9 @@ export function RoleSelectionSheet({
           borderTopWidth={1}
           borderTopColor="$border"
         >
-          <Button
-            preset="primary"
-            onPress={handleSave}
-            testID="RoleSelectionSaveButton"
-            label="Save"
-            centered
-          />
+          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
+            <Button.Text>Save</Button.Text>
+          </Button>
         </View>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
