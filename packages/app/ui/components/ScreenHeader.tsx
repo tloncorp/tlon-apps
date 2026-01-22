@@ -1,5 +1,5 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, View } from '@tloncorp/ui';
+import { Icon, Text, View, useIsWindowNarrow } from '@tloncorp/ui';
 import { Children, PropsWithChildren, ReactNode } from 'react';
 import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +46,7 @@ export const ScreenHeaderComponent = ({
 
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
+  const isWindowNarrow = useIsWindowNarrow();
 
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
@@ -92,6 +93,10 @@ export const ScreenHeaderComponent = ({
             alignItems="center"
             justifyContent="center"
             paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
+            top={
+              !isWindowNarrow && !useHorizontalTitleLayout ? '$m' : undefined
+            }
+            position="relative"
           >
             {typeof resolvedSubtitle === 'string' ? (
               <LongPressDisclosure text={resolvedSubtitle}>
