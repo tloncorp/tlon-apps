@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo } from 'react';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
@@ -94,16 +94,19 @@ export function EditChannelPrivacyScreenView({
   }, [channel, reset]);
 
   const insets = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <FormProvider {...form}>
-      <View backgroundColor="$background" flex={1}>
+      <View backgroundColor="$secondaryBackground" flex={1}>
         <ScreenHeader
           title="Channel privacy"
-          subtitle={channel?.title}
-          showSubtitle={!!channel?.title}
+          subtitle={`${group?.title}: ${channel?.title}`}
+          showSubtitle={!!channel?.title && !!group?.title}
+          backgroundColor="$secondaryBackground"
           backAction={goBack}
           isLoading={isLoading}
+          useHorizontalTitleLayout={!isWindowNarrow}
         />
         <ScrollView
           flex={1}
