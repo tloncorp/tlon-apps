@@ -525,7 +525,7 @@
     =+  !<(command:v10:cv vase)
     =.  cor  (emit (tell:log %dbug ~['request-id: ' >request-id< ' command: ' >c-channels<] ~))
     =/  =incoming-request:v10:cv
-      (~(gut by requests) request-id [request-id ~ %sending ~])
+      (~(gut by requests) request-id [request-id ~ %sending ~ ~ |])
     =.  requests
       (~(put by requests) request-id incoming-request)
     ?-    -.c-channels
@@ -645,7 +645,7 @@
     ?>  =(ship src.bowl)
     =/  id=request-id:v10:cv  (slav %uv id.pole)
     =/  request=incoming-request:v10:cv
-      (~(gut by requests) id [id ~ %sending ~])
+      (~(gut by requests) id [id ~ %sending ~ ~ |])
     =.  requests
       (~(put by requests) id request)
     cor
@@ -667,12 +667,6 @@
       (get-hook-template kind.pole our.bowl name.pole)
     =.  cor  (give %fact ~ hook-template+!>(template))
     (give %kick ~ ~)
-  ::
-      [=kind:c name=@ %create ~]
-    ?>  =(our src):bowl
-    =*  nest  [kind.pole our.bowl name.pole]
-    ?.  (~(has by v-channels) nest)  cor
-    ca-abet:ca-watch-create:(ca-abed:ca-core nest)
   ::
       [=kind:c name=@ %updates ~]
     =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
@@ -907,11 +901,6 @@
   ::
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
-  ++  ca-watch-create
-    =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
-    =/  =path  /[kind.nest]/[name.nest]/create
-    =/  =cage  [%channel-update !>(update)]
-    (give %fact ~[path] cage)
   ::
   ++  ca-watch-updates
     |=  =@da
@@ -990,18 +979,15 @@
       ==
     =.  ca-core
       =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
-      =/  =cage  [%channel-update !>(update)]
-      =/  =path  /[kind.nest]/[name.nest]/create
-      =.  ca-core  (give %fact ~[path] cage)
-      (give %kick ~[path] ~)
-    =/  =channel:v2:gv
+      (ca-give-response-update [%ok update])
+    =/  =channel:v10:gv
       :-  [title description '' '']:new
-      [now.bowl %default | readers.new]
-    =/  =action:v2:gv
-      [group.new now.bowl %channel nest %add channel]
+      [now.bowl %default readers.new |]
+    =/  =action:v10:gv
+      [(end [3 4] eny.bowl) %group group.new %channel nest %add channel]
     =/  =dock    [our.bowl %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke group-action-3+!>(action))
+    (emit %pass wire %agent dock %poke group-action-5+!>(action))
     ::
     ::  +can-nest: does the group exist, are we an admin
     ::

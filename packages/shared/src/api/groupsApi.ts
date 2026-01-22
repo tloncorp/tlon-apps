@@ -23,7 +23,6 @@ import {
   subscribe,
   subscribeOnce,
   thread,
-  trackedPoke,
 } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
@@ -68,8 +67,9 @@ export function acceptGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -81,8 +81,8 @@ export function acceptGroupJoin({
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export function rejectGroupJoin({
@@ -92,8 +92,9 @@ export function rejectGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -105,8 +106,8 @@ export function rejectGroupJoin({
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export function cancelGroupJoin(groupId: string) {
@@ -124,6 +125,7 @@ export function inviteGroupMembers({
   groupId: string;
   contactIds: string[];
 }) {
+  // still uses poke because invite action doesn't handle venter properly
   return poke(
     groupAction5({
       invite: {
@@ -154,8 +156,9 @@ export async function kickUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -167,8 +170,8 @@ export async function kickUsersFromGroup({
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export async function banUsersFromGroup({
@@ -178,8 +181,9 @@ export async function banUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -190,8 +194,8 @@ export async function banUsersFromGroup({
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export async function unbanUsersFromGroup({
@@ -201,8 +205,9 @@ export async function unbanUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -213,8 +218,8 @@ export async function unbanUsersFromGroup({
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export async function leaveGroup(groupId: string) {
@@ -240,8 +245,9 @@ export async function updateGroupPrivacy(params: {
   newPrivacy: GroupPrivacy;
 }) {
   // In v8/v9, privacy is a single unified setting that includes secret/private/public
-  return poke(
-    groupAction5({
+  return requestResponseOrThrow({
+    id: getRequestId(),
+    'a-groups': {
       group: {
         flag: params.groupId,
         'a-group': {
@@ -250,8 +256,8 @@ export async function updateGroupPrivacy(params: {
           },
         },
       },
-    })
-  );
+    },
+  });
 }
 
 export const getPinnedItemType = (rawItem: string) => {
@@ -435,6 +441,28 @@ async function requestResponse(action: ub.GroupActionV5) {
   });
 }
 
+async function requestResponseOrThrow(
+  action: ub.GroupActionV5
+): Promise<ub.GroupActionResponseV5> {
+  const response = await requestResponse(action);
+  if ('error' in response.body) {
+    const { type, message } = response.body.error;
+    logger.trackError(message, {
+      type,
+    });
+    if (response.body.error.type === 'unknown') {
+      throw new Error('An unknown error occurred');
+    }
+    throw new Error(response.body.error.message);
+  }
+
+  if ('pending' in response.body) {
+    throw new Error('Awaiting host confirmation');
+  }
+
+  return response;
+}
+
 export const updateGroupMeta = async ({
   groupId,
   meta,
@@ -475,25 +503,18 @@ export const updateGroupMeta = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
           delete: null,
         },
       },
-    }),
-    { app: 'groups', path: '/v1/groups' },
-    (event) => {
-      if (!('r-group' in event)) {
-        return false;
-      }
-
-      return 'delete' in event['r-group'] && event.flag === groupId;
     },
-    { tag: 'deleteGroup' }
-  );
+  });
 };
 
 export const addNavSection = async ({
@@ -503,8 +524,10 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -522,18 +545,8 @@ export const addNavSection = async ({
           },
         },
       },
-    }),
-    { app: 'groups', path: '/v1/groups' },
-    (event) => {
-      if (!('r-group' in event)) {
-        return false;
-      }
-
-      const rGroup = event['r-group'];
-      return 'section' in rGroup && event.flag === groupId;
     },
-    { tag: 'addNavSection' }
-  );
+  });
 };
 
 export const deleteNavSection = async ({
@@ -543,8 +556,10 @@ export const deleteNavSection = async ({
   sectionId: string;
   groupId: string;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -556,8 +571,8 @@ export const deleteNavSection = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const updateNavSection = async ({
@@ -567,8 +582,10 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -586,8 +603,8 @@ export const updateNavSection = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const addChannelToNavSection = async ({
@@ -600,8 +617,10 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -613,22 +632,8 @@ export const addChannelToNavSection = async ({
           },
         },
       },
-    }),
-    { app: 'groups', path: '/v1/groups' },
-    (event) => {
-      if (!('r-group' in event)) {
-        return false;
-      }
-
-      const rGroup = event['r-group'];
-      return (
-        'channel' in rGroup &&
-        rGroup.channel.nest === channelId &&
-        'section' in rGroup.channel['r-channel']
-      );
     },
-    { tag: 'addChannelToNavSection' }
-  );
+  });
 };
 
 export const addChannelToGroup = async ({
@@ -640,8 +645,10 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -653,22 +660,8 @@ export const addChannelToGroup = async ({
           },
         },
       },
-    }),
-    { app: 'groups', path: '/v1/groups' },
-    (event) => {
-      if (!('r-group' in event)) {
-        return false;
-      }
-
-      const rGroup = event['r-group'];
-      return (
-        'channel' in rGroup &&
-        rGroup.channel.nest === channelId &&
-        'section' in rGroup.channel['r-channel']
-      );
     },
-    { tag: 'addChannelToGroup' }
-  );
+  });
 };
 
 export const updateChannel = async ({
@@ -680,8 +673,10 @@ export const updateChannel = async ({
   channelId: string;
   channel: GroupChannelV7;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -693,8 +688,8 @@ export const updateChannel = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const deleteChannel = async ({
@@ -704,8 +699,10 @@ export const deleteChannel = async ({
   groupId: string;
   channelId: string;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -717,8 +714,8 @@ export const deleteChannel = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const updateGroupNavigation = async ({
@@ -752,16 +749,18 @@ export const updateGroupNavigation = async ({
       .map((s) => s.sectionId),
   };
 
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
           navigation,
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const addGroupRole = async ({
@@ -773,8 +772,10 @@ export const addGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -791,8 +792,8 @@ export const addGroupRole = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const deleteGroupRole = async ({
@@ -802,8 +803,10 @@ export const deleteGroupRole = async ({
   groupId: string;
   roleId: string;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -815,8 +818,8 @@ export const deleteGroupRole = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const updateGroupRole = async ({
@@ -828,8 +831,10 @@ export const updateGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -846,8 +851,8 @@ export const updateGroupRole = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const addMembersToRole = async ({
@@ -859,8 +864,10 @@ export const addMembersToRole = async ({
   roleId: string;
   ships: string[];
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -872,8 +879,8 @@ export const addMembersToRole = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const removeMembersFromRole = async ({
@@ -885,8 +892,10 @@ export const removeMembersFromRole = async ({
   roleId: string;
   ships: string[];
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -898,8 +907,8 @@ export const removeMembersFromRole = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export const removeAllRolesFromMembers = async ({
@@ -911,8 +920,10 @@ export const removeAllRolesFromMembers = async ({
   contactIds: string[];
   roleIds: string[];
 }) => {
-  return await poke(
-    groupAction5({
+  const id = getRequestId();
+  return requestResponseOrThrow({
+    id: id,
+    'a-groups': {
       group: {
         flag: groupId,
         'a-group': {
@@ -924,8 +935,8 @@ export const removeAllRolesFromMembers = async ({
           },
         },
       },
-    })
-  );
+    },
+  });
 };
 
 export type GroupDelete = {

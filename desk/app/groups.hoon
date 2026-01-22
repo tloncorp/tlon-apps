@@ -184,14 +184,14 @@
         %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
-%^  verb  |  %warn
+%^  verb  &  %dbug
 ::
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %10
+    $:  %11
         groups=net-groups:v9:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
@@ -374,7 +374,7 @@
       =.  cor  (tell:l %dbug ~['request-id: ' >request-id< ' action: ' >a-groups<])
       ?>  from-self
       =/  =incoming-request:v10:gv
-        (~(gut by requests) request-id [request-id ~ %sending ~])
+        (~(gut by requests) request-id [request-id ~ %sending ~ ~ |])
       =.  requests
         (~(put by requests) request-id incoming-request)
       =/  =flag:g
@@ -625,7 +625,7 @@
         =/  =action:v10:gv  (action:v10:dejs:gj u.json)
         =.  requests
           %+  ~(put by requests)  request-id.action
-          [request-id.action `id %sending ~]
+          [request-id.action `id %sending ~ ~ |]
         $(+< group-action-5+!>(action))
       ==
     ::
@@ -768,7 +768,8 @@
     (emil:cor caz)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
-  ?>  ?=(%10 -.old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
@@ -821,7 +822,8 @@
   cor
   ::
   +$  any-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -935,7 +937,34 @@
         =^subs:s
         =pimp:imp
     ==
-  +$  state-10  current-state
+  +$  state-11  current-state
+  +$  state-10
+    $:  %10
+        groups=net-groups:v9:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =requests-10
+        =^subs:s
+        =pimp:imp
+    ==
+  +$  requests-10  (map request-id:g incoming-request-10)
+  +$  incoming-request-10
+    $:  id=request-id:g
+        http-id=(unit @ta)
+        =poke-status:g
+        result=(unit response-body:g)
+    ==
+  ::
+  ++  state-10-to-11
+    |=  state-10
+    ~>  %spin.['state-10-to-11']
+    ^-  state-11
+    =/  new-requests=requests:v10:gv
+      %-  ~(run by requests-10)
+      |=  req=incoming-request-10
+      ^-  incoming-request:v10:gv
+      [id.req http-id.req poke-status.req result.req final-at=~ fetched=|]
+    [%11 groups channels-index foreigns new-requests subs pimp]
   ::
   ++  state-0-to-1
     |=  state-0
@@ -1081,7 +1110,7 @@
         groups
         channels-index
         foreigns
-        ~
+        requests-10=~
         subs
         pimp
     ==
@@ -1101,7 +1130,29 @@
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
-  cor
+  ::  start request cleanup timer
+  (emit [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)])
+::
+++  cleanup-requests
+  |=  now=@da
+  ^-  requests:v10:gv
+  %-  ~(rep by requests)
+  |=  [[id=request-id:g req=incoming-request:v10:gv] out=requests:v10:gv]
+  ::  keep if not final (no result or %pending)
+  ?:  |(?=(~ result.req) ?=([~ %pending *] result.req))
+    (~(put by out) id req)
+  ::  discard if over 24 hours old
+  ?~  final-at.req  (~(put by out) id req)
+  ?:  (gth (sub now u.final-at.req) ~d1)
+    out
+  ::  successful: discard after 5 minutes
+  ?:  ?=([~ %ok *] result.req)
+    ?:  (gth (sub now u.final-at.req) ~m5)
+      out
+    (~(put by out) id req)
+  ::  failed: discard only if fetched
+  ?:  fetched.req  out
+  (~(put by out) id req)
 ::
 ++  watch
   |=  =(pole knot)
@@ -1492,6 +1543,11 @@
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
+  ::
+      [%cleanup %requests ~]
+    ?>  ?=([%behn %wake ~] sign)
+    =.  requests  (cleanup-requests now.bowl)
+    (emit [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)])
   ::
       [%~.~ %retry rest=*]
     =^  caz=(list card)  subs
@@ -2685,7 +2741,7 @@
       se-core
     ::
         %del
-      ?.  ?|  (~(has in ships) our.bowl)
+      ?:  ?|  (~(has in ships) our.bowl)
               !=(~ (~(int in ships) se-channel-hosts))
           ==
         %-  se-give-response-update
@@ -3844,7 +3900,7 @@
       =/  id=request-id:v10:gv  (slav %uv id.pole)
       =.  cor  (tell:l %dbug leaf+"+go-watch received request {<id>} from {<src.bowl>}" ~)
       =/  request=incoming-request:v10:gv
-        (~(gut by requests) id [id ~ %sending ~])
+        (~(gut by requests) id [id ~ %sending ~ ~ |])
       =.  requests
           (~(put by requests) id request)
       go-core
@@ -3928,13 +3984,20 @@
       =/  body=response-body:v10:gv  [%error %unknown u.p.sign]
       =.  requests
         %+  ~(put by requests)  id
-        u.request(poke-status %nacked, result `body)
+        %=  u.request
+          poke-status  %nacked
+          result       `body
+          final-at     `now.bowl
+        ==
       =/  =path  (weld [~.v1 go-area] /request/(scot %uv id))
       =/  =response:v10:gv  [id body]
       =.  cor
         (give %fact ~[path] group-response-2+!>(response))
       =?  cor  ?=(^ http-id.u.request)
         (give-http-response u.http-id.u.request response)
+      ::  mark as fetched after delivering final error response to client
+      =/  new-req  (~(got by requests) id)
+      =.  requests  (~(put by requests) id new-req(fetched &))
       =/  =^wire  (weld go-area /request/(scot %uv id))
       (emit %pass wire %agent [p.flag dap.bowl] %leave ~)
     ::
@@ -4047,16 +4110,24 @@
         ::
         ?~  request=(~(get by requests) id)
           ~|(go-agent-bad-request+id !!)
+        =/  is-final=?  !?=(%pending -.body.response)
         =.  requests
-            (~(put by requests) id u.request(result `body.response))
+          %+  ~(put by requests)  id
+          %=  u.request
+            result    `body.response
+            final-at  ?.(is-final ~ `now.bowl)
+          ==
         =/  =path  :(weld /v1 go-area /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
         =.  cor  (give %fact ~[path] group-response-2+!>(response))
         =?  cor  ?=(^ http-id.u.request)
           (give-http-response u.http-id.u.request response)
         ::  if we haven't heard a final response yet, keep sub open
-        ?:  ?=(%pending -.body.response)
+        ?.  is-final
           go-core
+        ::  mark as fetched after delivering final response to client
+        =/  new-req  (~(got by requests) id)
+        =.  requests  (~(put by requests) id new-req(fetched &))
         (emit %pass (welp go-area wire) %agent [p.flag dap.bowl] %leave ~)
       ==
     ==

@@ -42,9 +42,9 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
       channelParts.host,
       channelParts.name,
     ].join('/');
-    scryPath = `/${pathParts}/`;
+    scryPath = `/${pathParts}`;
   } else {
-    scryPath = `/v4/activity/dm-threads/${channel.id}/`;
+    scryPath = `/v4/activity/dm-threads/${channel.id}`;
   }
   const activity = await scry<ub.Activity>({
     app: 'activity',

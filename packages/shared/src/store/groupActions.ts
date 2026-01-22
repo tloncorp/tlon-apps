@@ -1097,10 +1097,10 @@ export async function banUserFromGroup({
   });
 
   try {
-    await api.kickUsersFromGroup({
-      groupId,
-      contactIds: [contactId],
-    });
+    // await api.kickUsersFromGroup({
+    //   groupId,
+    //   contactIds: [contactId],
+    // });
 
     await api.banUsersFromGroup({ groupId: groupId, contactIds: [contactId] });
   } catch (e) {
@@ -1146,10 +1146,10 @@ export async function unbanUserFromGroup({
     return;
   }
 
-  if (existingGroup.members.find((member) => member.contactId === contactId)) {
-    logger.error('User is still in group', groupId, contactId);
-    return;
-  }
+  // if (existingGroup.members.find((member) => member.contactId === contactId)) {
+  //   logger.error('User is still in group', groupId, contactId);
+  //   return;
+  // }
 
   // Verify user is actually in the banned list
   if (

@@ -74,6 +74,8 @@
         http-id=(unit @ta)
         =poke-status
         result=(unit response-body)
+        final-at=(unit @da)    ::  timestamp when final state reached
+        fetched=?              ::  whether response was retrieved
     ==
   +$  poke-status  ?(%sending %acked %nacked)
   +$  action-error

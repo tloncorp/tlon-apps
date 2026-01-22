@@ -869,7 +869,31 @@
     |=  [[=nest:c *] core=_cor]
     ca-abet:(ca-safe-sub:(ca-abed:ca-core:core nest) |)
   ::  rebind eyre path
-  (emit [%pass /eyre/bind %arvo %e %connect [~ /apps/channels/~/v1] dap.bowl])
+  =.  cor
+    (emit [%pass /eyre/bind %arvo %e %connect [~ /apps/channels/~/v1] dap.bowl])
+  ::  start request cleanup timer
+  (emit [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)])
+::
+++  cleanup-requests
+  |=  now=@da
+  ^-  requests:v10:cv
+  %-  ~(rep by requests)
+  |=  [[id=request-id:c req=incoming-request:v10:cv] out=requests:v10:cv]
+  ::  keep if not final (no result or %pending)
+  ?:  |(?=(~ result.req) ?=([~ %pending *] result.req))
+    (~(put by out) id req)
+  ::  discard if over 24 hours old
+  ?~  final-at.req  (~(put by out) id req)
+  ?:  (gth (sub now u.final-at.req) ~d1)
+    out
+  ::  successful: discard after 5 minutes
+  ?:  |(?=([~ %ok *] result.req) ?=([~ %no-change *] result.req))
+    ?:  (gth (sub now u.final-at.req) ~m5)
+      out
+    (~(put by out) id req)
+  ::  failed: discard only if fetched
+  ?:  fetched.req  out
+  (~(put by out) id req)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -957,105 +981,103 @@
     ==
   ::
       %channel-action-2
-    =+  !<(=action:c vase)
+    =+  !<(=action:v10:cv vase)
+    ~&  ['action devased' action]
     ?>  from-self
     =/  =incoming-request:v10:cv
-      (~(gut by requests) request-id.action [request-id.action ~ %sending ~])
+      (~(gut by requests) request-id.action [request-id.action ~ %sending ~ ~ |])
     =.  requests
       (~(put by requests) request-id.action incoming-request)
-    ?:  ?=(%create -.a-channels.action)
-      =/  core  (ca-init-req:ca-core request-id.action)
-      ca-abet:(ca-create:core create-channel.a-channels.action)
-    ?:  ?=(%pin -.a-channels.action)
-      ~&  %channels-vestigial-pin-action
-      cor
-    ?:  ?=(%toggle-post -.a-channels.action)
-      (toggle-post toggle.a-channels.action)
-    =/  core
-      (ca-init-req:(ca-abed:ca-core nest.a-channels.action) request-id.action)
-    ca-abet:(ca-a-channel:core a-channel.a-channels.action)
-  ::
-    :: TODO: add transfer/import channels
-      ?(%channel-action %channel-action-1)
-    =/  =a-channels:c
-      ?.  ?=(%channel-action mark)
-        !<(a-channels:c vase)
-      =+  !<(old-a-channels=a-channels:v7:cv vase)
-      ::  upconvert old %create action
-      ?:  ?=([%create *] old-a-channels)
-        :-  %create
-        =>  create-channel.old-a-channels
-        :*  kind
-            name
-            group
-            title
-            description
-            ~  ::  meta
-            readers
-            writers
-        ==
-      ?.  ?=([%channel *] old-a-channels)
-        old-a-channels
-      ::  upconvert old %channel action
-      ::
-      ?+    a-channel.old-a-channels  old-a-channels
-        ::
-          [%post %add *]
-        %=    old-a-channels
-            essay.c-post.a-channel
-          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %edit *]
-        %=    old-a-channels
-            essay.c-post.a-channel
-          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %add-react *]
-        %=  old-a-channels
-            q.c-post.a-channel
-          ^-  react:c
-          =*  react  q.c-post.a-channel.old-a-channels
-          ?~  react=(kill:em react)
-            [%any ^react]
-          u.react
-        ==
-        ::
-          [%post %reply * %add *]
-        %=    old-a-channels
-            memo.c-reply.c-post.a-channel
-          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %reply * %edit *]
-        %=    old-a-channels
-            memo.c-reply.c-post.a-channel
-          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %reply * %add-react *]
-        %=  old-a-channels
-            q.c-reply.c-post.a-channel
-          ^-  react:c
-          =*  react  q.c-reply.c-post.a-channel.old-a-channels
-          ?~  react=(kill:em react)
-            [%any ^react]
-          u.react
-        ==
-      ==
+    =.  cor
+      (emit (tell:plog %dbug ~['received channel action' >action<] ~))
+    =*  a-channels  a-channels.action
     ?:  ?=(%create -.a-channels)
-      ca-abet:(ca-create:ca-core create-channel.a-channels)
+      =/  core  (ca-init-req:ca-core request-id.action)
+      ca-abet:(ca-create:core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
       ~&  %channels-vestigial-pin-action
-      ?>  from-self
       cor
     ?:  ?=(%toggle-post -.a-channels)
-      ?>  from-self
       (toggle-post toggle.a-channels)
     ?:  ?=(%join -.a-channel.a-channels)
-      ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+      =/  core  (ca-init-req:ca-core request-id.action)
+      ca-abet:(ca-join:core [nest group.a-channel]:a-channels)
+    =/  core
+      (ca-init-req:(ca-abed:ca-core nest.a-channels) request-id.action)
+    ca-abet:(ca-a-channel:core a-channel.a-channels)
+  ::
+    :: TODO: add transfer/import channels
+      %channel-action-1
+    =+  !<(=a-channels:v9:cv vase)
+    $(+< channel-action-2+!>(`action:v10:cv`[(end [3 4] eny.bowl) a-channels]))
+  ::
+      %channel-action
+    =+  !<(old-a-channels=a-channels:v7:cv vase)
+    =;  =a-channels:c
+      $(+< channel-action-2+!>(`action:v10:cv`[(end [3 4] eny.bowl) a-channels]))
+    ::  upconvert old %create action
+    ?:  ?=([%create *] old-a-channels)
+      :-  %create
+      =>  create-channel.old-a-channels
+      :*  kind
+          name
+          group
+          title
+          description
+          ~  ::  meta
+          readers
+          writers
+      ==
+    ?.  ?=([%channel *] old-a-channels)
+      old-a-channels
+    ::  upconvert old %channel action
+    ::
+    ?+    a-channel.old-a-channels  old-a-channels
+      ::
+        [%post %add *]
+      %=    old-a-channels
+          essay.c-post.a-channel
+        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %edit *]
+      %=    old-a-channels
+          essay.c-post.a-channel
+        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %add-react *]
+      %=  old-a-channels
+          q.c-post.a-channel
+        ^-  react:c
+        =*  react  q.c-post.a-channel.old-a-channels
+        ?~  react=(kill:em react)
+          [%any ^react]
+        u.react
+      ==
+      ::
+        [%post %reply * %add *]
+      %=    old-a-channels
+          memo.c-reply.c-post.a-channel
+        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %reply * %edit *]
+      %=    old-a-channels
+          memo.c-reply.c-post.a-channel
+        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %reply * %add-react *]
+      %=  old-a-channels
+          q.c-reply.c-post.a-channel
+        ^-  react:c
+        =*  react  q.c-reply.c-post.a-channel.old-a-channels
+        ?~  react=(kill:em react)
+          [%any ^react]
+        u.react
+      ==
+    ==
   ::
       %channel-request-join
     =+  !<([=nest:c =flag:g] vase)
@@ -1140,6 +1162,10 @@
         =/  =request-id:v10:cv  (slav %uv i.t.site)
         ?~  request=(~(get by requests) request-id)
           (emil not-found)
+        ::  mark as fetched after delivering final error response to client
+        =/  new-req  (~(got by requests) request-id)
+        =.  requests
+          (~(put by requests) request-id new-req(fetched &))
         =/  =response:v10:cv
           :-  request-id
           ?~  result.u.request  [%pending poke-status.u.request]
@@ -1152,7 +1178,7 @@
         =/  =action:v10:cv  (action:dejs:cj u.json)
         =.  requests
           %+  ~(put by requests)  request-id.action
-          [request-id.action `id %sending ~]
+          [request-id.action `id %sending ~ ~ |]
         $(+< channel-action-2+!>(action))
       ==
     ==
@@ -1216,7 +1242,7 @@
     =.  cor
       (emit (tell:plog %dbug leaf+"received request {<req-id>} from {<src.bowl>}" ~))
     =/  request=incoming-request:v10:cv
-      (~(gut by requests) req-id [req-id ~ %sending ~])
+      (~(gut by requests) req-id [req-id ~ %sending ~ ~ |])
     =.  requests
       (~(put by requests) req-id request)
     cor
@@ -1678,6 +1704,11 @@
   ^+  cor
   ?+  pole  ~|(bad-arvo-take/pole !!)
       [%~.~ %cancel-retry rest=*]  cor
+  ::
+      [%cleanup %requests ~]
+    ?>  ?=([%behn %wake ~] sign)
+    =.  requests  (cleanup-requests now.bowl)
+    (emit [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)])
   ::
       [%eyre %bind ~]
     ?>  ?=(%bound +<.sign)
@@ -2327,10 +2358,11 @@
       (emit (tell:plog %dbug ~[>[%received-command-ack req-id cmd]<] ~))
     ?~  p.sign
       ?~  request  ca-core
-      =?  ca-core  =(%create cmd)
-        =/  =path  /[kind.nest]/[name.nest]/create
-        =/  =wire  (weld ca-area /create)
-        ((safe-watch wire [our.bowl server] path) |)
+      :: unnecessary
+      :: =?  ca-core  =(%create cmd)
+      ::   =/  =path  /[kind.nest]/[name.nest]/create
+      ::   =/  =wire  (weld ca-area /create)
+      ::   ((safe-watch wire [our.bowl server] path) |)
       =.  requests
         (~(put by requests) req-id u.request(poke-status %acked))
       ca-core
@@ -2339,7 +2371,12 @@
     ?~  request  ca-core
     =/  body=response-body:v10:cv  [%error %unknown u.p.sign]
     =.  requests
-      (~(put by requests) req-id u.request(poke-status %nacked, result `body))
+      %+  ~(put by requests)  req-id
+      %=  u.request
+        poke-status  %nacked
+        result       `body
+        final-at     `now.bowl
+      ==
     =/  =path  (weld ca-area /request/(scot %uv req-id))
     =/  =response:v10:cv  [req-id body]
     =.  ca-core
@@ -2363,9 +2400,10 @@
       ::  if watch failed, mark request as failed
       ?~  p.sign  ca-core
       =/  request=incoming-request:v10:cv
-        (~(gut by requests) req-id [req-id ~ %nacked ~])
+        (~(gut by requests) req-id [req-id ~ %nacked ~ ~ |])
       =.  result.request
         `[%error %unknown u.p.sign]
+      =.  final-at.request  `now.bowl
       =.  requests
         (~(put by requests) req-id request)
       ::  the behn timer will still fire for the timeout, but it should be fine
@@ -2386,13 +2424,21 @@
         (emit (tell:plog %dbug ~[>[%received-response req-id response]<] ~))
       ?~  request=(~(get by requests) req-id)
         ~|(ca-agent-bad-request+req-id !!)
+      =/  is-final=?  !?=(%pending -.body.response)
       =.  requests
-        (~(put by requests) id.response u.request(result `body.response))
+        %+  ~(put by requests)  id.response
+        %=  u.request
+          result    `body.response
+          final-at  ?.(is-final ~ `now.bowl)
+        ==
       ::  if this is a successful create response, set up the channel
       =*  body  body.response-update
       =^  meta  ca-core
+        ~&  body
         ?.  ?=(%ok -.body)  [meta.channel ca-core]
         ?.  ?=(%create -.u-channel.update.body)  [meta.channel ca-core]
+        =.  ca-core
+          (emit (tell:plog %dbug ~[>[%setting-up-channel-from-create-response req-id]<] ~))
         :-  [0 meta.u-channel.update.body]
         =.  ca-core  (ca-u-channels update.body)
         =.  ca-core  ca-give-unread
@@ -2406,7 +2452,7 @@
       =?  cor  ?=(^ http-id.u.request)
           (give-http-response u.http-id.u.request response)
       ::  if we haven't heard a final response yet, keep sub open
-      ?:  ?=(%pending -.body.response)
+      ?.  is-final
         ca-core
       ::  timeout may still fire but should no-op
       =/  req-wire=wire  (weld ca-area /request/(scot %uv req-id))

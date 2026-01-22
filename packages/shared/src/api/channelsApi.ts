@@ -14,15 +14,7 @@ import {
   isGroupChannelId,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
-import {
-  poke,
-  request,
-  scry,
-  subscribe,
-  subscribeOnce,
-  thread,
-  trackedPoke,
-} from './urbit';
+import { poke, request, scry, subscribe, subscribeOnce, thread } from './urbit';
 
 const logger = createDevLogger('channelsApi', false);
 
@@ -141,44 +133,23 @@ export const createChannel = async ({
   id,
   ...channelPayload
 }: ub.Create & { id: string }) => {
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action-1',
-      json: {
-        create: channelPayload,
-      },
+  const action: ub.ChannelAction = {
+    id: getRequestId(),
+    'a-channels': {
+      create: channelPayload,
     },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      return 'create' in event.response && event.nest === id;
-    },
-    { tag: 'createChannel' }
-  );
+  };
+  return requestResponseOrThrow(action);
 };
 
 export async function updateChannelMeta(
   channelId: string,
   metaPayload: Stringified<ub.ChannelMetadataSchemaV1> | null
 ) {
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            meta: metaPayload,
-          },
-        },
-      },
-    },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      return 'meta' in event.response;
-    }
-  );
+  const action = channelAction(channelId, {
+    meta: metaPayload,
+  });
+  return requestResponseOrThrow(action);
 }
 
 export const setupChannelFromTemplate = async (
@@ -460,25 +431,13 @@ export const createNewGroupDefaultChannel = async ({
     writers: [],
   };
 
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        create: channelPayload,
-      },
+  const action: ub.ChannelAction = {
+    id: getRequestId(),
+    'a-channels': {
+      create: channelPayload,
     },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      const { response, nest } = event;
-      return (
-        'create' in response &&
-        nest ===
-          `${channelPayload.kind}/${currentUserId}/${channelPayload.name}`
-      );
-    },
-    { tag: 'createNewGroupDefaultChannel' }
-  );
+  };
+  return requestResponseOrThrow(action);
 };
 
 export const searchChannel = async (params: {
@@ -543,62 +502,25 @@ export const setOrder = async (
   channelId: string,
   arrangedPostIds: string[]
 ) => {
-  await poke({
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          order: arrangedPostIds,
-        },
-      },
-    },
-  });
+  await requestResponseOrThrow(
+    channelAction(channelId, {
+      order: arrangedPostIds,
+    })
+  );
 };
 
 export const leaveChannel = async (channelId: string) => {
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            leave: null,
-          },
-        },
-      },
-    },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      return 'leave' in event.response && event.response.leave === channelId;
-    },
-    { tag: 'leaveChannel' }
-  );
+  const action = channelAction(channelId, {
+    leave: null,
+  });
+  return requestResponseOrThrow(action);
 };
 
 export const joinChannel = async (channelId: string, groupId: string) => {
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            join: groupId,
-          },
-        },
-      },
-    },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      return 'join' in event.response && event.nest === channelId;
-    },
-    { tag: 'joinChannel' }
-  );
+  const action = channelAction(channelId, {
+    join: groupId,
+  });
+  return requestResponseOrThrow(action);
 };
 
 export async function getChannelHooksPreview(channelId: string) {
@@ -618,7 +540,9 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelPokeAction(channelId, { 'add-writers': writers }));
+  return requestResponseOrThrow(
+    channelAction(channelId, { 'add-writers': writers })
+  );
 }
 
 export async function removeChannelWriters({
@@ -628,7 +552,9 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelPokeAction(channelId, { 'del-writers': writers }));
+  return requestResponseOrThrow(
+    channelAction(channelId, { 'del-writers': writers })
+  );
 }
 
 export async function requestResponse(
@@ -638,23 +564,27 @@ export async function requestResponse(
     method: 'POST',
     body: JSON.stringify(action),
   });
+}
 
-  // if ('error' in response.body) {
-  //   const { type, message } = response.body.error;
-  //   logger.trackError(message, {
-  //     type,
-  //   });
-  //   if (response.body.error.type === 'unknown') {
-  //     throw new Error('An unknown error occurred');
-  //   }
-  //   throw new Error(response.body.error.message);
-  // }
+export async function requestResponseOrThrow(
+  action: ub.ChannelAction
+): Promise<ub.ChannelActionResponse> {
+  const response = await requestResponse(action);
+  if ('error' in response.body) {
+    const { type, message } = response.body.error;
+    logger.trackError(message, {
+      type,
+    });
+    if (response.body.error.type === 'unknown') {
+      throw new Error('An unknown error occurred');
+    }
+    throw new Error(response.body.error.message);
+  }
 
-  // if ('pending' in response.body) {
-  //   throw new Error('Awaiting host confirmation');
-  // }
-
-  // return response.body;
+  if ('pending' in response.body) {
+    throw new Error('Awaiting host confirmation');
+  }
+  return response;
 }
 
 export async function getChannelRequestResult(requestId: string) {
