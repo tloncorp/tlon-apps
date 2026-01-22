@@ -1,10 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
-import { useGroupContext } from '../../hooks/useGroupContext';
+import { useChannelEditScreen } from '../../hooks/useChannelEditScreen';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
 import { EditChannelPrivacyScreenView } from '../../ui/components/ManageChannels/EditChannelPrivacyScreenView';
 
 type Props = NativeStackScreenProps<
@@ -14,25 +12,9 @@ type Props = NativeStackScreenProps<
 
 export function EditChannelPrivacyScreen(props: Props) {
   const { groupId, channelId } = props.route.params;
-  const { navigation } = props;
-  const { updateChannel } = useGroupContext({
-    groupId,
-  });
-  const { data: channel, isLoading } = store.useChannel({
-    id: channelId ?? '',
-  });
-  const { data: group } = store.useGroup({
-    id: groupId ?? '',
-  });
-  const { navigateToChatDetails } = useRootNavigation();
 
-  const handleGoBack = useCallback(() => {
-    if (channel?.id) {
-      navigateToChatDetails({ type: 'channel', id: channel.id });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, navigateToChatDetails, channel?.id]);
+  const { channel, group, isLoading, updateChannel, handleGoBack } =
+    useChannelEditScreen({ groupId, channelId });
 
   const handleSubmit = useCallback(
     async (readers: string[], writers: string[]) => {

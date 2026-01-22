@@ -280,14 +280,19 @@ function ChatDetailsScreenContent({
         <>
           <GroupQuickActions group={group} canInvite={canInviteToGroup} />
           <GroupDescription group={group} />
-          <GroupSettings group={group} actionsEnabled={actionsEnabled} />
+          <ChatSettings
+            chatType="group"
+            group={group}
+            actionsEnabled={actionsEnabled}
+          />
         </>
       )}
 
       {chatType === 'channel' && channel && channel.groupId && (
         <>
           <ChannelQuickActions channel={channel} canInvite={canInviteToGroup} />
-          <ChannelSettings
+          <ChatSettings
+            chatType="channel"
             channel={channel}
             group={group}
             actionsEnabled={actionsEnabled}
@@ -305,97 +310,16 @@ function ChatDetailsScreenContent({
       ) : null}
 
       {chatType === 'group' && group ? (
-        <GroupLeaveActions group={group} />
+        <ChatLeaveActions chatType="group" group={group} />
       ) : null}
       {chatType === 'channel' && channel && channel.groupId && (
-        <ChannelLeaveActions channel={channel} />
+        <ChatLeaveActions chatType="channel" channel={channel} />
       )}
     </ScrollView>
   );
 }
 
-function GroupLeaveActions({ group }: { group: db.Group }) {
-  const { onLeaveGroup } = useChatSettingsNavigation();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const canLeave = !group.currentUserIsHost;
-  const canDelete = group.currentUserIsHost;
-  const groupTitle = useGroupTitle(group) ?? 'group';
-
-  const { deleteGroup } = useGroupContext({
-    groupId: group.id,
-  });
-
-  const { leaveGroup } = useChatOptions();
-
-  const handleLeaveGroupWithConfirm = useCallback(async () => {
-    const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
-
-    if (isWeb) {
-      const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
-      if (confirmed) {
-        await leaveGroup();
-      }
-    } else {
-      Alert.alert(`Leave ${groupTitle}?`, message, [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Leave Group',
-          style: 'destructive',
-          onPress: leaveGroup,
-        },
-      ]);
-    }
-  }, [groupTitle, leaveGroup]);
-
-  const leaveActions = createActionGroup(
-    'negative',
-    canLeave && {
-      title: 'Leave group',
-      action: handleLeaveGroupWithConfirm,
-    },
-    canDelete && {
-      title: 'Delete group',
-      action: () => setShowDeleteDialog(true),
-    }
-  );
-
-  const handleDeleteGroup = useCallback(() => {
-    deleteGroup();
-    onLeaveGroup();
-  }, [deleteGroup, onLeaveGroup]);
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <ActionSheet.ActionGroup
-        padding={0}
-        contentProps={{ borderRadius: '$2xl' }}
-        accent="negative"
-      >
-        {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action
-            key={i}
-            action={action}
-            testID={`GroupLeaveAction-${action.title}`}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-      <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={`Delete ${groupTitle ?? 'This group'}?`}
-        description="This action cannot be undone."
-        confirmText="Delete group"
-        cancelText="Cancel"
-        onConfirm={handleDeleteGroup}
-        destructive
-      />
-    </View>
-  );
-}
-
+// Shared helper for notification title
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
   baseVolumeLevel: ub.NotificationLevel
@@ -411,20 +335,25 @@ function getNotificationTitle(
   return `${defaultLevelName} (app default)`;
 }
 
-function GroupSettings({
-  group,
-  actionsEnabled,
-}: {
-  group: db.Group;
+// Unified ChatSettings component for both groups and channels
+interface ChatSettingsProps {
+  chatType: 'group' | 'channel';
+  group?: db.Group | null;
+  channel?: db.Channel | null;
   actionsEnabled: boolean;
-}) {
-  const channelCount = group.channels?.length ?? 0;
+}
 
+function ChatSettings({
+  chatType,
+  group,
+  channel,
+  actionsEnabled,
+}: ChatSettingsProps) {
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group.id, currentUserId);
+  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
 
   const { groupRoles } = useGroupContext({
-    groupId: group.id,
+    groupId: group?.id ?? '',
   });
 
   const {
@@ -432,51 +361,76 @@ function GroupSettings({
     onPressManageChannels,
     onPressChatVolume,
     onPressRoles,
+    onPressEditChannelPrivacy,
   } = useChatSettingsNavigation();
 
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
+  // Get volume settings from the appropriate source
+  const volumeSettings =
+    chatType === 'group' ? group?.volumeSettings : channel?.volumeSettings;
+
   const notificationTitle = useMemo(
-    () => getNotificationTitle(group.volumeSettings, baseVolumeLevel),
-    [group.volumeSettings, baseVolumeLevel]
+    () => getNotificationTitle(volumeSettings, baseVolumeLevel),
+    [volumeSettings, baseVolumeLevel]
   );
 
+  // Group-specific handlers
   const handlePressGroupPrivacy = useCallback(() => {
-    onPressGroupPrivacy?.(group.id);
-  }, [group.id, onPressGroupPrivacy]);
+    if (group) {
+      onPressGroupPrivacy?.(group.id);
+    }
+  }, [group, onPressGroupPrivacy]);
 
   const handlePressManageChannels = useCallback(() => {
-    onPressManageChannels?.(group.id);
-  }, [group.id, onPressManageChannels]);
-
-  const handlePressNotificationSettings = useCallback(() => {
-    onPressChatVolume({ type: 'group', id: group.id });
-  }, [group.id, onPressChatVolume]);
+    if (group) {
+      onPressManageChannels?.(group.id);
+    }
+  }, [group, onPressManageChannels]);
 
   const handlePressRoles = useCallback(() => {
-    onPressRoles?.(group.id);
-  }, [group.id, onPressRoles]);
+    if (group) {
+      onPressRoles?.(group.id);
+    }
+  }, [group, onPressRoles]);
+
+  // Channel-specific handlers
+  const handlePressEditChannelPrivacy = useCallback(() => {
+    if (channel?.groupId) {
+      onPressEditChannelPrivacy(channel.id, channel.groupId);
+    }
+  }, [channel, onPressEditChannelPrivacy]);
+
+  // Shared handler
+  const handlePressNotificationSettings = useCallback(() => {
+    if (chatType === 'group' && group) {
+      onPressChatVolume({ type: 'group', id: group.id });
+    } else if (chatType === 'channel' && channel) {
+      onPressChatVolume({ type: 'channel', id: channel.id });
+    }
+  }, [chatType, group, channel, onPressChatVolume]);
 
   const actions = useMemo(() => {
-    const actionList: GroupSettingsActionProps[] = [
-      {
-        title: 'Notifications',
-        description: notificationTitle,
-        testID: 'GroupNotifications',
-        disabled: false,
-        onPress: handlePressNotificationSettings,
-      },
-    ];
+    // Common notification action for all users
+    const notificationAction: SettingsActionProps = {
+      title: 'Notifications',
+      description: notificationTitle,
+      testID: chatType === 'group' ? 'GroupNotifications' : 'ChannelNotifications',
+      disabled: false,
+      onPress: handlePressNotificationSettings,
+    };
 
     if (!currentUserIsAdmin) {
-      return actionList;
+      return [notificationAction];
     }
 
-    return (
-      [
+    // Admin-only actions differ by chat type
+    if (chatType === 'group' && group) {
+      const channelCount = group.channels?.length ?? 0;
+      return [
         {
           title: 'Privacy',
-          endValue: capitalize(group?.privacy ?? ''),
+          endValue: capitalize(group.privacy ?? ''),
           testID: 'GroupPrivacy',
           disabled: !actionsEnabled,
           onPress: handlePressGroupPrivacy,
@@ -495,19 +449,40 @@ function GroupSettings({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
-      ] as GroupSettingsActionProps[]
-    ).concat(actionList);
+        notificationAction,
+      ];
+    }
+
+    if (chatType === 'channel' && channel) {
+      const isPrivate =
+        (channel.readerRoles?.length ?? 0) > 0 ||
+        (channel.writerRoles?.length ?? 0) > 0;
+      return [
+        {
+          title: 'Privacy',
+          endValue: isPrivate ? 'Private' : 'Public',
+          testID: 'ChannelPrivacy',
+          disabled: !actionsEnabled,
+          onPress: handlePressEditChannelPrivacy,
+        },
+        notificationAction,
+      ];
+    }
+
+    return [notificationAction];
   }, [
+    chatType,
+    group,
+    channel,
+    currentUserIsAdmin,
+    actionsEnabled,
     notificationTitle,
     handlePressNotificationSettings,
-    currentUserIsAdmin,
-    group?.privacy,
-    actionsEnabled,
     handlePressGroupPrivacy,
-    groupRoles?.length,
     handlePressRoles,
-    channelCount,
     handlePressManageChannels,
+    handlePressEditChannelPrivacy,
+    groupRoles?.length,
   ]);
 
   return (
@@ -520,9 +495,11 @@ function GroupSettings({
           borderWidth: 0,
         }}
       >
-        <ConnectionStatus contactId={group.hostUserId} type="action" />
+        {chatType === 'group' && group && (
+          <ConnectionStatus contactId={group.hostUserId} type="action" />
+        )}
         {actions.map((action, index) => (
-          <GroupSettingsAction
+          <SettingsAction
             key={index}
             {...action}
             first={index === 0}
@@ -534,7 +511,7 @@ function GroupSettings({
   );
 }
 
-interface GroupSettingsActionProps {
+interface SettingsActionProps {
   title: string | React.ReactNode;
   description?: string;
   endValue?: string;
@@ -545,7 +522,7 @@ interface GroupSettingsActionProps {
   onPress: () => void;
 }
 
-function GroupSettingsAction({
+function SettingsAction({
   title,
   description,
   endValue,
@@ -554,7 +531,7 @@ function GroupSettingsAction({
   first,
   last,
   onPress,
-}: GroupSettingsActionProps) {
+}: SettingsActionProps) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -608,6 +585,145 @@ function GroupSettingsAction({
         </ListItem.EndContent>
       </ListItem>
     </Pressable>
+  );
+}
+
+// Unified ChatLeaveActions component for both groups and channels
+interface ChatLeaveActionsProps {
+  chatType: 'group' | 'channel';
+  group?: db.Group;
+  channel?: db.Channel;
+}
+
+function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
+  const { onLeaveGroup, onLeaveChannel } = useChatSettingsNavigation();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const { leaveGroup, leaveChannel } = useChatOptions();
+
+  const { deleteGroup: deleteGroupFromContext } = useGroupContext({
+    groupId: group?.id ?? '',
+  });
+
+  // Always call hooks unconditionally
+  const groupTitle = useGroupTitle(group);
+
+  // Determine host status and permissions
+  const isHost =
+    chatType === 'group'
+      ? group?.currentUserIsHost
+      : channel?.currentUserIsHost ?? false;
+  const canLeave = !isHost;
+  const canDelete = isHost;
+
+  // Get title for dialogs
+  const chatTitle =
+    chatType === 'group'
+      ? groupTitle ?? 'group'
+      : channel?.title ?? 'channel';
+
+  const handleLeaveWithConfirm = useCallback(async () => {
+    if (chatType === 'group') {
+      const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+
+      if (isWeb) {
+        const confirmed = window.confirm(`Leave ${chatTitle}?\n\n${message}`);
+        if (confirmed) {
+          await leaveGroup();
+        }
+      } else {
+        Alert.alert(`Leave ${chatTitle}?`, message, [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Leave Group',
+            style: 'destructive',
+            onPress: leaveGroup,
+          },
+        ]);
+      }
+    } else {
+      await leaveChannel();
+    }
+  }, [chatType, chatTitle, leaveGroup, leaveChannel]);
+
+  const handleDelete = useCallback(async () => {
+    if (chatType === 'group') {
+      deleteGroupFromContext();
+      onLeaveGroup();
+    } else if (channel?.groupId) {
+      try {
+        await store.deleteChannel({
+          channelId: channel.id,
+          groupId: channel.groupId,
+        });
+        await onLeaveChannel(channel.groupId, channel.id);
+      } catch (error) {
+        console.error('Failed to delete channel:', error);
+        if (isWeb) {
+          window.alert('Failed to delete channel. Please try again.');
+        } else {
+          Alert.alert('Error', 'Failed to delete channel. Please try again.');
+        }
+      }
+    }
+  }, [
+    chatType,
+    channel,
+    deleteGroupFromContext,
+    onLeaveGroup,
+    onLeaveChannel,
+  ]);
+
+  const leaveActions = createActionGroup(
+    'negative',
+    canLeave && {
+      title: chatType === 'group' ? 'Leave group' : 'Leave channel',
+      action: handleLeaveWithConfirm,
+    },
+    canDelete && {
+      title: chatType === 'group' ? 'Delete group' : 'Delete channel',
+      action: () => setShowDeleteDialog(true),
+    }
+  );
+
+  if (leaveActions.actions.length === 0) {
+    return null;
+  }
+
+  const deleteDescription =
+    chatType === 'group'
+      ? 'This action cannot be undone.'
+      : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <ActionSheet.ActionGroup
+        padding={0}
+        contentProps={{ borderRadius: '$2xl' }}
+        accent="negative"
+      >
+        {leaveActions.actions.map((action, i) => (
+          <ActionSheet.Action
+            key={i}
+            action={action}
+            testID={`${chatType === 'group' ? 'Group' : 'Channel'}LeaveAction-${action.title}`}
+          />
+        ))}
+      </ActionSheet.ActionGroup>
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={`Delete ${chatTitle}?`}
+        description={deleteDescription}
+        confirmText={chatType === 'group' ? 'Delete group' : 'Delete channel'}
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        destructive
+      />
+    </View>
   );
 }
 
@@ -819,8 +935,6 @@ const GroupDescription = ({ group }: { group: db.Group }) => {
   );
 };
 
-// Channel-specific components
-
 function ChannelQuickActions({
   channel,
   canInvite,
@@ -853,181 +967,5 @@ function ChannelQuickActions({
         secondary
       />
     </ScrollView>
-  );
-}
-
-function ChannelSettings({
-  channel,
-  group,
-  actionsEnabled,
-}: {
-  channel: db.Channel;
-  group?: db.Group | null;
-  actionsEnabled: boolean;
-}) {
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
-
-  const { onPressChatVolume, onPressEditChannelPrivacy } =
-    useChatSettingsNavigation();
-
-  const baseVolumeLevel = store.useBaseVolumeLevel();
-
-  const notificationTitle = useMemo(
-    () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
-    [channel.volumeSettings, baseVolumeLevel]
-  );
-
-  const handlePressNotificationSettings = useCallback(() => {
-    onPressChatVolume({ type: 'channel', id: channel.id });
-  }, [channel.id, onPressChatVolume]);
-
-  const handlePressEditChannelPrivacy = useCallback(() => {
-    if (channel.groupId) {
-      onPressEditChannelPrivacy(channel.id, channel.groupId);
-    }
-  }, [channel.id, channel.groupId, onPressEditChannelPrivacy]);
-
-  // Determine privacy status
-  const isPrivate =
-    (channel.readerRoles?.length ?? 0) > 0 ||
-    (channel.writerRoles?.length ?? 0) > 0;
-  const privacyDescription = isPrivate ? 'Private' : 'Public';
-
-  const actions = useMemo(() => {
-    const actionList: GroupSettingsActionProps[] = [
-      {
-        title: 'Notifications',
-        description: notificationTitle,
-        testID: 'ChannelNotifications',
-        disabled: false,
-        onPress: handlePressNotificationSettings,
-      },
-    ];
-
-    if (!currentUserIsAdmin) {
-      return actionList;
-    }
-
-    // Admin-only actions
-    return [
-      {
-        title: 'Privacy',
-        endValue: privacyDescription,
-        testID: 'ChannelPrivacy',
-        disabled: !actionsEnabled,
-        onPress: handlePressEditChannelPrivacy,
-      },
-      ...actionList,
-    ] as GroupSettingsActionProps[];
-  }, [
-    currentUserIsAdmin,
-    actionsEnabled,
-    notificationTitle,
-    handlePressNotificationSettings,
-    privacyDescription,
-    handlePressEditChannelPrivacy,
-  ]);
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <ActionSheet.ActionGroup
-        padding={0}
-        contentProps={{
-          backgroundColor: '$background',
-          borderRadius: '$2xl',
-          borderWidth: 0,
-        }}
-      >
-        {actions.map((action, index) => (
-          <GroupSettingsAction
-            key={index}
-            {...action}
-            first={index === 0}
-            last={index === actions.length - 1}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-    </View>
-  );
-}
-
-function ChannelLeaveActions({ channel }: { channel: db.Channel }) {
-  const { onLeaveChannel } = useChatSettingsNavigation();
-  const { navigateBack } = useRootNavigation();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const currentUserIsHost = channel.currentUserIsHost ?? false;
-  const canLeave = !currentUserIsHost;
-  const canDelete = currentUserIsHost;
-  const channelTitle = channel.title ?? 'channel';
-
-  const { leaveChannel } = useChatOptions();
-
-  const handleDeleteChannel = useCallback(async () => {
-    if (!channel.groupId) return;
-
-    try {
-      await store.deleteChannel({
-        channelId: channel.id,
-        groupId: channel.groupId,
-      });
-      // Navigate away after deletion
-      if (channel.groupId) {
-        await onLeaveChannel(channel.groupId, channel.id);
-      } else {
-        navigateBack();
-      }
-    } catch (error) {
-      console.error('Failed to delete channel:', error);
-      if (isWeb) {
-        window.alert('Failed to delete channel. Please try again.');
-      } else {
-        Alert.alert('Error', 'Failed to delete channel. Please try again.');
-      }
-    }
-  }, [channel.id, channel.groupId, onLeaveChannel, navigateBack]);
-
-  const leaveActions = createActionGroup(
-    'negative',
-    canLeave && {
-      title: 'Leave channel',
-      action: leaveChannel,
-    },
-    canDelete && {
-      title: 'Delete channel',
-      action: () => setShowDeleteDialog(true),
-    }
-  );
-
-  if (leaveActions.actions.length === 0) {
-    return null;
-  }
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <ActionSheet.ActionGroup
-        padding={0}
-        contentProps={{ borderRadius: '$2xl' }}
-        accent="negative"
-      >
-        {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action
-            key={i}
-            action={action}
-            testID={`ChannelLeaveAction-${action.title}`}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-      <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={`Delete ${channelTitle}?`}
-        description="This action cannot be undone. All messages in this channel will be permanently deleted."
-        confirmText="Delete channel"
-        cancelText="Cancel"
-        onConfirm={handleDeleteChannel}
-        destructive
-      />
-    </View>
   );
 }
