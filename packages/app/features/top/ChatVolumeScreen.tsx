@@ -133,9 +133,13 @@ function ChatVolumeScreenView({
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Notifications"
-        subtitle={chatType === 'channel' ? channel?.title : group?.title}
+        subtitle={
+          chatType === 'channel'
+            ? `${group?.title}: ${channel?.title}`
+            : group?.title
+        }
         showSubtitle={
-          (chatType === 'channel' && !!channel?.title) ||
+          (chatType === 'channel' && !!channel?.title && !!group?.title) ||
           (chatType === 'group' && !!group?.title)
         }
         backgroundColor="$secondaryBackground"
