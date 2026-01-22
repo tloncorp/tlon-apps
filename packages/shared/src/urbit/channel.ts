@@ -5,7 +5,14 @@ import BTree from 'sorted-btree';
 
 import { parseIdNumber } from '../api/apiUtils';
 import { Stringified } from '../utils';
-import { Block, Image, Inline, isBlock, isImage } from './content';
+import {
+  Block,
+  Image,
+  Inline,
+  isBlock,
+  isImage,
+  normalizeInline,
+} from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
 
@@ -571,23 +578,55 @@ export const emptyReply: Reply = {
 export function constructStory(data: (Inline | Block)[]): Story {
   const postContent: Story = [];
   let index = 0;
-  data.forEach((c, i) => {
-    if (i < index) {
-      return;
-    }
 
-    if (isBlock(c)) {
-      postContent.push({ block: c as Block });
+  // Helper to check if an item is a break
+  const isBreakItem = (item: Inline | Block): boolean =>
+    typeof item === 'object' && item !== null && 'break' in item;
+
+  while (index < data.length) {
+    const current = data[index];
+
+    if (isBlock(current)) {
+      // Blocks get their own verse
+      postContent.push({ block: current as Block });
       index += 1;
     } else {
-      const inline = _.takeWhile(
-        _.drop(data, index),
-        (d) => !isBlock(d)
-      ) as Inline[];
-      postContent.push({ inline });
-      index += inline.length;
+      // Collect inlines until we hit a block or the end
+      // But split on paragraph boundaries (break followed by non-break content)
+      const inlineGroup: Inline[] = [];
+
+      while (index < data.length && !isBlock(data[index])) {
+        const item = data[index] as Inline;
+        inlineGroup.push(item);
+        index += 1;
+
+        // If we just added a break and the next item is not a break and not a block,
+        // this is a paragraph boundary - end this verse
+        if (
+          isBreakItem(item) &&
+          index < data.length &&
+          !isBlock(data[index]) &&
+          !isBreakItem(data[index])
+        ) {
+          break;
+        }
+      }
+
+      // Remove trailing breaks from the inline group
+      while (
+        inlineGroup.length > 0 &&
+        isBreakItem(inlineGroup[inlineGroup.length - 1])
+      ) {
+        inlineGroup.pop();
+      }
+
+      if (inlineGroup.length > 0) {
+        // Normalize adjacent styled elements (e.g., merge split italics around links)
+        const normalized = normalizeInline(inlineGroup);
+        postContent.push({ inline: normalized });
+      }
     }
-  });
+  }
 
   return postContent;
 }

@@ -18,6 +18,7 @@ import {
   Ship,
   Strikethrough,
   Task,
+  isBlockCode,
   isBlockquote,
   isBold,
   isBreak,
@@ -103,15 +104,87 @@ function inlineToMarkdown(inline: Inline): string {
       .join('\n');
   }
 
-  // Fallback for unhandled types (Sect, Tag, BlockReference, BlockCode)
+  // BlockCode - simple { code: string } format (from JSONToInlines with codeWithLang=false)
+  if (isBlockCode(inline)) {
+    const codeContent = (inline as { code: string }).code;
+    return `\`\`\`\n${codeContent}\n\`\`\``;
+  }
+
+  // Code block with lang - { code: { code: string, lang: string } } format
+  if (isCode(inline as unknown as Block)) {
+    const code = inline as unknown as Code;
+    const lang = code.code.lang || '';
+    return `\`\`\`${lang}\n${code.code.code}\n\`\`\``;
+  }
+
+  // Image - can appear in inline context from JSONToInlines
+  if (isImage(inline as unknown as Block)) {
+    const image = inline as unknown as Image;
+    return `![${image.image.alt}](${image.image.src})`;
+  }
+
+  // Fallback for unhandled types (Sect, Tag, BlockReference)
   return '';
+}
+
+/**
+ * Merge adjacent inline elements of the same type (italics, bold, strike).
+ * This handles cases where Tiptap splits styled content into multiple segments.
+ */
+function mergeAdjacentMarks(inlines: Inline[]): Inline[] {
+  if (inlines.length === 0) return inlines;
+
+  const result: Inline[] = [];
+
+  for (const inline of inlines) {
+    const last = result[result.length - 1];
+
+    // Check if we can merge with the previous element
+    if (last && typeof last === 'object' && typeof inline === 'object') {
+      // Check for italics merge
+      if (isItalics(last) && isItalics(inline)) {
+        const lastItalics = last as Italics;
+        const currentItalics = inline as Italics;
+        result[result.length - 1] = {
+          italics: [...lastItalics.italics, ...currentItalics.italics],
+        };
+        continue;
+      }
+
+      // Check for bold merge
+      if (isBold(last) && isBold(inline)) {
+        const lastBold = last as Bold;
+        const currentBold = inline as Bold;
+        result[result.length - 1] = {
+          bold: [...lastBold.bold, ...currentBold.bold],
+        };
+        continue;
+      }
+
+      // Check for strikethrough merge
+      if (isStrikethrough(last) && isStrikethrough(inline)) {
+        const lastStrike = last as Strikethrough;
+        const currentStrike = inline as Strikethrough;
+        result[result.length - 1] = {
+          strike: [...lastStrike.strike, ...currentStrike.strike],
+        };
+        continue;
+      }
+    }
+
+    result.push(inline);
+  }
+
+  return result;
 }
 
 /**
  * Convert an array of Inline elements to a Markdown string.
  */
 export function inlinesToMarkdown(inlines: Inline[]): string {
-  return inlines.map(inlineToMarkdown).join('');
+  // Merge adjacent same-type marks before converting
+  const merged = mergeAdjacentMarks(inlines);
+  return merged.map(inlineToMarkdown).join('');
 }
 
 /**
@@ -196,7 +269,7 @@ export function blockToMarkdown(block: Block): string {
     return `${hashes} ${content}`;
   }
 
-  // Code block
+  // Code block - { code: { code: string, lang: string } } format
   if (isCode(block)) {
     const code = block as Code;
     const lang = code.code.lang || '';

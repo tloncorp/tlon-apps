@@ -209,6 +209,25 @@ export function tokensToInlines(tokens: Token[]): Inline[] {
         break;
       }
 
+      case 'image': {
+        // Handle inline images within paragraphs
+        const src = getTokenAttr(token, 'src') || '';
+        const alt = token.content || getTokenAttr(token, 'alt') || '';
+        // For inline images, we create a block-style Image that will be 
+        // handled specially when converting back to markdown
+        const image: Image = {
+          image: {
+            src,
+            alt,
+            width: 0,
+            height: 0,
+          },
+        };
+        result.push(image as unknown as Inline);
+        i++;
+        break;
+      }
+
       // Skip close tokens as they're handled by their open counterparts
       case 'strong_close':
       case 'em_close':
@@ -521,14 +540,14 @@ export function tokenToBlock(
     case 'fence':
     case 'code_block': {
       // Fenced code block (fence) or indented code block (code_block)
-      // Note: The Urbit backend doesn't support the 'lang' field in code blocks,
-      // so we strip it entirely. We use a type assertion since the TypeScript
-      // interface requires 'lang', but the backend rejects it.
-      const code = {
+      // The Urbit backend expects lang to be a valid @tas (term), defaulting to 'text'
+      const lang = token.info?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'text';
+      const code: Code = {
         code: {
           code: token.content.replace(/\n$/, ''), // Remove trailing newline
+          lang,
         },
-      } as Code;
+      };
       return { block: code, endIndex: startIndex };
     }
 

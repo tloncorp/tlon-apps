@@ -282,31 +282,30 @@ describe('tokenToBlock', () => {
   });
 
   describe('fence (code block) tokens', () => {
-    it('converts fenced code block to Code (lang stripped for backend compatibility)', () => {
+    it('converts fenced code block to Code with language', () => {
       const tokens = md.parse('```js\nconst x = 1;\n```', {});
       const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
       const result = tokenToBlock(tokens, fenceIdx);
-      // Note: lang is stripped because Urbit backend doesn't support it
       expect(result.block).toEqual({
-        code: { code: 'const x = 1;' },
+        code: { code: 'const x = 1;', lang: 'js' },
       });
     });
 
-    it('handles code block without language', () => {
+    it('handles code block without language (defaults to text)', () => {
       const tokens = md.parse('```\nplain code\n```', {});
       const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
       const result = tokenToBlock(tokens, fenceIdx);
       expect(result.block).toEqual({
-        code: { code: 'plain code' },
+        code: { code: 'plain code', lang: 'text' },
       });
     });
 
-    it('preserves multiline code content', () => {
+    it('preserves multiline code content with default lang', () => {
       const tokens = md.parse('```\nline1\nline2\nline3\n```', {});
       const fenceIdx = tokens.findIndex((t) => t.type === 'fence');
       const result = tokenToBlock(tokens, fenceIdx);
       expect(result.block).toEqual({
-        code: { code: 'line1\nline2\nline3' },
+        code: { code: 'line1\nline2\nline3', lang: 'text' },
       });
     });
   });
@@ -600,21 +599,20 @@ describe('markdownToStory', () => {
   });
 
   describe('code block conversion', () => {
-    it('converts fenced code block to VerseBlock (lang stripped for backend)', () => {
+    it('converts fenced code block to VerseBlock with language', () => {
       const result = markdownToStory('```js\nconst x = 1;\n```');
-      // Note: lang is stripped because Urbit backend doesn't support it
-      expect(result).toEqual([{ block: { code: { code: 'const x = 1;' } } }]);
+      expect(result).toEqual([{ block: { code: { code: 'const x = 1;', lang: 'js' } } }]);
     });
 
-    it('handles code block without language', () => {
+    it('handles code block without language (defaults to text)', () => {
       const result = markdownToStory('```\nplain code\n```');
-      expect(result).toEqual([{ block: { code: { code: 'plain code' } } }]);
+      expect(result).toEqual([{ block: { code: { code: 'plain code', lang: 'text' } } }]);
     });
 
-    it('converts indented code block to VerseBlock', () => {
+    it('converts indented code block to VerseBlock (defaults to text)', () => {
       const result = markdownToStory('    // Some comments\n    line 1 of code');
       expect(result).toEqual([
-        { block: { code: { code: '// Some comments\nline 1 of code' } } },
+        { block: { code: { code: '// Some comments\nline 1 of code', lang: 'text' } } },
       ]);
     });
   });
@@ -768,7 +766,7 @@ const x = 1;
       expect(result[1]).toEqual({ inline: ['This is ', { bold: ['intro'] }, ' text.'] });
       expect(result[2]).toEqual({ block: { header: { tag: 'h2', content: ['Features'] } } });
       expect(result[3]).toHaveProperty('block.listing');
-      expect(result[4]).toEqual({ block: { code: { code: 'const x = 1;' } } });
+      expect(result[4]).toEqual({ block: { code: { code: 'const x = 1;', lang: 'js' } } });
       expect(result[5]).toEqual({ block: { rule: null } });
       expect(result[6]).toEqual({ inline: [{ blockquote: ['Important note'] }] });
     });

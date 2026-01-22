@@ -412,7 +412,9 @@ export function BigInput({
         if (editorRef.current?.editor) {
           const json = await editorRef.current.editor.getJSON();
           if (!contentIsEmpty(json)) {
-            const inlines = tiptap.JSONToInlines(json);
+            // Use codeWithLang=true to properly handle code blocks as Block types
+            // and limitNewlines=false to preserve paragraph structure
+            const inlines = tiptap.JSONToInlines(json, false, true);
             story = constructStory(inlines);
           }
         }

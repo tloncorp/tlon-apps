@@ -164,28 +164,26 @@ describe('Round-trip: Markdown → Story → Markdown', () => {
   });
 
   describe('code blocks', () => {
-    // Note: Language is stripped from code blocks for Urbit backend compatibility
-    it('preserves fenced code block (lang stripped)', () => {
+    it('preserves fenced code block with language', () => {
       const md = '```javascript\nconst x = 1;\n```';
-      const story = markdownToStory(md);
-      const result = storyToMarkdown(story);
-      // Lang is stripped
-      expect(result).toBe('```\nconst x = 1;\n```');
-    });
-
-    it('preserves fenced code block without language', () => {
-      const md = '```\nplain code\n```';
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
       expect(result).toBe(md);
     });
 
-    it('preserves multiline code block (lang stripped)', () => {
+    it('preserves fenced code block without language (defaults to text)', () => {
+      const md = '```\nplain code\n```';
+      const story = markdownToStory(md);
+      const result = storyToMarkdown(story);
+      // No language specified defaults to 'text'
+      expect(result).toBe('```text\nplain code\n```');
+    });
+
+    it('preserves multiline code block with language', () => {
       const md = '```ts\nfunction hello() {\n  return "world";\n}\n```';
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      // Language is stripped for backend compatibility
-      expect(result).toBe('```\nfunction hello() {\n  return "world";\n}\n```');
+      expect(result).toBe(md);
     });
   });
 
@@ -290,7 +288,7 @@ const x = 1;
 
       const story = markdownToStory(md);
       const result = storyToMarkdown(story);
-      // Language is stripped from code blocks for backend compatibility
+      // Language is preserved in code blocks
       const expected = `# Welcome
 
 This is **intro** text with ~zod mention.
@@ -300,7 +298,7 @@ This is **intro** text with ~zod mention.
 - Feature one
 - Feature two
 
-\`\`\`
+\`\`\`js
 const x = 1;
 \`\`\`
 
@@ -459,24 +457,21 @@ describe('Round-trip: Story → Markdown → Story', () => {
   });
 
   describe('code blocks', () => {
-    // Note: Code block language is stripped because Urbit backend doesn't support it
-    // This means round-trip is lossy for the lang field
-    it('preserves Code block code content (lang is stripped)', () => {
+    it('preserves Code block code content and language', () => {
       const story: Story = [
         { block: { code: { code: 'const x = 1;', lang: 'javascript' } } as Code },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      // Lang is stripped, so result won't have it
-      expect(result).toEqual([{ block: { code: { code: 'const x = 1;' } } }]);
+      expect(result).toEqual([{ block: { code: { code: 'const x = 1;', lang: 'javascript' } } }]);
     });
 
-    it('preserves Code block without language', () => {
+    it('preserves Code block without language (defaults to text)', () => {
       const story: Story = [{ block: { code: { code: 'plain code', lang: '' } } as Code }];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      // Lang is stripped from result
-      expect(result).toEqual([{ block: { code: { code: 'plain code' } } }]);
+      // Empty lang in input becomes 'text' default on round-trip
+      expect(result).toEqual([{ block: { code: { code: 'plain code', lang: 'text' } } }]);
     });
   });
 
@@ -586,6 +581,34 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       expect(result).toEqual(story);
+    });
+  });
+
+  describe('normalizeInline merging', () => {
+    it('merges adjacent italics containing links (fixes Tiptap split spans)', () => {
+      // This simulates what happens when Tiptap represents "*italic [link](url) text*"
+      // as three separate text nodes with different marks
+      const story: Story = [
+        {
+          inline: [
+            { italics: ['italic text ', { link: { href: 'http://example.com', content: 'link' } } as Link, ' more'] } as Italics,
+          ],
+        },
+      ];
+      const md = storyToMarkdown(story);
+      expect(md).toBe('*italic text [link](http://example.com) more*');
+    });
+
+    it('merges adjacent bold containing links', () => {
+      const story: Story = [
+        {
+          inline: [
+            { bold: ['bold text ', { link: { href: 'http://example.com', content: 'link' } } as Link, ' more'] } as Bold,
+          ],
+        },
+      ];
+      const md = storyToMarkdown(story);
+      expect(md).toBe('**bold text [link](http://example.com) more**');
     });
   });
 
