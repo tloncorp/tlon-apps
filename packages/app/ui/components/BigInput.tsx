@@ -1,6 +1,5 @@
 import {
   Attachment,
-  PostDataDraft,
   createDevLogger,
   markdownToStory,
   storyToMarkdown,
@@ -9,6 +8,7 @@ import {
   waitForUploads,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Block, Inline, constructStory } from '@tloncorp/shared/urbit';
 import {
   Button,
@@ -189,7 +189,7 @@ export function BigInput({
       content = tiptap.JSONToInlines(json);
     }
 
-    const draft: PostDataDraft = {
+    const draft: domain.PostDataDraft = {
       channelId,
       content,
       attachments,
@@ -209,7 +209,6 @@ export function BigInput({
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
 
-      // TODO: since we froze data in the draft, we don't really need to `await` this
       await sendPostFromDraft(draft);
 
       logger.log(
@@ -560,7 +559,11 @@ export function BigInput({
                       <Icon
                         type="Markdown"
                         size="$m"
-                        color={isMarkdownMode ? '$positiveActionText' : '$primaryText'}
+                        color={
+                          isMarkdownMode
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
                       />
                       <Text size="$label/s" color="$secondaryText">
                         Switch to Rich Text

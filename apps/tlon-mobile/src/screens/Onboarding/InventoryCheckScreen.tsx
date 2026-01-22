@@ -53,6 +53,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
     <View flex={1}>
       <ScreenHeader
         title="Welcome to Tlon"
+        backgroundColor="$secondaryBackground"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isChecking}

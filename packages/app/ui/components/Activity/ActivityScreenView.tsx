@@ -34,6 +34,7 @@ export function ActivityScreenView({
   onGroupAction,
   bucketFetchers,
   refresh,
+  subtitle,
   onNavigateToContacts,
   onInviteFriends,
 }: {
@@ -45,6 +46,7 @@ export function ActivityScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
+  subtitle?: string;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
 }) {
@@ -203,6 +205,7 @@ export function ActivityScreenView({
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
       onGroupAction={onGroupAction}
+      subtitle={subtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
     />
@@ -222,6 +225,7 @@ export function ActivityScreenContent({
   onRefreshTriggered,
   onGroupAction,
   seenMarker,
+  subtitle,
   onNavigateToContacts,
   onInviteFriends,
 }: {
@@ -237,6 +241,7 @@ export function ActivityScreenContent({
   onRefreshTriggered: () => void;
   seenMarker: number;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  subtitle?: string;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
 }) {

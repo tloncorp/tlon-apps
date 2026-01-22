@@ -633,6 +633,13 @@ export function toPostData({
 
   attachments
     .filter((attachment) => attachment.type !== 'text')
+    // For notebooks, skip header image - it goes in metadata only, not content
+    .filter((attachment) => {
+      if (channelType === 'notebook' && image && attachment.type === 'image') {
+        return attachment.file.uri !== image;
+      }
+      return true;
+    })
     .forEach((attachment) => {
       switch (attachment.type) {
         case 'reference': {

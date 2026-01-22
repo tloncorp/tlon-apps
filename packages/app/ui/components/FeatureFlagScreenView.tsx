@@ -2,6 +2,7 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, View, XStack } from 'tamagui';
 
+import { useIsWindowNarrow } from '../utils';
 import { ScreenHeader } from './ScreenHeader';
 
 export function FeatureFlagScreenView({
@@ -15,9 +16,15 @@ export function FeatureFlagScreenView({
 }) {
   const insets = useSafeAreaInsets();
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader title={'Feature Previews'} backAction={onBackPressed} />
+      <ScreenHeader
+        borderBottom
+        backAction={isWindowNarrow ? onBackPressed : undefined}
+        title={'Experimental features'}
+      />
       <ScrollView
         style={{
           flex: 1,

@@ -1,6 +1,4 @@
-import { performUpload } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
-import { Story } from '@tloncorp/shared/urbit';
 import { Audio } from 'expo-av';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,6 +38,7 @@ export function MicInput({
         ],
         channelType: draftInputContext.channel.type,
         replyToPostId: null,
+        isEdit: false,
       };
       await draftInputContext.sendPostFromDraft(draft);
     } catch (err) {

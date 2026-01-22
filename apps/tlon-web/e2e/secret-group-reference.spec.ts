@@ -34,9 +34,7 @@ test.describe('Secret Group Reference Display', () => {
     await helpers.createGroup(zodPage);
     await helpers.openGroupSettings(zodPage);
     await helpers.setGroupPrivacy(zodPage, 'secret');
-    // Navigate back to group settings to access Forward reference
-    await helpers.navigateBack(zodPage);
-    await expect(zodPage.getByText('Group info')).toBeVisible({ timeout: 5000 });
+    // setGroupPrivacy already navigates back to group settings
 
     // Step 4: Forward group reference to DM with ~ten
     await zodPage.getByText('Forward reference').click();
