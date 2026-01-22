@@ -21,6 +21,9 @@ export function EditChannelMetaScreen(props: Props) {
   const { data, isLoading } = store.useChannel({
     id: channelId ?? '',
   });
+  const { data: group } = store.useGroup({
+    id: groupId ?? '',
+  });
   const { navigateToChatDetails } = useRootNavigation();
 
   const handleGoBack = useCallback(() => {
@@ -61,6 +64,7 @@ export function EditChannelMetaScreen(props: Props) {
       goBack={handleGoBack}
       isLoading={isLoading}
       channel={data}
+      group={group}
       onSubmit={handleSubmit}
     />
   );

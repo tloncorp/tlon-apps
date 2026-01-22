@@ -3,6 +3,7 @@ import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import * as ub from '@tloncorp/shared/urbit';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -40,7 +41,6 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
-  useNotificationLevelOptions,
   useToast,
 } from '../../ui';
 import ConnectionStatus from '../../ui/components/ConnectionStatus';
@@ -264,6 +264,8 @@ function ChatDetailsScreenContent({
       >
         {chatType === 'group' ? (
           <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
+        ) : chatType === 'channel' && channel && group ? (
+          <ListItem.GroupIcon model={group} size="$5xl" />
         ) : chatType === 'channel' && channel ? (
           <ListItem.ChannelIcon model={channel} size="$5xl" />
         ) : null}
@@ -302,7 +304,9 @@ function ChatDetailsScreenContent({
         />
       ) : null}
 
-      {chatType === 'group' && group ? <GroupLeaveActions group={group} /> : null}
+      {chatType === 'group' && group ? (
+        <GroupLeaveActions group={group} />
+      ) : null}
       {chatType === 'channel' && channel && channel.groupId && (
         <ChannelLeaveActions channel={channel} />
       )}
@@ -392,6 +396,21 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
   );
 }
 
+function getNotificationTitle(
+  volumeSettings: { level: ub.NotificationLevel } | null | undefined,
+  baseVolumeLevel: ub.NotificationLevel
+): string {
+  const hasCustomSetting = !!volumeSettings?.level;
+
+  if (hasCustomSetting && volumeSettings) {
+    const levelName = ub.NotificationNamesShort[volumeSettings.level];
+    return `${levelName} (custom)`;
+  }
+
+  const defaultLevelName = ub.NotificationNamesShort[baseVolumeLevel];
+  return `${defaultLevelName} (app default)`;
+}
+
 function GroupSettings({
   group,
   actionsEnabled,
@@ -415,10 +434,12 @@ function GroupSettings({
     onPressRoles,
   } = useChatSettingsNavigation();
 
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
+  const baseVolumeLevel = store.useBaseVolumeLevel();
+
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(group.volumeSettings, baseVolumeLevel),
+    [group.volumeSettings, baseVolumeLevel]
+  );
 
   const handlePressGroupPrivacy = useCallback(() => {
     onPressGroupPrivacy?.(group.id);
@@ -440,9 +461,7 @@ function GroupSettings({
     const actionList: GroupSettingsActionProps[] = [
       {
         title: 'Notifications',
-        description: notificationOptions.find(
-          (o) => o.value === group?.volumeSettings?.level
-        )?.title,
+        description: notificationTitle,
         testID: 'GroupNotifications',
         disabled: false,
         onPress: handlePressNotificationSettings,
@@ -457,28 +476,39 @@ function GroupSettings({
       [
         {
           title: 'Privacy',
-          description: capitalize(group?.privacy ?? ''),
+          endValue: capitalize(group?.privacy ?? ''),
           testID: 'GroupPrivacy',
           disabled: !actionsEnabled,
           onPress: handlePressGroupPrivacy,
         },
         {
           title: 'Roles',
-          description: `${groupRoles?.length ?? 0}`,
+          endValue: `${groupRoles?.length ?? 0}`,
           testID: 'GroupRoles',
           disabled: !actionsEnabled,
           onPress: handlePressRoles,
         },
         {
           title: 'Channels',
-          description: `${channelCount}`,
+          endValue: `${channelCount}`,
           testID: 'GroupChannels',
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
       ] as GroupSettingsActionProps[]
     ).concat(actionList);
-  }, [currentUserIsAdmin, actionsEnabled]);
+  }, [
+    notificationTitle,
+    handlePressNotificationSettings,
+    currentUserIsAdmin,
+    group?.privacy,
+    actionsEnabled,
+    handlePressGroupPrivacy,
+    groupRoles?.length,
+    handlePressRoles,
+    channelCount,
+    handlePressManageChannels,
+  ]);
 
   return (
     <View paddingHorizontal={'$l'}>
@@ -490,7 +520,7 @@ function GroupSettings({
           borderWidth: 0,
         }}
       >
-        <ConnectionStatus contactId={group.hostUserId} type="list-item" />
+        <ConnectionStatus contactId={group.hostUserId} type="action" />
         {actions.map((action, index) => (
           <GroupSettingsAction
             key={index}
@@ -507,6 +537,7 @@ function GroupSettings({
 interface GroupSettingsActionProps {
   title: string | React.ReactNode;
   description?: string;
+  endValue?: string;
   disabled: boolean;
   testID: string;
   first?: boolean;
@@ -517,6 +548,7 @@ interface GroupSettingsActionProps {
 function GroupSettingsAction({
   title,
   description,
+  endValue,
   disabled,
   testID,
   first,
@@ -548,23 +580,27 @@ function GroupSettingsAction({
         alignItems="center"
         testID={testID}
       >
-        <ActionSheet.ActionContent flexShrink={0}>
+        <ActionSheet.ActionContent flex={1} flexShrink={0}>
           <ActionSheet.ActionTitle
             color={disabled ? '$tertiaryText' : undefined}
-            numberOfLines={0}
+            numberOfLines={1}
           >
             {title}
           </ActionSheet.ActionTitle>
+          {description && (
+            <ActionSheet.ActionDescription>
+              {description}
+            </ActionSheet.ActionDescription>
+          )}
         </ActionSheet.ActionContent>
         <ListItem.EndContent
           flexDirection="row"
           gap="$xl"
           alignItems="center"
           justifyContent="flex-end"
-          flex={1}
         >
-          {description && (
-            <ListItem.Title color="$tertiaryText">{description}</ListItem.Title>
+          {endValue && (
+            <ListItem.Title color="$tertiaryText">{endValue}</ListItem.Title>
           )}
           {!disabled && (
             <ActionSheet.ActionIcon type="ChevronRight" color="$tertiaryText" />
@@ -814,6 +850,7 @@ function ChannelQuickActions({
         title={isPinned ? 'Unpin' : 'Pin'}
         onPress={togglePinned}
         testID={`ChannelQuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
+        secondary
       />
     </ScrollView>
   );
@@ -831,23 +868,19 @@ function ChannelSettings({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
 
-  const { onPressChatVolume, onPressEditChannelMeta, onPressEditChannelPrivacy } =
+  const { onPressChatVolume, onPressEditChannelPrivacy } =
     useChatSettingsNavigation();
 
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
+  const baseVolumeLevel = store.useBaseVolumeLevel();
+
+  const notificationTitle = useMemo(
+    () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
+    [channel.volumeSettings, baseVolumeLevel]
+  );
 
   const handlePressNotificationSettings = useCallback(() => {
     onPressChatVolume({ type: 'channel', id: channel.id });
   }, [channel.id, onPressChatVolume]);
-
-  const handlePressEditChannelMeta = useCallback(() => {
-    if (channel.groupId) {
-      onPressEditChannelMeta(channel.id, channel.groupId);
-    }
-  }, [channel.id, channel.groupId, onPressEditChannelMeta]);
 
   const handlePressEditChannelPrivacy = useCallback(() => {
     if (channel.groupId) {
@@ -865,9 +898,7 @@ function ChannelSettings({
     const actionList: GroupSettingsActionProps[] = [
       {
         title: 'Notifications',
-        description: notificationOptions.find(
-          (o) => o.value === channel?.volumeSettings?.level
-        )?.title,
+        description: notificationTitle,
         testID: 'ChannelNotifications',
         disabled: false,
         onPress: handlePressNotificationSettings,
@@ -882,27 +913,19 @@ function ChannelSettings({
     return [
       {
         title: 'Privacy',
-        description: privacyDescription,
+        endValue: privacyDescription,
         testID: 'ChannelPrivacy',
         disabled: !actionsEnabled,
         onPress: handlePressEditChannelPrivacy,
-      },
-      {
-        title: 'Edit name and description',
-        testID: 'ChannelEditMeta',
-        disabled: !actionsEnabled,
-        onPress: handlePressEditChannelMeta,
       },
       ...actionList,
     ] as GroupSettingsActionProps[];
   }, [
     currentUserIsAdmin,
     actionsEnabled,
-    notificationOptions,
-    channel?.volumeSettings?.level,
+    notificationTitle,
     handlePressNotificationSettings,
     privacyDescription,
-    handlePressEditChannelMeta,
     handlePressEditChannelPrivacy,
   ]);
 
