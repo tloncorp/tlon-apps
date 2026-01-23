@@ -179,13 +179,18 @@ export const syncSince = async ({
   syncCtx = { priority: SyncPriority.High },
   callCtx = {},
   since,
+  retryAttempt = 0,
 }: {
   queryCtx?: QueryCtx;
   syncCtx?: SyncCtx;
   callCtx?: { cause?: string; foregroundStartTime?: number; withFreshChannel?: boolean };
   since?: number;
+  retryAttempt?: number;
 } = {}) => {
-  logger.log(`syncing since...`);
+  const MAX_RETRY_ATTEMPTS = 3;
+  const RETRY_DELAY_MS = 2000;
+
+  logger.log(`syncing since...`, { retryAttempt });
   try {
     await (queryCtx
       ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
@@ -204,10 +209,57 @@ export const syncSince = async ({
           }
         }));
   } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
     logger.trackError('sync since failed', {
       error: e,
       ...callCtx,
+      retryAttempt,
     });
+
+    // Special handling when sync fails after fresh channel reset
+    if (callCtx?.withFreshChannel) {
+      logger.trackEvent(AnalyticsEvent.ForegroundSyncFailedAfterFreshChannel, {
+        errorMessage,
+        retryAttempt,
+        foregroundStartTime: callCtx.foregroundStartTime,
+        timeSinceForground: callCtx.foregroundStartTime
+          ? Date.now() - callCtx.foregroundStartTime
+          : undefined,
+      });
+
+      // Retry sync after fresh channel reset failure (up to MAX_RETRY_ATTEMPTS)
+      if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+        logger.log(`Scheduling sync retry after fresh channel reset failure`, {
+          retryAttempt: retryAttempt + 1,
+          delayMs: RETRY_DELAY_MS * (retryAttempt + 1),
+        });
+
+        // Schedule retry with exponential backoff
+        setTimeout(() => {
+          syncSince({
+            queryCtx,
+            syncCtx,
+            callCtx: {
+              ...callCtx,
+              cause: `retry-after-fresh-channel-failure-${retryAttempt + 1}`,
+            },
+            since,
+            retryAttempt: retryAttempt + 1,
+          });
+        }, RETRY_DELAY_MS * (retryAttempt + 1));
+
+        // Don't mark as complete yet - retry is scheduled
+        return;
+      } else {
+        logger.error(
+          'Max retry attempts reached for sync after fresh channel reset',
+          {
+            maxAttempts: MAX_RETRY_ATTEMPTS,
+            errorMessage,
+          }
+        );
+      }
+    }
   }
   logger.log(`sync since complete`);
 
@@ -218,6 +270,7 @@ export const syncSince = async ({
       totalDuration: totalForegroundDuration,
       cause: callCtx.cause,
       withFreshChannel: callCtx.withFreshChannel ?? false,
+      retryAttempt,
     });
   }
 
