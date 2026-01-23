@@ -765,8 +765,8 @@ const presets = [
 ] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
-  width: 48,
-  height: 48,
+  width: 56,
+  height: 56,
   borderRadius: '$l',
   alignItems: 'center',
   justifyContent: 'center',
@@ -785,6 +785,8 @@ const ColorSwatchInner = styled(View, {
   width: '$4xl',
   height: '$4xl',
   borderRadius: '$m',
+  borderWidth: 1,
+  borderColor: '$shadow',
 });
 
 export const ColorInput = ({
@@ -814,7 +816,12 @@ export const ColorInput = ({
   }, [onChange, onBlur]);
 
   return (
-    <XStack gap="$xs" alignItems="center" overflow="scroll">
+    <ScrollView
+      contentContainerStyle={{
+        alignItems: 'center',
+      }}
+      horizontal
+    >
       {presets.map((color) => {
         const colorValue = getTokenValue(color, 'color');
         return (
@@ -830,6 +837,6 @@ export const ColorInput = ({
       {value && (
         <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
       )}
-    </XStack>
+    </ScrollView>
   );
 };
