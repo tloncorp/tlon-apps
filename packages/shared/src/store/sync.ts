@@ -182,7 +182,7 @@ export const syncSince = async ({
 }: {
   queryCtx?: QueryCtx;
   syncCtx?: SyncCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; foregroundStartTime?: number; withFreshChannel?: boolean };
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
@@ -210,6 +210,17 @@ export const syncSince = async ({
     });
   }
   logger.log(`sync since complete`);
+
+  // Track foreground sync completion with timing
+  if (callCtx?.foregroundStartTime) {
+    const totalForegroundDuration = Date.now() - callCtx.foregroundStartTime;
+    logger.trackEvent(AnalyticsEvent.ForegroundSyncComplete, {
+      totalDuration: totalForegroundDuration,
+      cause: callCtx.cause,
+      withFreshChannel: callCtx.withFreshChannel ?? false,
+    });
+  }
+
   updateSession({ isSyncing: false });
 };
 
@@ -221,7 +232,7 @@ export const syncLatestChanges = async ({
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; foregroundStartTime?: number; withFreshChannel?: boolean };
   since?: number;
   yieldWriter?: boolean;
 }): Promise<void> => {
@@ -280,6 +291,18 @@ export const syncLatestChanges = async ({
     msToFetch,
     msToWrite,
   });
+
+  // Track foreground time to interactive if this sync was triggered by app foreground
+  if (callCtx?.foregroundStartTime) {
+    const timeToInteractive = Date.now() - callCtx.foregroundStartTime;
+    logger.trackEvent(AnalyticsEvent.ForegroundTimeToInteractive, {
+      timeToInteractive,
+      syncDuration: duration,
+      numPosts: result.posts.length,
+      numGroups: result.groups.length,
+      withFreshChannel: callCtx.withFreshChannel ?? false,
+    });
+  }
 };
 
 export const syncCachedChanges = async (input: {
@@ -1769,8 +1792,12 @@ export const handleDiscontinuity = async (config: {
 
   if (config.forceChannelReset) {
     logger.trackEvent(AnalyticsEvent.FreshChannelResetTriggered);
+    const resetStartTime = Date.now();
     await api.resetUrbitConnection();
-    logger.trackEvent(AnalyticsEvent.FreshChannelResetComplete);
+    const resetDuration = Date.now() - resetStartTime;
+    logger.trackEvent(AnalyticsEvent.FreshChannelResetComplete, {
+      resetDuration,
+    });
   }
 
   if (isSyncing) {

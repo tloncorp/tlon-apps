@@ -54,8 +54,11 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
+        const foregroundStartTime = Date.now();
+        const useFreshChannel = isEnabled('freshChannelOnReconnect');
+
         // Check if experimental fresh channel feature is enabled
-        if (isEnabled('freshChannelOnReconnect')) {
+        if (useFreshChannel) {
           // Trigger fresh channel reset - skips event backlog and relies on sync
           await sync.handleDiscontinuity({
             retainChannelStatus: false,
@@ -64,7 +67,13 @@ function AuthenticatedApp() {
         }
 
         updateSession({ isSyncing: true });
-        syncSince({ callCtx: { cause: 'app-foregrounded' } });
+        syncSince({
+          callCtx: {
+            cause: 'app-foregrounded',
+            foregroundStartTime,
+            withFreshChannel: useFreshChannel,
+          },
+        });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
