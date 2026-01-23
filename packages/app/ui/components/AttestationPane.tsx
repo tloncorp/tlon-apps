@@ -14,7 +14,6 @@ import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts';
-import { PrimaryButton } from './Buttons';
 import { HiddenPhoneDisplay } from './Profile/ConnectedAccountsWidget';
 
 type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
@@ -140,27 +139,20 @@ export function AttestationPane({
       <YStack marginTop="$xl" gap="$m">
         {attestation.type === 'twitter' && attestation.provingTweetId && (
           <>
-            <Button paddingVertical="$xl" onPress={handleViewTweet}>
-              <Button.Text fontWeight="500">View 𝕏 Post</Button.Text>
-            </Button>
-            <Button hero onPress={handleViewAccount}>
-              <Button.Text fontWeight="500">View 𝕏 Account</Button.Text>
-            </Button>
+            <Button preset="outline" onPress={handleViewTweet} label="View 𝕏 Post" centered />
+            <Button preset="primary" onPress={handleViewAccount} label="View 𝕏 Account" centered />
           </>
         )}
 
         {attestation.contactId === currentUserId && (
-          <PrimaryButton
+          <Button
+            preset="destructive"
             onPress={handleRevoke}
             loading={revoking}
             disabled={revoking}
-            backgroundColor="$negativeBackground"
-            textColor="$negativeActionText"
-            borderColor="$negativeBorder"
-            disabledStyle={{ backgroundColor: '$negativeBackground' }}
-          >
-            Revoke
-          </PrimaryButton>
+            label="Revoke"
+            centered
+          />
         )}
       </YStack>
     </YStack>

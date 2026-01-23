@@ -333,12 +333,11 @@ export default function AttachmentSheet({
           testID="AttachmentSheetCloseButton"
         >
           <Button
-            minimal
+            preset="minimal"
             onPress={() => onOpenChange(false)}
             testID="AttachmentSheetCloseButton"
-          >
-            <Button.Text>Cancel</Button.Text>
-          </Button>
+            label="Cancel"
+          />
         </ListItem.EndContent>
       </ActionSheet.Header>
       <ActionSheet.Content>

@@ -722,7 +722,6 @@ function GroupQuickActions({
           onPress={action.action}
           disabled={action.disabled}
           testID={`GroupQuickAction-${action.title}`}
-          secondary
         />
       ))}
     </ScrollView>

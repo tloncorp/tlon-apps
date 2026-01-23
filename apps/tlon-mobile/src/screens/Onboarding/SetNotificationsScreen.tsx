@@ -78,9 +78,12 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
             config={{ shortDescriptions: true }}
           />
         </YStack>
-        <Button onPress={handleNext} hero shadow>
-          <Button.Text>Next</Button.Text>
-        </Button>
+        <Button
+          preset="hero"
+          shadow
+          label="Next"
+          onPress={handleNext}
+        />
       </View>
     </View>
   );

@@ -6,7 +6,6 @@ export * from './components/ArvosDiscussing';
 export * from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
-export * from './components/Buttons';
 export * from './components/Channel';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Channel/ChannelHeader';

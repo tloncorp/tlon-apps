@@ -248,8 +248,8 @@ function BaseRightActions({
           handleAction={handlePin}
         />
         <Action
-          backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
-          color={isMuted ? '$secondaryText' : '$secondaryText'}
+          backgroundColor={(isMuted ? '$darkBackground' : '$secondaryBackground') as ColorTokens}
+          color={"$secondaryText" as ColorTokens}
           iconType={isMuted ? 'Notifications' : 'Muted'}
           handleAction={handleMute}
         />
