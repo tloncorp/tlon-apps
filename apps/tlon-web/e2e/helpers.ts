@@ -1781,7 +1781,7 @@ export async function cleanupOwnProfile(page: Page) {
     }
 
     // Save changes
-    await page.getByText('Done').click();
+    await page.getByText('Save').click();
     await page.waitForTimeout(1000);
   }
   // Navigate back to home
@@ -1976,7 +1976,7 @@ export async function clearContactNickname(
     await page.getByTestId('ProfileNicknameInput').fill('');
 
     // Save changes
-    await page.getByText('Done').click();
+    await page.getByText('Save').click();
     await page.waitForTimeout(1000);
 
     // Navigate back home
