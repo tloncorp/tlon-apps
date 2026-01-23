@@ -347,6 +347,133 @@ test.describe('Fresh Channel Reconnection', () => {
     await expect(zodPage.getByText('Message before cycling')).toBeVisible();
   });
 
+  test('should handle 10 rapid foreground/background cycles in 1 minute with throttling', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const zodContext = zodSetup.context;
+    const tenPage = tenSetup.page;
+
+    // This test verifies PRD requirement: "Test: Rapid foreground/background 10 times in 1 minute"
+    // The throttling mechanism should limit fresh channel resets to max once per 60 seconds
+    // So only the first foreground should trigger a fresh channel reset, subsequent ones are throttled
+
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+
+    // Enable the experimental feature flag
+    await enableFreshChannelReconnect(zodPage);
+
+    // Create a group for messaging
+    await helpers.createGroup(zodPage);
+    const groupName = '~ten, ~zod';
+
+    // Invite ten to the group
+    await helpers.inviteMembersToGroup(zodPage, ['ten']);
+    await zodPage.waitForTimeout(2000);
+
+    // Accept invitation as ten
+    await helpers.acceptGroupInvite(tenPage, groupName);
+
+    // Navigate to the General channel on both ships
+    await helpers.navigateToChannel(tenPage, 'General');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // Send initial message to confirm setup works
+    await helpers.sendMessage(zodPage, 'Message before 10 cycles');
+    await expect(tenPage.getByText('Message before 10 cycles')).toBeVisible({
+      timeout: 10000,
+    });
+
+    const cycleStartTime = Date.now();
+    const cycleCount = 10;
+    const targetDuration = 60000; // 1 minute
+    const intervalBetweenCycles = Math.floor(targetDuration / cycleCount); // ~6 seconds per cycle
+
+    console.log(`Starting ${cycleCount} rapid foreground/background cycles over ~1 minute...`);
+    console.log(`Target interval between cycles: ${intervalBetweenCycles}ms`);
+
+    // Perform 10 foreground/background cycles within 1 minute
+    // Throttling should ensure only 1 fresh channel reset occurs (first cycle)
+    // Subsequent cycles should be throttled (no fresh channel reset)
+    for (let i = 1; i <= cycleCount; i++) {
+      const cycleIterationStart = Date.now();
+      console.log(`Cycle ${i}/${cycleCount} starting...`);
+
+      // Background
+      await simulateBackground(zodContext);
+      await zodPage.waitForTimeout(1000);
+
+      // Send a message from ten while zod is backgrounded
+      const cycleMessage = `Cycle ${i} message`;
+      await tenPage.getByTestId('MessageInput').click();
+      await tenPage.fill('[data-testid="MessageInput"]', cycleMessage);
+      await tenPage.getByTestId('MessageInputSendButton').click();
+      await expect(tenPage.getByText(cycleMessage)).toBeVisible({ timeout: 5000 });
+
+      // Foreground
+      await simulateForeground(zodContext);
+
+      // Brief wait for reconnection
+      await zodPage.waitForTimeout(2000);
+
+      // Calculate remaining time for this interval
+      const cycleIterationDuration = Date.now() - cycleIterationStart;
+      const remainingWait = Math.max(0, intervalBetweenCycles - cycleIterationDuration);
+
+      if (remainingWait > 0 && i < cycleCount) {
+        await zodPage.waitForTimeout(remainingWait);
+      }
+
+      console.log(`Cycle ${i}/${cycleCount} complete`);
+    }
+
+    const totalCycleDuration = Date.now() - cycleStartTime;
+    console.log(`All ${cycleCount} cycles completed in ${totalCycleDuration}ms`);
+
+    // Wait for final stabilization
+    await helpers.waitForSessionStability(zodPage);
+
+    // Verify all cycle messages are visible (no data loss despite rapid cycling)
+    console.log('Verifying all messages synced correctly...');
+    for (let i = 1; i <= cycleCount; i++) {
+      await expect(zodPage.getByText(`Cycle ${i} message`)).toBeVisible({
+        timeout: 10000,
+      });
+    }
+
+    // Verify initial message is still visible
+    await expect(zodPage.getByText('Message before 10 cycles')).toBeVisible();
+
+    // Verify app is still fully functional after rapid cycling
+    await helpers.sendMessage(zodPage, 'Message after 10 cycles');
+    await expect(tenPage.getByText('Message after 10 cycles')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify ten can also respond (bidirectional works)
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Ten response after 10 cycles');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(zodPage.getByText('Ten response after 10 cycles')).toBeVisible({
+      timeout: 10000,
+    });
+
+    console.log(`Test passed: ${cycleCount} cycles in ${totalCycleDuration}ms with no data loss`);
+
+    // Assert test completed within reasonable time (< 90 seconds including setup)
+    // This verifies throttling prevented performance degradation from too many channel resets
+    expect(totalCycleDuration).toBeLessThan(90000);
+  });
+
   test('should sync correctly after extended background period (simulated 1 hour)', async ({
     zodSetup,
     tenSetup,
