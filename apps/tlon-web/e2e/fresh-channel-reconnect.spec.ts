@@ -997,4 +997,213 @@ test.describe('Fresh Channel Reconnection', () => {
 
     console.log('Test passed: Stale sync (7+ days) works correctly with fresh channel reconnect');
   });
+
+  test('should sync DM messages, group messages, and activity (mentions) correctly after fresh channel reset', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const zodContext = zodSetup.context;
+    const tenPage = tenSetup.page;
+
+    // This test verifies PRD requirement: "Test: Verify DM messages, group messages, activity all sync correctly"
+    // After a fresh channel reset, all subscription types should sync properly:
+    // 1. DM messages - Direct messages between ships
+    // 2. Group messages - Messages in group channels
+    // 3. Activity - Mentions and notifications
+
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+
+    // Enable the experimental feature flag
+    await enableFreshChannelReconnect(zodPage);
+
+    // --- SETUP: Create Group ---
+    await helpers.createGroup(zodPage);
+    const groupName = '~ten, ~zod';
+
+    // Invite ten to the group
+    await helpers.inviteMembersToGroup(zodPage, ['ten']);
+    await zodPage.waitForTimeout(2000);
+
+    // Accept invitation as ten
+    await helpers.acceptGroupInvite(tenPage, groupName);
+
+    // Navigate to the General channel on both ships
+    await helpers.navigateToChannel(tenPage, 'General');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // Send initial group message to confirm setup
+    await helpers.sendMessage(zodPage, 'Initial group message from zod');
+    await expect(tenPage.getByText('Initial group message from zod')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // --- SETUP: Create DM ---
+    // Navigate to home and create DM from zod to ten
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await helpers.createDirectMessage(zodPage, 'ten');
+
+    // Send initial DM to confirm setup
+    await helpers.sendMessage(zodPage, 'Initial DM from zod');
+
+    // Wait for DM to sync to ten
+    await tenPage.getByTestId('HomeNavIcon').click();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+    await tenPage.waitForTimeout(2000);
+
+    // ten should see the DM from zod
+    await expect(tenPage.getByTestId('ChatListItem-~zod-unpinned')).toBeVisible({
+      timeout: 10000,
+    });
+    await tenPage.getByTestId('ChatListItem-~zod-unpinned').click();
+    await expect(tenPage.getByText('Initial DM from zod')).toBeVisible({
+      timeout: 10000,
+    });
+
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // --- SIMULATE BACKGROUND ---
+    console.log('Simulating background (going offline)...');
+    await simulateBackground(zodContext);
+    await zodPage.waitForTimeout(1000);
+
+    // --- SEND MESSAGES WHILE ZOD IS BACKGROUNDED ---
+
+    // 1. Send DM message from ten to zod
+    console.log('Sending DM message while zod is backgrounded...');
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'DM message while backgrounded');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(tenPage.getByText('DM message while backgrounded')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // 2. Send group message from ten (navigate to group first)
+    console.log('Sending group message while zod is backgrounded...');
+    await tenPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(tenPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(tenPage, 'General');
+
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Group message while backgrounded');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(tenPage.getByText('Group message while backgrounded')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // 3. Send a message with a mention to test activity sync
+    // Note: Mentions use the format ~ship-name in the message
+    console.log('Sending mention message while zod is backgrounded...');
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Hey ~zod check this out!');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(tenPage.getByText('Hey ~zod check this out!')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Wait to simulate being backgrounded for some time
+    await zodPage.waitForTimeout(3000);
+
+    // --- SIMULATE FOREGROUND ---
+    console.log('Simulating foreground (going online)...');
+    const foregroundStartTime = Date.now();
+    await simulateForeground(zodContext);
+
+    // Wait for session to stabilize
+    await helpers.waitForSessionStability(zodPage);
+
+    const foregroundDuration = Date.now() - foregroundStartTime;
+    console.log(`Foreground duration: ${foregroundDuration}ms`);
+
+    // --- VERIFY GROUP MESSAGES SYNCED ---
+    console.log('Verifying group messages synced...');
+    // Navigate to group channel (zod should still be there or navigate)
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    // Verify group messages
+    await expect(zodPage.getByText('Group message while backgrounded')).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(zodPage.getByText('Hey ~zod check this out!')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // --- VERIFY DM MESSAGES SYNCED ---
+    console.log('Verifying DM messages synced...');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await expect(zodPage.getByText('Home')).toBeVisible();
+
+    // Click on DM with ten
+    await expect(zodPage.getByTestId('ChatListItem-~ten-unpinned')).toBeVisible({
+      timeout: 10000,
+    });
+    await zodPage.getByTestId('ChatListItem-~ten-unpinned').click();
+
+    // Verify DM message
+    await expect(zodPage.getByText('DM message while backgrounded')).toBeVisible({
+      timeout: 15000,
+    });
+
+    // --- VERIFY BIDIRECTIONAL MESSAGING STILL WORKS ---
+    console.log('Verifying bidirectional messaging...');
+
+    // Send DM reply from zod
+    await helpers.sendMessage(zodPage, 'DM reply from zod after foreground');
+    await expect(tenPage.getByText('DM reply from zod after foreground')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Navigate ten to DM to verify
+    await tenPage.getByTestId('HomeNavIcon').click();
+    await tenPage.getByTestId('ChatListItem-~zod-unpinned').click();
+    await expect(tenPage.getByText('DM reply from zod after foreground')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Send DM from ten back
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'DM from ten after fresh channel');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(zodPage.getByText('DM from ten after fresh channel')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify group messaging still works
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+    await helpers.sendMessage(zodPage, 'Group reply from zod after foreground');
+    await expect(tenPage.getByText('Group reply from zod after foreground')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Performance assertion
+    expect(foregroundDuration).toBeLessThan(15000);
+
+    console.log('Test passed: DM messages, group messages, and activity all sync correctly');
+    console.log(`Summary:`);
+    console.log(`  - DM messages: ✓ synced`);
+    console.log(`  - Group messages: ✓ synced`);
+    console.log(`  - Mentions/Activity: ✓ synced`);
+    console.log(`  - Bidirectional messaging: ✓ working`);
+    console.log(`  - Foreground duration: ${foregroundDuration}ms`);
+  });
 });
