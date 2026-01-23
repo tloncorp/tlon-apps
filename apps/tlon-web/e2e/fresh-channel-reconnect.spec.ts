@@ -7,6 +7,57 @@ import { test } from './test-fixtures';
 test.setTimeout(120000);
 
 /**
+ * Helper to ensure the fresh channel on reconnect feature flag is disabled via page.evaluate
+ */
+async function disableFreshChannelReconnect(page: import('@playwright/test').Page) {
+  await page.evaluate(() => {
+    // Access the feature flag store on the window (exposed by the app)
+    const store = (window as any).__FEATURE_FLAG_STORE__;
+    if (store && typeof store.setEnabled === 'function') {
+      store.setEnabled('freshChannelOnReconnect', false);
+      return true;
+    }
+
+    // Fallback: try to access via zustand store if exposed differently
+    if ((window as any).setFeatureFlag) {
+      (window as any).setFeatureFlag('freshChannelOnReconnect', false);
+      return true;
+    }
+
+    return false;
+  });
+
+  // Also verify/disable via UI as a more reliable method
+  await page.getByTestId('SettingsNavIcon').click();
+  await expect(page.getByText('Settings', { exact: true })).toBeVisible();
+
+  // Navigate to experimental features
+  await page.getByText('Experimental features').click();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Experimental features')
+  ).toBeVisible();
+
+  // Find and ensure the "Fast foreground reconnect" toggle is disabled
+  const toggleRow = page.locator('div').filter({
+    hasText: 'Fast foreground reconnect (experimental)',
+  });
+  const toggle = toggleRow.locator('input[type="checkbox"], [role="switch"]');
+
+  // Check if toggle exists and click it if it's currently enabled
+  if (await toggle.count()) {
+    const isChecked = await toggle.isChecked().catch(() => false);
+    if (isChecked) {
+      await toggle.click();
+      await page.waitForTimeout(500); // Allow state to persist
+    }
+  }
+
+  // Navigate back to home
+  await page.getByTestId('HomeNavIcon').click();
+  await expect(page.getByText('Home')).toBeVisible();
+}
+
+/**
  * Helper to enable the fresh channel on reconnect feature flag via page.evaluate
  */
 async function enableFreshChannelReconnect(page: import('@playwright/test').Page) {
@@ -294,5 +345,112 @@ test.describe('Fresh Channel Reconnection', () => {
 
     // Verify initial message is still visible (no data loss)
     await expect(zodPage.getByText('Message before cycling')).toBeVisible();
+  });
+
+  test('should work correctly with feature flag disabled (original behavior)', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const zodContext = zodSetup.context;
+    const tenPage = tenSetup.page;
+
+    // Assert initial state
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+
+    // Explicitly disable the experimental feature flag to test original behavior
+    await disableFreshChannelReconnect(zodPage);
+
+    // Create a group for messaging
+    await helpers.createGroup(zodPage);
+    const groupName = '~ten, ~zod';
+
+    // Invite ten to the group
+    await helpers.inviteMembersToGroup(zodPage, ['ten']);
+
+    // Wait for invitation to propagate
+    await zodPage.waitForTimeout(2000);
+
+    // Accept invitation as ten
+    await helpers.acceptGroupInvite(tenPage, groupName);
+
+    // Navigate to the General channel on both ships
+    await helpers.navigateToChannel(tenPage, 'General');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    // Wait for session stability before simulating background
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // Send an initial message to confirm setup works
+    await helpers.sendMessage(zodPage, 'Initial message before disconnect');
+    await expect(tenPage.getByText('Initial message before disconnect')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // --- SIMULATE BACKGROUND (DISCONNECT) ---
+    // Go offline on zod's context to simulate app being backgrounded
+    await simulateBackground(zodContext);
+
+    // Wait a brief moment to ensure connection is dropped
+    await zodPage.waitForTimeout(1000);
+
+    // Send multiple messages from ten while zod is "offline"
+    // With flag disabled, these would be queued as SSE events (original behavior)
+    const messagesWhileOffline = [
+      'Original behavior msg 1',
+      'Original behavior msg 2',
+      'Original behavior msg 3',
+    ];
+
+    for (const message of messagesWhileOffline) {
+      await tenPage.getByTestId('MessageInput').click();
+      await tenPage.fill('[data-testid="MessageInput"]', message);
+      await tenPage.getByTestId('MessageInputSendButton').click();
+      await expect(tenPage.getByText(message)).toBeVisible({ timeout: 5000 });
+      // Small delay between messages
+      await tenPage.waitForTimeout(300);
+    }
+
+    // Wait a bit to simulate being "backgrounded" for some time
+    await zodPage.waitForTimeout(2000);
+
+    // --- SIMULATE FOREGROUND (RECONNECT) ---
+    // Go back online (simulate foregrounding)
+    await simulateForeground(zodContext);
+
+    // Wait for reconnection and event processing (original behavior)
+    await helpers.waitForSessionStability(zodPage);
+
+    // Verify all messages appear
+    // With original behavior, SSE events should be processed sequentially
+    const lastMessage = messagesWhileOffline[messagesWhileOffline.length - 1];
+    await expect(zodPage.getByText(lastMessage)).toBeVisible({
+      timeout: 15000, // Allow more time for original event processing
+    });
+
+    // Verify all messages are visible
+    for (const message of messagesWhileOffline) {
+      await expect(zodPage.getByText(message)).toBeVisible({ timeout: 5000 });
+    }
+
+    // Verify bidirectional messaging still works after reconnection
+    await helpers.sendMessage(zodPage, 'Reply with flag disabled');
+    await expect(tenPage.getByText('Reply with flag disabled')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify ten can reply back
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Ten reply with flag disabled');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(zodPage.getByText('Ten reply with flag disabled')).toBeVisible({
+      timeout: 10000,
+    });
   });
 });
