@@ -649,7 +649,6 @@ export class Urbit {
    * @param body The body to validate.
    */
   validatePokeBodySize(body: string) {
-    return;
     if (body.length / 1024 > 512) {
       logger.trackError('Body too large to send to channel');
       throw new Error('Body too large to send to channel');

@@ -17,7 +17,6 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -299,9 +298,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             content,
             metadata,
             blob,
-          }).catch((e) => {
-            console.error('Failed to send message', e);
-            Alert.alert('Failed to send message', e.message || e.toString());
           });
           scrollToNewMessage();
         },

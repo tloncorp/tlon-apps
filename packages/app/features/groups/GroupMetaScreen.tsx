@@ -80,15 +80,6 @@ export function GroupMetaScreen(props: Props) {
           },
         }
       );
-      // try {
-      //   await setGroupMetadata(data);
-
-      // } catch (e) {
-      //   toast({
-      //     message: e.message,
-      //     duration: 3000,
-      //   });
-      // }
     },
     [
       toast,

@@ -177,14 +177,14 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.groups^%2 ~ ~]
+      [~.groups^%3 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%2 ~ ~]
-        %channels^[~.channels^%3 ~ ~]
-        %channels-server^[~.channels^%3 ~ ~]
+    :~  %groups^[~.groups^%3 ~ ~]
+        %channels^[~.channels^%4 ~ ~]
+        %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
-%^  verb  &  %dbug
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>
@@ -3270,7 +3270,6 @@
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
         [%request ship=@ id=@ ~]
-      ~&  ['receiving watch for' path]
       =/  =ship  (slav %p i.t.path)
       ?>  =(ship src.bowl)
       se-core
@@ -3974,7 +3973,7 @@
       ?>  ?=(%poke-ack -.sign)
       =/  id=request-id:v10:gv  (slav %uv id.i.wire)
       =/  request  (~(get by requests) id)
-      ~&  ['receiving cmd poke ack' id cmd.i.t.t.wire]
+      =.  cor  (tell:l %dbug ~['receiving cmd poke ack' >id< >cmd.i.t.t.wire<])
       ?~  p.sign
         ?~  request  go-core
         =.  requests  (~(put by requests) id u.request(poke-status %acked))
@@ -4084,7 +4083,6 @@
         =+  !<(=channel-preview:v7:gv q.cage.sign)
         (go-give-channel-preview channel-preview |)
       ==
-    ::  this is always a request from ourselves, never others
     ::
         [%request id=@ ~]
       ?+  -.sign  ~|(go-agent-bad-request+-.sign !!)
@@ -4117,7 +4115,7 @@
             result    `body.response
             final-at  ?.(is-final ~ `now.bowl)
           ==
-        =/  =path  :(weld /v1 go-area /request/(scot %uv id))
+        =/  =path  (weld [~.v1 go-area] /request/(scot %uv id))
         =.  cor  (tell:l %dbug ~['+go-watch sending response' >id< 'to' >path<])
         =.  cor  (give %fact ~[path] group-response-2+!>(response))
         =?  cor  ?=(^ http-id.u.request)

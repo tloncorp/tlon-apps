@@ -52,8 +52,8 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%3 ~ ~]
-    (my %groups^[~.groups^%2 ~ ~] ~)
+      [~.channels^%4 ~ ~]
+    (my %groups^[~.groups^%3 ~ ~] ~)
 %-  agent:dbug
 %^  verb  &  %dbug
 ::
@@ -818,7 +818,7 @@
     (recheck-perms affected roles.r-group)
   ::
       [%seat * %del ~]
-    ~&  "%channel-server: revoke perms for {<affected>}"
+    =.  cor  (emit (tell:log %dbug ~['%channel-server: revoke perms for' >affected<] ~))
     %+  roll  affected
     |=  [=nest:c =_cor]
     %-  ~(rep in ships.r-group)
@@ -830,7 +830,7 @@
 ++  recheck-perms
   |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
   ~>  %spin.['recheck-perms']
-  ~&  "%channel-server recheck permissions for {<affected>}"
+  =.  cor  (emit (tell:log %dbug ~['%channel-server recheck permissions for' >affected<] ~))
   %+  roll  affected
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
@@ -839,7 +839,7 @@
 ++  full-recheck-perms
   |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
   ~>  %spin.['full-recheck-perms']
-  ~&  "%channel-server fully recheck permissions for {<affected>}"
+  =.  cor  (emit (tell:log %dbug ~['%channel-server fully recheck permissions for' >affected<] ~))
   %+  roll  affected
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
@@ -1016,7 +1016,6 @@
       ::  if we have no update, ca-core should already have cards
       ::  for an errored response
       ?~  update
-        ~&  cards
         ca-core
       (ca-update u.update)
     ?.  (is-admin:ca-perms src.bowl)

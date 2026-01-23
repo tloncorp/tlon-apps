@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert, Keyboard, Platform } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -545,11 +545,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         } else {
           // not awaiting since we don't want to wait for the send to complete
           // before clearing the draft and the editor content
-          console.log('sending post');
-          sendPost(story, channelId, metadata).catch((e) => {
-            console.error('Failed to send message', e);
-            Alert.alert('Failed to send message', e.message || e.toString());
-          });
+          sendPost(story, channelId, metadata);
         }
 
         onSend?.();

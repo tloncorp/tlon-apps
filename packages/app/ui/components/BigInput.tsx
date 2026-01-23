@@ -19,12 +19,7 @@ import {
   useToast,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -182,10 +177,7 @@ export function BigInput({
         await editPost(editingPost, story, undefined, metadata);
       } else {
         // If it's a new post, use send
-        await sendPost(story, channelId, metadata).catch((e) => {
-          console.error('Failed to send message', e);
-          Alert.alert('Failed to send message', e.message || e.toString());
-        });
+        await sendPost(story, channelId, metadata);
       }
 
       logger.log(

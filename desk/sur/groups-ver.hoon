@@ -43,7 +43,7 @@
   ::  $incoming-request: a request coming into the agent
   ::
   ::  .id: request id
-  ::  .http-id: http request id, if any. means we should give a response
+  ::  .http-id: http request id, if any. means there's an outstanding eyre http request waiting for a response
   ::  .poke-status: request status
   ::  .result: response body, if any. if null, means request is in progress
   ::

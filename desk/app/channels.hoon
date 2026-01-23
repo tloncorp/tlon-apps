@@ -212,13 +212,13 @@
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      [~.channels^%3 ~ ~]
+      [~.channels^%4 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%2 ~ ~]
-        %channels-server^[~.channels^%3 ~ ~]
+    :~  %groups^[~.groups^%3 ~ ~]
+        %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
-%^  verb  &  %dbug
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 =>
@@ -982,7 +982,6 @@
   ::
       %channel-action-2
     =+  !<(=action:v10:cv vase)
-    ~&  ['action devased' action]
     ?>  from-self
     =/  =incoming-request:v10:cv
       (~(gut by requests) request-id.action [request-id.action ~ %sending ~ ~ |])
@@ -1493,7 +1492,7 @@
 ++  recheck-perms
   |=  [affected=(list nest:c) sects=(set sect:v0:gv)]
   ~>  %spin.['recheck-perms']
-  ~&  "%channel recheck permissions for {<affected>}"
+  =.  cor  (emit (tell:plog %dbug ~['%channel recheck permissions for' >affected<] ~))
   %+  roll  affected
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
@@ -2434,7 +2433,6 @@
       ::  if this is a successful create response, set up the channel
       =*  body  body.response-update
       =^  meta  ca-core
-        ~&  body
         ?.  ?=(%ok -.body)  [meta.channel ca-core]
         ?.  ?=(%create -.u-channel.update.body)  [meta.channel ca-core]
         =.  ca-core

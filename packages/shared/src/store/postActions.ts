@@ -92,7 +92,6 @@ export function finalizePostDraftUsingLocalAttachments(
 export async function finalizeAndSendPost(
   draft: domain.PostDataDraft
 ): Promise<void> {
-  console.trace('finalizeAndSendPost', { draft });
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
   } else {
