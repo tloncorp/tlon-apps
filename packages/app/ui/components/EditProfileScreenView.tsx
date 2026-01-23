@@ -9,9 +9,9 @@ import {
   KeyboardAvoidingView,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
@@ -42,6 +42,7 @@ export function EditProfileScreenView(props: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   const {
     scrollViewRef,
@@ -180,22 +181,16 @@ export function EditProfileScreenView(props: Props) {
 
   const handlePressCancel = () => {
     if (isDirty) {
-      Alert.alert('Discard changes?', 'Your changes will not be saved.', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            props.onGoBack();
-          },
-        },
-      ]);
+      setDiscardDialogOpen(true);
     } else {
       props.onGoBack();
     }
+  };
+
+  const handleDiscardConfirm = () => {
+    setDiscardDialogOpen(false);
+    reset();
+    props.onGoBack();
   };
 
   const handleUpdatePinnedGroups = useCallback(
@@ -221,7 +216,7 @@ export function EditProfileScreenView(props: Props) {
             color="$positiveActionText"
             disabled={!isValid}
           >
-            Done
+            Save
           </ScreenHeader.TextButton>
         }
       />
@@ -311,7 +306,7 @@ export function EditProfileScreenView(props: Props) {
               <>
                 <ControlledColorField
                   name="sigilColor"
-                  label="Sigil color"
+                  label="Default avatar color"
                   control={control}
                 />
               </>
@@ -393,6 +388,15 @@ export function EditProfileScreenView(props: Props) {
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
+      <ConfirmDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+        title="Discard changes?"
+        description="You have unsaved changes. Are you sure you want to discard them?"
+        confirmText="Discard"
+        destructive
+        onConfirm={handleDiscardConfirm}
+      />
     </View>
   );
 }
