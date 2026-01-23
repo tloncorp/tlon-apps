@@ -9,6 +9,7 @@ export type Session = {
   channelStatus?: ChannelStatus;
   phase?: SyncPhase;
   isSyncing?: boolean;
+  useFreshChannelOnReconnect?: boolean;
 };
 
 // Session — time when subscriptions were first initialized after which we can assume
