@@ -233,16 +233,10 @@ function LogoutDialog({
             </AlertDialog.Description>
             <XStack gap="$l">
               <AlertDialog.Action>
-                <Button minimal>
-                  <Button.Text>Cancel</Button.Text>
-                </Button>
+                <Button preset="minimal" label="Cancel" />
               </AlertDialog.Action>
               <AlertDialog.Action onPress={onConfirm}>
-                <Button minimal>
-                  <Button.Text color="$negativeActionText">
-                    Log out now
-                  </Button.Text>
-                </Button>
+                <Button preset="destructiveMinimal" label="Log out now" />
               </AlertDialog.Action>
             </XStack>
           </YStack>

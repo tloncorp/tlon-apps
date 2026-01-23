@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 
 import { GroupPreviewSheet } from '../../ui';
+import { FixtureWrapper } from '../FixtureWrapper';
 import { group } from '../fakeData';
 
 const groupFixtures: Record<string, db.Group> = {
@@ -40,13 +41,14 @@ export default Object.fromEntries(
   Object.entries(groupFixtures).map(([key, group]) => {
     return [
       key,
-      <GroupPreviewSheet
-        key={key}
-        open={true}
-        onOpenChange={() => {}}
-        group={group}
-        onActionComplete={() => {}}
-      />,
+      <FixtureWrapper key={key}>
+        <GroupPreviewSheet
+          open={true}
+          onOpenChange={() => {}}
+          group={group}
+          onActionComplete={() => {}}
+        />
+      </FixtureWrapper>,
     ];
   })
 );
