@@ -187,7 +187,7 @@ export function ContactBookPrompt(props: {
             <Button
               type="notice"
               fill="outline"
-              label="Not Now2"
+              label="Not Now"
               size="small"
               onPress={handleDismiss}
             />
