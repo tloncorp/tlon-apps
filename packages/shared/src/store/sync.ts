@@ -1759,8 +1759,19 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async (config: {
   retainChannelStatus?: boolean;
-}) => {
+  forceChannelReset?: boolean;
+} = {}) => {
+  logger.log('handleDiscontinuity', {
+    retainChannelStatus: config.retainChannelStatus,
+    forceChannelReset: config.forceChannelReset,
+  });
   logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+
+  if (config.forceChannelReset) {
+    logger.trackEvent(AnalyticsEvent.FreshChannelResetTriggered);
+    await api.resetUrbitConnection();
+  }
+
   if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;

@@ -811,3 +811,15 @@ function createDurationTracker<T extends Record<string, any>>(
     });
   };
 }
+
+export async function resetUrbitConnection() {
+  if (!config.client) {
+    throw new Error('Urbit client not initialized');
+  }
+
+  // Trigger seamless reset: new channel UID, resubscribe to all
+  config.client.seamlessReset();
+
+  // Wait for SSE to reconnect
+  await config.client.eventSource();
+}
