@@ -41,9 +41,11 @@ import {
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
+import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
+import { SearchBar } from '../SearchBar';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -366,6 +368,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 
 const logger = createDevLogger('SplashSequence', true);
 
+const INVITE_EXPLANATION_TEXT =
+  "Anyone you invite will skip the waitlist and be added to your contacts. You'll receive a DM when they join.";
+
 export function InviteContactsContent(props: {
   onComplete: () => void;
   systemContacts?: db.SystemContact[];
@@ -380,6 +385,10 @@ export function InviteContactsContent(props: {
   const systemContacts = props.systemContacts ?? storeSystemContacts;
   const isReady = !!inviteLink;
   const hasContacts = systemContacts && systemContacts.length > 0;
+
+  const { displayContacts, handleSearch } = useSystemContactSearch(
+    systemContacts ?? []
+  );
 
   return (
     <YStack flex={1}>
@@ -400,13 +409,27 @@ export function InviteContactsContent(props: {
         <LoadingState />
       ) : (
         <>
-          <SplashParagraph marginTop="$l">
-            Tap a contact to send them an invite to join you on Tlon Messenger.
+          <SplashParagraph marginTop="$l" marginBottom="$xl">
+            {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
+          <XStack paddingHorizontal="$xl">
+            <SearchBar
+              height="$4xl"
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          </XStack>
           <FlatList
-            data={systemContacts}
+            data={displayContacts}
             keyExtractor={(item) => item.id}
-            style={{ flex: 1, marginTop: getTokenValue('$l', 'size') }}
+            style={{ flex: 1 }}
             contentContainerStyle={{
               padding: getTokenValue('$l', 'size'),
               paddingBottom: getTokenValue('$4xl', 'size'),
@@ -435,8 +458,7 @@ function LoadingState() {
       paddingBottom={insets.bottom + getTokenValue('$6xl', 'size')}
     >
       <SplashParagraph marginTop="$l">
-        Anyone you invite will skip the waitlist and be added to your contacts.
-        You&apos;ll receive a DM when they join.
+        {INVITE_EXPLANATION_TEXT}
       </SplashParagraph>
       <YStack flex={1} justifyContent="center" alignItems="center" gap="$xl">
         <LoadingSpinner size="large" />
@@ -478,8 +500,7 @@ function ShareInviteLinkEmptyState() {
           />
         </View>
         <SplashParagraph marginHorizontal={0}>
-          Anyone you invite will skip the waitlist and be added to your
-          contacts. You&apos;ll receive a DM when they join.
+          {INVITE_EXPLANATION_TEXT}
         </SplashParagraph>
         <View width="100%">
           <PersonalInviteButton />
