@@ -1793,11 +1793,25 @@ export const handleDiscontinuity = async (config: {
   if (config.forceChannelReset) {
     logger.trackEvent(AnalyticsEvent.FreshChannelResetTriggered);
     const resetStartTime = Date.now();
-    await api.resetUrbitConnection();
-    const resetDuration = Date.now() - resetStartTime;
-    logger.trackEvent(AnalyticsEvent.FreshChannelResetComplete, {
-      resetDuration,
-    });
+    try {
+      await api.resetUrbitConnection();
+      const resetDuration = Date.now() - resetStartTime;
+      logger.trackEvent(AnalyticsEvent.FreshChannelResetComplete, {
+        resetDuration,
+      });
+    } catch (error) {
+      const resetDuration = Date.now() - resetStartTime;
+      logger.error('Fresh channel reset failed due to network interruption', {
+        error: error instanceof Error ? error.message : String(error),
+        resetDuration,
+      });
+      logger.trackEvent(AnalyticsEvent.FreshChannelResetFailed, {
+        resetDuration,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      // Continue with sync despite reset failure - sync system will still catch up
+      // via the existing channel or when network recovers
+    }
   }
 
   if (isSyncing) {
