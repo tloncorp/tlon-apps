@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import React from 'react';
@@ -30,6 +31,7 @@ import {
   ViewStyle,
   XStack,
   YStack,
+  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
@@ -749,3 +751,92 @@ export function CheckboxInputRow<T>({
 export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
+
+const presets = [
+  '$red',
+  '$orange',
+  '$yellow',
+  '$green',
+  '$blue',
+  '$indigo',
+  '$black',
+  '$gray500',
+  '$white',
+] as const;
+
+const ColorSwatchFrame = styled(Pressable, {
+  width: 56,
+  height: 56,
+  borderRadius: '$l',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderWidth: '$2xs',
+  borderColor: 'transparent',
+  variants: {
+    selected: {
+      true: {
+        borderColor: '$primaryText',
+      },
+    },
+  } as const,
+});
+
+const ColorSwatchInner = styled(View, {
+  width: '$4xl',
+  height: '$4xl',
+  borderRadius: '$m',
+  borderWidth: 1,
+  borderColor: '$shadow',
+});
+
+export const ColorInput = ({
+  value,
+  onChange,
+  onBlur,
+}: {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+}) => {
+  const handleSelect = useCallback(
+    (color: string) => {
+      if (value === color) {
+        onChange?.(null);
+      } else {
+        onChange?.(color);
+      }
+      onBlur?.();
+    },
+    [onChange, onBlur, value]
+  );
+
+  const handleClear = useCallback(() => {
+    onChange?.(null);
+    onBlur?.();
+  }, [onChange, onBlur]);
+
+  return (
+    <ScrollView
+      contentContainerStyle={{
+        alignItems: 'center',
+      }}
+      horizontal
+    >
+      {presets.map((color) => {
+        const colorValue = getTokenValue(color, 'color');
+        return (
+          <ColorSwatchFrame
+            key={colorValue}
+            selected={value === colorValue}
+            onPress={() => handleSelect(colorValue)}
+          >
+            <ColorSwatchInner backgroundColor={colorValue} />
+          </ColorSwatchFrame>
+        );
+      })}
+      {value && (
+        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
+      )}
+    </ScrollView>
+  );
+};

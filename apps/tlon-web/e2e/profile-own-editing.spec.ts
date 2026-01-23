@@ -39,7 +39,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
   await zodPage.getByTestId('CloseFavoriteGroupSelectorSheet').click();
   
   // Save changes
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
   
   // TODO: figure out why we need to reload here. This should be fixed.
   await zodPage.reload();
