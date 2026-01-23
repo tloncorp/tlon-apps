@@ -52,6 +52,7 @@ export enum AnalyticsEvent {
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
   FreshChannelResetTriggered = 'Fresh Channel Reset Triggered',
+  FreshChannelResetComplete = 'Fresh Channel Reset Complete',
   OnNetworkInvite = 'Sent On Network Group Invite',
   UserLoggedIn = 'User Logged In',
   NodeAuthSaved = 'Node Auth Saved',

@@ -1770,6 +1770,7 @@ export const handleDiscontinuity = async (config: {
   if (config.forceChannelReset) {
     logger.trackEvent(AnalyticsEvent.FreshChannelResetTriggered);
     await api.resetUrbitConnection();
+    logger.trackEvent(AnalyticsEvent.FreshChannelResetComplete);
   }
 
   if (isSyncing) {
