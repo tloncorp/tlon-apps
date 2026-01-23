@@ -130,6 +130,10 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
+# Patch the broken +await-thread in /lib/strandio.hoon
+patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
+rm -f $pier/base/lib/strandio.hoon.rej
+
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -161,7 +165,7 @@ done
 
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click -t 120 $pier <<EOF
+result=$( $run_click -t 45 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
@@ -170,7 +174,7 @@ result=$( $run_click -t 120 $pier <<EOF
   (await-thread %test !>(\`tests))  
 ?:  ?=(%| -.thread-result)  
   %-  (slog %thread-fail p.thread-result)  
-  (pure:m !>(1))  
+  (pure:m !>(|))  
 =+  !<(ok=? p.thread-result)  
 (pure:m !>(ok))  
 EOF
