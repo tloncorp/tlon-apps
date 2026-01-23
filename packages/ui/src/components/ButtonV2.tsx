@@ -10,7 +10,7 @@ import { triggerHaptic } from '../utils/haptics';
 import { Icon, IconType } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 import Pressable from './Pressable';
-import { Text } from './TextV2';
+import { Text, trimSettings } from './TextV2';
 
 export type ButtonSize = 'large' | 'medium' | 'small';
 export type ButtonStyle = 'solid' | 'outline' | 'ghost' | 'text';
@@ -272,19 +272,29 @@ const ButtonFrame = styled(Pressable, {
   },
 });
 
+// ButtonText maps ButtonSize ('large'/'medium'/'small') to TextSize ('$label/2xl' etc).
+// We can't rely on Text's `trimmed` variant because it looks up trim settings using
+// `props.size`, which would be a ButtonSize, not a TextSize. Instead, we disable
+// Text's trimming and apply the correct trim margins directly in each size variant.
+const textSize = (size: keyof typeof trimSettings) => ({
+  size,
+  ...(trimSettings[size] ?? {}),
+});
+
 const ButtonText = styled(Text, {
   name: 'ButtonText',
   context: ButtonContext,
   userSelect: 'none',
   color: '$secondaryText',
+  trimmed: false,
   style: {
     WebkitFontSmoothing: 'antialiased',
   },
   variants: {
     size: {
-      large: { size: '$label/2xl' },
-      medium: { size: '$label/l' },
-      small: { size: '$label/m' },
+      large: textSize('$label/2xl'),
+      medium: textSize('$label/l'),
+      small: textSize('$label/m'),
     },
     intent: (
       val: ButtonIntent,
