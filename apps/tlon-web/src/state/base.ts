@@ -126,8 +126,10 @@ export function createSubscription(
     event: e,
     err: () => null,
     quit: () => null,
+    // Ensure subscription resubscribes after channel reset (e.g., seamlessReset)
+    // This is critical for the fresh channel reconnection feature to work correctly
+    resubOnQuit: true,
   };
-  // TODO: err, quit handling (resubscribe?)
   return request;
 }
 
