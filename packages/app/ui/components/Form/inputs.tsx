@@ -765,9 +765,9 @@ const presets = [
 ] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
-  width: '$3.5xl',
-  height: '$3.5xl',
-  borderRadius: '$m',
+  width: 48,
+  height: 48,
+  borderRadius: '$l',
   alignItems: 'center',
   justifyContent: 'center',
   borderWidth: '$2xs',
@@ -782,9 +782,9 @@ const ColorSwatchFrame = styled(Pressable, {
 });
 
 const ColorSwatchInner = styled(View, {
-  width: '$3xl',
-  height: '$3xl',
-  borderRadius: '$s',
+  width: '$4xl',
+  height: '$4xl',
+  borderRadius: '$m',
 });
 
 export const ColorInput = ({
@@ -814,26 +814,22 @@ export const ColorInput = ({
   }, [onChange, onBlur]);
 
   return (
-    <InputFrame paddingVertical="$m" paddingHorizontal="$m" height="auto">
-      <XStack flexWrap="wrap" gap="$s" justifyContent="flex-start">
-        {presets.map((color) => {
-          const colorValue = getTokenValue(color, 'color');
-          return (
-            <ColorSwatchFrame
-              key={colorValue}
-              selected={value === colorValue}
-              onPress={() => handleSelect(colorValue)}
-            >
-              <ColorSwatchInner backgroundColor={colorValue} />
-            </ColorSwatchFrame>
-          );
-        })}
-        {value && (
-          <Button size="$s" onPress={handleClear}>
-            <Button.Text>Clear</Button.Text>
-          </Button>
-        )}
-      </XStack>
-    </InputFrame>
+    <XStack gap="$xs" alignItems="center" overflow="scroll">
+      {presets.map((color) => {
+        const colorValue = getTokenValue(color, 'color');
+        return (
+          <ColorSwatchFrame
+            key={colorValue}
+            selected={value === colorValue}
+            onPress={() => handleSelect(colorValue)}
+          >
+            <ColorSwatchInner backgroundColor={colorValue} />
+          </ColorSwatchFrame>
+        );
+      })}
+      {value && (
+        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
+      )}
+    </XStack>
   );
 };
