@@ -30,7 +30,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await zodPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
   
   // TODO: figure out why we need to reload here. This should be fixed.
   await zodPage.reload();
@@ -55,7 +55,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage.getByTestId('ProfileNicknameInput').fill('Ten Custom Nickname');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Part 3: Critical test - Verify profile data doesn't persist
   // After editing ~ten's profile, now edit own profile again to verify no data persistence
@@ -101,7 +101,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Ten Bio');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Verify ~ten's profile was saved correctly
   await tenPage.reload();
@@ -133,7 +133,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod from Ten perspective');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Part 5: Critical test for ~ten - Verify no data persistence
   // After editing ~zod's profile, edit own profile again

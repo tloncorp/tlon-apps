@@ -650,7 +650,9 @@ const ActionSheetActionTitle = styled(ListItem.Title, {
       negative: {
         color: '$negativeActionText',
       },
-      neutral: {},
+      neutral: {
+        color: '$primaryText',
+      },
       disabled: {
         color: '$tertiaryText',
       },

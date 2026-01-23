@@ -235,19 +235,24 @@ function ChatDetailsScreenContent({
         paddingBottom: insets.bottom + getTokenValue('$3xl' as any),
       }}
     >
-      <ListItem alignItems="center" gap="$xl" paddingHorizontal="$xl">
+      <XStack
+        alignItems="flex-start"
+        gap="$xl"
+        paddingHorizontal="$xl"
+        marginVertical="$l"
+      >
         {chatType === 'group' ? (
           <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
         ) : (
           <ListItem.ChannelIcon model={channel} size="$5xl" />
         )}
-        <ListItem.MainContent>
-          <ListItem.Title fontSize={24} lineHeight={28} numberOfLines={0}>
-            {title}
-          </ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
-      </ListItem>
+        <YStack gap="$l" flex={1}>
+          <TlonText.Text>{title}</TlonText.Text>
+          <TlonText.Text size={'$label/m'} color={'$secondaryText'}>
+            {subtitle}
+          </TlonText.Text>
+        </YStack>
+      </XStack>
       {chatType === 'group' && (
         <>
           <GroupQuickActions group={group} canInvite={canInviteToGroup} />
@@ -717,7 +722,6 @@ function GroupQuickActions({
           onPress={action.action}
           disabled={action.disabled}
           testID={`GroupQuickAction-${action.title}`}
-          secondary
         />
       ))}
     </ScrollView>

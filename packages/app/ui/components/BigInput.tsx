@@ -75,7 +75,9 @@ export function BigInput({
   const [isEmpty, setIsEmpty] = useState(true);
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const [markdownContent, setMarkdownContent] = useState('');
-  const [pendingEditorContent, setPendingEditorContent] = useState<object | null>(null);
+  const [pendingEditorContent, setPendingEditorContent] = useState<
+    object | null
+  >(null);
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -106,7 +108,9 @@ export function BigInput({
   const handleEditorStateChange = useCallback(
     (state: { isReady: boolean }) => {
       if (state.isReady && pendingEditorContent && editorRef.current?.editor) {
-        logger.log('Editor ready, setting pending content from Markdown conversion');
+        logger.log(
+          'Editor ready, setting pending content from Markdown conversion'
+        );
         // @ts-expect-error setContent does accept JSONContent
         editorRef.current.editor.setContent(pendingEditorContent);
         setPendingEditorContent(null);
@@ -692,7 +696,7 @@ export function BigInput({
             </View>
           )}
           {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode) && (
-            <Button
+            <Button.Frame
               position="absolute"
               bottom={insets.bottom + 16}
               right={16}
@@ -709,7 +713,7 @@ export function BigInput({
               ) : (
                 <Icon type="Italic" size="$l" color="$primaryText" />
               )}
-            </Button>
+            </Button.Frame>
           )}
         </>
       )}

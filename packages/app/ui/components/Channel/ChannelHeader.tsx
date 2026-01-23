@@ -1,14 +1,7 @@
-import {
-  getNestParts,
-  useConnectionStatus,
-  useDebouncedValue,
-} from '@tloncorp/shared';
+import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
-
 import {
   Fragment,
   createContext,
@@ -18,12 +11,10 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { XStack } from 'tamagui';
 
-import { useChatOptions, useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
-import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import ConnectionStatus from '../ConnectionStatus';
 import { ScreenHeader } from '../ScreenHeader';
 
@@ -100,6 +91,7 @@ export function ChannelHeader({
   showSpinner,
   showSearchButton = false,
   showEditButton = false,
+  post,
 }: {
   title: string;
   titleIcon?: React.ReactNode;
@@ -158,6 +150,14 @@ export function ChannelHeader({
             ? 'Initializing...'
             : 'Disconnected';
       return statusText;
+    }
+
+    // Viewing a post (PostScreenView with a single post/thread)
+    if (post) {
+      const channelName = channel.title ?? chatTitle ?? 'channel';
+      const preview = post.textContent?.slice(0, 50) ?? '';
+      const ellipsis = (post.textContent?.length ?? 0) > 50 ? '…' : '';
+      return `Post in ${channelName}${preview ? `: ${preview}${ellipsis}` : ''}`;
     }
 
     // DM (1:1) - Show contact's status if available, otherwise "Direct message"
@@ -227,9 +227,11 @@ export function ChannelHeader({
     channel,
     group,
     chatDescription,
+    chatTitle,
     description,
     dmContactId,
     dmContact?.status,
+    post,
   ]);
 
   const displayTitle = useDebouncedValue(titleText, 300);
@@ -301,7 +303,7 @@ export function ChannelHeader({
     }
 
     return null;
-  }, [channel, group, dmContactId, facePileContacts, isWindowNarrow]);
+  }, [channel, group, dmContactId, isWindowNarrow]);
 
   const handleTitlePress = useMemo(() => {
     // For DMs, navigate to profile
