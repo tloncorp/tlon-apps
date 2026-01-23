@@ -130,10 +130,6 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Patch the broken +await-thread in /lib/strandio.hoon
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
