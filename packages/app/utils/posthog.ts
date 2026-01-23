@@ -6,6 +6,12 @@ import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import {
+  applyRemoteOverrides,
+  FeatureName,
+  FeatureState,
+  getRemoteControlledFlags,
+} from '../lib/featureFlags';
 import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
@@ -75,7 +81,41 @@ posthogAsync?.then((client) => {
     const UrbitModule = TurboModuleRegistry.get('UrbitModule');
     (UrbitModule as UrbitModuleSpec)?.setPostHogApiKey(POST_HOG_API_KEY);
   }
+
+  // Fetch and apply remote feature flags from PostHog
+  fetchAndApplyRemoteFeatureFlags(client);
 });
+
+/**
+ * Fetch feature flags from PostHog and apply them to the local feature flag store.
+ * Only flags marked as `remoteControlled` in featureMeta will be affected.
+ */
+async function fetchAndApplyRemoteFeatureFlags(client: PostHog) {
+  try {
+    // Reload feature flags from PostHog server
+    await client.reloadFeatureFlagsAsync();
+
+    const remoteControlledFlags = getRemoteControlledFlags();
+    const overrides: Partial<FeatureState> = {};
+
+    for (const flagName of remoteControlledFlags) {
+      const remoteValue = client.getFeatureFlag(flagName);
+      // PostHog returns undefined if flag doesn't exist, boolean if it does
+      if (typeof remoteValue === 'boolean') {
+        overrides[flagName as FeatureName] = remoteValue;
+        console.log(`[PostHog] Remote flag ${flagName} = ${remoteValue}`);
+      }
+    }
+
+    if (Object.keys(overrides).length > 0) {
+      applyRemoteOverrides(overrides);
+      console.log('[PostHog] Applied remote feature flag overrides:', overrides);
+    }
+  } catch (error) {
+    console.warn('[PostHog] Failed to fetch remote feature flags:', error);
+    // Non-fatal - local flags will be used as defaults
+  }
+}
 
 const capture = (event: string, properties?: { [key: string]: any }) => {
   if (!posthog) {
