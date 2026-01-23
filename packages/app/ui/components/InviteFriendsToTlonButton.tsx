@@ -5,14 +5,10 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCopy } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Button, Text, useCopy } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
-import { ColorTokens, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useIsAdmin } from '../utils';
@@ -21,11 +17,10 @@ const logger = createDevLogger('InviteButton', false);
 
 export function InviteFriendsToTlonButton({
   group,
-  textColor,
   ...props
-}: { group?: db.Group; textColor?: ColorTokens } & Omit<
+}: { group?: db.Group } & Omit<
   ComponentProps<typeof Button>,
-  'group'
+  'group' | 'icon' | 'label'
 >) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
@@ -108,41 +103,26 @@ export function InviteFriendsToTlonButton({
   const linkFailed =
     linkIsDisabled || status === 'error' || status === 'unsupported';
 
+  const buttonLabel = didCopy
+    ? 'Copied'
+    : linkIsReady
+      ? 'Invite Friends'
+      : linkIsDisabled
+        ? 'Invite links are disabled'
+        : linkFailed
+          ? 'Error generating invite link'
+          : linkIsLoading
+            ? 'Generating invite link...'
+            : '';
+
   return (
     <Button
-      secondary
-      disabled={!linkIsReady}
+      preset="secondaryOutline"
+      label={buttonLabel}
+      leadingIcon={linkIsLoading ? undefined : 'AddPerson'}
+      loading={linkIsLoading}
       onPress={handleInviteButtonPress}
       {...props}
-    >
-      {linkIsReady ? (
-        <Icon
-          type="AddPerson"
-          color={textColor ?? '$secondaryText'}
-          size="$m"
-        />
-      ) : linkIsLoading ? (
-        <LoadingSpinner size="small" color={textColor ?? undefined} />
-      ) : linkFailed ? (
-        <Icon
-          type="Placeholder"
-          color={textColor ?? '$secondaryText'}
-          size="$m"
-        />
-      ) : null}
-      <Button.Text color={textColor ?? 'unset'}>
-        {didCopy
-          ? 'Copied'
-          : linkIsReady
-            ? 'Invite Friends'
-            : linkIsDisabled
-              ? 'Invite links are disabled'
-              : linkFailed
-                ? 'Error generating invite link'
-                : linkIsLoading
-                  ? 'Generating invite link...'
-                  : null}
-      </Button.Text>
-    </Button>
+    />
   );
 }

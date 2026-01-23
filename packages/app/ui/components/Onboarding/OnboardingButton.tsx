@@ -1,27 +1,34 @@
-import { Button } from '@tloncorp/ui';
-import { ComponentProps, PropsWithChildren } from 'react';
+import { Button, ButtonProps } from '@tloncorp/ui';
+import { PropsWithChildren } from 'react';
 import { View } from 'tamagui';
+
+type OnboardingButtonProps = Omit<
+  ButtonProps,
+  'label' | 'icon' | 'leadingIcon' | 'trailingIcon'
+> & {
+  secondary?: boolean;
+  label: string;
+};
 
 export function OnboardingButton({
   secondary,
+  label,
   ...props
-}: ComponentProps<typeof Button> & {
-  secondary?: boolean;
-}) {
+}: OnboardingButtonProps) {
   const color = secondary ? '$secondaryText' : '$primaryText';
   return (
     <Button
-      hero={true}
-      shadow={true}
+      {...props}
+      preset="hero"
+      shadow
+      label={label}
+      width="100%"
+      backgroundColor={color}
+      borderColor={color}
       pressStyle={{
         backgroundColor: color,
         opacity: 0.9,
       }}
-      backgroundColor={color}
-      width={'100%'}
-      justifyContent="center"
-      alignItems="center"
-      {...props}
     />
   );
 }

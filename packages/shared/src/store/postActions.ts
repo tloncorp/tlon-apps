@@ -1,16 +1,21 @@
 import * as api from '../api';
 import { toPostContent } from '../api';
-import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
-import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
+import {
+  clearUploadState,
+  finalizeAttachments,
+  finalizeAttachmentsLocal,
+  uploadAsset,
+} from './storage';
 import * as sync from './sync';
 import {
+  clearChannelPostsQueries,
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from './useChannelPosts';
@@ -27,7 +32,7 @@ export async function failEnqueuedPosts() {
 }
 
 export async function finalizePostDraft(
-  draft: domain.PostDataDraftParent
+  draft: domain.PostDataDraftPost
 ): Promise<domain.PostDataFinalizedParent>;
 export async function finalizePostDraft(
   draft: domain.PostDataDraftEdit
@@ -35,9 +40,24 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
+  const attachments = await finalizeAttachments(draft.attachments);
+
+  // Remove non-header images from notebook posts - these are "inlined":
+  // https://github.com/tloncorp/tlon-apps/blob/71c9cabc54dfad10c83d46e10f209a3d632d36b2/packages/app/ui/components/BigInput.tsx#L151-L160
+  if (draft.channelType === 'notebook') {
+    for (let i = attachments.length - 1; i >= 0; i--) {
+      const att = attachments[i];
+      const isNonheaderImage =
+        att.type === 'image' && att.file.uri !== draft.image;
+      if (isNonheaderImage) {
+        attachments.splice(i, 1);
+      }
+    }
+  }
+
   const { story, metadata, blob } = logic.toPostData({
     ...draft,
-    attachments: await finalizeAttachments(draft.attachments),
+    attachments,
   });
 
   const finalizedBase = {
@@ -45,6 +65,7 @@ export async function finalizePostDraft(
     content: story,
     metadata,
     blob,
+    replyToPostId: draft.replyToPostId,
   };
 
   if (draft.isEdit) {
@@ -59,7 +80,7 @@ export async function finalizePostDraft(
 }
 
 export function finalizePostDraftUsingLocalAttachments(
-  draft: domain.PostDataDraftParent
+  draft: domain.PostDataDraftPost
 ): domain.PostDataFinalizedParent;
 export function finalizePostDraftUsingLocalAttachments(
   draft: domain.PostDataDraftEdit
@@ -76,6 +97,7 @@ export function finalizePostDraftUsingLocalAttachments(
     content: story,
     metadata,
     blob,
+    replyToPostId: draft.replyToPostId,
   };
   if (draft.isEdit) {
     return {
@@ -94,16 +116,21 @@ export async function finalizeAndSendPost(
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
   } else {
+    // Serialize the entire draft for retry logic
+    const serializedDraft = PostDataDraft.serialize(draft);
+
     await _sendPost({
       channelId: draft.channelId,
       buildOptimisticPostData: () =>
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
+      draft: serializedDraft,
     });
   }
 }
 
-export async function sendPost(postData: domain.PostDataFinalizedParent) {
+/** Prefer using finalizeAndSendPost where possible for optimistic updates. */
+async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
   return await _sendPost({
     channelId: postData.channelId,
     buildOptimisticPostData: () => postData,
@@ -115,10 +142,16 @@ async function _sendPost({
   buildFinalizedPostData,
   buildOptimisticPostData,
   channelId,
+  draft,
+  existingPost,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
-  buildOptimisticPostData: () => domain.PostDataFinalizedParent;
+  buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
   channelId: string;
+  /** Serialized draft stored for retry logic */
+  draft?: domain.PostDataDraft;
+  /** Existing post to retry (updates in place instead of creating new) */
+  existingPost?: db.Post;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -128,56 +161,80 @@ async function _sendPost({
     return;
   }
 
-  logger.crumb('sending post', `channel type: ${channel.type}`);
-  if (channel.isPendingChannel) {
-    logger.trackEvent(
-      AnalyticsEvent.ActionStartedDM,
-      logic.getModelAnalytics({ channel })
-    );
-    // if first message of a pending group dm, we need to first create
-    // it on the backend
-    if (channel.type === 'groupDm') {
-      logger.crumb('is pending multi DM, need to create first');
-      await api.createGroupDm({
-        id: channel.id,
-        members:
-          channel.members
-            ?.map((m) => m.contactId)
-            .filter((m) => m !== authorId) ?? [],
-      });
+  let cachePost: db.Post;
+
+  if (existingPost) {
+    // Retry mode: update existing post in place
+    logger.crumb('retrying existing post', existingPost.id);
+    cachePost = existingPost;
+
+    // Update status to enqueued immediately
+    await db.updatePost({ id: cachePost.id, deliveryStatus: 'enqueued' });
+
+    // Invalidate channel posts cache AFTER the DB update so the UI picks up
+    // the new status (otherwise stale cached data overrides the fresh data)
+    clearChannelPostsQueries();
+  } else {
+    // New post mode: create and insert
+    logger.crumb('sending post', `channel type: ${channel.type}`);
+    if (channel.isPendingChannel) {
+      logger.trackEvent(
+        AnalyticsEvent.ActionStartedDM,
+        logic.getModelAnalytics({ channel })
+      );
+      // if first message of a pending group dm, we need to first create
+      // it on the backend
+      if (channel.type === 'groupDm') {
+        logger.crumb('is pending multi DM, need to create first');
+        await api.createGroupDm({
+          id: channel.id,
+          members:
+            channel.members
+              ?.map((m) => m.contactId)
+              .filter((m) => m !== authorId) ?? [],
+        });
+      }
+
+      // either way, we have to mark it as non-pending
+      await db.updateChannel({ id: channel.id, isPendingChannel: false });
     }
+    // optimistic update
+    // TODO: make author available more efficiently
+    logger.crumb('get author');
+    const author = await db.getContact({ id: authorId });
+    logger.crumb('build pending post');
+    if (!buildOptimisticPostData) {
+      throw new Error('buildOptimisticPostData is required for new posts');
+    }
+    const optimisticPostData = buildOptimisticPostData();
+    cachePost = db.buildPost({
+      authorId,
+      author,
+      channel,
+      sequenceNum: 0, // placeholder, this will be overwritten by the server
+      content: optimisticPostData.content,
+      metadata: optimisticPostData.metadata,
+      deliveryStatus: 'enqueued',
+      blob: optimisticPostData.blob,
+      draft,
+      parentId: optimisticPostData.replyToPostId ?? undefined,
+    });
 
-    // either way, we have to mark it as non-pending
-    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+    let group: null | db.Group = null;
+    if (channel.groupId) {
+      group = await db.getGroup({ id: channel.groupId });
+    }
+    logger.trackEvent(
+      optimisticPostData.replyToPostId != null
+        ? AnalyticsEvent.ActionSendReply
+        : AnalyticsEvent.ActionSendPost,
+      logic.getModelAnalytics({ post: cachePost, channel, group })
+    );
+
+    logger.crumb('insert channel posts');
+    await sync.handleAddPost(cachePost);
   }
-  // optimistic update
-  // TODO: make author available more efficiently
-  logger.crumb('get author');
-  const author = await db.getContact({ id: authorId });
-  logger.crumb('build pending post');
-  const optimisticPostData = buildOptimisticPostData();
-  const cachePost = db.buildPost({
-    authorId,
-    author,
-    channel,
-    sequenceNum: 0, // placeholder, this will be overwritten by the server
-    content: optimisticPostData.content,
-    metadata: optimisticPostData.metadata,
-    deliveryStatus: 'enqueued',
-    blob: optimisticPostData.blob,
-  });
 
-  let group: null | db.Group = null;
-  if (channel.groupId) {
-    group = await db.getGroup({ id: channel.groupId });
-  }
-  logger.trackEvent(
-    AnalyticsEvent.ActionSendPost,
-    logic.getModelAnalytics({ post: cachePost, channel, group })
-  );
-
-  logger.crumb('insert channel posts');
-  await sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
@@ -197,30 +254,75 @@ async function _sendPost({
           id: cachePost.id,
           content: finalizedPostData.content,
           metadata: finalizedPostData.metadata,
-          deliveryStatus: 'pending',
           blob: finalizedPostData.blob,
+          deliveryStatus: 'pending',
+          parentId: finalizedPostData.replyToPostId,
         }),
       });
-      logger.crumb('sending post to API');
-      return api.sendPost({
-        channelId: channel.id,
-        authorId,
-        content: finalizedPostData.content,
-        blob: finalizedPostData.blob,
-        metadata: finalizedPostData.metadata,
-        sentAt: cachePost.sentAt,
-      });
+
+      // Send to the appropriate API endpoint based on whether this is a reply
+      if (finalizedPostData.replyToPostId != null) {
+        // Reply - look up parent author from DB
+        const parentPost = await db.getPost({
+          postId: finalizedPostData.replyToPostId,
+        });
+        if (parentPost == null) {
+          throw new Error(
+            `Parent post ${finalizedPostData.replyToPostId} not found for thread send`
+          );
+        }
+        logger.crumb('sending reply to API');
+        return api.sendReply({
+          channelId: channel.id,
+          parentId: finalizedPostData.replyToPostId,
+          parentAuthor: parentPost.authorId,
+          authorId,
+          content: finalizedPostData.content,
+          sentAt: cachePost.sentAt,
+        });
+      } else {
+        // Non-reply
+        logger.crumb('sending post to API');
+        return api.sendPost({
+          channelId: channel.id,
+          authorId,
+          content: finalizedPostData.content,
+          blob: finalizedPostData.blob,
+          metadata: finalizedPostData.metadata,
+          sentAt: cachePost.sentAt,
+        });
+      }
     });
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
+
+    // Clear pending draft on success - it's no longer needed
+    if (draft) {
+      // Revoke any blob URLs to prevent memory leaks (web only)
+      PostDataDraft.revokeBlobUrls(draft);
+      await db.updatePost({
+        id: cachePost.id,
+        draft: null,
+      });
+    }
+
     logger.crumb('done sending post');
   } catch (e) {
-    logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
-      error: e,
-      errorType: e.constructor?.name,
-      errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
-    });
-    logger.crumb('failed to send post');
+    logger.trackEvent(
+      cachePost.parentId == null
+        ? AnalyticsEvent.ErrorSendPost
+        : AnalyticsEvent.ErrorSendReply,
+      {
+        error: e,
+        errorType: e.constructor?.name,
+        errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
+      }
+    );
+    if (cachePost.parentId == null) {
+      logger.crumb('failed to send post');
+    } else {
+      logger.crumb('failed to send reply');
+    }
     logger.error('Failed to send post', {
       message: e.message,
       type: e.constructor?.name,
@@ -266,69 +368,53 @@ export async function retrySendPost({
     return;
   }
 
-  // if first message of a pending group dm, we need to first create
-  // it on the backend
-  if (channel.type === 'groupDm' && channel.isPendingChannel) {
-    await api.createGroupDm({
-      id: channel.id,
-      members:
-        channel.members
-          ?.map((m) => m.contactId)
-          .filter((m) => m !== post.authorId) ?? [],
+  // Require draft for retry - posts without it cannot be retried.
+  if (!post.draft) {
+    logger.trackError('retrySendPost: missing draft, cannot retry', {
+      postId: post.id,
+      channelId: post.channelId,
+      hasParentId: !!post.parentId,
     });
-    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+    throw new Error('Cannot retry post without draft');
   }
 
-  // optimistic update
-  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
-
-  const content = JSON.parse(post.content as string) as PostContent;
-  const story = toUrbitStory(content);
-
-  logger.log('retrySendPost: sending post', { post, story });
-
-  try {
-    await sessionActionQueue.add(async () => {
-      await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
-
-      if (post.parentId) {
-        const parentPost = await db.getPost({ postId: post.parentId });
-        if (!parentPost) {
-          throw new Error(
-            `Parent post ${post.parentId} not found for thread retry`
-          );
-        }
-
-        return api.sendReply({
-          channelId: post.channelId,
-          parentId: post.parentId,
-          parentAuthor: parentPost.authorId,
-          authorId: post.authorId,
-          content: story,
-          sentAt: post.sentAt,
-        });
-      } else {
-        return api.sendPost({
-          channelId: post.channelId,
-          authorId: post.authorId,
-          content: story,
-          blob: post.blob || undefined,
-          metadata:
-            post.image || post.title
-              ? {
-                  title: post.title,
-                  image: post.image,
-                }
-              : undefined,
-          sentAt: post.sentAt,
-        });
-      }
+  // Validate the draft structure before using it
+  if (!PostDataDraft.isValid(post.draft)) {
+    logger.trackError('retrySendPost: invalid draft structure', {
+      postId: post.id,
+      channelId: post.channelId,
+      draft: post.draft,
     });
-    await sync.syncChannelMessageDelivery({ channelId: post.channelId });
-  } catch (e) {
-    console.error('Failed to retry send post', e);
-    await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    throw new Error('Cannot retry post with invalid draft');
   }
+
+  logger.log('retrySendPost: found pending draft, using draft-based retry');
+  const draft = post.draft;
+
+  // Clear stale upload states from the global store and re-trigger uploads.
+  // Without this, waitForUploads will see the old error state and reject immediately.
+  for (const att of draft.attachments) {
+    const uploadIntent = Attachment.toUploadIntent(att);
+    if (uploadIntent.needsUpload) {
+      const key = Attachment.UploadIntent.extractKey(uploadIntent);
+      clearUploadState(key);
+      // Re-trigger the upload (don't await - let it run in parallel)
+      uploadAsset(uploadIntent);
+    }
+  }
+
+  // Retry only applies to posts (not edits), edit retries are handled
+  // separately in ChannelScreen.handleRetrySend via store.editPost
+  if (draft.isEdit === true) {
+    throw new Error('Cannot retry an edit post via retrySendPost');
+  }
+
+  // Retry the send using the same code path as the initial send
+  await _sendPost({
+    channelId: draft.channelId,
+    buildFinalizedPostData: () => finalizePostDraft(draft),
+    existingPost: post,
+  });
 }
 
 export async function forwardPost({
@@ -359,9 +445,10 @@ export async function forwardPost({
     return;
   }
 
-  return sendPost({
+  return sendFinalizedPost({
     channelId,
     content: [{ block: { cite: urbitReference } }],
+    replyToPostId: null,
     metadata:
       channel.type === 'notebook'
         ? {
@@ -405,9 +492,10 @@ export async function forwardGroup({
       return;
     }
 
-    return sendPost({
+    return sendFinalizedPost({
       channelId: channel.id,
       content: [{ block: { cite: urbitReference } }],
+      replyToPostId: null,
       metadata:
         channel.type === 'notebook'
           ? {
@@ -433,6 +521,7 @@ export async function editPost({
   metadata?: db.PostMetadata;
 }) {
   const postData: domain.PostDataFinalizedEdit = {
+    replyToPostId: null,
     channelId: post.channelId,
     isEdit: true,
     editTargetPostId: post.id,
@@ -532,71 +621,6 @@ async function _editPost({
       editStatus: 'failed',
     });
     logger.log('editPost rollback done');
-  }
-}
-
-export async function sendReply({
-  parentId,
-  parentAuthor,
-  content,
-  channel,
-}: {
-  channel: db.Channel;
-  parentId: string;
-  parentAuthor: string;
-  content: urbit.Story;
-}) {
-  logger.crumb('sending reply', channel.type);
-  // optimistic update
-  // TODO: make author available more efficiently
-  const authorId = api.getCurrentUserId();
-  const author = await db.getContact({ id: authorId });
-  const cachePost = db.buildPost({
-    authorId,
-    author,
-    channel: channel,
-    sequenceNum: 0, // replies do not have sequence numbers, use 0
-    content,
-    parentId,
-    deliveryStatus: 'enqueued',
-  });
-  await db.insertChannelPosts({ posts: [cachePost] });
-  await db.addReplyToPost({
-    parentId,
-    replyAuthor: cachePost.authorId,
-    replyTime: cachePost.sentAt,
-  });
-
-  let group = null;
-  if (channel.groupId) {
-    group = await db.getGroup({ id: channel.groupId });
-  }
-
-  logger.trackEvent(
-    AnalyticsEvent.ActionSendReply,
-    logic.getModelAnalytics({ post: cachePost, channel, group })
-  );
-
-  try {
-    logger.crumb('sending reply to backend');
-    await sessionActionQueue.add(() =>
-      api.sendReply({
-        channelId: channel.id,
-        parentId,
-        parentAuthor,
-        authorId,
-        content,
-        sentAt: cachePost.sentAt,
-      })
-    );
-    sync.syncChannelMessageDelivery({ channelId: channel.id });
-  } catch (e) {
-    logger.crumb('failed to send reply');
-    logger.trackEvent(AnalyticsEvent.ErrorSendReply, {
-      error: e,
-    });
-    console.error('Failed to send reply', e);
-    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
   }
 }
 

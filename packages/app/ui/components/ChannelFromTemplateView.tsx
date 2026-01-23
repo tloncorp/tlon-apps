@@ -165,13 +165,13 @@ export function ChannelFromTemplateView({
           </View>
         </View>
         <Button
-          hero
+          preset="primary"
           marginHorizontal="$2xl"
           onPress={handleSubmit(onConfirm)}
           disabled={!channel || !selectedGroup || !isValid}
-        >
-          <Button.Text>Create Channel</Button.Text>
-        </Button>
+          label="Create Channel"
+          centered
+        />
       </YStack>
     </View>
   );

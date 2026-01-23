@@ -23,7 +23,7 @@ test('should test comprehensive chat functionality', async ({
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
   // Navigate back to Home and navigate to group using stable testID
-  await helpers.navigateBack(zodPage);
+  await zodPage.getByTestId('HomeNavIcon').click();
   await helpers.navigateToGroupByTestId(zodPage, {
     expectedDisplayName: groupName,
   });
@@ -77,7 +77,7 @@ test('should test comprehensive chat functionality', async ({
   await helpers.sendMessage(zodPage, 'Report this message');
 
   // Navigate away and back to work around potential bug mentioned in Maestro test
-  await helpers.navigateBack(zodPage);
+  await zodPage.getByTestId('HomeNavIcon').click();
   await helpers.navigateToGroupByTestId(zodPage, {
     expectedDisplayName: groupName,
   });

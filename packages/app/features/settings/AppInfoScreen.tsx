@@ -21,6 +21,7 @@ import {
   View,
   XStack,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
@@ -110,11 +111,16 @@ export function AppInfoScreen(props: Props) {
     });
   }, [uploadLogs, hasClients, currentUserId]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
-        backAction={() => props.navigation.goBack()}
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
       />
       <ScrollView
         contentContainerStyle={{
@@ -183,9 +189,7 @@ export function AppInfoScreen(props: Props) {
 
           {enabled && logs.length > 0 && (
             <Stack>
-              <Button onPress={onUploadLogs}>
-                <Text>Upload logs ({logs.length})</Text>
-              </Button>
+              <Button preset="outline" onPress={onUploadLogs} label={`Upload logs (${logs.length})`} />
             </Stack>
           )}
           {enabled && logId && !hasClients && (

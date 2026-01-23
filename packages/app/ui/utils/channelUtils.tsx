@@ -85,6 +85,19 @@ export function useChatTitle(
   return null;
 }
 
+export function useChatDescription(
+  channel?: db.Channel | null,
+  group?: db.Group | null
+) {
+  if (group && (!channel || group?.channels?.length === 1)) {
+    return group.description;
+  } else if (channel) {
+    return channel.description;
+  }
+
+  return null;
+}
+
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
   return useMemo(() => {
@@ -105,6 +118,10 @@ export function getGroupTitle(
   disableNicknames: boolean
 ): string {
   const isPending = group.currentUserIsMember === false;
+
+  if (group?.privacy === 'secret' && isPending) {
+    return 'Secret Group';
+  }
 
   if (group?.title && group?.title !== '') {
     return group.title;
