@@ -58,7 +58,19 @@
   :~
     [/c/sync/0v1n.2m9vh %into des | input]
   ==
+::  Reset desk to contain files
 ::
+++  reset-files
+  |=  [who=ship des=desk files=(list [=path txt=@t])]
+  ^-  (list aqua-event)
+  =/  input
+    %+  turn  files
+    |=  [=path txt=@t]
+    [path ~ /text/plain (as-octs:mimes:html txt)]
+  %+  send-events-to  who
+  :~
+    [/c/sync/0v1n.2m9vh %into des & input]
+  ==
 ::  Checks whether the given event is a dojo output blit containing the
 ::  given tape
 ::TODO  should be rename -dill-output

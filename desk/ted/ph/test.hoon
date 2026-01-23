@@ -63,7 +63,7 @@
 ++  resolve-test-paths
   |=  paths-to-test=(list [path (list test-arm)])
   ^-  (list test)
-  %-  sort  :_  |=([a=test b=test] !(aor path.a path.b))
+  %-  sort  :_  |=([a=test b=test] (aor path.a path.b))
   ^-  (list test)
   %-  zing
   %+  turn  paths-to-test

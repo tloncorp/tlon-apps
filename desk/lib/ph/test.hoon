@@ -1,17 +1,14 @@
 /-  spider
 /+  *strandio, *ph-io, test
 =,  strand=strand:spider
-::  .timeout: common operation timeout
 |%
-::  +ph-test-init: initialize aqua test strand 
+::  +ph-test-init: setup a test strand environment
 ::
 ++  ph-test-init
-  =/  m  (strand ,~)
   (watch-our /effect/unto %aqua /effect/unto)
-:: +ph-end: shutdown aqua test strand
+:: +ph-test-shut: teardown a test strand environment
 ::
 ++  ph-test-shut
-  =/  m  (strand ,~)
   (leave-our /effect/unto %aqua)
 ::
 ++  take-effect
@@ -58,6 +55,10 @@
   ?>  =(p.dock who.aqua-effect)
   =*  effect  q.ufs.aqua-effect
   ?>  ?=(%unto -.effect)
+  ?>  ?=(%watch-ack -.p.effect)
+  =*  sign  p.effect
+  ?^  p.sign
+    (strand-fail %watch-ack u.p.sign)
   (pure:m ~)
 ::
 ++  wait-for-app-fact
