@@ -347,6 +347,141 @@ test.describe('Fresh Channel Reconnection', () => {
     await expect(zodPage.getByText('Message before cycling')).toBeVisible();
   });
 
+  test('should sync correctly after extended background period (simulated 1 hour)', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const zodContext = zodSetup.context;
+    const tenPage = tenSetup.page;
+
+    // Assert initial state
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+
+    // Enable the experimental feature flag on zod's session
+    await enableFreshChannelReconnect(zodPage);
+
+    // Create a group for messaging
+    await helpers.createGroup(zodPage);
+    const groupName = '~ten, ~zod';
+
+    // Invite ten to the group
+    await helpers.inviteMembersToGroup(zodPage, ['ten']);
+
+    // Wait for invitation to propagate
+    await zodPage.waitForTimeout(2000);
+
+    // Accept invitation as ten
+    await helpers.acceptGroupInvite(tenPage, groupName);
+
+    // Navigate to the General channel on both ships
+    await helpers.navigateToChannel(tenPage, 'General');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    // Wait for session stability before simulating background
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // Send an initial message to confirm setup works
+    await helpers.sendMessage(zodPage, 'Initial message before long background');
+    await expect(tenPage.getByText('Initial message before long background')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // --- SIMULATE EXTENDED BACKGROUND (1 HOUR) ---
+    // Go offline on zod's context to simulate app being backgrounded
+    await simulateBackground(zodContext);
+
+    // Wait a brief moment to ensure connection is dropped
+    await zodPage.waitForTimeout(1000);
+
+    // Simulate a large event backlog that would accumulate during 1 hour
+    // Based on PRD metrics: ~500-2000 events for 1 hour absence
+    // We use 20 messages to represent a meaningful backlog while keeping test time reasonable
+    const messageCount = 20;
+    const messagesWhileBackgrounded: string[] = [];
+    for (let i = 1; i <= messageCount; i++) {
+      messagesWhileBackgrounded.push(`Extended background msg ${i} of ${messageCount}`);
+    }
+
+    console.log(`Sending ${messageCount} messages to simulate 1-hour backlog...`);
+
+    for (const message of messagesWhileBackgrounded) {
+      await tenPage.getByTestId('MessageInput').click();
+      await tenPage.fill('[data-testid="MessageInput"]', message);
+      await tenPage.getByTestId('MessageInputSendButton').click();
+      await expect(tenPage.getByText(message)).toBeVisible({ timeout: 5000 });
+      // Small delay between messages to simulate spread over time
+      await tenPage.waitForTimeout(200);
+    }
+
+    // Simulate being backgrounded for an extended period
+    // This represents the time the app would be in background (1 hour = 3600s)
+    // We use a shorter delay in tests but the message count simulates the backlog size
+    await zodPage.waitForTimeout(5000);
+
+    // --- SIMULATE FOREGROUND AFTER EXTENDED ABSENCE ---
+    // Record start time for measuring foreground performance
+    const foregroundStartTime = Date.now();
+
+    // Go back online (simulate foregrounding)
+    await simulateForeground(zodContext);
+
+    // Wait for reconnection
+    // With fresh channel, this should be fast because we skip event backlog
+    // and rely on batch sync instead of processing ~500-2000 events individually
+    await helpers.waitForSessionStability(zodPage);
+
+    // Verify all messages appear
+    // With fresh channel reconnect, the sync system should fetch these in batch
+    // Expected: <1s according to PRD (vs 5-10s with original behavior)
+    const lastMessage = messagesWhileBackgrounded[messagesWhileBackgrounded.length - 1];
+    await expect(zodPage.getByText(lastMessage)).toBeVisible({
+      timeout: 15000, // Allow reasonable time for batch sync
+    });
+
+    const foregroundEndTime = Date.now();
+    const foregroundDuration = foregroundEndTime - foregroundStartTime;
+
+    // Log the performance metrics
+    console.log(`Extended background foreground duration: ${foregroundDuration}ms`);
+    console.log(`Messages synced: ${messageCount}`);
+    console.log(`Effective throughput: ${(messageCount / (foregroundDuration / 1000)).toFixed(1)} msgs/sec`);
+
+    // Verify first, middle, and last messages are all visible
+    await expect(zodPage.getByText(messagesWhileBackgrounded[0])).toBeVisible({ timeout: 5000 });
+    await expect(zodPage.getByText(messagesWhileBackgrounded[Math.floor(messageCount / 2)])).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(zodPage.getByText(lastMessage)).toBeVisible({ timeout: 5000 });
+
+    // Performance assertion:
+    // With fresh channel reconnect, even a large backlog should sync quickly via batch fetch
+    // PRD target: <1s for 1 hour absence (85% improvement)
+    // We use a generous threshold (15s) since test environment varies
+    // The key metric is that it doesn't scale linearly with backlog size
+    expect(foregroundDuration).toBeLessThan(15000);
+
+    // Verify bidirectional messaging still works after extended absence
+    await helpers.sendMessage(zodPage, 'Reply after extended background');
+    await expect(tenPage.getByText('Reply after extended background')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify ten can still send to zod (subscription fully restored)
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Final message from ten');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(zodPage.getByText('Final message from ten')).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
   test('should work correctly with feature flag disabled (original behavior)', async ({
     zodSetup,
     tenSetup,
