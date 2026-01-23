@@ -30,6 +30,7 @@ import {
   ViewStyle,
   XStack,
   YStack,
+  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
@@ -754,28 +755,28 @@ export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
 
-// Color picker input
-
-const SIGIL_COLOR_PRESETS = [
-  '#000000',
-  '#4E4E9C',
-  '#2E5AAC',
-  '#008080',
-  '#2E8C57',
-  '#8B4513',
-  '#D2691E',
-  '#C41E3A',
-  '#9C2772',
-  '#666666',
-];
+const presets = () =>
+  (
+    [
+      '$red',
+      '$orange',
+      '$yellow',
+      '$green',
+      '$blue',
+      '$indigo',
+      '$black',
+      '$gray500',
+      '$white',
+    ] as const
+  ).map((color) => getTokenValue(color, 'color'));
 
 const ColorSwatchFrame = styled(Pressable, {
-  width: 40,
-  height: 40,
+  width: '$3.5xl',
+  height: '$3.5xl',
   borderRadius: '$m',
   alignItems: 'center',
   justifyContent: 'center',
-  borderWidth: 2,
+  borderWidth: '$2xs',
   borderColor: 'transparent',
   variants: {
     selected: {
@@ -787,34 +788,36 @@ const ColorSwatchFrame = styled(Pressable, {
 });
 
 const ColorSwatchInner = styled(View, {
-  width: 32,
-  height: 32,
+  width: '$3xl',
+  height: '$3xl',
   borderRadius: '$s',
 });
 
 export const ColorInput = ({
   value,
   onChange,
+  onBlur,
 }: {
   value?: string | null;
   onChange?: (value: string | null) => void;
+  onBlur?: () => void;
 }) => {
   const handleSelect = useCallback(
     (color: string) => {
-      // Toggle off if same color selected
       if (value === color) {
         onChange?.(null);
       } else {
         onChange?.(color);
       }
+      onBlur?.();
     },
-    [onChange, value]
+    [onChange, onBlur, value]
   );
 
   return (
     <InputFrame paddingVertical="$m" paddingHorizontal="$m" height="auto">
       <XStack flexWrap="wrap" gap="$s" justifyContent="flex-start">
-        {SIGIL_COLOR_PRESETS.map((color) => (
+        {presets().map((color) => (
           <ColorSwatchFrame
             key={color}
             selected={value === color}
