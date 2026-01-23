@@ -15,7 +15,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync, syncSince, updateSession } from '@tloncorp/shared';
+import { getSession, sync, syncSince, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -53,6 +53,17 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
+        const session = getSession();
+
+        // Check if experimental fresh channel feature is enabled
+        if (session?.useFreshChannelOnReconnect) {
+          // Trigger fresh channel reset - skips event backlog and relies on sync
+          await sync.handleDiscontinuity({
+            retainChannelStatus: false,
+            forceChannelReset: true,
+          });
+        }
+
         updateSession({ isSyncing: true });
         syncSince({ callCtx: { cause: 'app-foregrounded' } });
         setTimeout(() => {
