@@ -16,7 +16,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync, syncSince, updateSession } from '@tloncorp/shared';
+import { sync, syncSince, updateSession, getSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -55,15 +55,35 @@ function AuthenticatedApp() {
       // app returned from background
       if (status === 'active') {
         const foregroundStartTime = Date.now();
-        const useFreshChannel = isEnabled('freshChannelOnReconnect');
+        const useFreshChannelEnabled = isEnabled('freshChannelOnReconnect');
+
+        // Throttle fresh channel resets to max once per 60 seconds
+        const FRESH_CHANNEL_RESET_THROTTLE_MS = 60000;
+        const session = getSession();
+        const lastResetTime = session?.lastFreshChannelResetTime ?? 0;
+        const timeSinceLastReset = foregroundStartTime - lastResetTime;
+        const shouldThrottle = timeSinceLastReset < FRESH_CHANNEL_RESET_THROTTLE_MS;
+
+        // Determine if we should actually use fresh channel (enabled and not throttled)
+        const useFreshChannel = useFreshChannelEnabled && !shouldThrottle;
 
         // Check if experimental fresh channel feature is enabled
-        if (useFreshChannel) {
-          // Trigger fresh channel reset - skips event backlog and relies on sync
-          await sync.handleDiscontinuity({
-            retainChannelStatus: false,
-            forceChannelReset: true,
-          });
+        if (useFreshChannelEnabled) {
+          if (shouldThrottle) {
+            // Track that we skipped due to throttling
+            telemetry.trackEvent('Fresh Channel Reset Throttled', {
+              timeSinceLastResetMs: timeSinceLastReset,
+              throttleWindowMs: FRESH_CHANNEL_RESET_THROTTLE_MS,
+            });
+          } else {
+            // Trigger fresh channel reset - skips event backlog and relies on sync
+            await sync.handleDiscontinuity({
+              retainChannelStatus: false,
+              forceChannelReset: true,
+            });
+            // Update the last reset time
+            updateSession({ lastFreshChannelResetTime: foregroundStartTime });
+          }
         }
 
         updateSession({ isSyncing: true });

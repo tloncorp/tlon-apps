@@ -10,6 +10,7 @@ export type Session = {
   phase?: SyncPhase;
   isSyncing?: boolean;
   useFreshChannelOnReconnect?: boolean;
+  lastFreshChannelResetTime?: number;
 };
 
 // Session — time when subscriptions were first initialized after which we can assume

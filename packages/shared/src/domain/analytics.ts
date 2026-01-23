@@ -53,6 +53,7 @@ export enum AnalyticsEvent {
   SyncDiscontinuity = 'Sync Discontinuity',
   FreshChannelResetTriggered = 'Fresh Channel Reset Triggered',
   FreshChannelResetComplete = 'Fresh Channel Reset Complete',
+  FreshChannelResetThrottled = 'Fresh Channel Reset Throttled',
   ForegroundTimeToInteractive = 'Foreground Time to Interactive',
   ForegroundSyncComplete = 'Foreground Sync Complete',
   OnNetworkInvite = 'Sent On Network Group Invite',
