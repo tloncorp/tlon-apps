@@ -847,4 +847,154 @@ test.describe('Fresh Channel Reconnection', () => {
       timeout: 10000,
     });
   });
+
+  test('should handle stale sync (7+ days) correctly with fresh channel reconnect enabled', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const zodContext = zodSetup.context;
+    const tenPage = tenSetup.page;
+
+    // This test verifies PRD requirement: "Test: Background for 7+ days (stale sync) with flag enabled"
+    // When changesSyncedAt is older than 3 days, the sync system triggers a stale sync fallback
+    // (debouncedSyncInit) instead of incremental syncLatestChanges
+    // This test ensures fresh channel reset works correctly alongside the stale sync fallback
+
+    await expect(zodPage.getByText('Home')).toBeVisible();
+    await expect(tenPage.getByText('Home')).toBeVisible();
+
+    // Enable the experimental feature flag
+    await enableFreshChannelReconnect(zodPage);
+
+    // Create a group for messaging
+    await helpers.createGroup(zodPage);
+    const groupName = '~ten, ~zod';
+
+    // Invite ten to the group
+    await helpers.inviteMembersToGroup(zodPage, ['ten']);
+    await zodPage.waitForTimeout(2000);
+
+    // Accept invitation as ten
+    await helpers.acceptGroupInvite(tenPage, groupName);
+
+    // Navigate to the General channel on both ships
+    await helpers.navigateToChannel(tenPage, 'General');
+    await zodPage.getByTestId('HomeNavIcon').click();
+    await helpers.navigateToGroupByTestId(zodPage, {
+      expectedDisplayName: groupName,
+    });
+    await helpers.navigateToChannel(zodPage, 'General');
+
+    await helpers.waitForSessionStability(zodPage);
+    await helpers.waitForSessionStability(tenPage);
+
+    // Send an initial message to confirm setup works
+    await helpers.sendMessage(zodPage, 'Message before 7+ day absence');
+    await expect(tenPage.getByText('Message before 7+ day absence')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // --- SIMULATE 7+ DAY STALE SYNC SCENARIO ---
+    // Manipulate changesSyncedAt in localStorage to be 8 days ago
+    // This triggers the stale sync fallback in syncLatestChanges (sync.ts lines 298-307)
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    console.log(`Setting changesSyncedAt to 8 days ago: ${new Date(eightDaysAgo).toISOString()}`);
+
+    await zodPage.evaluate((timestamp) => {
+      // AsyncStorage in web uses localStorage with the key directly
+      // The value is JSON stringified
+      localStorage.setItem('changesSyncedAt', JSON.stringify(timestamp));
+    }, eightDaysAgo);
+
+    // Verify the timestamp was set correctly
+    const storedTimestamp = await zodPage.evaluate(() => {
+      const value = localStorage.getItem('changesSyncedAt');
+      return value ? JSON.parse(value) : null;
+    });
+    console.log(`Verified changesSyncedAt is set to: ${new Date(storedTimestamp).toISOString()}`);
+
+    // --- SIMULATE BACKGROUND (GO OFFLINE) ---
+    console.log('Simulating 7+ day background (going offline)...');
+    await simulateBackground(zodContext);
+    await zodPage.waitForTimeout(1000);
+
+    // Send multiple messages from ten while zod is "backgrounded" for 7+ days
+    // This represents the large backlog that would accumulate over a week
+    const staleMessages = [
+      'Stale sync msg 1 - day 1',
+      'Stale sync msg 2 - day 2',
+      'Stale sync msg 3 - day 3',
+      'Stale sync msg 4 - day 4',
+      'Stale sync msg 5 - day 5',
+      'Stale sync msg 6 - day 6',
+      'Stale sync msg 7 - day 7',
+      'Stale sync msg 8 - day 8 (today)',
+    ];
+
+    for (const message of staleMessages) {
+      await tenPage.getByTestId('MessageInput').click();
+      await tenPage.fill('[data-testid="MessageInput"]', message);
+      await tenPage.getByTestId('MessageInputSendButton').click();
+      await expect(tenPage.getByText(message)).toBeVisible({ timeout: 5000 });
+      await tenPage.waitForTimeout(300);
+    }
+
+    // Wait to simulate the extended background period
+    await zodPage.waitForTimeout(3000);
+
+    // --- SIMULATE FOREGROUND AFTER 7+ DAYS ---
+    // This should trigger:
+    // 1. Fresh channel reset (new channel UID, resubscribe all)
+    // 2. Stale sync fallback (changesSyncedAt > 3 days old triggers debouncedSyncInit)
+    console.log('Simulating foreground after 7+ day absence...');
+    const foregroundStartTime = Date.now();
+
+    await simulateForeground(zodContext);
+
+    // Wait for session to stabilize
+    // The stale sync fallback + fresh channel reset should work together
+    await helpers.waitForSessionStability(zodPage);
+
+    // Verify all stale messages sync correctly
+    // Even with stale sync (>3 days), the fresh channel + sync should recover all data
+    const lastStaleMessage = staleMessages[staleMessages.length - 1];
+    await expect(zodPage.getByText(lastStaleMessage)).toBeVisible({
+      timeout: 20000, // Allow more time for stale sync + fresh channel reset
+    });
+
+    const foregroundDuration = Date.now() - foregroundStartTime;
+    console.log(`Stale sync (7+ days) foreground duration: ${foregroundDuration}ms`);
+
+    // Verify all messages are visible (not just the last one)
+    for (const message of staleMessages) {
+      await expect(zodPage.getByText(message)).toBeVisible({ timeout: 5000 });
+    }
+
+    // Verify initial message is still visible (no data loss)
+    await expect(zodPage.getByText('Message before 7+ day absence')).toBeVisible();
+
+    // Verify bidirectional messaging works after stale sync + fresh channel
+    await helpers.sendMessage(zodPage, 'Reply after 7+ day stale sync');
+    await expect(tenPage.getByText('Reply after 7+ day stale sync')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify ten can also respond
+    await tenPage.getByTestId('MessageInput').click();
+    await tenPage.fill('[data-testid="MessageInput"]', 'Ten reply after stale sync');
+    await tenPage.getByTestId('MessageInputSendButton').click();
+    await expect(zodPage.getByText('Ten reply after stale sync')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Performance assertion:
+    // Even with stale sync (7+ days), fresh channel should keep foreground time reasonable
+    // Without fresh channel, this scenario would process a massive event backlog (PRD: 15-30s delay)
+    // With fresh channel, we skip the backlog and rely on batch sync (PRD target: <2s)
+    // We use generous threshold (25s) since stale sync does additional full init work
+    expect(foregroundDuration).toBeLessThan(25000);
+
+    console.log('Test passed: Stale sync (7+ days) works correctly with fresh channel reconnect');
+  });
 });
