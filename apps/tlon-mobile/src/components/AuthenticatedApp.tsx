@@ -5,6 +5,7 @@ import {
 } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { isEnabled } from '@tloncorp/app/lib/featureFlags';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
@@ -15,7 +16,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { getSession, sync, syncSince, updateSession } from '@tloncorp/shared';
+import { sync, syncSince, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -53,10 +54,8 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
-        const session = getSession();
-
         // Check if experimental fresh channel feature is enabled
-        if (session?.useFreshChannelOnReconnect) {
+        if (isEnabled('freshChannelOnReconnect')) {
           // Trigger fresh channel reset - skips event backlog and relies on sync
           await sync.handleDiscontinuity({
             retainChannelStatus: false,
