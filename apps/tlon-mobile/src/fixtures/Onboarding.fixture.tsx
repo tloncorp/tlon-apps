@@ -1,3 +1,4 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
@@ -5,6 +6,7 @@ import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Theme } from '@tloncorp/app/ui';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PropsWithChildren, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFixtureSelect } from 'react-cosmos/client';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
@@ -106,9 +108,13 @@ function OnboardingFixture({
               priorityToken: undefined,
             }}
           >
-            <NavigationContainer>
-              {children ?? <OnboardingStack />}
-            </NavigationContainer>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <BottomSheetModalProvider>
+                <NavigationContainer>
+                  {children ?? <OnboardingStack />}
+                </NavigationContainer>
+              </BottomSheetModalProvider>
+            </GestureHandlerRootView>
           </BranchContext.Provider>
         </OnboardingProvider>
       </Theme>
@@ -173,6 +179,7 @@ export default {
   CheckVerify: (
     <SingleScreenFixture
       routeName="CheckVerify"
+      params={{ phoneNumber: '+15551234567', mode: 'signup' }}
       Component={CheckVerifyScreen}
     />
   ),

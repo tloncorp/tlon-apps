@@ -4,36 +4,48 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   Button,
-  Icon,
+  ButtonPreset,
   LoadingSpinner,
   Text,
-  triggerHaptic,
 } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { Alert, Dimensions, Image, Platform } from 'react-native';
+import { Dimensions, FlatList, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ColorTokens,
   View,
   XStack,
   YStack,
   ZStack,
+  getTokenValue,
   isWeb,
   styled,
+  useThemeName,
 } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
+import {
+  InviteSystemContactsFn,
+  useInviteSystemContactHandler,
+} from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
-import { ListItem } from '../ListItem';
+import { useSystemContactSearch } from '../../hooks/systemContactSorters';
+import { ListItem, SystemContactListItem } from '../ListItem';
+import { PersonalInviteButton } from '../PersonalInviteButton';
+import { ScreenHeader } from '../ScreenHeader';
+import { SearchBar } from '../SearchBar';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -44,7 +56,11 @@ enum SplashPane {
   Invite = 'Invite',
 }
 
-function SplashSequenceComponent(props: { onCompleted: () => void }) {
+function SplashSequenceComponent(props: {
+  onCompleted: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
   const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
@@ -72,7 +88,11 @@ function SplashSequenceComponent(props: { onCompleted: () => void }) {
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
       )}
       {currentPane === 'Invite' && (
-        <InvitePane onActionPress={handleSplashCompleted} />
+        <InvitePane
+          onActionPress={handleSplashCompleted}
+          systemContacts={props.systemContacts}
+          inviteSystemContacts={props.inviteSystemContacts}
+        />
       )}
     </View>
   );
@@ -91,45 +111,42 @@ const SplashParagraph = styled(Text, {
   marginHorizontal: '$xl',
 });
 
+type SplashButtonPreset = 'primary' | 'positive' | 'secondary';
+
+const presetMapping: Record<SplashButtonPreset, { preset: ButtonPreset; fullWidth?: boolean }> = {
+  primary: { preset: 'primary' },
+  positive: { preset: 'positive' },
+  secondary: { preset: 'secondary', fullWidth: true },
+};
+
 const SplashButton = ({
   children,
-  textProps = {},
+  variant = 'primary',
+  onPress,
+  disabled,
   ...rest
-}: PropsWithChildren<
-  {
-    onPress: () => void;
-    textProps?: ComponentProps<typeof Button.Text>;
-  } & ComponentProps<typeof Button>
->) => {
-  const handlePress = useCallback(() => {
-    triggerHaptic('baseButtonClick');
-    rest.onPress();
-  }, [rest]);
+}: PropsWithChildren<{
+  onPress: () => void;
+  variant?: SplashButtonPreset;
+  disabled?: boolean;
+}> &
+  Omit<ComponentProps<typeof View>, 'onPress' | 'children'>) => {
+  const { preset, fullWidth } = presetMapping[variant];
+  const width = fullWidth ? '100%' : isWeb ? 300 : '100%';
+  const label = typeof children === 'string' ? children : '';
 
   return (
-    <Button
-      hero
-      height={72}
-      width={isWeb ? 300 : 'unset'}
-      padding={isWeb ? 30 : 'unset'}
-      {...rest}
-      onPress={handlePress}
-    >
-      <XStack width="100%" justifyContent="space-between" alignItems="center">
-        <Button.Text
-          flexShrink={1}
-          textAlign="left"
-          marginLeft="$l"
-          {...textProps}
-        >
-          {children}
-        </Button.Text>
-        <Icon
-          type="ChevronRight"
-          color={(textProps.color as ColorTokens) ?? '$background'}
-        />
-      </XStack>
-    </Button>
+    <View width={width} {...rest}>
+      <Button
+        preset={preset}
+        size="large"
+        onPress={onPress}
+        disabled={disabled}
+        trailingIcon="ChevronRight"
+        label={label}
+        justifyContent="space-between"
+      />
+    </View>
   );
 };
 
@@ -171,11 +188,15 @@ export function WelcomePane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </View>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal="$2xl"
+      >
         <SplashButton
           data-testid="lets-get-started"
           onPress={props.onActionPress}
-          marginHorizontal="$2xl"
         >
           Let's get started
         </SplashButton>
@@ -222,12 +243,16 @@ export function GroupsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal={isWeb ? '$4xl' : '$2xl'}
+      >
         <SplashButton
           data-testid="got-it"
           marginTop="$l"
           onPress={props.onActionPress}
-          marginHorizontal={isWeb ? '$4xl' : '$2xl'}
         >
           Got it
         </SplashButton>
@@ -273,12 +298,16 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginTop="$2xl">
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginTop="$2xl"
+        paddingHorizontal="$2xl"
+      >
         <SplashButton
           data-testid="one-quick-thing"
           marginTop="$l"
           onPress={props.onActionPress}
-          marginHorizontal="$2xl"
         >
           One quick thing
         </SplashButton>
@@ -318,12 +347,16 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             </SplashParagraph>
           </YStack>
         </YStack>
-        <XStack width="100%" justifyContent="center" marginTop="$2xl">
+        <XStack
+          width="100%"
+          justifyContent="center"
+          marginTop="$2xl"
+          paddingHorizontal="$2xl"
+        >
           <SplashButton
             data-testid="invite-friends"
             marginTop="$l"
             onPress={props.onActionPress}
-            marginHorizontal="$2xl"
           >
             Invite friends
           </SplashButton>
@@ -335,68 +368,161 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 
 const logger = createDevLogger('SplashSequence', true);
 
-export function InvitePane(props: { onActionPress: () => void }) {
-  const insets = useSafeAreaInsets();
-  const store = useStore();
-  const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const perms = useContactPermissions();
+const INVITE_EXPLANATION_TEXT =
+  "Anyone you invite will skip the waitlist and be added to your contacts. You'll receive a DM when they join.";
 
-  const processContacts = async () => {
-    try {
-      setIsProcessing(true);
-      await store.syncSystemContacts();
-      Alert.alert('Success', 'Your contacts have been synced.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            props.onActionPress();
-          },
-        },
-      ]);
-    } catch (error) {
-      setError('Something went wrong, please try again.');
-      Alert.alert('Error', "We weren't able to sync your contacts.", [
-        {
-          text: 'OK',
-          onPress: () => {
-            props.onActionPress();
-          },
-        },
-      ]);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+export function InviteContactsContent(props: {
+  onComplete: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
+  const inviteLink = db.personalInviteLink.useValue();
+  const handleInviteContact = useInviteSystemContactHandler(
+    props.inviteSystemContacts,
+    inviteLink
+  );
+  const { data: storeSystemContacts } = store.useSystemContacts();
+  const systemContacts = props.systemContacts ?? storeSystemContacts;
+  const isReady = !!inviteLink;
+  const hasContacts = systemContacts && systemContacts.length > 0;
 
-  const handleShareContacts = async () => {
-    try {
-      if (perms.canAskPermission) {
-        const status = await perms.requestPermissions();
-        if (status === 'granted') {
-          await processContacts();
+  const { displayContacts, handleSearch } = useSystemContactSearch(
+    systemContacts ?? []
+  );
+
+  return (
+    <YStack flex={1}>
+      <ScreenHeader
+        title="Invite your friends"
+        rightControls={
+          <ScreenHeader.TextButton
+            testID="finish-invites"
+            onPress={props.onComplete}
+          >
+            Next
+          </ScreenHeader.TextButton>
         }
-      }
-    } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
-        context: 'handleShareContacts threw',
-        error: e,
-        severity: AnalyticsSeverity.Critical,
-      });
-    }
-  };
+      />
+      {!hasContacts ? (
+        <ShareInviteLinkEmptyState />
+      ) : !isReady ? (
+        <LoadingState />
+      ) : (
+        <>
+          <SplashParagraph marginTop="$l" marginBottom="$xl">
+            {INVITE_EXPLANATION_TEXT}
+          </SplashParagraph>
+          <XStack paddingHorizontal="$xl">
+            <SearchBar
+              height="$4xl"
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          </XStack>
+          <FlatList
+            data={displayContacts}
+            keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              padding: getTokenValue('$l', 'size'),
+              paddingBottom: getTokenValue('$4xl', 'size'),
+            }}
+            renderItem={({ item: contact }) => (
+              <SystemContactListItem
+                systemContact={contact}
+                onPress={() => handleInviteContact(contact)}
+                showInvitedStatus
+              />
+            )}
+          />
+        </>
+      )}
+    </YStack>
+  );
+}
 
-  const handleSkip = () => {
-    logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
-    props.onActionPress();
-  };
+function LoadingState() {
+  const insets = useSafeAreaInsets();
 
-  const shouldPromptForPermission = useMemo(() => {
-    return !isWeb && !perms.hasPermission;
-  }, [perms]);
-  const handleAction = shouldPromptForPermission
-    ? handleShareContacts
-    : props.onActionPress;
+  return (
+    <YStack
+      flex={1}
+      paddingHorizontal="$xl"
+      paddingBottom={insets.bottom + getTokenValue('$6xl', 'size')}
+    >
+      <SplashParagraph marginTop="$l">
+        {INVITE_EXPLANATION_TEXT}
+      </SplashParagraph>
+      <YStack flex={1} justifyContent="center" alignItems="center" gap="$xl">
+        <LoadingSpinner size="large" />
+        <Text size="$body" color="$secondaryText">
+          Preparing your invite link
+        </Text>
+      </YStack>
+    </YStack>
+  );
+}
+
+function ShareInviteLinkEmptyState() {
+  const insets = useSafeAreaInsets();
+  const themeName = useThemeName();
+  const isDark = themeName === 'dark';
+
+  const facesImage = isDark
+    ? isWeb
+      ? `./faces-dark.png`
+      : require(`../../assets/raster/faces-dark.png`)
+    : isWeb
+      ? `./faces.png`
+      : require(`../../assets/raster/faces.png`);
+
+  return (
+    <YStack
+      flex={1}
+      justifyContent="flex-start"
+      alignItems="center"
+      paddingHorizontal="$xl"
+      paddingBottom={insets.bottom}
+    >
+      <YStack alignItems="center" gap="$3xl" width="100%" maxWidth={340}>
+        <View paddingTop="$5xl" paddingBottom={'$2xl'}>
+          <Image
+            style={{ width: 200, height: 141 }}
+            resizeMode="contain"
+            source={facesImage}
+          />
+        </View>
+        <SplashParagraph marginHorizontal={0}>
+          {INVITE_EXPLANATION_TEXT}
+        </SplashParagraph>
+        <View width="100%">
+          <PersonalInviteButton />
+        </View>
+      </YStack>
+    </YStack>
+  );
+}
+
+function ConnectContactBookContent(props: {
+  onConnectContacts: () => void;
+  onSkip: () => void;
+  isProcessing: boolean;
+  forceShowConnect?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+
+  const shouldShowConnectOption = props.forceShowConnect || !isWeb;
+
+  const handleAction = shouldShowConnectOption
+    ? props.onConnectContacts
+    : props.onSkip;
 
   return (
     <YStack flex={1} justifyContent="space-between">
@@ -404,7 +530,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
         <InviteFriendsDisplay />
         <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
           <SplashTitle
-            marginTop={isWeb || !shouldPromptForPermission ? '$4xl' : 'unset'}
+            marginTop={isWeb || !shouldShowConnectOption ? '$4xl' : 'unset'}
           >
             Tlon is better{' '}
             <Text color="$positiveActionText">with friends.</Text>
@@ -414,15 +540,10 @@ export function InvitePane(props: { onActionPress: () => void }) {
             Messenger, they get their own cloud computer. You can all post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
-          {shouldPromptForPermission && (
+          {shouldShowConnectOption && (
             <SplashParagraph marginTop="$xl">
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
-          )}
-          {error && !isWeb && (
-            <Text marginTop="$m" size="$label/m" color="$red">
-              {error}
-            </Text>
           )}
         </YStack>
       </YStack>
@@ -430,38 +551,32 @@ export function InvitePane(props: { onActionPress: () => void }) {
         width="100%"
         justifyContent="center"
         marginTop="$2xl"
+        paddingHorizontal="$2xl"
         marginBottom={
           isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
         }
       >
-        {isProcessing && !isWeb && (
+        {props.isProcessing && !isWeb && (
           <YStack alignItems="center" marginBottom="$l">
             <LoadingSpinner />
           </YStack>
         )}
-        <YStack
-          width={isWeb ? 'auto' : '100%'}
-          paddingHorizontal={isWeb ? 'unset' : '$2xl'}
-        >
+        <YStack width={isWeb ? 'auto' : '100%'}>
           <SplashButton
             data-testid="connect-contact-book"
             marginTop="$l"
             onPress={handleAction}
-            marginHorizontal={isWeb ? '$2xl' : 'unset'}
-            backgroundColor="$positiveActionText"
-            textProps={{ color: '$white' }}
-            disabled={isProcessing}
+            variant="positive"
+            disabled={props.isProcessing}
           >
-            {shouldPromptForPermission ? 'Connect contact book' : 'Finish'}
+            {shouldShowConnectOption ? 'Connect contact book' : 'Finish'}
           </SplashButton>
-          {shouldPromptForPermission && (
+          {shouldShowConnectOption && (
             <SplashButton
               marginTop="$l"
-              secondary
-              textProps={{ color: '$secondaryText' }}
-              backgroundColor="$background"
-              disabled={isProcessing}
-              onPress={handleSkip}
+              variant="secondary"
+              disabled={props.isProcessing}
+              onPress={props.onSkip}
             >
               Skip
             </SplashButton>
@@ -469,6 +584,108 @@ export function InvitePane(props: { onActionPress: () => void }) {
         </YStack>
       </XStack>
     </YStack>
+  );
+}
+
+export function InvitePane(props: {
+  onActionPress: () => void;
+  systemContacts?: db.SystemContact[];
+  inviteSystemContacts?: InviteSystemContactsFn;
+}) {
+  const storeContext = useStore();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showInviteContacts, setShowInviteContacts] = useState(false);
+  const hasAutoProcessed = useRef(false);
+  const perms = useContactPermissions();
+  const hasProvidedContacts = !!props.systemContacts?.length;
+
+  const processContacts = useCallback(async () => {
+    if (hasProvidedContacts) {
+      setShowInviteContacts(true);
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      await storeContext.syncSystemContacts();
+
+      // Log analytics if no contacts were found
+      const syncedContacts = await db.getSystemContacts();
+      if (!syncedContacts || syncedContacts.length === 0) {
+        logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
+          reason: 'no_contacts_synced',
+        });
+      }
+    } catch (err) {
+      logger.trackError('Failed to sync system contacts', { error: err });
+    } finally {
+      setIsProcessing(false);
+      setShowInviteContacts(true);
+    }
+  }, [hasProvidedContacts, storeContext]);
+
+  useEffect(() => {
+    if (
+      !isWeb &&
+      !hasProvidedContacts &&
+      perms.hasPermission &&
+      !perms.isLoading &&
+      !hasAutoProcessed.current
+    ) {
+      hasAutoProcessed.current = true;
+      processContacts();
+    }
+  }, [
+    perms.hasPermission,
+    perms.isLoading,
+    hasProvidedContacts,
+    processContacts,
+  ]);
+
+  const handleConnectContacts = async () => {
+    if (hasProvidedContacts) {
+      await processContacts();
+      return;
+    }
+
+    try {
+      if (perms.canAskPermission) {
+        const status = await perms.requestPermissions();
+        if (status === 'granted') {
+          await processContacts();
+        }
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+        context: 'handleConnectContacts threw',
+        error: e,
+        severity: AnalyticsSeverity.Critical,
+      });
+    }
+  };
+
+  const handleSkip = () => {
+    logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
+    setShowInviteContacts(true);
+  };
+
+  if (showInviteContacts) {
+    return (
+      <InviteContactsContent
+        onComplete={props.onActionPress}
+        systemContacts={props.systemContacts}
+        inviteSystemContacts={props.inviteSystemContacts}
+      />
+    );
+  }
+
+  return (
+    <ConnectContactBookContent
+      onConnectContacts={handleConnectContacts}
+      onSkip={handleSkip}
+      isProcessing={isProcessing}
+      forceShowConnect={hasProvidedContacts}
+    />
   );
 }
 

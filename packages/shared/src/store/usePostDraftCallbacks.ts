@@ -65,4 +65,5 @@ export function usePostDraftCallbacks(
 export const draftKeyFor = {
   channel: (opts: { channelId: db.Channel['id'] }) => opts.channelId,
   thread: (opts: { parentPostId: db.Post['id'] }) => opts.parentPostId,
+  postEdit: (opts: { postId: db.Post['id'] }) => `edit-${opts.postId}`,
 };

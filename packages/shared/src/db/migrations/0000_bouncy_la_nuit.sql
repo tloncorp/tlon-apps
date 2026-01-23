@@ -300,7 +300,8 @@ CREATE TABLE `groups` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`synced_at` integer,
-	`pending_members_dismissed_at` integer
+	`pending_members_dismissed_at` integer,
+	`member_count` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
@@ -369,7 +370,8 @@ CREATE TABLE `posts` (
 	`sequence_number` integer,
 	`synced_at` integer,
 	`backend_time` text,
-	`blob` text
+	`blob` text,
+	`draft` text
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`,`sequence_number`);--> statement-breakpoint

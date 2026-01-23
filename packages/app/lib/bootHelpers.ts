@@ -14,10 +14,13 @@ export default {
   getInvitedGroupAndDm,
 };
 
-export async function reserveNode(
-  hostingUserId: string
-): Promise<{ id: string; code?: string; isReady: boolean }> {
-  const { nodeId, code, isReady } =
+export async function reserveNode(hostingUserId: string): Promise<{
+  id: string;
+  code?: string;
+  isReady: boolean;
+  personalInviteToken: string | null;
+}> {
+  const { nodeId, code, isReady, personalInviteToken } =
     await hostingApi.assignShipToUser(hostingUserId);
 
   trackOnboardingAction({
@@ -27,7 +30,7 @@ export async function reserveNode(
 
   await db.hostedUserNodeId.setValue(nodeId);
 
-  return { id: nodeId, code, isReady };
+  return { id: nodeId, code, isReady, personalInviteToken };
 }
 
 export async function checkNodeBooted(): Promise<boolean> {

@@ -147,6 +147,7 @@ export function GalleryPost({
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame
+  // These props come from parent components but shouldn't be passed to DOM elements
   const {
     onShowEmojiPicker: _onShowEmojiPicker,
     onPressImage: _onPressImage,
@@ -155,8 +156,13 @@ export function GalleryPost({
     showReplies: _showReplies,
     setViewReactionsPost: _setViewReactionsPost,
     onPressReplies: _onPressReplies,
+    displayDebugMode: _displayDebugMode,
+    onPressDelete: _onPressDelete,
     ...rest
-  } = props;
+  } = props as typeof props & {
+    displayDebugMode?: boolean;
+    onPressDelete?: (post: db.Post) => void;
+  };
 
   return (
     <Pressable
@@ -167,7 +173,7 @@ export function GalleryPost({
       flex={1}
       testID="Post"
     >
-      <GalleryPostFrame {...props}>
+      <GalleryPostFrame {...rest}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
         <GalleryContentRenderer
           testID="GalleryPostContentPreview"
@@ -203,14 +209,13 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button
+                <Button.Frame
                   borderWidth="unset"
-                  size="$xs"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
-                </Button>
+                </Button.Frame>
               }
             />
           </Pressable>
@@ -329,7 +334,7 @@ export function GalleryPostDetailView({
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
   const isTextPost = useMemo(() => {
     const type = content[0]?.type;
-    return !['embed', 'video', 'image', 'link', 'reference'].includes(type);
+    return !['video', 'image', 'link', 'reference'].includes(type);
   }, [content]);
 
   const handlePressImage = useCallback(
@@ -559,9 +564,6 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
-    if (content[0]?.type === 'embed') {
-      return { text: content[0].url, href: content[0].url };
-    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }
@@ -620,13 +622,9 @@ const LargeContentRenderer = createContentRenderer({
     link: {
       ...noWrapperPadding,
       minHeight: 300,
-      renderEmbed: true,
       imageProps: {
         aspectRatio: 1.5,
       },
-    },
-    embed: {
-      ...noWrapperPadding,
     },
   },
 });
@@ -671,7 +669,7 @@ const SmallContentRenderer = createContentRenderer({
     link: {
       borderRadius: 0,
       borderWidth: 0,
-      renderDescription: false,
+      renderDescription: true,
       imageProps: {
         height: '66%',
         aspectRatio: 'unset',
@@ -731,8 +729,7 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 
     // For text-only content, check if it's all text blocks
     const isTextContent = content.every(
-      (block) =>
-        !['image', 'video', 'reference', 'link', 'embed'].includes(block.type)
+      (block) => !['image', 'video', 'reference', 'link'].includes(block.type)
     );
 
     if (isTextContent) {

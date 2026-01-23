@@ -1495,7 +1495,9 @@
     ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=([%command %leave ~] rest.pole)
+            ?|  ?=(%kick -.sign)
+              ::
+                ?=([%command %leave ~] rest.pole)
                 ?=([%comand %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
@@ -4058,7 +4060,11 @@
           go-core
         ::
             %leave-channels
-          =.  cor  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
+          ::  this error is reported at a warning, not a failure level,
+          ::  because we proactively leave all channels when leaving the
+          ::  group.
+          ::
+          =.  cor  (tell:l %warn %poke-ack 'failed to leave channels' u.p.sign)
           go-core
       ==
     ::

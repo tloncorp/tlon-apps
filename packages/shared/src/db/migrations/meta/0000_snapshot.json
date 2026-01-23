@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "04c52350-44b5-41a4-90a0-4c2d120aebb3",
+  "id": "801aa12f-bdf7-4274-a98d-7f69b96592a3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2039,6 +2039,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "member_count": {
+          "name": "member_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -2494,6 +2501,13 @@
         },
         "blob": {
           "name": "blob",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "draft": {
+          "name": "draft",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

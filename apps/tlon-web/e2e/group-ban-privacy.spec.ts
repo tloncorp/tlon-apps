@@ -15,7 +15,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
     await helpers.createGroup(zodPage);
     await helpers.openGroupSettings(zodPage);
     await helpers.setGroupPrivacy(zodPage, 'private');
-    await helpers.navigateBack(zodPage);
+    // setGroupPrivacy now navigates back to group settings automatically
 
     // Invite ~ten
     await helpers.openGroupSettings(zodPage);
@@ -59,7 +59,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
 
     // The group should not be visible in ~ten's chat list
     await expect(
-      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+      tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
   });
 
@@ -76,7 +76,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
 
     // Change privacy to secret
     await helpers.setGroupPrivacy(zodPage, 'secret');
-    await helpers.navigateBack(zodPage);
+    // setGroupPrivacy now navigates back to group settings automatically
 
     // Invite ~ten to the secret group
     await helpers.openGroupSettings(zodPage);
@@ -116,7 +116,7 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
 
     // The group should not be visible in ~ten's chat list
     await expect(
-      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+      tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
   });
 });

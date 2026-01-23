@@ -77,13 +77,11 @@ export default function ProfileStatusSheet({
               }}
             />
             <Button
-              onPress={handleSave}
+              preset="secondary"
               disabled={!isValid}
-              paddingVertical="$l"
-              borderColor="transparent"
-            >
-              <Icon type="ArrowUp" />
-            </Button>
+              icon="ArrowUp"
+              onPress={handleSave}
+            />
           </XStack>
         </YStack>
       </ActionSheet.Content>

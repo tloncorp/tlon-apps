@@ -56,10 +56,7 @@ export function EmptyChannelNotice({
         aspectRatio={911 / 755}
       />
       <YStack gap="$m" width={'100%'}>
-        <Button secondary onPress={() => onPressGroupMeta(true)}>
-          <Icon type="Settings" size="$m" color="$secondaryText" />
-          <Button.Text>Customize</Button.Text>
-        </Button>
+        <Button preset="secondaryOutline" onPress={() => onPressGroupMeta(true)} label="Customize" leadingIcon="Settings" centered />
         <InviteFriendsToTlonButton group={group} />
       </YStack>
     </YStack>
@@ -82,12 +79,11 @@ export function EmptyChannelNotice({
         </Text>
       </YStack>
       <Button
-        paddingHorizontal="$xl"
-        paddingVertical="$m"
+        preset="outline"
+        size="small"
         onPress={onPressRetryLoad}
-      >
-        <Button.Text>Retry</Button.Text>
-      </Button>
+        label="Retry"
+      />
     </YStack>
   ) : (
     <YStack flex={1} justifyContent="center" alignItems="center" gap="$3xl">

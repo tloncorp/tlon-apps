@@ -105,8 +105,8 @@ onFlowComplete:
 - assertVisible: Invite friends
 - tapOn: Invite friends
 
-- assertVisible: Finish
-- tapOn: Finish
+- assertVisible: Invite your friends
+- tapOn: Next
 
 # assert everything we expect to be there is
 - assertVisible: '~wittyr-witbes' # Tlon Support

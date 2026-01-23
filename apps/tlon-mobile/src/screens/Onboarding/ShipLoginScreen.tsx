@@ -5,11 +5,6 @@ import {
   DEFAULT_SHIP_LOGIN_URL,
 } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { getShipFromCookie } from '@tloncorp/app/utils/ship';
-import { transformShipURL } from '@tloncorp/app/utils/string';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
-import { storage } from '@tloncorp/shared/db';
 import {
   Field,
   KeyboardAvoidingView,
@@ -20,6 +15,11 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { getShipFromCookie } from '@tloncorp/app/utils/ship';
+import { transformShipURL } from '@tloncorp/app/utils/string';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { storage } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -132,8 +132,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        backgroundColor="$secondaryBackground"
         title="Connect Ship"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}

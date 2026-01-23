@@ -41,7 +41,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(zodPage.getByText('Profile')).toBeVisible();
 
   // Edit ~ten's profile (setting a custom nickname)
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
   // Set custom nickname for ~ten
@@ -51,7 +51,7 @@ test('should manage contacts and edit contact nicknames', async ({
   // Note: Status and bio fields are not available when editing another user's profile
   // Only nickname is editable for other users
 
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Verify the nickname was saved
   await zodPage.waitForTimeout(2000);
@@ -66,7 +66,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await zodPage.getByTestId('AvatarNavIcon').click();
   await zodPage.getByText('You').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage
@@ -80,7 +80,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await zodPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Now ~ten adds ~zod as a contact
   await tenPage.getByTestId('AvatarNavIcon').click();
@@ -110,13 +110,13 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(tenPage.getByText('Profile')).toBeVisible();
 
   // ~ten edits ~zod's profile (sets a custom nickname for ~zod)
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod from Ten perspective');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Verify ~ten sees their custom nickname for ~zod
   await tenPage.waitForTimeout(2000);
