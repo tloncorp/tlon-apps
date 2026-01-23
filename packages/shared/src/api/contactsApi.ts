@@ -173,6 +173,33 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
   });
 };
 
+export const updateSigilColor = async (color: string | null) => {
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+  if (color) {
+    let urbitColor = color.startsWith('#') ? color.slice(1) : color;
+    if (urbitColor.startsWith('0x')) {
+      urbitColor = urbitColor.slice(2);
+    }
+    urbitColor = urbitColor.toLowerCase().padStart(6, '0');
+    const formattedColor = `${urbitColor.slice(0, 2)}.${urbitColor.slice(2)}`;
+    contactUpdate.color = {
+      type: 'tint',
+      value: formattedColor,
+    };
+  } else {
+    contactUpdate.color = {
+      type: 'tint',
+      value: '0',
+    };
+  }
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
+  });
+};
+
 export const addPinnedGroup = async (groupId: string) => {
   const update: ub.ContactEdit = { edit: [{ 'add-group': groupId }] };
   return poke({

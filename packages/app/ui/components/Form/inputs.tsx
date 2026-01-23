@@ -753,3 +753,77 @@ export function CheckboxInputRow<T>({
 export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
+
+// Color picker input
+
+const SIGIL_COLOR_PRESETS = [
+  '#000000',
+  '#4E4E9C',
+  '#2E5AAC',
+  '#008080',
+  '#2E8C57',
+  '#8B4513',
+  '#D2691E',
+  '#C41E3A',
+  '#9C2772',
+  '#666666',
+];
+
+const ColorSwatchFrame = styled(Pressable, {
+  width: 40,
+  height: 40,
+  borderRadius: '$m',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderWidth: 2,
+  borderColor: 'transparent',
+  variants: {
+    selected: {
+      true: {
+        borderColor: '$primaryText',
+      },
+    },
+  } as const,
+});
+
+const ColorSwatchInner = styled(View, {
+  width: 32,
+  height: 32,
+  borderRadius: '$s',
+});
+
+export const ColorInput = ({
+  value,
+  onChange,
+}: {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+}) => {
+  const handleSelect = useCallback(
+    (color: string) => {
+      // Toggle off if same color selected
+      if (value === color) {
+        onChange?.(null);
+      } else {
+        onChange?.(color);
+      }
+    },
+    [onChange, value]
+  );
+
+  return (
+    <InputFrame paddingVertical="$m" paddingHorizontal="$m" height="auto">
+      <XStack flexWrap="wrap" gap="$s" justifyContent="flex-start">
+        {SIGIL_COLOR_PRESETS.map((color) => (
+          <ColorSwatchFrame
+            key={color}
+            selected={value === color}
+            onPress={() => handleSelect(color)}
+          >
+            <ColorSwatchInner backgroundColor={color} />
+          </ColorSwatchFrame>
+        ))}
+      </XStack>
+    </InputFrame>
+  );
+};

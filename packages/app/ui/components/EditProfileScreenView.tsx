@@ -21,6 +21,7 @@ import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {
+  ControlledColorField,
   ControlledImageField,
   ControlledTextField,
   ControlledTextareaField,
@@ -101,6 +102,7 @@ export function EditProfileScreenView(props: Props) {
       status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
       avatarImage: currentAvatarImage ?? '',
+      sigilColor: userContact?.color ?? '',
     },
   });
 
@@ -110,12 +112,14 @@ export function EditProfileScreenView(props: Props) {
       status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
       avatarImage: currentAvatarImage ?? '',
+      sigilColor: userContact?.color ?? '',
     });
   }, [
     props.userId,
     currentNickname,
     userContact?.status,
     userContact?.bio,
+    userContact?.color,
     currentAvatarImage,
     reset,
   ]);
@@ -129,6 +133,7 @@ export function EditProfileScreenView(props: Props) {
         const avatarStartVal = isCurrUser
           ? userContact?.avatarImage
           : userContact?.customAvatarImage;
+        const colorStartVal = userContact?.color ?? '';
 
         const update = {
           status: formData.status,
@@ -147,6 +152,10 @@ export function EditProfileScreenView(props: Props) {
 
         if (isCurrUser) {
           store.updateCurrentUserProfile(update);
+          const colorChanged = formData.sigilColor !== colorStartVal;
+          if (colorChanged) {
+            store.updateSigilColor(formData.sigilColor || null);
+          }
         } else {
           store.updateContactMetadata(props.userId, {
             nickname: update.nickname,
@@ -163,6 +172,7 @@ export function EditProfileScreenView(props: Props) {
     props,
     store,
     userContact?.avatarImage,
+    userContact?.color,
     userContact?.customAvatarImage,
     userContact?.customNickname,
     userContact?.nickname,
@@ -296,6 +306,16 @@ export function EditProfileScreenView(props: Props) {
                 },
               }}
             />
+
+            {isCurrUser ? (
+              <>
+                <ControlledColorField
+                  name="sigilColor"
+                  label="Sigil color"
+                  control={control}
+                />
+              </>
+            ) : null}
 
             {isCurrUser ? (
               <>
