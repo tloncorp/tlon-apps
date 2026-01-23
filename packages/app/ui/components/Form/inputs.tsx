@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import React from 'react';
@@ -755,20 +756,17 @@ export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
 
-const presets = () =>
-  (
-    [
-      '$red',
-      '$orange',
-      '$yellow',
-      '$green',
-      '$blue',
-      '$indigo',
-      '$black',
-      '$gray500',
-      '$white',
-    ] as const
-  ).map((color) => getTokenValue(color, 'color'));
+const presets = [
+  '$red',
+  '$orange',
+  '$yellow',
+  '$green',
+  '$blue',
+  '$indigo',
+  '$black',
+  '$gray500',
+  '$white',
+] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
   width: '$3.5xl',
@@ -814,18 +812,31 @@ export const ColorInput = ({
     [onChange, onBlur, value]
   );
 
+  const handleClear = useCallback(() => {
+    onChange?.(null);
+    onBlur?.();
+  }, [onChange, onBlur]);
+
   return (
     <InputFrame paddingVertical="$m" paddingHorizontal="$m" height="auto">
       <XStack flexWrap="wrap" gap="$s" justifyContent="flex-start">
-        {presets().map((color) => (
-          <ColorSwatchFrame
-            key={color}
-            selected={value === color}
-            onPress={() => handleSelect(color)}
-          >
-            <ColorSwatchInner backgroundColor={color} />
-          </ColorSwatchFrame>
-        ))}
+        {presets.map((color) => {
+          const colorValue = getTokenValue(color, 'color');
+          return (
+            <ColorSwatchFrame
+              key={colorValue}
+              selected={value === colorValue}
+              onPress={() => handleSelect(colorValue)}
+            >
+              <ColorSwatchInner backgroundColor={colorValue} />
+            </ColorSwatchFrame>
+          );
+        })}
+        {value && (
+          <Button size="$s" onPress={handleClear}>
+            <Button.Text>Clear</Button.Text>
+          </Button>
+        )}
       </XStack>
     </InputFrame>
   );

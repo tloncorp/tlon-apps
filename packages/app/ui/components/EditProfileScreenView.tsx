@@ -303,13 +303,11 @@ export function EditProfileScreenView(props: Props) {
             />
 
             {isCurrUser ? (
-              <>
-                <ControlledColorField
-                  name="sigilColor"
-                  label="Default avatar color"
-                  control={control}
-                />
-              </>
+              <ControlledColorField
+                name="sigilColor"
+                label="Default avatar color"
+                control={control}
+              />
             ) : null}
 
             {isCurrUser ? (
