@@ -242,17 +242,20 @@ export function EditChannelScreenView({
                 />
               </>
             )}
-            <YStack gap="$2xl">
+            <YStack gap="$xl" width={'100%'}>
               <Button
-                hero
+                preset="primary"
                 onPress={handleSubmit(handleSave)}
                 testID="ChannelSettingsSaveButton"
-              >
-                <Button.Text>Save</Button.Text>
-              </Button>
-              <Button heroDestructive onPress={handlePressDelete}>
-                <Button.Text>Delete channel for everyone</Button.Text>
-              </Button>
+                label="Save"
+                centered
+              />
+              <Button
+                preset="destructive"
+                onPress={handlePressDelete}
+                label="Delete channel for everyone"
+                centered
+              />
             </YStack>
           </YStack>
         </ScrollView>
@@ -592,20 +595,20 @@ export function PermissionTable({
             gap="$m"
           >
             {onSelectRoles && (
-              <Button onPress={onSelectRoles} testID="AddRolesButton">
-                <Button.Icon>
-                  <Icon type="Add" />
-                </Button.Icon>
-                <Button.Text>Add roles</Button.Text>
-              </Button>
+              <Button
+                onPress={onSelectRoles}
+                testID="AddRolesButton"
+                preset="secondaryOutline"
+                label="Add roles"
+              />
             )}
             {onCreateRole && (
-              <Button onPress={onCreateRole} testID="CreateRoleButton">
-                <Button.Icon>
-                  <Icon type="Add" />
-                </Button.Icon>
-                <Button.Text>Create new role</Button.Text>
-              </Button>
+              <Button
+                onPress={onCreateRole}
+                testID="CreateRoleButton"
+                preset="secondaryOutline"
+                label="Create new role"
+              />
             )}
           </XStack>
         )}

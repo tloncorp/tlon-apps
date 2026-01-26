@@ -69,7 +69,7 @@ test('should allow banning and unbanning users in public groups', async ({
 
   // The group should not be visible in ~ten's chat list
   await expect(
-    tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
   ).not.toBeVisible({ timeout: 5000 });
 
   // Now unban ~ten
@@ -89,7 +89,7 @@ test('should allow banning and unbanning users in public groups', async ({
   // After unbanning, ~ten still can't see the group (needs re-invite)
   // This verifies that unbanning doesn't automatically restore access
   await expect(
-    tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
   ).not.toBeVisible({ timeout: 5000 });
 
   // Navigate to group settings to re-invite

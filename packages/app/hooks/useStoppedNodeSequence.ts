@@ -31,7 +31,7 @@ export function useStoppedNodeSequence(params: {
 
   const [phase, setPhase] = useState(NodeResumeState.WaitingForRunning);
   const [shipInfo, setShipInfo] = useState<db.ShipInfo | null>(null);
-  const [isBeingRevived, setIsBeingRevived] = useState(false);
+  const [isGuidedFirstLogin, setIsGuidedFirstLogin] = useState(false);
 
   const isRunningRef = useRef(false);
   const lastRunPhaseRef = useRef(NodeResumeState.WaitingForRunning);
@@ -43,7 +43,7 @@ export function useStoppedNodeSequence(params: {
       // don't be too noisy with logging
       const supressStatusLog = bootStepCounter % 5 !== 0;
 
-      const { status, isBeingRevived } =
+      const { status, guideFirstLogin } =
         await store.checkHostingNodeStatus(supressStatusLog);
       if (status === HostedNodeStatus.UnderMaintenance) {
         return NodeResumeState.UnderMaintenance;
@@ -51,7 +51,7 @@ export function useStoppedNodeSequence(params: {
       if (status === HostedNodeStatus.Running) {
         logger.crumb('confirmed node is running');
         setBootedAt(Date.now());
-        setIsBeingRevived(isBeingRevived);
+        setIsGuidedFirstLogin(guideFirstLogin);
         return NodeResumeState.Authenticating;
       }
 
@@ -86,13 +86,13 @@ export function useStoppedNodeSequence(params: {
         unit: 'seconds',
       });
 
-      setShipInfo({ ...shipInfo, needsSplashSequence: isBeingRevived });
+      setShipInfo({ ...shipInfo, needsSplashSequence: isGuidedFirstLogin });
       return NodeResumeState.Ready;
     } catch (e) {
       logger.crumb('getting auth threw', e);
       return NodeResumeState.Authenticating;
     }
-  }, [bootedAt, isBeingRevived, params.waitType, store]);
+  }, [bootedAt, isGuidedFirstLogin, params.waitType, store]);
 
   const runPhase = useCallback(
     async (currPhase: NodeResumeState) => {

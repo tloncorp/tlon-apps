@@ -17,9 +17,9 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { useConnectionStatus } from './useConnectionStatus';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -83,9 +83,6 @@ export function ChatListScreenView({
     previewGroupId ?? null
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
@@ -125,12 +122,17 @@ export function ChatListScreenView({
     }
 
     // if still loading the screen data, show loading
-    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+    if (
+      !chats ||
+      (!chats.unpinned.length && !chats.pinned.length && !chats.pending.length)
+    ) {
       return 'Loading...';
     }
 
     return null;
   }, [isSyncing, chats]);
+
+  const { subtitle: syncSubtitle } = useSyncStatus();
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -291,7 +293,9 @@ export function ChatListScreenView({
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
             <ScreenHeader
-              title={notReadyMessage ?? 'Home'}
+              title="Home"
+              subtitle={syncSubtitle}
+              showSubtitle={true}
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
@@ -322,7 +326,10 @@ export function ChatListScreenView({
                 </>
               }
             />
-            {chats && chats.unpinned.length ? (
+            {chats &&
+            (chats.unpinned.length ||
+              chats.pending.length ||
+              chats.pinned.length) ? (
               <>
                 <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
                 <ChatListSearch
@@ -347,7 +354,6 @@ export function ChatListScreenView({
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}
               group={selectedGroup ?? undefined}
-              hostStatus={hostConnectionStatus}
               onActionComplete={handleGroupAction}
             />
           </View>

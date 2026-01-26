@@ -1,5 +1,4 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { ConnectionStatus } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -9,7 +8,8 @@ import { XStack, YStack } from 'tamagui';
 
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
-import { Badge, BadgeType } from './Badge';
+import { Badge } from './Badge';
+import ConnectionStatus from './ConnectionStatus';
 import { ContactName as ContactNameV2 } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
@@ -20,13 +20,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
-  hostStatus?: ConnectionStatus | null;
 }
 
 interface JoinStatus {
   isMember: boolean;
   isJoining: boolean;
   isErrored: boolean;
+  isSecret: boolean;
   needsInvite: boolean;
   hasInvite: boolean;
   requestedInvite: boolean;
@@ -55,7 +55,6 @@ function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
-  hostStatus,
   onActionComplete,
 }: Props) {
   useEffect(() => {
@@ -79,11 +78,7 @@ function GroupPreviewSheetComponent({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <GroupPreviewPane
-          group={group}
-          hostStatus={hostStatus}
-          onActionComplete={actionHandler}
-        />
+        <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (
         <LoadingSpinner />
       )}
@@ -93,11 +88,9 @@ function GroupPreviewSheetComponent({
 
 export function GroupPreviewPane({
   group,
-  hostStatus,
   onActionComplete,
 }: {
   group: db.Group;
-  hostStatus?: ConnectionStatus | null;
   onActionComplete: (
     action: GroupPreviewAction,
     updatedGroup: db.Group
@@ -110,6 +103,7 @@ export function GroupPreviewPane({
       isMember: group?.currentUserIsMember ?? false,
       isJoining: group?.joinStatus === 'joining' || isJoining,
       isErrored: group?.joinStatus === 'errored',
+      isSecret: group?.privacy === 'secret',
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
@@ -240,35 +234,6 @@ export function GroupPreviewPane({
 
   const isNarrow = useIsWindowNarrow();
 
-  const hostConnectionStatus = useMemo(() => {
-    if (!group.hostUserId) {
-      return null;
-    }
-
-    if (!hostStatus) {
-      return { label: 'Checking host status...', type: 'tertiary' };
-    }
-
-    if (!hostStatus.complete) {
-      switch (hostStatus.status) {
-        case 'setting-up':
-          return { label: 'Setting up...', type: 'tertiary' };
-        case 'trying-dns':
-        case 'trying-sponsor':
-          return { label: 'Checking network...', type: 'tertiary' };
-        default:
-          return { label: 'Checking host status...', type: 'tertiary' };
-      }
-    } else {
-      switch (hostStatus.status) {
-        case 'yes':
-          return { label: 'Online', type: 'positive' };
-        default:
-          return { label: 'Offline', type: 'warning' };
-      }
-    }
-  }, [hostStatus, group.hostUserId]);
-
   return (
     <ActionSheet.Content>
       <YStack
@@ -301,12 +266,7 @@ export function GroupPreviewPane({
                 <Badge text={privacyLabel} type="neutral" />
               </XStack>
             ) : null}
-            {hostConnectionStatus ? (
-              <Badge
-                text={hostConnectionStatus.label}
-                type={hostConnectionStatus.type as BadgeType}
-              />
-            ) : null}
+            <ConnectionStatus contactId={group.hostUserId} type="badge" />
           </XStack>
         </YStack>
 
@@ -328,22 +288,36 @@ export function GroupPreviewPane({
 
         <YStack gap="$m">
           {actionButtons.map((action) => {
+            // Map v1 accent to v2 fill/type
+            const buttonProps = (() => {
+              switch (action.accent) {
+                case 'hero':
+                  return { fill: 'solid' as const, type: 'primary' as const };
+                case 'heroPositive':
+                  return { fill: 'solid' as const, type: 'positive' as const };
+                case 'positive':
+                  return { fill: 'outline' as const, type: 'positive' as const };
+                case 'negative':
+                  return { fill: 'outline' as const, type: 'negative' as const };
+                case 'secondary':
+                  return { fill: 'outline' as const, type: 'secondary' as const };
+                case 'minimal':
+                  return { fill: 'text' as const, type: 'primary' as const };
+                default:
+                  return { fill: 'outline' as const, type: 'primary' as const };
+              }
+            })();
             return (
               <YStack key={`${action.accent}-${action.title}`} gap="$xs">
                 <Button
-                  hero={action.accent === 'hero'}
-                  heroPositive={action.accent === 'heroPositive'}
-                  positive={action.accent === 'positive'}
-                  negative={action.accent === 'negative'}
-                  secondary={action.accent === 'secondary'}
-                  minimal={action.accent === 'minimal'}
+                  {...buttonProps}
                   disabled={action.disabled}
                   onPress={action.onPress}
                   testID={action.testID ?? `ActionButton-${action.title}`}
                   alignSelf="stretch"
-                >
-                  <Button.Text>{action.title}</Button.Text>
-                </Button>
+                  label={action.title}
+                  centered
+                />
                 {action.description ? (
                   <Text
                     size="$label/m"
@@ -418,6 +392,16 @@ export function getActionGroups(
         title: 'Reject invite',
         accent: 'secondary',
         onPress: () => actions.respondToInvite(false),
+      },
+    ];
+  }
+  if (status.isSecret && !status.hasInvite) {
+    return [
+      {
+        title: 'This group is secret',
+        accent: 'secondary',
+        disabled: true,
+        description: 'You need an invite to join this group',
       },
     ];
   }

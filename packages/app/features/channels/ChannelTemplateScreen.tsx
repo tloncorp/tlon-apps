@@ -19,7 +19,13 @@ export function ChannelTemplateScreen(props: Props) {
         index: 1,
         routes: [
           { name: 'ChatList' },
-          { name: 'Channel', params: { channelId: channel.id } },
+          {
+            name: 'Channel',
+            params: {
+              channelId: channel.id,
+              groupId: channel.groupId ?? undefined,
+            },
+          },
         ],
       });
     },

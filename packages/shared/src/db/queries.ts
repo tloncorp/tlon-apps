@@ -882,9 +882,9 @@ export const getChats = createReadQuery(
             lastPost: true,
           },
         },
-        // Just need the first 3 members for possible title generation purposes
+        // Just need the first 4 members for avatar display
         members: {
-          limit: 3,
+          limit: 4,
           orderBy: [asc($chatMembers.joinedAt)],
           with: {
             contact: true,
@@ -1039,7 +1039,8 @@ export const insertGroups = createWriteQuery(
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
-                $groups.haveRequestedInvite
+                $groups.haveRequestedInvite,
+                $groups.memberCount
               ),
             });
         } else {
@@ -4530,6 +4531,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
           )
         )
       );
+  },
+  ['activityEvents']
+);
+
+export const checkActivityEmpty = createReadQuery(
+  'checkActivityEmpty',
+  async (ctx: QueryCtx) => {
+    const countResult = await ctx.db
+      .select({ count: count() })
+      .from($activityEvents);
+    const countValue = countResult[0]?.count ?? 0;
+    return countValue === 0;
   },
   ['activityEvents']
 );

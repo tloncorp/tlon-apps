@@ -77,6 +77,7 @@ export const RequestPhoneVerifyScreen = ({
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Confirm"
+        backgroundColor="$secondaryBackground"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
@@ -127,12 +128,12 @@ export const RequestPhoneVerifyScreen = ({
                   style={{
                     padding: 16,
                     borderWidth: 1,
-                    borderColor: theme.border.val,
+                    borderColor: theme.border?.val ?? '#ccc',
                     borderRadius: 8,
-                    backgroundColor: theme.background.val,
+                    backgroundColor: theme.background?.val ?? '#fff',
                   }}
                   textStyle={{
-                    color: theme.primaryText.val,
+                    color: theme.primaryText?.val ?? '#000',
                   }}
                   initialCountry="us"
                   autoFormat={true}
@@ -154,33 +155,33 @@ export const RequestPhoneVerifyScreen = ({
           modal: {
             flex: 0.8,
             backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+              ? theme.background?.val ?? '#000'
+              : theme.background?.val ?? '#fff',
           },
           countryButtonStyles: {
             backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+              ? theme.background?.val ?? '#000'
+              : theme.background?.val ?? '#fff',
           },
           dialCode: {
-            color: theme.primaryText.val,
+            color: theme.primaryText?.val ?? '#000',
           },
           countryName: {
-            color: theme.primaryText.val,
+            color: theme.primaryText?.val ?? '#000',
           },
           textInput: {
             backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
-            color: theme.primaryText.val,
+              ? theme.background?.val ?? '#000'
+              : theme.background?.val ?? '#fff',
+            color: theme.primaryText?.val ?? '#000',
             borderWidth: 1,
-            borderColor: theme.border.val,
+            borderColor: theme.border?.val ?? '#ccc',
             padding: 16,
           },
           line: {
             backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+              ? theme.background?.val ?? '#000'
+              : theme.background?.val ?? '#fff',
           },
         }}
         onBackdropPress={() => setShowCountryPicker(false)}

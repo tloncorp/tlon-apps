@@ -1,6 +1,5 @@
-/-  c=chat, d=channels, cv=chat-ver
+/-  c=chat, d=channels, dv=channels-ver, cv=chat-ver
 /-  meta
-
 /+  cite=cite-json, gj=groups-json, dj=channel-json, sj=story-json
 |%
 ++  enjs
@@ -1060,7 +1059,7 @@
           reply/reply-delta
       ::
         :-  %add
-        ^-  $-(json [=memo:v7:old:d =kind:v3:cv time=(unit time)])
+        ^-  $-(json [=memo:v7:dv =kind:v3:cv time=(unit time)])
         %-  ot
         :~  memo/memo:v7:dejs:dj
             kind/chat-kind:dejs:dj
@@ -1080,7 +1079,7 @@
               del-react/ship
           ::
             :-  %add
-            ^-  $-(json [=memo:v7:old:d time=(unit time)])
+            ^-  $-(json [=memo:v7:dv time=(unit time)])
             %-  ot
             :~  memo/memo:v7:dejs:dj
                 time/(mu (se %ud))

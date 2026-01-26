@@ -41,10 +41,16 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+  const {
+    channelId,
+    selectedPostId,
+    startDraft,
+    groupId: routeGroupId,
+  } = props.route.params ?? {
     channelId: '',
     selectedPostId: '',
     startDraft: false,
+    groupId: undefined,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
@@ -59,7 +65,6 @@ export default function ChannelScreen(props: Props) {
     clearDraft,
     editingPost,
     setEditingPost,
-    editPost,
     channel,
     group,
     groupIsLoading,
@@ -335,9 +340,13 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigationRef.current.navigate('UserProfile', { userId });
+      navigationRef.current.navigate('UserProfile', {
+        userId,
+        groupId,
+        channelId: currentChannelId,
+      });
     },
-    [navigationRef]
+    [navigationRef, groupId, currentChannelId]
   );
 
   const handleGoToGroupSettings = useCallback(() => {
@@ -348,6 +357,16 @@ export default function ChannelScreen(props: Props) {
       });
     }
   }, [group, navigationRef]);
+
+  const handleGoToEditChannel = useCallback(
+    (groupId: string, channelId: string) => {
+      props.navigation.navigate('GroupSettings', {
+        screen: 'EditChannel',
+        params: { groupId, channelId },
+      });
+    },
+    [props.navigation]
+  );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
   const handleConfigureChannel = useCallback(() => {
@@ -361,8 +380,9 @@ export default function ChannelScreen(props: Props) {
       ({
         type: 'channel',
         id: currentChannelId,
+        groupId: routeGroupId ?? channel?.groupId ?? undefined,
       }) as const,
-    [currentChannelId]
+    [currentChannelId, routeGroupId, channel?.groupId]
   );
 
   if (!channel) {
@@ -401,6 +421,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
+          goToEditChannel={handleGoToEditChannel}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}
@@ -419,7 +440,6 @@ export default function ChannelScreen(props: Props) {
           onPressRetrySend={handleRetrySend}
           onPressRetryLoad={postsQuery.refetch}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           negotiationMatch={negotiationStatus.matchedOrPending}
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}

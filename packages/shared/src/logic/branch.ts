@@ -3,6 +3,7 @@ import { valid } from '@urbit/aura';
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
+import { preSig } from '../urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('branch', false);
@@ -108,7 +109,7 @@ export function extractLureMetadata(branchParams: any) {
   }
 
   const extracted = {
-    inviterUserId: branchParams.inviterUserId || branchParams.inviter,
+    inviterUserId: preSig(branchParams.inviterUserId || branchParams.inviter),
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
     inviterColor: branchParams.inviteColor
@@ -132,7 +133,7 @@ export function extractLureMetadata(branchParams: any) {
     // fall back to v1 style lures where the id is a flag
     const [ship, _] = branchParams.lure.split('/');
     if (valid('p', ship)) {
-      extracted.inviterUserId = ship;
+      extracted.inviterUserId = preSig(ship);
       extracted.invitedGroupId = branchParams.lure;
     }
   }

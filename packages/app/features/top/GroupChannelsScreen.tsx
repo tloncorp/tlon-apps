@@ -3,7 +3,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -101,11 +101,17 @@ export function GroupChannelsScreenContent({
 
   const chatSettingsNav = useChatSettingsNavigation();
 
+  const handleLeaveChannel = useCallback(() => {
+    // When leaving a channel from the channels list, don't navigate
+    // This should be a no-op as the channel will be removed from the list
+  }, []);
+
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
       initialChat={{ type: 'group', id }}
       {...chatSettingsNav}
+      onLeaveChannel={handleLeaveChannel}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
         <GroupChannelsScreenView

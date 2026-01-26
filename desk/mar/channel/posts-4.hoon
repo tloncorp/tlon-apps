@@ -1,6 +1,6 @@
-/-  c=channels
+/-  cv=channels-ver
 /+  j=channel-json
-|_  =paged-posts:v9:c
+|_  =paged-posts:v9:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  paged-posts:v9:c
+  ++  noun  paged-posts:v9:cv
   --
 --

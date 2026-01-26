@@ -91,7 +91,7 @@ export function acceptGroupJoin({
           entry: {
             ask: {
               ships: contactIds,
-              'c-ask': 'approve',
+              'a-ask': 'approve',
             },
           },
         },
@@ -115,7 +115,7 @@ export function rejectGroupJoin({
           entry: {
             ask: {
               ships: contactIds,
-              'c-ask': 'deny',
+              'a-ask': 'deny',
             },
           },
         },

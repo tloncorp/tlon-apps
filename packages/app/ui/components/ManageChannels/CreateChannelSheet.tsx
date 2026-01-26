@@ -219,10 +219,9 @@ export function CreateChannelSheet({
               onPress={
                 isPrivate ? handlePressNext : handleSubmit(handlePressSave)
               }
-              hero
-            >
-              <Button.Text>{isPrivate ? 'Next' : 'Create channel'}</Button.Text>
-            </Button>
+              preset="hero"
+              label={isPrivate ? 'Next' : 'Create channel'}
+            />
           </ActionSheet.FormBlock>
         </ActionSheet.Content>
       </ActionSheet>
@@ -377,9 +376,7 @@ export function UnconnectedChannelConfigurationBar({
           {...buildConfigInputProps('draftInput')}
         />
       </YStack>
-      <Button hero onPress={onPressDone}>
-        <Button.Text>Done</Button.Text>
-      </Button>
+      <Button preset="primary" onPress={onPressDone} label="Done" centered />
     </YStack>
   );
 }
@@ -498,14 +495,14 @@ function ConfigInput<
           {label}
         </Text>
         <Button
-          paddingVertical="$xl"
+          preset="secondaryOutline"
           minWidth={140}
           onPress={() => setSheetOpen(true)}
+          label={selectedOptionTitle ?? 'default'}
+          centered
           {...props}
-        >
-          <Text size="$label/xl">{selectedOptionTitle ?? 'default'}</Text>
-        </Button>
-        <Button
+        />
+        {/* <IconButton
           onPress={() => setConfigurationOpen(true)}
           disabled={
             parametersSchema == null ||
@@ -514,7 +511,7 @@ function ConfigInput<
           disabledStyle={{ opacity: 0.5 }}
         >
           <Icon type="Settings" />
-        </Button>
+        </IconButton> */}
       </XStack>
 
       <SimpleActionSheet

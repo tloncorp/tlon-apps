@@ -19,14 +19,11 @@ test('should show and clear unread message counts', async ({
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and verify group creation
+  // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-  if (await zodPage.getByText('Home').isVisible()) {
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-    await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-  }
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
@@ -34,27 +31,39 @@ test('should show and clear unread message counts', async ({
   // Accept the group invitation
   await helpers.acceptGroupInvite(tenPage, groupName);
 
+  // Navigate ~ten to home BEFORE message is sent (so it will be unread)
+  await tenPage.getByTestId('HomeNavIcon').click();
+  await tenPage.waitForTimeout(1000);
+  await expect(tenPage.getByText('Home')).toBeVisible();
+
+  // Wait for the group to appear in the home list (group sync)
+  await expect(
+    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
+  ).toBeVisible({ timeout: 15000 });
+
   // Send a message from ~zod to create unread
   await helpers.sendMessage(zodPage, 'Unread message test');
 
-  // Navigate ~ten to home to prepare for unread testing
-  // Click the back button to go to Home
-  await tenPage.getByTestId('HeaderBackButton').first().click();
-  await expect(tenPage.getByText('Home')).toBeVisible();
+  // Wait for cross-ship message sync
+  await tenPage.waitForTimeout(2000);
 
   // Verify unread count on ~ten's side
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 1);
+  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 1, false, true);
 
   // Send another message to test count increment
   await helpers.sendMessage(zodPage, 'Second unread message');
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 2);
+
+  // Wait for cross-ship message sync
+  await tenPage.waitForTimeout(2000);
+
+  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 2, false, true);
 
   // Navigate to the group as ~ten to clear unread count
   await tenPage.getByText(groupName).first().click();
   await expect(tenPage.getByText(groupName).first()).toBeVisible();
 
   // Navigate back to home and verify unread count is cleared
-  await tenPage.getByTestId('HeaderBackButton').first().click();
+  await tenPage.getByTestId('HomeNavIcon').click();
   await expect(tenPage.getByText('Home')).toBeVisible();
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 0);
+  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 0, false, true);
 });

@@ -15,7 +15,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('You').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   
   await zodPage.getByTestId('ProfileNicknameInput').click();
@@ -30,7 +30,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await zodPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
   
   // TODO: figure out why we need to reload here. This should be fixed.
   await zodPage.reload();
@@ -51,11 +51,11 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('~ten').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage.getByTestId('ProfileNicknameInput').fill('Ten Custom Nickname');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Part 3: Critical test - Verify profile data doesn't persist
   // After editing ~ten's profile, now edit own profile again to verify no data persistence
@@ -65,7 +65,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Navigate to own profile
   await zodPage.getByText('You').click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
   // Verify that ~zod's own data appears, not ~ten's data
@@ -81,13 +81,14 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(bioInput).toHaveValue('Zod Testing bio');
 
   // Cancel without making changes to verify we maintained correct data
-  await zodPage.getByText('Cancel').click();
+  await zodPage.getByTestId('HeaderBackButton').click();
+
 
   // Part 4: ~ten also verifies no data persistence when editing profiles
   // First ~ten sets their own profile
   await tenPage.getByTestId('AvatarNavIcon').click();
   await tenPage.getByText('You').click();
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   
   await tenPage.getByTestId('ProfileNicknameInput').click();
@@ -100,7 +101,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Ten Bio');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Verify ~ten's profile was saved correctly
   await tenPage.reload();
@@ -126,20 +127,20 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(tenPage.getByText('Contacts')).toBeVisible();
   await tenPage.getByText('Zod Testing nickname').first().click();
   await expect(tenPage.getByText('Profile')).toBeVisible();
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod from Ten perspective');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Part 5: Critical test for ~ten - Verify no data persistence
   // After editing ~zod's profile, edit own profile again
   await tenPage.waitForTimeout(2000);
   await tenPage.getByTestId('AvatarNavIcon').click();
   await tenPage.getByText('You').click();
-  await tenPage.getByText('Edit').click();
+  await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
 
   // Verify that ~ten's own data appears, not ~zod's data
@@ -155,7 +156,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(tenBioInput).toHaveValue('Ten Bio');
 
   // Cancel without changes
-  await tenPage.getByText('Cancel').click();
+  await tenPage.getByTestId('HeaderBackButton').click();
 
   // Clean up
   await helpers.cleanupOwnProfile(tenPage);

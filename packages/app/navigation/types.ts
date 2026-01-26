@@ -59,6 +59,8 @@ export type RootStackParamList = {
   };
   UserProfile: {
     userId: string;
+    groupId?: string;
+    channelId?: string;
   };
   EditProfile: {
     userId: string;

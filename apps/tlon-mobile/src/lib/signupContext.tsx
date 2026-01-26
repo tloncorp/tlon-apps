@@ -213,6 +213,17 @@ async function runPostSignupActions(params: {
     }
   }
 
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+    } catch (e) {
+      logger.trackError('post signup: failed to set notification level', {
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
+  }
+
   // if a user signed up with a phone number, we need to
   // send register it on the verifier service
   if (params.phoneNumber) {

@@ -1,7 +1,11 @@
 import * as Sentry from '@sentry/react';
-import { GIT_HASH, SENTRY_DSN } from '@tloncorp/app/constants';
+import { SENTRY_DSN } from '@tloncorp/app/constants';
 
 const isDev = import.meta.env.DEV;
+// Read GIT_HASH directly from import.meta.env instead of importing from
+// @tloncorp/app/constants. That package is pre-built before VITE_GIT_HASH
+// is set, so the import would always be undefined.
+const GIT_HASH = import.meta.env.VITE_GIT_HASH ?? 'unknown';
 
 /**
  * Initialize Sentry for web error tracking.

@@ -238,18 +238,17 @@ const CreateChatFormContent = ({
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          maxHeight={500}
+          maxHeight={isWindowNarrow ? undefined : 500}
         />
         {chatType === 'group' && (
-          <Button marginTop="$l" hero onPress={onCreateGroup}>
-            {!isCreating ? (
-              <Button.Text>Create group</Button.Text>
-            ) : (
-              <View width={30} paddingHorizontal="$2xl">
-                <LoadingSpinner color="$background" />
-              </View>
-            )}
-          </Button>
+          <Button
+            preset="primary"
+            marginTop="$l"
+            onPress={onCreateGroup}
+            loading={isCreating}
+            label={isCreating ? '' : 'Create group'}
+            centered
+          />
         )}
       </YStack>
     </YStack>
@@ -507,16 +506,12 @@ function TypeSelectionContent({
         alignItems="center"
       >
         <Button
+          fill="text"
+          intent="secondary"
+          size="small"
           onPress={() => onSelectType('joinGroup')}
-          backgroundColor="transparent"
-          minimal
-          paddingVertical="$m"
-          paddingHorizontal="$l"
-        >
-          <Button.Text color="$tertiaryText" size="$label/m">
-            {CHAT_TYPE_CONFIG.joinGroup.actionTitle}
-          </Button.Text>
-        </Button>
+          label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+        />
       </View>
     </>
   );
@@ -593,6 +588,7 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
       enableContentPanningGesture={enableContentPanningGesture}
+      hasScrollableContent
     >
       <CreateChatFormContent
         chatType={chatType}

@@ -425,6 +425,8 @@ export function getDesktopChannelRoute(
     params: {
       screen: screenName,
       params: {
+        channelId,
+        ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
         params: {
           channelId,
