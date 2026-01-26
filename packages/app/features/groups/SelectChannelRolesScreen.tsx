@@ -10,7 +10,7 @@ import { ScrollView, View, YStack } from 'tamagui';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { TextInput } from '../../ui/components/Form';
 import { ListItem } from '../../ui/components/ListItem';
-import { groupRolesToOptions } from '../../ui/components/ManageChannels/EditChannelScreenView';
+import { groupRolesToOptions } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function SelectChannelRolesScreen() {
@@ -148,12 +148,12 @@ export function SelectChannelRolesScreen() {
           </YStack>
         </ScrollView>
         <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button onPress={handleCreateRole} secondary>
-            <Button.Text>Create new role</Button.Text>
-          </Button>
-          <Button onPress={handleSave} hero>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button
+            onPress={handleCreateRole}
+            preset="secondaryOutline"
+            label="Create new role"
+          />
+          <Button onPress={handleSave} preset="primary" label="Save" />
         </YStack>
       </YStack>
     </View>

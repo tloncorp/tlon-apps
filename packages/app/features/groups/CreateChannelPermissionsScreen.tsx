@@ -9,10 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import {
-  MEMBERS_MARKER,
-  PermissionTable,
-} from '../../ui/components/ManageChannels/EditChannelScreenView';
+import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermissions';
+import { MEMBERS_MARKER } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
