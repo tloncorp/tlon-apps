@@ -18,7 +18,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
 import React from 'react';
@@ -792,11 +791,9 @@ const ColorSwatchInner = styled(View, {
 export const ColorInput = ({
   value,
   onChange,
-  onBlur,
 }: {
   value?: string | null;
   onChange?: (value: string | null) => void;
-  onBlur?: () => void;
 }) => {
   const handleSelect = useCallback(
     (color: string) => {

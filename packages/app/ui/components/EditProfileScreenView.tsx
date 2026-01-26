@@ -95,6 +95,7 @@ export function EditProfileScreenView(props: Props) {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
@@ -106,6 +107,8 @@ export function EditProfileScreenView(props: Props) {
       sigilColor: userContact?.color ?? '',
     },
   });
+
+  const currentSigilColor = watch('sigilColor');
 
   useEffect(() => {
     reset({
@@ -251,6 +254,11 @@ export function EditProfileScreenView(props: Props) {
                               <View flex={1}>{children}</View>
                               <SigilAvatar
                                 contactId={currentUserId}
+                                contactOverride={{
+                                  ...userContact,
+                                  id: currentUserId,
+                                  color: currentSigilColor || null,
+                                }}
                                 width={56}
                                 height={56}
                                 borderRadius="$l"
