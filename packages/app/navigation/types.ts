@@ -179,11 +179,6 @@ export type DesktopChannelStackParamList = Pick<
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {
-  EditChannel: {
-    channelId: string;
-    groupId: string;
-    fromChatDetails?: boolean;
-  };
   EditChannelMeta: {
     channelId: string;
     groupId: string;

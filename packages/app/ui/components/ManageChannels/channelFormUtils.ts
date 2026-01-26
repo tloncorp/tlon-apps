@@ -2,21 +2,12 @@ import * as db from '@tloncorp/shared/db';
 
 /**
  * Form schema for channel privacy settings.
- * Used by both EditChannelScreenView and EditChannelPrivacyScreenView.
+ * Used by EditChannelPrivacyScreenView and CreateChannelSheet.
  */
 export interface ChannelPrivacyFormSchema {
   isPrivate: boolean;
   readers: string[];
   writers: string[];
-}
-
-/**
- * Full channel form schema including meta fields.
- * Used by EditChannelScreenView which combines meta + privacy.
- */
-export interface ChannelFormSchema extends ChannelPrivacyFormSchema {
-  title: string | null | undefined;
-  description: string | null | undefined;
 }
 
 export interface RoleOption {
@@ -87,21 +78,6 @@ export const getChannelPrivacyDefaults = (
     readers,
     writers,
     isPrivate,
-  };
-};
-
-/**
- * Computes default form values for the full channel form (meta + privacy).
- */
-export const getChannelFormDefaults = (
-  channel?: db.Channel | null
-): ChannelFormSchema => {
-  const privacyDefaults = getChannelPrivacyDefaults(channel);
-
-  return {
-    title: channel?.title,
-    description: channel?.description,
-    ...privacyDefaults,
   };
 };
 

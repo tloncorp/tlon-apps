@@ -84,7 +84,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  goToEditChannel?: (groupId: string, channelId: string) => void;
+  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -135,7 +135,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
-      goToEditChannel,
+      goToChannelDetails,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -209,17 +209,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onGroupAction]
     );
 
-    const handleGoToEditChannel = useCallback(() => {
+    const handleGoToChannelDetails = useCallback(() => {
       if (!channel.groupId) return;
 
       if (isSingleChannelGroup) {
         return;
       } else {
-        if (goToEditChannel) {
-          goToEditChannel(channel.groupId, channel.id);
+        if (goToChannelDetails) {
+          goToChannelDetails(channel.groupId, channel.id);
         }
       }
-    }, [goToEditChannel, channel.groupId, channel.id, group?.channels?.length]);
+    }, [goToChannelDetails, channel.groupId, channel.id, group?.channels?.length]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -449,7 +449,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               channel.type === 'gallery') &&
                             draftInputPresentationMode !== 'fullscreen'
                           }
-                          goToEdit={handleGoToEditChannel}
+                          goToEdit={handleGoToChannelDetails}
                         />
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (

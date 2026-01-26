@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { GroupSettingsStackParamList } from '../navigation/types';
@@ -37,15 +38,22 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
     id: groupId ?? '',
   });
 
+  const isWindowNarrow = useIsWindowNarrow();
   const { navigateToChatDetails } = useRootNavigation();
 
   const handleGoBack = useCallback(() => {
-    if (channel?.id) {
+    // On mobile (narrow), simply go back - the navigation stack is straightforward
+    // On desktop (wide), navigate to ChatDetails because the GroupSettings stack
+    // is mounted separately and goBack() would return to the channel view,
+    // not the ChatDetails screen the user came from
+    if (isWindowNarrow) {
+      navigation.goBack();
+    } else if (channel?.id) {
       navigateToChatDetails({ type: 'channel', id: channel.id });
     } else {
       navigation.goBack();
     }
-  }, [navigation, navigateToChatDetails, channel?.id]);
+  }, [navigation, isWindowNarrow, navigateToChatDetails, channel?.id]);
 
   return {
     channel,

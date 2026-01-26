@@ -36,10 +36,6 @@ export const getMobileLinkingConfig = (
           },
           GroupSettings: {
             screens: {
-              EditChannel: {
-                path: 'group/:groupId/channels/:channelId/edit',
-                parse: parsePathParams('groupId', 'channelId'),
-              },
               GroupMeta: {
                 path: 'group/:groupId/meta',
                 parse: parsePathParams('groupId'),

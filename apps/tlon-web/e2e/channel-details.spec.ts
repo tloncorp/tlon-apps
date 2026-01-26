@@ -19,14 +19,13 @@ test('should display channel details screen with all expected elements', async (
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify channel details screen elements are visible
   // Check header shows "Channel info"
@@ -74,18 +73,17 @@ test('should navigate to channel edit settings from channel details', async ({
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Edit name and description
   await page.getByTestId('ChannelEditMeta').click();
-  await page.waitForTimeout(500);
 
   // Verify we're on the channel edit screen
   await expect(page.getByTestId('ChannelTitleInput')).toBeVisible({
@@ -112,14 +110,13 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify Pin button is visible (channel is not pinned initially)
   await expect(page.getByText('Pin', { exact: true })).toBeVisible({
@@ -128,7 +125,6 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
 
   // Click Pin to pin the channel
   await page.getByText('Pin', { exact: true }).click();
-  await page.waitForTimeout(500);
 
   // Verify button changes to Unpin
   await expect(page.getByText('Unpin', { exact: true })).toBeVisible({
@@ -137,7 +133,6 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
 
   // Click Unpin to unpin the channel
   await page.getByText('Unpin', { exact: true }).click();
-  await page.waitForTimeout(500);
 
   // Verify button changes back to Pin
   await expect(page.getByText('Pin', { exact: true })).toBeVisible({
@@ -160,18 +155,17 @@ test('should navigate to channel privacy settings from channel details', async (
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Privacy setting
   await page.getByTestId('ChannelPrivacy').click();
-  await page.waitForTimeout(500);
 
   // Verify we're on the channel privacy screen (now a separate screen)
   await expect(page.getByText('Channel privacy')).toBeVisible({
@@ -207,14 +201,13 @@ test('multi-channel group: notifications back button returns to channel details'
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify we're on channel details
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -223,7 +216,6 @@ test('multi-channel group: notifications back button returns to channel details'
 
   // Click on Notifications setting
   await page.getByTestId('ChannelNotifications').click();
-  await page.waitForTimeout(500);
 
   // Verify we're on the notifications screen with channel subtitle
   await expect(page.getByText('Notifications')).toBeVisible({
@@ -235,7 +227,6 @@ test('multi-channel group: notifications back button returns to channel details'
 
   // Click back button
   await page.getByTestId('HeaderBackButton').click();
-  await page.waitForTimeout(500);
 
   // Verify we're back on channel details (not group details)
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -258,14 +249,13 @@ test('single-channel group: notifications back button returns to group details',
     timeout: 5000,
   });
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title - should open GROUP details (single-channel behavior)
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify we're on GROUP details (not channel details)
   await expect(page.getByText('Group info')).toBeVisible({
@@ -274,7 +264,6 @@ test('single-channel group: notifications back button returns to group details',
 
   // Click on Notifications setting
   await page.getByTestId('GroupNotifications').click();
-  await page.waitForTimeout(500);
 
   // Verify we're on the notifications screen
   await expect(page.getByText('Notifications')).toBeVisible({
@@ -283,7 +272,6 @@ test('single-channel group: notifications back button returns to group details',
 
   // Click back button
   await page.getByTestId('HeaderBackButton').click();
-  await page.waitForTimeout(500);
 
   // Verify we're back on group details
   await expect(page.getByText('Group info')).toBeVisible({
@@ -306,7 +294,7 @@ test('channel details back button returns to channel conversation', async ({
 
   // Navigate back to General channel
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Send a message so we can verify we return to the channel
   await helpers.sendMessage(page, 'Testing channel details back navigation.');
@@ -321,7 +309,6 @@ test('channel details back button returns to channel conversation', async ({
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify we're on channel details
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -330,7 +317,6 @@ test('channel details back button returns to channel conversation', async ({
 
   // Click back button
   await page.getByTestId('HeaderBackButton').click();
-  await page.waitForTimeout(500);
 
   // Verify we're back in the channel conversation
   await expect(
@@ -358,7 +344,7 @@ test('group details back button returns to channel conversation (single-channel)
     timeout: 5000,
   });
   await page.getByTestId('ChannelListItem-General').click();
-  await page.waitForTimeout(500);
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
 
   // Send a message so we can verify we return to the channel
   await helpers.sendMessage(page, 'Testing group details back navigation.');
@@ -373,7 +359,6 @@ test('group details back button returns to channel conversation (single-channel)
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
-  await page.waitForTimeout(500);
 
   // Verify we're on GROUP details
   await expect(page.getByText('Group info')).toBeVisible({
@@ -382,7 +367,6 @@ test('group details back button returns to channel conversation (single-channel)
 
   // Click back button
   await page.getByTestId('HeaderBackButton').click();
-  await page.waitForTimeout(500);
 
   // Verify we're back in the channel conversation
   await expect(
