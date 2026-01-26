@@ -152,9 +152,11 @@ export function CreateChannelPermissionsScreen() {
               onCreateRole={handleCreateRole}
               onRemoveRole={handleRemoveRole}
             />
-            <Button onPress={handleCreateChannel} hero>
-              <Button.Text>Create channel</Button.Text>
-            </Button>
+            <Button
+              onPress={handleCreateChannel}
+              preset="primary"
+              label="Create channel"
+            />
           </YStack>
         </ScrollView>
       </View>
