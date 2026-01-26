@@ -25,7 +25,7 @@ export type GroupNavSectionWithChannels = Omit<
 
 export interface ManageChannelsScreenViewProps {
   goBack: () => void;
-  goToEditChannel: (channelId: string) => void;
+  goToChannelDetails: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   group: db.Group | null;
   enableCustomChannels?: boolean;

@@ -34,7 +34,7 @@ export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
   goBack,
-  goToEditChannel,
+  goToChannelDetails,
   createNavSection,
   deleteNavSection,
   updateNavSection,
@@ -79,7 +79,7 @@ export function ManageChannelsScreenView({
       updateGroupNavigation={updateGroupNavigation}
     >
       <ManageChannelsContent
-        goToEditChannel={goToEditChannel}
+        goToChannelDetails={goToChannelDetails}
         localItems={localItems}
         setLocalItems={setLocalItems}
         isUpdatingRef={isUpdatingRef}
@@ -194,7 +194,7 @@ function SortableChannelItem({
 }
 
 function ManageChannelsContent({
-  goToEditChannel,
+  goToChannelDetails,
   localItems,
   setLocalItems,
   isUpdatingRef,
@@ -202,7 +202,7 @@ function ManageChannelsContent({
   sensors,
   handleActiveItemDropped,
 }: {
-  goToEditChannel: (channelId: string) => void;
+  goToChannelDetails: (channelId: string) => void;
   localItems: SortableListItem[];
   setLocalItems: (items: SortableListItem[]) => void;
   isUpdatingRef: React.MutableRefObject<boolean>;
@@ -322,7 +322,7 @@ function ManageChannelsContent({
                 <SortableChannelItem
                   key={item.id}
                   item={item}
-                  onEdit={() => goToEditChannel(item.channel.id)}
+                  onEdit={() => goToChannelDetails(item.channel.id)}
                   isEditMode={isEditMode}
                 />
               );
