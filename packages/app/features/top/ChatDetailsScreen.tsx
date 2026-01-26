@@ -964,7 +964,6 @@ function ChannelQuickActions({
         title={isPinned ? 'Unpin' : 'Pin'}
         onPress={togglePinned}
         testID={`ChannelQuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
-        secondary
       />
     </ScrollView>
   );

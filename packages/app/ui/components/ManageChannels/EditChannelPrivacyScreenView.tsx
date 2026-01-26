@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
+import { ScreenHeader } from '../ScreenHeader';
 import { ChannelEditFormLayout } from './ChannelEditFormLayout';
 import { ChannelPermissionsSelector, PermissionTable } from './ChannelPermissions';
 import {
@@ -51,6 +51,11 @@ export function EditChannelPrivacyScreenView({
     }
   }, [channel, reset]);
 
+  const runSubmit = useCallback(
+    () => handleSubmit(handleSave)(),
+    [handleSubmit, handleSave]
+  );
+
   return (
     <FormProvider {...form}>
       <ChannelEditFormLayout
@@ -59,6 +64,15 @@ export function EditChannelPrivacyScreenView({
         group={group}
         goBack={goBack}
         isLoading={isLoading}
+        rightControls={
+          <ScreenHeader.TextButton
+            onPress={runSubmit}
+            color="$positiveActionText"
+            testID="ChannelPrivacySaveButton"
+          >
+            Save
+          </ScreenHeader.TextButton>
+        }
       >
         <YStack gap="$2xl" padding="$xl" alignItems="center">
           {!!group && !!channel && group.roles && (
@@ -67,15 +81,6 @@ export function EditChannelPrivacyScreenView({
               <PermissionTable groupRoles={group.roles} />
             </>
           )}
-          <YStack gap="$2xl" width="100%">
-            <Button
-              hero
-              onPress={handleSubmit(handleSave)}
-              testID="ChannelPrivacySaveButton"
-            >
-              <Button.Text>Save</Button.Text>
-            </Button>
-          </YStack>
         </YStack>
       </ChannelEditFormLayout>
     </FormProvider>

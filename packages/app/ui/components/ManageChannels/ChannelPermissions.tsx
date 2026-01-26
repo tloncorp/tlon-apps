@@ -160,18 +160,10 @@ export function ChannelPermissionsSelector({
             </Text>
             <XStack flex={1.5} justifyContent="flex-end">
               <Button
-                width={120}
+                preset="positive"
+                label="Add roles"
                 onPress={() => setShowRoleSelector(true)}
-                size={'$l'}
-                backgroundColor="$positiveActionText"
-                pressStyle={{
-                  backgroundColor: '$positiveActionText',
-                  opacity: 0.9,
-                }}
-                borderColor="$positiveActionText"
-              >
-                <Button.Text color="$positiveBackground">Add roles</Button.Text>
-              </Button>
+              />
             </XStack>
           </XStack>
           <YStack gap="$l">
@@ -560,9 +552,12 @@ export function RoleSelectionSheet({
           borderTopWidth={1}
           borderTopColor="$border"
         >
-          <Button hero onPress={handleSave} testID="RoleSelectionSaveButton">
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button
+            preset="hero"
+            label="Save"
+            onPress={handleSave}
+            testID="RoleSelectionSaveButton"
+          />
         </View>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
