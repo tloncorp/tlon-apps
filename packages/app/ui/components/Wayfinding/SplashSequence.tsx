@@ -6,22 +6,16 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  Button,
-  ButtonPreset,
-  LoadingSpinner,
-  Text,
-} from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
-  PropsWithChildren,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { Dimensions, FlatList, Image, Platform } from 'react-native';
+import { Dimensions, FlatList, Image, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -56,6 +50,17 @@ enum SplashPane {
   Invite = 'Invite',
 }
 
+function useDeviceSize() {
+  return useMemo(() => {
+    const { height } = Dimensions.get('window');
+    const isTiny = height < 700;
+    const isSmall = height < 800;
+    return { isTiny, isSmall, height };
+  }, []);
+}
+
+type DeviceSize = ReturnType<typeof useDeviceSize>;
+
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   systemContacts?: db.SystemContact[];
@@ -65,6 +70,7 @@ function SplashSequenceComponent(props: {
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
   );
+  const deviceSize = useDeviceSize();
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -74,24 +80,35 @@ function SplashSequenceComponent(props: {
   return (
     <View flex={1}>
       {currentPane === 'Welcome' && (
-        <WelcomePane onActionPress={() => setCurrentPane(SplashPane.Group)} />
+        <WelcomePane
+          onActionPress={() => setCurrentPane(SplashPane.Group)}
+          deviceSize={deviceSize}
+        />
       )}
       {currentPane === 'Group' && (
-        <GroupsPane onActionPress={() => setCurrentPane(SplashPane.Channels)} />
+        <GroupsPane
+          onActionPress={() => setCurrentPane(SplashPane.Channels)}
+          deviceSize={deviceSize}
+        />
       )}
       {currentPane === 'Channels' && (
         <ChannelsPane
           onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+          deviceSize={deviceSize}
         />
       )}
       {currentPane === 'Privacy' && (
-        <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
+        <PrivacyPane
+          onActionPress={() => setCurrentPane(SplashPane.Invite)}
+          deviceSize={deviceSize}
+        />
       )}
       {currentPane === 'Invite' && (
         <InvitePane
           onActionPress={handleSplashCompleted}
           systemContacts={props.systemContacts}
           inviteSystemContacts={props.inviteSystemContacts}
+          deviceSize={deviceSize}
         />
       )}
     </View>
@@ -111,257 +128,258 @@ const SplashParagraph = styled(Text, {
   marginHorizontal: '$xl',
 });
 
-type SplashButtonPreset = 'primary' | 'positive' | 'secondary';
-
-const presetMapping: Record<SplashButtonPreset, { preset: ButtonPreset; fullWidth?: boolean }> = {
-  primary: { preset: 'primary' },
-  positive: { preset: 'positive' },
-  secondary: { preset: 'secondary', fullWidth: true },
-};
-
-const SplashButton = ({
-  children,
-  variant = 'primary',
-  onPress,
-  disabled,
-  ...rest
-}: PropsWithChildren<{
-  onPress: () => void;
-  variant?: SplashButtonPreset;
-  disabled?: boolean;
-}> &
-  Omit<ComponentProps<typeof View>, 'onPress' | 'children'>) => {
-  const { preset, fullWidth } = presetMapping[variant];
-  const width = fullWidth ? '100%' : isWeb ? 300 : '100%';
-  const label = typeof children === 'string' ? children : '';
-
-  return (
-    <View width={width} {...rest}>
-      <Button
-        preset={preset}
-        size="large"
-        onPress={onPress}
-        disabled={disabled}
-        trailingIcon="ChevronRight"
-        label={label}
-        justifyContent="space-between"
-      />
-    </View>
-  );
-};
-
-export function WelcomePane(props: { onActionPress: () => void }) {
+export function WelcomePane(props: {
+  onActionPress: () => void;
+  deviceSize: DeviceSize;
+}) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
+
+  const imageHeight = useMemo(() => {
+    if (isWeb) return 300;
+    if (isTiny) return 180;
+    if (isSmall) return 240;
+    return 300;
+  }, [isTiny, isSmall]);
+
+  const topMargin = useMemo(() => {
+    if (isWeb) return '$4xl';
+    if (isTiny) return '$xl';
+    if (isSmall) return '$2xl';
+    return '$4xl';
+  }, [isTiny, isSmall]);
 
   return (
-    <YStack
-      marginTop={isWeb ? '$4xl' : insets.top}
-      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
-      marginHorizontal={isWeb ? '$4xl' : 'unset'}
-      flex={1}
-      justifyContent="space-between"
-    >
-      <YStack>
-        <View marginBottom="$2xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 300 }}
-            resizeMode="contain"
-            source={
-              isWeb
-                ? isDark
-                  ? `./sourdough-starter-dark.png`
-                  : `./sourdough-starter.png`
-                : isDark
-                  ? require(`../../assets/raster/sourdough-starter-dark.png`)
-                  : require(`../../assets/raster/sourdough-starter.png`)
-            }
-          />
-        </View>
-        <View marginHorizontal="$2xl">
-          <SplashTitle marginTop="$4xl">Welcome to Tlon Messenger</SplashTitle>
-          <SplashParagraph marginTop="$2xl">
+    <View flex={1}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <Image
+          style={{ width: '100%', height: imageHeight }}
+          resizeMode="contain"
+          source={
+            isWeb
+              ? isDark
+                ? `./sourdough-starter-dark.png`
+                : `./sourdough-starter.png`
+              : isDark
+                ? require(`../../assets/raster/sourdough-starter-dark.png`)
+                : require(`../../assets/raster/sourdough-starter.png`)
+          }
+        />
+        <YStack gap={'$2xl'} marginTop={topMargin}>
+          <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
+          <SplashParagraph>
             On Tlon Messenger you control your data. Unlike other apps,
             everything is stored on your personal cloud computer that only you
             can access.
           </SplashParagraph>
-        </View>
-      </YStack>
-      <XStack
-        width="100%"
-        justifyContent="center"
-        marginTop="$2xl"
-        paddingHorizontal="$2xl"
-      >
-        <SplashButton
-          data-testid="lets-get-started"
-          onPress={props.onActionPress}
-        >
-          Let's get started
-        </SplashButton>
-      </XStack>
-    </YStack>
+          <Button
+            data-testid="lets-get-started"
+            onPress={props.onActionPress}
+            label="Let's get started"
+            preset="hero"
+            shadow
+            marginHorizontal="$xl"
+            marginTop="$xl"
+          />
+        </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
-export function GroupsPane(props: { onActionPress: () => void }) {
+export function GroupsPane(props: {
+  onActionPress: () => void;
+  deviceSize: DeviceSize;
+}) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
+
+  const imageHeight = useMemo(() => {
+    if (isWeb) return 360;
+    if (isTiny) return 200;
+    if (isSmall) return 260;
+    return 360;
+  }, [isTiny, isSmall]);
+
+  const topMargin = useMemo(() => {
+    if (isWeb) return '$4xl';
+    if (isTiny) return '$xl';
+    if (isSmall) return '$2xl';
+    return '$4xl';
+  }, [isTiny, isSmall]);
 
   return (
-    <YStack
-      marginTop={insets.top}
-      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
-      flex={1}
-      justifyContent="space-between"
-    >
-      <YStack>
-        <View marginBottom="$2xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 360 }}
-            resizeMode="cover"
-            source={
-              isWeb
-                ? isDark
-                  ? `./garden-party-invite-dark.png`
-                  : `./garden-party-invite.png`
-                : isDark
-                  ? require(`../../assets/raster/garden-party-invite-dark.png`)
-                  : require(`../../assets/raster/garden-party-invite.png`)
-            }
-          />
-        </View>
-        <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
-          <SplashTitle marginTop="$4xl">
+    <View flex={1}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <Image
+          style={{ width: '100%', height: imageHeight }}
+          resizeMode="cover"
+          source={
+            isWeb
+              ? isDark
+                ? `./garden-party-invite-dark.png`
+                : `./garden-party-invite.png`
+              : isDark
+                ? require(`../../assets/raster/garden-party-invite-dark.png`)
+                : require(`../../assets/raster/garden-party-invite.png`)
+          }
+        />
+
+        <YStack gap={'$2xl'} marginTop={topMargin}>
+          <SplashTitle>
             This is a <Text color="$positiveActionText">group.</Text>
           </SplashTitle>
-          <SplashParagraph marginTop="$2xl">
+          <SplashParagraph>
             A group lives on your Tlon computer. A group can serve a lot of
             purposes: family chats, work collaboration, newsletters, etc.
           </SplashParagraph>
+          <Button
+            data-testid="got-it"
+            onPress={props.onActionPress}
+            label="Got it"
+            preset="hero"
+            shadow
+            marginHorizontal="$xl"
+            marginTop="$xl"
+          />
         </YStack>
-      </YStack>
-      <XStack
-        width="100%"
-        justifyContent="center"
-        marginTop="$2xl"
-        paddingHorizontal={isWeb ? '$4xl' : '$2xl'}
-      >
-        <SplashButton
-          data-testid="got-it"
-          marginTop="$l"
-          onPress={props.onActionPress}
-        >
-          Got it
-        </SplashButton>
-      </XStack>
-    </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
-export function ChannelsPane(props: { onActionPress: () => void }) {
+export function ChannelsPane(props: {
+  onActionPress: () => void;
+  deviceSize: DeviceSize;
+}) {
   const insets = useSafeAreaInsets();
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
+
+  const imageHeight = useMemo(() => {
+    if (isWeb) return 360;
+    if (isTiny) return 200;
+    if (isSmall) return 260;
+    return 360;
+  }, [isTiny, isSmall]);
+
+  const topMargin = useMemo(() => {
+    if (isWeb) return '$2xl';
+    if (isTiny) return '$l';
+    if (isSmall) return '$xl';
+    return '$2xl';
+  }, [isTiny, isSmall]);
 
   return (
-    <YStack
-      marginTop={isWeb ? '$2xl' : insets.top}
-      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
-      marginHorizontal={isWeb ? '$4xl' : 'unset'}
-      flex={1}
-      justifyContent="space-between"
-    >
-      <YStack>
-        <View marginBottom="$2xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 360 }}
-            resizeMode="contain"
-            source={
-              isWeb
-                ? `./app-screens.png`
-                : require(`../../assets/raster/app-screens.png`)
-            }
-          />
-        </View>
-        <YStack marginHorizontal="$2xl">
-          <SplashTitle marginTop="$2xl">
+    <View flex={1}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <Image
+          style={{ width: '100%', height: imageHeight }}
+          resizeMode="contain"
+          source={
+            isWeb
+              ? `./app-screens.png`
+              : require(`../../assets/raster/app-screens.png`)
+          }
+        />
+
+        <YStack gap={'$2xl'} marginTop={topMargin}>
+          <SplashTitle>
             A group contains <Text color="$positiveActionText">channels.</Text>
           </SplashTitle>
-          <SplashParagraph marginTop="$2xl">
+          <SplashParagraph>
             No matter what you use your group for, everything happens in a
             channel.
           </SplashParagraph>
-          <SplashParagraph marginTop="$2xl">
+          <SplashParagraph>
             Send messages in chats, post longer thoughts in notebooks, collect
             images and links in galleries.
           </SplashParagraph>
+          <Button
+            data-testid="one-quick-thing"
+            onPress={props.onActionPress}
+            label="One quick thing"
+            preset="hero"
+            shadow
+            marginHorizontal="$xl"
+            marginTop="$xl"
+          />
         </YStack>
-      </YStack>
-      <XStack
-        width="100%"
-        justifyContent="center"
-        marginTop="$2xl"
-        paddingHorizontal="$2xl"
-      >
-        <SplashButton
-          data-testid="one-quick-thing"
-          marginTop="$l"
-          onPress={props.onActionPress}
-        >
-          One quick thing
-        </SplashButton>
-      </XStack>
-    </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
-export function PrivacyPane(props: { onActionPress: () => void }) {
+export function PrivacyPane(props: {
+  onActionPress: () => void;
+  deviceSize: DeviceSize;
+}) {
   const insets = useSafeAreaInsets();
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
+
+  const topMarginValue = useMemo(() => {
+    if (isWeb) return '$4xl';
+    if (isTiny) return '$xl';
+    if (isSmall) return '$2xl';
+    return '$4xl';
+  }, [isTiny, isSmall]);
+
+  const titleTopMargin = useMemo(() => {
+    if (isTiny) return 40;
+    if (isSmall) return 60;
+    return 86;
+  }, [isTiny, isSmall]);
+
   return (
     <ZStack flex={1}>
       <PrivacyThumbprint />
-      <YStack
-        zIndex={1000}
-        flex={1}
-        justifyContent="space-between"
-        marginTop={isWeb ? '$4xl' : insets.top}
-        marginBottom={
-          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
-        }
-        marginHorizontal={isWeb ? '$4xl' : 'unset'}
-      >
-        <YStack>
-          <View marginTop="$4xl">
+      <View zIndex={1000} flex={1}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View marginTop={topMarginValue}>
             <PrivacyLevelsDisplay />
           </View>
-          <YStack marginHorizontal="$2xl">
-            <SplashTitle marginTop={86}>
+
+          <YStack gap={'$2xl'} marginTop={titleTopMargin}>
+            <SplashTitle>
               By default, groups are{' '}
               <Text color="$positiveActionText">secret.</Text>
             </SplashTitle>
-            <SplashParagraph marginTop="$2xl">
+            <SplashParagraph>
               Only the people you invite can see your group. If you want to open
               it up to other people on the network, edit the privacy controls in
               your group settings.
             </SplashParagraph>
+            <Button
+              data-testid="invite-friends"
+              onPress={props.onActionPress}
+              label="Invite friends"
+              preset="hero"
+              shadow
+              marginHorizontal="$xl"
+              marginTop="$xl"
+            />
           </YStack>
-        </YStack>
-        <XStack
-          width="100%"
-          justifyContent="center"
-          marginTop="$2xl"
-          paddingHorizontal="$2xl"
-        >
-          <SplashButton
-            data-testid="invite-friends"
-            marginTop="$l"
-            onPress={props.onActionPress}
-          >
-            Invite friends
-          </SplashButton>
-        </XStack>
-      </YStack>
+        </ScrollView>
+      </View>
     </ZStack>
   );
 }
@@ -515,8 +533,10 @@ function ConnectContactBookContent(props: {
   onSkip: () => void;
   isProcessing: boolean;
   forceShowConnect?: boolean;
+  deviceSize: DeviceSize;
 }) {
   const insets = useSafeAreaInsets();
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
 
   const shouldShowConnectOption = props.forceShowConnect || !isWeb;
 
@@ -524,66 +544,63 @@ function ConnectContactBookContent(props: {
     ? props.onConnectContacts
     : props.onSkip;
 
+  const topMargin = useMemo(() => {
+    if (isWeb || !shouldShowConnectOption) return '$4xl';
+    if (isTiny) return '$l';
+    if (isSmall) return '$xl';
+    return 'unset';
+  }, [shouldShowConnectOption, isTiny, isSmall]);
+
   return (
-    <YStack flex={1} justifyContent="space-between">
-      <YStack flex={1}>
-        <InviteFriendsDisplay />
-        <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
-          <SplashTitle
-            marginTop={isWeb || !shouldShowConnectOption ? '$4xl' : 'unset'}
-          >
+    <View flex={1}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <InviteFriendsDisplay deviceSize={props.deviceSize} />
+
+        <YStack gap={'$2xl'} marginTop={topMargin}>
+          <SplashTitle>
             Tlon is better{' '}
             <Text color="$positiveActionText">with friends.</Text>
           </SplashTitle>
-          <SplashParagraph marginTop="$xl">
+          <SplashParagraph>
             Social spaces are more fun with friends. When your friends join Tlon
             Messenger, they get their own cloud computer. You can all post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
-            <SplashParagraph marginTop="$xl">
+            <SplashParagraph>
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
           )}
-        </YStack>
-      </YStack>
-      <XStack
-        width="100%"
-        justifyContent="center"
-        marginTop="$2xl"
-        paddingHorizontal="$2xl"
-        marginBottom={
-          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
-        }
-      >
-        {props.isProcessing && !isWeb && (
-          <YStack alignItems="center" marginBottom="$l">
-            <LoadingSpinner />
-          </YStack>
-        )}
-        <YStack width={isWeb ? 'auto' : '100%'}>
-          <SplashButton
+          {props.isProcessing && !isWeb && (
+            <YStack alignItems="center">
+              <LoadingSpinner />
+            </YStack>
+          )}
+          <Button
             data-testid="connect-contact-book"
-            marginTop="$l"
             onPress={handleAction}
-            variant="positive"
+            label={shouldShowConnectOption ? 'Connect contact book' : 'Finish'}
+            preset="hero"
+            shadow
             disabled={props.isProcessing}
-          >
-            {shouldShowConnectOption ? 'Connect contact book' : 'Finish'}
-          </SplashButton>
+            marginHorizontal="$xl"
+          />
           {shouldShowConnectOption && (
-            <SplashButton
-              marginTop="$l"
-              variant="secondary"
-              disabled={props.isProcessing}
+            <Button
               onPress={props.onSkip}
-            >
-              Skip
-            </SplashButton>
+              label="Skip"
+              preset="minimal"
+              disabled={props.isProcessing}
+              marginHorizontal="$xl"
+            />
           )}
         </YStack>
-      </XStack>
-    </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -591,6 +608,7 @@ export function InvitePane(props: {
   onActionPress: () => void;
   systemContacts?: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
+  deviceSize: DeviceSize;
 }) {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -665,6 +683,10 @@ export function InvitePane(props: {
   };
 
   const handleSkip = () => {
+    if (isWeb) {
+      props.onActionPress();
+      return;
+    }
     logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
     setShowInviteContacts(true);
   };
@@ -685,6 +707,7 @@ export function InvitePane(props: {
       onSkip={handleSkip}
       isProcessing={isProcessing}
       forceShowConnect={hasProvidedContacts}
+      deviceSize={props.deviceSize}
     />
   );
 }
@@ -762,25 +785,23 @@ function PrivacyLevelsDisplay() {
   );
 }
 
-const InviteFriendsDisplay = () => {
+const InviteFriendsDisplay = ({ deviceSize }: { deviceSize: DeviceSize }) => {
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
-  const deviceIsTinyHeight = useMemo(() => {
-    const { height } = Dimensions.get('window');
-    return height < 800;
-  }, []);
+  const { isTiny = false, isSmall = false } = deviceSize || {};
 
   const displayHeight = useMemo(() => {
     if (isWeb) {
       return 300;
     }
-
-    if (deviceIsTinyHeight) {
+    if (isTiny) {
+      return 180;
+    }
+    if (isSmall) {
       return 220;
     }
-
     return 340;
-  }, [deviceIsTinyHeight]);
+  }, [isTiny, isSmall]);
 
   return (
     <View height={displayHeight} marginBottom="$2xl" overflow="hidden">
