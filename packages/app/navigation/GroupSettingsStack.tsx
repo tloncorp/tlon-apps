@@ -6,7 +6,6 @@ import {
 
 import { EditChannelMetaScreen } from '../features/groups/EditChannelMetaScreen';
 import { EditChannelPrivacyScreen } from '../features/groups/EditChannelPrivacyScreen';
-import { EditChannelScreen } from '../features/groups/EditChannelScreen';
 import { GroupMembersScreen } from '../features/groups/GroupMembersScreen';
 import { GroupMetaScreen } from '../features/groups/GroupMetaScreen';
 import { GroupPrivacyScreen } from '../features/groups/GroupPrivacyScreen';
@@ -58,7 +57,6 @@ export function GroupSettingsStack({
         name="ManageChannels"
         component={ManageChannelsScreen}
       />
-      <GroupSettings.Screen name="EditChannel" component={EditChannelScreen} />
       <GroupSettings.Screen
         name="EditChannelMeta"
         component={EditChannelMetaScreen}

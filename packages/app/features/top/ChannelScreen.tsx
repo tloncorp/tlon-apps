@@ -372,14 +372,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToEditChannel = useCallback(
+  const handleGoToChannelDetails = useCallback(
     (groupId: string, channelId: string) => {
-      props.navigation.navigate('GroupSettings', {
-        screen: 'EditChannel',
-        params: { groupId, channelId },
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channelId,
       });
     },
-    [props.navigation]
+    [navigationRef]
   );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
@@ -435,7 +435,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToEditChannel={handleGoToEditChannel}
+          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

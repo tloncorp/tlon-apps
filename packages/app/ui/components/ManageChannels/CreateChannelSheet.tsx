@@ -33,14 +33,16 @@ import * as Form from '../Form';
 import { ListItem } from '../ListItem';
 import SystemNotices from '../SystemNotices';
 import {
-  MEMBERS_MARKER,
-  MEMBER_ROLE_OPTION,
   PermissionTable,
   PrivateChannelToggle,
   RoleChip,
   RoleSelectionSheet,
+} from './ChannelPermissions';
+import {
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
   groupRolesToOptions,
-} from './EditChannelScreenView';
+} from './channelFormUtils';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {

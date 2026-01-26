@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
 import {
@@ -15,6 +15,13 @@ interface ChannelMetaFormSchema {
   title: string;
   description: string;
 }
+
+const getChannelMetaDefaults = (
+  channel?: db.Channel | null
+): ChannelMetaFormSchema => ({
+  title: channel?.title || '',
+  description: channel?.description || '',
+});
 
 interface EditChannelMetaScreenViewProps {
   goBack: () => void;
@@ -31,22 +38,13 @@ export function EditChannelMetaScreenView({
   channel,
   group,
 }: EditChannelMetaScreenViewProps) {
-  const [modelLoaded, setModelLoaded] = useState(!!channel);
-  const defaultValues = useMemo(
-    () => ({
-      title: channel?.title || '',
-      description: channel?.description || '',
-    }),
-    [channel]
-  );
-
   const {
     control,
     reset,
     handleSubmit,
     formState: { isValid },
   } = useForm<ChannelMetaFormSchema>({
-    defaultValues,
+    defaultValues: getChannelMetaDefaults(channel),
   });
 
   const handleSave = useCallback(
@@ -60,12 +58,12 @@ export function EditChannelMetaScreenView({
     [onSubmit]
   );
 
+  // Reset form when channel data loads (matches pattern in EditChannelPrivacyScreenView)
   useEffect(() => {
-    if (!modelLoaded && channel) {
-      setModelLoaded(true);
-      reset(defaultValues);
+    if (channel) {
+      reset(getChannelMetaDefaults(channel));
     }
-  }, [channel, modelLoaded, reset, defaultValues]);
+  }, [channel, reset]);
 
   const runSubmit = useCallback(
     () => handleSubmit(handleSave)(),
