@@ -36,14 +36,15 @@ export function ManageChannelsScreen(props: Props) {
 
   const goToChannelDetails = useCallback(
     (channelId: string) => {
-      // Navigate to channel details screen instead of edit screen
-      // This provides the same editing capabilities plus additional features
-      navigation.getParent()?.navigate('ChatDetails', {
+      // Navigate to channel details screen within GroupSettingsStack
+      // This ensures proper back navigation to ManageChannels
+      navigation.navigate('ChatDetails', {
         chatType: 'channel',
         chatId: channelId,
+        groupId,
       });
     },
-    [navigation]
+    [navigation, groupId]
   );
 
   return (

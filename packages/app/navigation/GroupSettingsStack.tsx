@@ -13,6 +13,7 @@ import { GroupRolesScreen } from '../features/groups/GroupRolesScreen';
 import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
+import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { GroupSettingsStackParamList } from './types';
 
@@ -49,6 +50,10 @@ export function GroupSettingsStack({
           <GroupMetaScreen {...props} navigateToHome={navigateToHome} />
         )}
       </GroupSettings.Screen>
+      <GroupSettings.Screen
+        name="ChatDetails"
+        component={ChatDetailsScreen}
+      />
       <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}
