@@ -683,6 +683,10 @@ export function InvitePane(props: {
   };
 
   const handleSkip = () => {
+    if (isWeb) {
+      props.onActionPress();
+      return;
+    }
     logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
     setShowInviteContacts(true);
   };
