@@ -34,7 +34,17 @@ import { useIsAdmin } from '../../utils/channelUtils';
 import { Action, ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
 import SystemNotices from '../SystemNotices';
-import { MEMBERS_MARKER, PrivateChannelToggle } from './EditChannelScreenView';
+import {
+  PermissionTable,
+  PrivateChannelToggle,
+  RoleChip,
+  RoleSelectionSheet,
+} from './ChannelPermissions';
+import {
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
+  groupRolesToOptions,
+} from './channelFormUtils';
 
 export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   if (typeof action === 'function') {

@@ -103,8 +103,15 @@ function ChatVolumeScreenView({
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
   const handleBackNavigation = useCallback(() => {
-    if (fromChatDetails && group?.id) {
-      navigateToChatDetails({ type: 'group', id: group.id });
+    if (fromChatDetails) {
+      // Navigate back to channel or group details based on chatType
+      if (chatType === 'channel' && channel?.id) {
+        navigateToChatDetails({ type: 'channel', id: channel.id });
+      } else if (group?.id) {
+        navigateToChatDetails({ type: 'group', id: group.id });
+      } else {
+        navigation.goBack();
+      }
     } else if (chatType === 'group' && chatId) {
       navigateToChatDetails({ type: chatType, id: chatId });
     } else {
@@ -113,6 +120,7 @@ function ChatVolumeScreenView({
   }, [
     navigateToChatDetails,
     group,
+    channel,
     fromChatDetails,
     navigation,
     chatType,
@@ -125,6 +133,15 @@ function ChatVolumeScreenView({
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Notifications"
+        subtitle={
+          chatType === 'channel'
+            ? `${group?.title}: ${channel?.title}`
+            : group?.title
+        }
+        showSubtitle={
+          (chatType === 'channel' && !!channel?.title && !!group?.title) ||
+          (chatType === 'group' && !!group?.title)
+        }
         backgroundColor="$secondaryBackground"
         backAction={handleBackNavigation}
         useHorizontalTitleLayout={!isWindowNarrow}

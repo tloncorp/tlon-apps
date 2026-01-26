@@ -34,11 +34,14 @@ export function ManageChannelsScreen(props: Props) {
     }
   }, [navigation, fromChatDetails, groupId]);
 
-  const goToEditChannel = useCallback(
+  const goToChannelDetails = useCallback(
     (channelId: string) => {
-      navigation.navigate('EditChannel', {
+      // Navigate to channel details screen within GroupSettingsStack
+      // This ensures proper back navigation to ManageChannels
+      navigation.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channelId,
         groupId,
-        channelId,
       });
     },
     [navigation, groupId]
@@ -48,7 +51,7 @@ export function ManageChannelsScreen(props: Props) {
     <ManageChannelsScreenView
       group={group}
       goBack={handleGoBack}
-      goToEditChannel={goToEditChannel}
+      goToChannelDetails={goToChannelDetails}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       createNavSection={createNavSection}
       deleteNavSection={deleteNavSection}

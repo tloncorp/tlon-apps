@@ -294,13 +294,27 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChatDetailsPressed = useCallback(() => {
-    if (group) {
+    // For single-channel groups, navigate to group details
+    const isSingleChannelGroup = group?.channels?.length === 1;
+    if (isSingleChannelGroup && group) {
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: group.id,
+      });
+    } else if (channel && channel.groupId) {
+      // For multi-channel groups, navigate to channel details
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channel.id,
+      });
+    } else if (group) {
+      // Fallback to group details
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'group',
         chatId: group.id,
       });
     }
-  }, [group, navigationRef]);
+  }, [channel, group, navigationRef]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -358,14 +372,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToEditChannel = useCallback(
+  const handleGoToChannelDetails = useCallback(
     (groupId: string, channelId: string) => {
-      props.navigation.navigate('GroupSettings', {
-        screen: 'EditChannel',
-        params: { groupId, channelId },
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channelId,
       });
     },
-    [props.navigation]
+    [navigationRef]
   );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
@@ -421,7 +435,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToEditChannel={handleGoToEditChannel}
+          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

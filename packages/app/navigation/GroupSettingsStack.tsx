@@ -4,7 +4,8 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 
-import { EditChannelScreen } from '../features/groups/EditChannelScreen';
+import { EditChannelMetaScreen } from '../features/groups/EditChannelMetaScreen';
+import { EditChannelPrivacyScreen } from '../features/groups/EditChannelPrivacyScreen';
 import { GroupMembersScreen } from '../features/groups/GroupMembersScreen';
 import { GroupMetaScreen } from '../features/groups/GroupMetaScreen';
 import { GroupPrivacyScreen } from '../features/groups/GroupPrivacyScreen';
@@ -14,6 +15,7 @@ import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
 import { CreateChannelPermissionsScreen } from '../features/groups/CreateChannelPermissionsScreen';
 import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
+import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { GroupSettingsStackParamList } from './types';
 
@@ -51,6 +53,10 @@ export function GroupSettingsStack({
         )}
       </GroupSettings.Screen>
       <GroupSettings.Screen
+        name="ChatDetails"
+        component={ChatDetailsScreen}
+      />
+      <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}
       />
@@ -58,7 +64,14 @@ export function GroupSettingsStack({
         name="ManageChannels"
         component={ManageChannelsScreen}
       />
-      <GroupSettings.Screen name="EditChannel" component={EditChannelScreen} />
+      <GroupSettings.Screen
+        name="EditChannelMeta"
+        component={EditChannelMetaScreen}
+      />
+      <GroupSettings.Screen
+        name="EditChannelPrivacy"
+        component={EditChannelPrivacyScreen}
+      />
       <GroupSettings.Screen name="Privacy" component={GroupPrivacyScreen} />
       <GroupSettings.Screen name="GroupRoles" component={GroupRolesScreen} />
       <GroupSettings.Screen name="EditRole" component={RoleFormScreen} />

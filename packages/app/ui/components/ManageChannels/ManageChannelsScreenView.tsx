@@ -21,7 +21,7 @@ export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
   goBack,
-  goToEditChannel,
+  goToChannelDetails,
   createNavSection,
   deleteNavSection,
   updateNavSection,
@@ -41,7 +41,7 @@ export function ManageChannelsScreenView({
     >
       <ManageChannelsContent
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-        goToEditChannel={goToEditChannel}
+        goToChannelDetails={goToChannelDetails}
         updateGroupNavigation={updateGroupNavigation}
       />
     </ManageChannelsProvider>
@@ -50,11 +50,11 @@ export function ManageChannelsScreenView({
 
 function ManageChannelsContent({
   groupNavSectionsWithChannels,
-  goToEditChannel,
+  goToChannelDetails,
   updateGroupNavigation,
 }: {
   groupNavSectionsWithChannels: ManageChannelsScreenViewProps['groupNavSectionsWithChannels'];
-  goToEditChannel: (channelId: string) => void;
+  goToChannelDetails: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
   const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
@@ -93,7 +93,7 @@ function ManageChannelsContent({
           <ChannelItem
             channel={item.channel}
             index={item.channelIndex}
-            onEdit={() => goToEditChannel(item.channel.id)}
+            onEdit={() => goToChannelDetails(item.channel.id)}
             isEditMode={isEditMode}
             dragHandle={
               <Sortable.Handle>
@@ -106,7 +106,7 @@ function ManageChannelsContent({
 
       return null;
     },
-    [setSectionMenuSection, goToEditChannel, isEditMode]
+    [setSectionMenuSection, goToChannelDetails, isEditMode]
   );
 
   return (

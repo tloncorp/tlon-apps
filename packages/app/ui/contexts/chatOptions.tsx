@@ -31,7 +31,6 @@ export type ChatOptionsContextValue = {
   onPressRoles: () => void;
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
-  onPressEditChannel: (fromChatDetails?: boolean) => void;
   onPressChannelTemplate: () => void;
   onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
   togglePinned: () => void;
@@ -59,7 +58,6 @@ const defaultValue: ChatOptionsContextValue = {
   onPressRoles: noop,
   onPressChannelMembers: noop,
   onPressChannelMeta: noop,
-  onPressEditChannel: noop,
   onPressChannelTemplate: noop,
   onPressChatDetails: noop,
   togglePinned: noop,
@@ -95,11 +93,6 @@ type ChatOptionsProviderProps = {
   onPressGroupPrivacy?: (groupId: string) => void;
   onPressChannelMembers?: (channelId: string) => void;
   onPressChannelMeta?: (channelId: string) => void;
-  onPressEditChannel?: (
-    channelId: string,
-    groupId: string,
-    fromChatDetails?: boolean
-  ) => void;
   onPressChannelTemplate?: (channelId: string) => void;
   onPressRoles?: (groupId: string) => void;
   onPressChatDetails?: (chat: {
@@ -130,7 +123,6 @@ export const ChatOptionsProvider = ({
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
-  onPressEditChannel,
   onPressChannelTemplate = noop,
   onPressRoles,
   onPressChatDetails = noop,
@@ -365,16 +357,6 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressEditChannel = useCallback(
-    (fromChatDetails?: boolean) => {
-      if (channelId && groupId) {
-        onPressEditChannel?.(channelId, groupId, fromChatDetails);
-        closeSheet();
-      }
-    },
-    [channelId, groupId, closeSheet, onPressEditChannel]
-  );
-
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
       if (groupId) {
@@ -456,7 +438,6 @@ export const ChatOptionsProvider = ({
       open: openSheet,
       onPressChannelMembers: handlePressChannelMembers,
       onPressChannelMeta: handlePressChannelMeta,
-      onPressEditChannel: handlePressEditChannel,
       setChannelSortPreference,
       setChat: updateChat,
     }),
@@ -481,7 +462,6 @@ export const ChatOptionsProvider = ({
       openSheet,
       handlePressChannelMembers,
       handlePressChannelMeta,
-      handlePressEditChannel,
       setChannelSortPreference,
       updateChat,
     ]

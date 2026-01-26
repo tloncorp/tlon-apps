@@ -1,303 +1,22 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import {
-  Button,
-  ConfirmDialog,
-  FormInput,
-  Icon,
-  Pressable,
-  Text,
-} from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
-import { Alert, Platform, Switch } from 'react-native';
+import { useFormContext } from 'react-hook-form';
+import { Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
-import { RadioControl } from '../Form';
-import { ScreenHeader } from '../ScreenHeader';
-
-interface ChannelFormSchema {
-  title: string | null | undefined;
-  description: string | null | undefined;
-  isPrivate: boolean;
-  readers: string[];
-  writers: string[];
-}
-
-export interface RoleOption {
-  label: string;
-  value: string;
-}
-
-interface EditChannelScreenViewProps {
-  goBack: () => void;
-  isLoading: boolean;
-  channel?: db.Channel | null;
-  onSubmit: (
-    title: string,
-    readers: string[],
-    writers: string[],
-    description?: string
-  ) => void;
-  onDeleteChannel: () => void;
-  createdRoleId?: string;
-  selectedRoleIds?: string[];
-  onCreateRole: () => void;
-  onSelectRoles?: () => void;
-}
-
-const getDefaultFormValues = (
-  channel?: db.Channel | null
-): ChannelFormSchema => {
-  const readerRoles = channel?.readerRoles?.map((r) => r.roleId) ?? [];
-  const writerRoles = channel?.writerRoles?.map((r) => r.roleId) ?? [];
-  const isPrivate = readerRoles.length > 0 || writerRoles.length > 0;
-
-  const readers = isPrivate
-    ? readerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER] // Empty readers means Members, but admin is always included
-      : readerRoles.includes('admin')
-        ? readerRoles
-        : ['admin', ...readerRoles] // Ensure admin is present
-    : [];
-
-  const writers = isPrivate
-    ? writerRoles.length === 0
-      ? ['admin', MEMBERS_MARKER] // Empty writers means Members, but admin is always included
-      : writerRoles.includes('admin')
-        ? writerRoles
-        : ['admin', ...writerRoles] // Ensure admin is present
-    : [];
-
-  return {
-    title: channel?.title,
-    description: channel?.description,
-    readers,
-    writers,
-    isPrivate,
-  };
-};
-
-export function EditChannelScreenView({
-  goBack,
-  isLoading,
-  onSubmit,
-  channel,
-  onDeleteChannel,
-  createdRoleId,
-  selectedRoleIds,
-  onCreateRole,
-  onSelectRoles,
-}: EditChannelScreenViewProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const form = useForm<ChannelFormSchema>({
-    defaultValues: getDefaultFormValues(channel),
-    mode: 'onChange',
-  });
-
-  const {
-    control,
-    reset,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = form;
-
-  useEffect(() => {
-    if (createdRoleId) {
-      const currentReaders = watch('readers');
-      if (!currentReaders.includes(createdRoleId)) {
-        setValue('readers', [...currentReaders, createdRoleId], {
-          shouldDirty: true,
-        });
-      }
-    }
-  }, [createdRoleId, setValue, watch]);
-
-  useEffect(() => {
-    if (selectedRoleIds) {
-      setValue('readers', selectedRoleIds, { shouldDirty: true });
-    }
-  }, [selectedRoleIds, setValue]);
-
-  const { data: group } = store.useGroup({
-    id: channel?.groupId ?? '',
-  });
-
-  const handleSave = useCallback(
-    (data: ChannelFormSchema) => {
-      const title = data.title;
-      if (!title || typeof title !== 'string') {
-        return;
-      }
-
-      // If MEMBERS_MARKER is present, send empty array (everyone can access)
-      // Otherwise, ensure admin is included and send actual role IDs
-      const readers = data.readers.includes(MEMBERS_MARKER)
-        ? [] // Empty array means all members (including admin) can read
-        : data.readers.filter((r) => r !== MEMBERS_MARKER); // Admin should already be in the array
-
-      // Same for writers
-      const writers = data.writers.includes(MEMBERS_MARKER)
-        ? [] // Empty array means all members (including admin) can write
-        : data.writers.filter((w) => w !== MEMBERS_MARKER); // Admin should already be in the array
-
-      const formData = {
-        ...data,
-        title,
-        description: data.description ?? undefined,
-      };
-      onSubmit(title, readers, writers, formData.description);
-    },
-    [onSubmit]
-  );
-
-  const handlePressDelete = useCallback(() => {
-    const channelCount = group?.channels?.length ?? 0;
-    if (channelCount <= 1) {
-      Alert.alert(
-        'Cannot Delete Channel',
-        'A group must have at least one channel. Create another channel before deleting this one.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    setShowDeleteDialog(true);
-  }, [group?.channels?.length]);
-
-  const handleRemoveRole = useCallback(
-    (roleId: string) => {
-      if (roleId === 'admin') return;
-      const currentReaders = watch('readers');
-      const currentWriters = watch('writers');
-      setValue(
-        'readers',
-        currentReaders.filter((r) => r !== roleId),
-        { shouldDirty: true }
-      );
-      setValue(
-        'writers',
-        currentWriters.filter((w) => w !== roleId),
-        { shouldDirty: true }
-      );
-    },
-    [watch, setValue]
-  );
-
-  useEffect(() => {
-    if (channel) {
-      reset(getDefaultFormValues(channel));
-    }
-  }, [channel, reset]);
-
-  const insets = useSafeAreaInsets();
-
-  return (
-    <FormProvider {...form}>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title="Channel settings"
-          backAction={goBack}
-          isLoading={isLoading}
-        />
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
-        >
-          <YStack gap="$2xl" padding="$xl" alignItems="center">
-            {isLoading || !channel ? null : (
-              <YStack width="100%" gap="$2xl">
-                <FormInput
-                  control={control}
-                  errors={errors}
-                  name="title"
-                  label="title"
-                  placeholder="Channel title"
-                  rules={{ required: 'Channel title is required' }}
-                  testID="ChannelTitleInput"
-                />
-                <FormInput
-                  control={control}
-                  errors={errors}
-                  name="description"
-                  label="Description"
-                  placeholder="Channel description"
-                  testID="ChannelDescriptionInput"
-                />
-              </YStack>
-            )}
-            {!!group && !!channel && (
-              <>
-                <ChannelPermissionsSelector
-                  groupRoles={group.roles}
-                  onCreateRole={onCreateRole}
-                />
-                <PermissionTable
-                  groupRoles={group.roles}
-                  onSelectRoles={onSelectRoles}
-                  onCreateRole={onCreateRole}
-                  onRemoveRole={handleRemoveRole}
-                />
-              </>
-            )}
-            <YStack gap="$xl" width={'100%'}>
-              <Button
-                preset="primary"
-                onPress={handleSubmit(handleSave)}
-                testID="ChannelSettingsSaveButton"
-                label="Save"
-                centered
-              />
-              <Button
-                preset="destructive"
-                onPress={handlePressDelete}
-                label="Delete channel for everyone"
-                centered
-              />
-            </YStack>
-          </YStack>
-        </ScrollView>
-        <ConfirmDialog
-          open={showDeleteDialog}
-          onOpenChange={(show) => setShowDeleteDialog(show)}
-          title={`Delete ${channel?.title ?? 'channel'}?`}
-          description="This action cannot be undone."
-          confirmText="Delete channel"
-          cancelText="Cancel"
-          onConfirm={onDeleteChannel}
-          destructive
-        />
-      </View>
-    </FormProvider>
-  );
-}
-
-const mapRoleIdsToOptions = (
-  roleIds: string[],
-  allRoles: RoleOption[]
-): RoleOption[] =>
-  roleIds.map((roleId) => {
-    const role = allRoles.find((r) => r.value === roleId);
-    return { label: role?.label ?? roleId, value: roleId };
-  });
-
-export const groupRolesToOptions = (groupRoles: db.GroupRole[]): RoleOption[] =>
-  groupRoles.map((role) => ({
-    label: role.title ?? 'Unknown role',
-    value: role.id ?? '',
-  }));
-
-// Special marker for members without explicit roles
-// In the backend, an empty readers/writers array means "accessible by all group members"
-// We use null as a marker in the UI to represent this "Members" concept
-export const MEMBERS_MARKER = null as unknown as string;
-
-export const MEMBER_ROLE_OPTION: RoleOption = {
-  label: 'Members',
-  value: MEMBERS_MARKER,
-};
+import { ActionSheet } from '../ActionSheet';
+import { RadioControl, TextInput } from '../Form';
+import { ListItem } from '../ListItem';
+import {
+  ChannelPrivacyFormSchema,
+  MEMBERS_MARKER,
+  MEMBER_ROLE_OPTION,
+  RoleOption,
+  groupRolesToOptions,
+  mapRoleIdsToOptions,
+} from './channelFormUtils';
 
 export function PrivateChannelToggle({
   isPrivate,
@@ -359,7 +78,7 @@ export function ChannelPermissionsSelector({
   groupRoles: db.GroupRole[];
   onCreateRole?: () => void;
 }) {
-  const { watch, setValue } = useFormContext<ChannelFormSchema>();
+  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
@@ -464,7 +183,7 @@ export function PermissionTable({
   onCreateRole?: () => void;
   onRemoveRole?: (roleId: string) => void;
 }) {
-  const { watch, setValue } = useFormContext<ChannelFormSchema>();
+  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
@@ -714,5 +433,162 @@ function PermissionTableControlCell({
     >
       {children}
     </XStack>
+  );
+}
+
+export function RoleSelectionSheet({
+  open,
+  onOpenChange,
+  allRoles,
+  selectedRoleIds,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  allRoles: RoleOption[];
+  selectedRoleIds: string[];
+  onSave: (roleIds: string[]) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [tempSelectedRoleIds, setTempSelectedRoleIds] =
+    useState<string[]>(selectedRoleIds);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (open) {
+      setTempSelectedRoleIds(selectedRoleIds);
+      setSearchQuery('');
+      setIsScrolling(false);
+    } else {
+      setIsScrolling(false);
+    }
+  }, [open, selectedRoleIds]);
+
+  const filteredRoles = useMemo(() => {
+    const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
+    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
+    if (!searchQuery.trim()) {
+      return rolesWithMembers;
+    }
+    const query = searchQuery.toLowerCase();
+    return rolesWithMembers.filter((role) =>
+      role.label.toLowerCase().includes(query)
+    );
+  }, [allRoles, searchQuery]);
+
+  const handleToggleRole = useCallback((roleId: string) => {
+    setTempSelectedRoleIds((prev) => {
+      if (prev.includes(roleId)) {
+        return prev.filter((id) => id !== roleId);
+      }
+      return [...prev, roleId];
+    });
+  }, []);
+
+  const handleSave = useCallback(() => {
+    onSave(tempSelectedRoleIds);
+    onOpenChange(false);
+  }, [tempSelectedRoleIds, onSave, onOpenChange]);
+
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPoints={[85]}
+      snapPointsMode="percent"
+      disableDrag={isScrolling}
+      modal
+    >
+      <ActionSheet.SimpleHeader
+        title="Search and add roles"
+        subtitle="Select roles for this channel"
+      />
+      <ActionSheet.Content
+        paddingHorizontal="$l"
+        paddingTop="$xl"
+        paddingBottom={0}
+      >
+        <TextInput
+          icon="Search"
+          placeholder="Search roles"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          testID="RoleSearchInput"
+        />
+      </ActionSheet.Content>
+      <ActionSheet.ScrollableContent
+        paddingHorizontal="$l"
+        onScrollBeginDrag={() => setIsScrolling(true)}
+        onScrollEndDrag={() => setIsScrolling(false)}
+      >
+        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
+          {filteredRoles.map((role) => (
+            <SelectableRoleListItem
+              key={role.value}
+              role={role}
+              isSelected={tempSelectedRoleIds.includes(role.value)}
+              onPress={() => handleToggleRole(role.value)}
+            />
+          ))}
+          {filteredRoles.length === 0 && (
+            <View paddingVertical="$2xl" alignItems="center">
+              <Text color="$tertiaryText">No roles found</Text>
+            </View>
+          )}
+        </YStack>
+        <View
+          paddingHorizontal="$l"
+          paddingTop="$m"
+          paddingBottom={insets.bottom}
+          backgroundColor="$background"
+          borderTopWidth={1}
+          borderTopColor="$border"
+        >
+          <Button
+            preset="hero"
+            label="Save"
+            onPress={handleSave}
+            testID="RoleSelectionSaveButton"
+          />
+        </View>
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
+  );
+}
+
+function SelectableRoleListItem({
+  role,
+  isSelected,
+  onPress,
+}: {
+  role: RoleOption;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress}>
+      <ListItem
+        {...(isSelected
+          ? { backgroundColor: '$secondaryBackground' }
+          : { borderColor: '$secondaryBorder', borderWidth: 1 })}
+        borderRadius="$xl"
+        height={130}
+        paddingLeft="$3xl"
+        paddingRight="$2xl"
+        alignItems="center"
+      >
+        <ListItem.MainContent alignItems="center" justifyContent="center">
+          <XStack
+            justifyContent="space-between"
+            alignItems="center"
+            width="100%"
+          >
+            <ListItem.Title>{role.label}</ListItem.Title>
+            <RadioControl checked={isSelected} />
+          </XStack>
+        </ListItem.MainContent>
+      </ListItem>
+    </Pressable>
   );
 }
