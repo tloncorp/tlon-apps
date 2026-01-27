@@ -221,6 +221,14 @@ export function RoleFormScreen({ navigation, route }: Props) {
               addUserToRole(contactId, newRoleId)
             )
           );
+
+          if ('returnScreen' in route.params && route.params.returnScreen) {
+            navigation.navigate(route.params.returnScreen, {
+              ...route.params.returnParams,
+              createdRoleId: newRoleId,
+            } as any);
+            return;
+          }
         }
 
         reset();

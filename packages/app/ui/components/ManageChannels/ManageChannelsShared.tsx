@@ -39,6 +39,7 @@ export interface ManageChannelsScreenViewProps {
       channels: Array<{ channelId: string; channelIndex: number }>;
     }>
   ) => Promise<void>;
+  createdRoleId?: string;
 }
 
 export function ChannelItem({
@@ -148,6 +149,7 @@ export function useManageChannelsState({
   updateNavSection,
   deleteNavSection,
   updateGroupNavigation,
+  createdRoleId,
 }: {
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
@@ -159,10 +161,11 @@ export function useManageChannelsState({
       channels: Array<{ channelId: string; channelIndex: number }>;
     }>
   ) => Promise<void>;
+  createdRoleId?: string;
 }) {
   const [editSection, setEditSection] = useState<SortableSection | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
-  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(!!createdRoleId);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [sectionMenuSection, setSectionMenuSection] = useState<{
@@ -277,6 +280,7 @@ export function useManageChannelsState({
     setSectionMenuSection,
     handleUpdateSection,
     handleDeleteSection,
+    createdRoleId,
   };
 }
 
@@ -297,6 +301,7 @@ interface ManageChannelsContextValue {
   ) => void;
   handleUpdateSection: (sectionId: string, title: string) => Promise<void>;
   handleDeleteSection: (sectionId: string) => Promise<void>;
+  createdRoleId?: string;
 }
 
 const ManageChannelsContext =
@@ -321,6 +326,7 @@ export function ManageChannelsProvider({
   updateNavSection,
   deleteNavSection,
   updateGroupNavigation,
+  createdRoleId,
 }: {
   children: React.ReactNode;
   goBack: () => void;
@@ -336,12 +342,14 @@ export function ManageChannelsProvider({
       channels: Array<{ channelId: string; channelIndex: number }>;
     }>
   ) => Promise<void>;
+  createdRoleId?: string;
 }) {
   const state = useManageChannelsState({
     groupNavSectionsWithChannels,
     updateNavSection,
     deleteNavSection,
     updateGroupNavigation,
+    createdRoleId,
   });
 
   const { bottom } = useSafeAreaInsets();
@@ -398,6 +406,7 @@ export function ManageChannelsProvider({
         {state.showCreateChannel && group && (
           <CreateChannelSheet
             group={group}
+            createdRoleId={state.createdRoleId}
             onOpenChange={(open) => state.setShowCreateChannel(open)}
           />
         )}
@@ -425,7 +434,7 @@ export function ManageChannelsProvider({
           onSave={
             state.editSection
               ? (title) =>
-                  state.handleUpdateSection(state.editSection!.id, title)
+                state.handleUpdateSection(state.editSection!.id, title)
               : undefined
           }
         />
