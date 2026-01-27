@@ -1050,7 +1050,14 @@
     |=  state-10
     ~>  %spin.['state-10-to-11']
     ^-  state-11
-    *state-11
+    :*  %11
+        groups
+        channels-index
+        (~(run by foreigns) v10:foreign:v8:gc)
+        ~  ::  leaves
+        subs
+        pimp
+    ==
   --
 ::
 ++  inflate-io
