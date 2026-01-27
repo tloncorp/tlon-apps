@@ -57,7 +57,7 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      if (!isWindowNarrow && 'groupId' in params) {
+      if (!isWindowNarrow && 'groupId' in params && params.groupId) {
         await navigateToGroup(params.groupId);
       }
 

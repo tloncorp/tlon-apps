@@ -177,12 +177,16 @@ export function CreateChannelPermissionsScreen() {
                   Who can access this channel?
                 </Text>
                 <XStack flex={1.5} justifyContent="flex-end" gap="$m">
-                  <Button preset="positive" onPress={handleSelectRoles}>
-                    <Button.Text>Add roles</Button.Text>
-                  </Button>
-                  <Button preset="secondary" onPress={handleCreateRole}>
-                    <Button.Text>Create new role</Button.Text>
-                  </Button>
+                  <Button
+                    preset="positive"
+                    onPress={handleSelectRoles}
+                    label="Add roles"
+                  />
+                  <Button
+                    preset="secondary"
+                    onPress={handleCreateRole}
+                    label="Create new role"
+                  />
                 </XStack>
               </XStack>
               <YStack gap="$l">
@@ -203,9 +207,11 @@ export function CreateChannelPermissionsScreen() {
               </YStack>
             </YStack>
             <PermissionTable groupRoles={group.roles ?? []} />
-            <Button preset="primary" onPress={handleCreateChannel}>
-              <Button.Text>Create channel</Button.Text>
-            </Button>
+            <Button
+              preset="primary"
+              onPress={handleCreateChannel}
+              label="Create channel"
+            />
           </YStack>
         </ScrollView>
       </View>

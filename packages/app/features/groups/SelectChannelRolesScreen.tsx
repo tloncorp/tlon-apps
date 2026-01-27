@@ -1,5 +1,5 @@
 import { useGroup } from '@tloncorp/shared';
-import { Button, Icon, Text } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
@@ -115,27 +115,31 @@ export function SelectChannelRolesScreen() {
             {filteredRoles.map((role) => {
               const isSelected = selectedRoleIds.includes(role.value);
               return (
-                <ListItem
+                <Pressable
                   key={role.value}
                   onPress={() => handleToggleRole(role.value)}
-                  backgroundColor={
-                    isSelected ? '$secondaryBackground' : 'transparent'
-                  }
-                  borderColor="$secondaryBorder"
-                  borderWidth={isSelected ? 0 : 1}
                   borderRadius="$xl"
-                  paddingHorizontal="$2xl"
-                  paddingVertical="$xl"
                 >
-                  <ListItem.MainContent>
-                    <ListItem.Title>{role.label}</ListItem.Title>
-                  </ListItem.MainContent>
-                  {isSelected && (
-                    <ListItem.EndContent>
-                      <Icon type="Checkmark" />
-                    </ListItem.EndContent>
-                  )}
-                </ListItem>
+                  <ListItem
+                    backgroundColor={
+                      isSelected ? '$secondaryBackground' : 'transparent'
+                    }
+                    borderColor="$secondaryBorder"
+                    borderWidth={isSelected ? 0 : 1}
+                    borderRadius="$xl"
+                    paddingHorizontal="$2xl"
+                    paddingVertical="$xl"
+                  >
+                    <ListItem.MainContent>
+                      <ListItem.Title>{role.label}</ListItem.Title>
+                    </ListItem.MainContent>
+                    {isSelected && (
+                      <ListItem.EndContent>
+                        <Icon type="Checkmark" />
+                      </ListItem.EndContent>
+                    )}
+                  </ListItem>
+                </Pressable>
               );
             })}
             {filteredRoles.length === 0 && (
@@ -146,12 +150,12 @@ export function SelectChannelRolesScreen() {
           </YStack>
         </ScrollView>
         <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button preset="secondary" onPress={handleCreateRole}>
-            <Button.Text>Create new role</Button.Text>
-          </Button>
-          <Button preset="primary" onPress={handleSave}>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button
+            preset="secondary"
+            onPress={handleCreateRole}
+            label="Create new role"
+          />
+          <Button preset="primary" onPress={handleSave} label="Save" />
         </YStack>
       </YStack>
     </View>

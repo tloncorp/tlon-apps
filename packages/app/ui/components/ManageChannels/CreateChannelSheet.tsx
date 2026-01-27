@@ -18,6 +18,7 @@ import {
   ComponentProps,
   SetStateAction,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -87,22 +88,39 @@ interface CreateChannelFormSchema {
 export function CreateChannelSheet({
   onOpenChange,
   group,
+  createdRoleId,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
+  createdRoleId?: string;
 }) {
-  const [pane, setPane] = useState<'initial' | 'permissions'>('initial');
+  const [pane, setPane] = useState<'initial' | 'permissions'>(
+    createdRoleId ? 'permissions' : 'initial'
+  );
   const form = useForm<CreateChannelFormSchema>({
     defaultValues: {
       title: '',
       channelType: 'chat',
-      isPrivate: false,
-      readers: [],
-      writers: [],
+      isPrivate: createdRoleId ? true : false,
+      readers: createdRoleId ? ['admin', createdRoleId] : [],
+      writers: createdRoleId ? ['admin'] : [],
     },
   });
 
   const { control, handleSubmit, watch, setValue } = form;
+
+  // Handle when createdRoleId changes (user created a new role)
+  useEffect(() => {
+    if (createdRoleId) {
+      const currentReaders = watch('readers');
+      if (!currentReaders.includes(createdRoleId)) {
+        setValue('isPrivate', true, { shouldDirty: true });
+        setValue('readers', ['admin', createdRoleId], { shouldDirty: true });
+        setValue('writers', ['admin'], { shouldDirty: true });
+        setPane('permissions');
+      }
+    }
+  }, [createdRoleId, setValue, watch]);
 
   const currentUserId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
