@@ -49,11 +49,11 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
     if (isWindowNarrow) {
       navigation.goBack();
     } else if (channel?.id) {
-      navigateToChatDetails({ type: 'channel', id: channel.id });
+      navigateToChatDetails({ type: 'channel', id: channel.id, groupId });
     } else {
       navigation.goBack();
     }
-  }, [navigation, isWindowNarrow, navigateToChatDetails, channel?.id]);
+  }, [navigation, isWindowNarrow, navigateToChatDetails, channel?.id, groupId]);
 
   return {
     channel,

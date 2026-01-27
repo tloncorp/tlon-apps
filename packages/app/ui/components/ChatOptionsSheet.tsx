@@ -677,8 +677,8 @@ export function ChannelOptionsSheetContent({
   }, [group, onPressChatDetails]);
 
   const handlePressChannelDetails = useCallback(() => {
-    onPressChatDetails({ type: 'channel', id: channel.id });
-  }, [channel.id, onPressChatDetails]);
+    onPressChatDetails({ type: 'channel', id: channel.id, groupId: channel.groupId ?? undefined });
+  }, [channel.id, channel.groupId, onPressChatDetails]);
 
   const handleSummarizeChannel = useCallback(
     async (timeRange: 'day' | 'week') => {

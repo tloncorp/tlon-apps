@@ -28,7 +28,7 @@ type GroupSettingsProps = NativeStackScreenProps<
 type Props = RootStackProps | GroupSettingsProps;
 
 export function ChatVolumeScreen(props: Props) {
-  const { chatType, chatId } = props.route.params;
+  const { chatType, chatId, groupId } = props.route.params;
   const chatSettings = useChatSettingsNavigation();
 
   return (
@@ -39,7 +39,7 @@ export function ChatVolumeScreen(props: Props) {
       }}
       {...chatSettings}
     >
-      <ChatVolumeScreenView chatType={chatType} chatId={chatId} />
+      <ChatVolumeScreenView chatType={chatType} chatId={chatId} groupId={groupId} />
     </ChatOptionsProvider>
   );
 }
@@ -69,9 +69,11 @@ export const volumeOptions: {
 function ChatVolumeScreenView({
   chatType,
   chatId,
+  groupId,
 }: {
   chatType: 'group' | 'channel';
   chatId: string;
+  groupId?: string;
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
@@ -94,9 +96,9 @@ function ChatVolumeScreenView({
     if (isWindowNarrow || !chatId) {
       navigation.goBack();
     } else {
-      navigateToChatDetails({ type: chatType, id: chatId });
+      navigateToChatDetails({ type: chatType, id: chatId, groupId });
     }
-  }, [navigateToChatDetails, navigation, chatType, chatId, isWindowNarrow]);
+  }, [navigateToChatDetails, navigation, chatType, chatId, groupId, isWindowNarrow]);
 
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>

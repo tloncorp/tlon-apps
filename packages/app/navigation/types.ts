@@ -85,10 +85,12 @@ export type RootStackParamList = {
   ChatDetails: {
     chatType: 'group' | 'channel';
     chatId: string;
+    groupId?: string;
   };
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;
+    groupId?: string;
   };
 };
 
@@ -237,5 +239,6 @@ export type GroupSettingsStackParamList = {
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;
+    groupId?: string;
   };
 };
