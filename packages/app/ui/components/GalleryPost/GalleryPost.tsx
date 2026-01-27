@@ -230,6 +230,9 @@ export function GalleryPost({
               mode="await-trigger"
               trigger={
                 <Button.Frame
+                  // with padding, this Button is larger than the row displayed
+                  // for file uploads, causing unsightly overlaps
+                  padding={0}
                   borderWidth="unset"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
