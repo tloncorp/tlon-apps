@@ -18,7 +18,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
 import React from 'react';
@@ -759,9 +758,9 @@ const presets = [
   '$green',
   '$blue',
   '$indigo',
-  '$black',
+  '$gray900',
   '$gray500',
-  '$white',
+  '$gray100',
 ] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
@@ -792,11 +791,9 @@ const ColorSwatchInner = styled(View, {
 export const ColorInput = ({
   value,
   onChange,
-  onBlur,
 }: {
   value?: string | null;
   onChange?: (value: string | null) => void;
-  onBlur?: () => void;
 }) => {
   const handleSelect = useCallback(
     (color: string) => {
@@ -805,15 +802,13 @@ export const ColorInput = ({
       } else {
         onChange?.(color);
       }
-      onBlur?.();
     },
-    [onChange, onBlur, value]
+    [onChange, value]
   );
 
   const handleClear = useCallback(() => {
     onChange?.(null);
-    onBlur?.();
-  }, [onChange, onBlur]);
+  }, [onChange]);
 
   return (
     <ScrollView

@@ -60,6 +60,12 @@ function InviteContactsFixture() {
   );
 }
 
+const mockDeviceSize = {
+  isTiny: false,
+  isSmall: false,
+  height: 800,
+};
+
 function WelcomePaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('Welcome pane action pressed');
@@ -67,7 +73,7 @@ function WelcomePaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <WelcomePane onActionPress={handleAction} />
+      <WelcomePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
     </FixtureWrapper>
   );
 }
@@ -79,7 +85,7 @@ function GroupsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <GroupsPane onActionPress={handleAction} />
+      <GroupsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
     </FixtureWrapper>
   );
 }
@@ -91,7 +97,7 @@ function ChannelsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <ChannelsPane onActionPress={handleAction} />
+      <ChannelsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
     </FixtureWrapper>
   );
 }
@@ -103,7 +109,7 @@ function PrivacyPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <PrivacyPane onActionPress={handleAction} />
+      <PrivacyPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
     </FixtureWrapper>
   );
 }
@@ -115,7 +121,7 @@ function InvitePaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <InvitePane onActionPress={handleAction} />
+      <InvitePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
     </FixtureWrapper>
   );
 }
