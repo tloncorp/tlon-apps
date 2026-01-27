@@ -213,7 +213,13 @@ export function ReferenceBlock({
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
-export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
+export function FileUploadBlock({
+  block,
+  fullbleed = false,
+}: {
+  block: cn.FileUploadBlockData;
+  fullbleed?: boolean;
+}) {
   const isUploading = useMemo(
     () =>
       block.file.fileUri.startsWith('file://') ||
@@ -226,14 +232,65 @@ export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
     [block.file.size]
   );
 
-  // TODO
-  const fileExtension = useMemo(() => 'pdf', []);
+  const fileTypeCode = useMemo(
+    () =>
+      FilePreview.fileExtensionFrom({
+        filename: block.file.name,
+        mimeType: block.file.mimeType,
+        uri: block.file.fileUri,
+      }),
+    [block.file]
+  );
+
+  const filePreview = useCallback(
+    () => <FilePreview fileExtensionLabel={fileTypeCode ?? undefined} />,
+    [fileTypeCode]
+  );
+  const filenameView = useCallback(
+    ({
+      ...passed
+    }: Pick<ComponentProps<typeof Text>, 'size' | 'numberOfLines'>) => (
+      <Text
+        size="$label/xl"
+        ellipsizeMode={passed.numberOfLines === 1 ? 'middle' : 'tail'}
+        flexShrink={0}
+        {...passed}
+      >
+        {block.file.name}
+      </Text>
+    ),
+    [block.file.name]
+  );
+  const fileSizeView = useCallback(
+    ({ ...passed }: Pick<ComponentProps<typeof Text>, 'size'> = {}) => (
+      <Text size="$label/m" color="$secondaryText" {...passed}>
+        {formattedSize}
+      </Text>
+    ),
+    [formattedSize]
+  );
 
   if (isUploading) {
     return (
       <YStack paddingLeft="$l">
         <BlockquoteSideBorder />
         <Text color="$tertiaryText">Uploading attachment...</Text>
+      </YStack>
+    );
+  }
+
+  if (fullbleed) {
+    return (
+      <YStack
+        alignItems="center"
+        justifyContent="center"
+        gap="$s"
+        padding="$2xs"
+        flex={1}
+      >
+        {filePreview()}
+        {filenameView({ numberOfLines: 2, size: '$label/m' })}
+        {fileSizeView({ size: '$label/s' })}
       </YStack>
     );
   }
@@ -245,25 +302,18 @@ export function FileUploadBlock({ block }: { block: cn.FileUploadBlockData }) {
           <Icon
             type="ChannelNote"
             color="$tertiaryText"
-            customSize={[12, 12]}
+            customSize={['$l', '$l']}
           />
           <Reference.TitleText>File Upload</Reference.TitleText>
         </Reference.Title>
         <Reference.ActionIcon />
       </Reference.Header>
       <Reference.Body>
-        <XStack padding={12} gap={8}>
-          <FilePreview fileExtensionLabel={fileExtension} />
-          <YStack
-            gap={14}
-            flex={1}
-          >
-            <Text size="$label/xl" numberOfLines={1} ellipsizeMode="middle">
-              {block.file.name}
-            </Text>
-            <Text size="$label/m" color="$secondaryText">
-              {formattedSize}
-            </Text>
+        <XStack padding="$l" gap="$m">
+          {filePreview()}
+          <YStack gap="$xl" flex={1}>
+            {filenameView({ numberOfLines: 1 })}
+            {fileSizeView()}
           </YStack>
         </XStack>
       </Reference.Body>
