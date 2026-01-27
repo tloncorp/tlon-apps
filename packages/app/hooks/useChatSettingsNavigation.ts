@@ -118,7 +118,7 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onPressChatVolume = useCallback(
-    (params: { type: 'group' | 'channel'; id: string }) => {
+    (params: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
       rootNavigateToChatVolume(params);
     },
     [rootNavigateToChatVolume]

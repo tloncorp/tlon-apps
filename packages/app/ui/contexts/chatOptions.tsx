@@ -32,7 +32,7 @@ export type ChatOptionsContextValue = {
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
   onPressChannelTemplate: () => void;
-  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
+  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
@@ -98,6 +98,7 @@ type ChatOptionsProviderProps = {
   onPressChatDetails?: (chat: {
     type: 'group' | 'channel';
     id: string;
+    groupId?: string;
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
@@ -409,7 +410,7 @@ export const ChatOptionsProvider = ({
   }, [channelId, closeSheet, onPressChannelTemplate]);
 
   const handlePressChatDetails = useCallback(
-    (params: { type: 'group' | 'channel'; id: string }) => {
+    (params: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
       onPressChatDetails(params);
       closeSheet();
     },

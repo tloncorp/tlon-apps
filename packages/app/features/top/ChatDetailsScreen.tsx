@@ -134,14 +134,10 @@ export function ChatDetailsScreenView() {
 
   const handlePressBack = useCallback(() => {
     if (isWindowNarrow) {
-      // On mobile, just go back in the navigation stack
       navigateBack();
     } else if (chatType === 'group') {
-      // On desktop for group details, navigate to the group
       navigateToGroup(chatId);
     } else if (chatType === 'channel' && channel) {
-      // On desktop for channel details, navigate to the channel
-      // navigateToChannel expects a db.Channel object, not just a string ID
       navigateToChannel(channel);
     } else {
       navigateBack();
@@ -409,12 +405,15 @@ function ChatSettings({
     }
   }, [channel, onPressEditChannelPrivacy]);
 
-  // Shared handler
   const handlePressNotificationSettings = useCallback(() => {
     if (chatType === 'group' && group) {
-      onPressChatVolume({ type: 'group', id: group.id });
+      onPressChatVolume({ type: 'group', id: group.id, groupId: group.id });
     } else if (chatType === 'channel' && channel) {
-      onPressChatVolume({ type: 'channel', id: channel.id });
+      onPressChatVolume({
+        type: 'channel',
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
   }, [chatType, group, channel, onPressChatVolume]);
 

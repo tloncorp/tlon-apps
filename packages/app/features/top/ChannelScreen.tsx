@@ -294,24 +294,22 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChatDetailsPressed = useCallback(() => {
-    // For single-channel groups, navigate to group details
+    const groupId = channel?.groupId ?? group?.id;
+    if (!groupId) return;
+
     const isSingleChannelGroup = group?.channels?.length === 1;
-    if (isSingleChannelGroup && group) {
+    // Single-channel groups show group details; multi-channel show channel details
+    if (isSingleChannelGroup) {
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'group',
-        chatId: group.id,
+        chatId: groupId,
+        groupId,
       });
-    } else if (channel && channel.groupId) {
-      // For multi-channel groups, navigate to channel details
+    } else if (channel) {
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'channel',
         chatId: channel.id,
-      });
-    } else if (group) {
-      // Fallback to group details
-      navigationRef.current.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: group.id,
+        groupId,
       });
     }
   }, [channel, group, navigationRef]);
@@ -377,6 +375,7 @@ export default function ChannelScreen(props: Props) {
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'channel',
         chatId: channelId,
+        groupId,
       });
     },
     [navigationRef]

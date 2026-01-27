@@ -138,8 +138,167 @@ test('should navigate to channel privacy settings from channel details', async (
   });
 });
 
+test('channel privacy back button returns to channel details', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  await helpers.createGroup(page);
+  await helpers.setupMultiChannelGroup(page);
+
+  // Click on channel header title to open channel details
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
+
+  // Verify sidebar shows group channels (not Home sidebar)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click on Privacy setting
+  await page.getByTestId('ChannelPrivacy').click();
+
+  // Verify we're on the channel privacy screen
+  await expect(page.getByText('Channel privacy')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click back button
+  await page.getByTestId('HeaderBackButton').first().click();
+
+  // Verify we're back on channel details
+  await expect(page.getByText('Channel info')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels after navigating back
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+});
+
 // Note: Delete channel from channel details is tested in group-channel-management.spec.ts
 // The test was removed here due to test fixture cleanup conflicts after channel deletion
+
+test('channel edit meta back button returns to channel details with sidebar context', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  await helpers.createGroup(page);
+  await helpers.setupMultiChannelGroup(page);
+
+  // Click on channel header title to open channel details
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
+
+  // Verify sidebar shows group channels (not Home sidebar)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click on the header edit button to navigate to channel edit screen
+  await page.getByTestId('DetailsEditButton').click();
+
+  // Verify we're on the channel edit screen
+  await expect(page.getByTestId('ChannelTitleInput')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels while on edit screen
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click back button (or save to go back)
+  await page.getByTestId('HeaderBackButton').first().click();
+
+  // Verify we're back on channel details (use exact match to avoid matching "Edit channel info")
+  await expect(page.getByText('Channel info', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels after navigating back
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+});
+
+test('channel header edit button navigates to channel details with sidebar context', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  await helpers.createGroup(page);
+  await helpers.setupMultiChannelGroup(page);
+
+  // We should now be in the General channel of a multi-channel group
+  // Verify sidebar shows group channels (not Home sidebar)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click the edit button (pen icon) in the channel header
+  // This button is visible for admins in multi-channel groups
+  await page.getByTestId('ChannelHeaderEditButton').click();
+
+  // Verify we're on channel details
+  await expect(page.getByText('Channel info')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels (this tests the fix in ChannelScreen.tsx)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+});
+
+test('channel overflow menu: Channel info & settings maintains sidebar context', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  await helpers.createGroup(page);
+  await helpers.setupMultiChannelGroup(page);
+
+  // We should now be in the General channel of a multi-channel group
+  // Verify sidebar shows group channels (not Home sidebar)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Right-click on the channel in the sidebar to open the context menu
+  await page.getByTestId('ChannelListItem-General').click({ button: 'right' });
+
+  // Wait for the options sheet to appear and click "Channel info & settings"
+  await expect(page.getByText('Channel info & settings')).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByText('Channel info & settings').click();
+
+  // Verify we're on channel details
+  await expect(page.getByText('Channel info')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Verify sidebar still shows group channels (this tests the fix in ChatOptionsSheet.tsx)
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 5000,
+  });
+});
 
 // Back navigation tests for notifications screen
 
