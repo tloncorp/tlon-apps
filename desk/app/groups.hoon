@@ -1053,7 +1053,7 @@
     :*  %11
         groups
         channels-index
-        (~(run by foreigns) v10:foreign:v8:gc)
+        foreigns  ::  implicit $foreign migration v8 -> v10
         ~  ::  leaves
         subs
         pimp
