@@ -54,3 +54,28 @@ export function FilePreview({
     </View>
   );
 }
+
+FilePreview.fileExtensionFrom = (opts: {
+  uri?: string;
+  filename?: string;
+  mimeType?: string;
+}): string | null => {
+  switch (opts.mimeType) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'application/pdf':
+      return 'pdf';
+    case 'text/plain':
+      return 'txt';
+    case 'application/zip':
+      return 'zip';
+    case 'video/mp4':
+      return 'mp4';
+    default:
+      return (
+        opts.filename?.split('.').at(-1) ?? opts.uri?.split('.').at(-1) ?? null
+      );
+  }
+};
