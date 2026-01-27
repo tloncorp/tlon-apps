@@ -4998,7 +4998,7 @@
     ^+  fi-core
     =.  leaves  (~(del in leaves) flag)
     =.  cor  (emit leave-group:fi-pass)
-    =.  progress  ~
+    =.  progress  `%done
     fi-core
   ::  +fi-watch: handle watch request
   ::

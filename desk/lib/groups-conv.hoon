@@ -14,7 +14,7 @@
       ^-  foreign:v8:gv
       =/  progress-8=(unit progress:v8:gv)
         ?~  progress  ~
-        ?:  ?=(%leave u.progress)  `%done
+        ?:  ?=(%leave u.progress)  ~
         progress
       :*  invites
           lookup
@@ -27,7 +27,7 @@
       ^-  foreign:v7:gv
       =/  progress-7=(unit progress:v7:gv)
         ?~  progress  ~
-        ?:  ?=(%leave u.progress)  `%done
+        ?:  ?=(%leave u.progress)  ~
         progress
       :*  (turn invites v7:invite:^v8)
           lookup
