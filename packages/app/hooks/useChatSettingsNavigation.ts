@@ -57,11 +57,6 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      const paramsWithOrigin = {
-        ...params,
-        fromChatDetails: params.fromChatDetails ?? true,
-      } as GroupSettingsStackParamList[T];
-
       if (!isWindowNarrow && 'groupId' in params) {
         await navigateToGroup(params.groupId);
       }
@@ -70,7 +65,7 @@ export const useChatSettingsNavigation = () => {
         () => {
           navigation.navigate('GroupSettings', {
             screen,
-            params: paramsWithOrigin,
+            params,
           } as NavigatorScreenParams<GroupSettingsStackParamList>);
         },
         !isWindowNarrow ? 100 : 0
@@ -123,24 +118,10 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onPressChatVolume = useCallback(
-    (params: {
-      type: 'group' | 'channel';
-      id: string;
-      fromChatDetails?: boolean;
-    }) => {
-      const { type, id, fromChatDetails } = params;
-
-      if (type === 'group') {
-        navigateToGroupSettings('ChatVolume', {
-          chatType: type,
-          chatId: id,
-          fromChatDetails,
-        });
-      } else {
-        rootNavigateToChatVolume(params);
-      }
+    (params: { type: 'group' | 'channel'; id: string }) => {
+      rootNavigateToChatVolume(params);
     },
-    [navigateToGroupSettings, rootNavigateToChatVolume]
+    [rootNavigateToChatVolume]
   );
 
   const onPressChannelMembers = useCallback(

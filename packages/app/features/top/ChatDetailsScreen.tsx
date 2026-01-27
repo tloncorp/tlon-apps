@@ -99,14 +99,14 @@ export function ChatDetailsScreen(props: Props) {
 
 export function ChatDetailsScreenView() {
   const {
-    params: { chatType },
+    params: { chatType, chatId },
   } = useRoute<RootStackRouteProp<'ChatDetails'>>();
   const { channel, group } = useChatOptions();
   const {
     onPressGroupMeta: navigateToGroupMeta,
     onPressEditChannelMeta: navigateToEditChannelMeta,
   } = useChatSettingsNavigation();
-  const { navigateToGroup, navigateBack } = useRootNavigation();
+  const { navigateToGroup, navigateToChannel, navigateBack } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const currentUser = useCurrentUserId();
@@ -133,12 +133,20 @@ export function ChatDetailsScreenView() {
   ]);
 
   const handlePressBack = useCallback(() => {
-    if (chatType === 'group' && group && !isWindowNarrow) {
-      navigateToGroup(group.id);
+    if (isWindowNarrow) {
+      // On mobile, just go back in the navigation stack
+      navigateBack();
+    } else if (chatType === 'group') {
+      // On desktop for group details, navigate to the group
+      navigateToGroup(chatId);
+    } else if (chatType === 'channel' && channel) {
+      // On desktop for channel details, navigate to the channel
+      // navigateToChannel expects a db.Channel object, not just a string ID
+      navigateToChannel(channel);
     } else {
       navigateBack();
     }
-  }, [chatType, group, navigateToGroup, navigateBack, isWindowNarrow]);
+  }, [chatType, chatId, channel, navigateToGroup, navigateToChannel, navigateBack, isWindowNarrow]);
 
   const getTitle = () => {
     switch (chatType) {
@@ -262,7 +270,7 @@ function ChatDetailsScreenContent({
         paddingHorizontal="$xl"
         marginVertical="$l"
       >
-        {chatType === 'group' ? (
+        {chatType === 'group' && group ? (
           <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
         ) : chatType === 'channel' && channel && group ? (
           <ListItem.GroupIcon model={group} size="$5xl" />
@@ -276,7 +284,7 @@ function ChatDetailsScreenContent({
           </TlonText.Text>
         </YStack>
       </XStack>
-      {chatType === 'group' && (
+      {chatType === 'group' && group && (
         <>
           <GroupQuickActions group={group} canInvite={canInviteToGroup} />
           <GroupDescription group={group} />
@@ -378,19 +386,19 @@ function ChatSettings({
   // Group-specific handlers
   const handlePressGroupPrivacy = useCallback(() => {
     if (group) {
-      onPressGroupPrivacy?.(group.id);
+      onPressGroupPrivacy?.(group.id, true);
     }
   }, [group, onPressGroupPrivacy]);
 
   const handlePressManageChannels = useCallback(() => {
     if (group) {
-      onPressManageChannels?.(group.id);
+      onPressManageChannels?.(group.id, true);
     }
   }, [group, onPressManageChannels]);
 
   const handlePressRoles = useCallback(() => {
     if (group) {
-      onPressRoles?.(group.id);
+      onPressRoles?.(group.id, true);
     }
   }, [group, onPressRoles]);
 
@@ -415,7 +423,8 @@ function ChatSettings({
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,
-      testID: chatType === 'group' ? 'GroupNotifications' : 'ChannelNotifications',
+      testID:
+        chatType === 'group' ? 'GroupNotifications' : 'ChannelNotifications',
       disabled: false,
       onPress: handlePressNotificationSettings,
     };
@@ -618,9 +627,7 @@ function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
 
   // Get title for dialogs
   const chatTitle =
-    chatType === 'group'
-      ? groupTitle ?? 'group'
-      : channel?.title ?? 'channel';
+    chatType === 'group' ? groupTitle ?? 'group' : channel?.title ?? 'channel';
 
   const handleLeaveWithConfirm = useCallback(async () => {
     if (chatType === 'group') {
@@ -669,13 +676,7 @@ function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
         }
       }
     }
-  }, [
-    chatType,
-    channel,
-    deleteGroupFromContext,
-    onLeaveGroup,
-    onLeaveChannel,
-  ]);
+  }, [chatType, channel, deleteGroupFromContext, onLeaveGroup, onLeaveChannel]);
 
   const leaveActions = createActionGroup(
     'negative',

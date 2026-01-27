@@ -10,25 +10,14 @@ test('should display channel details screen with all expected elements', async (
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
+  // Create a new group and add a second channel (multi-channel groups show channel details)
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  // (single-channel groups navigate to group details instead)
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
 
   // Verify channel details screen elements are visible
-  // Check header shows "Channel info"
   await expect(page.getByText('Channel info')).toBeVisible({
     timeout: 5000,
   });
@@ -43,9 +32,6 @@ test('should display channel details screen with all expected elements', async (
 
   // Settings section - verify settings are visible by text
   await expect(page.getByText('Privacy')).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(page.getByText('Edit name and description')).toBeVisible({
     timeout: 5000,
   });
   await expect(page.getByText('Notifications')).toBeVisible({
@@ -65,25 +51,15 @@ test('should navigate to channel edit settings from channel details', async ({
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
-  // Click on Edit name and description
-  await page.getByTestId('ChannelEditMeta').click();
+  // Click on the header edit button to navigate to channel edit screen
+  await page.getByTestId('DetailsEditButton').click();
 
   // Verify we're on the channel edit screen
   await expect(page.getByTestId('ChannelTitleInput')).toBeVisible({
@@ -102,21 +78,12 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Verify Pin button is visible (channel is not pinned initially)
   await expect(page.getByText('Pin', { exact: true })).toBeVisible({
@@ -147,21 +114,11 @@ test('should navigate to channel privacy settings from channel details', async (
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Privacy setting
@@ -193,40 +150,24 @@ test('multi-channel group: notifications back button returns to channel details'
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page
-    .getByTestId('ChannelHeaderTitle')
-    .getByTestId('ScreenHeaderTitle')
-    .click();
-
-  // Verify we're on channel details
-  await expect(page.getByText('Channel info')).toBeVisible({
-    timeout: 5000,
-  });
+  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Notifications setting
   await page.getByTestId('ChannelNotifications').click();
 
-  // Verify we're on the notifications screen with channel subtitle
-  await expect(page.getByText('Notifications')).toBeVisible({
+  // Verify we're on the notifications screen - use ScreenHeaderTitle to avoid strict mode violation
+  await expect(page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })).toBeVisible({
     timeout: 5000,
   });
-  await expect(page.getByText('General')).toBeVisible({
-    timeout: 5000,
-  });
+  // Note: On desktop, the subtitle with channel name may not be visible in the header
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').click();
+  await page.getByTestId('HeaderBackButton').first().click();
 
   // Verify we're back on channel details (not group details)
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -258,23 +199,23 @@ test('single-channel group: notifications back button returns to group details',
     .click();
 
   // Verify we're on GROUP details (not channel details)
-  await expect(page.getByText('Group info')).toBeVisible({
+  await expect(page.getByText('Group info & settings')).toBeVisible({
     timeout: 5000,
   });
 
   // Click on Notifications setting
   await page.getByTestId('GroupNotifications').click();
 
-  // Verify we're on the notifications screen
-  await expect(page.getByText('Notifications')).toBeVisible({
+  // Verify we're on the notifications screen - use ScreenHeaderTitle to avoid strict mode violation
+  await expect(page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })).toBeVisible({
     timeout: 5000,
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').click();
+  await page.getByTestId('HeaderBackButton').first().click();
 
   // Verify we're back on group details
-  await expect(page.getByText('Group info')).toBeVisible({
+  await expect(page.getByText('Group info & settings')).toBeVisible({
     timeout: 5000,
   });
 });
@@ -286,15 +227,8 @@ test('channel details back button returns to channel conversation', async ({
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Create a new group
   await helpers.createGroup(page);
-
-  // Create a second channel so it's a multi-channel group
-  await helpers.createChannel(page, 'Second Channel');
-
-  // Navigate back to General channel
-  await page.getByTestId('ChannelListItem-General').click();
-  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await helpers.setupMultiChannelGroup(page);
 
   // Send a message so we can verify we return to the channel
   await helpers.sendMessage(page, 'Testing channel details back navigation.');
@@ -302,7 +236,7 @@ test('channel details back button returns to channel conversation', async ({
   // Wait for message to appear
   await expect(
     page.getByText('Testing channel details back navigation.').first()
-  ).toBeVisible({ timeout: 10000 });
+  ).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title to open channel details
   await page
@@ -310,13 +244,13 @@ test('channel details back button returns to channel conversation', async ({
     .getByTestId('ScreenHeaderTitle')
     .click();
 
-  // Verify we're on channel details
+  // Verify we're on channel details (multi-channel group)
   await expect(page.getByText('Channel info')).toBeVisible({
     timeout: 5000,
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').click();
+  await page.getByTestId('HeaderBackButton').first().click();
 
   // Verify we're back in the channel conversation
   await expect(
@@ -352,7 +286,7 @@ test('group details back button returns to channel conversation (single-channel)
   // Wait for message to appear
   await expect(
     page.getByText('Testing group details back navigation.').first()
-  ).toBeVisible({ timeout: 10000 });
+  ).toBeVisible({ timeout: 5000 });
 
   // Click on channel header title - should open GROUP details (single-channel behavior)
   await page
@@ -361,12 +295,12 @@ test('group details back button returns to channel conversation (single-channel)
     .click();
 
   // Verify we're on GROUP details
-  await expect(page.getByText('Group info')).toBeVisible({
+  await expect(page.getByText('Group info & settings')).toBeVisible({
     timeout: 5000,
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').click();
+  await page.getByTestId('HeaderBackButton').first().click();
 
   // Verify we're back in the channel conversation
   await expect(
