@@ -225,7 +225,7 @@ export function GalleryPost({
   );
 }
 
-export function GalleryPostHeader({ post }: { post: db.Post }) {
+function GalleryPostRow({ children }: PropsWithChildren) {
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -238,19 +238,31 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
         padding="$l"
         gap="$m"
       >
-        <ContactName
-          userId={post.authorId}
-          showNickname
-          size="$label/m"
-          color="$tertiaryText"
-        />
-        <Text size="$label/m" color="$tertiaryText">
-          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
-            ? makePrettyShortDate(new Date(post.receivedAt))
-            : makePrettyDaysSince(new Date(post.receivedAt))}
-        </Text>
+        {children}
       </XStack>
     </View>
+  );
+}
+GalleryPostRow.Text = styled(Text, {
+  size: '$label/m',
+  color: '$tertiaryText',
+});
+
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <GalleryPostRow>
+      <ContactName
+        userId={post.authorId}
+        showNickname
+        size="$label/m"
+        color="$tertiaryText"
+      />
+      <GalleryPostRow.Text>
+        {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+          ? makePrettyShortDate(new Date(post.receivedAt))
+          : makePrettyDaysSince(new Date(post.receivedAt))}
+      </GalleryPostRow.Text>
+    </GalleryPostRow>
   );
 }
 
