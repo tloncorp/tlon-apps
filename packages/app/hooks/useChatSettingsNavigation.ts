@@ -117,6 +117,21 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
+  const onPressCreateRole = useCallback(
+    (
+      groupId: string,
+      returnScreen?: keyof GroupSettingsStackParamList,
+      returnParams?: Record<string, unknown>
+    ) => {
+      navigateToGroupSettings('AddRole', {
+        groupId,
+        returnScreen,
+        returnParams,
+      });
+    },
+    [navigateToGroupSettings]
+  );
+
   const onPressChatVolume = useCallback(
     (params: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
       rootNavigateToChatVolume(params);
@@ -215,6 +230,7 @@ export const useChatSettingsNavigation = () => {
     onPressChatDetails: navigateToChatDetails,
     onPressChatVolume,
     onPressRoles,
+    onPressCreateRole,
     onLeaveGroup,
     onLeaveChannel,
   };

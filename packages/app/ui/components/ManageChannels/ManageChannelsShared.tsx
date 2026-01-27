@@ -40,6 +40,7 @@ export interface ManageChannelsScreenViewProps {
     }>
   ) => Promise<void>;
   createdRoleId?: string;
+  onCreateRole?: () => void;
 }
 
 export function ChannelItem({
@@ -302,6 +303,7 @@ interface ManageChannelsContextValue {
   handleUpdateSection: (sectionId: string, title: string) => Promise<void>;
   handleDeleteSection: (sectionId: string) => Promise<void>;
   createdRoleId?: string;
+  onCreateRole?: () => void;
 }
 
 const ManageChannelsContext =
@@ -327,6 +329,7 @@ export function ManageChannelsProvider({
   deleteNavSection,
   updateGroupNavigation,
   createdRoleId,
+  onCreateRole,
 }: {
   children: React.ReactNode;
   goBack: () => void;
@@ -343,6 +346,7 @@ export function ManageChannelsProvider({
     }>
   ) => Promise<void>;
   createdRoleId?: string;
+  onCreateRole?: () => void;
 }) {
   const state = useManageChannelsState({
     groupNavSectionsWithChannels,
@@ -354,8 +358,13 @@ export function ManageChannelsProvider({
 
   const { bottom } = useSafeAreaInsets();
 
+  const contextValue = {
+    ...state,
+    onCreateRole,
+  };
+
   return (
-    <ManageChannelsContext.Provider value={state}>
+    <ManageChannelsContext.Provider value={contextValue}>
       <View backgroundColor="$background" flex={1}>
         <YStack
           backgroundColor="$background"
@@ -408,6 +417,7 @@ export function ManageChannelsProvider({
             group={group}
             createdRoleId={state.createdRoleId}
             onOpenChange={(open) => state.setShowCreateChannel(open)}
+            onCreateRole={onCreateRole}
           />
         )}
         <EditSectionNameSheet

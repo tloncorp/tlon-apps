@@ -73,8 +73,10 @@ export function PrivateChannelToggle({
 
 export function ChannelPermissionsSelector({
   groupRoles,
+  onCreateRole,
 }: {
   groupRoles: db.GroupRole[];
+  onCreateRole?: () => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -158,12 +160,19 @@ export function ChannelPermissionsSelector({
             <Text size="$label/l" flex={1}>
               Who can access this channel?
             </Text>
-            <XStack flex={1.5} justifyContent="flex-end">
+            <XStack flex={1.5} justifyContent="flex-end" gap="$m">
               <Button
                 preset="positive"
                 label="Add roles"
                 onPress={() => setShowRoleSelector(true)}
               />
+              {onCreateRole && (
+                <Button
+                  preset="secondary"
+                  label="Create new role"
+                  onPress={onCreateRole}
+                />
+              )}
             </XStack>
           </XStack>
           <YStack gap="$l">

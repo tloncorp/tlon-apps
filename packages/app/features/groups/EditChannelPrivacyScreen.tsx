@@ -11,7 +11,9 @@ type Props = NativeStackScreenProps<
 >;
 
 export function EditChannelPrivacyScreen(props: Props) {
-  const { groupId, channelId } = props.route.params;
+  const { groupId, channelId, fromChatDetails, createdRoleId } =
+    props.route.params;
+  const { navigation } = props;
 
   const { channel, group, isLoading, updateChannel, handleGoBack } =
     useChannelEditScreen({ groupId, channelId });
@@ -33,6 +35,19 @@ export function EditChannelPrivacyScreen(props: Props) {
     [channel, updateChannel, handleGoBack]
   );
 
+  const handleCreateRole = useCallback(() => {
+    navigation.navigate('AddRole', {
+      groupId,
+      fromChatDetails,
+      returnScreen: 'EditChannelPrivacy',
+      returnParams: {
+        groupId,
+        channelId,
+        fromChatDetails,
+      },
+    });
+  }, [navigation, groupId, channelId, fromChatDetails]);
+
   return (
     <EditChannelPrivacyScreenView
       goBack={handleGoBack}
@@ -40,6 +55,8 @@ export function EditChannelPrivacyScreen(props: Props) {
       channel={channel}
       group={group}
       onSubmit={handleSubmit}
+      onCreateRole={handleCreateRole}
+      createdRoleId={createdRoleId}
     />
   );
 }

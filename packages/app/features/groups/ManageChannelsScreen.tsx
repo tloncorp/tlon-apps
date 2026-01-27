@@ -47,6 +47,18 @@ export function ManageChannelsScreen(props: Props) {
     [navigation, groupId]
   );
 
+  const handleCreateRole = useCallback(() => {
+    navigation.navigate('AddRole', {
+      groupId,
+      fromChatDetails,
+      returnScreen: 'ManageChannels',
+      returnParams: {
+        groupId,
+        fromChatDetails,
+      },
+    });
+  }, [navigation, groupId, fromChatDetails]);
+
   return (
     <ManageChannelsScreenView
       group={group}
@@ -58,6 +70,7 @@ export function ManageChannelsScreen(props: Props) {
       updateNavSection={updateNavSection}
       updateGroupNavigation={updateGroupNavigation}
       createdRoleId={createdRoleId}
+      onCreateRole={handleCreateRole}
     />
   );
 }

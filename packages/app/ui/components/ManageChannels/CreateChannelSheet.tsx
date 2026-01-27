@@ -89,10 +89,12 @@ export function CreateChannelSheet({
   onOpenChange,
   group,
   createdRoleId,
+  onCreateRole,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
   createdRoleId?: string;
+  onCreateRole?: () => void;
 }) {
   const [pane, setPane] = useState<'initial' | 'permissions'>(
     createdRoleId ? 'permissions' : 'initial'
@@ -257,6 +259,7 @@ export function CreateChannelSheet({
             group={group}
             onPressBack={handlePressBack}
             onPressSave={handleSubmit(handlePressSave)}
+            onCreateRole={onCreateRole}
           />
         )}
       </ActionSheet>
@@ -268,10 +271,12 @@ function PrivateChannelPermissionsView({
   group,
   onPressBack,
   onPressSave,
+  onCreateRole,
 }: {
   group: db.Group;
   onPressBack: () => void;
   onPressSave: () => void;
+  onCreateRole?: () => void;
 }) {
   const { watch, setValue } = useFormContext<CreateChannelFormSchema>();
   const readers = watch('readers');
@@ -350,12 +355,19 @@ function PrivateChannelPermissionsView({
               <Text size="$label/l" flex={1}>
                 Who can access this channel?
               </Text>
-              <XStack flex={1.5} justifyContent="flex-end">
+              <XStack flex={1.5} justifyContent="flex-end" gap="$m">
                 <Button
                   preset="positive"
                   label="Add roles"
                   onPress={() => setShowRoleSelector(true)}
                 />
+                {onCreateRole && (
+                  <Button
+                    preset="secondary"
+                    label="Create new role"
+                    onPress={onCreateRole}
+                  />
+                )}
               </XStack>
             </XStack>
             <YStack gap="$l">

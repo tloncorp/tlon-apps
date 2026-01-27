@@ -18,6 +18,8 @@ interface EditChannelPrivacyScreenViewProps {
   channel?: db.Channel | null;
   group?: db.Group | null;
   onSubmit: (readers: string[], writers: string[]) => void;
+  onCreateRole?: () => void;
+  createdRoleId?: string;
 }
 
 export function EditChannelPrivacyScreenView({
@@ -26,13 +28,15 @@ export function EditChannelPrivacyScreenView({
   onSubmit,
   channel,
   group,
+  onCreateRole,
+  createdRoleId,
 }: EditChannelPrivacyScreenViewProps) {
   const form = useForm<ChannelPrivacyFormSchema>({
     defaultValues: getChannelPrivacyDefaults(channel),
     mode: 'onChange',
   });
 
-  const { reset, handleSubmit } = form;
+  const { reset, handleSubmit, watch, setValue } = form;
 
   const handleSave = useCallback(
     (data: ChannelPrivacyFormSchema) => {
@@ -50,6 +54,19 @@ export function EditChannelPrivacyScreenView({
       reset(getChannelPrivacyDefaults(channel));
     }
   }, [channel, reset]);
+
+  // Handle newly created role being returned from AddRole screen
+  useEffect(() => {
+    if (createdRoleId) {
+      const currentReaders = watch('readers');
+      if (!currentReaders.includes(createdRoleId)) {
+        // Enable private mode and add the new role
+        setValue('isPrivate', true, { shouldDirty: true });
+        setValue('readers', ['admin', createdRoleId], { shouldDirty: true });
+        setValue('writers', ['admin', createdRoleId], { shouldDirty: true });
+      }
+    }
+  }, [createdRoleId, setValue, watch]);
 
   const runSubmit = useCallback(
     () => handleSubmit(handleSave)(),
@@ -77,7 +94,10 @@ export function EditChannelPrivacyScreenView({
         <YStack gap="$2xl" padding="$xl" alignItems="center">
           {!!group && !!channel && group.roles && (
             <>
-              <ChannelPermissionsSelector groupRoles={group.roles} />
+              <ChannelPermissionsSelector
+                groupRoles={group.roles}
+                onCreateRole={onCreateRole}
+              />
               <PermissionTable groupRoles={group.roles} />
             </>
           )}
