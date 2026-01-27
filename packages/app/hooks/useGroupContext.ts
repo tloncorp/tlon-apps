@@ -1,8 +1,10 @@
 import { sync, useUpdateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { useNavigation } from '../navigation/utils';
+import { useIsWindowNarrow } from '../ui';
 import { useCurrentUserId } from './useCurrentUser';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
@@ -19,6 +21,29 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [groupId]);
 
   const group = groupQuery.data ?? null;
+
+  const navigation = useNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const previousGroupRef = useRef<db.Group | null>(null);
+
+  // Navigate away when user loses access to group (kicked/banned/removed)
+  useEffect(() => {
+    // Only trigger navigation if we had a valid group before and now it's null
+    // This prevents navigation on initial load when group is still loading
+    if (previousGroupRef.current !== null && group === null) {
+      if (isWindowNarrow) {
+        navigation.navigate('ChatList');
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+      }
+    }
+    
+    // Update ref for next render
+    previousGroupRef.current = group;
+  }, [group, navigation, isWindowNarrow]);
 
   const currentUserIsAdmin = useMemo(() => {
     return group?.members.some(
