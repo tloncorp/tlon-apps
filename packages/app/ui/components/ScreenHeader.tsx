@@ -47,8 +47,8 @@ export const ScreenHeaderComponent = ({
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
 
-  // On mobile, swap title to show loading state
-  const displayTitle = !useHorizontalTitleLayout && isLoading ? resolvedSubtitle : title;
+  // On mobile, swap title to show loading state (no debounce to avoid flash)
+  const displayTitle = !useHorizontalTitleLayout && isLoading ? 'Loading…' : title;
 
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
