@@ -86,15 +86,15 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
-  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean) => void;
-  onPressGroupMembers?: (groupId: string) => void;
-  onPressManageChannels?: (groupId: string) => void;
+  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean, fromChatDetails?: boolean) => void;
+  onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
+  onPressManageChannels?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressInvite?: (groupId: string) => void;
-  onPressGroupPrivacy?: (groupId: string) => void;
+  onPressGroupPrivacy?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressChannelMembers?: (channelId: string) => void;
   onPressChannelMeta?: (channelId: string) => void;
   onPressChannelTemplate?: (channelId: string) => void;
-  onPressRoles?: (groupId: string) => void;
+  onPressRoles?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressChatDetails?: (chat: {
     type: 'group' | 'channel';
     id: string;
@@ -360,7 +360,7 @@ export const ChatOptionsProvider = ({
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
       if (groupId) {
-        onPressGroupMeta?.(groupId, fromBlankChannel);
+        onPressGroupMeta?.(groupId, fromBlankChannel, true);
         closeSheet();
       }
     },
@@ -369,7 +369,7 @@ export const ChatOptionsProvider = ({
 
   const handlePressManageChannels = useCallback(() => {
     if (groupId) {
-      onPressManageChannels?.(groupId);
+      onPressManageChannels?.(groupId, true);
       closeSheet();
     }
   }, [groupId, onPressManageChannels, closeSheet]);
@@ -383,21 +383,21 @@ export const ChatOptionsProvider = ({
 
   const handlePressGroupMembers = useCallback(() => {
     if (groupId) {
-      onPressGroupMembers(groupId);
+      onPressGroupMembers(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupMembers]);
 
   const handlePressGroupPrivacy = useCallback(() => {
     if (groupId) {
-      onPressGroupPrivacy?.(groupId);
+      onPressGroupPrivacy?.(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupPrivacy]);
 
   const handlePressGroupRoles = useCallback(() => {
     if (groupId) {
-      onPressRoles?.(groupId);
+      onPressRoles?.(groupId, true);
     }
   }, [groupId, onPressRoles]);
 

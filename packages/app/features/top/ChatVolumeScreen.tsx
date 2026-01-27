@@ -27,11 +27,6 @@ type GroupSettingsProps = NativeStackScreenProps<
 >;
 type Props = RootStackProps | GroupSettingsProps;
 
-// Check if we're in group settings stack
-function isGroupSettingsProps(props: Props): props is GroupSettingsProps {
-  return 'fromChatDetails' in props.route.params;
-}
-
 export function ChatVolumeScreen(props: Props) {
   const { chatType, chatId } = props.route.params;
   const chatSettings = useChatSettingsNavigation();
@@ -44,15 +39,7 @@ export function ChatVolumeScreen(props: Props) {
       }}
       {...chatSettings}
     >
-      <ChatVolumeScreenView
-        chatType={chatType}
-        chatId={chatId}
-        fromChatDetails={
-          isGroupSettingsProps(props)
-            ? props.route.params.fromChatDetails
-            : false
-        }
-      />
+      <ChatVolumeScreenView chatType={chatType} chatId={chatId} />
     </ChatOptionsProvider>
   );
 }
@@ -82,15 +69,14 @@ export const volumeOptions: {
 function ChatVolumeScreenView({
   chatType,
   chatId,
-  fromChatDetails,
 }: {
   chatType: 'group' | 'channel';
   chatId: string;
-  fromChatDetails?: boolean;
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
   const { updateVolume, group, channel } = useChatOptions();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
     channel?.id ?? ''
@@ -103,31 +89,14 @@ function ChatVolumeScreenView({
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
   const handleBackNavigation = useCallback(() => {
-    if (fromChatDetails) {
-      // Navigate back to channel or group details based on chatType
-      if (chatType === 'channel' && channel?.id) {
-        navigateToChatDetails({ type: 'channel', id: channel.id });
-      } else if (group?.id) {
-        navigateToChatDetails({ type: 'group', id: group.id });
-      } else {
-        navigation.goBack();
-      }
-    } else if (chatType === 'group' && chatId) {
-      navigateToChatDetails({ type: chatType, id: chatId });
-    } else {
+    // On mobile, just go back. On desktop, navigate explicitly since
+    // HomeDrawer is a drawer navigator where goBack() doesn't work as expected.
+    if (isWindowNarrow || !chatId) {
       navigation.goBack();
+    } else {
+      navigateToChatDetails({ type: chatType, id: chatId });
     }
-  }, [
-    navigateToChatDetails,
-    group,
-    channel,
-    fromChatDetails,
-    navigation,
-    chatType,
-    chatId,
-  ]);
-
-  const isWindowNarrow = useIsWindowNarrow();
+  }, [navigateToChatDetails, navigation, chatType, chatId, isWindowNarrow]);
 
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>

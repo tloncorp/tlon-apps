@@ -237,6 +237,5 @@ export type GroupSettingsStackParamList = {
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;
-    fromChatDetails?: boolean;
   };
 };

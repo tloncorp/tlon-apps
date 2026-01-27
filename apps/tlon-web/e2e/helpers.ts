@@ -358,6 +358,22 @@ export async function openGroupSettings(page: Page) {
   await page.getByText('Group info & settings').click();
 }
 
+/**
+ * Creates a second channel in a group and navigates to the General channel.
+ * Use this to set up a multi-channel group for testing channel-specific behavior.
+ */
+export async function setupMultiChannelGroup(page: Page, secondChannelName = 'Second Channel') {
+  await openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await expect(page.getByText('New', { exact: true })).toBeVisible({ timeout: 5000 });
+  await createChannel(page, secondChannelName);
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId(`ChannelListItem-${secondChannelName}`)).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('ChannelListItem-General').click();
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+}
+
 export async function navigateToHomeAndVerifyGroup(
   page: Page,
   expectedStatus: 'pinned' | 'unpinned'
