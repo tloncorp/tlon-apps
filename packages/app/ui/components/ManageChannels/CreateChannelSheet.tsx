@@ -351,11 +351,9 @@ function PrivateChannelPermissionsView({
             padding="$xl"
             gap="$2xl"
           >
-            <XStack>
-              <Text size="$label/l" flex={1}>
-                Who can access this channel?
-              </Text>
-              <XStack flex={1.5} justifyContent="flex-end" gap="$m">
+            <YStack gap="$l">
+              <Text size="$label/l">Who can access this channel?</Text>
+              <XStack gap="$m">
                 <Button
                   preset="positive"
                   label="Add roles"
@@ -369,7 +367,7 @@ function PrivateChannelPermissionsView({
                   />
                 )}
               </XStack>
-            </XStack>
+            </YStack>
             <YStack gap="$l">
               <Text size="$label/l">Roles</Text>
               <XStack gap="$s" flexWrap="wrap" width="100%">

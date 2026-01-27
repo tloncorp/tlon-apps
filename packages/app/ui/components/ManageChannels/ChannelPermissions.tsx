@@ -156,11 +156,9 @@ export function ChannelPermissionsSelector({
           borderTopWidth={1}
           borderTopColor="$secondaryBorder"
         >
-          <XStack>
-            <Text size="$label/l" flex={1}>
-              Who can access this channel?
-            </Text>
-            <XStack flex={1.5} justifyContent="flex-end" gap="$m">
+          <YStack gap="$l">
+            <Text size="$label/l">Who can access this channel?</Text>
+            <XStack gap="$m">
               <Button
                 preset="positive"
                 label="Add roles"
@@ -174,7 +172,7 @@ export function ChannelPermissionsSelector({
                 />
               )}
             </XStack>
-          </XStack>
+          </YStack>
           <YStack gap="$l">
             <Text size="$label/l">Roles</Text>
             <XStack gap="$s" flexWrap="wrap" width="100%">
