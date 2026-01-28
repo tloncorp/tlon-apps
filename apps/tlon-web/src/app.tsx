@@ -569,44 +569,10 @@ function ConnectedWebApp() {
           borderWidth={1}
           borderColor="$border"
         >
-          {session?.syncError ? (
-            <>
-              <Text
-                color="$primaryText"
-                fontSize="$l"
-                fontWeight="600"
-                testID="SyncErrorTitle"
-              >
-                Something went wrong
-              </Text>
-              <Text
-                color="$secondaryText"
-                marginTop="$m"
-                fontSize="$s"
-                testID="SyncErrorMessage"
-              >
-                {session.syncError}
-              </Text>
-              <Text
-                color="$primaryText"
-                marginTop="$xl"
-                fontSize="$s"
-                cursor="pointer"
-                textDecorationLine="underline"
-                onPress={() => window.location.reload()}
-                testID="SyncErrorRetry"
-              >
-                Retry
-              </Text>
-            </>
-          ) : (
-            <>
-              <LoadingSpinner color="$primaryText" />
-              <Text color="$primaryText" marginTop="$xl" fontSize="$s">
-                Starting up&hellip;
-              </Text>
-            </>
-          )}
+          <LoadingSpinner color="$primaryText" />
+          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+            Starting up&hellip;
+          </Text>
         </View>
       </View>
     );
