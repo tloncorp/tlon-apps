@@ -4732,7 +4732,6 @@
     =?  cor  done
       =^  caz=(list card)  subs
         =/  =dock  [p.flag dap.bowl]
-        ~&  fi-abet-unsub-preview+[src.bowl flag]
         (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
       (emil caz)
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
@@ -5019,7 +5018,6 @@
     ?+    pole  ~|(bad-fi-watch+pole !!)
     ::
         [%preview ~]
-      ~&  fi-watch+[src.bowl flag]
       =.  lookup  `%preview
       (fi-safe-preview |)
     ==
@@ -5029,7 +5027,6 @@
     |=  delay=?
     ~>  %spin.['fi-safe-preview']
     ^+  fi-core
-    ~&  fi-safe-preview+[src.bowl dap.bowl flag]
     =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
     =/  =dock  [p.flag dap.bowl]
