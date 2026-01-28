@@ -24,7 +24,7 @@ export type GroupNavSectionWithChannels = Omit<
 };
 
 export interface ManageChannelsScreenViewProps {
-  goBack: () => void;
+  onGoBack: () => void;
   goToChannelDetails: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   group: db.Group | null;
@@ -321,7 +321,7 @@ export function useManageChannelsContext() {
 
 export function ManageChannelsProvider({
   children,
-  goBack,
+  onGoBack,
   group,
   createNavSection,
   groupNavSectionsWithChannels,
@@ -332,7 +332,7 @@ export function ManageChannelsProvider({
   onCreateRole,
 }: {
   children: React.ReactNode;
-  goBack: () => void;
+  onGoBack: () => void;
   group: db.Group | null;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
@@ -373,7 +373,7 @@ export function ManageChannelsProvider({
         >
           <ScreenHeader
             title="Channels"
-            backAction={goBack}
+            backAction={onGoBack}
             rightControls={
               <XStack gap="$xl">
                 <ScreenHeader.TextButton

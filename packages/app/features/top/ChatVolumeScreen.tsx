@@ -90,7 +90,7 @@ function ChatVolumeScreenView({
   const currentVolumeLevel =
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
-  const handleBackNavigation = useCallback(() => {
+  const handleGoBack = useCallback(() => {
     // On mobile, just go back. On desktop, navigate explicitly since
     // HomeDrawer is a drawer navigator where goBack() doesn't work as expected.
     if (isWindowNarrow || !chatId) {
@@ -114,7 +114,7 @@ function ChatVolumeScreenView({
           (chatType === 'group' && !!group?.title)
         }
         backgroundColor="$secondaryBackground"
-        backAction={handleBackNavigation}
+        backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
       />
       <Form.FormFrame backgroundType="secondary">

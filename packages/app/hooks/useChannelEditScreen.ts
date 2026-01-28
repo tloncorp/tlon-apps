@@ -11,7 +11,7 @@ import { useGroupContext } from './useGroupContext';
 interface UseChannelEditScreenParams {
   groupId: string;
   channelId: string;
-  customGoBack?: () => void;
+  fromChannelInfo?: boolean;
 }
 
 /**
@@ -19,7 +19,7 @@ interface UseChannelEditScreenParams {
  * Provides common data fetching, navigation, and update logic.
  */
 export function useChannelEditScreen(params: UseChannelEditScreenParams) {
-  const { groupId, channelId, customGoBack } = params;
+  const { groupId, channelId, fromChannelInfo } = params;
 
   const navigation =
     useNavigation<
@@ -43,9 +43,10 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
   const { navigateToChatDetails } = useRootNavigation();
 
   const handleGoBack = useCallback(() => {
-    // Use custom goBack when provided (e.g., from GroupSettingsStack context)
-    if (customGoBack) {
-      customGoBack();
+    // When coming from ChannelInfo in GroupSettingsStack, simple goBack
+    // pops back to ChannelInfo correctly
+    if (fromChannelInfo) {
+      navigation.goBack();
       return;
     }
     // On mobile (narrow), simply go back - the navigation stack is straightforward
@@ -59,7 +60,7 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
     } else {
       navigation.goBack();
     }
-  }, [customGoBack, navigation, isWindowNarrow, navigateToChatDetails, channel?.id, groupId]);
+  }, [fromChannelInfo, navigation, isWindowNarrow, navigateToChatDetails, channel?.id, groupId]);
 
   return {
     channel,

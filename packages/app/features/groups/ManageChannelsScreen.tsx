@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
 
+import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { ManageChannelsScreenView } from '../../ui';
@@ -23,16 +24,10 @@ export function ManageChannelsScreen(props: Props) {
     updateGroupNavigation,
   } = useGroupContext({ groupId });
 
-  const handleGoBack = useCallback(() => {
-    if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, fromChatDetails, groupId]);
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
   const goToChannelDetails = useCallback(
     (channelId: string) => {
@@ -64,7 +59,7 @@ export function ManageChannelsScreen(props: Props) {
   return (
     <ManageChannelsScreenView
       group={group}
-      goBack={handleGoBack}
+      onGoBack={handleGoBack}
       goToChannelDetails={goToChannelDetails}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       createNavSection={createNavSection}

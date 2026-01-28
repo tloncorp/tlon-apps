@@ -33,7 +33,7 @@ import {
 export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
-  goBack,
+  onGoBack,
   goToChannelDetails,
   createNavSection,
   deleteNavSection,
@@ -70,7 +70,7 @@ export function ManageChannelsScreenView({
 
   return (
     <ManageChannelsProvider
-      goBack={goBack}
+      onGoBack={onGoBack}
       group={group}
       createNavSection={createNavSection}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}

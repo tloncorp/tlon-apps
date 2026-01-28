@@ -151,7 +151,7 @@ export function ChatDetailsScreenView({
     navigateToGroupMeta,
   ]);
 
-  const handlePressBack = useCallback(() => {
+  const handleGoBack = useCallback(() => {
     if (onGoBack) {
       onGoBack();
       return;
@@ -183,7 +183,7 @@ export function ChatDetailsScreenView({
       <ScreenHeader
         testID="ChatDetailsHeader"
         backgroundColor="$secondaryBackground"
-        backAction={handlePressBack}
+        backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
         rightControls={

@@ -12,17 +12,12 @@ type Props = NativeStackScreenProps<
 
 export function EditChannelMetaScreen(props: Props) {
   const { groupId, channelId, fromChannelInfo } = props.route.params;
-  const { navigation } = props;
-
-  // When coming from ChannelInfo in GroupSettingsStack, use simple goBack
-  // Otherwise, let useChannelEditScreen handle desktop-specific navigation
-  const simpleGoBack = useCallback(() => navigation.goBack(), [navigation]);
 
   const { channel, group, isLoading, updateChannel, handleGoBack } =
     useChannelEditScreen({
       groupId,
       channelId,
-      customGoBack: fromChannelInfo ? simpleGoBack : undefined,
+      fromChannelInfo,
     });
 
   const handleSubmit = useCallback(
@@ -51,7 +46,7 @@ export function EditChannelMetaScreen(props: Props) {
 
   return (
     <EditChannelMetaScreenView
-      goBack={handleGoBack}
+      onGoBack={handleGoBack}
       isLoading={isLoading}
       channel={channel}
       group={group}

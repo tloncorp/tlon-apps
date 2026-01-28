@@ -10,7 +10,7 @@ interface ChannelEditFormLayoutProps {
   title: string;
   channel?: db.Channel | null;
   group?: db.Group | null;
-  goBack: () => void;
+  onGoBack: () => void;
   isLoading: boolean;
   rightControls?: ReactNode;
   children: ReactNode;
@@ -25,7 +25,7 @@ export function ChannelEditFormLayout({
   title,
   channel,
   group,
-  goBack,
+  onGoBack,
   isLoading,
   rightControls,
   children,
@@ -40,7 +40,7 @@ export function ChannelEditFormLayout({
         subtitle={`${group?.title}: ${channel?.title}`}
         showSubtitle={!!channel?.title && !!group?.title}
         backgroundColor="$secondaryBackground"
-        backAction={goBack}
+        backAction={onGoBack}
         isLoading={isLoading}
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={rightControls}

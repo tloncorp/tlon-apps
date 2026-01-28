@@ -24,7 +24,7 @@ const getChannelMetaDefaults = (
 });
 
 interface EditChannelMetaScreenViewProps {
-  goBack: () => void;
+  onGoBack: () => void;
   isLoading: boolean;
   channel?: db.Channel | null;
   group?: db.Group | null;
@@ -32,7 +32,7 @@ interface EditChannelMetaScreenViewProps {
 }
 
 export function EditChannelMetaScreenView({
-  goBack,
+  onGoBack,
   isLoading,
   onSubmit,
   channel,
@@ -76,7 +76,7 @@ export function EditChannelMetaScreenView({
         title="Edit channel info"
         channel={channel}
         group={group}
-        goBack={goBack}
+        onGoBack={onGoBack}
         isLoading={isLoading}
         rightControls={
           <ScreenHeader.TextButton
