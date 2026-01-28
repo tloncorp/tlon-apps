@@ -370,7 +370,6 @@ export const GroupChannelsScreenView = React.memo(
           <CreateChannelSheet
             onOpenChange={(open) => setShowCreateChannel(open)}
             group={group}
-            onCreateRole={onCreateRole}
           />
         )}
       </View>

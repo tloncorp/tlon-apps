@@ -197,6 +197,7 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     fromChatDetails?: boolean;
     createdRoleId?: string;
+    selectedRoleIds?: string[];
   };
   GroupMeta: {
     groupId: string;

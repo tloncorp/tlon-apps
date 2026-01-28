@@ -415,9 +415,7 @@ export function ManageChannelsProvider({
         {state.showCreateChannel && group && (
           <CreateChannelSheet
             group={group}
-            createdRoleId={state.createdRoleId}
             onOpenChange={(open) => state.setShowCreateChannel(open)}
-            onCreateRole={onCreateRole}
           />
         )}
         <EditSectionNameSheet

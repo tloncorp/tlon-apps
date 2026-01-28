@@ -73,16 +73,22 @@ export function PrivateChannelToggle({
 
 export function ChannelPermissionsSelector({
   groupRoles,
-  onCreateRole,
+  showRoleSelector: controlledShowRoleSelector,
+  onShowRoleSelectorChange,
 }: {
   groupRoles: db.GroupRole[];
-  onCreateRole?: () => void;
+  showRoleSelector?: boolean;
+  onShowRoleSelectorChange?: (show: boolean) => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
-  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [internalShowRoleSelector, setInternalShowRoleSelector] = useState(false);
+
+  // Support both controlled and uncontrolled modes
+  const showRoleSelector = controlledShowRoleSelector ?? internalShowRoleSelector;
+  const setShowRoleSelector = onShowRoleSelectorChange ?? setInternalShowRoleSelector;
 
   const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
 
@@ -156,23 +162,7 @@ export function ChannelPermissionsSelector({
           borderTopWidth={1}
           borderTopColor="$secondaryBorder"
         >
-          <YStack gap="$l">
-            <Text size="$label/l">Who can access this channel?</Text>
-            <XStack gap="$m">
-              <Button
-                preset="positive"
-                label="Add roles"
-                onPress={() => setShowRoleSelector(true)}
-              />
-              {onCreateRole && (
-                <Button
-                  preset="secondary"
-                  label="Create new role"
-                  onPress={onCreateRole}
-                />
-              )}
-            </XStack>
-          </YStack>
+          <Text size="$label/l">Who can access this channel?</Text>
           <YStack gap="$l">
             <Text size="$label/l">Roles</Text>
             <XStack gap="$s" flexWrap="wrap" width="100%">

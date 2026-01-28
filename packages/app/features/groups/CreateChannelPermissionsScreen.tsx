@@ -1,22 +1,21 @@
-import { createChannel, useGroup } from '@tloncorp/shared';
-import { Button, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
-
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { createChannel, useGroup } from '@tloncorp/shared';
+import { Button } from '@tloncorp/ui';
+import { useCallback } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View, YStack } from 'tamagui';
+
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermissions';
 import {
-  PermissionTable,
-  RoleChip,
-} from '../../ui/components/ManageChannels/ChannelPermissions';
-import {
-  MEMBERS_MARKER,
-  MEMBER_ROLE_OPTION,
-  groupRolesToOptions,
-} from '../../ui/components/ManageChannels/channelFormUtils';
+  PermissionActionButtons,
+  processFinalPermissions,
+  RoleChipsDisplay,
+  useChannelPermissionState,
+  usePermissionFormSync,
+} from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
@@ -36,12 +35,14 @@ export function CreateChannelPermissionsScreen() {
   const { groupId, channelTitle, channelType, createdRoleId, selectedRoleIds } =
     route.params;
 
-  const [readers, setReaders] = useState<string[]>(
-    selectedRoleIds || (createdRoleId ? ['admin', createdRoleId] : ['admin'])
-  );
-  const [writers, setWriters] = useState<string[]>(['admin']);
-
   const { data: group } = useGroup({ id: groupId });
+
+  const { readers, writers, handleRemoveRole } = useChannelPermissionState({
+    initialReaders: ['admin'],
+    initialWriters: ['admin'],
+    createdRoleId,
+    selectedRoleIds,
+  });
 
   // Create form for PermissionTable
   const form = useForm({
@@ -54,50 +55,7 @@ export function CreateChannelPermissionsScreen() {
     },
   });
 
-  const { setValue } = form;
-
-  // Sync form state with local state
-  useEffect(() => {
-    setValue('readers', readers);
-  }, [readers, setValue]);
-
-  useEffect(() => {
-    setValue('writers', writers);
-  }, [writers, setValue]);
-
-  useEffect(() => {
-    if (createdRoleId && !readers.includes(createdRoleId)) {
-      setReaders((prev) => [...prev, createdRoleId]);
-    }
-  }, [createdRoleId, readers]);
-
-  useEffect(() => {
-    if (selectedRoleIds) {
-      setReaders(selectedRoleIds);
-    }
-  }, [selectedRoleIds]);
-
-  const allRoles = useMemo(
-    () => groupRolesToOptions(group?.roles ?? []),
-    [group?.roles]
-  );
-
-  const displayedRoles = useMemo(() => {
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
-    return rolesWithMembers
-      .filter((role) => readers.includes(role.value))
-      .filter((role) => role.value !== 'admin')
-      .map((role) => ({ label: role.label, value: role.value }));
-  }, [readers, allRoles]);
-
-  const handleRemoveRole = useCallback((roleId: string) => {
-    if (roleId === 'admin') return;
-    setReaders((prev) => prev.filter((r) => r !== roleId));
-    // If removing Members, also remove from writers
-    if (roleId === MEMBERS_MARKER) {
-      setWriters((prev) => prev.filter((w) => w !== roleId));
-    }
-  }, []);
+  usePermissionFormSync(form.setValue, readers, writers);
 
   const handleSelectRoles = useCallback(() => {
     navigation.navigate('SelectChannelRoles', {
@@ -125,15 +83,10 @@ export function CreateChannelPermissionsScreen() {
   }, [navigation, groupId, channelTitle, channelType]);
 
   const handleCreateChannel = useCallback(() => {
-    // If MEMBERS_MARKER is present, send empty array (everyone including admin has access)
-    // Otherwise, send the role IDs (admin should already be included in the arrays)
-    const finalReaders = readers.includes(MEMBERS_MARKER)
-      ? []
-      : readers.filter((r) => r !== MEMBERS_MARKER);
-
-    const finalWriters = writers.includes(MEMBERS_MARKER)
-      ? []
-      : writers.filter((w) => w !== MEMBERS_MARKER);
+    const { finalReaders, finalWriters } = processFinalPermissions(
+      readers,
+      writers
+    );
 
     createChannel({
       groupId,
@@ -172,39 +125,17 @@ export function CreateChannelPermissionsScreen() {
               padding="$xl"
               gap="$2xl"
             >
-              <YStack gap="$l">
-                <Text size="$label/l">Who can access this channel?</Text>
-                <XStack gap="$m">
-                  <Button
-                    preset="positive"
-                    onPress={handleSelectRoles}
-                    label="Add roles"
-                  />
-                  <Button
-                    preset="secondary"
-                    onPress={handleCreateRole}
-                    label="Create new role"
-                  />
-                </XStack>
-              </YStack>
-              <YStack gap="$l">
-                <Text size="$label/l">Roles</Text>
-                <XStack gap="$s" flexWrap="wrap" width="100%">
-                  {displayedRoles.map((role) => (
-                    <RoleChip
-                      key={role.value}
-                      role={role}
-                      onRemove={
-                        role.value !== 'admin'
-                          ? () => handleRemoveRole(role.value)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </XStack>
-              </YStack>
+              <RoleChipsDisplay
+                groupRoles={group.roles ?? []}
+                readers={readers}
+                onRemoveRole={handleRemoveRole}
+              />
             </YStack>
             <PermissionTable groupRoles={group.roles ?? []} />
+            <PermissionActionButtons
+              onSelectRoles={handleSelectRoles}
+              onCreateRole={handleCreateRole}
+            />
             <Button
               preset="primary"
               onPress={handleCreateChannel}
