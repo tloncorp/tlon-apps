@@ -133,11 +133,7 @@ function GroupChannels(props: { group: db.Group }) {
           Welcome to your group! We’ve created three basic channels to get you
           started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
-        <InviteFriendsToTlonButton
-          group={props.group}
-          backgroundColor="$positiveActionText"
-          textColor="$white"
-        />
+        <InviteFriendsToTlonButton group={props.group} preset="positive" />
       </NoticeContainer>
     </View>
   );

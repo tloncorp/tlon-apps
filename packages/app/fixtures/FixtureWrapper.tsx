@@ -1,4 +1,5 @@
 // tamagui-ignore
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { internalConfigureClient } from '@tloncorp/shared/api';
@@ -12,6 +13,7 @@ import type { ColorProp } from '../ui';
 import {
   AppDataContextProvider,
   ChatOptionsProvider,
+  NavigationProvider,
   Theme,
   ToastProvider,
   View,
@@ -74,57 +76,61 @@ const InnerWrapper = ({
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <AppDataContextProvider
-          currentUserId="~zod"
-          contacts={[...initialContacts]}
-          branchDomain="test"
-          branchKey="test"
-          calmSettings={{
-            disableRemoteContent: false,
-            disableAvatars: false,
-            disableNicknames: false,
-          }}
-        >
-          <ChatOptionsProvider {...useChatSettingsNavigation()}>
-            <Theme name={theme}>
-              <View
-                flex={1}
-                paddingBottom={safeArea ? insets.bottom : 0}
-                paddingTop={safeArea ? insets.top : 0}
-              >
-                <View
-                  backgroundColor={backgroundColor ?? '$secondaryBackground'}
-                  flex={1}
-                  flexDirection="column"
-                  width={fillWidth ? '100%' : 'unset'}
-                  height={fillHeight ? '100%' : 'unset'}
-                  justifyContent={
-                    verticalAlign === 'top'
-                      ? 'flex-start'
-                      : verticalAlign === 'bottom'
-                        ? 'flex-end'
-                        : 'center'
-                  }
-                  alignItems={
-                    horizontalAlign === 'left'
-                      ? 'flex-start'
-                      : horizontalAlign === 'right'
-                        ? 'flex-end'
-                        : 'center'
-                  }
-                >
+        <BottomSheetModalProvider>
+          <AppDataContextProvider
+            currentUserId="~zod"
+            contacts={[...initialContacts]}
+            branchDomain="test"
+            branchKey="test"
+            calmSettings={{
+              disableRemoteContent: false,
+              disableAvatars: false,
+              disableNicknames: false,
+            }}
+          >
+            <NavigationProvider>
+              <ChatOptionsProvider {...useChatSettingsNavigation()}>
+                <Theme name={theme}>
                   <View
-                    backgroundColor={innerBackgroundColor ?? '$background'}
-                    width={fillWidth ? '100%' : 'unset'}
-                    height={fillHeight ? '100%' : 'unset'}
+                    flex={1}
+                    paddingBottom={safeArea ? insets.bottom : 0}
+                    paddingTop={safeArea ? insets.top : 0}
                   >
-                    {children}
+                    <View
+                      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+                      flex={1}
+                      flexDirection="column"
+                      width={fillWidth ? '100%' : 'unset'}
+                      height={fillHeight ? '100%' : 'unset'}
+                      justifyContent={
+                        verticalAlign === 'top'
+                          ? 'flex-start'
+                          : verticalAlign === 'bottom'
+                            ? 'flex-end'
+                            : 'center'
+                      }
+                      alignItems={
+                        horizontalAlign === 'left'
+                          ? 'flex-start'
+                          : horizontalAlign === 'right'
+                            ? 'flex-end'
+                            : 'center'
+                      }
+                    >
+                      <View
+                        backgroundColor={innerBackgroundColor ?? '$background'}
+                        width={fillWidth ? '100%' : 'unset'}
+                        height={fillHeight ? '100%' : 'unset'}
+                      >
+                        {children}
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            </Theme>
-          </ChatOptionsProvider>
-        </AppDataContextProvider>
+                </Theme>
+              </ChatOptionsProvider>
+            </NavigationProvider>
+          </AppDataContextProvider>
+        </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

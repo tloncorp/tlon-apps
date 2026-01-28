@@ -317,8 +317,9 @@ export function extractGroupPrivacy(
       return 'private';
     }
 
-    // conservative default if something is wrong and we don't otherwise know
-    return 'private';
+    // If no preview is available, treat as secret group since secret groups
+    // intentionally don't expose preview data to non-members
+    return 'secret';
   }
 
   // v7 preview has privacy field directly

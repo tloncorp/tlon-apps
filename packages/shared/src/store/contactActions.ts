@@ -391,3 +391,19 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
     await db.setPinnedGroups({ groupIds: existingPinnedIds });
   }
 }
+
+export async function updateSigilColor(color: string | null) {
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
+    editedSigilColor: true,
+  });
+  const currentUserId = api.getCurrentUserId();
+  const existingContact = await db.getContact({ id: currentUserId });
+  const existingColor = existingContact?.color ?? null;
+  await db.updateContact({ id: currentUserId, color });
+  try {
+    await api.updateSigilColor(color);
+  } catch (e) {
+    logger.trackError('Error updating sigil color', e);
+    await db.updateContact({ id: currentUserId, color: existingColor });
+  }
+}

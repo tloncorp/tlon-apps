@@ -22,7 +22,7 @@ export async function refreshHostingAuth() {
   const lastCheck = await db.hostingLastAuthCheck.getValue();
 
   if (expired) {
-    logger.log('hosting auth is already expired');
+    logger.trackEvent('Cannot refresh hosting auth, already expired');
     return;
   }
 

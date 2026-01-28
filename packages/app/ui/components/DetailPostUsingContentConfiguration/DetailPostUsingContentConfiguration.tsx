@@ -5,13 +5,11 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Story } from '@tloncorp/shared/urbit';
 import { ForwardingProps } from '@tloncorp/ui';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { YStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ChannelHeader } from '../Channel/ChannelHeader';
 import { DraftInputView } from '../Channel/DraftInputView';
@@ -65,21 +63,12 @@ export function DetailPostView({
     )
   );
 
-  const sendReply = useSendReplyCallback({
-    parent: post,
-    channel,
-  });
-
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   /** when `null`, input is not shown or presentation is unknown */
   const draftInputContext = useMemo((): DraftInputContext => {
     return {
-      // TODO: pass draft configuration values?
-      sendPost: async (content) => {
-        await sendReply(content);
-        listRef.current?.scrollToEnd();
-      },
       sendPostFromDraft: async (draft) => {
+        channelCtx.setEditingPost(undefined);
         await store.finalizeAndSendPost(draft);
         listRef.current?.scrollToEnd();
       },
@@ -89,7 +78,7 @@ export function DetailPostView({
       ...channelCtx,
       channel,
     };
-  }, [channel, inputShouldBlur, sendReply, channelCtx]);
+  }, [channel, inputShouldBlur, channelCtx]);
 
   return (
     <>
@@ -98,6 +87,7 @@ export function DetailPostView({
           channel={channel}
           group={channel.group}
           title={title}
+          description={''}
           goBack={navigateBack}
           showSearchButton={false}
           // showSpinner={isLoadingPosts}
@@ -156,27 +146,4 @@ function useListData({ root }: { root: db.Post }) {
     }
     return out;
   }, [root, threadPostsQuery.data]);
-}
-
-function useSendReplyCallback(
-  opts: {
-    parent: db.Post;
-    channel: db.Channel;
-  } | null
-) {
-  return useCallback(
-    async (content: Story) => {
-      if (opts == null) {
-        throw new Error('Attempted to send reply without parent post');
-      }
-      const { parent, channel } = opts;
-      await store.sendReply({
-        content,
-        channel,
-        parentId: parent.id,
-        parentAuthor: parent.authorId,
-      });
-    },
-    [opts]
-  );
 }
