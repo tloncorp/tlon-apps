@@ -108,6 +108,12 @@ onFlowComplete:
 - assertVisible: Invite your friends
 - tapOn: Next
 
+# allow 7 seconds before checking metadata has loaded
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 7000
+
 # assert everything we expect to be there is
 - assertVisible: '~wittyr-witbes' # Tlon Support
 - assertVisible: Bot Farm 2
