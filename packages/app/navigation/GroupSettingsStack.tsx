@@ -4,6 +4,7 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 
+import { CreateChannelPermissionsScreen } from '../features/groups/CreateChannelPermissionsScreen';
 import { EditChannelMetaScreen } from '../features/groups/EditChannelMetaScreen';
 import { EditChannelPrivacyScreen } from '../features/groups/EditChannelPrivacyScreen';
 import { GroupMembersScreen } from '../features/groups/GroupMembersScreen';
@@ -12,6 +13,7 @@ import { GroupPrivacyScreen } from '../features/groups/GroupPrivacyScreen';
 import { GroupRolesScreen } from '../features/groups/GroupRolesScreen';
 import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
+import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
@@ -78,6 +80,14 @@ export function GroupSettingsStack({
         name="SelectRoleMembers"
         component={SelectRoleMembersScreen}
         options={{ title: 'Select Members' }}
+      />
+      <GroupSettings.Screen
+        name="CreateChannelPermissions"
+        component={CreateChannelPermissionsScreen}
+      />
+      <GroupSettings.Screen
+        name="SelectChannelRoles"
+        component={SelectChannelRolesScreen}
       />
       <GroupSettings.Screen name="ChatVolume" component={ChatVolumeScreen} />
     </GroupSettings.Navigator>

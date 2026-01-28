@@ -57,7 +57,7 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      if (!isWindowNarrow && 'groupId' in params) {
+      if (!isWindowNarrow && 'groupId' in params && params.groupId) {
         await navigateToGroup(params.groupId);
       }
 
@@ -113,6 +113,21 @@ export const useChatSettingsNavigation = () => {
   const onPressRoles = useCallback(
     (groupId: string, fromChatDetails?: boolean) => {
       navigateToGroupSettings('GroupRoles', { groupId, fromChatDetails });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const onPressCreateRole = useCallback(
+    (
+      groupId: string,
+      returnScreen?: keyof GroupSettingsStackParamList,
+      returnParams?: Record<string, unknown>
+    ) => {
+      navigateToGroupSettings('AddRole', {
+        groupId,
+        returnScreen,
+        returnParams,
+      });
     },
     [navigateToGroupSettings]
   );
@@ -215,6 +230,7 @@ export const useChatSettingsNavigation = () => {
     onPressChatDetails: navigateToChatDetails,
     onPressChatVolume,
     onPressRoles,
+    onPressCreateRole,
     onLeaveGroup,
     onLeaveChannel,
   };

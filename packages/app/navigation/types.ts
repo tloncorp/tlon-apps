@@ -196,6 +196,8 @@ export type GroupSettingsStackParamList = {
     channelId: string;
     groupId: string;
     fromChatDetails?: boolean;
+    createdRoleId?: string;
+    selectedRoleIds?: string[];
   };
   GroupMeta: {
     groupId: string;
@@ -209,6 +211,7 @@ export type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
     fromChatDetails?: boolean;
+    createdRoleId?: string;
   };
   Privacy: {
     groupId: string;
@@ -228,13 +231,27 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     selectedMembers?: string[];
     fromChatDetails?: boolean;
+    returnScreen?: keyof GroupSettingsStackParamList;
+    returnParams?: Record<string, unknown>;
   };
   SelectRoleMembers: {
     groupId: string;
     roleId?: string;
     selectedMembers: string[];
     onSave: (selectedMembers: string[]) => void;
-    fromChatDetails?: boolean;
+  };
+  CreateChannelPermissions: {
+    groupId: string;
+    channelTitle: string;
+    channelType: 'chat' | 'notebook' | 'gallery';
+    createdRoleId?: string;
+    selectedRoleIds?: string[];
+  };
+  SelectChannelRoles: {
+    groupId: string;
+    selectedRoleIds: string[];
+    returnScreen: keyof GroupSettingsStackParamList;
+    returnParams?: Record<string, unknown>;
   };
   ChatVolume: {
     chatType: 'group' | 'channel';

@@ -26,6 +26,8 @@ export function ManageChannelsScreenView({
   deleteNavSection,
   updateNavSection,
   updateGroupNavigation,
+  createdRoleId,
+  onCreateRole,
 }: ManageChannelsScreenViewProps) {
   return (
     <ManageChannelsProvider
@@ -36,6 +38,8 @@ export function ManageChannelsScreenView({
       updateNavSection={updateNavSection}
       deleteNavSection={deleteNavSection}
       updateGroupNavigation={updateGroupNavigation}
+      createdRoleId={createdRoleId}
+      onCreateRole={onCreateRole}
     >
       <ManageChannelsContent
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
