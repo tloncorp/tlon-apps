@@ -4734,7 +4734,6 @@
     =/  gang-2
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
-    ::TODO emit /v2/foreigns update with the v10 type.
     =/  foreign-8  (v8:foreign:v10:gc foreign)
     =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign-8 ~)))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
