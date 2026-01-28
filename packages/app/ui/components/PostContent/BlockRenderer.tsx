@@ -350,7 +350,7 @@ export function FileUploadBlock({
       <Reference.Body>
         <XStack padding="$l" gap="$m">
           {filePreview()}
-          <YStack gap="$xl" flex={1}>
+          <YStack gap="$xl" flex={1} justifyContent="center">
             {filenameView({ numberOfLines: 1 })}
             {fileSizeView()}
           </YStack>

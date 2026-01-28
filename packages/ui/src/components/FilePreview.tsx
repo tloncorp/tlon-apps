@@ -29,22 +29,32 @@ export function FilePreview({
     return fileExtensionLabel.toUpperCase();
   }, [fileExtensionLabel]);
 
-  const scale = size === 's' ? 0.5 : 1;
+  const scale = size === 's' ? 0.75 : 1;
 
   return (
     // use one wrapper view so we can safely use position="relative" on the inner one
     <View {...passedProps}>
       <View position="relative">
-        <FileAttachmentIcon
-          height={iconSize * scale}
-          width={iconSize * scale}
-        />
+        <View
+          style={{
+            // `file_attachment.svg` has internal shadow, but it doesn't appear to work on iOS.
+            // Adding a shadow here to match the design more closely.
+            shadowColor: '#000',
+            shadowOffset: { width: 0 * scale, height: 0.68 * scale },
+            shadowOpacity: 0.25,
+            shadowRadius: 1.37 * scale,
+          }}
+        >
+          <FileAttachmentIcon
+            height={iconSize * scale}
+            width={iconSize * scale}
+          />
+        </View>
         {formattedFileExtensionLabel && (
           <Text
             position="absolute"
             bottom={8 * scale}
-            left="50%"
-            transform={[{ translateX: '-50%' }]}
+            alignSelf="center"
             fontSize={10 * scale}
             fontWeight={'500'}
             letterSpacing={-0.5}
