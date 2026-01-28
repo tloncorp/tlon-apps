@@ -1161,6 +1161,14 @@ export function toPostsData(
   };
 }
 
+function getAuthorId(author: ub.Author) {
+  if (typeof author === 'string') {
+    return author;
+  } else {
+    return author.ship;
+  }
+}
+
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
@@ -1188,7 +1196,7 @@ export function toPostData(
   if (isPostTombstone(post)) {
     return {
       id: getCanonicalPostId(post.id),
-      authorId: post.author,
+      authorId: getAuthorId(post.author),
       channelId,
       type,
       sentAt: getReceivedAtFromId(post.id),
@@ -1256,7 +1264,7 @@ export function toPostData(
     image: post.essay.meta?.image ?? '',
     description: post.essay.meta?.description ?? '',
     cover: post.essay.meta?.cover ?? '',
-    authorId: post.essay.author,
+    authorId: getAuthorId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
@@ -1353,7 +1361,7 @@ export function toPostReplyData(
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
-      authorId: reply.author,
+      authorId: getAuthorId(reply.author),
       channelId,
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
