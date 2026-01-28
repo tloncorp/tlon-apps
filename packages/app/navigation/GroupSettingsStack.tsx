@@ -15,7 +15,7 @@ import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
-import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
+import { ChannelInfoScreen } from '../features/groups/ChannelInfoScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { GroupSettingsStackParamList } from './types';
 
@@ -53,8 +53,8 @@ export function GroupSettingsStack({
         )}
       </GroupSettings.Screen>
       <GroupSettings.Screen
-        name="ChatDetails"
-        component={ChatDetailsScreen}
+        name="ChannelInfo"
+        component={ChannelInfoScreen}
       />
       <GroupSettings.Screen
         name="GroupMembers"

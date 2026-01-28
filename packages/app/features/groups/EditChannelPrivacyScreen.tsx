@@ -47,15 +47,21 @@ export function EditChannelPrivacyScreen(props: Props) {
       createdRoleId,
       selectedRoleIds,
       onCreatedRoleProcessed: useCallback(() => setIsPrivate(true), []),
+      onSelectedRolesProcessed: useCallback(() => setIsPrivate(true), []),
     });
 
   // Reset state when channel data loads
   useEffect(() => {
     if (channel) {
       const defaults = getChannelPrivacyDefaults(channel);
-      setIsPrivate(defaults.isPrivate);
+      // Only reset isPrivate from defaults if we don't have selectedRoleIds
+      // (selectedRoleIds means user just selected roles and expects private mode)
       if (!selectedRoleIds) {
+        setIsPrivate(defaults.isPrivate);
         setReaders(defaults.readers);
+      } else {
+        // If we have selectedRoleIds, ensure private mode is on
+        setIsPrivate(true);
       }
       setWriters(defaults.writers);
     }

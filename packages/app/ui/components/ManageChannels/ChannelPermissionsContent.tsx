@@ -112,6 +112,8 @@ interface ChannelPermissionStateOptions {
   selectedRoleIds?: string[];
   /** Called when createdRoleId is processed (e.g., to set isPrivate=true) */
   onCreatedRoleProcessed?: () => void;
+  /** Called when selectedRoleIds is processed (e.g., to set isPrivate=true) */
+  onSelectedRolesProcessed?: () => void;
 }
 
 /**
@@ -124,6 +126,7 @@ export function useChannelPermissionState({
   createdRoleId,
   selectedRoleIds,
   onCreatedRoleProcessed,
+  onSelectedRolesProcessed,
 }: ChannelPermissionStateOptions) {
   const [readers, setReaders] = useState<string[]>(
     selectedRoleIds || initialReaders
@@ -145,8 +148,9 @@ export function useChannelPermissionState({
   useEffect(() => {
     if (selectedRoleIds) {
       setReaders(selectedRoleIds);
+      onSelectedRolesProcessed?.();
     }
-  }, [selectedRoleIds]);
+  }, [selectedRoleIds, onSelectedRolesProcessed]);
 
   const handleRemoveRole = useHandleRemoveRole(setReaders, setWriters);
 

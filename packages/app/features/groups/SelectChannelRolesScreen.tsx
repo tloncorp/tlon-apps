@@ -71,11 +71,17 @@ export function SelectChannelRolesScreen() {
       ? selectedRoleIds
       : ['admin', ...selectedRoleIds];
 
-    navigation.navigate(returnScreen, {
-      ...returnParams,
-      selectedRoleIds: finalRoleIds,
-    } as any);
-  }, [navigation, returnScreen, returnParams, selectedRoleIds]);
+    // Navigate back to the return screen with selected roles
+    // This pattern matches how RoleFormScreen handles return navigation
+    if (returnScreen) {
+      navigation.navigate(returnScreen, {
+        ...returnParams,
+        selectedRoleIds: finalRoleIds,
+      } as any);
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, selectedRoleIds, returnScreen, returnParams]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -106,6 +112,7 @@ export function SelectChannelRolesScreen() {
           placeholder="Search roles"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          testID="RoleSearchInput"
         />
         <ScrollView
           flex={1}
@@ -155,7 +162,7 @@ export function SelectChannelRolesScreen() {
             onPress={handleCreateRole}
             label="Create new role"
           />
-          <Button preset="primary" onPress={handleSave} label="Save" />
+          <Button preset="primary" onPress={handleSave} label="Save" testID="RoleSelectionSaveButton" />
         </YStack>
       </YStack>
     </View>

@@ -181,7 +181,10 @@ export type DesktopChannelStackParamList = Pick<
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {
-  ChatDetails: {
+  // Use 'ChannelInfo' instead of 'ChatDetails' to avoid navigation conflicts.
+  // HomeDrawer also has a 'ChatDetails' screen, and React Navigation can get
+  // confused when navigating to a screen name that exists in multiple navigators.
+  ChannelInfo: {
     chatType: 'group' | 'channel';
     chatId: string;
     groupId: string;
@@ -191,6 +194,7 @@ export type GroupSettingsStackParamList = {
     channelId: string;
     groupId: string;
     fromChatDetails?: boolean;
+    fromChannelInfo?: boolean;
   };
   EditChannelPrivacy: {
     channelId: string;

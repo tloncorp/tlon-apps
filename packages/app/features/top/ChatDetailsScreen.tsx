@@ -97,17 +97,36 @@ export function ChatDetailsScreen(props: Props) {
   );
 }
 
-export function ChatDetailsScreenView() {
+export function ChatDetailsScreenView({
+  onGoBack,
+  onEditChannelMeta,
+  onEditChannelPrivacy,
+  onAfterDeleteChannel,
+}: {
+  onGoBack?: () => void;
+  onEditChannelMeta?: (channelId: string, groupId: string) => void;
+  onEditChannelPrivacy?: (channelId: string, groupId: string) => void;
+  onAfterDeleteChannel?: () => void;
+} = {}) {
   const {
     params: { chatType, chatId },
   } = useRoute<RootStackRouteProp<'ChatDetails'>>();
   const { channel, group } = useChatOptions();
   const {
     onPressGroupMeta: navigateToGroupMeta,
-    onPressEditChannelMeta: navigateToEditChannelMeta,
+    onPressEditChannelMeta: defaultNavigateToEditChannelMeta,
+    onPressEditChannelPrivacy: defaultNavigateToEditChannelPrivacy,
   } = useChatSettingsNavigation();
   const { navigateToGroup, navigateToChannel, navigateBack } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
+
+  // Use the provided onEditChannelMeta (for GroupSettingsStack navigation) or fall back to root navigation
+  const navigateToEditChannelMeta =
+    onEditChannelMeta ?? defaultNavigateToEditChannelMeta;
+
+  // Use the provided onEditChannelPrivacy (for GroupSettingsStack navigation) or fall back to root navigation
+  const navigateToEditChannelPrivacy =
+    onEditChannelPrivacy ?? defaultNavigateToEditChannelPrivacy;
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -133,6 +152,10 @@ export function ChatDetailsScreenView() {
   ]);
 
   const handlePressBack = useCallback(() => {
+    if (onGoBack) {
+      onGoBack();
+      return;
+    }
     if (isWindowNarrow) {
       navigateBack();
     } else if (chatType === 'group') {
@@ -142,7 +165,7 @@ export function ChatDetailsScreenView() {
     } else {
       navigateBack();
     }
-  }, [chatType, chatId, channel, navigateToGroup, navigateToChannel, navigateBack, isWindowNarrow]);
+  }, [onGoBack, chatType, chatId, channel, navigateToGroup, navigateToChannel, navigateBack, isWindowNarrow]);
 
   const getTitle = () => {
     switch (chatType) {
@@ -158,6 +181,7 @@ export function ChatDetailsScreenView() {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        testID="ChatDetailsHeader"
         backgroundColor="$secondaryBackground"
         backAction={handlePressBack}
         useHorizontalTitleLayout={!isWindowNarrow}
@@ -180,6 +204,8 @@ export function ChatDetailsScreenView() {
           channel={channel}
           group={group}
           actionsEnabled={actionsEnabled}
+          onAfterDeleteChannel={onAfterDeleteChannel}
+          onEditChannelPrivacy={navigateToEditChannelPrivacy}
         />
       ) : chatType === 'group' && group ? (
         <ChatDetailsScreenContent
@@ -200,11 +226,15 @@ function ChatDetailsScreenContent({
   channel,
   group,
   actionsEnabled = true,
+  onAfterDeleteChannel,
+  onEditChannelPrivacy,
 }: {
   chatType: 'group' | 'channel';
   channel?: db.Channel | null;
   group?: db.Group | null;
   actionsEnabled?: boolean;
+  onAfterDeleteChannel?: () => void;
+  onEditChannelPrivacy?: (channelId: string, groupId: string) => void;
 }) {
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -300,6 +330,7 @@ function ChatDetailsScreenContent({
             channel={channel}
             group={group}
             actionsEnabled={actionsEnabled}
+            onEditChannelPrivacy={onEditChannelPrivacy}
           />
         </>
       )}
@@ -317,7 +348,7 @@ function ChatDetailsScreenContent({
         <ChatLeaveActions chatType="group" group={group} />
       ) : null}
       {chatType === 'channel' && channel && channel.groupId && (
-        <ChatLeaveActions chatType="channel" channel={channel} />
+        <ChatLeaveActions chatType="channel" channel={channel} onAfterDeleteChannel={onAfterDeleteChannel} />
       )}
     </ScrollView>
   );
@@ -345,6 +376,7 @@ interface ChatSettingsProps {
   group?: db.Group | null;
   channel?: db.Channel | null;
   actionsEnabled: boolean;
+  onEditChannelPrivacy?: (channelId: string, groupId: string) => void;
 }
 
 function ChatSettings({
@@ -352,6 +384,7 @@ function ChatSettings({
   group,
   channel,
   actionsEnabled,
+  onEditChannelPrivacy,
 }: ChatSettingsProps) {
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
@@ -365,8 +398,11 @@ function ChatSettings({
     onPressManageChannels,
     onPressChatVolume,
     onPressRoles,
-    onPressEditChannelPrivacy,
+    onPressEditChannelPrivacy: defaultOnPressEditChannelPrivacy,
   } = useChatSettingsNavigation();
+
+  // Use provided handler or fall back to default
+  const navigateToEditChannelPrivacy = onEditChannelPrivacy ?? defaultOnPressEditChannelPrivacy;
 
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
@@ -401,9 +437,9 @@ function ChatSettings({
   // Channel-specific handlers
   const handlePressEditChannelPrivacy = useCallback(() => {
     if (channel?.groupId) {
-      onPressEditChannelPrivacy(channel.id, channel.groupId);
+      navigateToEditChannelPrivacy(channel.id, channel.groupId);
     }
-  }, [channel, onPressEditChannelPrivacy]);
+  }, [channel, navigateToEditChannelPrivacy]);
 
   const handlePressNotificationSettings = useCallback(() => {
     if (chatType === 'group' && group) {
@@ -601,9 +637,10 @@ interface ChatLeaveActionsProps {
   chatType: 'group' | 'channel';
   group?: db.Group;
   channel?: db.Channel;
+  onAfterDeleteChannel?: () => void;
 }
 
-function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
+function ChatLeaveActions({ chatType, group, channel, onAfterDeleteChannel }: ChatLeaveActionsProps) {
   const { onLeaveGroup, onLeaveChannel } = useChatSettingsNavigation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -665,7 +702,13 @@ function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
           channelId: channel.id,
           groupId: channel.groupId,
         });
-        await onLeaveChannel(channel.groupId, channel.id);
+        // Use custom callback if provided (e.g., when navigating back to ManageChannels),
+        // otherwise fall back to default navigation behavior
+        if (onAfterDeleteChannel) {
+          onAfterDeleteChannel();
+        } else {
+          await onLeaveChannel(channel.groupId, channel.id);
+        }
       } catch (error) {
         console.error('Failed to delete channel:', error);
         if (isWeb) {
@@ -675,7 +718,7 @@ function ChatLeaveActions({ chatType, group, channel }: ChatLeaveActionsProps) {
         }
       }
     }
-  }, [chatType, channel, deleteGroupFromContext, onLeaveGroup, onLeaveChannel]);
+  }, [chatType, channel, deleteGroupFromContext, onLeaveGroup, onLeaveChannel, onAfterDeleteChannel]);
 
   const leaveActions = createActionGroup(
     'negative',

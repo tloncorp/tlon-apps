@@ -36,9 +36,11 @@ export function ManageChannelsScreen(props: Props) {
 
   const goToChannelDetails = useCallback(
     (channelId: string) => {
-      // Navigate to channel details screen within GroupSettingsStack
-      // This ensures proper back navigation to ManageChannels
-      navigation.navigate('ChatDetails', {
+      // Use push() instead of navigate() to ensure ChannelInfo is pushed onto the
+      // stack. This guarantees goBack() from ChannelInfo returns to ManageChannels.
+      // Using navigate() could potentially replace screens if React Navigation
+      // determines they're in the same "group" in certain navigation states.
+      navigation.push('ChannelInfo', {
         chatType: 'channel',
         chatId: channelId,
         groupId,
