@@ -249,7 +249,10 @@ export function FileUploadBlock({
   const filenameView = useCallback(
     ({
       ...passed
-    }: Pick<ComponentProps<typeof Text>, 'size' | 'numberOfLines'>) => (
+    }: Pick<
+      ComponentProps<typeof Text>,
+      'size' | 'numberOfLines' | 'textAlign'
+    >) => (
       <Text
         size="$label/xl"
         ellipsizeMode={passed.numberOfLines === 1 ? 'middle' : 'tail'}
@@ -289,7 +292,11 @@ export function FileUploadBlock({
         flex={1}
       >
         {filePreview()}
-        {filenameView({ numberOfLines: 2, size: '$label/m' })}
+        {filenameView({
+          numberOfLines: 2,
+          size: '$label/m',
+          textAlign: 'center',
+        })}
         {fileSizeView({ size: '$label/s' })}
       </YStack>
     );
