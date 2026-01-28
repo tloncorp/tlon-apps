@@ -555,9 +555,8 @@
       ?.  match  cor
       ?.  =(%groups q.gill)  cor
       =/  lev=(list flag:g)
-        %+  skim  ~(tap in ~(key by foreigns))
-        |=  =flag:g
-        &(=(p.flag p.gill) (~(has in leaves) flag))
+        %+  skim  ~(tap in leaves)
+        |=(=flag:g =(p.flag p.gill))
       %+  roll  lev
       |=  [=flag:g =_cor]
       fi-abet:fi-leave:(fi-abed:fi-core:cor flag)
