@@ -21,7 +21,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Linking, Platform } from 'react-native';
+import { LayoutRectangle, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import {
@@ -242,9 +242,30 @@ export function FileUploadBlock({
     [block.file]
   );
 
+  const [containerLayout, setContainerLayout] =
+    useState<LayoutRectangle | null>(null);
+  // arbitrary number breakpoints for adjusting layout based on container height
+  // (smaller value => more compact layout)
+  const containerHeightBreakpoint = useMemo(
+    () =>
+      containerLayout == null
+        ? Infinity
+        : containerLayout.height < 70
+          ? 1
+          : containerLayout.height < 100
+            ? 2
+            : 3,
+    [containerLayout]
+  );
+
   const filePreview = useCallback(
-    () => <FilePreview fileExtensionLabel={fileTypeCode ?? undefined} />,
-    [fileTypeCode]
+    () => (
+      <FilePreview
+        fileExtensionLabel={fileTypeCode ?? undefined}
+        size={containerHeightBreakpoint < 2 ? 's' : 'm'}
+      />
+    ),
+    [fileTypeCode, containerHeightBreakpoint]
   );
   const filenameView = useCallback(
     ({
@@ -285,6 +306,7 @@ export function FileUploadBlock({
   if (fullbleed) {
     return (
       <YStack
+        onLayout={(event) => setContainerLayout(event.nativeEvent.layout)}
         alignItems="center"
         justifyContent="center"
         gap="$s"
@@ -293,11 +315,11 @@ export function FileUploadBlock({
       >
         {filePreview()}
         {filenameView({
-          numberOfLines: 2,
+          numberOfLines: containerHeightBreakpoint < 3 ? 1 : 2,
           size: '$label/m',
           textAlign: 'center',
         })}
-        {fileSizeView({ size: '$label/s' })}
+        {containerHeightBreakpoint > 1 && fileSizeView({ size: '$label/s' })}
       </YStack>
     );
   }
