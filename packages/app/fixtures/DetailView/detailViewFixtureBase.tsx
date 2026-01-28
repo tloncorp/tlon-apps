@@ -56,7 +56,6 @@ export const DetailViewFixture = ({
               onPressRetry={async () => {}}
               onPressDelete={() => {}}
               negotiationMatch={true}
-              editPost={async () => {}}
               goBack={() => {}}
               handleGoToUserProfile={() => {}}
               onGroupAction={() => {}}
