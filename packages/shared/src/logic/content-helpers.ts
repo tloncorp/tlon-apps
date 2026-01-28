@@ -546,6 +546,10 @@ type BuildPostBlobDataEntry<
   version: Config['version'];
 } & Payload;
 
+/**
+ * An element of the `blob` array on an API resource for a post, used to hold
+ * arbitrary off-schema data.
+ */
 export type PostBlobDataEntry = BuildPostBlobDataEntry<
   'file',
   { version: 1 },
