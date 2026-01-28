@@ -248,17 +248,17 @@ export function FileUploadBlock({
     useState<LayoutRectangle | null>(null);
   // arbitrary number breakpoints for adjusting layout based on container height
   // (smaller value => more compact layout)
-  const containerHeightBreakpoint = useMemo(
-    () =>
-      containerLayout == null
-        ? Infinity
-        : containerLayout.height < 70
-          ? 1
-          : containerLayout.height < 100
-            ? 2
-            : 3,
-    [containerLayout]
-  );
+  const containerHeightBreakpoint = useMemo(() => {
+    const MEDIUM_HEIGHT = 70;
+    const LARGE_HEIGHT = 100;
+    return containerLayout == null
+      ? Infinity
+      : containerLayout.height < MEDIUM_HEIGHT
+        ? 1
+        : containerLayout.height < LARGE_HEIGHT
+          ? 2
+          : 3;
+  }, [containerLayout]);
 
   const filePreview = useCallback(
     () => (
