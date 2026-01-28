@@ -9,7 +9,23 @@
 ::
 ::  versions
 ::
-++  v10  g
+++  v10
+  =,  v9
+  |%
+  ::  $progress: added new %leave variant
+  +$  progress  ?(%ask %join %watch %done %leave %error)
+  ::  $foreign: depends on $progress
+  ::
+  +$  foreign
+    $:  invites=(list invite)
+        lookup=(unit lookup)
+        preview=(unit preview)
+        progress=(unit progress)
+        token=(unit token)
+    ==
+  ::  $foreigns: depends on $foreign
+  +$  foreigns  (map flag foreign)
+  --
 ++  v9
   =,  v8
   |%
