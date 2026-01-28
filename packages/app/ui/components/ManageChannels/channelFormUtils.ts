@@ -81,22 +81,3 @@ export const getChannelPrivacyDefaults = (
   };
 };
 
-/**
- * Converts form readers/writers values to backend format.
- * If MEMBERS_MARKER is present, sends empty array (everyone can access).
- * Otherwise, filters out the marker and sends actual role IDs.
- */
-export const convertFormRolesToBackend = (
-  formReaders: string[],
-  formWriters: string[]
-): { readers: string[]; writers: string[] } => {
-  const readers = formReaders.includes(MEMBERS_MARKER)
-    ? [] // Empty array means all members (including admin) can read
-    : formReaders.filter((r) => r !== MEMBERS_MARKER);
-
-  const writers = formWriters.includes(MEMBERS_MARKER)
-    ? [] // Empty array means all members (including admin) can write
-    : formWriters.filter((w) => w !== MEMBERS_MARKER);
-
-  return { readers, writers };
-};

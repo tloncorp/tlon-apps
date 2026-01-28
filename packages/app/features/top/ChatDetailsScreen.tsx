@@ -120,13 +120,29 @@ export function ChatDetailsScreenView({
   const { navigateToGroup, navigateToChannel, navigateBack } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
-  // Use the provided onEditChannelMeta (for GroupSettingsStack navigation) or fall back to root navigation
-  const navigateToEditChannelMeta =
-    onEditChannelMeta ?? defaultNavigateToEditChannelMeta;
+  // When navigating from ChatDetails, pass fromChatDetails: true for proper back navigation.
+  // If a custom handler is provided (e.g., from GroupSettingsStack), use it directly.
+  const navigateToEditChannelMeta = useCallback(
+    (channelId: string, groupId: string) => {
+      if (onEditChannelMeta) {
+        onEditChannelMeta(channelId, groupId);
+      } else {
+        defaultNavigateToEditChannelMeta(channelId, groupId, true);
+      }
+    },
+    [onEditChannelMeta, defaultNavigateToEditChannelMeta]
+  );
 
-  // Use the provided onEditChannelPrivacy (for GroupSettingsStack navigation) or fall back to root navigation
-  const navigateToEditChannelPrivacy =
-    onEditChannelPrivacy ?? defaultNavigateToEditChannelPrivacy;
+  const navigateToEditChannelPrivacy = useCallback(
+    (channelId: string, groupId: string) => {
+      if (onEditChannelPrivacy) {
+        onEditChannelPrivacy(channelId, groupId);
+      } else {
+        defaultNavigateToEditChannelPrivacy(channelId, groupId, true);
+      }
+    },
+    [onEditChannelPrivacy, defaultNavigateToEditChannelPrivacy]
+  );
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -526,7 +542,7 @@ function ChatSettings({
     handlePressRoles,
     handlePressManageChannels,
     handlePressEditChannelPrivacy,
-    groupRoles?.length,
+    groupRoles,
   ]);
 
   return (

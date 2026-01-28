@@ -51,7 +51,6 @@ type GroupChannelsScreenViewProps = {
   onBackPressed: () => void;
   onGoToGroupMembers: () => void;
   onPressManageChannels: (groupId: string, fromChatDetails?: boolean) => void;
-  onCreateRole?: () => void;
 };
 
 export const GroupChannelsScreenView = React.memo(
@@ -63,7 +62,6 @@ export const GroupChannelsScreenView = React.memo(
     onBackPressed,
     onGoToGroupMembers,
     onPressManageChannels,
-    onCreateRole,
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);

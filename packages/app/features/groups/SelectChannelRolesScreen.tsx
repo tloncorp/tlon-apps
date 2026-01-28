@@ -24,12 +24,7 @@ export function SelectChannelRolesScreen() {
     useRoute<RouteProp<GroupSettingsStackParamList, 'SelectChannelRoles'>>();
   const insets = useSafeAreaInsets();
 
-  const {
-    groupId,
-    selectedRoleIds: initialRoleIds,
-    returnScreen,
-    returnParams,
-  } = route.params;
+  const { groupId, selectedRoleIds: initialRoleIds } = route.params;
 
   const [selectedRoleIds, setSelectedRoleIds] =
     useState<string[]>(initialRoleIds);
@@ -71,17 +66,25 @@ export function SelectChannelRolesScreen() {
       ? selectedRoleIds
       : ['admin', ...selectedRoleIds];
 
-    // Navigate back to the return screen with selected roles
-    // This pattern matches how RoleFormScreen handles return navigation
-    if (returnScreen) {
-      navigation.navigate(returnScreen, {
-        ...returnParams,
-        selectedRoleIds: finalRoleIds,
-      } as any);
-    } else {
-      navigation.goBack();
+    // Navigate back to the return screen with selected roles.
+    // Access returnScreen/returnParams via route.params so TypeScript
+    // can narrow the discriminated union per branch.
+    const params = route.params;
+    switch (params.returnScreen) {
+      case 'CreateChannelPermissions':
+        navigation.navigate(params.returnScreen, {
+          ...params.returnParams,
+          selectedRoleIds: finalRoleIds,
+        });
+        break;
+      case 'EditChannelPrivacy':
+        navigation.navigate(params.returnScreen, {
+          ...params.returnParams,
+          selectedRoleIds: finalRoleIds,
+        });
+        break;
     }
-  }, [navigation, selectedRoleIds, returnScreen, returnParams]);
+  }, [navigation, selectedRoleIds, route.params]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -90,11 +93,11 @@ export function SelectChannelRolesScreen() {
       returnParams: {
         groupId,
         selectedRoleIds,
-        returnScreen,
-        returnParams,
+        returnScreen: route.params.returnScreen,
+        returnParams: route.params.returnParams,
       },
     });
-  }, [navigation, groupId, selectedRoleIds, returnScreen, returnParams]);
+  }, [navigation, groupId, selectedRoleIds, route.params]);
 
   if (!group) {
     return null;

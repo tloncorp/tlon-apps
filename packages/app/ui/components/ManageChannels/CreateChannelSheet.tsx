@@ -106,6 +106,9 @@ export function CreateChannelSheet({
 
   const isPrivate = watch('isPrivate');
 
+  // Only toggles isPrivate without setting readers/writers because:
+  // - If private: the user proceeds to CreateChannelPermissionsScreen to configure permissions
+  // - If public: readers/writers stay empty (all members have access)
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
       setValue('isPrivate', value, { shouldDirty: true });

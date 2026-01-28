@@ -15,7 +15,6 @@ import {
   MEMBER_ROLE_OPTION,
   RoleOption,
   groupRolesToOptions,
-  mapRoleIdsToOptions,
 } from './channelFormUtils';
 
 export function PrivateChannelToggle({
@@ -68,128 +67,6 @@ export function PrivateChannelToggle({
         />
       )}
     </XStack>
-  );
-}
-
-export function ChannelPermissionsSelector({
-  groupRoles,
-  showRoleSelector: controlledShowRoleSelector,
-  onShowRoleSelectorChange,
-}: {
-  groupRoles: db.GroupRole[];
-  showRoleSelector?: boolean;
-  onShowRoleSelectorChange?: (show: boolean) => void;
-}) {
-  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
-  const isPrivate = watch('isPrivate');
-  const readers = watch('readers');
-  const writers = watch('writers');
-  const [internalShowRoleSelector, setInternalShowRoleSelector] = useState(false);
-
-  // Support both controlled and uncontrolled modes
-  const showRoleSelector = controlledShowRoleSelector ?? internalShowRoleSelector;
-  const setShowRoleSelector = onShowRoleSelectorChange ?? setInternalShowRoleSelector;
-
-  const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
-
-  const handleTogglePrivate = useCallback(
-    (value: boolean) => {
-      setValue('isPrivate', value, { shouldDirty: true });
-      const newRoles = value ? ['admin'] : [];
-      setValue('readers', newRoles, { shouldDirty: true });
-      setValue('writers', newRoles, { shouldDirty: true });
-    },
-    [setValue]
-  );
-
-  const handleRemoveRole = useCallback(
-    (roleId: string) => {
-      if (roleId === 'admin') return;
-      setValue(
-        'readers',
-        readers.filter((r) => r !== roleId),
-        {
-          shouldDirty: true,
-        }
-      );
-      setValue(
-        'writers',
-        writers.filter((w) => w !== roleId),
-        {
-          shouldDirty: true,
-        }
-      );
-    },
-    [readers, writers, setValue]
-  );
-
-  const displayedRoles = useMemo(() => {
-    if (!isPrivate) return [];
-    // Add Members option to the list of all roles for mapping
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...allRoles];
-    const mappedRoles = mapRoleIdsToOptions(readers, rolesWithMembers);
-    return mappedRoles.filter((role) => role.value !== 'admin');
-  }, [isPrivate, readers, allRoles]);
-
-  const handleSaveRoles = useCallback(
-    (roleIds: string[]) => {
-      const readersWithAdmin = roleIds.includes('admin')
-        ? roleIds
-        : ['admin', ...roleIds];
-      setValue('readers', readersWithAdmin, { shouldDirty: true });
-    },
-    [setValue]
-  );
-
-  return (
-    <YStack
-      width="100%"
-      overflow="hidden"
-      borderRadius="$m"
-      borderWidth={1}
-      borderColor="$secondaryBorder"
-    >
-      <PrivateChannelToggle
-        isPrivate={isPrivate}
-        onTogglePrivate={handleTogglePrivate}
-      />
-
-      {isPrivate && (
-        <YStack
-          padding="$xl"
-          gap="$2xl"
-          width="100%"
-          borderTopWidth={1}
-          borderTopColor="$secondaryBorder"
-        >
-          <Text size="$label/l">Who can access this channel?</Text>
-          <YStack gap="$l">
-            <Text size="$label/l">Roles</Text>
-            <XStack gap="$s" flexWrap="wrap" width="100%">
-              {displayedRoles.map((role) => (
-                <RoleChip
-                  key={role.value}
-                  role={role}
-                  onRemove={
-                    role.value !== 'admin'
-                      ? () => handleRemoveRole(role.value)
-                      : undefined
-                  }
-                />
-              ))}
-            </XStack>
-          </YStack>
-        </YStack>
-      )}
-
-      <RoleSelectionSheet
-        open={showRoleSelector}
-        onOpenChange={setShowRoleSelector}
-        allRoles={allRoles}
-        selectedRoleIds={readers}
-        onSave={handleSaveRoles}
-      />
-    </YStack>
   );
 }
 

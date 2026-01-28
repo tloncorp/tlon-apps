@@ -40,7 +40,6 @@ export interface ManageChannelsScreenViewProps {
     }>
   ) => Promise<void>;
   createdRoleId?: string;
-  onCreateRole?: () => void;
 }
 
 export function ChannelItem({
@@ -303,7 +302,6 @@ interface ManageChannelsContextValue {
   handleUpdateSection: (sectionId: string, title: string) => Promise<void>;
   handleDeleteSection: (sectionId: string) => Promise<void>;
   createdRoleId?: string;
-  onCreateRole?: () => void;
 }
 
 const ManageChannelsContext =
@@ -329,7 +327,6 @@ export function ManageChannelsProvider({
   deleteNavSection,
   updateGroupNavigation,
   createdRoleId,
-  onCreateRole,
 }: {
   children: React.ReactNode;
   onGoBack: () => void;
@@ -346,7 +343,6 @@ export function ManageChannelsProvider({
     }>
   ) => Promise<void>;
   createdRoleId?: string;
-  onCreateRole?: () => void;
 }) {
   const state = useManageChannelsState({
     groupNavSectionsWithChannels,
@@ -360,7 +356,6 @@ export function ManageChannelsProvider({
 
   const contextValue = {
     ...state,
-    onCreateRole,
   };
 
   return (

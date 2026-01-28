@@ -106,14 +106,6 @@ export function GroupChannelsScreenContent({
     // This should be a no-op as the channel will be removed from the list
   }, []);
 
-  const handleCreateRole = useCallback(() => {
-    if (group) {
-      chatSettingsNav.onPressCreateRole(group.id, 'ManageChannels', {
-        groupId: group.id,
-      });
-    }
-  }, [chatSettingsNav, group]);
-
   return (
     <ChatOptionsProvider
       onPressInvite={handlePressInvite}
@@ -128,7 +120,6 @@ export function GroupChannelsScreenContent({
           onJoinChannel={handleJoinChannel}
           onGoToGroupMembers={handleGoToGroupMembers}
           onPressManageChannels={chatSettingsNav.onPressManageChannels}
-          onCreateRole={handleCreateRole}
           group={group}
           unjoinedChannels={unjoinedChannels}
         />

@@ -180,6 +180,28 @@ export type DesktopChannelStackParamList = Pick<
   | 'InviteUsers'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
+/**
+ * Screens that SelectChannelRoles can navigate back to with selected roles.
+ * Using a discriminated union so TypeScript can verify params match the screen.
+ */
+export type RoleSelectionReturn =
+  | {
+      returnScreen: 'CreateChannelPermissions';
+      returnParams: {
+        groupId: string;
+        channelTitle: string;
+        channelType: 'chat' | 'notebook' | 'gallery';
+      };
+    }
+  | {
+      returnScreen: 'EditChannelPrivacy';
+      returnParams: {
+        channelId: string;
+        groupId: string;
+        fromChatDetails?: boolean;
+      };
+    };
+
 export type GroupSettingsStackParamList = {
   // Use 'ChannelInfo' instead of 'ChatDetails' to avoid navigation conflicts.
   // HomeDrawer also has a 'ChatDetails' screen, and React Navigation can get
@@ -254,9 +276,7 @@ export type GroupSettingsStackParamList = {
   SelectChannelRoles: {
     groupId: string;
     selectedRoleIds: string[];
-    returnScreen: keyof GroupSettingsStackParamList;
-    returnParams?: Record<string, unknown>;
-  };
+  } & RoleSelectionReturn;
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;

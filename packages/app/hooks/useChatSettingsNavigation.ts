@@ -161,20 +161,22 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onPressEditChannelMeta = useCallback(
-    (channelId: string, groupId: string) => {
+    (channelId: string, groupId: string, fromChatDetails?: boolean) => {
       navigateToGroupSettings('EditChannelMeta', {
         channelId,
         groupId,
+        fromChatDetails,
       });
     },
     [navigateToGroupSettings]
   );
 
   const onPressEditChannelPrivacy = useCallback(
-    (channelId: string, groupId: string) => {
+    (channelId: string, groupId: string, fromChatDetails?: boolean) => {
       navigateToGroupSettings('EditChannelPrivacy', {
         channelId,
         groupId,
+        fromChatDetails,
       });
     },
     [navigateToGroupSettings]

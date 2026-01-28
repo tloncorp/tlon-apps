@@ -19,7 +19,7 @@ interface RoleChipsDisplayProps {
 /**
  * Computes the roles to display as chips (excluding admin).
  */
-export function useDisplayedRoles(groupRoles: db.GroupRole[], readers: string[]) {
+function useDisplayedRoles(groupRoles: db.GroupRole[], readers: string[]) {
   const allRoles = useMemo(() => groupRolesToOptions(groupRoles), [groupRoles]);
 
   return useMemo(() => {
@@ -89,7 +89,7 @@ export function PermissionActionButtons({
 /**
  * Hook for removing a role from readers/writers.
  */
-export function useHandleRemoveRole(
+function useHandleRemoveRole(
   setReaders: React.Dispatch<React.SetStateAction<string[]>>,
   setWriters: React.Dispatch<React.SetStateAction<string[]>>
 ) {
