@@ -164,7 +164,7 @@ export interface Reply {
 
 export interface Memo {
   content: Story;
-  author: Ship;
+  author: Author;
   sent: number;
 }
 

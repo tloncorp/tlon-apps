@@ -583,6 +583,7 @@ export const getLatestPosts = async ({
       };
     });
   } catch (e) {
+    console.error('failed to sync heads:', e);
     logger.trackError('failed to sync heads', {
       errorMessage: e.message,
       errorStack: e.stack,
@@ -1383,7 +1384,7 @@ export function toPostReplyData(
     id,
     channelId,
     type: 'reply',
-    authorId: reply.memo.author,
+    authorId: getAuthorId(reply.memo.author),
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),

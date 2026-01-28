@@ -204,10 +204,12 @@ export const syncSince = async ({
           }
         }));
   } catch (e) {
+    console.error('sync since failed:', e);
     logger.trackError('sync since failed', {
       error: e,
       ...callCtx,
     });
+    throw e;
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
@@ -1936,7 +1938,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         updateSession({ startTime: Date.now() });
       });
     } catch (err) {
+      console.error('sync start (high priority) failed:', err);
       logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, err);
+      updateSession({
+        syncError:
+          err instanceof Error ? err.message : 'high priority sync failed',
+      });
     }
 
     updateSession({ phase: 'low' });
@@ -1983,6 +1990,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         logger.crumb(`finished low priority sync`);
       })
       .catch((e) => {
+        console.error('sync start (low priority) failed:', e);
         logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, e);
       });
 
