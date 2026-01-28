@@ -24,6 +24,7 @@ import React, {
 import { LayoutRectangle, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -220,6 +221,7 @@ export function FileUploadBlock({
   block: cn.FileUploadBlockData;
   fullbleed?: boolean;
 }) {
+  const { openExternalLink } = useNavigation();
   const isUploading = useMemo(
     () =>
       block.file.fileUri.startsWith('file://') ||
@@ -305,13 +307,17 @@ export function FileUploadBlock({
 
   if (fullbleed) {
     return (
-      <YStack
+      <Pressable
         onLayout={(event) => setContainerLayout(event.nativeEvent.layout)}
         alignItems="center"
         justifyContent="center"
         gap="$s"
         padding="$2xs"
         flex={1}
+        flexDirection="column"
+        onPress={() => {
+          openExternalLink(block.file.fileUri);
+        }}
       >
         {filePreview()}
         {filenameView({
@@ -320,12 +326,16 @@ export function FileUploadBlock({
           textAlign: 'center',
         })}
         {containerHeightBreakpoint > 1 && fileSizeView({ size: '$label/s' })}
-      </YStack>
+      </Pressable>
     );
   }
 
   return (
-    <Reference.Frame>
+    <Reference.Frame
+      onPress={() => {
+        openExternalLink(block.file.fileUri);
+      }}
+    >
       <Reference.Header>
         <Reference.Title>
           <Icon
