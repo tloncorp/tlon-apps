@@ -623,10 +623,20 @@ export const inlineToContent = (
 
     // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
     // an un-nestable tag such as inline-code or code
-    return inlineToContent(
-      Array.isArray(inlineValue) ? inlineValue[0] : inlineValue,
-      newContext
-    );
+    if (Array.isArray(inlineValue)) {
+      // Process all elements in the array with the mark context applied
+      const contentItems = (inlineValue as Inline[]).flatMap((item: Inline) => {
+        const result = inlineToContent(item, newContext);
+        // If the result is a paragraph, extract its content
+        if (result.type === 'paragraph' && result.content) {
+          return result.content;
+        }
+        return [result];
+      });
+      return makeParagraph(contentItems);
+    }
+
+    return inlineToContent(inlineValue as Inline, newContext);
   }
 
   // TODO: is there a better fallback than an empty newline?
