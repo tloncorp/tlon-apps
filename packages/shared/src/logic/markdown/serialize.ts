@@ -114,14 +114,18 @@ export function storyToMarkdown(story: Story): string {
     return '';
   }
 
+  console.log('storyToMarkdown input:', JSON.stringify(story, null, 2));
   const children = storyToMdast(story);
+  console.log('mdast children:', JSON.stringify(children, null, 2));
   const tree: Root = { type: 'root', children };
 
   // Make lists tight and transform ship mentions before serialization
   makeTightLists(tree);
   transformShipMentionsToHtml(tree);
 
-  return processor.stringify(tree).trim();
+  const markdown = processor.stringify(tree).trim();
+  console.log('markdown output:', markdown);
+  return markdown;
 }
 
 /**
