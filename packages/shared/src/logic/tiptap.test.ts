@@ -1,7 +1,7 @@
-import { expect, test, describe, it } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { Block, Inline, JSONContent } from '../urbit';
-import { JSONToInlines, normalizeInline } from './tiptap';
+import { JSONToInlines } from './tiptap';
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
   const json: JSONContent = {
@@ -124,79 +124,4 @@ test('tiptap: test mixed text, inline code and code block without langs', () => 
     { break: null },
   ];
   expect(verses).toEqual(exampleVerses);
-});
-
-describe('normalizeInline', () => {
-  it('merges adjacent strings', () => {
-    const inlines: Inline[] = ['hello', ' ', 'world'];
-    expect(normalizeInline(inlines)).toEqual(['hello world']);
-  });
-
-  it('merges adjacent italics', () => {
-    const inlines: Inline[] = [
-      { italics: ['text '] },
-      { italics: ['more'] },
-    ];
-    expect(normalizeInline(inlines)).toEqual([{ italics: ['text ', 'more'] }]);
-  });
-
-  it('merges adjacent bold', () => {
-    const inlines: Inline[] = [
-      { bold: ['text '] },
-      { bold: ['more'] },
-    ];
-    expect(normalizeInline(inlines)).toEqual([{ bold: ['text ', 'more'] }]);
-  });
-
-  it('merges adjacent italics with nested content (links)', () => {
-    const inlines: Inline[] = [
-      { italics: ['text '] },
-      { italics: [{ link: { href: 'http://example.com', content: 'link' } }] },
-      { italics: [' more'] },
-    ];
-    expect(normalizeInline(inlines)).toEqual([
-      {
-        italics: [
-          'text ',
-          { link: { href: 'http://example.com', content: 'link' } },
-          ' more',
-        ],
-      },
-    ]);
-  });
-
-  it('does not merge different styled elements', () => {
-    const inlines: Inline[] = [
-      { italics: ['italic'] },
-      { bold: ['bold'] },
-    ];
-    expect(normalizeInline(inlines)).toEqual([
-      { italics: ['italic'] },
-      { bold: ['bold'] },
-    ]);
-  });
-
-  it('does not merge non-mergeable elements', () => {
-    const inlines: Inline[] = [
-      { ship: 'zod' },
-      { ship: 'bus' },
-    ];
-    expect(normalizeInline(inlines)).toEqual([
-      { ship: 'zod' },
-      { ship: 'bus' },
-    ]);
-  });
-
-  it('preserves breaks', () => {
-    const inlines: Inline[] = [
-      'text',
-      { break: null },
-      'more',
-    ];
-    expect(normalizeInline(inlines)).toEqual([
-      'text',
-      { break: null },
-      'more',
-    ]);
-  });
 });

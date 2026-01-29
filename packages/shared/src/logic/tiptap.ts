@@ -231,11 +231,17 @@ export function JSONToInlines(
         return [json.text ?? ''];
       }
 
-      // Make a copy of marks to avoid mutating the original
-      const marks = [...json.marks];
+      // styled
+      const first = json.marks.pop();
+      if (!first) {
+        return [];
+      }
 
-      // inline code special case - takes precedence over other marks
-      if (json.text && marks.find((m) => m.type === 'code')) {
+      // inline code special case
+      if (
+        json.text &&
+        (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+      ) {
         return [
           {
             'inline-code': json.text,
@@ -243,35 +249,27 @@ export function JSONToInlines(
         ];
       }
 
-      // Find link mark if present
-      const linkMark = marks.find((m) => m.type === 'link');
-      // Get non-link marks for wrapping
-      const otherMarks = marks.filter((m) => m.type !== 'link');
-
-      // Build the innermost content (either link or plain text)
-      let innerContent: Inline;
-      if (linkMark && linkMark.attrs) {
-        innerContent = {
-          link: {
-            href: linkMark.attrs.href,
-            content: json.text || linkMark.attrs.href,
+      // link special case
+      if (first.type === 'link' && first.attrs) {
+        return [
+          {
+            link: {
+              href: first.attrs.href,
+              content: json.text || first.attrs.href,
+            },
           },
-        };
-      } else {
-        innerContent = json.text ?? '';
+        ];
       }
 
-      // Wrap with other marks (italic, bold, strike, etc.)
-      // Process marks from innermost to outermost
-      let result: Inline = innerContent;
-      for (const mark of otherMarks) {
-        const markType = convertMarkType(mark.type);
-        if (markType) {
-          result = { [markType]: [result] } as unknown as Inline;
-        }
-      }
-
-      return [result];
+      return [
+        {
+          [convertMarkType(first.type)]: JSONToInlines(
+            json,
+            limitNewlines,
+            codeWithLang
+          ),
+        },
+      ] as unknown as (Inline | Block)[];
     }
     case 'paragraph': {
       // newline
@@ -330,19 +328,15 @@ export function JSONToInlines(
       if (!json.content || json.content.length === 0) {
         return [];
       }
-      // Concatenate all text nodes in the code block (handles multi-line content)
-      const codeText = json.content
-        .map((node) => node.text ?? '')
-        .join('');
       return [
         codeWithLang
           ? {
               code: {
-                code: codeText,
+                code: json.content[0].text ?? '',
                 lang: json.attrs?.language ?? 'plaintext',
               },
             }
-          : { code: codeText },
+          : { code: json.content[0].text ?? '' },
       ];
     }
     case 'orderedList': {
@@ -501,30 +495,10 @@ const makeStyledText = (i: Inline, context: JSONContent = {}) => {
   };
 };
 
-/**
- * Flatten __inline_group__ wrappers that are created when converting
- * nested inline content (like italics containing links).
- */
-function flattenInlineGroups(content: JSONContent[]): JSONContent[] {
-  const result: JSONContent[] = [];
-  for (const item of content) {
-    if (item.type === '__inline_group__' && item.content) {
-      // Recursively flatten nested groups
-      result.push(...flattenInlineGroups(item.content));
-    } else {
-      result.push(item);
-    }
-  }
-  return result;
-}
-
 export function wrapParagraphs(content: JSONContent[]) {
-  // First, flatten any __inline_group__ wrappers
-  const flatContent = flattenInlineGroups(content);
-  
   let wrapQueue: JSONContent[] = [];
 
-  const wrappedContent = flatContent.reduce((memo, c) => {
+  const wrappedContent = content.reduce((memo, c) => {
     switch (c.type) {
       case 'paragraph':
         if (wrapQueue.length > 0) {
@@ -606,14 +580,7 @@ export const inlineToContent = (
   }
 
   if ('link' in inline) {
-    // Merge outer context marks (e.g., italic) with the link mark
-    const linkMark = { type: 'link', attrs: { href: inline.link.href } };
-    const allMarks = ctx?.marks ? [...ctx.marks, linkMark] : [linkMark];
-    return {
-      type: 'text',
-      marks: allMarks,
-      text: inline.link.content,
-    };
+    return makeLink(inline.link);
   }
 
   if ('image' in inline) {
@@ -654,24 +621,12 @@ export const inlineToContent = (
       };
     }
 
-    // For nestable tags (bold, italics, strike) with arrays, we need to convert
-    // ALL elements in the array, not just the first one, applying the mark to each.
-    // This handles cases like: { italics: ["text", { link: {...} }, "more text"] }
-    if (Array.isArray(inlineValue)) {
-      // Convert all items in the array with the current mark context
-      const convertedItems = (inlineValue as Inline[]).map((item: Inline) =>
-        inlineToContent(item, newContext)
-      );
-      // Return a wrapper that contains all converted items
-      // We need to return them as a flattened structure for proper paragraph wrapping
-      return {
-        type: '__inline_group__',
-        content: convertedItems,
-      };
-    }
-
-    // For non-array values (like inline-code strings)
-    return inlineToContent(inlineValue as Inline, newContext);
+    // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
+    // an un-nestable tag such as inline-code or code
+    return inlineToContent(
+      Array.isArray(inlineValue) ? inlineValue[0] : inlineValue,
+      newContext
+    );
   }
 
   // TODO: is there a better fallback than an empty newline?
@@ -839,18 +794,42 @@ export function diaryMixedToJSON(note: Story): JSONContent {
     return blockToContent(c.block);
   });
 
-  // Flatten the content and ensure all __inline_group__ nodes are removed
-  const flatContent = parsedContent.flat();
-  const fullyFlattened = flattenInlineGroups(flatContent);
-
   return {
     type: 'doc',
-    content: fullyFlattened,
+    content: parsedContent.flat(),
   };
 }
 
-// Re-export normalizeInline from content.ts for backwards compatibility
-export { normalizeInline } from '../urbit/content';
+const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
+function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
+  return MERGEABLE_KEYS.includes(x as any);
+}
+export function normalizeInline(inline: Inline[]): Inline[] {
+  return reduce(
+    inline,
+    (acc: Inline[], val) => {
+      if (acc.length === 0) {
+        return [...acc, val];
+      }
+      const last = acc[acc.length - 1];
+      if (typeof last === 'string' && typeof val === 'string') {
+        return [...acc.slice(0, -1), last + val];
+      }
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as InlineKey;
+      const currKey = Object.keys(val)[0] as keyof InlineKey;
+      if (isMergeable(lastKey) && currKey === lastKey) {
+        // @ts-expect-error keying weirdness
+        const end: Inline = {
+          // @ts-expect-error keying weirdness
+          [lastKey]: [...last[lastKey as any], ...val[currKey as any]],
+        };
+        return [...acc.slice(0, -1), end];
+      }
+      return [...acc, val];
+    },
+    []
+  );
+}
 
 const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 
