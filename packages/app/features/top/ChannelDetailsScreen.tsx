@@ -137,8 +137,10 @@ export function ChannelDetailsScreenView({
       case 'dm':
         return `Chat with ${channel.contactId}`;
       case 'groupDm':
-        return channel.members && channel.members?.length > 2
-          ? `Chat with ${channel.members[0].contactId} and ${channel.members?.length - 1} others`
+        return channel.members &&
+          channel.members.length > 0 &&
+          channel.members.length > 2
+          ? `Chat with ${channel.members[0].contactId} and ${channel.members.length - 1} others`
           : 'Group chat';
       default:
         return group

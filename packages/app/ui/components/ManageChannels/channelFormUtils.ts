@@ -17,8 +17,8 @@ export interface RoleOption {
 
 // Special marker for members without explicit roles
 // In the backend, an empty readers/writers array means "accessible by all group members"
-// We use null as a marker in the UI to represent this "Members" concept
-export const MEMBERS_MARKER = null as unknown as string;
+// We use a special string marker in the UI to represent this "Members" concept
+export const MEMBERS_MARKER = '__MEMBERS_MARKER__';
 
 export const MEMBER_ROLE_OPTION: RoleOption = {
   label: 'Members',

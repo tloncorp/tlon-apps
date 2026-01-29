@@ -203,9 +203,11 @@ export type RoleSelectionReturn =
     };
 
 export type GroupSettingsStackParamList = {
-  // Use 'ChannelInfo' instead of 'ChatDetails' to avoid navigation conflicts.
+  // Use 'ChannelInfo' instead of 'ChannelDetails' to avoid navigation conflicts.
   // HomeDrawer also has a 'ChatDetails' screen, and React Navigation can get
   // confused when navigating to a screen name that exists in multiple navigators.
+  // The component rendered is ChannelDetailsScreenView, but the route is named
+  // 'ChannelInfo' to disambiguate at the navigation layer.
   ChannelInfo: {
     chatType: 'group' | 'channel';
     chatId: string;
@@ -276,6 +278,7 @@ export type GroupSettingsStackParamList = {
   SelectChannelRoles: {
     groupId: string;
     selectedRoleIds: string[];
+    createdRoleId?: string;
   } & RoleSelectionReturn;
   ChatVolume: {
     chatType: 'group' | 'channel';

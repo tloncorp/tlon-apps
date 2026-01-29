@@ -168,8 +168,7 @@ export function useChannelPermissionState({
  * Works with any form schema that includes readers/writers fields.
  */
 export function usePermissionFormSync(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setValue: (name: string, value: any) => void,
+  setValue: (name: string, value: boolean | string[]) => void,
   readers: string[],
   writers: string[],
   isPrivate?: boolean

@@ -361,6 +361,9 @@ export async function openGroupSettings(page: Page) {
 /**
  * Creates a second channel in a group and navigates to the General channel.
  * Use this to set up a multi-channel group for testing channel-specific behavior.
+ *
+ * @param page - Playwright page object
+ * @param secondChannelName - Name for the second channel to create (defaults to 'Second Channel')
  */
 export async function setupMultiChannelGroup(page: Page, secondChannelName = 'Second Channel') {
   await openGroupSettings(page);

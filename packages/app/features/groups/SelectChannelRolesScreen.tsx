@@ -1,6 +1,6 @@
 import { useGroup } from '@tloncorp/shared';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
@@ -24,10 +24,18 @@ export function SelectChannelRolesScreen() {
     useRoute<RouteProp<GroupSettingsStackParamList, 'SelectChannelRoles'>>();
   const insets = useSafeAreaInsets();
 
-  const { groupId, selectedRoleIds: initialRoleIds } = route.params;
+  const { groupId, selectedRoleIds: initialRoleIds, createdRoleId } =
+    route.params;
 
   const [selectedRoleIds, setSelectedRoleIds] =
     useState<string[]>(initialRoleIds);
+
+  // Auto-select newly created role when returning from AddRole screen
+  useEffect(() => {
+    if (createdRoleId && !selectedRoleIds.includes(createdRoleId)) {
+      setSelectedRoleIds((prev) => [...prev, createdRoleId]);
+    }
+  }, [createdRoleId, selectedRoleIds]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: group } = useGroup({ id: groupId });
