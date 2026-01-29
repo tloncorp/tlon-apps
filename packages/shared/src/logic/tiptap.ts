@@ -15,6 +15,25 @@ import { citeToPath, pathToCite, preSig, desig } from '../urbit/utils';
 
 export const ALL_MENTION_ID = '-all-';
 
+/**
+ * Decode HTML entities in a string.
+ * TipTap/ProseMirror sometimes encodes characters like spaces as HTML entities (&#x20;)
+ * when processing content. This function decodes them back to normal characters.
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    )
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
 export interface HandlerParams {
   editor: Editor;
 }
@@ -226,9 +245,12 @@ export function JSONToInlines(
 ): (Inline | Block)[] {
   switch (json.type) {
     case 'text': {
+      // Decode any HTML entities that TipTap/ProseMirror may have encoded
+      const text = decodeHtmlEntities(json.text ?? '');
+
       // unstyled / marks base case
       if (!json.marks || json.marks.length === 0) {
-        return [json.text ?? ''];
+        return [text];
       }
 
       // styled
@@ -239,26 +261,43 @@ export function JSONToInlines(
 
       // inline code special case
       if (
-        json.text &&
+        text &&
         (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
       ) {
         return [
           {
-            'inline-code': json.text,
+            'inline-code': text,
           },
         ];
       }
 
       // link special case
       if (first.type === 'link' && first.attrs) {
-        return [
-          {
-            link: {
-              href: first.attrs.href,
-              content: json.text || first.attrs.href,
-            },
+        const linkInline = {
+          link: {
+            href: first.attrs.href,
+            content: text || first.attrs.href,
           },
-        ];
+        };
+
+        // If there are remaining marks (e.g., italic, bold), wrap the link in them
+        if (json.marks && json.marks.length > 0) {
+          // Process remaining marks by wrapping the link
+          let result: Inline = linkInline;
+          for (const mark of json.marks) {
+            const markType = convertMarkType(mark.type);
+            if (markType === 'italics') {
+              result = { italics: [result] };
+            } else if (markType === 'bold') {
+              result = { bold: [result] };
+            } else if (markType === 'strike') {
+              result = { strike: [result] };
+            }
+          }
+          return [result];
+        }
+
+        return [linkInline];
       }
 
       return [
@@ -456,9 +495,12 @@ export function JSONToInlines(
 }
 
 export const makeText = (t: string) => ({ type: 'text', text: t });
-const makeLink = (link: Link['link']) => ({
+const makeLink = (link: Link['link'], ctx?: JSONContent) => ({
   type: 'text',
-  marks: [{ type: 'link', attrs: { href: link.href } }],
+  marks: [
+    { type: 'link', attrs: { href: link.href } },
+    ...(ctx?.marks || []),
+  ],
   text: link.content,
 });
 export const makeMention = (id: string) => ({
@@ -580,7 +622,7 @@ export const inlineToContent = (
   }
 
   if ('link' in inline) {
-    return makeLink(inline.link);
+    return makeLink(inline.link, ctx);
   }
 
   if ('image' in inline) {

@@ -17,7 +17,9 @@ import {
   Task,
   Blockquote,
 } from '../urbit/content';
-import { Story } from '../urbit/channel';
+import { Story, constructStory } from '../urbit/channel';
+import { JSONToInlines } from './tiptap';
+import { JSONContent } from '../urbit';
 
 /**
  * Round-trip conversion tests for Markdown ↔ Story conversion.
@@ -634,5 +636,57 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
+  });
+});
+
+describe('TipTap JSON → Story → Markdown', () => {
+  it('preserves italic links without HTML entities', () => {
+    // Simulate TipTap JSON with italic text containing a link
+    const tiptapJson: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'blockquote',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Text before ',
+                  marks: [{ type: 'italic' }],
+                },
+                {
+                  type: 'text',
+                  text: 'link text',
+                  marks: [
+                    { type: 'italic' },
+                    { type: 'link', attrs: { href: 'https://example.com' } },
+                  ],
+                },
+                {
+                  type: 'text',
+                  text: ' text after',
+                  marks: [{ type: 'italic' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const inlines = JSONToInlines(tiptapJson, false, true);
+    const story = constructStory(inlines);
+    const markdown = storyToMarkdown(story);
+
+    // Should NOT contain HTML entities like &#x20;
+    expect(markdown).not.toContain('&#x20;');
+    expect(markdown).not.toContain('&');
+
+    // Should have proper markdown with italics around the whole content
+    expect(markdown).toContain('*Text before');
+    expect(markdown).toContain('[link text](https://example.com)');
+    expect(markdown).toContain('text after*');
   });
 });

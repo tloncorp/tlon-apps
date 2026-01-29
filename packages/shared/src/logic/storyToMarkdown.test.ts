@@ -404,6 +404,25 @@ describe('inlinesToMarkdown - Blockquote', () => {
     ];
     expect(inlinesToMarkdown(inlines)).toBe('> Quote with **bold** text');
   });
+
+  test('converts Blockquote with italics containing links', () => {
+    const inlines: Inline[] = [
+      {
+        blockquote: [
+          {
+            italics: [
+              'Text before ',
+              { link: { href: 'https://example.com', content: 'link text' } },
+              ' text after',
+            ],
+          } as Italics,
+        ],
+      } as Blockquote,
+    ];
+    expect(inlinesToMarkdown(inlines)).toBe(
+      '> *Text before [link text](https://example.com) text after*'
+    );
+  });
 });
 
 describe('storyToMarkdown', () => {
