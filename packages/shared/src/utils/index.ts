@@ -13,3 +13,4 @@ export * from './telemetryFormatters';
 export * from './spyOn';
 export * from './file';
 export * from './number';
+export * from './formatMemorySize';
