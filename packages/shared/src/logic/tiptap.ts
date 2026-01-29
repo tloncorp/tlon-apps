@@ -839,9 +839,13 @@ export function diaryMixedToJSON(note: Story): JSONContent {
     return blockToContent(c.block);
   });
 
+  // Flatten the content and ensure all __inline_group__ nodes are removed
+  const flatContent = parsedContent.flat();
+  const fullyFlattened = flattenInlineGroups(flatContent);
+
   return {
     type: 'doc',
-    content: parsedContent.flat(),
+    content: fullyFlattened,
   };
 }
 
