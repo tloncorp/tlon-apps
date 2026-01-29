@@ -155,9 +155,10 @@
 ::  %join: joining with a token
 ::  %watch: waiting for the subscription
 ::  %done: subscribed to the group
+::  %leave: leaving a mismatched group
 ::  %error: error occured
 ::
-+$  progress  ?(%ask %join %watch %done %error)
++$  progress  ?(%ask %join %watch %done %leave %error)
 ::  $lookup: preview in progress
 ::
 ::  %preview: waiting for preview

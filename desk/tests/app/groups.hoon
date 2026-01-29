@@ -61,6 +61,9 @@
   ?+    path  ~
     [%gu ship=@ %activity now=@ rest=*]         `!>(|)
     [%gx ship=@ %chat now=@ %blocked %ships ~]  `!>(~)
+  ::
+      [%gx ship=@ %groups now=@ %~.~ %negotiate %status ship=@ agent=@ %noun ~]  
+    `!>(%match)
   ==
 ++  do-groups-init
   =/  m  (mare ,(list card))
@@ -92,12 +95,13 @@
   |=  =foreign:g
   =/  =gang:v2:gv
     %-  gang:v2:foreign:v7:gc
-    (v7:foreign:v8:gc foreign)
+    (v7:foreign:v10:gc foreign)
   (ex-fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my my-flag^gang ~)))
 ::
 ++  ex-foreign-response
   |=  =foreign:g
-  (ex-fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my my-flag^foreign ~)))
+  =/  foreign-8  (v8:foreign:v10:gc foreign)
+  (ex-fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my my-flag^foreign-8 ~)))
 ::
 ++  do-a-groups
   |=  =a-groups:g
