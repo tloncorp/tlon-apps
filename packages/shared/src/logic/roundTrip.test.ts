@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { storyToMarkdown } from './storyToMarkdown';
-import { markdownToStory } from './markdownToStory';
+import { storyToMarkdown, markdownToStory } from './markdown';
 import {
   Bold,
   Break,

@@ -23,7 +23,7 @@ import {
   blockToMarkdown,
   inlinesToMarkdown,
   storyToMarkdown,
-} from './storyToMarkdown';
+} from './markdown';
 
 describe('inlinesToMarkdown', () => {
   test('converts plain string', () => {
@@ -69,7 +69,8 @@ describe('inlinesToMarkdown', () => {
       { break: null } as Break,
       'line 2',
     ];
-    expect(inlinesToMarkdown(inlines)).toBe('line 1\nline 2');
+    // remark-stringify uses backslash for hard breaks
+    expect(inlinesToMarkdown(inlines)).toBe('line 1\\\nline 2');
   });
 
   test('handles nested inlines: bold within italic', () => {
@@ -339,7 +340,7 @@ describe('blockToMarkdown', () => {
       },
     };
     expect(blockToMarkdown(block)).toBe(
-      '1. First\n2. Second with subitems\n  1. Sub-first\n  2. Sub-second'
+      '1. First\n2. Second with subitems\n   1. Sub-first\n   2. Sub-second'
     );
   });
 
