@@ -470,27 +470,52 @@ function blockToMdast(block: Block): RootContent | null {
 
 /**
  * Convert a Story VerseInline to mdast content.
+ * Returns an array because blockquotes in inline content need to be split into separate blocks.
  */
-function verseInlineToMdast(inline: Inline[]): RootContent | null {
-  // Check if the inline contains only a blockquote
-  if (inline.length === 1 && isBlockquote(inline[0])) {
-    const bq = inline[0] as Blockquote;
-    const children = inlinesToPhrasing(bq.blockquote);
-    const paragraph: Paragraph = { type: 'paragraph', children };
-    const blockquote: MdastBlockquote = {
-      type: 'blockquote',
-      children: [paragraph],
-    };
-    return blockquote;
+function verseInlineToMdast(inline: Inline[]): RootContent[] {
+  const result: RootContent[] = [];
+  let currentSegment: Inline[] = [];
+
+  for (let i = 0; i < inline.length; i++) {
+    const item = inline[i];
+
+    if (isBlockquote(item)) {
+      // Flush current segment as a paragraph if it has content
+      if (currentSegment.length > 0) {
+        const children = inlinesToPhrasing(currentSegment);
+        if (children.length > 0) {
+          result.push({ type: 'paragraph', children });
+        }
+        currentSegment = [];
+      }
+
+      // Add blockquote as a separate block
+      const bq = item as Blockquote;
+      const children = inlinesToPhrasing(bq.blockquote);
+      const paragraph: Paragraph = { type: 'paragraph', children };
+      const blockquote: MdastBlockquote = {
+        type: 'blockquote',
+        children: [paragraph],
+      };
+      result.push(blockquote);
+    } else {
+      // Skip breaks immediately before blockquotes (they're just separators)
+      if (isBreak(item) && i + 1 < inline.length && isBlockquote(inline[i + 1])) {
+        continue;
+      }
+      currentSegment.push(item);
+    }
   }
 
-  const children = inlinesToPhrasing(inline);
-  if (children.length === 0) {
-    return null;
+  // Flush remaining segment
+  if (currentSegment.length > 0) {
+    const children = inlinesToPhrasing(currentSegment);
+    if (children.length > 0) {
+      result.push({ type: 'paragraph', children });
+    }
   }
 
-  const paragraph: Paragraph = { type: 'paragraph', children };
-  return paragraph;
+  return result;
 }
 
 /**
@@ -510,11 +535,9 @@ export function storyToMdast(story: Story): RootContent[] {
         nodes.push(node);
       }
     } else {
-      // VerseInline
-      const node = verseInlineToMdast(verse.inline);
-      if (node) {
-        nodes.push(node);
-      }
+      // VerseInline - can return multiple nodes if it contains blockquotes
+      const inlineNodes = verseInlineToMdast(verse.inline);
+      nodes.push(...inlineNodes);
     }
   }
 
