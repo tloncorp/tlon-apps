@@ -31,7 +31,6 @@
     "cosmos/setup.ts",
     "vite.config.mts",
     "reactNativeWebPlugin.ts",
-    "expo52PatchPlugin.ts",
-    "markdown-it-task-lists.d.ts"
+    "expo52PatchPlugin.ts"
   ]
 }
