@@ -120,9 +120,16 @@ function mergeAdjacentMarks(inlines: Inline[]): Inline[] {
  */
 export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
   const merged = mergeAdjacentMarks(inlines);
+
+  // Filter out trailing breaks - they mark paragraph boundaries, not hard line breaks
+  let filtered = merged;
+  while (filtered.length > 0 && isBreak(filtered[filtered.length - 1])) {
+    filtered = filtered.slice(0, -1);
+  }
+
   const result: PhrasingContent[] = [];
 
-  for (const inline of merged) {
+  for (const inline of filtered) {
     if (typeof inline === 'string') {
       const text: Text = { type: 'text', value: inline };
       result.push(text);
