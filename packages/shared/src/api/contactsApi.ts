@@ -6,6 +6,7 @@ import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { render } from '@urbit/aura';
 
 const logger = createDevLogger('contactsApi', false);
 
@@ -180,8 +181,8 @@ export const updateSigilColor = async (color: string | null) => {
     if (urbitColor.startsWith('0x')) {
       urbitColor = urbitColor.slice(2);
     }
-    urbitColor = urbitColor.toLowerCase().padStart(6, '0');
-    const formattedColor = `${urbitColor.slice(0, 2)}.${urbitColor.slice(2)}`;
+    //NOTE  'tint' parser wants @ux without the leading 0x...
+    const formattedColor = render('ux', BigInt('0x' + urbitColor)).slice(2);
     contactUpdate.color = {
       type: 'tint',
       value: formattedColor,
