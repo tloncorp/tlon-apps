@@ -2260,8 +2260,9 @@
         %add
       =*  c-token-add  c-token-add.c-token
       =/  =token:g
+        |-
         =+  i=(end 7 (shas %entry-token eny.bowl))
-        |-  ?.  (~(has by tokens.ad) i)  i
+        ?.  (~(has by tokens.ad) i)  i
         $(eny.bowl +(eny.bowl))
       =/  =token-meta:g
         =,  c-token-add
