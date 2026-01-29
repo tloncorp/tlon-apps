@@ -11,7 +11,7 @@ import {
   ChatOptionsProvider,
   ForwardGroupSheetProvider,
 } from '../../ui';
-import { ChatDetailsScreenView } from '../top/ChatDetailsScreen';
+import { ChannelDetailsScreenView } from '../top/ChannelDetailsScreen';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'ChannelInfo'>;
 
@@ -58,7 +58,7 @@ export function ChannelInfoScreen(props: Props) {
         initialChat={{ type: chatType, id: chatId }}
         {...useChatSettingsNavigation()}
       >
-        <ChatDetailsScreenView
+        <ChannelDetailsScreenView
           onGoBack={handleGoBack}
           onEditChannelMeta={handleEditChannelMeta}
           onEditChannelPrivacy={handleEditChannelPrivacy}
