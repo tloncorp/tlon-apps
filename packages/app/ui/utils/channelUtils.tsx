@@ -117,9 +117,10 @@ export function getGroupTitle(
   group: db.Group,
   disableNicknames: boolean
 ): string {
-  const isPending = group.currentUserIsMember === false;
+  const nonMember = group.currentUserIsMember === false;
+  const havePermission = group.haveInvite || group.joinStatus === 'joining';
 
-  if (group?.privacy === 'secret' && isPending) {
+  if (group?.privacy === 'secret' && nonMember && !havePermission) {
     return 'Secret Group';
   }
 
@@ -132,7 +133,7 @@ export function getGroupTitle(
         .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
         .join(', ') ?? 'No title'
     );
-  } else if (isPending) {
+  } else if (nonMember) {
     if (group?.members?.length === 1) {
       return `New group by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
     } else {

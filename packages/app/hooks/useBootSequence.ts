@@ -183,7 +183,7 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
       // immediately subscribing on a path that generates a fact significantly reduces connection time
-      store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
+      store.syncGroupPreviews([GETTING_STARTED_GROUP_ID]);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
         // should be redundant, but make sure the node peers with the inviter's contact profile
