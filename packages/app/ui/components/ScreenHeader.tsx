@@ -1,5 +1,5 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, View, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, Text, View } from '@tloncorp/ui';
 import { Children, PropsWithChildren, ReactNode } from 'react';
 import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,7 +46,9 @@ export const ScreenHeaderComponent = ({
 
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
-  const isWindowNarrow = useIsWindowNarrow();
+
+  // On mobile, swap title to show loading state (no debounce to avoid flash)
+  const displayTitle = !useHorizontalTitleLayout && isLoading ? 'Loading…' : title;
 
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
@@ -87,15 +89,13 @@ export const ScreenHeaderComponent = ({
       testID={testID}
     >
       <View style={getWrapperStyle()}>
-        {showSubtitle && (
+        {/* Only show subtitle on desktop/large screens */}
+        {showSubtitle && useHorizontalTitleLayout && (
           <View
-            height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
+            height={'$4xl'}
             alignItems="center"
             justifyContent="center"
-            paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$4xl'}
-            top={
-              !isWindowNarrow && !useHorizontalTitleLayout ? '$m' : undefined
-            }
+            paddingHorizontal={'$l'}
             position="relative"
           >
             {typeof resolvedSubtitle === 'string' ? (
@@ -104,7 +104,7 @@ export const ScreenHeaderComponent = ({
                   color={'$secondaryText'}
                   size="$label/s"
                   numberOfLines={1}
-                  paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                  paddingTop={5}
                   testID={'ScreenHeaderSubtitle'}
                 >
                   {resolvedSubtitle}
@@ -115,7 +115,7 @@ export const ScreenHeaderComponent = ({
                 color={'$secondaryText'}
                 size="$label/s"
                 numberOfLines={1}
-                paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+                paddingTop={5}
                 testID={'ScreenHeaderSubtitle'}
               >
                 {resolvedSubtitle}
@@ -138,7 +138,7 @@ export const ScreenHeaderComponent = ({
               maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
               testID={'ScreenHeaderTitle'}
             >
-              {title}
+              {displayTitle}
             </Text>
             {onTitlePress && (
               <Icon type="ChevronDown" color="$primaryText" size="$s" />

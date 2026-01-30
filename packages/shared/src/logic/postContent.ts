@@ -2,7 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
-import { parsePostBlob } from './content-helpers';
+import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
@@ -93,6 +93,11 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type FileUploadBlockData = {
+  type: 'file';
+  file: PostBlobDataEntry;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -139,6 +144,7 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | VideoBlockData
+  | FileUploadBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -307,23 +313,10 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
-          const { fileUri, name } = entry;
-          const isUploading =
-            fileUri.startsWith('file://') || fileUri.startsWith('blob:');
-          if (isUploading) {
-            out.push({
-              type: 'blockquote',
-              content: [{ type: 'text', text: 'Uploading attachment...' }],
-            });
-          } else {
-            out.push({
-              type: 'link',
-              url: fileUri,
-              siteName: name ?? 'Attached file',
-              description: 'Press to download',
-              title: summarizeFilesize(entry.size),
-            });
-          }
+          out.push({
+            type: 'file',
+            file: entry,
+          });
           break;
         }
 
@@ -665,14 +658,4 @@ export function getTextContent(
   return postContent == null
     ? null
     : plaintextPreviewOf(convertContentSafe(postContent), config);
-}
-
-function summarizeFilesize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  } else if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  } else {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
 }

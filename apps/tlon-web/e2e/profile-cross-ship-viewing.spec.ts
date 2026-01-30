@@ -30,7 +30,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await zodPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
   
   // Wait for profile to sync
   await zodPage.reload();
@@ -86,7 +86,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await tenPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Ten Bio Information');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
   
   // Wait for profile to sync
   await tenPage.reload();

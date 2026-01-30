@@ -58,17 +58,15 @@ export function AddContactsView(props: {
         />
 
         <Button
+          preset="primary"
           marginTop="$m"
-          hero
           onPress={handleAddContacts}
           disabled={newContacts.length === 0}
-        >
-          <Button.Text>
-            {newContacts.length === 0
-              ? 'Add contact'
-              : `Add ${newContacts.length} contact${newContacts.length > 1 ? 's' : ''}`}
-          </Button.Text>
-        </Button>
+          label={newContacts.length === 0
+            ? 'Add contact'
+            : `Add ${newContacts.length} contact${newContacts.length > 1 ? 's' : ''}`}
+          centered
+        />
       </YStack>
     </View>
   );

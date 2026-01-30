@@ -63,15 +63,12 @@ export function InviteUsersScreen() {
 
           <PaddedBlock paddingBottom={bottom}>
             <Button
-              hero
+              preset="primary"
               onPress={handleInvite}
               disabled={invitees.length === 0 || loading}
-              gap="$xl"
-            >
-              <Button.Text width="auto">
-                {loading ? 'Inviting...' : buttonText}
-              </Button.Text>
-            </Button>
+              label={loading ? 'Inviting...' : buttonText}
+              centered
+            />
           </PaddedBlock>
         </YStack>
       </View>

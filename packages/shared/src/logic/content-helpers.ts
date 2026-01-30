@@ -546,7 +546,11 @@ type BuildPostBlobDataEntry<
   version: Config['version'];
 } & Payload;
 
-type PostBlobDataEntry = BuildPostBlobDataEntry<
+/**
+ * An element of the `blob` array on an API resource for a post, used to hold
+ * arbitrary off-schema data.
+ */
+export type PostBlobDataEntry = BuildPostBlobDataEntry<
   'file',
   { version: 1 },
   {
@@ -691,17 +695,34 @@ export function toPostData({
   const metadata: PostMetadata = { title };
 
   if (image) {
-    const attachment = attachments.find(
-      (a): a is UploadedImageAttachment =>
-        a.type === 'image' && a.file.uri === image
-    );
-    if (!attachment) {
-      throw new Error('unable to attach image');
+    // HACK: `draft.image` is a URI string, which might be local (e.g. `file://`).
+    // We want to set `metadata.image` to a web-accessible URI, so if it's local,
+    // find the corresponding finalized attachment to get the web-accessible URI.
+    //
+    // (We could do this unconditionally, but we omit *some* images from
+    // `attachments` for historical reasons - in these cases, we won't be able
+    // to find the finalized attachment. If we are omitting an attachment, it's
+    // likely because the image is already uploaded -> `draft.image` is already
+    // a web-accessible URI. If `draft.image` is web-accessible, we can just
+    // use it directly.)
+    const localPrefixes = ['file:', 'blob:', 'data:', 'content:'];
+    const isLocal = localPrefixes.some((prefix) => image.startsWith(prefix));
+
+    if (isLocal) {
+      const attachment = attachments.find(
+        (a): a is UploadedImageAttachment =>
+          a.type === 'image' && a.file.uri === image
+      );
+      if (!attachment) {
+        throw new Error('unable to attach image');
+      }
+      metadata.image =
+        attachment.uploadState.status === 'success'
+          ? attachment.uploadState.remoteUri
+          : attachment.uploadState.localUri;
+    } else {
+      metadata.image = image;
     }
-    metadata.image =
-      attachment.uploadState.status === 'success'
-        ? attachment.uploadState.remoteUri
-        : attachment.uploadState.localUri;
   } else {
     metadata.image = null;
   }

@@ -2,7 +2,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -16,7 +16,6 @@ import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { NavigationProvider, useStore } from '../../contexts';
 import { useIsDarkTheme } from '../../utils/colorUtils';
-import { PrimaryButton } from '../Buttons';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
@@ -56,7 +55,6 @@ export function ActivityScreenView({
   const currentFetcher = bucketFetchers[activeTab];
 
   const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
-
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
@@ -394,13 +392,9 @@ export function ActivityEmptyState({
           Tlon Messenger to get started.
         </Text>
         <View gap="$s" width="100%" maxWidth={300}>
-          <PrimaryButton onPress={onInviteFriends}>
-            Invite Friends
-          </PrimaryButton>
+          <Button label="Invite Friends" onPress={onInviteFriends} />
           {onNavigateToContacts && (
-            <PrimaryButton onPress={onNavigateToContacts}>
-              View Contacts
-            </PrimaryButton>
+            <Button label="View Contacts" onPress={onNavigateToContacts} />
           )}
         </View>
       </View>

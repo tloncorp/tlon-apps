@@ -20,6 +20,7 @@ GCS_BUCKET="$EXPECTED_BUCKET"
 DRY_RUN=${DRY_RUN:-false}
 SKIP_UPLOAD=${SKIP_UPLOAD:-false}
 SKIP_CLEANUP=${SKIP_CLEANUP:-false}
+SKIP_MELD=${SKIP_MELD:-false}
 VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 
 # Parse command line arguments
@@ -40,6 +41,7 @@ for arg in "$@"; do
             echo "  DRY_RUN=true          Show what would be done without making changes"
             echo "  SKIP_UPLOAD=true      Create archives but skip GCS upload"
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
+            echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
             echo ""
             exit 0
             ;;
@@ -414,14 +416,20 @@ sync_ship_snapshots() {
 
         print_info "Syncing snapshot for ~$ship..."
 
-        # Boot ship in background with unique port
+        # Boot ship briefly with unique port to sync snapshot
         local temp_port=$((40000 + RANDOM % 1000))
         timeout 20 "$urbit_binary" -t -p "$temp_port" "$pier_path" > /tmp/sync-$ship.log 2>&1 || true
 
         # Give it a moment to finish writing
         sleep 2
 
-        print_status "Synced ~$ship"
+        # Verify the ship actually booted and reached live state
+        if grep -q "pier.*live" /tmp/sync-$ship.log 2>/dev/null; then
+            print_status "Synced ~$ship"
+        else
+            print_warning "Failed to sync ~$ship - ship may not have reached live state"
+            print_info "Check /tmp/sync-$ship.log for details"
+        fi
     done
 
     print_status "All ship snapshots synced"
@@ -430,6 +438,12 @@ sync_ship_snapshots() {
 # Roll and chop piers to reduce size
 roll_and_chop_piers() {
     print_info "Rolling and chopping piers to reduce size..."
+
+    # Memory requirement warning for meld
+    if [ "$SKIP_MELD" = "false" ]; then
+        print_warning "Meld operation requires 8GB+ RAM per ship"
+        print_info "Set SKIP_MELD=true if running on low-memory system"
+    fi
 
     # Find urbit binary
     local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
@@ -471,52 +485,162 @@ roll_and_chop_piers() {
         # Give a moment for pack to complete
         sleep 1
 
-        # Roll: Create new epoch to establish a checkpoint before chopping
-        print_info "  Rolling ~$ship (creating new epoch)..."
-        if "$urbit_binary" roll "$pier_path" 2>&1 | tee /tmp/roll-$ship.log | grep -q "disk: created epoch"; then
-            print_status "  Rolled ~$ship successfully"
+        # Meld: Deduplicate snapshot (unless SKIP_MELD=true)
+        if [ "$SKIP_MELD" = "false" ]; then
+            print_info "  Melding ~$ship (deduplicating snapshot, may take several minutes)..."
+
+            # Capture size before meld
+            local before_meld_size=$(du -sh "$pier_path/.urb/chk" 2>/dev/null | cut -f1 || echo "unknown")
+
+            # Run meld and capture exit code
+            "$urbit_binary" meld "$pier_path" 2>&1 | tee /tmp/meld-$ship.log
+            local meld_exit_code=$?
+
+            # Check if meld completed successfully
+            if [ $meld_exit_code -eq 0 ] && grep -q "gained:" /tmp/meld-$ship.log 2>/dev/null; then
+                print_status "  Melded ~$ship successfully"
+
+                # Show memory gained
+                local gained=$(grep -oE "gained: MB/[0-9.]+" /tmp/meld-$ship.log 2>/dev/null || echo "")
+                if [ -n "$gained" ]; then
+                    print_info "  Memory $gained"
+                fi
+
+                # Show size reduction
+                local after_meld_size=$(du -sh "$pier_path/.urb/chk" 2>/dev/null | cut -f1 || echo "unknown")
+                print_info "  Snapshot size: $before_meld_size → $after_meld_size"
+            else
+                # Meld failed - determine why
+                local oom_detected=false
+
+                # Check for OOM in log file
+                if grep -qE "KILLED|killed|Killed|Cannot allocate memory" /tmp/meld-$ship.log 2>/dev/null; then
+                    oom_detected=true
+                fi
+
+                # Check exit code (137 = killed by signal 9, often OOM; 139 = segfault)
+                if [ $meld_exit_code -eq 137 ] || [ $meld_exit_code -eq 139 ]; then
+                    oom_detected=true
+                fi
+
+                # Check dmesg for OOM killer (if accessible)
+                if command -v dmesg >/dev/null 2>&1; then
+                    if dmesg | tail -20 | grep -qi "out of memory\|oom.*urbit" 2>/dev/null; then
+                        oom_detected=true
+                    fi
+                fi
+
+                if [ "$oom_detected" = true ]; then
+                    print_warning "  Meld failed for ~$ship - insufficient memory (needs 8GB+ RAM)"
+                    print_info "  Exit code: $meld_exit_code"
+                    print_info "  Continuing without meld - archive will be larger"
+                else
+                    print_warning "  Meld completed with warnings for ~$ship (exit code: $meld_exit_code)"
+                    print_info "  Check /tmp/meld-$ship.log for details"
+                fi
+            fi
+
+            # Give extra time for meld I/O to complete
+            sleep 2
         else
-            print_error "  Failed to roll ~$ship"
-            print_info "  Check /tmp/roll-$ship.log for details"
-            # Don't exit, still try to chop - there may be existing epochs to remove
+            print_info "  Skipping meld (SKIP_MELD=true)"
         fi
 
-        # Give a moment for the roll to complete
+        # Roll: Create new epoch with (potentially melded) snapshot
+        print_info "  Rolling ~$ship (creating new epoch)..."
+        if "$urbit_binary" roll "$pier_path" 2>&1 | tee /tmp/roll-$ship.log | grep -q "disk: created epoch"; then
+            print_status "  Roll completed for ~$ship"
+        else
+            print_error "  Failed roll for ~$ship"
+            print_info "  Check /tmp/roll-$ship.log for details"
+            if [ "$SKIP_MELD" = "false" ]; then
+                print_warning "  Epoch cleanup may not work correctly without a successful roll"
+            fi
+        fi
+
+        # Give a moment for roll to complete
         sleep 1
 
-        # Chop: Delete old epochs (keep only 2 most recent)
-        print_info "  Chopping ~$ship (deleting old epochs)..."
-        if "$urbit_binary" chop "$pier_path" 2>&1 | tee /tmp/chop-$ship.log | grep -q "event log truncation complete"; then
-            print_status "  Chopped ~$ship successfully"
-        else
-            # Chop may report "nothing to do" if there are only 2 or fewer epochs
-            if grep -q "nothing to do" /tmp/chop-$ship.log 2>/dev/null; then
-                print_info "  No old epochs to remove for ~$ship"
+        # If meld was used, clean up old un-melded epochs (keep only the newly created one)
+        if [ "$SKIP_MELD" = "false" ]; then
+            print_info "  Removing old un-melded epochs..."
+
+            # Count epochs before cleanup
+            local epoch_count=$(find "$pier_path/.urb/log" -maxdepth 1 -name "0i*" -type d 2>/dev/null | wc -l)
+
+            if [ "$epoch_count" -gt 1 ]; then
+                # Delete all but the highest numbered epoch (most recent by epoch number, not timestamp)
+                # Extract epoch numbers, sort numerically, keep highest, delete the rest
+                local newest_epoch=$(
+                    cd "$pier_path/.urb/log" && \
+                    find . -maxdepth 1 -name "0i*" -type d | \
+                    sed 's|./0i||' | \
+                    sort -n | \
+                    tail -1
+                )
+
+                if [ -n "$newest_epoch" ]; then
+                    (
+                        cd "$pier_path/.urb/log"
+                        for epoch_dir in 0i*; do
+                            if [ "$epoch_dir" != "0i$newest_epoch" ]; then
+                                rm -rf "$epoch_dir"
+                            fi
+                        done
+                    )
+
+                    # Validate cleanup - ensure at least one epoch remains
+                    local remaining=$(find "$pier_path/.urb/log" -maxdepth 1 -name "0i*" -type d 2>/dev/null | wc -l)
+                    if [ "$remaining" -eq 0 ]; then
+                        print_error "  Epoch cleanup failed - no epochs remaining for ~$ship"
+                        exit 1
+                    fi
+                    print_status "  Cleaned old epochs (kept 0i$newest_epoch, removed $((epoch_count - remaining)))"
+                else
+                    print_warning "  Could not determine newest epoch for ~$ship"
+                fi
             else
-                print_warning "  Chop completed with warnings for ~$ship"
-                print_info "  Check /tmp/chop-$ship.log for details"
+                print_info "  Only 1 epoch exists, no cleanup needed"
             fi
+        fi
+
+        # Chop: Only needed if meld was skipped (otherwise epochs already cleaned manually)
+        if [ "$SKIP_MELD" = "true" ]; then
+            print_info "  Chopping ~$ship (deleting old epochs)..."
+            if "$urbit_binary" chop "$pier_path" 2>&1 | tee /tmp/chop-$ship.log | grep -q "event log truncation complete"; then
+                print_status "  Chopped ~$ship successfully"
+            else
+                # Chop may report "nothing to do" if there are only 2 or fewer epochs
+                if grep -q "nothing to do" /tmp/chop-$ship.log 2>/dev/null; then
+                    print_info "  No old epochs to remove for ~$ship"
+                else
+                    print_warning "  Chop completed with warnings for ~$ship"
+                    print_info "  Check /tmp/chop-$ship.log for details"
+                fi
+            fi
+        else
+            print_info "  Skipping chop (epochs already cleaned manually after meld)"
         fi
 
         # Quick verification that pier structure is still valid
         if [ ! -d "$pier_path/.urb" ]; then
-            print_error "  Pier structure damaged for ~$ship after roll+chop!"
+            print_error "  Pier structure damaged for ~$ship after optimization!"
             exit 1
         fi
 
-        print_status "Completed roll+chop for ~$ship"
+        print_status "Completed processing for ~$ship"
         echo ""
     done
 
-    print_status "All piers rolled and chopped"
+    print_status "All piers processed"
 
     # Only clean up log files if all operations were successful
     # Check if any error logs exist
-    if ls /tmp/pack-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null | xargs grep -l "error\|failed\|Error\|Failed" >/dev/null 2>&1; then
-        print_info "Preserving logs due to errors - check /tmp/pack-*.log, /tmp/roll-*.log and /tmp/chop-*.log"
+    if ls /tmp/pack-*.log /tmp/meld-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null | xargs grep -l "error\|failed\|Error\|Failed" >/dev/null 2>&1; then
+        print_info "Preserving logs due to errors - check /tmp/pack-*.log, /tmp/meld-*.log, /tmp/roll-*.log and /tmp/chop-*.log"
     else
         # Clean up log files only on success
-        rm -f /tmp/pack-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null || true
+        rm -f /tmp/pack-*.log /tmp/meld-*.log /tmp/roll-*.log /tmp/chop-*.log 2>/dev/null || true
     fi
 }
 
@@ -623,6 +747,8 @@ core.*
 *.swp
 .urb/put/*
 .urb/dev-*
+.run
+.bin/*
 EOF
     
     # Create the archive (exclude problematic files using exclude file)

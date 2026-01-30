@@ -445,24 +445,22 @@ export function QueryBenchScreen() {
       <Text size="$label/xl">Query Benchmarks</Text>
 
       <View flexDirection="row" gap="$m" alignItems="center">
-        <Button disabled={isRunning || !benchmarkData} onPress={runBenchmarks}>
-          <Button.Text>{isRunning ? 'Running…' : `Run all`}</Button.Text>
-        </Button>
+        <Button preset="outline" disabled={isRunning || !benchmarkData} onPress={runBenchmarks} label={isRunning ? 'Running…' : 'Run all'} />
         <Text color="$secondaryText" fontSize="$s">
           {iterations} iterations
         </Text>
         <Button
+          preset="outline"
           disabled={isRunning}
           onPress={() => setIterations((n) => Math.max(1, n - 5))}
-        >
-          <Button.Text>-5</Button.Text>
-        </Button>
+          label="-5"
+        />
         <Button
+          preset="outline"
           disabled={isRunning}
           onPress={() => setIterations((n) => n + 5)}
-        >
-          <Button.Text>+5</Button.Text>
-        </Button>
+          label="+5"
+        />
       </View>
 
       {!benchmarkData && !errorMessage && (
@@ -554,13 +552,13 @@ export function QueryBenchScreen() {
 
                 <View flex={1} alignItems="flex-end">
                   <Button
+                    fill="outline"
+                    type="primary"
+                    size="small"
                     disabled={isDisabled}
                     onPress={() => runIndividualBenchmark(benchCase)}
-                  >
-                    <Button.Text fontSize="$xs">
-                      {isIndividualRunning ? '⏳' : '▶'}
-                    </Button.Text>
-                  </Button>
+                    label={isIndividualRunning ? '⏳' : '▶'}
+                  />
                 </View>
               </View>
             );

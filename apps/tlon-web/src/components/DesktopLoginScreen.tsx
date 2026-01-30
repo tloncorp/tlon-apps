@@ -212,12 +212,11 @@ export const DesktopLoginScreen = ({
           </YStack>
 
           <Button
+            label="Connect"
             onPress={onSubmit}
             disabled={!isValid || isSubmitting}
             width="100%"
-          >
-            Connect
-          </Button>
+          />
 
           <Text fontSize="$s" color="$tertiaryText" textAlign="center">
             By logging in you agree to Tlon's Terms of Service

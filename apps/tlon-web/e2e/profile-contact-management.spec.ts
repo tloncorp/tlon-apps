@@ -51,7 +51,7 @@ test('should manage contacts and edit contact nicknames', async ({
   // Note: Status and bio fields are not available when editing another user's profile
   // Only nickname is editable for other users
 
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Verify the nickname was saved
   await zodPage.waitForTimeout(2000);
@@ -80,7 +80,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await zodPage
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
 
   // Now ~ten adds ~zod as a contact
   await tenPage.getByTestId('AvatarNavIcon').click();
@@ -116,7 +116,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await tenPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod from Ten perspective');
-  await tenPage.getByText('Done').click();
+  await tenPage.getByText('Save').click();
 
   // Verify ~ten sees their custom nickname for ~zod
   await tenPage.waitForTimeout(2000);

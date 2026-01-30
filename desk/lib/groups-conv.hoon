@@ -5,6 +5,38 @@
 ::
 =,  gv
 |%
+++  v10
+  |%
+  ++  foreign
+    |%
+    ++  v8
+      |=  foreign:v10:gv
+      ^-  foreign:v8:gv
+      =/  progress-8=(unit progress:v8:gv)
+        ?~  progress  ~
+        ?:  ?=(%leave u.progress)  ~
+        progress
+      :*  invites
+          lookup
+          preview
+          progress-8
+          token
+      ==
+    ++  v7
+      |=  foreign:v10:gv
+      ^-  foreign:v7:gv
+      =/  progress-7=(unit progress:v7:gv)
+        ?~  progress  ~
+        ?:  ?=(%leave u.progress)  ~
+        progress
+      :*  (turn invites v7:invite:^v8)
+          lookup
+          preview
+          progress-7
+          token
+      ==
+    --
+  --
 ++  v9
   |%
   ++  group
