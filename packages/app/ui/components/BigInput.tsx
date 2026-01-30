@@ -24,6 +24,7 @@ import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
@@ -73,7 +74,11 @@ export function BigInput({
   const theme = useTheme();
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
-  const [isMarkdownMode, setIsMarkdownMode] = useState(false);
+  const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
+  // Default to markdown mode if feature flag is enabled and this is a new post (not editing)
+  const [isMarkdownMode, setIsMarkdownMode] = useState(
+    markdownNotebooksEnabled && !editingPost
+  );
   const [markdownContent, setMarkdownContent] = useState('');
   const [pendingEditorContent, setPendingEditorContent] = useState<
     object | null
@@ -494,10 +499,12 @@ export function BigInput({
     const items = [...DEFAULT_TOOLBAR_ITEMS];
     // Between the Heading and Code buttons
     items.splice(5, 0, imageButton);
-    // Add Markdown toggle at the beginning
-    items.unshift(markdownToggle);
+    // Add Markdown toggle at the beginning if feature flag is enabled
+    if (markdownNotebooksEnabled) {
+      items.unshift(markdownToggle);
+    }
     return items;
-  }, [isMarkdownMode, handleMarkdownToggle]);
+  }, [isMarkdownMode, handleMarkdownToggle, markdownNotebooksEnabled]);
 
   return (
     <KeyboardAvoidingView
@@ -566,7 +573,7 @@ export function BigInput({
         <View flex={1}>
           {!isWindowNarrow && channelType === 'notebook' && (
             <>
-              {isMarkdownMode ? (
+              {isMarkdownMode && markdownNotebooksEnabled ? (
                 <XStack
                   paddingHorizontal="$m"
                   paddingVertical="$s"
@@ -659,7 +666,7 @@ export function BigInput({
               borderWidth={1}
               borderRadius={getTokenValue('$l', 'radius')}
             >
-              {isMarkdownMode ? (
+              {isMarkdownMode && markdownNotebooksEnabled ? (
                 <TouchableOpacity onPress={handleMarkdownToggle}>
                   <XStack
                     alignItems="center"
