@@ -248,11 +248,6 @@ async function _sendPost({
       logger.crumb('finalizing post');
       const finalizedPostData = await finalizedPostDataPromise;
 
-      // DEBUG: Log the Story content being saved to database
-      console.log('=== POST STORY CONTENT (before DB save) ===');
-      console.log(JSON.stringify(finalizedPostData.content, null, 2));
-      console.log('=== END STORY CONTENT ===');
-
       logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,
@@ -591,11 +586,6 @@ async function _editPost({
   try {
     await sessionActionQueue.add(async () => {
       const finalized = await buildFinalizedPostData();
-
-      // DEBUG: Log the Story content being saved for edit
-      console.log('=== EDIT POST STORY CONTENT (before API send) ===');
-      console.log(JSON.stringify(finalized.content, null, 2));
-      console.log('=== END STORY CONTENT ===');
 
       await db.updatePost({
         id: finalized.editTargetPostId,
