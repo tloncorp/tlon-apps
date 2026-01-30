@@ -222,7 +222,7 @@ function listItemsToListings(
       listings.push(list);
     } else {
       // Simple list item - extract inline content from all paragraphs
-      let inlines: Inline[] = [];
+      const inlines: Inline[] = [];
 
       for (const child of item.children) {
         if (child.type === 'paragraph') {
