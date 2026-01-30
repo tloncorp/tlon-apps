@@ -5,7 +5,7 @@ import BTree from 'sorted-btree';
 
 import { parseIdNumber } from '../api/apiUtils';
 import { Stringified } from '../utils';
-import { Block, Image, Inline, isBlock, isImage } from './content';
+import { Block, Image, Inline, isBlock, isBlockquote, isImage, isBreak } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
 
@@ -571,6 +571,12 @@ export const emptyReply: Reply = {
 export function constructStory(data: (Inline | Block)[]): Story {
   const postContent: Story = [];
   let index = 0;
+
+  // Helper to check if an item should be treated as a block-level element
+  // Blockquotes are semantically block-level even though they're typed as Inline
+  const isBlockLevel = (d: Inline | Block): boolean =>
+    isBlock(d) || isBlockquote(d);
+
   data.forEach((c, i) => {
     if (i < index) {
       return;
@@ -579,13 +585,45 @@ export function constructStory(data: (Inline | Block)[]): Story {
     if (isBlock(c)) {
       postContent.push({ block: c as Block });
       index += 1;
+    } else if (isBlockquote(c)) {
+      // Blockquotes should be their own verse
+      postContent.push({ inline: [c] });
+      index += 1;
     } else {
-      const inline = _.takeWhile(
+      // Collect consecutive non-block, non-blockquote inlines
+      const inlines = _.takeWhile(
         _.drop(data, index),
-        (d) => !isBlock(d)
+        (d) => !isBlockLevel(d)
       ) as Inline[];
-      postContent.push({ inline });
-      index += inline.length;
+
+      // Split on break elements to create separate paragraphs
+      // Breaks represent paragraph boundaries, not hard line breaks within a paragraph
+      const paragraphs: Inline[][] = [];
+      let currentParagraph: Inline[] = [];
+
+      for (const inline of inlines) {
+        if (isBreak(inline)) {
+          // Only create a new paragraph if the current one has content
+          if (currentParagraph.length > 0) {
+            paragraphs.push(currentParagraph);
+            currentParagraph = [];
+          }
+        } else {
+          currentParagraph.push(inline);
+        }
+      }
+
+      // Add the last paragraph if it has content
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph);
+      }
+
+      // Create a verse for each paragraph
+      for (const paragraph of paragraphs) {
+        postContent.push({ inline: paragraph });
+      }
+
+      index += inlines.length;
     }
   });
 

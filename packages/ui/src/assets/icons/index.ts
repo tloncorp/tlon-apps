@@ -54,6 +54,7 @@ export { default as LeftSidebar } from './LeftSidebar.svg';
 export { default as Link } from './Link.svg';
 export { default as LogOut } from './LogOut.svg';
 export { default as Mail } from './Mail.svg';
+export { default as Markdown } from './Markdown.svg';
 export { default as Messages } from './Messages.svg';
 export { default as MessagesFilled } from './MessagesFilled.svg';
 export { default as Muted } from './Muted.svg';

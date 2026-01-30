@@ -21,7 +21,11 @@ import { EditorView } from '@tiptap/pm/view';
 import { EditorContent } from '@tiptap/react';
 import { useCallback } from 'react';
 
-import { CodeBlockBridge, MentionsBridge } from './bridges';
+import {
+  CodeBlockBridge,
+  HorizontalRuleBridge,
+  MentionsBridge,
+} from './bridges';
 
 export const MessageInputEditor = () => {
   const handlePaste = useCallback(
@@ -55,6 +59,7 @@ export const MessageInputEditor = () => {
       CodeBlockBridge,
       PlaceholderBridge,
       MentionsBridge,
+      HorizontalRuleBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({
