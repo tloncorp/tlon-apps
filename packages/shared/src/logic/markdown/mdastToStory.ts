@@ -221,12 +221,18 @@ function listItemsToListings(
       };
       listings.push(list);
     } else {
-      // Simple list item - extract inline content
+      // Simple list item - extract inline content from all paragraphs
       let inlines: Inline[] = [];
 
       for (const child of item.children) {
         if (child.type === 'paragraph') {
-          inlines = phrasingToInlines((child as Paragraph).children);
+          const paragraphInlines = phrasingToInlines((child as Paragraph).children);
+          // Add the paragraph's content
+          if (inlines.length > 0) {
+            // Add a break between paragraphs to preserve paragraph separation
+            inlines.push({ break: null });
+          }
+          inlines.push(...paragraphInlines);
         }
       }
 

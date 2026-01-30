@@ -333,7 +333,6 @@ function listingsToListItems(
   for (const listing of listings) {
     if (isListItem(listing)) {
       const listItem = listing as ListItem;
-      const children = inlinesToPhrasing(listItem.item);
 
       // Check if this is a task list item
       if (
@@ -350,9 +349,34 @@ function listingsToListItems(
         };
         items.push(mdastItem);
       } else {
+        // Split on breaks to create multiple paragraphs
+        const paragraphs: Inline[][] = [];
+        let currentParagraph: Inline[] = [];
+
+        for (const inline of listItem.item) {
+          if (isBreak(inline)) {
+            if (currentParagraph.length > 0) {
+              paragraphs.push(currentParagraph);
+              currentParagraph = [];
+            }
+          } else {
+            currentParagraph.push(inline);
+          }
+        }
+
+        if (currentParagraph.length > 0) {
+          paragraphs.push(currentParagraph);
+        }
+
+        // Convert each paragraph to mdast
+        const mdastParagraphs = paragraphs
+          .map((para) => inlinesToPhrasing(para))
+          .filter((children) => children.length > 0)
+          .map((children) => ({ type: 'paragraph' as const, children }));
+
         const mdastItem: MdastListItem = {
           type: 'listItem',
-          children: [{ type: 'paragraph', children }],
+          children: mdastParagraphs,
         };
         items.push(mdastItem);
       }
