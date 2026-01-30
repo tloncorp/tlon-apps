@@ -180,11 +180,17 @@ export function JSONToListing(
     }
     case 'listItem': {
       const list = json.content?.find(isList);
-      const para = json.content?.find((c) => !isList(c));
-      const contents = para
-        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
-          (JSONToInlines(para, limitNewlines) as Inline[])
-        : [];
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
 
       if (list) {
         return {
@@ -204,11 +210,17 @@ export function JSONToListing(
     }
     case 'taskItem': {
       const list = json.content?.find(isList);
-      const para = json.content?.find((c) => !isList(c));
-      const contents = para
-        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
-          (JSONToInlines(para, limitNewlines) as Inline[])
-        : [];
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
 
       if (list) {
         return {
