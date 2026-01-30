@@ -688,6 +688,13 @@ export const inlineToContent = (
         }
         return [result];
       });
+
+      // If there's only a single text node, return it directly without wrapping
+      // in a paragraph. This prevents inline styles from creating block-level breaks.
+      if (contentItems.length === 1 && contentItems[0].type === 'text') {
+        return contentItems[0];
+      }
+
       return makeParagraph(contentItems);
     }
 
