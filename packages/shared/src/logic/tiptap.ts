@@ -113,7 +113,7 @@ export function tipTapToString(json: JSONContent): string {
     return tipTapToString(jsonWithoutMarks);
   }
 
-  return json.text || '';
+  return decodeHtmlEntities(json.text || '');
 }
 
 // Limits the amount of consecutive breaks to 2 or less
@@ -367,15 +367,16 @@ export function JSONToInlines(
       if (!json.content || json.content.length === 0) {
         return [];
       }
+      const codeText = decodeHtmlEntities(json.content[0].text ?? '');
       return [
         codeWithLang
           ? {
               code: {
-                code: json.content[0].text ?? '',
+                code: codeText,
                 lang: json.attrs?.language ?? 'plaintext',
               },
             }
-          : { code: json.content[0].text ?? '' },
+          : { code: codeText },
       ];
     }
     case 'orderedList': {
