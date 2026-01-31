@@ -188,8 +188,7 @@ function ChatDetailsScreenContent({
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
   const canInviteToGroup =
-    ((group && currentUserIsAdmin) || group?.privacy === 'public') &&
-    actionsEnabled;
+    (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
   const groupTitle = useGroupTitle(group) ?? 'group';
   const members = chatType === 'group' ? group?.members : channel?.members;
   const memberCount = members?.length ?? 0;
