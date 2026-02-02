@@ -14,7 +14,8 @@ export function HighlightedCode({
   lang?: string;
 }) {
   return useMemo(() => {
-    const tree = refractor.highlight(code, lang ?? 'plaintext') as TreeNode;
+    const trustedLang = lang && refractor.registered(lang) ? lang : 'plaintext';
+    const tree = refractor.highlight(code, trustedLang) as TreeNode;
     return hastToReactNative(tree);
   }, [code, lang]);
 }
