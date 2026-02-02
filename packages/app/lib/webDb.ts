@@ -1,12 +1,18 @@
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
+import { sqliteContent } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
+import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import { debounce } from 'lodash';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
 
 import { BaseDb, logger, useMigrations as useMigrationsBase } from './baseDb';
 import { TRIGGER_SETUP } from './triggers';
 import migrate from './webMigrator';
+
+const ENABLE_DB_FILE_LOAD = true;
+const ENABLE_DB_FILE_SAVE = true;
 
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
@@ -18,9 +24,27 @@ export class WebDb extends BaseDb {
     }
     try {
       this.sqlocal = new SQLocalDrizzle({
-        databasePath: 'tlon.sqlite',
+        databasePath: ':memory:',
         verbose: false,
       });
+
+      // Immediately try to load DB from persisted file.
+      // If successful, this will `overwriteDatabaseFile` which will reset the
+      // connection to the DB - so make sure we don't do anything until this
+      // promise resolves.
+      if (ENABLE_DB_FILE_LOAD) {
+        try {
+          await this.loadDbFromFile();
+          // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
+          await this.sqlocal.sql`select null`;
+        } catch (e) {
+          console.warn(
+            'Failed to load DB from file, continuing with empty DB',
+            e
+          );
+          await this.sqlocal.deleteDatabaseFile();
+        }
+      }
 
       logger.log('sqlocal instance created', { sqlocal: this.sqlocal });
       // Experimental SQLite settings. May cause crashes. More here:
@@ -43,6 +67,47 @@ export class WebDb extends BaseDb {
       logger.log('SQLite database opened:', dbInfo);
     } catch (e) {
       logger.error('Failed to setup SQLite db', e);
+    }
+  }
+
+  /** If no DB exists in storage, does nothing (i.e. should not error). */
+  private async loadDbFromFile() {
+    if (this.sqlocal == null) {
+      return;
+    }
+
+    const loaded = await sqliteContent.getValue();
+    if (loaded != null) {
+      await this.sqlocal.overwriteDatabaseFile(loaded);
+    }
+  }
+
+  private saveToFile = debounce(
+    async () => {
+      if (this.sqlocal == null) {
+        return;
+      }
+      const { getDatabaseFile } = this.sqlocal;
+
+      const dbFile = await getDatabaseFile();
+      if (dbFile != null) {
+        try {
+          const encoded = await readArrayBufferFromBlob(dbFile);
+          await sqliteContent.setValue(encoded);
+        } catch (e) {
+          console.error('Failed to save to file', e);
+        }
+      }
+    },
+    1000,
+    { trailing: true }
+  );
+
+  override async processChanges() {
+    await super.processChanges();
+
+    if (ENABLE_DB_FILE_SAVE) {
+      this.saveToFile();
     }
   }
 
