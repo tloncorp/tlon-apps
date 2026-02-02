@@ -445,7 +445,7 @@ function GroupSettings({
   }, [currentUserIsAdmin, actionsEnabled]);
 
   return (
-    <View paddingHorizontal={'$l'}>
+    <View paddingHorizontal={'$l'} gap={'$xl'}>
       <ActionSheet.ActionGroup
         padding={0}
         contentProps={{
@@ -455,6 +455,15 @@ function GroupSettings({
         }}
       >
         <ConnectionStatus contactId={group.hostUserId} type="list-item" />
+      </ActionSheet.ActionGroup>
+      <ActionSheet.ActionGroup
+        padding={0}
+        contentProps={{
+          backgroundColor: '$background',
+          borderRadius: '$2xl',
+          borderWidth: 0,
+        }}
+      >
         {actions.map((action, index) => (
           <GroupSettingsAction
             key={index}
