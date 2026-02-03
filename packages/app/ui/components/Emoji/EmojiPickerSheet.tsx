@@ -123,7 +123,6 @@ export function EmojiPickerSheet(
               keyExtractor={keyExtractor}
               numColumns={6}
               renderItem={renderItem}
-              estimatedItemSize={EMOJI_ROW_HEIGHT}
             />
           </View>
         </ActionSheet.Content>
@@ -147,7 +146,6 @@ export function EmojiPickerSheet(
               numColumns={6}
               renderItem={renderItem}
               extraData={listData}
-              estimatedItemSize={EMOJI_ROW_HEIGHT}
               estimatedListSize={estimatedListSize}
             />
           </View>
