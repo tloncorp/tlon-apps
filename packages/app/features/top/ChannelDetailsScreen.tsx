@@ -124,8 +124,7 @@ export function ChannelDetailsScreenView({
   const actionsEnabled =
     currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
   const canInvite =
-    ((group && currentUserIsAdmin) || group?.privacy === 'public') &&
-    actionsEnabled;
+    (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
   const groupTitle = useGroupTitle(group) ?? 'group';
   const title = useChatTitle(channel, group);
