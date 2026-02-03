@@ -1,4 +1,4 @@
-import * as LibPhone from 'libphonenumber-js';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 export function parseForTwitterPostId(text: string): string | null {
   // If input is already just a numeric ID
@@ -40,7 +40,7 @@ export function displayablePhoneNumber(phoneNumber: string): string {
     console.error('Cannot make displayable phone number, none passed in');
   }
 
-  const parsed = LibPhone.parsePhoneNumberFromString(phoneNumber, 'US');
+  const parsed = parsePhoneNumberFromString(phoneNumber, 'US');
   if (!parsed) {
     return phoneNumber;
   }
