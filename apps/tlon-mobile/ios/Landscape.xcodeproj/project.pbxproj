@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
-		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
+		0C9C9CAB2F2BD797004BFACB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */; };
+		0C9C9CAC2F2BD797004BFACB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */; };
 		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		4ACCD7281520ED84DDC2759A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */; };
@@ -162,8 +162,6 @@
 		70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
 		70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
 		70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
-		70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
-		70DBBFFD2B7C60B50021EA96 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
 		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
@@ -286,12 +284,10 @@
 
 /* Begin PBXFileReference section */
 		008F07F21AC5B25A0029DE68 /* main.jsbundle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
+		0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Landscape/AppDelegate.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Landscape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Landscape.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = Landscape/AppDelegate.h; sourceTree = "<group>"; };
-		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = Landscape/AppDelegate.mm; sourceTree = "<group>"; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Landscape/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
-		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
 		5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
@@ -425,19 +421,17 @@
 		13B07FAE1A68108700A75B9A /* Landscape */ = {
 			isa = PBXGroup;
 			children = (
+				0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */,
 				5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */,
 				5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */,
 				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
-				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
-				13B07FB01A68108700A75B9A /* AppDelegate.mm */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				704095A92BBBBC5600BC61A8 /* Info-preview.plist */,
-				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
 				630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */,
@@ -1042,11 +1036,16 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/Landscape/Landscape-preview.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape-preview/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape-preview/ExpoModulesProvider.swift",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1097,6 +1096,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
@@ -1132,6 +1132,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
@@ -1231,6 +1232,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
@@ -1266,6 +1268,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
@@ -1349,11 +1352,16 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/Landscape/Landscape.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape/ExpoModulesProvider.swift",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1409,6 +1417,7 @@
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				5A277C542E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
+				0C9C9CAB2F2BD797004BFACB /* AppDelegate.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				D35BB44A2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
@@ -1418,8 +1427,6 @@
 				7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */,
 				70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */,
 				7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */,
-				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
-				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				638753082CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */,
@@ -1546,6 +1553,7 @@
 				63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
 				5A277C552E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
+				0C9C9CAC2F2BD797004BFACB /* AppDelegate.swift in Sources */,
 				5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				D35BB44E2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
@@ -1556,8 +1564,6 @@
 				70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */,
 				70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */,
 				70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */,
-				70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */,
-				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */,
@@ -2148,6 +2154,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD = "";
@@ -2247,6 +2255,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD = "";
