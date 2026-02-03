@@ -1,4 +1,4 @@
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { ChannelAction } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
@@ -239,10 +239,10 @@ export async function handleAction({
       onEdit?.();
       break;
     case 'copyRef':
-      Clipboard.setString(logic.getPostReferencePath(post));
+      await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
     case 'copyText':
-      Clipboard.setString(post.textContent ?? '');
+      await Clipboard.setStringAsync(post.textContent ?? '');
       break;
     case 'delete':
       store.deletePost({ post });
