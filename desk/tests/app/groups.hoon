@@ -134,7 +134,7 @@
   (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v10:gv)]
+  |=  [caz=(list card) rs-groups=(list r-groups:v11:gv)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
@@ -143,15 +143,15 @@
   =/  actions-2=(list action:v2:gv)
     %-  zing
     %+  turn  rs-groups
-    |=  =r-groups:v10:gv
+    |=  =r-groups:v11:gv
     %+  turn
-      (diff:v2:r-group:v10:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v11:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
   %+  welp
     %+  turn  rs-groups
-    |=  =r-groups:v10:gv
+    |=  =r-groups:v11:gv
     %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
     group-response-1+!>(r-groups)
   %+  turn  actions-2
@@ -160,7 +160,7 @@
 ::
 ++  ex-cards-r-groups
   |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v9:gv))
+          exes=(list (each $-(card tang) r-groups:v11:gv))
       ==
   =/  m  (mare ,~)
   ^-  form:m
@@ -174,7 +174,7 @@
   %+  ex-cards  caz
   %-  flop
   %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v9:gv) out=(list $-(card tang))]
+  |=  [exe=(each $-(card tang) r-groups:v11:gv) out=(list $-(card tang))]
   ?:  ?=(%& -.exe)
     ::  expected card
     ::
@@ -184,7 +184,7 @@
   =*  r-groups  p.exe
   =/  actions-2=(list action:v2:gv)
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v11:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  welp
