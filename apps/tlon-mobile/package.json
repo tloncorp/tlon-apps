@@ -47,7 +47,7 @@
     "@dev-plugins/async-storage": "^0.2.0",
     "@dev-plugins/react-navigation": "^0.4.0",
     "@dev-plugins/react-query": "^0.2.0",
-    "@google-cloud/recaptcha-enterprise-react-native": "^18.3.0",
+    "@google-cloud/recaptcha-enterprise-react-native": "~18.3.0",
     "@gorhom/bottom-sheet": "^5.2.6",
     "@op-engineering/op-sqlite": "15.2.5",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -131,6 +131,7 @@
     "react-native-worklets": "^0.7.2",
     "seedrandom": "^3.0.5",
     "tailwind-rn": "^4.2.0",
+    "web-streams-polyfill": "^3.3.3",
     "zustand": "^3.7.2"
   },
   "devDependencies": {
