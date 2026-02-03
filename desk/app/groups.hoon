@@ -180,7 +180,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %10
+    $:  %11
         groups=net-groups:v10:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
@@ -769,7 +769,7 @@
   cor
   ::
   +$  any-state
-    $%  state-10
+    $%  state-11
         state-9
         state-8
         state-7
@@ -1019,17 +1019,17 @@
       groups  (~(run by groups.state-8) v9:net-group:v7:gc)
     ==
   ::
-  ++  state-9-to-10
-    |=  =state-9
-    ^-  state-10
-    %=  state-9  -  %10
+  ++  state-10-to-11
+    |=  =state-10
+    ^-  state-11
+    %=  state-10  -  %10
         groups
-      %-  ~(run by groups.state-9)
-      |=  [=net:v9:gv =group:v9:gv]
+      %-  ~(run by groups.state-10)
+      |=  [=net:v10:gv =group:v10:gv]
       ?:  ?=(%pub -.net)
         [net group]
       :_  group
-      ^-  net:v10:gv
+      ^-  net:v11:gv
       [%sub time init &+%done]:net
     ==
   --
