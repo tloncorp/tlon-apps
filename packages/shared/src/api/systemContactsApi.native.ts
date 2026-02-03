@@ -1,6 +1,6 @@
 import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
-import * as LibPhone from 'libphonenumber-js';
+import { parsePhoneNumberFromString, CountryCode } from 'libphonenumber-js';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -104,9 +104,9 @@ export function parseNativeContacts(
               );
             } else {
               try {
-                const phoneDetails = LibPhone.parsePhoneNumberFromString(
+                const phoneDetails = parsePhoneNumberFromString(
                   phoneRecord.digits,
-                  recordCountryCode as LibPhone.CountryCode
+                  recordCountryCode as CountryCode
                 );
                 if (!phoneDetails) {
                   logger.log(
@@ -136,9 +136,9 @@ export function parseNativeContacts(
             // If that fails, try normalizing the display number
             if (!formattedNumber && phoneRecord.number) {
               try {
-                const phoneDetails = LibPhone.parsePhoneNumberFromString(
+                const phoneDetails = parsePhoneNumberFromString(
                   phoneRecord.number,
-                  recordCountryCode as LibPhone.CountryCode
+                  recordCountryCode as CountryCode
                 );
 
                 if (!phoneDetails) {
