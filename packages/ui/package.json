@@ -32,7 +32,7 @@
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
     "@likashefqet/react-native-image-zoom": "^4.2.0",
-    "@react-native-clipboard/clipboard": "^1.16.3",
+    "@react-native-clipboard/clipboard": "^1.14.0",
     "@tamagui/animations-moti": "~1.126.12",
     "@tamagui/get-token": "~1.126.12",
     "@tamagui/image": "~1.126.12",
