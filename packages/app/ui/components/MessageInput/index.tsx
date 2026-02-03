@@ -18,6 +18,7 @@ import {
 } from '@tloncorp/editor/src/bridges';
 import {
   Attachment,
+  PostDataDraft,
   REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
@@ -28,6 +29,7 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import {
@@ -115,14 +117,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     {
       shouldBlur,
       setShouldBlur,
-      sendPost,
+      sendPostFromDraft,
       channelId,
       storeDraft,
       clearDraft,
       getDraft,
       editingPost,
       setEditingPost,
-      editPost,
       setShowBigInput,
       showInlineAttachments = true,
       showAttachmentButton = true,
@@ -177,13 +178,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
 
-    const {
-      attachments,
-      addAttachment,
-      clearAttachments,
-      resetAttachments,
-      waitForAttachmentUploads,
-    } = useAttachmentContext();
+    const { attachments, addAttachment, clearAttachments, resetAttachments } =
+      useAttachmentContext();
 
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
@@ -521,33 +517,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       async (isEdit?: boolean) => {
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
-        const finalAttachments = await waitForAttachmentUploads();
-        const { story, metadata } = logic.toPostData({
+
+        const draft: domain.PostDataDraft = {
+          channelId,
           content: inlines,
-          attachments: finalAttachments,
-          channelType: channelType,
+          attachments,
+          channelType,
           title,
           image: image?.uri,
-          isEdit,
-        });
+          replyToPostId: null,
+          ...(isEdit && editingPost != null
+            ? { isEdit: true, editTargetPostId: editingPost.id }
+            : { isEdit: false }),
+        };
 
-        if (isEdit && editingPost) {
-          if (editingPost.parentId) {
-            await editPost?.(
-              editingPost,
-              story,
-              editingPost.parentId,
-              metadata
-            );
-          }
-          await editPost?.(editingPost, story, undefined, metadata);
-          setEditingPost?.(undefined);
-        } else {
-          // not awaiting since we don't want to wait for the send to complete
-          // before clearing the draft and the editor content
-          sendPost(story, channelId, metadata);
-        }
+        await sendPostFromDraft(draft);
 
+        setEditingPost?.(undefined);
         onSend?.();
         editor.setContent('');
         clearAttachments();
@@ -555,19 +541,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setShowBigInput?.(false);
       },
       [
+        sendPostFromDraft,
+        attachments,
         onSend,
         editor,
-        waitForAttachmentUploads,
         editingPost,
         clearAttachments,
         clearDraft,
         setShowBigInput,
-        editPost,
         setEditingPost,
         title,
         image,
         channelType,
-        sendPost,
         channelId,
         draftType,
       ]

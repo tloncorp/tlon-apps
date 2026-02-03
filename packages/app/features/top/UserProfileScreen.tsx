@@ -111,6 +111,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
             <ScreenHeader
               title="Profile"
+              backgroundColor={theme.secondaryBackground.val}
+              useHorizontalTitleLayout={!isWindowNarrow && shouldShowBackButton}
               leftControls={
                 shouldShowBackButton ? (
                   <ScreenHeader.BackButton
@@ -120,9 +122,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
               }
               rightControls={
                 canEdit ? (
-                  <ScreenHeader.TextButton onPress={handlePressEdit}>
-                    Edit
-                  </ScreenHeader.TextButton>
+                  <ScreenHeader.IconButton
+                    onPress={handlePressEdit}
+                    testID="ContactEditButton"
+                    type="Draw"
+                  />
                 ) : null
               }
             />

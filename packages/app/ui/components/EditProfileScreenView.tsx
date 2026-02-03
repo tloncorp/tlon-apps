@@ -7,10 +7,11 @@ import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
+  useIsWindowNarrow,
 } from '@tloncorp/ui';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
@@ -20,6 +21,7 @@ import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {
+  ControlledColorField,
   ControlledImageField,
   ControlledTextField,
   ControlledTextareaField,
@@ -40,6 +42,7 @@ export function EditProfileScreenView(props: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   const {
     scrollViewRef,
@@ -92,6 +95,7 @@ export function EditProfileScreenView(props: Props) {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
@@ -100,8 +104,11 @@ export function EditProfileScreenView(props: Props) {
       status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
       avatarImage: currentAvatarImage ?? '',
+      sigilColor: userContact?.color ?? '',
     },
   });
+
+  const currentSigilColor = watch('sigilColor');
 
   useEffect(() => {
     reset({
@@ -109,12 +116,14 @@ export function EditProfileScreenView(props: Props) {
       status: userContact?.status ?? '',
       bio: userContact?.bio ?? '',
       avatarImage: currentAvatarImage ?? '',
+      sigilColor: userContact?.color ?? '',
     });
   }, [
     props.userId,
     currentNickname,
     userContact?.status,
     userContact?.bio,
+    userContact?.color,
     currentAvatarImage,
     reset,
   ]);
@@ -128,6 +137,7 @@ export function EditProfileScreenView(props: Props) {
         const avatarStartVal = isCurrUser
           ? userContact?.avatarImage
           : userContact?.customAvatarImage;
+        const colorStartVal = userContact?.color ?? '';
 
         const update = {
           status: formData.status,
@@ -146,6 +156,10 @@ export function EditProfileScreenView(props: Props) {
 
         if (isCurrUser) {
           store.updateCurrentUserProfile(update);
+          const colorChanged = formData.sigilColor !== colorStartVal;
+          if (colorChanged) {
+            store.updateSigilColor(formData.sigilColor || null);
+          }
         } else {
           store.updateContactMetadata(props.userId, {
             nickname: update.nickname,
@@ -162,6 +176,7 @@ export function EditProfileScreenView(props: Props) {
     props,
     store,
     userContact?.avatarImage,
+    userContact?.color,
     userContact?.customAvatarImage,
     userContact?.customNickname,
     userContact?.nickname,
@@ -169,45 +184,42 @@ export function EditProfileScreenView(props: Props) {
 
   const handlePressCancel = () => {
     if (isDirty) {
-      Alert.alert('Discard changes?', 'Your changes will not be saved.', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            props.onGoBack();
-          },
-        },
-      ]);
+      setDiscardDialogOpen(true);
     } else {
       props.onGoBack();
     }
   };
 
-  const handleUpdatePinnedGroups = useCallback((groups: db.Group[]) => {
-    setPinnedGroups(groups);
-    store.updateProfilePinnedGroups(groups);
-  }, []);
+  const handleDiscardConfirm = () => {
+    setDiscardDialogOpen(false);
+    reset();
+    props.onGoBack();
+  };
+
+  const handleUpdatePinnedGroups = useCallback(
+    (groups: db.Group[]) => {
+      setPinnedGroups(groups);
+      store.updateProfilePinnedGroups(groups);
+    },
+    [store]
+  );
+
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <View flex={1} backgroundColor={theme.background.val}>
       <ScreenHeader
         title="Edit Profile"
-        leftControls={
-          <ScreenHeader.TextButton onPress={handlePressCancel}>
-            Cancel
-          </ScreenHeader.TextButton>
-        }
+        backAction={handlePressCancel}
+        borderBottom
+        useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
           <ScreenHeader.TextButton
             onPress={handlePressDone}
             color="$positiveActionText"
             disabled={!isValid}
           >
-            Done
+            Save
           </ScreenHeader.TextButton>
         }
       />
@@ -242,6 +254,11 @@ export function EditProfileScreenView(props: Props) {
                               <View flex={1}>{children}</View>
                               <SigilAvatar
                                 contactId={currentUserId}
+                                contactOverride={{
+                                  ...userContact,
+                                  id: currentUserId,
+                                  color: currentSigilColor || null,
+                                }}
                                 width={56}
                                 height={56}
                                 borderRadius="$l"
@@ -292,6 +309,14 @@ export function EditProfileScreenView(props: Props) {
                 },
               }}
             />
+
+            {isCurrUser ? (
+              <ControlledColorField
+                name="sigilColor"
+                label="Default avatar color"
+                control={control}
+              />
+            ) : null}
 
             {isCurrUser ? (
               <>
@@ -369,6 +394,15 @@ export function EditProfileScreenView(props: Props) {
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
+      <ConfirmDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+        title="Discard changes?"
+        description="You have unsaved changes. Are you sure you want to discard them?"
+        confirmText="Discard"
+        destructive
+        onConfirm={handleDiscardConfirm}
+      />
     </View>
   );
 }

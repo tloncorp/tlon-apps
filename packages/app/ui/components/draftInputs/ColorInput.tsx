@@ -1,4 +1,4 @@
-import { Story } from '@tloncorp/shared/urbit';
+import * as domain from '@tloncorp/shared/domain';
 import { Icon } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
@@ -18,10 +18,15 @@ export function ColorInput({
 
   const send = useCallback(async () => {
     try {
-      await draftInputContext.sendPost(
-        colorPost(workingColor),
-        draftInputContext.channel.id
-      );
+      const draft: domain.PostDataDraft = {
+        channelId: draftInputContext.channel.id,
+        content: [workingColor],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      };
+      await draftInputContext.sendPostFromDraft(draft);
     } catch (err) {
       console.error('failed upload', err);
     }
@@ -73,12 +78,4 @@ export function ColorInput({
       </XStack>
     </SafeAreaView>
   );
-}
-
-function colorPost(color: string): Story {
-  return [
-    {
-      inline: [color],
-    },
-  ];
 }

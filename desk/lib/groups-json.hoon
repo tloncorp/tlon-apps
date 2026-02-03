@@ -60,17 +60,17 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
-  ++  v10
-    =,  v9
+  ++  v11
+    =,  v10
     |%
     ++  groups-ui
-      |=  gs=groups-ui:v10:gv
+      |=  gs=groups-ui:v11:gv
       %-  pairs
       %+  turn  ~(tap by gs)
-      |=  [f=flag:gv gr=group-ui:v10:gv]
+      |=  [f=flag:gv gr=group-ui:v11:gv]
       [(print-flag f) (group-ui gr)]
     ++  group-ui
-      |=  =group-ui:v10:gv
+      |=  =group-ui:v11:gv
       =,  group.group-ui
       %-  pairs
       ^-  (list [@t json])
@@ -95,19 +95,19 @@
           conn+(conn conn.group-ui)
       ==
     ++  conn
-      |=  =conn:v10:gv
+      |=  =conn:v11:gv
       ?:  ?=(%& -.conn)
         (frond ok+s+p.conn)
       (frond error+s+p.conn)
     ++  r-groups
-      |=  =r-groups:v10:gv
+      |=  =r-groups:v11:gv
       ^-  json
       %-  pairs
       :~  'flag'^(flag flag.r-groups)
           'r-group'^(r-group r-group.r-groups)
       ==
     ++  r-group
-      |=  =r-group:v10:gv
+      |=  =r-group:v11:gv
       ^-  json
       %+  frond  -.r-group
       ?-    -.r-group
@@ -147,6 +147,34 @@
         %connection  (frond 'connection' (conn conn.r-group))
       ==
     --
+  ::
+  ++  v10
+    =,  v9
+    |%
+    ::
+    ++  foreigns
+      |=  =foreigns:v10:gv
+      ^-  json
+      %-  pairs
+      %+  turn  ~(tap by foreigns)
+      |=  [=flag:gv =foreign:v10:gv]
+      [(print-flag flag) (^foreign foreign)]
+    ::
+    ++  foreign
+      |=  foreign:v10:gv
+      ^-  json
+      %-  pairs
+      :~  :-  %invites
+          ?~  invites  ~
+          a+(turn invites invite)
+        ::
+          lookup+?~(lookup ~ s+u.lookup)
+          preview+?~(preview ~ (^preview u.preview))
+          progress+?~(progress ~ s+u.progress)
+          token+?~(token ~ (^token u.token))
+      ==
+    --
+  ::
   ++  v9
     =,  v8
     |%

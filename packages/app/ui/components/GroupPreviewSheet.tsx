@@ -26,6 +26,7 @@ interface JoinStatus {
   isMember: boolean;
   isJoining: boolean;
   isErrored: boolean;
+  isSecret: boolean;
   needsInvite: boolean;
   hasInvite: boolean;
   requestedInvite: boolean;
@@ -102,6 +103,7 @@ export function GroupPreviewPane({
       isMember: group?.currentUserIsMember ?? false,
       isJoining: group?.joinStatus === 'joining' || isJoining,
       isErrored: group?.joinStatus === 'errored',
+      isSecret: group?.privacy === 'secret',
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
@@ -286,22 +288,36 @@ export function GroupPreviewPane({
 
         <YStack gap="$m">
           {actionButtons.map((action) => {
+            // Map v1 accent to v2 fill/type
+            const buttonProps = (() => {
+              switch (action.accent) {
+                case 'hero':
+                  return { fill: 'solid' as const, type: 'primary' as const };
+                case 'heroPositive':
+                  return { fill: 'solid' as const, type: 'positive' as const };
+                case 'positive':
+                  return { fill: 'outline' as const, type: 'positive' as const };
+                case 'negative':
+                  return { fill: 'outline' as const, type: 'negative' as const };
+                case 'secondary':
+                  return { fill: 'outline' as const, type: 'secondary' as const };
+                case 'minimal':
+                  return { fill: 'text' as const, type: 'primary' as const };
+                default:
+                  return { fill: 'outline' as const, type: 'primary' as const };
+              }
+            })();
             return (
               <YStack key={`${action.accent}-${action.title}`} gap="$xs">
                 <Button
-                  hero={action.accent === 'hero'}
-                  heroPositive={action.accent === 'heroPositive'}
-                  positive={action.accent === 'positive'}
-                  negative={action.accent === 'negative'}
-                  secondary={action.accent === 'secondary'}
-                  minimal={action.accent === 'minimal'}
+                  {...buttonProps}
                   disabled={action.disabled}
                   onPress={action.onPress}
                   testID={action.testID ?? `ActionButton-${action.title}`}
                   alignSelf="stretch"
-                >
-                  <Button.Text>{action.title}</Button.Text>
-                </Button>
+                  label={action.title}
+                  centered
+                />
                 {action.description ? (
                   <Text
                     size="$label/m"
@@ -376,6 +392,16 @@ export function getActionGroups(
         title: 'Reject invite',
         accent: 'secondary',
         onPress: () => actions.respondToInvite(false),
+      },
+    ];
+  }
+  if (status.isSecret && !status.hasInvite) {
+    return [
+      {
+        title: 'This group is secret',
+        accent: 'secondary',
+        disabled: true,
+        description: 'You need an invite to join this group',
       },
     ];
   }

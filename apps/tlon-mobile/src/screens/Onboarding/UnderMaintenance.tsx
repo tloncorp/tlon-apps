@@ -2,9 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
-  Button,
   OnboardingTextBlock,
-  PrimaryButton,
   ScreenHeader,
   View,
   useStore,
@@ -14,7 +12,9 @@ import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
+import { openComposer } from 'react-native-email-link';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -55,10 +55,18 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
     navigation.navigate('Welcome');
   }, [handleLogout, navigation]);
 
+  const handleEmailSupport = useCallback(() => {
+    openComposer({
+      to: 'support@tlon.io',
+      subject: 'Help! My node needs repair.',
+    });
+  }, []);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Needs Repair"
+        backgroundColor="$secondaryBackground"
         leftControls={
           <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
             Log out
@@ -76,9 +84,15 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
             Last checked at {logic.makePrettyTime(checkedAt)}
           </TlonText.Text>
         )}
-        <PrimaryButton hero loading={rechecking} onPress={handleRecheckStatus}>
-          <Button.Text>Check Again</Button.Text>
-        </PrimaryButton>
+        <Button
+          loading={rechecking}
+          onPress={handleRecheckStatus}
+          label="Check Again"
+          centered
+        />
+        {checkedAt && (
+          <Button onPress={handleEmailSupport} label="Email Support" centered />
+        )}
       </OnboardingTextBlock>
     </View>
   );

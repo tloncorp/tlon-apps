@@ -155,13 +155,13 @@
         %connection  (connection [wire conn]:r-channel)
       ==
     ++  connection
-      |=  [=wire =conn:v10:gv]
+      |=  [=wire =conn:v10:cv]
       %-  pairs
       :~  'wire'^(path wire)
           'status'^(^conn conn)
       ==
     ++  conn
-      |=  =conn:v10:gv
+      |=  =conn:v10:cv
       ?:  ?=(%& -.conn)
         (frond ok+s+p.conn)
       (frond error+s+p.conn)

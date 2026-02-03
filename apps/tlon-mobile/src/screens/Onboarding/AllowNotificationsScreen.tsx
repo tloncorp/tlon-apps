@@ -11,6 +11,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect } from 'react';
 import { ImageBackground, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,7 +62,12 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
       notificationToken,
     });
 
-    navigation.push('ReserveShip');
+    if (signupContext.isGuidedLogin) {
+      signupContext.handlePostSignup();
+      await db.hostedAccountIsInitialized.setValue(true);
+    } else {
+      navigation.push('ReserveShip');
+    }
   }, [signupContext, navigation]);
 
   useEffect(
@@ -83,7 +89,11 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         style={{ flex: 1 }}
         resizeMode="cover"
       >
-        <ScreenHeader title="Notifications" showSessionStatus={false} />
+        <ScreenHeader
+          backgroundColor="$secondaryBackground"
+          title="Notifications"
+          showSessionStatus={false}
+        />
         <YStack
           flex={1}
           paddingHorizontal="$2xl"
@@ -100,9 +110,7 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
               enable notifications.
             </TlonText.Text>
           </YStack>
-          <Button onPress={handleNext} hero shadow>
-            <Button.Text>Next</Button.Text>
-          </Button>
+          <Button preset="hero" shadow label="Next" onPress={handleNext} />
         </YStack>
       </ImageBackground>
     </View>

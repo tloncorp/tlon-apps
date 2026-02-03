@@ -6,6 +6,7 @@ import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
 } from '../domain';
 import {
@@ -545,7 +546,11 @@ type BuildPostBlobDataEntry<
   version: Config['version'];
 } & Payload;
 
-type PostBlobDataEntry = BuildPostBlobDataEntry<
+/**
+ * An element of the `blob` array on an API resource for a post, used to hold
+ * arbitrary off-schema data.
+ */
+export type PostBlobDataEntry = BuildPostBlobDataEntry<
   'file',
   { version: 1 },
   {
@@ -619,7 +624,6 @@ export function toPostData({
   content,
   image,
   channelType,
-  isEdit,
   title,
 }: {
   content: (Inline | Block)[];
@@ -627,13 +631,19 @@ export function toPostData({
   channelType: ChannelType;
   title?: string;
   image?: string;
-  isEdit?: boolean;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
   let blob: string | undefined = undefined;
 
   attachments
     .filter((attachment) => attachment.type !== 'text')
+    // For notebooks, skip header image - it goes in metadata only, not content
+    .filter((attachment) => {
+      if (channelType === 'notebook' && image && attachment.type === 'image') {
+        return attachment.file.uri !== image;
+      }
+      return true;
+    })
     .forEach((attachment) => {
       switch (attachment.type) {
         case 'reference': {
@@ -645,15 +655,7 @@ export function toPostData({
         }
 
         case 'image': {
-          if (
-            !image ||
-            attachment.file.uri !== image ||
-            (attachment.file.uri === image &&
-              isEdit &&
-              channelType === 'gallery')
-          ) {
-            blocks.push(createImageBlock(attachment));
-          }
+          blocks.push(createImageBlock(attachment));
           break;
         }
 
@@ -669,22 +671,12 @@ export function toPostData({
               ? attachment.localFile.name
               : fileFromPath(attachment.localFile, { decodeURI: true })) ??
             undefined;
-          if (attachment.uploadState.status === 'success') {
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.remoteUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          } else if (attachment.uploadState.status === 'uploading') {
-            // necessary for optimistic preview
-            blob = appendFileUploadToPostBlob(blob, {
-              fileUri: attachment.uploadState.localUri,
-              name,
-              mimeType: attachment.type,
-              size: attachment.size,
-            });
-          }
+          blob = appendFileUploadToPostBlob(blob, {
+            fileUri: UploadedFileAttachment.uri(attachment),
+            name,
+            mimeType: attachment.type,
+            size: attachment.size,
+          });
           break;
         }
       }
@@ -703,17 +695,34 @@ export function toPostData({
   const metadata: PostMetadata = { title };
 
   if (image) {
-    const attachment = attachments.find(
-      (a): a is UploadedImageAttachment =>
-        a.type === 'image' && a.file.uri === image
-    );
-    if (!attachment) {
-      throw new Error('unable to attach image');
+    // HACK: `draft.image` is a URI string, which might be local (e.g. `file://`).
+    // We want to set `metadata.image` to a web-accessible URI, so if it's local,
+    // find the corresponding finalized attachment to get the web-accessible URI.
+    //
+    // (We could do this unconditionally, but we omit *some* images from
+    // `attachments` for historical reasons - in these cases, we won't be able
+    // to find the finalized attachment. If we are omitting an attachment, it's
+    // likely because the image is already uploaded -> `draft.image` is already
+    // a web-accessible URI. If `draft.image` is web-accessible, we can just
+    // use it directly.)
+    const localPrefixes = ['file:', 'blob:', 'data:', 'content:'];
+    const isLocal = localPrefixes.some((prefix) => image.startsWith(prefix));
+
+    if (isLocal) {
+      const attachment = attachments.find(
+        (a): a is UploadedImageAttachment =>
+          a.type === 'image' && a.file.uri === image
+      );
+      if (!attachment) {
+        throw new Error('unable to attach image');
+      }
+      metadata.image =
+        attachment.uploadState.status === 'success'
+          ? attachment.uploadState.remoteUri
+          : attachment.uploadState.localUri;
+    } else {
+      metadata.image = image;
     }
-    metadata.image =
-      attachment.uploadState.status === 'success'
-        ? attachment.uploadState.remoteUri
-        : attachment.uploadState.localUri;
   } else {
     metadata.image = null;
   }

@@ -1,18 +1,34 @@
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import * as api from '../api';
 import { poke, scry } from '../api/urbit';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '../domain/attachment';
+import { PostDataDraft } from '../domain/post';
+import { toPostData } from '../logic';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
-import * as urbit from '../urbit';
-import { finalizeAndSendPost, sendPost } from './postActions';
+import { finalizeAndSendPost } from './postActions';
 import { updateSession } from './session';
 import { setUploadState } from './storage';
 
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
 const REMOTE_URI = 'REMOTE_URI';
+
+function buildTestDraft(
+  overrides: Partial<Omit<PostDataDraft, 'isEdit'>> = {}
+): PostDataDraft {
+  return {
+    channelId: TEST_CHANNEL,
+    content: ['test message'],
+    attachments: [],
+    channelType: 'chat',
+    replyToPostId: null,
+    isEdit: false as const,
+    ...overrides,
+  };
+}
 
 setupDatabaseTestSuite();
 
@@ -37,10 +53,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = sendPost({
-      channelId: TEST_CHANNEL,
-      content: buildPostContent(),
-    });
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft());
     await vi.runOnlyPendingTimersAsync();
     // post starts as enqueued (since we don't have an active session)
     expect(await fetchLatestPostFromDb()).toMatchObject({
@@ -84,10 +97,7 @@ describe('sendPost', () => {
     // explicitly clear session so we'll enqueue the post
     updateSession(null);
 
-    const sendPostPromise = sendPost({
-      channelId: TEST_CHANNEL,
-      content: buildPostContent(),
-    });
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft());
     await vi.runOnlyPendingTimersAsync();
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'enqueued',
@@ -179,6 +189,7 @@ describe('finalizeAndSendPost', () => {
       content: [message],
       attachments: [fakeAsset],
       channelType: 'chat',
+      replyToPostId: null,
     });
     return {
       sendPostPromise,
@@ -189,7 +200,7 @@ describe('finalizeAndSendPost', () => {
   }
 
   test('happy path', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -222,7 +233,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('image upload fails', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -246,7 +257,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('session connection lost during upload', async () => {
-    const { sendPostPromise, message, fakeAsset, uploadKey } =
+    const { sendPostPromise, message, uploadKey } =
       beginSendPostWithAttachments();
     await vi.runOnlyPendingTimersAsync();
 
@@ -270,8 +281,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('send image attachment shortly before session reconnects', async () => {
-    const { sendPostPromise, fakeAsset, uploadKey } =
-      beginSendPostWithAttachments();
+    const { sendPostPromise, uploadKey } = beginSendPostWithAttachments();
 
     // immediately lose session so we enqueue the post
     updateSession({ channelStatus: 'reconnecting' });
@@ -332,6 +342,7 @@ describe('finalizeAndSendPost', () => {
         content: [pd.message],
         attachments: [pd.attachment],
         channelType: 'chat',
+        replyToPostId: null,
       });
 
       // HACK: we want to await _some_ of the async calls in the send post
@@ -443,6 +454,7 @@ describe('finalizeAndSendPost', () => {
         content: [pd.message],
         attachments: pd.attachment ? [pd.attachment] : [],
         channelType: 'chat',
+        replyToPostId: null,
       });
 
       // HACK: we want to await _some_ of the async calls in the send post
@@ -497,6 +509,81 @@ describe('finalizeAndSendPost', () => {
 
     await Promise.all(postData.map((pd) => pd.sendPromise!));
   });
+
+  test('sendReply', async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: 'zod/group/channel', type: 'chat' }),
+    ]);
+    const testChannel = (await db.getChannel({ id: 'zod/group/channel' }))!;
+
+    vi.useFakeTimers();
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+
+    // create parent post
+    const parentAuthorId = '~zod';
+    const channel = await db.getChannel({ id: testChannel.id });
+    const parentPost = db.buildPost({
+      authorId: parentAuthorId,
+      author: null,
+      channel: channel!,
+      sequenceNum: 1,
+      content: [{ inline: ['Parent post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parentPost] });
+
+    expect(poke).not.toHaveBeenCalled();
+
+    // send reply
+    const replyContent = friendlyUniqueString();
+    const draft: PostDataDraft = {
+      replyToPostId: parentPost.id,
+      channelId: channel!.id,
+      content: [replyContent],
+      attachments: [],
+      channelType: 'chat',
+      isEdit: false,
+    };
+    const sendReplyPromise = finalizeAndSendPost(draft);
+
+    await vi.runOnlyPendingTimersAsync();
+    await sendReplyPromise;
+
+    // reply was written to database
+    const latestPost = await fetchLatestPostFromDb();
+    expect(latestPost).toMatchObject({
+      channelId: testChannel.id,
+      parentId: parentPost.id,
+      deliveryStatus: 'pending',
+    });
+
+    // reply action was sent
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        app: 'channels',
+        mark: 'channel-action-1',
+        json: expect.objectContaining({
+          channel: expect.objectContaining({
+            action: {
+              post: {
+                reply: {
+                  id: parentPost.id,
+                  action: {
+                    add: {
+                      content: toPostData({ ...draft, attachments: [] }).story,
+                      author: api.getCurrentUserId(),
+                      sent: expect.any(Number),
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        }),
+      })
+    );
+  });
 });
 
 async function fetchLatestPostsFromDb(limit: number) {
@@ -530,10 +617,6 @@ function buildFakeImageAttachment(uri: string): ImageAttachment {
     type: 'image',
     file: { width: 1, height: 1, uri },
   };
-}
-
-function buildPostContent(): urbit.Story {
-  return [{ inline: [friendlyUniqueString()] }];
 }
 
 function unsafe_extractUploadKey(att: Attachment): Attachment.UploadIntent.Key {

@@ -2,8 +2,7 @@ import * as api from '../api';
 import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
-import { parsePostBlob } from './content-helpers';
-import { isTrustedEmbed } from './embed';
+import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
@@ -94,6 +93,11 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type FileUploadBlockData = {
+  type: 'file';
+  file: PostBlobDataEntry;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -104,12 +108,6 @@ export type LinkBlockData = {
   previewImageUrl?: string;
   previewImageWidth?: string;
   previewImageHeight?: string;
-};
-
-export type EmbedBlockData = {
-  type: 'embed';
-  url: string;
-  content?: string;
 };
 
 export type ReferenceBlockData = ContentReference;
@@ -146,8 +144,8 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | VideoBlockData
+  | FileUploadBlockData
   | LinkBlockData
-  | EmbedBlockData
   | ReferenceBlockData
   | CodeBlockData
   | HeaderBlockData
@@ -163,24 +161,6 @@ export type BlockFromType<T extends BlockType> = Extract<
 >;
 
 export type PostContent = BlockData[];
-
-export function findExistingBlockByUrl(
-  blocks: BlockData[],
-  url: string
-): number {
-  return blocks.findIndex(
-    (b) =>
-      (b.type === 'embed' && b.url === url) ||
-      (b.type === 'link' && b.url === url)
-  );
-}
-
-export function hasExistingBlockByUrl(
-  blocks: BlockData[],
-  url: string
-): boolean {
-  return findExistingBlockByUrl(blocks, url) !== -1;
-}
 
 export interface PlaintextPreviewConfig {
   blockSeparator: string;
@@ -217,8 +197,6 @@ export function plaintextPreviewOf(
           return '(Image)';
         case 'video':
           return '(Video)';
-        case 'embed':
-          return block.content ?? block.url;
         case 'reference':
           return config.includeRefTag ? '(Ref)' : '';
         case 'code':
@@ -335,23 +313,10 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
-          const { fileUri, name } = entry;
-          const isUploading =
-            fileUri.startsWith('file://') || fileUri.startsWith('blob:');
-          if (isUploading) {
-            out.push({
-              type: 'blockquote',
-              content: [{ type: 'text', text: 'Uploading attachment...' }],
-            });
-          } else {
-            out.push({
-              type: 'link',
-              url: fileUri,
-              siteName: name ?? 'Attached file',
-              description: 'Press to download',
-              title: summarizeFilesize(entry.size),
-            });
-          }
+          out.push({
+            type: 'file',
+            file: entry,
+          });
           break;
         }
 
@@ -396,31 +361,9 @@ export function convertContentSafe(
       blocks.push(verse);
     } else if ('block' in verse) {
       const convertedBlock = convertBlock(verse.block);
-
-      if (convertedBlock.type === 'link') {
-        // Check if we already have an embed or link for the same URL
-        const existingIndex = findExistingBlockByUrl(
-          blocks,
-          convertedBlock.url
-        );
-
-        if (existingIndex !== -1) {
-          blocks[existingIndex] = convertedBlock;
-        } else {
-          blocks.push(convertedBlock);
-        }
-      } else if (convertedBlock.type === 'embed') {
-        // Only add embed if we don't already have a link or embed for this URL
-        const hasExisting = hasExistingBlockByUrl(blocks, convertedBlock.url);
-
-        if (!hasExisting) {
-          blocks.push(convertedBlock);
-        }
-      } else {
-        blocks.push(convertedBlock);
-      }
+      blocks.push(convertedBlock);
     } else if ('inline' in verse) {
-      blocks.push(...convertTopLevelInline(verse, blocks));
+      blocks.push(...convertTopLevelInline(verse));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -439,21 +382,25 @@ export function convertContentSafe(
  * etc.)
  */
 
-function convertTopLevelInline(
-  verse: ub.VerseInline,
-  existingBlocks: BlockData[]
-): BlockData[] {
+function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
     if (currentInlines.length) {
-      // Process the inlines to extract trusted embeds and split paragraphs
-      const processedBlocks = processParagraphsAndEmbeds(
-        currentInlines,
-        existingBlocks
+      const isOnlyWhitespace = currentInlines.every(
+        (item) => typeof item === 'string' && (item as string).trim() === ''
       );
-      blocks.push(...processedBlocks);
+
+      if (!isOnlyWhitespace) {
+        const convertedInlines = convertInlineContent(currentInlines);
+        if (convertedInlines.length) {
+          blocks.push({
+            type: 'paragraph',
+            content: convertedInlines,
+          });
+        }
+      }
       currentInlines = [];
     }
   }
@@ -492,73 +439,6 @@ function convertTopLevelInline(
     }
   });
   flushCurrentBlock();
-  return blocks;
-}
-
-// Process inlines to extract embeds as separate blocks
-function processParagraphsAndEmbeds(
-  inlines: ub.Inline[],
-  existingBlocks: BlockData[]
-): BlockData[] {
-  const blocks: BlockData[] = [];
-  let currentSegment: ub.Inline[] = [];
-
-  function flushSegment() {
-    if (currentSegment.length > 0) {
-      // Check if segment only contains whitespace
-      const isOnlyWhitespace = currentSegment.every(
-        (item) => typeof item === 'string' && item.trim() === ''
-      );
-
-      // Only create a paragraph if there's actual content
-      if (!isOnlyWhitespace) {
-        const convertedInlines = convertInlineContent(currentSegment);
-        if (convertedInlines.length) {
-          blocks.push({
-            type: 'paragraph',
-            content: convertedInlines,
-          });
-        }
-      }
-      currentSegment = [];
-    }
-  }
-
-  for (const inline of inlines) {
-    // Check if this is a link that matches any of our trusted providers
-    if (ub.isLink(inline)) {
-      const isEmbed = isTrustedEmbed(inline.link.href);
-      const isNotFormattedText = inline.link.href === inline.link.content;
-
-      // Check if we already have an embed or link for this URL
-      const hasExistingForUrl = hasExistingBlockByUrl(
-        existingBlocks,
-        inline.link.href
-      );
-
-      if (isEmbed && isNotFormattedText && !hasExistingForUrl) {
-        // Flush the current segment before adding the embed
-        flushSegment();
-
-        // Add the link as a dedicated embed block
-        blocks.push({
-          type: 'embed',
-          url: inline.link.href,
-          content: inline.link.content || inline.link.href,
-        });
-      }
-
-      // Always add the link to the current segment regardless of embed creation
-      currentSegment.push(inline);
-    } else {
-      // Not a link, add to normal paragraph
-      currentSegment.push(inline);
-    }
-  }
-
-  // Flush any remaining inlines as a paragraph
-  flushSegment();
-
   return blocks;
 }
 
@@ -778,14 +658,4 @@ export function getTextContent(
   return postContent == null
     ? null
     : plaintextPreviewOf(convertContentSafe(postContent), config);
-}
-
-function summarizeFilesize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  } else if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  } else {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
 }

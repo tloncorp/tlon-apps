@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import { Pressable } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
-import { ColorTokens, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import { Badge } from '../Badge';
@@ -34,8 +34,6 @@ export const SystemContactListItem = ({
   Pick<AvatarProps, 'size'>) => {
   const handlePress = useBoundHandler(systemContact, onPress);
   const handleLongPress = useBoundHandler(systemContact, onLongPress);
-
-  console.log(`rendering sys contact`, systemContact);
 
   const phoneNumberDisplay = useMemo(
     () =>

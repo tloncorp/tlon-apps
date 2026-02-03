@@ -15,7 +15,9 @@ onFlowComplete:
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
-- tapOn: .*sign up with an email address.*
+- tapOn:
+    text: .*sign up with an email address.*
+    retryTapIfNoChange: true
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
@@ -83,7 +85,9 @@ onFlowComplete:
 
 # allow notifications screen
 - assertVisible: On the next screen, make sure you tap
-- tapOn: Next
+- tapOn:
+    text: Next
+    retryTapIfNoChange: true
 
 # wait until setup is complete
 - extendedWaitUntil:
@@ -105,8 +109,14 @@ onFlowComplete:
 - assertVisible: Invite friends
 - tapOn: Invite friends
 
-- assertVisible: Finish
-- tapOn: Finish
+- assertVisible: Invite your friends
+- tapOn: Next
+
+# allow 7 seconds before checking metadata has loaded
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 7000
 
 # assert everything we expect to be there is
 - assertVisible: '~wittyr-witbes' # Tlon Support

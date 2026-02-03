@@ -3,6 +3,7 @@ import { da } from '@urbit/aura';
 import * as api from '../api';
 import { getCanonicalPostId } from '../api/apiUtils';
 import * as db from '../db';
+import * as domain from '../domain';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
 import * as ub from '../urbit';
@@ -136,6 +137,7 @@ export function buildPostUpdate({
   sequenceNum,
   deliveryStatus = 'pending',
   blob,
+  parentId,
 }: {
   id: types.Post['id'];
   content: ub.Story;
@@ -143,6 +145,7 @@ export function buildPostUpdate({
   sequenceNum?: number | null;
   deliveryStatus?: db.PostDeliveryStatus;
   blob?: string;
+  parentId: string | null;
 }) {
   const [postContent, postFlags] = api.toPostContent(content);
   return {
@@ -157,6 +160,7 @@ export function buildPostUpdate({
     deliveryStatus,
     sequenceNum,
     blob,
+    parentId,
     ...postFlags,
   } satisfies Partial<types.Post>;
 }
@@ -171,6 +175,7 @@ export function buildPost({
   parentId,
   deliveryStatus = 'pending',
   blob,
+  draft,
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -181,6 +186,7 @@ export function buildPost({
   parentId?: string;
   deliveryStatus?: db.PostDeliveryStatus;
   blob?: string;
+  draft?: domain.PostDataDraft;
 }): types.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
@@ -196,6 +202,7 @@ export function buildPost({
     deliveryStatus,
     sequenceNum,
     blob,
+    parentId: parentId ?? null,
   });
 
   return {
@@ -212,8 +219,8 @@ export function buildPost({
     replyContactIds: [],
     replyCount: 0,
     hidden: false,
-    parentId,
     syncedAt: Date.now(),
+    draft,
     ...contentUpdate,
   };
 }

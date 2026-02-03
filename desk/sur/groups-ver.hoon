@@ -7,7 +7,7 @@
 +$  nest  nest:v0
 +$  sect  sect:v0
 ::
-::  versions
+::  version cores
 ::
 ++  v11
   =,  v10
@@ -65,6 +65,25 @@
         [%connection =conn]
     ==
   --
+::
+++  v10
+  =,  v9
+  |%
+  ::  $progress: added new %leave variant
+  +$  progress  ?(%ask %join %watch %done %leave %error)
+  ::  $foreign: depends on $progress
+  ::
+  +$  foreign
+    $:  invites=(list invite)
+        lookup=(unit lookup)
+        preview=(unit preview)
+        progress=(unit progress)
+        token=(unit token)
+    ==
+  ::  $foreigns: depends on $foreign
+  +$  foreigns  (map flag foreign)
+  --
+::
 ++  v9
   =,  v8
   |%

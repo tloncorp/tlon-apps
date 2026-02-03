@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Pressable } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, getTokenValue, styled } from 'tamagui';
 
@@ -186,7 +186,7 @@ function ToastView({
         <ToastBox
           backgroundColor={'$positiveActionText'}
           marginBottom={
-            (insets.bottom + getTokenValue('$5xl', 'size')) as number
+            insets.bottom + (Platform.OS === 'web' ? 60 : 64)
           }
           testID="ToastMessage"
         >

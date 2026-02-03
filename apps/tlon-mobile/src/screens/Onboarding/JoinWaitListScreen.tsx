@@ -59,6 +59,7 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Join Waitlist"
+        backgroundColor="$secondaryBackground"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={

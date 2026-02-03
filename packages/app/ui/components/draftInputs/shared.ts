@@ -1,7 +1,7 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';
@@ -40,12 +40,6 @@ export interface DraftInputContext {
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
   draftInputRef?: React.Ref<DraftInputHandle>;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   editingPost?: db.Post;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
@@ -60,12 +54,6 @@ export interface DraftInputContext {
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
-  sendPost: (
-    content: Story,
-    channelId: string,
-    metadata?: db.PostMetadata,
-    blob?: string
-  ) => Promise<void>;
   sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;

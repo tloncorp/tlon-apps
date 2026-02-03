@@ -9,11 +9,13 @@ export const KEYBOARD_EXTRA_PADDING = 50;
 export const DEFAULT_BOTTOM_PADDING = 20;
 
 export * from './types';
-export * from './components/Button';
+export * from './components/ButtonV2';
+export * as ButtonV1 from './components/Button';
 export * from './components/Carousel';
 export * from './components/ConfirmDialog';
 export * from './components/Emoji/data';
 export * from './components/Emoji/SizableEmoji';
+export * from './components/FilePreview';
 export * from './components/FloatingActionButton';
 export * from './components/FormInput';
 export * from './components/Icon';
