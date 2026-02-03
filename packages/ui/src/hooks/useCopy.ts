@@ -1,11 +1,11 @@
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { useCallback, useState } from 'react';
 
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
 
   const doCopy = useCallback(async () => {
-    Clipboard.setString(copied);
+    await Clipboard.setStringAsync(copied);
     setDidCopy(true);
 
     const timeout = setTimeout(() => {
