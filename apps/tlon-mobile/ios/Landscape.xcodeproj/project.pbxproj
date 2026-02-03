@@ -143,7 +143,6 @@
 		70D3866C2A60A38400AFB46E /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70D3866E2A60A3B300AFB46E /* UrsusSigil */; };
 		70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
-		70D386722A61F2E400AFB46E /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
 		70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
 		70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
 		70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
@@ -168,7 +167,6 @@
 		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
 		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
 		70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */ = {isa = PBXBuildFile; fileRef = 70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */; };
 		70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
@@ -283,7 +281,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		008F07F21AC5B25A0029DE68 /* main.jsbundle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
 		0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Landscape/AppDelegate.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Landscape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Landscape.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Landscape/Images.xcassets; sourceTree = "<group>"; };
@@ -427,7 +424,6 @@
 				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
-				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -857,7 +853,6 @@
 				705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */,
 				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				70D386722A61F2E400AFB46E /* main.jsbundle in Resources */,
 				C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */,
 				4ACCD7281520ED84DDC2759A /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -887,7 +882,6 @@
 				705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */,
 				70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */,
 				70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */,
-				70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */,
 				AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */,
 				855125DEE814E6B0DFE6229D /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -1096,7 +1090,6 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/RNDeviceInfo/RNDeviceInfoPrivacyInfo.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
@@ -1133,7 +1126,6 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNDeviceInfoPrivacyInfo.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
@@ -1234,7 +1226,6 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/RNDeviceInfo/RNDeviceInfoPrivacyInfo.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
@@ -1271,7 +1262,6 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNDeviceInfoPrivacyInfo.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
