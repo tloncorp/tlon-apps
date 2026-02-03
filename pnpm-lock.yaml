@@ -31,9 +31,9 @@ patchedDependencies:
   '@likashefqet/react-native-image-zoom@4.2.0':
     hash: roe32gwh34j3bcmaenpx3xgtly
     path: patches/@likashefqet__react-native-image-zoom@4.2.0.patch
-  '@tamagui/sheet@1.126.12':
+  '@tamagui/sheet@1.126.18':
     hash: cr6gzke7qcuv6dkqbx6tr2ssue
-    path: patches/@tamagui__sheet@1.126.12.patch
+    path: patches/@tamagui__sheet@1.126.18.patch
   '@tiptap/react@2.0.3':
     hash: tt2duu22fpwhmhaws3iaoig4mu
     path: patches/@tiptap__react@2.0.3.patch
@@ -165,8 +165,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(@tanstack/react-query@5.32.1(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.12.0)(react-native-webview@13.15.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       '@google-cloud/recaptcha-enterprise-react-native':
-        specifier: ^18.3.0
-        version: 18.8.2(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: ~18.3.0
+        version: 18.3.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@gorhom/bottom-sheet':
         specifier: ^5.2.6
         version: 5.2.8(@types/react-native@0.73.0(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(@types/react@19.1.17)(react-native-gesture-handler@2.28.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-reanimated@4.1.6(@babel/core@7.29.0)(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -382,7 +382,7 @@ importers:
         version: 1.3.7(@react-native-picker/picker@2.11.4(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))
       react-native-polyfill-globals:
         specifier: ^3.1.0
-        version: 3.1.0(base-64@1.0.0)(react-native-fetch-api@3.0.0)(react-native-get-random-values@1.11.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(react-native-url-polyfill@2.0.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(text-encoding@0.7.0)(web-streams-polyfill@4.2.0)
+        version: 3.1.0(base-64@1.0.0)(react-native-fetch-api@3.0.0)(react-native-get-random-values@1.11.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(react-native-url-polyfill@2.0.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(text-encoding@0.7.0)(web-streams-polyfill@3.3.3)
       react-native-reanimated:
         specifier: ~4.1.6
         version: 4.1.6(@babel/core@7.29.0)(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -416,6 +416,9 @@ importers:
       tailwind-rn:
         specifier: ^4.2.0
         version: 4.2.0(patch_hash=huubbq5aurym44djogb6gnyabq)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(tailwindcss@3.4.19(yaml@2.8.2))
+      web-streams-polyfill:
+        specifier: ^3.3.3
+        version: 3.3.3
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@19.1.0)
@@ -3636,8 +3639,9 @@ packages:
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
 
-  '@google-cloud/recaptcha-enterprise-react-native@18.8.2':
-    resolution: {integrity: sha512-ctUwaHUqXtyJXVfqxMP9FsK1DKovzLe2S3Xob+Yz8RxjrDaIM6X7FMXKbAWoBdF/kHQYyAnUWYwYozihe+pbpQ==}
+  '@google-cloud/recaptcha-enterprise-react-native@18.3.0':
+    resolution: {integrity: sha512-PRprXmaZVHtaV3bj3BDBhetKT+t8sXpTRQsK/PboVf/9JG/a3n3uFo9ZJL71QeXPZ80SKbXILPrMY9fbFhdDHA==}
+    engines: {node: '>= 16.0.0'}
     peerDependencies:
       react: 19.1.0
       react-native: '*'
@@ -13970,6 +13974,10 @@ packages:
   web-encoding@1.1.5:
     resolution: {integrity: sha512-HYLeVCdJ0+lBYV2FvNZmv3HJ2Nt0QYXqZojk3d9FJOLkwnuhzM9tmamh8d7HPM8QqjKH8DeHkFTx+CFlWpZZDA==}
 
+  web-streams-polyfill@3.3.3:
+    resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
+    engines: {node: '>= 8'}
+
   web-streams-polyfill@4.2.0:
     resolution: {integrity: sha512-0rYDzGOh9EZpig92umN5g5D/9A1Kff7k0/mzPSSCY8jEQeYkgRMoY7LhbXtUCWzLCMX0TUE9aoHkjFNB7D9pfA==}
     engines: {node: '>= 8'}
@@ -17270,7 +17278,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@google-cloud/recaptcha-enterprise-react-native@18.8.2(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+  '@google-cloud/recaptcha-enterprise-react-native@18.3.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)
@@ -20218,7 +20226,7 @@ snapshots:
       '@tamagui/popper': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/portal': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/remove-scroll': 1.126.18(@types/react@19.1.17)(react@19.1.0)
-      '@tamagui/sheet': 1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@tamagui/sheet': 1.126.18(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/stacks': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/text': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/use-controllable-state': 1.126.18(react@19.1.0)
@@ -20438,7 +20446,7 @@ snapshots:
       '@tamagui/portal': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/remove-scroll': 1.126.18(@types/react@19.1.17)(react@19.1.0)
       '@tamagui/scroll-view': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      '@tamagui/sheet': 1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@tamagui/sheet': 1.126.18(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/stacks': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/use-controllable-state': 1.126.18(react@19.1.0)
       react: 19.1.0
@@ -20618,7 +20626,7 @@ snapshots:
       '@tamagui/portal': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/remove-scroll': 1.126.18(@types/react@19.1.17)(react@19.1.0)
       '@tamagui/separator': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      '@tamagui/sheet': 1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@tamagui/sheet': 1.126.18(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/stacks': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/text': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/use-controllable-state': 1.126.18(react@19.1.0)
@@ -20649,7 +20657,7 @@ snapshots:
       - react-dom
       - react-native
 
-  '@tamagui/sheet@1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+  '@tamagui/sheet@1.126.18(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@tamagui/adapt': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/animate-presence': 1.126.18(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -28865,6 +28873,15 @@ snapshots:
       prop-types: 15.8.1
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)
 
+  react-native-polyfill-globals@3.1.0(base-64@1.0.0)(react-native-fetch-api@3.0.0)(react-native-get-random-values@1.11.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(react-native-url-polyfill@2.0.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(text-encoding@0.7.0)(web-streams-polyfill@3.3.3):
+    dependencies:
+      base-64: 1.0.0
+      react-native-fetch-api: 3.0.0
+      react-native-get-random-values: 1.11.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))
+      react-native-url-polyfill: 2.0.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))
+      text-encoding: 0.7.0
+      web-streams-polyfill: 3.3.3
+
   react-native-polyfill-globals@3.1.0(base-64@1.0.0)(react-native-fetch-api@3.0.0)(react-native-get-random-values@1.11.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(react-native-url-polyfill@2.0.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0)))(text-encoding@0.7.0)(web-streams-polyfill@4.2.0):
     dependencies:
       base-64: 1.0.0
@@ -30272,7 +30289,7 @@ snapshots:
       '@tamagui/select': 1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/separator': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/shapes': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-      '@tamagui/sheet': 1.126.18(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      '@tamagui/sheet': 1.126.18(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/slider': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/stacks': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@tamagui/switch': 1.126.18(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0)))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -31027,6 +31044,8 @@ snapshots:
       util: 0.12.5
     optionalDependencies:
       '@zxing/text-encoding': 0.9.0
+
+  web-streams-polyfill@3.3.3: {}
 
   web-streams-polyfill@4.2.0: {}
 
