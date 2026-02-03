@@ -16,7 +16,7 @@ import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
-export const SetTelemetryScreen = () => {
+export const SetTelemetryScreen = (_: Props) => {
   const posthog = usePostHog();
   const [isEnabled, setIsEnabled] = useState(false);
   const { setValue: setFinishingSelfHostedLogin } =
