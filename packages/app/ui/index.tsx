@@ -80,7 +80,6 @@ export {
   ScrollView,
   SizableText,
   Spinner,
-  Stack,
   Text,
   TextArea,
   Theme,

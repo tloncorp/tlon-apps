@@ -26,7 +26,7 @@ export function useAnchorScrollLock({
   collectionLayoutType,
   columnsCount,
 }: {
-  flatListRef: RefObject<FlatList<db.Post>>;
+  flatListRef: RefObject<FlatList<db.Post> | null>;
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;

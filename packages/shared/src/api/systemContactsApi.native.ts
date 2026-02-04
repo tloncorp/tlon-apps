@@ -1,6 +1,6 @@
 import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
-import { parsePhoneNumberFromString, CountryCode } from 'libphonenumber-js';
+import { CountryCode, parsePhoneNumberFromString } from 'libphonenumber-js';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -14,7 +14,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
     return [];
   }
 
-  let nativeContactBook: Contacts.Contact[] = [];
+  let nativeContactBook: Contacts.ExistingContact[] = [];
   try {
     const { data } = await Contacts.getContactsAsync({
       fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
@@ -40,7 +40,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
 }
 
 export function parseNativeContacts(
-  nativeContacts: Contacts.Contact[]
+  nativeContacts: Contacts.ExistingContact[]
 ): domain.SystemContact[] {
   const parseCounts = { digitFinds: 0, numberFinds: 0, fallbacks: 0 };
 
@@ -204,7 +204,7 @@ export function parseNativeContacts(
         .filter((num): num is string => num !== null);
 
       const sysContact: domain.SystemContact = {
-        id: contact.id!,
+        id: contact.id,
         firstName: contact.firstName,
         lastName: contact.lastName,
         phoneNumber: phoneNumbers.length > 0 ? phoneNumbers[0] : undefined,

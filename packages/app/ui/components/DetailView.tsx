@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useEffect, useMemo } from 'react';
+import { ReactNode, useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
@@ -13,7 +13,7 @@ export interface DetailViewProps {
   post: db.Post;
   channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
-  children?: JSX.Element;
+  children?: ReactNode;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   posts?: db.Post[];
@@ -24,10 +24,10 @@ export interface DetailViewProps {
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
   editorIsFocused: boolean;
-  flatListRef?: React.RefObject<FlatList>;
+  flatListRef?: React.RefObject<FlatList | null>;
   scrollerRef?: React.RefObject<{
     scrollToStart: (opts: { animated?: boolean }) => void;
-  }>;
+  } | null>;
 }
 
 export const DetailView = ({

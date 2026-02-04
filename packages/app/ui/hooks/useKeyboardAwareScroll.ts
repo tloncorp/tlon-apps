@@ -16,7 +16,7 @@ interface UseKeyboardAwareScrollOptions {
 
 interface UseKeyboardAwareScrollReturn {
   /** Ref to attach to ScrollView */
-  scrollViewRef: React.RefObject<ScrollView>;
+  scrollViewRef: React.RefObject<ScrollView | null>;
   /** Current keyboard height (0 when hidden) */
   keyboardHeight: number;
   /** Call this on input focus with the input's Y position */

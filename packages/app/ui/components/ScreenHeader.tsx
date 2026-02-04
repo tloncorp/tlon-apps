@@ -48,7 +48,8 @@ export const ScreenHeaderComponent = ({
   const backButtonCount = backAction ? 1 : 0;
 
   // On mobile, swap title to show loading state (no debounce to avoid flash)
-  const displayTitle = !useHorizontalTitleLayout && isLoading ? 'Loading…' : title;
+  const displayTitle =
+    !useHorizontalTitleLayout && isLoading ? 'Loading…' : title;
 
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
@@ -87,6 +88,7 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
       testID={testID}
+      position="relative"
     >
       <View style={getWrapperStyle()}>
         {/* Only show subtitle on desktop/large screens */}
