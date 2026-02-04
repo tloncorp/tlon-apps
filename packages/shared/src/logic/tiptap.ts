@@ -286,8 +286,8 @@ export function JSONToInlines(
     }
     case 'orderedList':
     case 'bulletList':
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     case 'taskList': {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       return [{ listing: JSONToListing(json, limitNewlines) }];
     }
     case 'heading': {
