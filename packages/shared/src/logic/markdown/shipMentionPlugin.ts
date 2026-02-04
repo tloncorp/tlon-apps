@@ -1,4 +1,3 @@
-import { valid } from '@urbit/aura';
 import type { Literal, Node } from 'unist';
 import type { PhrasingContent, Text } from 'mdast';
 
@@ -13,8 +12,10 @@ export interface ShipMention extends Literal {
 }
 
 // Structural pattern: a galaxy/star name (3–6 letters) optionally followed by
-// one or more 6-letter syllables separated by hyphens.  Each structural match
-// is validated with @urbit/aura's valid('p') before being treated as a ship.
+// one or more 6-letter syllables separated by hyphens.  This is intentionally
+// syntactic-only — valid('p') from @urbit/aura rejects non-phonemic syllables
+// (e.g. test moons like ~dozzod-dozzod-sampel-palnet) and is only appropriate
+// for autocomplete paths where real ships are selected, not free-text scanning.
 const SHIP_PATTERN = /~[a-z]{3,6}(?:-[a-z]{6})*/g;
 
 /**
@@ -27,11 +28,6 @@ export function parseShipMentions(text: string): PhrasingContent[] {
 
   const matches = text.matchAll(SHIP_PATTERN);
   for (const match of matches) {
-    // Validate against @urbit/aura — skip structural matches that aren't
-    // real ship names.  Skipped text is picked up as plain text by the next
-    // iteration's "before" slice (or the trailing-text slice at the end).
-    if (!valid('p', match[0])) continue;
-
     // Add text before the ship mention
     if (match.index !== undefined && match.index > lastIndex) {
       const textNode: Text = {
