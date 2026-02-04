@@ -2,6 +2,7 @@ import {
   Attachment,
   createDevLogger,
   markdownToStory,
+  storyToContent,
   storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
@@ -282,20 +283,7 @@ export function BigInput({
       // Convert Markdown content to Story, then extract inlines and blocks
       try {
         const story = markdownToStory(markdownContent);
-        // Flatten Story (Verse[]) into (Inline | Block)[] for the draft
-        // Add breaks between paragraphs to preserve structure
-        content = story.flatMap((verse, index): (Inline | Block)[] => {
-          if ('inline' in verse) {
-            // Add a break after each VerseInline (paragraph) except the last one
-            const isLast = index === story.length - 1;
-            if (isLast) {
-              return verse.inline;
-            }
-            return [...verse.inline, { break: null }];
-          } else {
-            return [verse.block];
-          }
-        });
+        content = storyToContent(story);
       } catch (error) {
         logger.error('Failed to convert Markdown for send:', error);
         showToast({

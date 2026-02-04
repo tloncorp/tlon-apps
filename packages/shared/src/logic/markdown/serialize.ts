@@ -152,3 +152,18 @@ export function blockToMarkdown(block: Block): string {
   const story: Story = [{ block }];
   return storyToMarkdown(story);
 }
+
+/**
+ * Flatten a Story (Verse[]) into a contiguous (Inline | Block)[] array
+ * suitable for use as post draft content.  A break is inserted between each
+ * VerseInline to preserve paragraph boundaries in the flat representation.
+ */
+export function storyToContent(story: Story): (Inline | Block)[] {
+  return story.flatMap((verse, index): (Inline | Block)[] => {
+    if ('inline' in verse) {
+      const isLast = index === story.length - 1;
+      return isLast ? verse.inline : [...verse.inline, { break: null }];
+    }
+    return [verse.block];
+  });
+}
