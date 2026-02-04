@@ -108,7 +108,16 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     'chatType' in focusedRouteParams
   ) {
     if (focusedRouteParams.chatType === 'channel') {
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
+      // If groupId is provided, show the group's channel list in the sidebar
+      if ('groupId' in focusedRouteParams && focusedRouteParams.groupId) {
+        return (
+          <GroupChannelsScreenContent
+            groupId={focusedRouteParams.groupId as string}
+            focusedChannelId={focusedRouteParams.chatId as string}
+          />
+        );
+      }
+      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />;
     } else if (focusedRouteParams.chatType === 'group') {
       return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }

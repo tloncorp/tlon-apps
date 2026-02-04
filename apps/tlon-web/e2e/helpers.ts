@@ -358,6 +358,25 @@ export async function openGroupSettings(page: Page) {
   await page.getByText('Group info & settings').click();
 }
 
+/**
+ * Creates a second channel in a group and navigates to the General channel.
+ * Use this to set up a multi-channel group for testing channel-specific behavior.
+ *
+ * @param page - Playwright page object
+ * @param secondChannelName - Name for the second channel to create (defaults to 'Second Channel')
+ */
+export async function setupMultiChannelGroup(page: Page, secondChannelName = 'Second Channel') {
+  await openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await expect(page.getByText('New', { exact: true })).toBeVisible({ timeout: 5000 });
+  await createChannel(page, secondChannelName);
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId(`ChannelListItem-${secondChannelName}`)).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('ChannelListItem-General').click();
+  await expect(page.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+}
+
 export async function navigateToHomeAndVerifyGroup(
   page: Page,
   expectedStatus: 'pinned' | 'unpinned'
@@ -720,12 +739,17 @@ export async function editChannel(
   // Ensure session is stable before editing channel
   await waitForSessionStability(page);
 
+  // Navigate to Channel info screen
   await page
     .getByTestId(`ChannelItem-${channelName}-1`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Channel settings')).toBeVisible();
+  await expect(page.getByTestId('ChatDetailsHeader').getByText('Channel info', { exact: true }).first()).toBeVisible();
+
+  // Click edit button to go to Edit channel info screen
+  await page.getByTestId('DetailsEditButton').first().click();
+  await expect(page.getByText('Edit channel info')).toBeVisible();
 
   if (newTitle) {
     await fillFormField(page, 'ChannelTitleInput', newTitle, true);
@@ -735,6 +759,19 @@ export async function editChannel(
   }
 
   await page.getByText('Save').click();
+
+  // Wait for save to complete - returns to Channel info screen
+  // Use specific selector to avoid matching sidebar title
+  await expect(
+    page.getByTestId('ChatDetailsHeader').getByText('Channel info', { exact: true }).first()
+  ).toBeVisible({ timeout: 5000 });
+
+  // Navigate back to Channels view (ManageChannels screen title is "Channels")
+  // Use specific selector to click the back button in ChatDetailsHeader, not the sidebar's back button
+  await page.getByTestId('ChatDetailsHeader').getByTestId('HeaderBackButton').first().click();
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Channels')
+  ).toBeVisible({ timeout: 5000 });
 }
 
 /**
@@ -748,14 +785,16 @@ export async function deleteChannel(
   // Ensure session is stable before deleting channel
   await waitForSessionStability(page);
 
+  // Navigate to Channel info screen
   await page
     .getByTestId(`ChannelItem-${channelName}-${channelIndex}`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
-  await expect(page.getByText('Channel settings')).toBeVisible();
+  await expect(page.getByTestId('ChatDetailsHeader').getByText('Channel info', { exact: true }).first()).toBeVisible();
 
-  await page.getByText('Delete channel for everyone').click();
+  // Click delete channel button
+  await page.getByText('Delete channel', { exact: true }).first().click();
   await expect(page.getByText('This action cannot be undone.')).toBeVisible();
   await page
     .getByRole('dialog')
@@ -777,10 +816,12 @@ export async function setChannelPermissions(
 
     if (isEnabled !== 'true') {
       await privateToggle.click();
+      // Wait for Add roles button to appear after enabling private mode
+      await expect(page.getByText('Add roles')).toBeVisible();
     }
 
     await page.getByText('Add roles').click();
-    await expect(page.getByText('Search and add roles')).toBeVisible();
+    await expect(page.getByText('Select roles')).toBeVisible();
 
     for (const role of readerRoles) {
       if (role.toLowerCase() === 'admin') continue;
@@ -789,6 +830,8 @@ export async function setChannelPermissions(
       await page.getByTestId('RoleSearchInput').fill('');
     }
     await page.getByTestId('RoleSelectionSaveButton').click();
+    // Wait for navigation back to Channel privacy screen
+    await expect(page.getByText('Channel privacy')).toBeVisible();
   }
 
   if (writerRoles && writerRoles.length > 0) {

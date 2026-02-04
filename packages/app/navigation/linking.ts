@@ -36,10 +36,6 @@ export const getMobileLinkingConfig = (
           },
           GroupSettings: {
             screens: {
-              EditChannel: {
-                path: 'group/:groupId/channels/:channelId/edit',
-                parse: parsePathParams('groupId', 'channelId'),
-              },
               GroupMeta: {
                 path: 'group/:groupId/meta',
                 parse: parsePathParams('groupId'),
@@ -59,6 +55,14 @@ export const getMobileLinkingConfig = (
               GroupRoles: {
                 path: 'group/:groupId/roles',
                 parse: parsePathParams('groupId'),
+              },
+              EditChannelMeta: {
+                path: 'group/:groupId/channel/:channelId/edit-meta',
+                parse: parsePathParams('groupId', 'channelId'),
+              },
+              EditChannelPrivacy: {
+                path: 'group/:groupId/channel/:channelId/edit-privacy',
+                parse: parsePathParams('groupId', 'channelId'),
               },
             },
           },
