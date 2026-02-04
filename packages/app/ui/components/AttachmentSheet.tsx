@@ -275,11 +275,6 @@ export default function AttachmentSheet({
               : 'Choose a photo from your library',
             action: pickImage,
           },
-          canUploadFiles &&
-            mediaType === 'all' && {
-              title: 'Upload a file',
-              action: startFilePicker,
-            },
           !isWeb && {
             title: 'Take a Photo',
             description: 'Use your camera to take a photo',
@@ -290,6 +285,12 @@ export default function AttachmentSheet({
               title: 'Paste from Clipboard',
               description: 'Use the image currently in your clipboard',
               action: createAssetFromClipboard,
+            },
+          canUploadFiles &&
+            mediaType === 'all' && {
+              title: 'Upload a File',
+              description: 'Upload files from your device',
+              action: startFilePicker,
             },
         ],
         showClearOption && [
