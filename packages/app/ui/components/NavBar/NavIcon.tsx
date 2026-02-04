@@ -34,7 +34,6 @@ export function AvatarNavIcon({
   return (
     <Pressable
       testID="AvatarNavIcon"
-      flex={1}
       onPress={onPress}
       onLongPress={onLongPress}
       alignItems="center"
@@ -84,7 +83,6 @@ export default function NavIcon({
     <Pressable
       testID={testID}
       alignItems="center"
-      flex={1}
       onPress={onPress}
       borderRadius="$s"
       backgroundColor={backgroundColor}

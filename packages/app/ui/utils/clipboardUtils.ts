@@ -36,8 +36,6 @@ export const getClipboardImageWithFallbacks = async (): Promise<{
         () => Clipboard.getImageAsync({ format: 'jpeg' }),
         'image/jpeg'
       ),
-    () =>
-      tryGetImageWithFormat(() => Clipboard.getImageAsync(), 'image/png'),
   ];
 
   for (const attempt of attempts) {

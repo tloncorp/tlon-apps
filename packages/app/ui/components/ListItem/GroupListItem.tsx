@@ -2,7 +2,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
-import { View, isWeb } from 'tamagui';
+import { TamaguiWebElement, View, isWeb } from 'tamagui';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChatOptions, useContact } from '../../contexts';
@@ -25,7 +25,7 @@ export const GroupListItem = ({
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<TamaguiWebElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
@@ -122,8 +122,8 @@ export const GroupListItem = ({
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
+        onMouseEnter={handleHoverIn}
+        onMouseLeave={handleHoverOut}
         testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
       >
         <ListItem

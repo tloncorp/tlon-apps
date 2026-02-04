@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Icon, Pressable, RawText } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import React, {
   useCallback,
   useEffect,
@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, isWeb } from 'tamagui';
+import { TamaguiWebElement, View, isWeb } from 'tamagui';
 
 import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
@@ -40,7 +40,7 @@ export function ChannelListItem({
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<TamaguiWebElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
@@ -129,8 +129,8 @@ export function ChannelListItem({
         onLongPress={isWeb ? undefined : handleLongPress}
         backgroundColor={isFocused ? '$shadow' : undefined}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
+        onMouseEnter={handleHoverIn}
+        onMouseLeave={handleHoverOut}
       >
         <ListItem
           onLayout={onLayout}
