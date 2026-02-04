@@ -7,7 +7,7 @@ import { useOnboardingContext } from '../lib/OnboardingContext';
 const logger = createDevLogger('recaptcha', true);
 
 export function useRecaptcha() {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isInitializedRef = useRef(false);
   const { initRecaptcha, execRecaptchaLogin } = useOnboardingContext();
 
