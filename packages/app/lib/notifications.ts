@@ -121,10 +121,16 @@ export const useNotificationPermissions = (): domain.NotifPerms => {
 
 export const requestNotificationToken = async () => {
   const isGranted = await requestNotificationPermissionsIfNeeded();
+  const env = domain.getConstants();
 
   // Skip if permission explicitly not granted
   if (!isGranted) {
     return undefined;
+  }
+
+  if (env.AUTOMATED_TEST) {
+    logger.trackEvent('Returned fake notif token for dev env');
+    return 'stub';
   }
 
   // Get device push token

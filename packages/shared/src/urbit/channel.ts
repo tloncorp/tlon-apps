@@ -105,7 +105,7 @@ export type Kind = 'heap' | 'diary' | 'chat';
 
 export interface PostEssay {
   content: Story;
-  author: Ship;
+  author: Author;
   sent: number;
   kind: string;
   blob: string | null;
@@ -113,7 +113,7 @@ export interface PostEssay {
 }
 
 export type PostTombstone = {
-  author: Ship;
+  author: Author;
   id: string;
   ['deleted-at']: number;
   seq: number;
@@ -164,7 +164,7 @@ export interface Reply {
 
 export interface Memo {
   content: Story;
-  author: Ship;
+  author: Author;
   sent: number;
 }
 

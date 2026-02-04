@@ -308,10 +308,16 @@ export const ImageInput = XStack.styleable<{
         >
           <Icon type="Camera" color={canUpload ? '$tertiaryText' : '$border'} />
           {placeholderUri ? (
-            <ImageInputPreviewImage source={{ uri: placeholderUri }} />
+            <ImageInputPreviewImage
+              source={{ uri: placeholderUri }}
+              fallback={null}
+            />
           ) : null}
           {assetUri ? (
-            <ImageInputPreviewImage source={{ uri: assetUri }} />
+            <ImageInputPreviewImage
+              source={{ uri: assetUri }}
+              fallback={null}
+            />
           ) : null}
           {attachment?.uploadState?.status === 'uploading' ? (
             <ImageInputPreviewLoadingFrame>
