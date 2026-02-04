@@ -65,7 +65,7 @@ function UIProviderStack({
   tamaguiState?: { defaultTheme?: string };
 }>) {
   return (
-    <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme}>
+    <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme ?? 'light'}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>

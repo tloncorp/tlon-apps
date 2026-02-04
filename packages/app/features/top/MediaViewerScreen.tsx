@@ -7,18 +7,16 @@ import {
   ensureFileExtension,
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   VideoView,
-} from 'expo-video/build/VideoView';
-import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
+  useVideoPlayer,
+} from 'expo-video';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
-} from 'expo-video/build/VideoPlayerEvents.types';
-import * as FileSystem from 'expo-file-system';
+} from 'expo-video';
 import * as MediaLibrary from 'expo-media-library';
 import {
   ElementRef,
@@ -656,26 +654,26 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
                 onPress={handleDownloadImage}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => props.goBack()}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="Close" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
             </XStack>
           </YStack>

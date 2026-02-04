@@ -510,8 +510,8 @@ function useManualScrollAnchoring<Data>({
   needsAnchoring: checkNeedsAnchor,
   getAnchorItem,
 }: {
-  scrollerRef: React.RefObject<HTMLDivElement>;
-  scrollerContentContainerRef: React.RefObject<HTMLDivElement>;
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
+  scrollerContentContainerRef: React.RefObject<HTMLDivElement | null>;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: Data;
   needsAnchoring: (
@@ -562,7 +562,7 @@ function useStickToScrollStart({
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
-  scrollerRef: React.RefObject<HTMLDivElement>;
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
   disable: boolean;
   /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
   maxDistanceForStickToStart?: number;
@@ -597,7 +597,7 @@ function useScrollToAnchorOnMount({
   onScrollCompleted,
 }: {
   anchor: ScrollAnchor | null | undefined;
-  scrollerRef: React.RefObject<HTMLDivElement>;
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
   inverted: boolean;
   onScrollCompleted?: () => void;
 }) {
