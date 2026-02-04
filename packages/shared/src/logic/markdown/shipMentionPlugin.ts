@@ -2,6 +2,8 @@ import { valid } from '@urbit/aura';
 import type { Literal, Node } from 'unist';
 import type { PhrasingContent, Text } from 'mdast';
 
+import { visit } from './astUtils';
+
 /**
  * Custom mdast node type for ship mentions (~zod, ~sampel-palnet, etc.)
  */
@@ -66,7 +68,7 @@ export function parseShipMentions(text: string): PhrasingContent[] {
  * into a mix of text and shipMention nodes.
  */
 export function transformShipMentions(tree: Node): void {
-  visit(tree, 'text', (node: Text, index: number | undefined, parent: { children: PhrasingContent[] } | undefined) => {
+  visit<Text>(tree, 'text', (node, index, parent) => {
     if (!parent || index === undefined) return;
 
     const parsed = parseShipMentions(node.value);
@@ -79,31 +81,6 @@ export function transformShipMentions(tree: Node): void {
     // Replace the text node with parsed content
     parent.children.splice(index, 1, ...parsed);
   });
-}
-
-/**
- * Simple tree visitor (avoids importing unist-util-visit for this small use case).
- */
-function visit(
-  tree: Node,
-  type: string,
-  visitor: (node: Text, index: number | undefined, parent: { children: PhrasingContent[] } | undefined) => void
-): void {
-  function walk(node: Node, index: number | undefined, parent: { children: PhrasingContent[] } | undefined): void {
-    if (node.type === type) {
-      visitor(node as Text, index, parent);
-    }
-
-    if ('children' in node && Array.isArray((node as { children: Node[] }).children)) {
-      const children = (node as { children: Node[] }).children;
-      // Walk in reverse to handle splice correctly
-      for (let i = children.length - 1; i >= 0; i--) {
-        walk(children[i], i, node as { children: PhrasingContent[] });
-      }
-    }
-  }
-
-  walk(tree, undefined, undefined);
 }
 
 /**

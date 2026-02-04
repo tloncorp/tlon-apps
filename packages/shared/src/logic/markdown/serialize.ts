@@ -1,19 +1,20 @@
 import { unified } from 'unified';
 import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
-import type { Root, RootContent, PhrasingContent, Text, Node } from 'mdast';
+import type { Root, RootContent, PhrasingContent, Node } from 'mdast';
 
 import { Story } from '../../urbit/channel';
 import { Block, Inline } from '../../urbit/content';
 import { storyToMdast, inlinesToPhrasing } from './storyToMdast';
 import type { ShipMention } from './shipMentionPlugin';
+import { visit, visitAll } from './astUtils';
 
 /**
  * Transform ship mention nodes to html nodes before serialization.
  * Using html nodes prevents escaping of the ~ character.
  */
 function transformShipMentionsToHtml(tree: Node): void {
-  visit(tree, 'shipMention', (node: ShipMention, index: number | undefined, parent: { children: PhrasingContent[] } | undefined) => {
+  visit<ShipMention>(tree, 'shipMention', (node, index, parent) => {
     if (!parent || index === undefined) return;
 
     // Replace shipMention with html node to prevent escaping
@@ -30,61 +31,12 @@ function transformShipMentionsToHtml(tree: Node): void {
  * By default, remark-stringify checks if children have multiple paragraphs.
  */
 function makeTightLists(tree: Node): void {
-  visitAll(tree, 'list', (listNode: { spread?: boolean }) => {
+  visitAll<{ spread?: boolean }>(tree, 'list', (listNode) => {
     listNode.spread = false;
   });
-  visitAll(tree, 'listItem', (itemNode: { spread?: boolean }) => {
+  visitAll<{ spread?: boolean }>(tree, 'listItem', (itemNode) => {
     itemNode.spread = false;
   });
-}
-
-/**
- * Simple tree visitor for all nodes of a type.
- */
-function visitAll(
-  tree: Node,
-  type: string,
-  visitor: (node: { spread?: boolean }) => void
-): void {
-  function walk(node: Node): void {
-    if (node.type === type) {
-      visitor(node as { spread?: boolean });
-    }
-
-    if ('children' in node && Array.isArray((node as { children: Node[] }).children)) {
-      const children = (node as { children: Node[] }).children;
-      for (const child of children) {
-        walk(child);
-      }
-    }
-  }
-
-  walk(tree);
-}
-
-/**
- * Simple tree visitor for transformation.
- */
-function visit(
-  tree: Node,
-  type: string,
-  visitor: (node: ShipMention, index: number | undefined, parent: { children: PhrasingContent[] } | undefined) => void
-): void {
-  function walk(node: Node, index: number | undefined, parent: { children: PhrasingContent[] } | undefined): void {
-    if (node.type === type) {
-      visitor(node as ShipMention, index, parent);
-    }
-
-    if ('children' in node && Array.isArray((node as { children: Node[] }).children)) {
-      const children = (node as { children: Node[] }).children;
-      // Walk in reverse to handle mutations correctly
-      for (let i = children.length - 1; i >= 0; i--) {
-        walk(children[i], i, node as { children: PhrasingContent[] });
-      }
-    }
-  }
-
-  walk(tree, undefined, undefined);
 }
 
 /**
