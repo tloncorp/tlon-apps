@@ -29,6 +29,7 @@ export function ChannelListItem({
   disableOptions = false,
   showGroupTitle = false,
   onLayout,
+  hoverStyle,
   ...props
 }: {
   showGroupTitle?: boolean;
@@ -128,7 +129,7 @@ export function ChannelListItem({
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
         backgroundColor={isFocused ? '$shadow' : undefined}
-        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        hoverStyle={hoverStyle ?? { backgroundColor: '$secondaryBackground' }}
         onMouseEnter={handleHoverIn}
         onMouseLeave={handleHoverOut}
       >

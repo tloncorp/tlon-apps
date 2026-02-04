@@ -20,6 +20,7 @@ export const GroupListItem = ({
   onLongPress,
   customSubtitle,
   disableOptions = false,
+  hoverStyle,
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
@@ -121,7 +122,7 @@ export const GroupListItem = ({
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
-        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        hoverStyle={hoverStyle ?? { backgroundColor: '$secondaryBackground' }}
         onMouseEnter={handleHoverIn}
         onMouseLeave={handleHoverOut}
         testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
