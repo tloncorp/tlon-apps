@@ -1,14 +1,14 @@
 /-  gv=groups-ver
 /+  j=groups-json
-|_  =group-ui:v10:gv
+|_  =group-ui:v11:gv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  group-ui
-  ++  json  (group-ui:v10:enjs:j group-ui)
+  ++  json  (group-ui:v11:enjs:j group-ui)
   --
 ++  grab
   |%
-  ++  noun  group-ui:v10:gv
+  ++  noun  group-ui:v11:gv
   --
 --
