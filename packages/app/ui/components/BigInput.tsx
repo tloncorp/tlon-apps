@@ -19,7 +19,7 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
@@ -40,6 +40,119 @@ import {
 import { ScreenHeader } from './ScreenHeader';
 
 const logger = createDevLogger('BigInput', false);
+
+/**
+ * Manages markdown-mode state and the conversions between markdown text and
+ * the rich-text (TipTap) editor.  Extracted so BigInput can stay focused on
+ * layout / send / attachment concerns.
+ */
+function useMarkdownMode({
+  editingPost,
+  markdownNotebooksEnabled,
+  editorRef,
+  showToast,
+}: {
+  editingPost?: db.Post;
+  markdownNotebooksEnabled: boolean;
+  editorRef: RefObject<{ editor: TlonEditorBridge | null }>;
+  showToast: (opts: { message: string; duration: number }) => void;
+}) {
+  // Default to markdown mode if feature flag is enabled and this is a new post
+  const [isMarkdownMode, setIsMarkdownMode] = useState(
+    markdownNotebooksEnabled && !editingPost
+  );
+  const [markdownContent, setMarkdownContent] = useState('');
+  // When switching back from Markdown mode the TipTap editor may not be
+  // mounted yet.  We park the converted content here and apply it as soon as
+  // the editor reports ready via handleEditorStateChange.
+  const [pendingEditorContent, setPendingEditorContent] = useState<
+    object | null
+  >(null);
+
+  const handleEditorStateChange = useCallback(
+    (state: { isReady: boolean }) => {
+      if (state.isReady && pendingEditorContent && editorRef.current?.editor) {
+        logger.log(
+          'Editor ready, setting pending content from Markdown conversion'
+        );
+        // @ts-expect-error setContent does accept JSONContent
+        editorRef.current.editor.setContent(pendingEditorContent);
+        setPendingEditorContent(null);
+      }
+    },
+    [pendingEditorContent, editorRef]
+  );
+
+  const handleMarkdownToggle = useCallback(async () => {
+    if (!isMarkdownMode) {
+      // Switching TO Markdown mode: convert rich text to Markdown
+      try {
+        let story = null;
+
+        // First, try to get content from the Tiptap editor
+        if (editorRef.current?.editor) {
+          const json = await editorRef.current.editor.getJSON();
+          if (!contentIsEmpty(json)) {
+            // Use codeWithLang=true to properly handle code blocks as Block types
+            // and limitNewlines=false to preserve paragraph structure
+            const inlines = tiptap.JSONToInlines(json, false, true);
+            story = constructStory(inlines);
+          }
+        }
+
+        // If editor is empty and we're editing an existing post, use the post's content
+        if (!story && editingPost?.content) {
+          const postContent = editingPost.content as { story?: any };
+          if (postContent.story && Array.isArray(postContent.story)) {
+            story = postContent.story;
+          }
+        }
+
+        // Convert story to markdown if we have content
+        const markdown = story ? storyToMarkdown(story) : '';
+        setMarkdownContent(markdown);
+        setIsMarkdownMode(true);
+      } catch (error) {
+        logger.error('Failed to convert to Markdown:', error);
+        showToast({
+          message: 'Failed to convert content to Markdown',
+          duration: 2000,
+        });
+      }
+    } else {
+      // Switching FROM Markdown mode: convert Markdown to rich text
+      try {
+        if (markdownContent) {
+          const story = markdownToStory(markdownContent);
+          const tiptapContent = tiptap.diaryMixedToJSON(story);
+          // Store the content to be set when editor becomes ready
+          setPendingEditorContent(tiptapContent);
+        }
+        setIsMarkdownMode(false);
+      } catch (error) {
+        logger.error('Failed to convert from Markdown:', error);
+        showToast({
+          message: 'Failed to convert Markdown to rich text',
+          duration: 2000,
+        });
+      }
+    }
+  }, [isMarkdownMode, markdownContent, showToast, editingPost, editorRef]);
+
+  const reset = useCallback(() => {
+    setMarkdownContent('');
+    setIsMarkdownMode(false);
+  }, []);
+
+  return {
+    isMarkdownMode,
+    markdownContent,
+    setMarkdownContent,
+    handleMarkdownToggle,
+    handleEditorStateChange,
+    reset,
+  };
+}
 
 export function BigInput({
   sendPostFromDraft,
@@ -75,14 +188,19 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
-  // Default to markdown mode if feature flag is enabled and this is a new post (not editing)
-  const [isMarkdownMode, setIsMarkdownMode] = useState(
-    markdownNotebooksEnabled && !editingPost
-  );
-  const [markdownContent, setMarkdownContent] = useState('');
-  const [pendingEditorContent, setPendingEditorContent] = useState<
-    object | null
-  >(null);
+  const {
+    isMarkdownMode,
+    markdownContent,
+    setMarkdownContent,
+    handleMarkdownToggle,
+    handleEditorStateChange,
+    reset: resetMarkdownMode,
+  } = useMarkdownMode({
+    editingPost,
+    markdownNotebooksEnabled,
+    editorRef,
+    showToast,
+  });
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -107,21 +225,6 @@ export function BigInput({
       setIsEmpty(nextIsEmpty);
     },
     [editingPost?.content, attachments, channelType]
-  );
-
-  // Handle setting pending content when editor becomes ready after switching from Markdown mode
-  const handleEditorStateChange = useCallback(
-    (state: { isReady: boolean }) => {
-      if (state.isReady && pendingEditorContent && editorRef.current?.editor) {
-        logger.log(
-          'Editor ready, setting pending content from Markdown conversion'
-        );
-        // @ts-expect-error setContent does accept JSONContent
-        editorRef.current.editor.setContent(pendingEditorContent);
-        setPendingEditorContent(null);
-      }
-    },
-    [pendingEditorContent]
   );
 
   useEffect(() => {
@@ -247,8 +350,7 @@ export function BigInput({
       setShowFormatMenu(false);
       setShowBigInput?.(false);
       clearAttachments();
-      setMarkdownContent('');
-      setIsMarkdownMode(false);
+      resetMarkdownMode();
 
       // For notebook posts, don't clear editor content since the component unmounts anyway
       // This prevents triggering _onContentUpdate which could save a draft after publish
@@ -424,62 +526,6 @@ export function BigInput({
       }
     };
   }, [editingPost, clearAttachments]);
-
-  const handleMarkdownToggle = useCallback(async () => {
-    if (!isMarkdownMode) {
-      // Switching TO Markdown mode: convert rich text to Markdown
-      try {
-        let story = null;
-
-        // First, try to get content from the Tiptap editor
-        if (editorRef.current?.editor) {
-          const json = await editorRef.current.editor.getJSON();
-          if (!contentIsEmpty(json)) {
-            // Use codeWithLang=true to properly handle code blocks as Block types
-            // and limitNewlines=false to preserve paragraph structure
-            const inlines = tiptap.JSONToInlines(json, false, true);
-            story = constructStory(inlines);
-          }
-        }
-
-        // If editor is empty and we're editing an existing post, use the post's content
-        if (!story && editingPost?.content) {
-          const postContent = editingPost.content as { story?: any };
-          if (postContent.story && Array.isArray(postContent.story)) {
-            story = postContent.story;
-          }
-        }
-
-        // Convert story to markdown if we have content
-        const markdown = story ? storyToMarkdown(story) : '';
-        setMarkdownContent(markdown);
-        setIsMarkdownMode(true);
-      } catch (error) {
-        logger.error('Failed to convert to Markdown:', error);
-        showToast({
-          message: 'Failed to convert content to Markdown',
-          duration: 2000,
-        });
-      }
-    } else {
-      // Switching FROM Markdown mode: convert Markdown to rich text
-      try {
-        if (markdownContent) {
-          const story = markdownToStory(markdownContent);
-          const tiptapContent = tiptap.diaryMixedToJSON(story);
-          // Store the content to be set when editor becomes ready
-          setPendingEditorContent(tiptapContent);
-        }
-        setIsMarkdownMode(false);
-      } catch (error) {
-        logger.error('Failed to convert from Markdown:', error);
-        showToast({
-          message: 'Failed to convert Markdown to rich text',
-          duration: 2000,
-        });
-      }
-    }
-  }, [isMarkdownMode, markdownContent, showToast, editingPost]);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
