@@ -143,113 +143,6 @@ function limitBreaks(
 const isList = (c: JSONContent) =>
   c.type === 'orderedList' || c.type === 'bulletList' || c.type === 'taskList';
 
-export function JSONToListing(
-  json: JSONContent,
-  limitNewlines = true
-): Listing {
-  switch (json.type) {
-    case 'orderedList': {
-      return {
-        list: {
-          type: 'ordered',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'bulletList': {
-      return {
-        list: {
-          type: 'unordered',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'taskList': {
-      return {
-        list: {
-          type: 'tasklist',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'listItem': {
-      const list = json.content?.find(isList);
-      const paras = json.content?.filter((c) => !isList(c)) || [];
-
-      // Process all paragraphs and add breaks between them
-      const contents: Inline[] = [];
-      for (let i = 0; i < paras.length; i++) {
-        if (i > 0) {
-          contents.push({ break: null });
-        }
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
-      }
-
-      if (list) {
-        return {
-          list: {
-            contents,
-            items: list.content
-              ? list.content.map((c) => JSONToListing(c, limitNewlines))
-              : ([] as Listing[]),
-            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
-          },
-        };
-      }
-
-      return {
-        item: contents,
-      };
-    }
-    case 'taskItem': {
-      const list = json.content?.find(isList);
-      const paras = json.content?.filter((c) => !isList(c)) || [];
-
-      // Process all paragraphs and add breaks between them
-      const contents: Inline[] = [];
-      for (let i = 0; i < paras.length; i++) {
-        if (i > 0) {
-          contents.push({ break: null });
-        }
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
-      }
-
-      if (list) {
-        return {
-          list: {
-            contents,
-            items: list.content
-              ? list.content.map((c) => JSONToListing(c, limitNewlines))
-              : ([] as Listing[]),
-            type: 'tasklist',
-          },
-        };
-      }
-
-      return {
-        item: [
-          {
-            task: {
-              checked: json.attrs?.checked || false,
-              content: contents,
-            },
-          },
-        ],
-      };
-    }
-    default:
-      return { item: [''] };
-  }
-}
-
 export function JSONToInlines(
   json: JSONContent,
   limitNewlines = true,
@@ -391,26 +284,11 @@ export function JSONToInlines(
           : { code: codeText },
       ];
     }
-    case 'orderedList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
-    }
-    case 'bulletList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
-    }
+    case 'orderedList':
+    case 'bulletList':
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     case 'taskList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
+      return [{ listing: JSONToListing(json, limitNewlines) }];
     }
     case 'heading': {
       return [
@@ -504,6 +382,111 @@ export function JSONToInlines(
     default: {
       return [];
     }
+  }
+}
+
+export function JSONToListing(
+  json: JSONContent,
+  limitNewlines = true
+): Listing {
+  switch (json.type) {
+    case 'orderedList': {
+      return {
+        list: {
+          type: 'ordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'bulletList': {
+      return {
+        list: {
+          type: 'unordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'taskList': {
+      return {
+        list: {
+          type: 'tasklist',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'listItem': {
+      const list = json.content?.find(isList);
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as Listing[]),
+            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
+          },
+        };
+      }
+
+      return {
+        item: contents,
+      };
+    }
+    case 'taskItem': {
+      const list = json.content?.find(isList);
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as Listing[]),
+            type: 'tasklist',
+          },
+        };
+      }
+
+      return {
+        item: [
+          {
+            task: {
+              checked: json.attrs?.checked || false,
+              content: contents,
+            },
+          },
+        ],
+      };
+    }
+    default:
+      return { item: [''] };
   }
 }
 
