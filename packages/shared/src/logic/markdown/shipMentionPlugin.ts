@@ -1,3 +1,4 @@
+import { valid } from '@urbit/aura';
 import type { Literal, Node } from 'unist';
 import type { PhrasingContent, Text } from 'mdast';
 
@@ -9,7 +10,9 @@ export interface ShipMention extends Literal {
   value: string; // ship name without the ~
 }
 
-// Ship name pattern: ~[a-z]{3,6}(-[a-z]{6})*
+// Structural pattern: a galaxy/star name (3–6 letters) optionally followed by
+// one or more 6-letter syllables separated by hyphens.  Each structural match
+// is validated with @urbit/aura's valid('p') before being treated as a ship.
 const SHIP_PATTERN = /~[a-z]{3,6}(?:-[a-z]{6})*/g;
 
 /**
@@ -22,6 +25,11 @@ export function parseShipMentions(text: string): PhrasingContent[] {
 
   const matches = text.matchAll(SHIP_PATTERN);
   for (const match of matches) {
+    // Validate against @urbit/aura — skip structural matches that aren't
+    // real ship names.  Skipped text is picked up as plain text by the next
+    // iteration's "before" slice (or the trailing-text slice at the end).
+    if (!valid('p', match[0])) continue;
+
     // Add text before the ship mention
     if (match.index !== undefined && match.index > lastIndex) {
       const textNode: Text = {
