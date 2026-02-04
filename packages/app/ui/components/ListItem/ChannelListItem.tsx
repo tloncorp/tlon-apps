@@ -32,6 +32,7 @@ export function ChannelListItem({
   disableFocusedStyle = false,
   showGroupTitle = false,
   onLayout,
+  hoverStyle,
   ...props
 }: {
   showGroupTitle?: boolean;
@@ -134,7 +135,7 @@ export function ChannelListItem({
         backgroundColor={
           !disableFocusedStyle && isFocused ? '$shadow' : undefined
         }
-        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        hoverStyle={hoverStyle ?? { backgroundColor: '$secondaryBackground' }}
         onMouseEnter={handleHoverIn}
         onMouseLeave={handleHoverOut}
       >
