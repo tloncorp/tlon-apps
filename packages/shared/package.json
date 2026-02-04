@@ -61,7 +61,6 @@
     "remark-stringify": "^11.0.0",
     "sorted-btree": "^1.8.1",
     "unified": "^11.0.0",
-    "unist-util-visit": "^5.0.0",
     "uuid": "^9.0.0",
     "validator": "^13.7.0"
   },
