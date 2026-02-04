@@ -185,6 +185,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
     );
+    // Ref mirror of editorIsEmpty: the effect below checks emptiness inside an
+    // async .then() callback.  Reading state there would capture the stale value
+    // from the closure; the ref always reflects the latest value without needing
+    // to be in the dependency array (which would cause the effect to re-run).
     const editorIsEmptyRef = useRef(editorIsEmpty);
 
     const bridgeExtensions = [
