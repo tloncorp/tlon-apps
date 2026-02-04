@@ -174,7 +174,8 @@ const TextInputComponent = RawTextInput.styleable<{
         {icon ? <Icon type={icon} size="$m" /> : null}
         {shouldUseBottomSheetInput ? (
           <RawBottomSheetTextInput
-            ref={ref}
+            // TODO: See if this can be fixed properly.
+            ref={ref as any}
             {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
           />
         ) : (
