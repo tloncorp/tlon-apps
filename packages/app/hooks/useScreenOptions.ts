@@ -14,7 +14,7 @@ export const useScreenOptions = (
   });
   return {
     headerTitle: '',
-    headerBackTitleVisible: false,
+    headerBackButtonDisplayMode: 'minimal',
     headerShadowVisible: false,
     gestureEnabled: true,
     headerStyle: contentStyle,

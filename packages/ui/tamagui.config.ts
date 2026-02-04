@@ -14,6 +14,14 @@ export const animations = createAnimations({
     mass: 1,
     stiffness: 300,
   },
+  medium: {
+    type: 'timing',
+    duration: 350,
+  },
+  slow: {
+    type: 'timing',
+    duration: 500,
+  },
 });
 
 const rawMeasures = {

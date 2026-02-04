@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, isWeb } from 'tamagui';
+import { TamaguiWebElement, View, isWeb } from 'tamagui';
 
 import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
@@ -44,7 +44,7 @@ export function ChannelListItem({
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<TamaguiWebElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
@@ -135,8 +135,8 @@ export function ChannelListItem({
           !disableFocusedStyle && isFocused ? '$shadow' : undefined
         }
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
+        onMouseEnter={handleHoverIn}
+        onMouseLeave={handleHoverOut}
       >
         <ListItem
           onLayout={onLayout}
