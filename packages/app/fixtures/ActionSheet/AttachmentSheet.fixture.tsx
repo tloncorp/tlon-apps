@@ -1,8 +1,8 @@
-import { AppDataContextProvider } from '../../ui';
 import AttachmentSheet from '../../ui/components/AttachmentSheet';
+import { FixtureWrapper } from '../FixtureWrapper';
 
 export default (
-  <AppDataContextProvider contacts={[]}>
+  <FixtureWrapper>
     <AttachmentSheet onOpenChange={() => {}} isOpen={true} mediaType="all" />
-  </AppDataContextProvider>
+  </FixtureWrapper>
 );
