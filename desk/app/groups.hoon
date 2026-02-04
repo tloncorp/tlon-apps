@@ -4846,8 +4846,12 @@
       fi-core
     ::  clean-up a leaves entry
     =.  leaves  (~(del in leaves) flag)
-    =.  progress  `%join
     =.  token  tok
+    ?.  (can-poke:neg bowl p.flag server)
+      =.  cor  (tell:log %warn leaf+"+fi-join to {<flag>} failed: protocol mismatch" ~)
+      =.  progress  `%error
+      fi-core
+    =.  progress  `%join
     =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     =.  cor
