@@ -28,9 +28,8 @@ export function PostErrorMessage({
         {message}
       </Text>
       {actionLabel && onAction && (
-        <Button
+        <Button.Frame
           onPress={onAction}
-          size="$s"
           backgroundColor="transparent"
           borderWidth={0}
           padding="$xs"
@@ -44,7 +43,7 @@ export function PostErrorMessage({
           >
             {actionLabel}
           </Text>
-        </Button>
+        </Button.Frame>
       )}
     </XStack>
   );

@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
+import { useOnboardingHelpers } from './useOnboardingHelpers';
 
 const logger = createDevLogger('OnboardingRevive', true);
 
@@ -18,6 +19,7 @@ export function useReviveSavedOnboarding() {
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const { isAuthenticated } = useShip();
   const signupContext = useSignupContext();
+  const onboardingHelpers = useOnboardingHelpers();
 
   const getOnboardingRouteStack = useCallback(
     async (savedSignup: SignupParams) => {
@@ -71,16 +73,27 @@ export function useReviveSavedOnboarding() {
 
   const executeRevive = useCallback(async () => {
     const savedSignup = await signupData.getValue();
-    if (!savedSignup.email && !savedSignup.phoneNumber) {
+    if (
+      !savedSignup.email &&
+      !savedSignup.phoneNumber &&
+      !savedSignup.isGuidedLogin
+    ) {
       logger.log('no saved onboarding session found');
       return false;
     }
 
     if (isAuthenticated) {
-      logger.log(
-        'found saved session, but already authenticated. Running post signup logic'
-      );
-      signupContext.handlePostSignup();
+      if (savedSignup.isGuidedLogin) {
+        logger.log('recovering guided login session');
+        signupContext.setOnboardingValues({ isGuidedLogin: true });
+        onboardingHelpers.handleGuidedLogin();
+        return true;
+      } else {
+        logger.log(
+          'found saved session, but already authenticated. Running post signup logic'
+        );
+        signupContext.handlePostSignup();
+      }
       return false;
     }
 

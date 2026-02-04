@@ -97,7 +97,6 @@ export default function ChannelScreen(props: Props) {
     clearDraft,
     editingPost,
     setEditingPost,
-    editPost,
     channel,
     group,
     groupIsLoading,
@@ -334,13 +333,25 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChatDetailsPressed = useCallback(() => {
-    if (group) {
+    const groupId = channel?.groupId ?? group?.id;
+    if (!groupId) return;
+
+    const isSingleChannelGroup = group?.channels?.length === 1;
+    // Single-channel groups show group details; multi-channel show channel details
+    if (isSingleChannelGroup) {
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'group',
-        chatId: group.id,
+        chatId: groupId,
+        groupId,
+      });
+    } else if (channel) {
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channel.id,
+        groupId,
       });
     }
-  }, [group, navigationRef]);
+  }, [channel, group, navigationRef]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -380,9 +391,13 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      navigationRef.current.navigate('UserProfile', { userId });
+      navigationRef.current.navigate('UserProfile', {
+        userId,
+        groupId,
+        channelId: currentChannelId,
+      });
     },
-    [navigationRef]
+    [navigationRef, groupId, currentChannelId]
   );
 
   const handleGoToGroupSettings = useCallback(() => {
@@ -393,6 +408,17 @@ export default function ChannelScreen(props: Props) {
       });
     }
   }, [group, navigationRef]);
+
+  const handleGoToChannelDetails = useCallback(
+    (groupId: string, channelId: string) => {
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channelId,
+        groupId,
+      });
+    },
+    [navigationRef]
+  );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
   const handleConfigureChannel = useCallback(() => {
@@ -447,6 +473,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
+          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}
@@ -465,7 +492,6 @@ export default function ChannelScreen(props: Props) {
           onPressRetrySend={handleRetrySend}
           onPressRetryLoad={postsQuery.refetch}
           setEditingPost={setEditingPost}
-          editPost={editPost}
           negotiationMatch={negotiationStatus.matchedOrPending}
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}

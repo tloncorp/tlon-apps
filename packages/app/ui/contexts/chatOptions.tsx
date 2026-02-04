@@ -31,9 +31,8 @@ export type ChatOptionsContextValue = {
   onPressRoles: () => void;
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
-  onPressEditChannel: (fromChatDetails?: boolean) => void;
   onPressChannelTemplate: () => void;
-  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
+  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
@@ -59,7 +58,6 @@ const defaultValue: ChatOptionsContextValue = {
   onPressRoles: noop,
   onPressChannelMembers: noop,
   onPressChannelMeta: noop,
-  onPressEditChannel: noop,
   onPressChannelTemplate: noop,
   onPressChatDetails: noop,
   togglePinned: noop,
@@ -88,23 +86,19 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
-  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean) => void;
-  onPressGroupMembers?: (groupId: string) => void;
-  onPressManageChannels?: (groupId: string) => void;
+  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean, fromChatDetails?: boolean) => void;
+  onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
+  onPressManageChannels?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressInvite?: (groupId: string) => void;
-  onPressGroupPrivacy?: (groupId: string) => void;
+  onPressGroupPrivacy?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressChannelMembers?: (channelId: string) => void;
   onPressChannelMeta?: (channelId: string) => void;
-  onPressEditChannel?: (
-    channelId: string,
-    groupId: string,
-    fromChatDetails?: boolean
-  ) => void;
   onPressChannelTemplate?: (channelId: string) => void;
-  onPressRoles?: (groupId: string) => void;
+  onPressRoles?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressChatDetails?: (chat: {
     type: 'group' | 'channel';
     id: string;
+    groupId?: string;
   }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
@@ -130,7 +124,6 @@ export const ChatOptionsProvider = ({
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
-  onPressEditChannel,
   onPressChannelTemplate = noop,
   onPressRoles,
   onPressChatDetails = noop,
@@ -221,7 +214,7 @@ export const ChatOptionsProvider = ({
     }
 
     syncGroup();
-  }, [groupId, group]);
+  }, [groupId]);
 
   const togglePinned = useCallback(async () => {
     // Re-query to get current pin state
@@ -365,20 +358,10 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressEditChannel = useCallback(
-    (fromChatDetails?: boolean) => {
-      if (channelId && groupId) {
-        onPressEditChannel?.(channelId, groupId, fromChatDetails);
-        closeSheet();
-      }
-    },
-    [channelId, groupId, closeSheet, onPressEditChannel]
-  );
-
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
       if (groupId) {
-        onPressGroupMeta?.(groupId, fromBlankChannel);
+        onPressGroupMeta?.(groupId, fromBlankChannel, true);
         closeSheet();
       }
     },
@@ -387,7 +370,7 @@ export const ChatOptionsProvider = ({
 
   const handlePressManageChannels = useCallback(() => {
     if (groupId) {
-      onPressManageChannels?.(groupId);
+      onPressManageChannels?.(groupId, true);
       closeSheet();
     }
   }, [groupId, onPressManageChannels, closeSheet]);
@@ -401,21 +384,21 @@ export const ChatOptionsProvider = ({
 
   const handlePressGroupMembers = useCallback(() => {
     if (groupId) {
-      onPressGroupMembers(groupId);
+      onPressGroupMembers(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupMembers]);
 
   const handlePressGroupPrivacy = useCallback(() => {
     if (groupId) {
-      onPressGroupPrivacy?.(groupId);
+      onPressGroupPrivacy?.(groupId, true);
       closeSheet();
     }
   }, [closeSheet, groupId, onPressGroupPrivacy]);
 
   const handlePressGroupRoles = useCallback(() => {
     if (groupId) {
-      onPressRoles?.(groupId);
+      onPressRoles?.(groupId, true);
     }
   }, [groupId, onPressRoles]);
 
@@ -427,7 +410,7 @@ export const ChatOptionsProvider = ({
   }, [channelId, closeSheet, onPressChannelTemplate]);
 
   const handlePressChatDetails = useCallback(
-    (params: { type: 'group' | 'channel'; id: string }) => {
+    (params: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
       onPressChatDetails(params);
       closeSheet();
     },
@@ -456,7 +439,6 @@ export const ChatOptionsProvider = ({
       open: openSheet,
       onPressChannelMembers: handlePressChannelMembers,
       onPressChannelMeta: handlePressChannelMeta,
-      onPressEditChannel: handlePressEditChannel,
       setChannelSortPreference,
       setChat: updateChat,
     }),
@@ -481,7 +463,6 @@ export const ChatOptionsProvider = ({
       openSheet,
       handlePressChannelMembers,
       handlePressChannelMeta,
-      handlePressEditChannel,
       setChannelSortPreference,
       updateChat,
     ]

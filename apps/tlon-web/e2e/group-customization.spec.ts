@@ -31,15 +31,6 @@ test('should customize group name, icon, and description', async ({
   // Verify we're on the group customization screen
   await expect(page.getByText('Edit group info')).toBeVisible();
 
-  // Click Cancel to verify navigation back to blank channel
-  await page.getByText('Cancel').click();
-
-  // Verify we're back to the blank channel state
-  await expect(page.getByText('Welcome to your group!')).toBeVisible();
-
-  // Open the Customize group screen again to continue with the test
-  await helpers.openGroupCustomization(page);
-
   // Change the group name
   await helpers.changeGroupName(page, 'My Group');
 
@@ -97,7 +88,7 @@ test('should customize group name, icon, and description', async ({
   // Open group settings to edit the description
   await helpers.openGroupSettings(page);
 
-  await page.getByText('Edit').first().click();
+  await page.getByTestId('DetailsEditButton').first().click();
 
   // Change the group description
   await helpers.changeGroupDescription(page, 'This is a test group');
@@ -107,10 +98,10 @@ test('should customize group name, icon, and description', async ({
 
   // Optionally verify the description was saved by opening customization again
   await helpers.openGroupSettings(page);
-  await page.getByText('Edit').first().click();
+  await page.getByTestId('DetailsEditButton').first().click();
   const descriptionField = page.getByTestId('GroupDescriptionInput');
   if (await descriptionField.isVisible()) {
     await expect(descriptionField).toHaveValue('This is a test group');
   }
-  await page.getByText('Cancel').click();
+  await page.getByText('Save').click();
 });

@@ -647,7 +647,6 @@ export function ChannelOptionsSheetContent({
     onPressChatDetails,
     onPressChannelMembers,
     onPressChannelMeta,
-    onPressEditChannel,
     onPressChannelTemplate,
     togglePinned,
     leaveChannel,
@@ -670,12 +669,16 @@ export function ChannelOptionsSheetContent({
   const baseVolumeLevel = store.useBaseVolumeLevel();
   const showToast = useToast();
 
-  const handlePressChatDetails = useCallback(() => {
+  const handlePressGroupDetails = useCallback(() => {
     if (!group) {
       throw new Error("Channel doesn't have a group");
     }
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group, onPressChatDetails]);
+
+  const handlePressChannelDetails = useCallback(() => {
+    onPressChatDetails({ type: 'channel', id: channel.id, groupId: channel.groupId ?? undefined });
+  }, [channel.id, channel.groupId, onPressChatDetails]);
 
   const handleSummarizeChannel = useCallback(
     async (timeRange: 'day' | 'week') => {
@@ -800,17 +803,13 @@ export function ChannelOptionsSheetContent({
         group && [
           'neutral',
           {
-            title: 'Group info & settings',
-            action: wrappedAction.bind(null, handlePressChatDetails, false),
+            title: 'Channel info & settings',
+            action: wrappedAction.bind(null, handlePressChannelDetails, false),
             endIcon: 'ChevronRight',
           },
-          currentUserIsAdmin && {
-            title: 'Channel settings',
-            action: wrappedAction.bind(
-              null,
-              () => onPressEditChannel(false),
-              false
-            ),
+          {
+            title: 'Group info & settings',
+            action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
           },
           currentUserIsAdmin &&
@@ -859,10 +858,10 @@ export function ChannelOptionsSheetContent({
       aiSummarizationEnabled,
       handleSummarizeChannel,
       onPressChannelMeta,
-      onPressEditChannel,
       onPressChannelMembers,
       group,
-      handlePressChatDetails,
+      handlePressChannelDetails,
+      handlePressGroupDetails,
       currentUserIsAdmin,
       enableCustomChannels,
       onPressConfigureChannel,

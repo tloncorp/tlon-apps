@@ -12,12 +12,12 @@ import {
   useShipConnectionStatus,
 } from '../../features/top/useShipConnectionStatus';
 import { Icon, IconType } from '../utils';
+import { ActionSheet } from './ActionSheet';
 import { Badge, BadgeType } from './Badge';
-import { ListItem } from './ListItem/ListItem';
 
 export interface ConnectionStatusProps {
   contactId: string;
-  type?: 'indicator' | 'indicator-with-text' | 'badge' | 'list-item';
+  type?: 'indicator' | 'indicator-with-text' | 'badge' | 'action';
   options?: ConnectivityCheckOptions;
   onPress?: () => void;
 }
@@ -184,9 +184,9 @@ export const ConnectionStatus = ({
     return <ConnectionIndicatorBadge status={connectionStatus} />;
   }
 
-  if (type === 'list-item') {
+  if (type === 'action') {
     return (
-      <ConnectionIndicatorListItem
+      <ConnectionIndicatorAction
         status={connectionStatus.status}
         onPress={onPress}
       />
@@ -216,7 +216,6 @@ export function ConnectionIndicator({
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <XStack alignItems="center">
-        {/* <Icon type={labels.icon || 'Bang'} color={labels.color} size="$l" /> */}
         <Icon type="Record" color={labels.color} size="$l" />
         {showText && (
           <Text size="$label/m" color="$tertiaryText">
@@ -257,7 +256,7 @@ export function ConnectionIndicatorBadge({
   return <Badge text={badge.label} type={badge.type as BadgeType} />;
 }
 
-export function ConnectionIndicatorListItem({
+export function ConnectionIndicatorAction({
   status,
   onPress,
 }: {
@@ -266,19 +265,17 @@ export function ConnectionIndicatorListItem({
 }) {
   const labels = useMemo(() => getStatusLabels(status), [status]);
 
-  return (
-    <Pressable onPress={onPress} disabled={!onPress}>
-      <ListItem>
-        <ListItem.MainContent>
-          <ListItem.Title>{labels.title}</ListItem.Title>
-          <ListItem.Subtitle>{labels.subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
-        <ListItem.EndContent>
-          {labels.icon ? <Icon type={labels.icon} /> : <Spinner size="small" />}
-        </ListItem.EndContent>
-      </ListItem>
-    </Pressable>
+  const action = useMemo(
+    () => ({
+      title: labels.title,
+      description: labels.subtitle,
+      action: onPress,
+      endIcon: labels.icon ?? <Spinner size="small" />,
+    }),
+    [labels, onPress]
   );
+
+  return <ActionSheet.Action action={action} />;
 }
 
 export default ConnectionStatus;

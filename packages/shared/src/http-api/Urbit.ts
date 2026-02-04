@@ -5,10 +5,15 @@ import { isBrowser } from 'browser-or-node';
 import { TimeoutError } from '../api';
 import { createDevLogger } from '../debug';
 import { desig } from '../urbit';
+import { readArrayBufferFromBlob } from '../utils';
 import * as utils from '../utils';
 import { EventEmitter } from '../utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
-import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
+import {
+  EventSourceMessage,
+  FetchEventSourceInit,
+  fetchEventSource,
+} from './fetch-event-source';
 import {
   Ack,
   AuthError,
@@ -966,11 +971,7 @@ export class Urbit {
       }
 
       const responseBlob = await response.blob();
-      const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.readAsArrayBuffer(responseBlob);
-      });
+      const buffer = await readArrayBufferFromBlob(responseBlob);
 
       try {
         const unpacked = await unpackJamBytes(buffer);
@@ -1026,6 +1027,33 @@ export class Urbit {
     );
     signal?.cleanup();
     return result;
+  }
+
+  async getSpinHints(): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const controller = new AbortController();
+      let messageReceived = false;
+
+      fetchEventSource(`${this.url}/~_~/spin`, {
+        signal: controller.signal,
+        // @ts-expect-error reactNative not in types but is essential
+        reactNative: { textStreaming: true },
+        openWhenHidden: true,
+        responseTimeout: 25000,
+        fetch: this.fetchFn,
+        onmessage(event) {
+          if (!messageReceived) {
+            messageReceived = true;
+            controller.abort();
+            resolve(event.data);
+          }
+        },
+        onerror(error) {
+          controller.abort();
+          reject(error);
+        },
+      });
+    });
   }
 
   /**

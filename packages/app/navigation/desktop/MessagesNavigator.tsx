@@ -8,7 +8,7 @@ import { NavigationState } from '@react-navigation/routers';
 import { createDevLogger } from '@tloncorp/shared';
 import { isEqual } from 'lodash';
 import { memo, useEffect, useRef } from 'react';
-import { View, getVariableValue, useTheme } from 'tamagui';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
@@ -17,6 +17,7 @@ import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
+import { MessagesEmptyState } from '../../features/top/DesktopEmptyStates';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
@@ -196,5 +197,5 @@ function ChannelStack(
 }
 
 function Empty() {
-  return <View backgroundColor="$secondaryBackground" flex={1} />;
+  return <MessagesEmptyState />;
 }

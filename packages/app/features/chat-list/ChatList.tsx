@@ -115,7 +115,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.group.title !== '' ? item.group.title : 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
+            testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else {

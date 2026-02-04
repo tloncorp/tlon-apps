@@ -6,7 +6,7 @@ import {
   createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
-  sendPost,
+  uploadAsset,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -18,8 +18,8 @@ import {
   isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
+import * as domain from '@tloncorp/shared/domain';
+import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -88,6 +88,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
+  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -107,7 +108,6 @@ interface ChannelProps {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
   onPressRetrySend: (post: db.Post) => Promise<void>;
   onPressRetryLoad: () => void;
   onPressDelete: (post: db.Post) => void;
@@ -131,7 +131,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       selectedPostId,
       group,
       groupIsLoading,
-      groupError, // Not currently used but available if needed for error handling
+      // groupError, // Not currently used but available if needed for error handling
       goBack,
       goToChatDetails,
       goToSearch,
@@ -139,6 +139,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
+      goToChannelDetails,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -156,7 +157,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       getDraft,
       editingPost,
       setEditingPost,
-      editPost,
       onPressRetryLoad,
       onPressRetrySend,
       onPressDelete,
@@ -176,6 +176,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
     const canRead = utils.useCanRead(channel, currentUserId);
+    const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     // Track previous channel for logging
@@ -205,6 +206,24 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
+    const isSingleChannelGroup = group?.channels?.length === 1;
+
+    // For DMs, get the other participant's ID
+    const dmRecipientId = useMemo(() => {
+      if (isDM && channel.members) {
+        const otherMember = channel.members.find(
+          (member) => member.contactId !== currentUserId
+        );
+        return otherMember?.contactId;
+      }
+      return undefined;
+    }, [isDM, channel.members, currentUserId]);
+
+    const handleGoToProfile = useCallback(() => {
+      if (dmRecipientId) {
+        goToUserProfile(dmRecipientId);
+      }
+    }, [dmRecipientId, goToUserProfile]);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -217,6 +236,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       },
       [onGroupAction]
     );
+
+    const handleGoToChannelDetails = useCallback(() => {
+      if (!channel.groupId) return;
+
+      if (isSingleChannelGroup) {
+        return;
+      } else {
+        if (goToChannelDetails) {
+          goToChannelDetails(channel.groupId, channel.id);
+        }
+      }
+    }, [goToChannelDetails, channel.groupId, channel.id, group?.channels?.length]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -247,7 +278,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onPressRef, posts, channel]
     );
 
-    const { uploadAssets, clearAttachments } = useAttachmentContext();
+    const { clearAttachments } = useAttachmentContext();
 
     const handleImageDrop = useCallback(
       async (uploadIntents: Attachment.UploadIntent[]) => {
@@ -257,38 +288,36 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
 
         try {
-          const uploadedAttachments = await uploadAssets(uploadIntents);
-
-          for (const attachment of uploadedAttachments) {
-            if (attachment.type !== 'image') {
-              throw new Error('Not implemented');
-            }
-            const story: Story = [
-              {
-                block: {
-                  image: {
-                    src: UploadedImageAttachment.uri(attachment),
-                    height: attachment.file.height || 0,
-                    width: attachment.file.width || 0,
-                    alt: 'image',
-                  },
-                },
-              },
-            ];
-
-            // Send the post with just this image
-            await sendPost({
+          // Start uploads for gallery channels (uploads are started automatically
+          // via useEffect in AttachmentContext for non-gallery channels)
+          // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
+          for (const uploadIntent of uploadIntents) {
+            await uploadAsset(uploadIntent, true);
+            const draft: domain.PostDataDraft = {
               channelId: channel.id,
-              content: story,
-            });
+              content: [],
+              attachments: [Attachment.fromUploadIntent(uploadIntent)],
+              channelType: channel.type,
+              replyToPostId: null,
+              isEdit: false,
+            };
+            await finalizeAndSendPost(draft);
           }
         } catch (error) {
           console.error('Error handling image drop:', error);
         } finally {
           clearAttachments();
+          for (const intent of uploadIntents) {
+            if (
+              intent.type === 'image' &&
+              intent.asset.uri.startsWith('blob:')
+            ) {
+              URL.revokeObjectURL(intent.asset.uri);
+            }
+          }
         }
       },
-      [channel, uploadAssets, attachAssets, clearAttachments]
+      [channel, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -315,21 +344,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 channel.contentConfiguration
               ).configuration,
         draftInputRef,
-        editPost,
         editingPost,
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        sendPost: async (content, channelId, metadata, blob) => {
-          await sendPost({
-            channelId,
-            content,
-            metadata,
-            blob,
-          });
-          scrollToNewMessage();
-        },
         sendPostFromDraft: async (draft) => {
+          setEditingPost?.(undefined);
           await finalizeAndSendPost(draft);
           if (!draft.isEdit) {
             scrollToNewMessage();
@@ -341,9 +361,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         storeDraft,
       }),
       [
+        scrollToNewMessage,
         channel,
         clearDraft,
-        editPost,
         editingPost,
         getDraft,
         group,
@@ -432,22 +452,32 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           channel={channel}
                           group={group}
                           title={title ?? ''}
+                          description={''}
                           goBack={
                             isNarrow ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={
-                            isChatChannel &&
-                            draftInputPresentationMode !== 'fullscreen'
-                          }
-                          goToSearch={goToSearch}
                           goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={
+                          showSearchButton={
+                            channel.type === 'chat' ||
+                            channel.type === 'dm' ||
+                            channel.type === 'groupDm'
+                          }
+                          showEditButton={
+                            isGroupAdmin &&
+                            !isSingleChannelGroup &&
+                            !!channel.groupId &&
+                            (channel.type === 'chat' ||
+                              channel.type === 'notebook' ||
+                              channel.type === 'gallery') &&
                             draftInputPresentationMode !== 'fullscreen'
                           }
+                          goToEdit={handleGoToChannelDetails}
                         />
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (

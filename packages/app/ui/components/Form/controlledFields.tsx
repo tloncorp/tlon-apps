@@ -10,6 +10,7 @@ import {
 
 import { Field } from './Field';
 import {
+  ColorInput,
   ImageInput,
   ListItemInput,
   ListItemInputOption,
@@ -195,6 +196,27 @@ export const ControlledListItemField = <
       return <ListItemInput options={options} {...field} />;
     },
     [options]
+  );
+  return <ControlledField {...props} renderInput={renderInput} />;
+};
+
+export const ControlledColorField = <
+  TFieldValues extends FieldValues,
+  TName extends Path<TFieldValues>,
+>(
+  props: ControlledFieldProps<
+    TFieldValues,
+    TName,
+    ComponentProps<typeof ColorInput>
+  >
+) => {
+  const renderInput = useCallback(
+    ({
+      field: { onChange, ref: _ref, ...field },
+    }: UseControllerReturn<TFieldValues, TName>) => {
+      return <ColorInput {...field} onChange={onChange} {...props.inputProps} />;
+    },
+    [props.inputProps]
   );
   return <ControlledField {...props} renderInput={renderInput} />;
 };

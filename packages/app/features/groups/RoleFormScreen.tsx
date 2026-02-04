@@ -221,6 +221,18 @@ export function RoleFormScreen({ navigation, route }: Props) {
               addUserToRole(contactId, newRoleId)
             )
           );
+
+          if ('returnScreen' in route.params && route.params.returnScreen) {
+            const { returnScreen, returnParams } = route.params;
+            // Navigate back with the created role ID (only SelectChannelRoles uses this pattern)
+            if (returnScreen === 'SelectChannelRoles') {
+              navigation.navigate(returnScreen, {
+                ...returnParams,
+                createdRoleId: newRoleId,
+              } as GroupSettingsStackParamList['SelectChannelRoles']);
+            }
+            return;
+          }
         }
 
         reset();
@@ -307,7 +319,11 @@ export function RoleFormScreen({ navigation, route }: Props) {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title={screenTitle} />
+      <ScreenHeader
+        backAction={handleGoBack}
+        title={screenTitle}
+        backgroundColor="$secondaryBackground"
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -406,22 +422,20 @@ export function RoleFormScreen({ navigation, route }: Props) {
               </ListItem.EndContent>
             </ListItem>
           </Pressable>
-          <Button hero onPress={handleSubmit(handleSave)} disabled={!isValid}>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button
+            preset="hero"
+            onPress={handleSubmit(handleSave)}
+            disabled={!isValid}
+            label="Save"
+          />
           {isEditMode && !isAdminRole && (
             <YStack gap="$l">
               <Button
-                heroDestructive
+                preset="heroDestructive"
                 disabled={disableDelete}
                 onPress={handleDelete}
-              >
-                <Button.Text
-                  color={disableDelete ? '$negativeActionText' : undefined}
-                >
-                  Delete role
-                </Button.Text>
-              </Button>
+                label="Delete role"
+              />
               {disableDelete && (
                 <Text textAlign="center" fontSize="$s" color="$destructiveText">
                   This role cannot be deleted, it is still in use for some users

@@ -325,11 +325,12 @@ export function useRootNavigation() {
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
-      (chat: { type: 'group' | 'channel'; id: string }) => {
+      (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
         if (isWindowNarrow) {
           navigationRef.current.navigate('ChatDetails', {
             chatId: chat.id,
             chatType: chat.type,
+            groupId: chat.groupId,
           });
         } else {
           const tab = getTab(navigationRef.current, lastOpenTab);
@@ -338,6 +339,7 @@ export function useRootNavigation() {
             params: {
               chatId: chat.id,
               chatType: chat.type,
+              groupId: chat.groupId,
             },
           });
         }
@@ -351,11 +353,12 @@ export function useRootNavigation() {
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
-      (chat: { type: 'group' | 'channel'; id: string }) => {
+      (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
         if (isWindowNarrow) {
           navigationRef.current.navigate('ChatVolume', {
             chatId: chat.id,
             chatType: chat.type,
+            groupId: chat.groupId,
           });
         } else {
           const tab = getTab(navigationRef.current, lastOpenTab);
@@ -364,6 +367,7 @@ export function useRootNavigation() {
             params: {
               chatId: chat.id,
               chatType: chat.type,
+              groupId: chat.groupId,
             },
           });
         }

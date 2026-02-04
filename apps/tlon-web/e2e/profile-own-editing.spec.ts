@@ -13,7 +13,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
   await expect(zodPage.getByText('Profile')).toBeVisible();
   
   // Edit profile
-  await zodPage.getByText('Edit').click();
+  await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   
   // Update nickname
@@ -39,7 +39,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
   await zodPage.getByTestId('CloseFavoriteGroupSelectorSheet').click();
   
   // Save changes
-  await zodPage.getByText('Done').click();
+  await zodPage.getByText('Save').click();
   
   // TODO: figure out why we need to reload here. This should be fixed.
   await zodPage.reload();

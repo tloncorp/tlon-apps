@@ -249,6 +249,8 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title={mode === 'login' ? 'Tlon Login' : 'Confirm Code'}
+        backgroundColor="$secondaryBackground"
+        showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isSubmitting}
       />

@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
 
+import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { ManageChannelsScreenView } from '../../ui';
@@ -11,7 +12,7 @@ type Props = NativeStackScreenProps<
 >;
 
 export function ManageChannelsScreen(props: Props) {
-  const { groupId, fromChatDetails } = props.route.params;
+  const { groupId, fromChatDetails, createdRoleId } = props.route.params;
   const { navigation } = props;
 
   const {
@@ -23,22 +24,21 @@ export function ManageChannelsScreen(props: Props) {
     updateGroupNavigation,
   } = useGroupContext({ groupId });
 
-  const handleGoBack = useCallback(() => {
-    if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, fromChatDetails, groupId]);
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
-  const goToEditChannel = useCallback(
+  const goToChannelDetails = useCallback(
     (channelId: string) => {
-      navigation.navigate('EditChannel', {
+      // Use push() instead of navigate() to ensure ChannelInfo is pushed onto the
+      // stack. This guarantees goBack() from ChannelInfo returns to ManageChannels.
+      // Using navigate() could potentially replace screens if React Navigation
+      // determines they're in the same "group" in certain navigation states.
+      navigation.push('ChannelInfo', {
+        chatType: 'channel',
+        chatId: channelId,
         groupId,
-        channelId,
       });
     },
     [navigation, groupId]
@@ -47,13 +47,14 @@ export function ManageChannelsScreen(props: Props) {
   return (
     <ManageChannelsScreenView
       group={group}
-      goBack={handleGoBack}
-      goToEditChannel={goToEditChannel}
+      onGoBack={handleGoBack}
+      goToChannelDetails={goToChannelDetails}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       createNavSection={createNavSection}
       deleteNavSection={deleteNavSection}
       updateNavSection={updateNavSection}
       updateGroupNavigation={updateGroupNavigation}
+      createdRoleId={createdRoleId}
     />
   );
 }

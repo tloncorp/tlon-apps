@@ -13,6 +13,7 @@ import {
   BlockFromType,
   BlockType,
   PostContent,
+  parsePostBlob,
 } from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
@@ -40,6 +41,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
+import { Reference } from '../ContentReference';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
@@ -79,6 +81,11 @@ export function GalleryPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
+  const hasFileUpload = useMemo(() => {
+    if (!post.blob) return false;
+    const blobData = parsePostBlob(post.blob);
+    return blobData != null && blobData.some((x) => x.type === 'file');
+  }, [post.blob]);
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -147,6 +154,7 @@ export function GalleryPost({
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame
+  // These props come from parent components but shouldn't be passed to DOM elements
   const {
     onShowEmojiPicker: _onShowEmojiPicker,
     onPressImage: _onPressImage,
@@ -155,8 +163,13 @@ export function GalleryPost({
     showReplies: _showReplies,
     setViewReactionsPost: _setViewReactionsPost,
     onPressReplies: _onPressReplies,
+    displayDebugMode: _displayDebugMode,
+    onPressDelete: _onPressDelete,
     ...rest
-  } = props;
+  } = props as typeof props & {
+    displayDebugMode?: boolean;
+    onPressDelete?: (post: db.Post) => void;
+  };
 
   return (
     <Pressable
@@ -167,8 +180,21 @@ export function GalleryPost({
       flex={1}
       testID="Post"
     >
-      <GalleryPostFrame {...props}>
+      <GalleryPostFrame {...rest}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
+        {hasFileUpload && (
+          <GalleryPostRow>
+            <XStack alignItems="center" gap="$xs">
+              <Icon
+                type="ChannelNote"
+                color="$tertiaryText"
+                customSize={['$l', '$l']}
+              />
+              <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
+            </XStack>
+            <Reference.ActionIcon />
+          </GalleryPostRow>
+        )}
         <GalleryContentRenderer
           testID="GalleryPostContentPreview"
           post={post}
@@ -203,14 +229,16 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button
+                <Button.Frame
+                  // with padding, this Button is larger than the row displayed
+                  // for file uploads, causing unsightly overlaps
+                  padding={0}
                   borderWidth="unset"
-                  size="$xs"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
-                </Button>
+                </Button.Frame>
               }
             />
           </Pressable>
@@ -220,7 +248,7 @@ export function GalleryPost({
   );
 }
 
-export function GalleryPostHeader({ post }: { post: db.Post }) {
+function GalleryPostRow({ children }: PropsWithChildren) {
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -233,19 +261,31 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
         padding="$l"
         gap="$m"
       >
-        <ContactName
-          userId={post.authorId}
-          showNickname
-          size="$label/m"
-          color="$tertiaryText"
-        />
-        <Text size="$label/m" color="$tertiaryText">
-          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
-            ? makePrettyShortDate(new Date(post.receivedAt))
-            : makePrettyDaysSince(new Date(post.receivedAt))}
-        </Text>
+        {children}
       </XStack>
     </View>
+  );
+}
+GalleryPostRow.Text = styled(Text, {
+  size: '$label/m',
+  color: '$tertiaryText',
+});
+
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <GalleryPostRow>
+      <ContactName
+        userId={post.authorId}
+        showNickname
+        size="$label/m"
+        color="$tertiaryText"
+      />
+      <GalleryPostRow.Text>
+        {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+          ? makePrettyShortDate(new Date(post.receivedAt))
+          : makePrettyDaysSince(new Date(post.receivedAt))}
+      </GalleryPostRow.Text>
+    </GalleryPostRow>
   );
 }
 
@@ -329,7 +369,7 @@ export function GalleryPostDetailView({
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
   const isTextPost = useMemo(() => {
     const type = content[0]?.type;
-    return !['embed', 'video', 'image', 'link', 'reference'].includes(type);
+    return !['video', 'image', 'link', 'reference'].includes(type);
   }, [content]);
 
   const handlePressImage = useCallback(
@@ -559,9 +599,6 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
-    if (content[0]?.type === 'embed') {
-      return { text: content[0].url, href: content[0].url };
-    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }
@@ -620,13 +657,12 @@ const LargeContentRenderer = createContentRenderer({
     link: {
       ...noWrapperPadding,
       minHeight: 300,
-      renderEmbed: true,
       imageProps: {
         aspectRatio: 1.5,
       },
     },
-    embed: {
-      ...noWrapperPadding,
+    file: {
+      fullbleed: false,
     },
   },
 });
@@ -671,12 +707,15 @@ const SmallContentRenderer = createContentRenderer({
     link: {
       borderRadius: 0,
       borderWidth: 0,
-      renderDescription: false,
+      renderDescription: true,
       imageProps: {
         height: '66%',
         aspectRatio: 'unset',
       },
       ...noWrapperPadding,
+    },
+    file: {
+      fullbleed: true,
     },
   },
 });
@@ -731,8 +770,7 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 
     // For text-only content, check if it's all text blocks
     const isTextContent = content.every(
-      (block) =>
-        !['image', 'video', 'reference', 'link', 'embed'].includes(block.type)
+      (block) => !['image', 'video', 'reference', 'link'].includes(block.type)
     );
 
     if (isTextContent) {

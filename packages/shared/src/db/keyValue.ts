@@ -288,6 +288,11 @@ export const changesSyncedAt = createStorageItem<number | null>({
   defaultValue: null,
 });
 
+export const lastActivityAt = createStorageItem<number>({
+  key: 'lastActivityAt',
+  defaultValue: 0,
+});
+
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,
@@ -345,6 +350,30 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
   defaultValue: false,
   persistAfterLogout: false,
 });
+
+export const sqliteContent = createStorageItem<ArrayBuffer | null>({
+  key: 'sqliteContent',
+  defaultValue: null,
+  persistAfterLogout: false,
+  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
+  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
+  isLarge: true,
+});
+
+function stringToArrayBuffer(str: string) {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
+function arrayBufferToString(buf: ArrayBuffer) {
+  const uint8s = new Uint8Array(buf);
+  const chars = Array.from(uint8s, (byte) => String.fromCharCode(byte));
+  return chars.join('');
+}
 
 export type NagState = {
   lastDismissed: number;
