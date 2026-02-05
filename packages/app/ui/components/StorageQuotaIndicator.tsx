@@ -1,14 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { getObjectStorageMethod } from '@tloncorp/shared/store';
 import { convert } from '@tloncorp/shared/utils';
 import { ForwardingProps, Pressable, Text, View } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-
-interface StorageInfo {
-  usedBytes: number;
-  totalBytes: number;
-}
 
 interface StorageInfoResponse {
   availableBytes: number;
@@ -29,16 +25,35 @@ async function requestStorageInfo(): Promise<StorageInfoResponse> {
     totalBytes: convert(10, 'gb').to('b'),
     usedBytes: convert(10 * Math.random(), 'gb').to('b'),
     usedGigabytes: '0.0073',
+interface StorageInfo {
+  usedBytes: number;
+  totalBytes: number;
+}
+
+namespace StorageInfo {
+  export const empty: StorageInfo = {
+    totalBytes: 0,
+    usedBytes: 0,
   };
 }
 
-function useStorageInfoQuery() {
+/** @returns null when we don't have storage info (e.g. using custom-s3 or no storage), otherwise `StorageInfo` */
+export function useStorageInfoQuery() {
   return useQuery({
     queryKey: ['storage-info'],
-    queryFn: async (): Promise<StorageInfo> => {
-      const response = await requestStorageInfo();
-      return response;
+    queryFn: async (): Promise<StorageInfo | null> => {
+      switch (await getObjectStorageMethod()) {
+        // if using custom-s3 or no storage, we don't have quota info
+        case null:
+        case 'custom-s3':
+          return null;
+
+        case 'hosting':
+          return await requestStorageInfo();
+      }
     },
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -106,17 +121,27 @@ function StorageQuotaTextualProgress({
   );
 }
 
-// when we don't have data, use this so we can hold space
-const emptyStorageInfo: StorageInfo = {
-  totalBytes: 0,
-  usedBytes: 0,
-};
-
 export function StorageQuotaIndicator({
   style,
+  storageInfoQuery,
   ...forwardedProps
-}: ForwardingProps<typeof View>) {
-  const storageInfoQuery = useStorageInfoQuery();
+}: ForwardingProps<
+  typeof View,
+  {
+    storageInfoQuery: UseQueryResult<StorageInfo | null>;
+  }
+>) {
+  const statusBoxShown =
+    storageInfoQuery.isFetching || storageInfoQuery.isError;
+
+  const successContentOpacity =
+    // hide content if we don't have data
+    storageInfoQuery.data == null
+      ? 0
+      : // dim content if we're showing the status box (loading / error)
+        statusBoxShown
+        ? 0.1
+        : 1;
 
   return (
     <Pressable
@@ -126,30 +151,29 @@ export function StorageQuotaIndicator({
       {...forwardedProps}
     >
       <StorageQuotaTextualProgress
-        storageInfo={storageInfoQuery.data ?? emptyStorageInfo}
-        opacity={storageInfoQuery.data ? 1 : 0}
+        storageInfo={storageInfoQuery.data ?? StorageInfo.empty}
+        opacity={successContentOpacity}
       />
       <StorageQuotaLinearProgress
-        storageInfo={storageInfoQuery.data ?? emptyStorageInfo}
-        opacity={storageInfoQuery.data ? 1 : 0}
+        storageInfo={storageInfoQuery.data ?? StorageInfo.empty}
+        opacity={successContentOpacity}
       />
 
-      {(storageInfoQuery.isFetching || storageInfoQuery.isError) && (
+      {statusBoxShown && (
         <Animated.View
-          entering={
-            // delay animation so it doesn't flash on quick loads
-            FadeIn.delay(200)
-          }
+          entering={FadeIn}
           exiting={FadeOut}
           style={styles.statusBox}
         >
-          {storageInfoQuery.isFetching ? (
-            <ActivityIndicator />
+          {storageInfoQuery.isError ? (
+            <View alignItems="center" gap="$xs">
+              <Text>Could not fetch storage availability</Text>
+              <Text opacity={0.5} numberOfLines={2}>
+                Error: {storageInfoQuery.error.message}
+              </Text>
+            </View>
           ) : (
-            storageInfoQuery.isError ||
-            (storageInfoQuery.data == null && (
-              <Text>Error loading storage info</Text>
-            ))
+            storageInfoQuery.isFetching && <ActivityIndicator />
           )}
         </Animated.View>
       )}
@@ -162,7 +186,6 @@ const styles = StyleSheet.create({
   statusBox: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'hsla(0, 0%, 100%, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
   },

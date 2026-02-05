@@ -1,5 +1,6 @@
 import * as api from '../../api';
 import { StorageConfiguration, StorageCredentials, scry } from '../../api';
+import * as db from '../../db';
 import { createDevLogger } from '../../debug';
 import { desig } from '../../urbit';
 
@@ -68,6 +69,23 @@ export const hasCustomS3Creds = (
     credentials?.secretAccessKey
   );
 };
+
+export async function getObjectStorageMethod(): Promise<
+  'hosting' | 'custom-s3' | null
+> {
+  const [config, credentials] = await Promise.all([
+    db.storageConfiguration.getValue(),
+    db.storageCredentials.getValue(),
+  ]);
+
+  if (hasHostingUploadCreds(config, credentials)) {
+    return 'hosting';
+  } else if (hasCustomS3Creds(config, credentials)) {
+    return 'custom-s3';
+  } else {
+    return null;
+  }
+}
 
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
 

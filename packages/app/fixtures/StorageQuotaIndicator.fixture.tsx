@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { View } from 'tamagui';
 
 import { useConfigureUrbitClient } from '../hooks/useConfigureUrbitClient';
-import { StorageQuotaIndicator } from '../ui/components/StorageQuotaIndicator';
+import {
+  StorageQuotaIndicator,
+  useStorageInfoQuery,
+} from '../ui/components/StorageQuotaIndicator';
 import { FixtureWrapper } from './FixtureWrapper';
 
 export default function StorageQuotaIndicatorFixture() {
@@ -14,10 +17,16 @@ export default function StorageQuotaIndicatorFixture() {
     });
   }, [configure]);
 
+  const storageInfoQuery = useStorageInfoQuery();
+
   return (
     <FixtureWrapper horizontalAlign="center" verticalAlign="center">
       <View style={{ padding: 10 }}>
-        <StorageQuotaIndicator width={300} padding={12} />
+        <StorageQuotaIndicator
+          storageInfoQuery={storageInfoQuery}
+          width={300}
+          padding={12}
+        />
       </View>
     </FixtureWrapper>
   );

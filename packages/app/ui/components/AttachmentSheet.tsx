@@ -18,6 +18,10 @@ import {
 } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
+import {
+  StorageQuotaIndicator,
+  useStorageInfoQuery,
+} from './StorageQuotaIndicator';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -317,6 +321,7 @@ export default function AttachmentSheet({
 
   const title = 'Attach a file';
   const subtitle = 'Choose a file to attach';
+  const storageInfoQuery = useStorageInfoQuery();
 
   return (
     <ActionSheet
@@ -325,21 +330,30 @@ export default function AttachmentSheet({
       modal
     >
       <ActionSheet.Header>
-        <ListItem.MainContent>
-          <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
-        <ListItem.EndContent
-          onPress={() => onOpenChange(false)}
-          testID="AttachmentSheetCloseButton"
-        >
-          <Button
-            preset="minimal"
-            onPress={() => onOpenChange(false)}
-            testID="AttachmentSheetCloseButton"
-            label="Cancel"
-          />
-        </ListItem.EndContent>
+        {storageInfoQuery.isSuccess && storageInfoQuery.data == null ? (
+          // If we definitively do not have storage info, fall back to info box
+          <>
+            <ListItem.MainContent>
+              <ListItem.Title>{title}</ListItem.Title>
+              <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+            </ListItem.MainContent>
+            <ListItem.EndContent
+              onPress={() => onOpenChange(false)}
+              testID="AttachmentSheetCloseButton"
+            >
+              <Button
+                preset="minimal"
+                onPress={() => onOpenChange(false)}
+                testID="AttachmentSheetCloseButton"
+                label="Cancel"
+              />
+            </ListItem.EndContent>
+          </>
+        ) : (
+          <ListItem.MainContent height={undefined}>
+            <StorageQuotaIndicator storageInfoQuery={storageInfoQuery} />
+          </ListItem.MainContent>
+        )}
       </ActionSheet.Header>
       <ActionSheet.Content>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
