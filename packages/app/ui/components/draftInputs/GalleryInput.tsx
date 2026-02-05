@@ -2,14 +2,16 @@ import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
+import {
+  ForwardingProps,
+  ParentAgnosticKeyboardAvoidingView,
+} from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { TextInput } from 'react-native';
@@ -44,10 +46,8 @@ export function GalleryInput({
   } = draftInputContext;
 
   const safeAreaInsets = useSafeAreaInsets();
-  const captionInputRef = useRef<TextInput>(null);
-  const { attachments, resetAttachments, addAttachment, attachAssets } =
+  const { resetAttachments, addAttachment, attachAssets } =
     useAttachmentContext();
-  const theme = useTheme();
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
   const [canPost, setCanPost] = useState(false);
@@ -191,71 +191,6 @@ export function GalleryInput({
     onPresentationModeChange?.(isFullscreen ? 'fullscreen' : 'inline');
   }, [route, onPresentationModeChange]);
 
-  // Handle posting the gallery image
-  const handlePost = useCallback(async () => {
-    if (isPosting) return;
-
-    try {
-      setIsPosting(true);
-
-      // Build the draft with caption content and image attachments
-      // Caption goes in content, images go in attachments
-      const captionContent = caption ? [caption] : [];
-
-      // Extract image URI from the first image attachment for the draft's image field
-      const imageAttachment = attachments.find(
-        (att) => att.type === 'image' && 'file' in att
-      );
-      const imageUri =
-        imageAttachment?.type === 'image' && 'file' in imageAttachment
-          ? imageAttachment.file.uri
-          : undefined;
-
-      const draft: domain.PostDataDraft = {
-        channelId: channel.id,
-        content: captionContent,
-        attachments,
-        channelType: channel.type,
-        replyToPostId: null,
-        image: imageUri,
-        ...(isEditingPost && editingPost != null
-          ? { isEdit: true, editTargetPostId: editingPost.id }
-          : { isEdit: false }),
-      };
-
-      await sendPostFromDraft(draft);
-
-      // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-      // First reset all gallery-related state to clean up the editing environment
-      resetGalleryState();
-
-      // If editing, force inline presentation mode to return to the gallery view
-      if (isEditingPost) {
-        if (setEditingPost) {
-          setEditingPost(undefined);
-        }
-        onPresentationModeChange?.('inline');
-      }
-      // Reset posting state after a short delay
-      setTimeout(() => setIsPosting(false), 500);
-    } catch (error) {
-      console.error('Error posting gallery image:', error);
-      setIsPosting(false);
-    }
-  }, [
-    attachments,
-    caption,
-    isPosting,
-    sendPostFromDraft,
-    channel.id,
-    channel.type,
-    resetGalleryState,
-    isEditingPost,
-    editingPost,
-    setEditingPost,
-    onPresentationModeChange,
-  ]);
-
   const handleAdd = useCallback(() => {
     setRoute('add-post');
 
@@ -340,24 +275,6 @@ export function GalleryInput({
     )
   );
 
-  // Register the "Post" button in the header when showing image preview or editing image gallery post
-  useRegisterChannelHeaderItem(
-    useMemo(
-      () =>
-        route === 'review-attachment' ? (
-          <ScreenHeader.TextButton
-            key="gallery-preview-post"
-            onPress={handlePost}
-            disabled={!canPost || isPosting}
-            testID="GalleryPostButton"
-          >
-            {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-          </ScreenHeader.TextButton>
-        ) : null,
-      [handlePost, canPost, isPosting, isEditingPost, route]
-    )
-  );
-
   // Expose methods to parent component through the ref
   // useImperativeHandle allows the parent component to call these methods via the draftInputRef
   // This creates a controlled interface for the parent to manage this component's state
@@ -398,6 +315,14 @@ export function GalleryInput({
     setRoute(open ? 'text' : 'gallery');
   }, []);
 
+  const onAttachmentPostSent = useCallback(() => {
+    // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+    // First reset all gallery-related state to clean up the editing environment
+    resetGalleryState();
+    setEditingPost?.(undefined);
+    onPresentationModeChange?.('inline');
+  }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
+
   return (
     <>
       {/* Big input for editing text gallery posts */}
@@ -415,41 +340,16 @@ export function GalleryInput({
       {/* Image preview and caption input - shown for both new image posts and editing image gallery posts */}
       {/* This is the UI for creating/editing image gallery posts */}
       {route === 'review-attachment' && (
-        <YStack
-          alignItems="stretch"
+        <ReviewAttachment
+          draftInputContext={draftInputContext}
+          caption={caption}
+          setCaption={setCaption}
+          onPostSent={onAttachmentPostSent}
+          canPost={canPost}
           flex={1}
           width={'100%'}
           bottom={safeAreaInsets.bottom}
-        >
-          <ParentAgnosticKeyboardAvoidingView
-            contentContainerStyle={{ flex: 1, paddingTop: 32 }}
-          >
-            <GalleryImagePreview />
-            <View padding="$l">
-              <View
-                backgroundColor="$background"
-                padding="$m"
-                borderWidth={1}
-                borderRadius="$xl"
-                borderColor="$border"
-              >
-                <TextInput
-                  ref={captionInputRef}
-                  value={caption}
-                  onChangeText={setCaption}
-                  placeholder="Add a caption..."
-                  multiline
-                  style={{
-                    padding: 0,
-                    fontSize: 16,
-                    maxHeight: 100,
-                    color: theme.primaryText.val,
-                  }}
-                />
-              </View>
-            </View>
-          </ParentAgnosticKeyboardAvoidingView>
-        </YStack>
+        />
       )}
 
       {/* Link input - shown when creating/editing rich link posts that contain metadata */}
@@ -468,5 +368,151 @@ export function GalleryInput({
         onSetImage={handleGalleryImageSet}
       />
     </>
+  );
+}
+
+function ReviewAttachment({
+  caption,
+  setCaption,
+  draftInputContext,
+  onPostSent,
+  canPost,
+  ...forwardedProps
+}: ForwardingProps<
+  typeof YStack,
+  {
+    caption: string;
+    setCaption: (caption: string) => void;
+    draftInputContext: DraftInputContext;
+    onPostSent?: () => void;
+    canPost: boolean;
+  }
+>) {
+  const {
+    channel,
+    editingPost,
+    onPresentationModeChange,
+    sendPostFromDraft,
+    setEditingPost,
+  } = draftInputContext;
+  const isEditingPost = editingPost != null;
+
+  const theme = useTheme();
+  const [isPosting, setIsPosting] = useState(false);
+  const { attachments } = useAttachmentContext();
+
+  // Handle posting the gallery image
+  const handlePost = useCallback(async () => {
+    if (isPosting) return;
+
+    try {
+      setIsPosting(true);
+
+      // Build the draft with caption content and image attachments
+      // Caption goes in content, images go in attachments
+      const captionContent = caption ? [caption] : [];
+
+      // Extract image URI from the first image attachment for the draft's image field
+      const imageAttachment = attachments.find(
+        (att) => att.type === 'image' && 'file' in att
+      );
+      const imageUri =
+        imageAttachment?.type === 'image' && 'file' in imageAttachment
+          ? imageAttachment.file.uri
+          : undefined;
+
+      const draft: domain.PostDataDraft = {
+        channelId: channel.id,
+        content: captionContent,
+        attachments,
+        channelType: channel.type,
+        replyToPostId: null,
+        image: imageUri,
+        ...(isEditingPost && editingPost != null
+          ? { isEdit: true, editTargetPostId: editingPost.id }
+          : { isEdit: false }),
+      };
+
+      await sendPostFromDraft(draft);
+
+      // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+      // First reset all gallery-related state to clean up the editing
+      // environment via `onPostSent`, which should call resetGalleryState :|
+      onPostSent?.();
+
+      // If editing, force inline presentation mode to return to the gallery view
+      if (isEditingPost) {
+        if (setEditingPost) {
+          setEditingPost(undefined);
+        }
+        onPresentationModeChange?.('inline');
+      }
+      // Reset posting state after a short delay
+      setTimeout(() => setIsPosting(false), 500);
+    } catch (error) {
+      console.error('Error posting gallery image:', error);
+      setIsPosting(false);
+    }
+  }, [
+    attachments,
+    caption,
+    isPosting,
+    sendPostFromDraft,
+    channel.id,
+    channel.type,
+    onPostSent,
+    isEditingPost,
+    editingPost,
+    setEditingPost,
+    onPresentationModeChange,
+  ]);
+
+  // Register the "Post" button in the header when showing image preview or editing image gallery post
+  useRegisterChannelHeaderItem(
+    useMemo(
+      () => (
+        <ScreenHeader.TextButton
+          key="gallery-preview-post"
+          onPress={handlePost}
+          disabled={!canPost || isPosting}
+          testID="GalleryPostButton"
+        >
+          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
+        </ScreenHeader.TextButton>
+      ),
+      [handlePost, canPost, isPosting, isEditingPost]
+    )
+  );
+
+  return (
+    <YStack alignItems="stretch" {...forwardedProps}>
+      <ParentAgnosticKeyboardAvoidingView
+        contentContainerStyle={{ flex: 1, paddingTop: 32 }}
+      >
+        <GalleryImagePreview />
+        <View padding="$l">
+          <View
+            backgroundColor="$background"
+            padding="$m"
+            borderWidth={1}
+            borderRadius="$xl"
+            borderColor="$border"
+          >
+            <TextInput
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Add a caption..."
+              multiline
+              style={{
+                padding: 0,
+                fontSize: 16,
+                maxHeight: 100,
+                color: theme.primaryText.val,
+              }}
+            />
+          </View>
+        </View>
+      </ParentAgnosticKeyboardAvoidingView>
+    </YStack>
   );
 }
