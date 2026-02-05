@@ -20,8 +20,8 @@ import { View, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
+import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { ScreenHeader } from '../ScreenHeader';
 import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
@@ -321,6 +321,17 @@ export function GalleryInput({
     resetGalleryState();
     setEditingPost?.(undefined);
     onPresentationModeChange?.('inline');
+
+    // TODO: I don't think this is necessary
+    // // If editing, force inline presentation mode to return to the gallery view
+    // if (isEditingPost) {
+    //   if (setEditingPost) {
+    //     setEditingPost(undefined);
+    //   }
+    //   onPresentationModeChange?.('inline');
+    // }
+    // // Reset posting state after a short delay
+    // setTimeout(() => setIsPosting(false), 500);
   }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
 
   return (
@@ -489,7 +500,7 @@ function ReviewAttachment({
       <ParentAgnosticKeyboardAvoidingView
         contentContainerStyle={{ flex: 1, paddingTop: 32 }}
       >
-        <GalleryImagePreview />
+        <AttachmentPreview />
         <View padding="$l">
           <View
             backgroundColor="$background"

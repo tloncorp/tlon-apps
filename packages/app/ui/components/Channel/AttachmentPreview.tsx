@@ -4,7 +4,7 @@ import { Spinner, View, XStack } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 
-function GalleryImagePreview() {
+function AttachmentPreview() {
   const { attachments } = useAttachmentContext();
   const imageAttachment = attachments.filter(
     (a): a is ImageAttachment => a.type === 'image'
@@ -45,4 +45,4 @@ function GalleryImagePreview() {
   );
 }
 
-export default GalleryImagePreview;
+export default AttachmentPreview;
