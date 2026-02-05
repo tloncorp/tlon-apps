@@ -1,47 +1,66 @@
 import { ImageAttachment } from '@tloncorp/shared';
+import { useMemo } from 'react';
 import { ImageBackground } from 'react-native';
-import { Spinner, View, XStack } from 'tamagui';
+import { Spinner, View } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 
 function AttachmentPreview() {
   const { attachments } = useAttachmentContext();
-  const imageAttachment = attachments.filter(
-    (a): a is ImageAttachment => a.type === 'image'
-  )[0];
 
+  const focusedAttachment = useMemo(() => {
+    if (attachments.length === 0) return null;
+    if (attachments.length > 1) {
+      console.warn(
+        'Multiple attachments found, but we only support displaying one. Displaying the first attachment...'
+      );
+    }
+    return attachments[0];
+  }, [attachments]);
+
+  switch (focusedAttachment?.type) {
+    case 'image':
+      return <ContentImage imageAttachment={focusedAttachment} />;
+
+    case 'file':
+    case 'link':
+    case 'reference':
+    case 'text':
+    case undefined:
+      return null;
+  }
+}
+
+function ContentImage({
+  imageAttachment,
+}: {
+  imageAttachment: ImageAttachment;
+}) {
   return (
-    <XStack backgroundColor="$background" flex={1}>
-      <View flex={1} position="relative">
-        <ImageBackground
-          source={{
-            uri: imageAttachment?.file.uri,
-          }}
-          style={{
-            width: '100%',
-            height: '100%',
-            justifyContent: 'center',
-            alignItems: 'center',
-            opacity:
-              imageAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
-          }}
-          resizeMode="contain"
+    <ImageBackground
+      source={{ uri: imageAttachment?.file.uri }}
+      style={{
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: imageAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
+      }}
+      resizeMode="contain"
+    >
+      {imageAttachment?.uploadState?.status === 'uploading' && (
+        <View
+          top={0}
+          justifyContent="center"
+          padding="$xl"
+          alignItems="center"
+          backgroundColor="$translucentBlack"
+          borderRadius="$m"
         >
-          {imageAttachment?.uploadState?.status === 'uploading' && (
-            <View
-              top={0}
-              justifyContent="center"
-              padding="$xl"
-              alignItems="center"
-              backgroundColor="$translucentBlack"
-              borderRadius="$m"
-            >
-              <Spinner size="large" color="$primaryText" />
-            </View>
-          )}
-        </ImageBackground>
-      </View>
-    </XStack>
+          <Spinner size="large" color="$primaryText" />
+        </View>
+      )}
+    </ImageBackground>
   );
 }
 

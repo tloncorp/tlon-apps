@@ -16,7 +16,7 @@ import {
 } from 'react';
 import { TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack, useTheme } from 'tamagui';
+import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
@@ -500,7 +500,11 @@ function ReviewAttachment({
       <ParentAgnosticKeyboardAvoidingView
         contentContainerStyle={{ flex: 1, paddingTop: 32 }}
       >
-        <AttachmentPreview />
+        <XStack backgroundColor="$background" flex={1}>
+          <View flex={1} position="relative">
+            <AttachmentPreview />
+          </View>
+        </XStack>
         <View padding="$l">
           <View
             backgroundColor="$background"
