@@ -1,6 +1,6 @@
 ::  ph test runner
 ::
-/-  spider
+/-  spider, aquarium
 /+  *strandio, ph-io, ph-test
 =,  strand=strand:spider
 |%
@@ -105,6 +105,43 @@
     %thread-done  (pure:m %& q.cage)
     %thread-fail  (pure:m %| !<([term tang] q.cage))
   ==
+::  +sync-desk: sync aqua ship desk to host
+::
+++  sync-desk
+  |=  [her=ship desk=@tas]
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  sab=path
+    /(scot %p our.bowl)/[desk]/(scot %da now.bowl)
+  =|  =path
+  =|  raw-files=(list [^path page:clay])
+  =.  raw-files
+    |-
+    =*  loop  $
+    =+  .^(=arch %cy (weld sab path))
+    =.  raw-files
+      %+  roll  ~(tap in ~(key by dir.arch))
+      |=  [dir=@ta =_raw-files]
+      (welp loop(path (snoc path dir)) raw-files)
+    ?~  fil.arch  raw-files
+    =+  .^(=page:clay %cs (weld sab /blob/(scot %uv u.fil.arch)))
+    :_  raw-files
+    [path page]
+  =/  files
+    %+  turn  raw-files
+    |=  [=^path =page:clay]
+    =+  .^(=dais:clay %cb (snoc sab p.page))
+    =+  .^(=tube:clay %cc (weld sab /[p.page]/mime))
+    =+  !<(=mime (tube (vale:dais q.page)))
+    [path ~ mime]
+  =/  =beam  [[her desk ud+1] /]
+  ;<  ~  bind:m  (send-events:ph-io [%event her /c/mount/0v1abc [%mont desk beam]]~)
+  =/   =task:clay
+    [%into desk & files]
+  ;<  ~  bind:m  (send-events:ph-io [%event her /c/sync/0v1abc task]~)
+  ;<  ~  bind:m  (sleep ~s10)
+  (pure:m ~)
 --
 ::
 ^-  thread:spider
@@ -144,6 +181,10 @@
 ;<  ~  bind:m  (init-ship:ph-io ~zod &)
 ;<  ~  bind:m  (init-ship:ph-io ~bud &)
 ;<  ~  bind:m  (init-ship:ph-io ~nec &)
+~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
+;<  ~  bind:m  (sync-desk ~zod %groups)
+;<  ~  bind:m  (sync-desk ~bud %groups)
+;<  ~  bind:m  (sync-desk ~nec %groups)
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
 ;<  results=(list (pair path thread-result))  bind:m
