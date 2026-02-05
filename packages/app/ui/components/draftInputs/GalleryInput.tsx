@@ -66,7 +66,7 @@ export function GalleryInput({
       // Check if the first block is an image or link - if so, handle it specially
       if (blocks.length > 0 && 'image' in blocks[0]) {
         // This is an image gallery post
-        setRoute('image');
+        setRoute('review-attachment');
 
         // Extract caption from the post if it exists (should be in the inline content)
         const { inlines } = extractContentTypesFromPost(editingPost);
@@ -150,7 +150,7 @@ export function GalleryInput({
   const handleGalleryImageSet = useCallback(
     (assets?: ImagePickerAsset[] | null) => {
       const hasAssets = !!assets;
-      setRoute(hasAssets ? 'image' : 'gallery');
+      setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
     },
     []
@@ -158,7 +158,7 @@ export function GalleryInput({
 
   // Load caption from draft when image is being uploaded
   useEffect(() => {
-    if (!(route === 'image' && !editingPost)) return;
+    if (!(route === 'review-attachment' && !editingPost)) return;
 
     getDraft('caption').then((draft) => {
       if (!draft || typeof draft !== 'object' || !('content' in draft)) return;
@@ -170,7 +170,7 @@ export function GalleryInput({
 
   // Store caption in draft when it changes
   useEffect(() => {
-    if (!(route === 'image' && !editingPost) || !caption) return;
+    if (!(route === 'review-attachment' && !editingPost) || !caption) return;
 
     const jsonContent = {
       type: 'doc',
@@ -187,7 +187,7 @@ export function GalleryInput({
   // Notify host when changing presentation mode
   useEffect(() => {
     const isFullscreen =
-      route === 'text' || route === 'image' || route === 'link';
+      route === 'text' || route === 'review-attachment' || route === 'link';
     onPresentationModeChange?.(isFullscreen ? 'fullscreen' : 'inline');
   }, [route, onPresentationModeChange]);
 
@@ -344,7 +344,7 @@ export function GalleryInput({
   useRegisterChannelHeaderItem(
     useMemo(
       () =>
-        route === 'image' ? (
+        route === 'review-attachment' ? (
           <ScreenHeader.TextButton
             key="gallery-preview-post"
             onPress={handlePost}
@@ -367,7 +367,7 @@ export function GalleryInput({
       // exitFullscreen: Called by parent when user presses back or after saving a post
       // Handles proper cleanup and state reset to ensure smooth UI transitions
       exitFullscreen: () => {
-        if (route === 'image') {
+        if (route === 'review-attachment') {
           // First reset gallery state
           resetGalleryState();
 
@@ -414,7 +414,7 @@ export function GalleryInput({
 
       {/* Image preview and caption input - shown for both new image posts and editing image gallery posts */}
       {/* This is the UI for creating/editing image gallery posts */}
-      {route === 'image' && (
+      {route === 'review-attachment' && (
         <YStack
           alignItems="stretch"
           flex={1}
