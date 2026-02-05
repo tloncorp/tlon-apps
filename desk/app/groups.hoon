@@ -736,6 +736,7 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   ?>  ?=(%12 -.old)
+  =.  state  old
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
