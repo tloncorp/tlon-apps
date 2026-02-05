@@ -121,7 +121,7 @@ export function FileUploadPreview({
   );
 }
 
-function FileUploadLockup({
+export function FileUploadLockup({
   file,
 }: {
   file: {

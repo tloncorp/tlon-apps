@@ -1,9 +1,10 @@
-import { ImageAttachment } from '@tloncorp/shared';
+import { FileAttachment, ImageAttachment } from '@tloncorp/shared';
 import { useMemo } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { FileUploadLockup } from '../FileUploadPreview';
 
 function AttachmentPreview() {
   const { attachments } = useAttachmentContext();
@@ -23,12 +24,22 @@ function AttachmentPreview() {
       return <ContentImage imageAttachment={focusedAttachment} />;
 
     case 'file':
+      return <ContentFile fileAttachment={focusedAttachment} />;
+
     case 'link':
     case 'reference':
     case 'text':
     case undefined:
       return null;
   }
+}
+
+function ContentFile({ fileAttachment }: { fileAttachment: FileAttachment }) {
+  return (
+    <View flex={1} alignItems="center" justifyContent="center">
+      <FileUploadLockup file={fileAttachment} />
+    </View>
+  );
 }
 
 function ContentImage({
