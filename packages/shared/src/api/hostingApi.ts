@@ -176,6 +176,8 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await db.hostingUserId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  console.log(`bl: got hosting heartbeat`, response.status);
+
   // 401 indicates that the authentication token is expired.
   if (response.status === 401) {
     return 'expired';

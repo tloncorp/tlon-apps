@@ -266,6 +266,11 @@ export const hostingUserId = createStorageItem<string>({
   isSecure: true,
 });
 
+export const hostingBotEnabled = createStorageItem<boolean>({
+  key: 'hostingBotEnabled',
+  defaultValue: false,
+});
+
 export const nodeAccessCode = createStorageItem<string | null>({
   key: 'nodeAccessCode',
   defaultValue: null,
