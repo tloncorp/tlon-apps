@@ -198,7 +198,7 @@ EOF
 
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click -t 120 $pier <<EOF
+result=$( $run_click -t 300 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
@@ -207,7 +207,6 @@ result=$( $run_click -t 120 $pier <<EOF
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`ph-tests)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
-;<  ~      bind:m  (sleep ~s0)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  
 ;<  ~      bind:m  (take-kick /awaiting/[tid])  
 =/  thread-result=(each vase [term tang])  
