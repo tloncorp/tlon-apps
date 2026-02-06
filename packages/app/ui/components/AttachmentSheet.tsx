@@ -273,7 +273,7 @@ export default function AttachmentSheet({
         [
           'neutral',
           {
-            title: isWeb ? 'Upload an image' : 'Photo Library',
+            title: isWeb ? 'Upload an Image' : 'Photo Library',
             description: isWeb
               ? 'Upload an image from your computer'
               : 'Choose a photo from your library',
