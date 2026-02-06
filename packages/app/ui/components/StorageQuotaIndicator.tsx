@@ -113,15 +113,12 @@ export function StorageQuotaIndicator({
     storageInfoQuery: UseQueryResult<StorageInfo | null>;
   }
 >) {
-  const statusBoxShown =
-    storageInfoQuery.isFetching || storageInfoQuery.isError;
-
   const successContentOpacity =
-    // hide content if we don't have data
-    storageInfoQuery.data == null
+    // hide content if we don't have data or we're showing an error
+    storageInfoQuery.data == null || storageInfoQuery.isError
       ? 0
-      : // dim content if we're showing the status box (loading / error)
-        statusBoxShown
+      : // dim content if we're showing the loading indicator
+        storageInfoQuery.isFetching
         ? 0.1
         : 1;
 
@@ -141,22 +138,27 @@ export function StorageQuotaIndicator({
         opacity={successContentOpacity}
       />
 
-      {statusBoxShown && (
+      {storageInfoQuery.isFetching && (
         <Animated.View
           entering={FadeIn}
           exiting={FadeOut}
           style={styles.statusBox}
         >
-          {storageInfoQuery.isError ? (
-            <View alignItems="center" gap="$xs">
-              <Text>Could not fetch storage availability</Text>
-              <Text opacity={0.5} numberOfLines={2}>
-                Error: {storageInfoQuery.error.message}
-              </Text>
-            </View>
-          ) : (
-            storageInfoQuery.isFetching && <ActivityIndicator />
-          )}
+          <ActivityIndicator />
+        </Animated.View>
+      )}
+      {storageInfoQuery.isError && !storageInfoQuery.isFetching && (
+        <Animated.View
+          entering={FadeIn}
+          exiting={FadeOut}
+          style={styles.statusBox}
+        >
+          <View alignItems="center" gap="$xs">
+            <Text>Could not fetch storage availability</Text>
+            <Text opacity={0.5} numberOfLines={2}>
+              Error: {storageInfoQuery.error.message}
+            </Text>
+          </View>
         </Animated.View>
       )}
     </Pressable>
