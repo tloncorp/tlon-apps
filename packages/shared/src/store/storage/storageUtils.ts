@@ -165,8 +165,8 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
   });
 
   if (response.status !== 200) {
-    logger.log(`Bad response from memex`, response.status);
-    throw new Error('Bad response from memex');
+    logger.log(`Bad response`, response.status);
+    throw new Error('Expected 200 response from memex, got ' + response.status);
   }
 
   const data: { url?: string; filePath?: string } | null =
@@ -184,8 +184,8 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
     // @ts-expect-error - we just verified this shape above
     return data;
   } else {
-    logger.log(`Invalid response from memex upload`, data);
-    throw new Error('Invalid response from memex upload');
+    logger.log(`Invalid response`, data);
+    throw new Error('Invalid response');
   }
 };
 
