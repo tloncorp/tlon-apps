@@ -176,7 +176,27 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await db.hostingUserId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
-  console.log(`bl: got hosting heartbeat`, response.status);
+  try {
+    const body = (await response.json()) as User;
+
+    if (body.botEnabled !== null && body.botEnabled !== undefined) {
+      logger.trackEvent('Bot enabled status set', {
+        enabled: body.botEnabled,
+        $set: {
+          botEnabled: body.botEnabled,
+        },
+      });
+      await db.hostingBotEnabled.setValue(body.botEnabled);
+    }
+  } catch (e) {
+    logger.trackError(
+      'Failed to read bot enabled status from hosting heartbeat',
+      {
+        errorMessage: e.toString(),
+        responseText: await response.text(),
+      }
+    );
+  }
 
   // 401 indicates that the authentication token is expired.
   if (response.status === 401) {

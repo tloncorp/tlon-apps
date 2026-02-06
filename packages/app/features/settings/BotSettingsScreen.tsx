@@ -82,7 +82,11 @@ export function BotSettingsScreen(props: Props) {
         <View flex={1}>
           <iframe
             src={BOT_SETTINGS_URL}
-            style={{ width: '100%', height: '100%', border: 'none' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+            }}
           />
         </View>
       )}
