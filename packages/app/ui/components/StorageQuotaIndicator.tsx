@@ -1,4 +1,5 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { getStorageQuota } from '@tloncorp/shared';
 import { getObjectStorageMethod } from '@tloncorp/shared/store';
 import { convert } from '@tloncorp/shared/utils';
 import { ForwardingProps, Pressable, Text, View } from '@tloncorp/ui';
@@ -6,26 +7,7 @@ import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-interface StorageInfoResponse {
-  availableBytes: number;
-  availableGigabytes: string;
-  totalBytes: number;
-  totalGigabytes: string;
-  usedBytes: number;
-  usedGigabytes: string;
-}
-
-async function requestStorageInfo(): Promise<StorageInfoResponse> {
-  // TODO: this is a stub
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    availableBytes: 1065956322,
-    availableGigabytes: '0.9927',
-    totalGigabytes: '1.0000',
-    totalBytes: convert(10, 'gb').to('b'),
-    usedBytes: convert(10 * Math.random(), 'gb').to('b'),
-    usedGigabytes: '0.0073',
-interface StorageInfo {
+export interface StorageInfo {
   usedBytes: number;
   totalBytes: number;
 }
@@ -49,7 +31,7 @@ export function useStorageInfoQuery() {
           return null;
 
         case 'hosting':
-          return await requestStorageInfo();
+          return await getStorageQuota();
       }
     },
     retry: false,

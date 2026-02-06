@@ -140,6 +140,55 @@ export const getMemexUpload = async (
   }
 };
 
+export interface StorageInfoResponse {
+  availableBytes: number;
+  totalBytes: number;
+  usedBytes: number;
+}
+
+export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
+  const currentUser = api.getCurrentUserId();
+  const token = await scry<string>({
+    app: 'genuine',
+    path: '/secret',
+  }).catch((e) => {
+    throw new Error('Failed to get secret', e);
+  });
+
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/storage-info`;
+  const response = await fetch(`${endpoint}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-landscape-token': token,
+    },
+  });
+
+  if (response.status !== 200) {
+    logger.log(`Bad response from memex`, response.status);
+    throw new Error('Bad response from memex');
+  }
+
+  const data: { url?: string; filePath?: string } | null =
+    await response.json();
+
+  if (
+    data &&
+    'availableBytes' in data &&
+    typeof data.availableBytes === 'number' &&
+    'totalBytes' in data &&
+    typeof data.totalBytes === 'number' &&
+    'usedBytes' in data &&
+    typeof data.usedBytes === 'number'
+  ) {
+    // @ts-expect-error - we just verified this shape above
+    return data;
+  } else {
+    logger.log(`Invalid response from memex upload`, data);
+    throw new Error('Invalid response from memex upload');
+  }
+};
+
 export const getHostingUploadURL = async () => {
   const isHosted = api.getCurrentUserIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
