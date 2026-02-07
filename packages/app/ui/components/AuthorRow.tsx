@@ -4,6 +4,7 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
+import { useIsBot } from '../../hooks/useIsBot';
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
 import { Badge } from './Badge';
@@ -99,10 +100,7 @@ export function DetailViewAuthorRow({
     return asString;
   }, [showSentAt, sent]);
 
-  const isBot = useMemo(() => {
-    if (!authorId) return false;
-    return authorId.startsWith('~pinser-botter-');
-  }, [authorId]);
+  const isBot = useIsBot(authorId);
 
   return (
     <XStack
@@ -168,10 +166,7 @@ export function ChatAuthorRow({
 
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
-  const isBot = useMemo(() => {
-    if (!authorId) return false;
-    return authorId.startsWith('~pinser-botter-');
-  }, [authorId]);
+  const isBot = useIsBot(authorId);
 
   return (
     <XStack
