@@ -4,8 +4,10 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
+import { useIsBot } from '../../hooks/useIsBot';
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
+import { Badge } from './Badge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
@@ -98,6 +100,8 @@ export function DetailViewAuthorRow({
     return asString;
   }, [showSentAt, sent]);
 
+  const isBot = useIsBot(authorId);
+
   return (
     <XStack
       cursor="default"
@@ -127,6 +131,7 @@ export function DetailViewAuthorRow({
           {timeDisplay}
         </Text>
       )}
+      {isBot && <Badge type="neutral" size="micro" text="Bot" />}
     </XStack>
   );
 }
@@ -161,6 +166,8 @@ export function ChatAuthorRow({
 
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
+  const isBot = useIsBot(authorId);
+
   return (
     <XStack
       cursor="default"
@@ -175,7 +182,7 @@ export function ChatAuthorRow({
         size="$2xl"
         contactId={authorId}
       />
-      <XStack gap="$l" alignItems="flex-end" flex={1}>
+      <XStack gap="$l" alignItems={isBot ? 'center' : 'flex-end'} flex={1}>
         <Text
           size="$label/2xl"
           numberOfLines={1}
@@ -190,6 +197,7 @@ export function ChatAuthorRow({
             {timeDisplay}
           </Text>
         )}
+        {isBot && <Badge type="neutral" size="micro" text="Bot" />}
         {showEditedIndicator && (
           <Text size="$label/m" color="$secondaryText">
             Edited
