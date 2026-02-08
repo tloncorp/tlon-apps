@@ -2,7 +2,7 @@
 
 import journal from './meta/_journal.json';
 import m0000 from './0000_lush_firelord.sql';
-import m0001 from './0001_update_bot_post_types.sql';
+import m0001 from './0001_add_is_bot_to_posts.sql';
 
   export default {
     journal,

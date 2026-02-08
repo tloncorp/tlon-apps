@@ -1170,6 +1170,13 @@ function getAuthorId(author: ub.Author) {
 }
 
 /**
+ * Type guard to check if an author is a BotProfile.
+ */
+function isBotProfile(author: ub.Author): author is ub.BotProfile {
+  return typeof author === 'object' && author !== null && 'ship' in author;
+}
+
+/**
  * Normalize author to BotProfile if it's a pinser-botter ship.
  * This ensures bot authors are consistently represented as BotProfile objects.
  */
@@ -1195,18 +1202,14 @@ export function toPostData(
     post.author = normalizeAuthor(post.author);
   }
 
+  // Check if author is a bot (BotProfile object)
+  const author = isPostTombstone(post) ? post.author : post.essay.author;
+  const isBot = isBotProfile(author);
+
   const channelType = channelId.split('/')[0];
   const getPostType = (
     post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
   ): db.PostType => {
-    // Check if author is a BotProfile (object)
-    const author = isPostTombstone(post) ? post.author : post.essay.author;
-    const isBot = typeof author === 'object';
-
-    if (isBot) {
-      return 'bot';
-    }
-
     if (isNotice(post)) {
       return 'notice';
     }
@@ -1231,6 +1234,7 @@ export function toPostData(
       type,
       sentAt: getReceivedAtFromId(post.id),
       isDeleted: true,
+      isBot,
       deletedAt: post['deleted-at'],
       receivedAt: getReceivedAtFromId(post.id),
       sequenceNum: post.seq ? Number(post.seq) : null,
@@ -1296,6 +1300,7 @@ export function toPostData(
     cover: post.essay.meta?.cover ?? '',
     authorId: getAuthorId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
+    isBot,
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),

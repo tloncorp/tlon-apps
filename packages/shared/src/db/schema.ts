@@ -1081,7 +1081,7 @@ export const posts = sqliteTable(
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
-      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete' | 'bot'>()
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete'>()
       .notNull(),
     title: text('title'),
     image: text('image'),
@@ -1105,6 +1105,7 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isBot: boolean('is_bot').default(false),
     isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),

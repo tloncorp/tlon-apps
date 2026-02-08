@@ -42,6 +42,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   deleteStatus?: db.PostDeliveryStatus | null;
   editStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
+  isBot?: boolean;
   detailView?: boolean;
   showEditedIndicator?: boolean;
   showSentAt?: boolean;
@@ -69,7 +70,7 @@ export function DetailViewAuthorRow({
   editStatus,
   showSentAt,
   sent,
-  type,
+  isBot,
   ...props
 }: {
   authorId: string;
@@ -81,13 +82,13 @@ export function DetailViewAuthorRow({
   showSentAt?: boolean;
   sent?: number;
   type?: db.PostType;
+  isBot?: boolean;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
     deliveryStatus === 'failed' ||
     editStatus === 'failed' ||
     deleteStatus === 'failed';
-  const isBot = type === 'bot';
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   const timeDisplay = useMemo(() => {
@@ -145,7 +146,7 @@ export function ChatAuthorRow({
   editStatus,
   deleteStatus,
   showSentAt = true,
-  type,
+  isBot,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -165,7 +166,6 @@ export function ChatAuthorRow({
     editStatus === 'failed' ||
     deleteStatus === 'failed';
 
-  const isBot = type === 'bot';
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
 
   return (
