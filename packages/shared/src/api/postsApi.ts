@@ -1169,14 +1169,44 @@ function getAuthorId(author: ub.Author) {
   }
 }
 
+/**
+ * Normalize author to BotProfile if it's a pinser-botter ship.
+ * This ensures bot authors are consistently represented as BotProfile objects.
+ */
+function normalizeAuthor(author: ub.Author): ub.Author {
+  if (typeof author === 'string' && author.startsWith('~pinser-botter-')) {
+    return {
+      ship: author,
+      nickname: null,
+      avatar: null,
+    };
+  }
+  return author;
+}
+
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
 ): db.Post {
+  // Normalize author to BotProfile if it's a pinser-botter ship
+  if (!isPostTombstone(post)) {
+    post.essay.author = normalizeAuthor(post.essay.author);
+  } else {
+    post.author = normalizeAuthor(post.author);
+  }
+
   const channelType = channelId.split('/')[0];
   const getPostType = (
     post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
-  ) => {
+  ): db.PostType => {
+    // Check if author is a BotProfile (object)
+    const author = isPostTombstone(post) ? post.author : post.essay.author;
+    const isBot = typeof author === 'object';
+
+    if (isBot) {
+      return 'bot';
+    }
+
     if (isNotice(post)) {
       return 'notice';
     }

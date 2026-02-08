@@ -1081,7 +1081,7 @@ export const posts = sqliteTable(
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
-      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete'>()
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete' | 'bot'>()
       .notNull(),
     title: text('title'),
     image: text('image'),

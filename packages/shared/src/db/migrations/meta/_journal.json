@@ -8,6 +8,13 @@
       "when": 1769022256388,
       "tag": "0000_lush_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1738937580000,
+      "tag": "0001_update_bot_post_types",
+      "breakpoints": true
     }
   ]
 }
