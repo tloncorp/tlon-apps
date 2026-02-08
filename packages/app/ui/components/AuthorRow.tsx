@@ -4,7 +4,6 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
-import { useIsBot } from '../../hooks/useIsBot';
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
 import { Badge } from './Badge';
@@ -70,6 +69,7 @@ export function DetailViewAuthorRow({
   editStatus,
   showSentAt,
   sent,
+  type,
   ...props
 }: {
   authorId: string;
@@ -80,12 +80,14 @@ export function DetailViewAuthorRow({
   color?: ColorTokens;
   showSentAt?: boolean;
   sent?: number;
+  type?: db.PostType;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
     deliveryStatus === 'failed' ||
     editStatus === 'failed' ||
     deleteStatus === 'failed';
+  const isBot = type === 'bot';
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   const timeDisplay = useMemo(() => {
@@ -99,8 +101,6 @@ export function DetailViewAuthorRow({
     const { asString } = utils.makePrettyDayAndDateAndTime(date);
     return asString;
   }, [showSentAt, sent]);
-
-  const isBot = useIsBot(authorId);
 
   return (
     <XStack
@@ -145,6 +145,7 @@ export function ChatAuthorRow({
   editStatus,
   deleteStatus,
   showSentAt = true,
+  type,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -164,9 +165,8 @@ export function ChatAuthorRow({
     editStatus === 'failed' ||
     deleteStatus === 'failed';
 
+  const isBot = type === 'bot';
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
-
-  const isBot = useIsBot(authorId);
 
   return (
     <XStack
@@ -182,7 +182,7 @@ export function ChatAuthorRow({
         size="$2xl"
         contactId={authorId}
       />
-      <XStack gap="$l" alignItems={isBot ? 'center' : 'flex-end'} flex={1}>
+      <XStack gap="$l" alignItems="center" flex={1}>
         <Text
           size="$label/2xl"
           numberOfLines={1}
