@@ -185,8 +185,28 @@ export default ({ mode }: { mode: string }) => {
         ? parseInt(process.env.VITE_PORT)
         : 3000;
 
+  const isUrbitMode =
+    mode !== 'mock' && mode !== 'staging' && mode !== 'electron';
+  const previewProxy = isUrbitMode
+    ? {
+        [`^/apps/groups/desk.js`]: {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        [`^((?!/apps/groups/).)*$`]: {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+      }
+    : undefined;
+
   return defineConfig({
     base: base(mode),
+    preview: {
+      proxy: previewProxy,
+    },
     server: {
       host: 'localhost',
       port,
