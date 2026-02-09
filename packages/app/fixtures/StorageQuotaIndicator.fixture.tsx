@@ -27,6 +27,9 @@ function Content() {
   const [storageInfoQuery, setStorageInfoQuery] =
     useMockedQuery<StorageInfo | null>({
       initial: async () => null,
+      queryOptions: {
+        queryKey: ['mocked-storageInfo'],
+      },
     });
   const [resolver, setResolver] = useState<(() => void) | null>(null);
 

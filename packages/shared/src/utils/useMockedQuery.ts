@@ -30,11 +30,10 @@ export function useMockedQuery<Data>({
   queryOptions,
 }: {
   initial: () => Promise<Data>;
-  queryOptions?: Partial<Parameters<typeof useQuery<Data>>[0]>;
+  queryOptions: Parameters<typeof useQuery<Data>>[0];
 }) {
   const [queryFnResult, setQueryFnResult] = useState(initial);
   const query = useQuery({
-    queryKey: ['mocked-query'],
     async queryFn(): Promise<Data> {
       return queryFnResult;
     },
