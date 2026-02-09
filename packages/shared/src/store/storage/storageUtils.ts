@@ -146,6 +146,21 @@ export interface StorageInfoResponse {
   usedBytes: number;
 }
 
+export namespace StorageInfoResponse {
+  export function validate(obj: unknown): obj is StorageInfoResponse {
+    return (
+      obj != null &&
+      typeof obj === 'object' &&
+      'availableBytes' in obj &&
+      'totalBytes' in obj &&
+      'usedBytes' in obj &&
+      typeof obj.availableBytes === 'number' &&
+      typeof obj.totalBytes === 'number' &&
+      typeof obj.usedBytes === 'number'
+    );
+  }
+}
+
 export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
   const currentUser = api.getCurrentUserId();
   const token = await scry<string>({
@@ -172,16 +187,7 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
   const data: { url?: string; filePath?: string } | null =
     await response.json();
 
-  if (
-    data &&
-    'availableBytes' in data &&
-    typeof data.availableBytes === 'number' &&
-    'totalBytes' in data &&
-    typeof data.totalBytes === 'number' &&
-    'usedBytes' in data &&
-    typeof data.usedBytes === 'number'
-  ) {
-    // @ts-expect-error - we just verified this shape above
+  if (StorageInfoResponse.validate(data)) {
     return data;
   } else {
     logger.log(`Invalid response`, data);
