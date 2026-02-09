@@ -34,6 +34,7 @@ export function formatMemorySize(bytes: number): string {
  * ```ts
  * convert(1, 'kb').to('b') === 1024
  * convert(1, 'gb').to('mb') === 1024
+ * ```
  */
 export function convert(value: number, fromUnit: Unit) {
   return {
