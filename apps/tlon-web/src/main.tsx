@@ -2,6 +2,10 @@
 //   import.meta.glob('./wdyr.ts', { eager: true });
 // }
 
+// MUST be the first import. Sets up globalThis.expo before any expo modules load.
+// See expo-polyfill.ts for details on why this is needed.
+import './expo-polyfill';
+
 /* eslint-disable */
 // At some point recently, we started getting a "regeneratorRuntime is not defined" error
 // when running the app in development mode. This is a workaround for that issue.
