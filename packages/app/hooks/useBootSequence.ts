@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
-import { preSig } from '@tloncorp/shared/urbit';
+import { desig, preSig } from '@tloncorp/shared/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -89,25 +89,54 @@ export function useBootSequence() {
     // RESERVING: reserve a node for the hosting account, or get one if it already exists
     //
     if (bootPhase === NodeBootPhase.RESERVING) {
+      const MOON_ID = '~ranhus-dothes-pondus-watbel';
+      const MOON_AC = 'midsyd-timlug-sarteb-tocber';
       const reservedNode = await BootHelpers.reserveNode(hostingUserId);
-      setReservedNode(reservedNode);
-      logger.crumb(`reserved node`, reservedNode.id);
+
+      const fakeReservedNode = {
+        id: MOON_ID,
+        code: MOON_AC,
+        isReady: true,
+        personalInviteToken: '',
+      };
+
+      // insert local fake ship URL and access code
+      setReservedNode(fakeReservedNode);
+
+      // fake the lure bite
+      const constants = getConstants();
+      const endpoint = `${constants.INVITE_PROVIDER}/lure/${lureMeta?.id}`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `ship=%7E${desig(MOON_ID)}`,
+      };
+      const result = await fetch(endpoint, options);
+      console.log(`bl: bit lure for moon: ${result.status}`, {
+        endpoint,
+        options,
+        result,
+      });
+
+      logger.crumb(`reserved node`, fakeReservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
 
       // handle personal DM invite cacheing if available
       if (
-        reservedNode.personalInviteToken &&
-        reservedNode.personalInviteToken.startsWith('0v')
+        fakeReservedNode.personalInviteToken &&
+        fakeReservedNode.personalInviteToken.startsWith('0v')
       ) {
         const env = getConstants();
         const inviteLink = extractNormalizedInviteLink(
-          `https://${env.BRANCH_DOMAIN}/${reservedNode.personalInviteToken}`
+          `https://${env.BRANCH_DOMAIN}/${fakeReservedNode.personalInviteToken}`
         );
         await db.personalInviteLink.setValue(inviteLink);
       } else {
         logger.trackError('Signup missing DM invite token', {
-          nodeId: reservedNode.id,
-          tokenReceived: reservedNode.personalInviteToken,
+          nodeId: fakeReservedNode.id,
+          tokenReceived: fakeReservedNode.personalInviteToken,
         });
       }
       return NodeBootPhase.BOOTING;
@@ -124,20 +153,21 @@ export function useBootSequence() {
     // BOOTING: confirm the node has finished booting on hosting
     //
     if (bootPhase === NodeBootPhase.BOOTING) {
-      if (reservedNode.isReady) {
-        // if we've cached that it's ready during the reservation step, skip this check
-        await db.hostedNodeIsRunning.setValue(true);
-        return NodeBootPhase.AUTHENTICATING;
-      }
+      return NodeBootPhase.AUTHENTICATING;
+      // if (reservedNode.isReady) {
+      //   // if we've cached that it's ready during the reservation step, skip this check
+      //   await db.hostedNodeIsRunning.setValue(true);
+      //   return NodeBootPhase.AUTHENTICATING;
+      // }
 
-      const isReady = await BootHelpers.checkNodeBooted();
-      if (isReady) {
-        logger.crumb('checked hosting, node is ready');
-        return NodeBootPhase.AUTHENTICATING;
-      }
+      // const isReady = await BootHelpers.checkNodeBooted();
+      // if (isReady) {
+      //   logger.crumb('checked hosting, node is ready');
+      //   return NodeBootPhase.AUTHENTICATING;
+      // }
 
-      logger.crumb('checked hosting, node still booting');
-      return NodeBootPhase.BOOTING;
+      // logger.crumb('checked hosting, node still booting');
+      // return NodeBootPhase.BOOTING;
     }
 
     //

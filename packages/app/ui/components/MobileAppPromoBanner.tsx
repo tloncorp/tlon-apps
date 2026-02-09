@@ -9,28 +9,26 @@ import { useNag } from '../../hooks/useNag';
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
-  const nag = useNag({
-    key: 'mobileAppPromoBanner',
-    refreshInterval: 0,
-    refreshCycle: 0,
-    initialDelay: 500,
-  });
+  // const nag = useNag({
+  //   key: 'mobileAppPromoBanner',
+  //   refreshInterval: 0,
+  //   refreshCycle: 0,
+  //   initialDelay: 500,
+  // });
 
   const isWeb = Platform.OS === 'web';
 
   useEffect(() => {
-    if (nag.shouldShow) {
-      const timer = setTimeout(() => setIsVisible(true), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [nag.shouldShow]);
+    const timer = setTimeout(() => setIsVisible(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
-    setTimeout(() => {
-      nag.eliminate();
-    }, 200);
-  }, [nag]);
+    // setTimeout(() => {
+    //   nag.eliminate();
+    // }, 200);
+  }, []);
 
   const handleLinkPress = useCallback((url: string) => {
     if (typeof window !== 'undefined') {
@@ -38,7 +36,7 @@ export function MobileAppPromoBanner() {
     }
   }, []);
 
-  if (!isWeb || !nag.shouldShow) {
+  if (!isWeb) {
     return null;
   }
 

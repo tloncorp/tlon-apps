@@ -212,7 +212,8 @@ export async function checkHostingNodeStatus(
 export async function authenticateWithReadyNode(
   preloadedCode?: string | null
 ): Promise<db.ShipInfo | null> {
-  const nodeId = await db.hostedUserNodeId.getValue();
+  // const nodeId = await db.hostedUserNodeId.getValue();
+  const nodeId = '~ranhus-dothes-pondus-watbel';
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
       context: 'Tried to authenticate but missing node ID',
@@ -234,7 +235,8 @@ export async function authenticateWithReadyNode(
     }
   }
 
-  const nodeUrl = logic.getShipUrl(nodeId);
+  // const nodeUrl = logic.getShipUrl(nodeId);
+  const nodeUrl = 'http://localhost';
   let authCookie = null;
   try {
     authCookie = await withRetry(
