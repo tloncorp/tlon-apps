@@ -3,6 +3,7 @@ import { getStorageQuota } from '@tloncorp/shared';
 import { getObjectStorageMethod } from '@tloncorp/shared/store';
 import { convert } from '@tloncorp/shared/utils';
 import { ForwardingProps, Pressable, Text, View } from '@tloncorp/ui';
+import { clamp } from 'lodash';
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -67,7 +68,10 @@ function StorageQuotaLinearProgress({
         style={[
           styles.linearProgressUsed,
           {
-            width: ratio === -Infinity ? 0 : `${(ratio * 100).toFixed(5)}%`,
+            width:
+              ratio === -Infinity
+                ? 0
+                : `${clamp(ratio * 100, 0, 100).toFixed(5)}%`,
           },
         ]}
       />
