@@ -1,4 +1,4 @@
-import { Button, Text } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import AttachmentSheet from '../../ui/components/AttachmentSheet';
