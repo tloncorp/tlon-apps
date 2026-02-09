@@ -121,8 +121,10 @@ export const getMemexUpload = async (
     body: JSON.stringify(uploadParams),
   });
 
-  if (response.status !== 200) {
-    logger.log(`Bad response from memex`, response.status);
+  if (!response.ok) {
+    logger.trackError('Bad response from memex', {
+      status: response.status,
+    });
     throw new Error('Bad response from memex');
   }
 
@@ -135,7 +137,7 @@ export const getMemexUpload = async (
       uploadUrl: data.url,
     };
   } else {
-    logger.log(`Invalid response from memex upload`, data);
+    logger.trackError('Invalid response from memex upload', { data });
     throw new Error('Invalid response from memex upload');
   }
 };
@@ -180,7 +182,9 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
   });
 
   if (!response.ok) {
-    logger.log(`Bad response`, response.status);
+    logger.trackError('Bad response status for storage quota', {
+      status: response.status,
+    });
     throw new Error('Expected ok response from memex, got ' + response.status);
   }
 
@@ -188,9 +192,10 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
     await response.json();
 
   if (StorageInfoResponse.validate(data)) {
+    logger.trackEvent('Successfully retrieved storage quota info');
     return data;
   } else {
-    logger.log(`Invalid response`, data);
+    logger.trackError('Invalid response data for storage quota', { data });
     throw new Error('Invalid response');
   }
 };
