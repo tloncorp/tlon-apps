@@ -164,9 +164,9 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
     },
   });
 
-  if (response.status !== 200) {
+  if (!response.ok) {
     logger.log(`Bad response`, response.status);
-    throw new Error('Expected 200 response from memex, got ' + response.status);
+    throw new Error('Expected ok response from memex, got ' + response.status);
   }
 
   const data: { url?: string; filePath?: string } | null =
