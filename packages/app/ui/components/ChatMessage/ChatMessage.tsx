@@ -208,6 +208,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            isBot={post.isBot ?? undefined}
             disabled={hideProfilePreview}
             deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
