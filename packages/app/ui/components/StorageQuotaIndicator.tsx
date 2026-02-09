@@ -159,9 +159,11 @@ export function StorageQuotaIndicator({
         >
           <View alignItems="center" gap="$xs">
             <Text>Could not fetch storage availability</Text>
-            <Text opacity={0.5} numberOfLines={2}>
-              Error: {storageInfoQuery.error.message}
-            </Text>
+            {storageInfoQuery instanceof Error && (
+              <Text opacity={0.5} numberOfLines={2}>
+                Error: {storageInfoQuery.error.message}
+              </Text>
+            )}
           </View>
         </Animated.View>
       )}
