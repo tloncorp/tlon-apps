@@ -152,7 +152,7 @@ export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
     app: 'genuine',
     path: '/secret',
   }).catch((e) => {
-    throw new Error('Failed to get secret', e);
+    throw new Error('Failed to get secret', { cause: e });
   });
 
   const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/storage-info`;
