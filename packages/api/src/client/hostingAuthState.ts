@@ -79,46 +79,29 @@ export function setHostingSession(
 ) {
   const { notify = true } = options;
   const changed = applySessionUpdate(update);
+
   if (changed && notify) {
     emitSessionChange();
   }
+
+  return getHostingSession();
 }
 
 export function getHostingSession(): HostingSession {
-  return { ...hostingSession };
-}
-
-export function clearHostingSession(options: SetHostingSessionOptions = {}) {
-  const { notify = true } = options;
-  const hadSession =
-    hostingSession.cookie !== null || hostingSession.userId !== null;
-  hostingSession = {
-    cookie: null,
-    userId: null,
+  return {
+    cookie: hostingSession.cookie,
+    userId: hostingSession.userId,
   };
-  if (hadSession && notify) {
-    emitSessionChange();
-  }
 }
 
-export function getHostingAuthCookie(): string | null {
+export function getHostingSessionCookie(): string | null {
   return hostingSession.cookie;
 }
 
-export function getHostingUserId(): string | null {
+export function getHostingSessionUserId(): string | null {
   return hostingSession.userId;
 }
 
-export function setHostingAuthCookie(
-  cookie: string | null,
-  options?: SetHostingSessionOptions
-) {
-  setHostingSession({ cookie }, options);
-}
-
-export function setHostingUserId(
-  userId: string | null,
-  options?: SetHostingSessionOptions
-) {
-  setHostingSession({ userId }, options);
+export function clearHostingSession(options?: SetHostingSessionOptions) {
+  return setHostingSession({ cookie: null, userId: null }, options);
 }
