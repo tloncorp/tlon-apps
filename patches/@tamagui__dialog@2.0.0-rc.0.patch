@@ -1,0 +1,129 @@
+diff --git a/dist/cjs/Dialog.cjs b/dist/cjs/Dialog.cjs
+index 347cc232cfe1071590be175933fb4e43d26bfa8f..5f505e6be5addb806c62a00268bf6ff4dc33b8f2 100644
+--- a/dist/cjs/Dialog.cjs
++++ b/dist/cjs/Dialog.cjs
+@@ -99,7 +99,7 @@ const DialogContext = (0, import_core.createStyledContext)(
+   }),
+   DialogPortalFrame = (0, import_core.styled)(import_stacks.YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/dist/cjs/Dialog.js b/dist/cjs/Dialog.js
+index ad3303bc9c9a3b2ea9447b8e69974873d343bba6..73ab62e8b338fab9449452830e3b7962caebed3f 100644
+--- a/dist/cjs/Dialog.js
++++ b/dist/cjs/Dialog.js
+@@ -64,7 +64,7 @@ const DialogContext = (0, import_core.createStyledContext)(
+   }
+ ), DialogPortalFrame = (0, import_core.styled)(import_stacks.YStack, {
+   pointerEvents: "none",
+-  render: "dialog",
++  
+   variants: {
+     unstyled: {
+       false: {
+diff --git a/dist/cjs/Dialog.native.js b/dist/cjs/Dialog.native.js
+index 104ba70789ab064bbc2bac4f060d18aaca4f6bbe..bc3577a62b78e61e9fa9f38978e6ce89e0b2ce67 100644
+--- a/dist/cjs/Dialog.native.js
++++ b/dist/cjs/Dialog.native.js
+@@ -104,7 +104,7 @@ var DialogContext = (0, import_core.createStyledContext)(
+   }),
+   DialogPortalFrame = (0, import_core.styled)(import_stacks.YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/dist/esm/Dialog.js b/dist/esm/Dialog.js
+index ef3b1e5b095ed347133dbf289f569a0c3544840a..63a1247d30b27329c7ae577793580abd57ee84bd 100644
+--- a/dist/esm/Dialog.js
++++ b/dist/esm/Dialog.js
+@@ -61,7 +61,7 @@ const DialogContext = createStyledContext(
+   }
+ ), DialogPortalFrame = styled(YStack, {
+   pointerEvents: "none",
+-  render: "dialog",
++  
+   variants: {
+     unstyled: {
+       false: {
+diff --git a/dist/esm/Dialog.mjs b/dist/esm/Dialog.mjs
+index f40398b2f37c78f710168aa64edc9af1708f6bd9..7b4c82c972a24a6f0cd515b02cb5e4e5489f7599 100644
+--- a/dist/esm/Dialog.mjs
++++ b/dist/esm/Dialog.mjs
+@@ -50,7 +50,7 @@ const DialogContext = createStyledContext(
+   }),
+   DialogPortalFrame = styled(YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/dist/esm/Dialog.native.js b/dist/esm/Dialog.native.js
+index 9d9d69262a636f37e95d2170d2e06a11fa6167b1..2e199ad4995923c84ff145d98adc4c3ae9d13192 100644
+--- a/dist/esm/Dialog.native.js
++++ b/dist/esm/Dialog.native.js
+@@ -53,7 +53,7 @@ var DialogContext = createStyledContext(
+   }),
+   DialogPortalFrame = styled(YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/dist/jsx/Dialog.js b/dist/jsx/Dialog.js
+index ef3b1e5b095ed347133dbf289f569a0c3544840a..63a1247d30b27329c7ae577793580abd57ee84bd 100644
+--- a/dist/jsx/Dialog.js
++++ b/dist/jsx/Dialog.js
+@@ -61,7 +61,7 @@ const DialogContext = createStyledContext(
+   }
+ ), DialogPortalFrame = styled(YStack, {
+   pointerEvents: "none",
+-  render: "dialog",
++  
+   variants: {
+     unstyled: {
+       false: {
+diff --git a/dist/jsx/Dialog.mjs b/dist/jsx/Dialog.mjs
+index f40398b2f37c78f710168aa64edc9af1708f6bd9..7b4c82c972a24a6f0cd515b02cb5e4e5489f7599 100644
+--- a/dist/jsx/Dialog.mjs
++++ b/dist/jsx/Dialog.mjs
+@@ -50,7 +50,7 @@ const DialogContext = createStyledContext(
+   }),
+   DialogPortalFrame = styled(YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/dist/jsx/Dialog.native.js b/dist/jsx/Dialog.native.js
+index 104ba70789ab064bbc2bac4f060d18aaca4f6bbe..bc3577a62b78e61e9fa9f38978e6ce89e0b2ce67 100644
+--- a/dist/jsx/Dialog.native.js
++++ b/dist/jsx/Dialog.native.js
+@@ -104,7 +104,7 @@ var DialogContext = (0, import_core.createStyledContext)(
+   }),
+   DialogPortalFrame = (0, import_core.styled)(import_stacks.YStack, {
+     pointerEvents: "none",
+-    render: "dialog",
++    
+     variants: {
+       unstyled: {
+         false: {
+diff --git a/src/Dialog.tsx b/src/Dialog.tsx
+index 8d97efcc9422270124ef09faffd723f331163218..459a608d80e86327af72721c883379f9aa062b89 100644
+--- a/src/Dialog.tsx
++++ b/src/Dialog.tsx
+@@ -133,7 +133,6 @@ type DialogPortalProps = ScopedProps<
+ 
+ export const DialogPortalFrame = styled(YStack, {
+   pointerEvents: 'none',
+-  render: 'dialog',
+ 
+   variants: {
+     unstyled: {
