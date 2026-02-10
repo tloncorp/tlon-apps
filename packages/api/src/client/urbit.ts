@@ -203,6 +203,8 @@ export function internalConfigureClient({
   });
 }
 
+export const configureClient = internalConfigureClient;
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
