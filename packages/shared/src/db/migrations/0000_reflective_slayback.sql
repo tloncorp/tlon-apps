@@ -357,6 +357,7 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`is_deleted` integer,
+	`is_bot` integer DEFAULT false,
 	`is_sequence_stub` integer DEFAULT false,
 	`deleted_at` integer,
 	`delivery_status` text,
@@ -441,3 +442,5 @@ CREATE TABLE `volume_settings` (
 );
 --> statement-breakpoint
 CREATE INDEX `volume_settings_item_id_index` ON `volume_settings` (`item_id`);
+--> statement-breakpoint
+UPDATE `posts` SET `is_bot` = 1 WHERE `author_id` LIKE '~pinser-botter-%';
