@@ -1,6 +1,13 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
-import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import {
+  ForwardingProps,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useCopy,
+} from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -208,12 +215,13 @@ export function ReferenceBlock({
 
 export function FileUploadBlock({
   block,
-  fullbleed = false,
-}: {
-  block: cn.FileUploadBlockData;
-  fullbleed?: boolean;
-}) {
-  return <FileUploadPreview file={block.file} fullbleed={fullbleed} />;
+  ...passedProps
+}: ForwardingProps<
+  typeof FileUploadPreview,
+  { block: cn.FileUploadBlockData },
+  'file'
+>) {
+  return <FileUploadPreview file={block.file} {...passedProps} />;
 }
 
 export function BigEmojiBlock({

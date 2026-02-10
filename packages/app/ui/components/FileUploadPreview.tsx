@@ -1,5 +1,12 @@
 import { formatMemorySize } from '@tloncorp/shared/utils';
-import { FilePreview, Icon, Pressable, Text } from '@tloncorp/ui';
+import {
+  FilePreview,
+  ForwardingProps,
+  Icon,
+  Pressable,
+  Text,
+  View,
+} from '@tloncorp/ui';
 import React, { ComponentProps, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import { XStack, YStack } from 'tamagui';
@@ -43,16 +50,20 @@ function FileSizeLabel({
 export function FileUploadPreview({
   file,
   fullbleed = false,
-}: {
-  file: {
-    fileUri?: string;
-    mimeType?: string;
-    name?: string;
-    /** in bytes */
-    size: number;
-  };
-  fullbleed?: boolean;
-}) {
+  ...passedProps
+}: ForwardingProps<
+  typeof View,
+  {
+    file: {
+      fileUri?: string;
+      mimeType?: string;
+      name?: string;
+      /** in bytes */
+      size: number;
+    };
+    fullbleed?: boolean;
+  }
+>) {
   const { openExternalLink } = useNavigation();
   const isUploading = useMemo(
     () =>
@@ -81,7 +92,7 @@ export function FileUploadPreview({
 
   if (isUploading) {
     return (
-      <YStack paddingLeft="$l">
+      <YStack paddingLeft="$l" {...passedProps}>
         <BlockquoteSideBorder />
         <Text color="$tertiaryText">Uploading attachment...</Text>
       </YStack>
@@ -89,11 +100,15 @@ export function FileUploadPreview({
   }
 
   if (fullbleed) {
-    return <FileUploadLockup file={file} />;
+    return <FileUploadLockup file={file} {...passedProps} />;
   }
 
   return (
-    <Reference.Frame disabled={navigateToFile == null} onPress={navigateToFile}>
+    <Reference.Frame
+      disabled={navigateToFile == null}
+      onPress={navigateToFile}
+      {...passedProps}
+    >
       <Reference.Header>
         <Reference.Title>
           <Icon
@@ -123,15 +138,19 @@ export function FileUploadPreview({
 
 export function FileUploadLockup({
   file,
-}: {
-  file: {
-    fileUri?: string;
-    mimeType?: string;
-    name?: string;
-    /** in bytes */
-    size: number;
-  };
-}) {
+  ...passedProps
+}: ForwardingProps<
+  typeof Pressable,
+  {
+    file: {
+      fileUri?: string;
+      mimeType?: string;
+      name?: string;
+      /** in bytes */
+      size: number;
+    };
+  }
+>) {
   const { openExternalLink } = useNavigation();
   const fileTypeCode = useMemo(
     () =>
@@ -175,6 +194,7 @@ export function FileUploadLockup({
       flexDirection="column"
       disabled={navigateToFile == null}
       onPress={navigateToFile}
+      {...passedProps}
     >
       <FilePreview
         // hide preview if we haven't measured the container yet to avoid flash of incorrect sizing
