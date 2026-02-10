@@ -285,6 +285,7 @@ const ActionSheetComponent = ({
             backgroundColor="$darkOverlay"
             key="overlay"
             opacity={0.5}
+            pointerEvents="none"
           />
           <Dialog.Content
             borderWidth={1}

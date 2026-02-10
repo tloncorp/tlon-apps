@@ -25,7 +25,14 @@ async function markContextAsE2E(context: BrowserContext) {
 
 async function performCleanup(page: Page, shipName: string) {
   try {
-    // Dismiss any lingering modals from failed cleanup
+    // Dismiss any lingering dialogs/modals by pressing Escape multiple times
+    // This handles dialog overlays that may be blocking all pointer interactions
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    }
+
+    // Also try dismissing modals with a Cancel button click
     try {
       const cancelButton = page.getByText('Cancel');
       if (await cancelButton.isVisible({ timeout: 2000 })) {
