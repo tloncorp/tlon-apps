@@ -156,7 +156,7 @@ export function FileUploadLockup({
     const MEDIUM_HEIGHT = 70;
     const LARGE_HEIGHT = 100;
     return containerLayout == null
-      ? Infinity
+      ? null
       : containerLayout.height < MEDIUM_HEIGHT
         ? 1
         : containerLayout.height < LARGE_HEIGHT
@@ -177,8 +177,10 @@ export function FileUploadLockup({
       onPress={navigateToFile}
     >
       <FilePreview
+        // hide preview if we haven't measured the container yet to avoid flash of incorrect sizing
+        opacity={containerHeightBreakpoint == null ? 0 : 1}
         fileExtensionLabel={fileTypeCode ?? undefined}
-        size={containerHeightBreakpoint < 2 ? 's' : 'm'}
+        size={(containerHeightBreakpoint ?? Infinity) < 2 ? 's' : 'm'}
       />
       <FileNameLabel
         file={file}
@@ -186,7 +188,7 @@ export function FileUploadLockup({
         size="$label/m"
         textAlign="center"
       />
-      {containerHeightBreakpoint > 1 && (
+      {(containerHeightBreakpoint ?? Infinity) > 1 && (
         <FileSizeLabel file={file} size="$label/s" />
       )}
     </Pressable>
