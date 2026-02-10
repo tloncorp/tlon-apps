@@ -276,7 +276,7 @@ const ActionSheetComponent = ({
 
   if (mode === 'dialog') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={onOpenChange} disableRemoveScroll>
         <Dialog.Portal>
           <VisuallyHidden>
             <Dialog.Title>{title}</Dialog.Title>
@@ -319,9 +319,8 @@ const ActionSheetComponent = ({
               </XStack>
             )}
             <ScrollView
-              flex={1}
+              flexShrink={1}
               showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ flexGrow: 1 }}
             >
               <ActionSheetContext.Provider value={actionSheetContextValue}>
                 {children}
