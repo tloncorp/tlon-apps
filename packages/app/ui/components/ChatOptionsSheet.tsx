@@ -1,7 +1,7 @@
 import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { Icon, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';

@@ -5,7 +5,7 @@ import {
   NotificationLevel,
   VolumeSettings,
   getLevelFromVolumeMap,
-} from '../urbit';
+} from '@tloncorp/api/urbit';
 
 export function extractClientVolumes(
   volume: VolumeSettings

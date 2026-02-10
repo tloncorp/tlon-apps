@@ -1,6 +1,6 @@
 import * as db from '../db';
 import { PersonalGroupNames, PersonalGroupSlugs } from '../domain';
-import { getChannelKindFromType } from '../urbit';
+import { getChannelKindFromType } from '@tloncorp/api/urbit';
 
 export function getPersonalGroupKeys(currentUserId: string) {
   return {

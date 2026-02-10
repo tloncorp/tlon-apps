@@ -2,7 +2,7 @@
  * OpenRouter API integration for AI-powered message summarization
  */
 
-import { getConstants } from '../domain/constants';
+import { getConstants } from '@tloncorp/shared/domain/constants';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 

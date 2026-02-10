@@ -16,7 +16,7 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/api/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';

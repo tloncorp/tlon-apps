@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import * as db from '../db';
 import * as kv from '../db/keyValue';
-import { JSONContent } from '../urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 
 type GalleryDraftType = 'caption' | 'text';
 interface PostDraftCallbacks {

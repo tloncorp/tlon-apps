@@ -1,1 +1,1 @@
-export * from '@tloncorp/shared/api';
+export * from './api';

@@ -9,7 +9,7 @@ import replyPostFeed from '../test/activityReplyPostFeed.json';
 import {
   fromFeedToActivityEvents,
   fromInitFeedToBucketedActivityEvents,
-} from './activityApi';
+} from '@tloncorp/api/api/activityApi';
 
 // const dmFeed: ub.ActivityFeed = await import('../test/activityDmFeed.json');
 

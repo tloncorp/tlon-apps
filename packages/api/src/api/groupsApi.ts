@@ -1,10 +1,10 @@
 import { Poke } from '@urbit/http-api';
 
-import * as db from '../db';
-import { GroupPrivacy } from '../db/schema';
-import { createDevLogger } from '../debug';
-import * as domain from '../domain';
-import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import * as db from '@tloncorp/shared/db';
+import { GroupPrivacy } from '@tloncorp/shared/db/schema';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import * as domain from '@tloncorp/shared/domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared/domain';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,

@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest';
 
-import type * as ub from '../urbit';
+import type * as ub from '@tloncorp/api/urbit';
 import {
   toChannelUnread,
   toClientUnreads,
   toGroupUnread,
   toThreadUnread,
-} from './activityApi';
+} from '@tloncorp/api/api/activityApi';
 
 const channelUnread: Record<string, ub.ActivitySummary> = {
   'channel/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870':

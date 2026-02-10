@@ -14,10 +14,10 @@ import {
   ChannelContentConfiguration,
   isDmChannelId,
   isGroupDmChannelId,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { JSONContent } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,

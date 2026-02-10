@@ -1,14 +1,14 @@
 import { da, render } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import { ContentReference } from '../domain';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import { ContentReference } from '@tloncorp/shared/domain';
 import {
   IMAGE_URL_REGEX,
   PlaintextPreviewConfig,
   getTextContent,
-} from '../logic';
+} from '@tloncorp/shared/logic';
 import * as ub from '../urbit';
 import {
   ClubAction,

@@ -1,10 +1,10 @@
 import { render, valid, da } from '@urbit/aura';
 
 import { PostContent } from '../api';
-import { ChannelType } from '../db';
-import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
-import { createDevLogger } from '../debug';
-import { ContentReference } from '../domain';
+import { ChannelType } from '@tloncorp/shared/db';
+import { GroupJoinStatus, GroupPrivacy } from '@tloncorp/shared/db/schema';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import { ContentReference } from '@tloncorp/shared/domain';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';

@@ -2,13 +2,13 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '../api';
+import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '@tloncorp/api/api';
 import '../api/channelContentConfig';
 import {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-} from '../api/channelContentConfig';
+} from '@tloncorp/api/api/channelContentConfig';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -30,12 +30,12 @@ import {
   GroupsInit6,
   PagedPosts,
   PostDataResponse,
-} from '../urbit';
+} from '@tloncorp/api/urbit';
 import {
   ContactBookScryResult1,
   Contact as UrbitContact,
-} from '../urbit/contact';
-import { GroupV7 as UrbitGroup } from '../urbit/groups';
+} from '@tloncorp/api/urbit/contact';
+import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import {
   syncContacts,
   syncDms,

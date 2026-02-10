@@ -7,7 +7,7 @@ import {
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api/api';
 import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';

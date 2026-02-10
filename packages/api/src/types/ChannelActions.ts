@@ -1,4 +1,4 @@
-import * as db from '../db';
+import * as db from '@tloncorp/shared/db';
 
 export type Id =
   | 'debugJson'

@@ -1,6 +1,6 @@
 import { createDevLogger } from '../debug';
 import { ContentReference, getConstants } from '../domain';
-import { citeToPath } from '../urbit';
+import { citeToPath } from '@tloncorp/api/urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 import { normalizeUrbitColor } from './utils';
 

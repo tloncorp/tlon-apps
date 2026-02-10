@@ -27,18 +27,18 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import {
   Inline,
   JSONContent,
   citeToPath,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/urbit';
+} from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,

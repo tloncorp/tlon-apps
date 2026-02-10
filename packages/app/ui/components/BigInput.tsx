@@ -7,7 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { constructStory } from '@tloncorp/shared/urbit';
+import { constructStory } from '@tloncorp/api/urbit';
 import {
   Button,
   Icon,

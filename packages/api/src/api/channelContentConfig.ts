@@ -1,5 +1,5 @@
 import type { JSONValue } from '../types/JSONValue';
-import { ValuesOf } from '../utils';
+import { ValuesOf } from '@tloncorp/shared/utils';
 
 interface BaseParameterSpec {
   displayName: string;

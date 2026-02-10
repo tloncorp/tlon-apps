@@ -2,9 +2,9 @@ import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
 import * as LibPhone from 'libphonenumber-js';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import * as domain from '../domain';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import * as domain from '@tloncorp/shared/domain';
 
 const logger = createDevLogger('SystemContactsApi', true);
 

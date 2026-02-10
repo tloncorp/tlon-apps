@@ -1,6 +1,6 @@
 import { ThemeName } from 'tamagui';
 
-import { Stringified } from '../utils';
+import { Stringified } from '@tloncorp/shared/utils';
 import { DisplayMode, SortMode } from './channel';
 
 export type AppTheme = ThemeName | 'auto';

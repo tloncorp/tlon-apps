@@ -16,7 +16,7 @@ import {
   Story,
   constructStory,
   pathToCite,
-} from '../urbit';
+} from '@tloncorp/api/urbit';
 import { fileFromPath } from '../utils/file';
 import { makeMention, makeParagraph, makeText } from './tiptap';
 

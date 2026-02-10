@@ -1,1 +1,1 @@
-export * from '@tloncorp/shared/http-api';
+export * from './http-api/index';

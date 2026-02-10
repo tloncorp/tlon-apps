@@ -1,1 +1,1 @@
-export * from '@tloncorp/shared/api/urbit';
+export * from './urbit/index';

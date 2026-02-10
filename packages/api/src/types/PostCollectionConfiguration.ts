@@ -1,5 +1,5 @@
 import { ChannelContentConfiguration, CollectionRendererId } from '../api';
-import * as db from '../db';
+import * as db from '@tloncorp/shared/db';
 import * as ChannelAction from './ChannelActions';
 
 /**

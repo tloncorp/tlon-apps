@@ -1,7 +1,7 @@
 import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
-import { ClientParams } from '@tloncorp/shared/api';
-import { getShipAccessCode } from '@tloncorp/shared/api';
-import * as api from '@tloncorp/shared/api';
+import { ClientParams } from '@tloncorp/api/api';
+import { getShipAccessCode } from '@tloncorp/api/api';
+import * as api from '@tloncorp/api/api';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';

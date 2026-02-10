@@ -1,15 +1,15 @@
-import * as api from '../api';
+import * as api from '@tloncorp/api/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
-import { TimeoutError } from '../api/urbit';
+} from '@tloncorp/api/api/channelContentConfig';
+import { TimeoutError } from '@tloncorp/api/api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { GroupChannelV7, getChannelKindFromType } from '../urbit';
+import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
