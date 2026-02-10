@@ -4,7 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 export async function pickFile(): Promise<Attachment.UploadIntent[]> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
-    multiple: true,
+    multiple: false,
     type: ['*/*'],
   });
 
