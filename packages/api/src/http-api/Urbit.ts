@@ -1,7 +1,7 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 
-import { TimeoutError } from '../api';
+import { TimeoutError } from '../client';
 import { createDevLogger } from '@tloncorp/shared/debug';
 import { desig } from '../urbit';
 import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';

@@ -1,6 +1,6 @@
 import { render, valid, da } from '@urbit/aura';
 
-import { PostContent } from '../api';
+import { PostContent } from '../client';
 import { ChannelType } from '@tloncorp/shared/db';
 import { GroupJoinStatus, GroupPrivacy } from '@tloncorp/shared/db/schema';
 import { createDevLogger } from '@tloncorp/shared/debug';

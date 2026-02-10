@@ -1,4 +1,4 @@
-import { StorageCredentials, StorageService } from '../api/upload';
+import { StorageCredentials, StorageService } from '../client/upload';
 
 export interface StorageUpdateCredentials {
   credentials: StorageCredentials;

@@ -12,7 +12,7 @@ import {
   ReplySeal,
 } from './channel';
 import { GroupMeta } from './groups';
-import { parseIdNumber } from '../api/apiUtils';
+import { parseIdNumber } from '../client/apiUtils';
 
 export type Patda = string;
 export type Ship = string;

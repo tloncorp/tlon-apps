@@ -5,7 +5,7 @@ import type { UnionToIntersection } from '@tloncorp/shared/utils';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
-import { parseIdNumber } from '../api/apiUtils';
+import { parseIdNumber } from '../client/apiUtils';
 
 export type Whom = { ship: string } | { club: string };
 
