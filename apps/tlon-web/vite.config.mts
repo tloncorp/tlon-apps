@@ -203,6 +203,7 @@ export default ({ mode }: { mode: string }) => {
     : undefined;
 
   return defineConfig({
+    envPrefix: ['VITE_', 'TAMAGUI_'],
     base: base(mode),
     preview: {
       proxy: previewProxy,
