@@ -13,7 +13,7 @@ import { XStack, YStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { Reference } from './ContentReference';
-import { BlockquoteSideBorder } from './PostContent/BlockRenderer';
+import { BlockquoteSideBorder } from './PostContent/BlockquoteSideBorder';
 
 function FileNameLabel({
   file,

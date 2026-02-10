@@ -31,6 +31,7 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
 
@@ -447,17 +448,6 @@ export function BlockquoteBlock({
     </YStack>
   );
 }
-
-export const BlockquoteSideBorder = styled(View, {
-  name: 'BlockquoteSideBorder',
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  borderRadius: 1,
-  left: -2,
-  backgroundColor: '$border',
-});
 
 export function HeaderBlock({
   block,
