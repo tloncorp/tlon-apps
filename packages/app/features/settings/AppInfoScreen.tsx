@@ -3,15 +3,13 @@ import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { preSig } from '@tloncorp/shared/urbit';
 import * as Application from 'expo-application';
-import * as Updates from 'expo-updates';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCallback } from 'react';
 import { Alert, Platform, ScrollView, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 import {
   AppSetting,
@@ -23,6 +21,7 @@ import {
   View,
   XStack,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
@@ -59,7 +58,6 @@ export function AppInfoScreen(props: Props) {
     uploadLogs,
     toggle: setDebugEnabled,
   } = useDebugStore();
-  const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
   const currentUserId = useCurrentUserId();
 
@@ -113,11 +111,16 @@ export function AppInfoScreen(props: Props) {
     });
   }, [uploadLogs, hasClients, currentUserId]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
-        backAction={() => props.navigation.goBack()}
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
       />
       <ScrollView
         contentContainerStyle={{
@@ -133,7 +136,6 @@ export function AppInfoScreen(props: Props) {
           paddingBottom="$3xl"
         >
           <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-          <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
           <AppSetting
             title="Notify provider"
             value={preSig(NOTIFY_PROVIDER)}
@@ -187,9 +189,7 @@ export function AppInfoScreen(props: Props) {
 
           {enabled && logs.length > 0 && (
             <Stack>
-              <Button onPress={onUploadLogs}>
-                <Text>Upload logs ({logs.length})</Text>
-              </Button>
+              <Button preset="outline" onPress={onUploadLogs} label={`Upload logs (${logs.length})`} />
             </Stack>
           )}
           {enabled && logId && !hasClients && (

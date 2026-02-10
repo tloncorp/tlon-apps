@@ -1,12 +1,19 @@
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  extractNormalizedInviteLink,
+  withRetry,
+} from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
   BootPhaseNames,
   NodeBootPhase,
+  getConstants,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import { verifyUserInviteLink } from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -56,6 +63,7 @@ export function useBootSequence() {
     id: string;
     code?: string;
     isReady?: boolean;
+    personalInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -85,6 +93,23 @@ export function useBootSequence() {
       setReservedNode(reservedNode);
       logger.crumb(`reserved node`, reservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
+
+      // handle personal DM invite cacheing if available
+      if (
+        reservedNode.personalInviteToken &&
+        reservedNode.personalInviteToken.startsWith('0v')
+      ) {
+        const env = getConstants();
+        const inviteLink = extractNormalizedInviteLink(
+          `https://${env.BRANCH_DOMAIN}/${reservedNode.personalInviteToken}`
+        );
+        await db.personalInviteLink.setValue(inviteLink);
+      } else {
+        logger.trackError('Signup missing DM invite token', {
+          nodeId: reservedNode.id,
+          tokenReceived: reservedNode.personalInviteToken,
+        });
+      }
       return NodeBootPhase.BOOTING;
     }
 
@@ -127,7 +152,10 @@ export function useBootSequence() {
           throw new Error('Could not authenticate with node');
         }
         setShip({ ...shipInfo, needsSplashSequence: true });
-        telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
+        telemetry?.identify(preSig(shipInfo.ship!), {
+          isHostedUser: true,
+          userId: preSig(shipInfo.ship!),
+        });
 
         // deeper logic relies on the setShip result being available, use small delay
         // to avoid race conditions
@@ -155,9 +183,13 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
       // immediately subscribing on a path that generates a fact significantly reduces connection time
-      store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
+      store.syncGroupPreviews([GETTING_STARTED_GROUP_ID]);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
+        // should be redundant, but make sure the node peers with the inviter's contact profile
+        if (lureMeta?.inviterUserId) {
+          api.syncUserProfiles([lureMeta.inviterUserId]);
+        }
         return NodeBootPhase.SCAFFOLDING_WAYFINDING;
       }
 
@@ -169,6 +201,13 @@ export function useBootSequence() {
     // SCAFFOLDING: make sure Getting Started is pre-joined, Tlon Studio is left, and personal group
     // is created if needed
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      // Start verifying the personal invite link early so it's ready by the
+      // time the user reaches the invite screen in the splash sequence.
+      // This runs in parallel with the rest of the boot sequence.
+      verifyUserInviteLink().catch((e) => {
+        logger.trackError('early verifyUserInviteLink failed', e);
+      });
+
       if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
         api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
           logger.trackError('failed to join getting started group', {
@@ -298,6 +337,12 @@ export function useBootSequence() {
         });
         store.joinGroup(invitedGroup);
       }
+
+      // avoid race condition where remote contacts haven't yet arrived
+      // on the node when we start syncing
+      setTimeout(() => {
+        store.syncContacts();
+      }, 3000);
 
       // give the joins some time to process, then resync & pin
       setTimeout(() => {

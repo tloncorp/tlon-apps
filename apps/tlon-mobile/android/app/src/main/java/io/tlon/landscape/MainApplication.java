@@ -61,6 +61,10 @@ public class MainApplication extends Application implements ReactApplication {
       }
   });
 
+  // `volatile` so that once the singleton value is set from one thread, all other threads
+  // immediately see the value
+  private volatile ReactHost mReactHost = null;
+
   @Override
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
@@ -69,7 +73,16 @@ public class MainApplication extends Application implements ReactApplication {
     @Nullable
     @Override
     public ReactHost getReactHost() {
-        return ReactNativeHostWrapper.createReactHost(getApplicationContext(), getReactNativeHost());
+      if (mReactHost == null) {
+          synchronized (this) {
+              // we might have just acquired lock after another thread created mReactHost and
+              // released lock: check that we still need to instantiate.
+              if (mReactHost == null) {
+                  mReactHost = ReactNativeHostWrapper.createReactHost(getApplicationContext(), getReactNativeHost());
+              }
+          }
+      }
+      return mReactHost;
     }
 
   @Override

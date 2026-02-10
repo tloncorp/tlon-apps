@@ -7,6 +7,7 @@ export type User = {
   requirePhoneNumberVerification: boolean;
   phoneNumberVerifiedAt?: string;
   verified: boolean;
+  botEnabled?: boolean;
 };
 
 export type ReservableShip = {
@@ -25,6 +26,7 @@ export type AssignmentResponse = {
     status: HostedShipStatus;
   };
   code?: string;
+  personalLureToken?: string;
 };
 
 export type BootPhase =

@@ -12,18 +12,19 @@ import {
   CreateChatSheet,
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
-import { useConnectionStatus } from '../../features/top/useConnectionStatus';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
   InviteUsersSheet,
+  MobileAppPromoBanner,
   NavigationProvider,
   RequestsProvider,
   ScreenHeader,
@@ -43,7 +44,6 @@ interface Props {
 
 export const HomeSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
-    const screenTitle = 'Home';
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -52,9 +52,6 @@ export const HomeSidebar = memo(
     const { data: selectedGroup } = store.useGroup({
       id: selectedGroupId ?? '',
     });
-    const hostConnectionStatus = useConnectionStatus(
-      selectedGroup?.hostUserId ?? ''
-    );
     const { setIsOpen } = useGlobalSearch();
     const showSplash = store.useShowWebSplashModal();
 
@@ -62,19 +59,6 @@ export const HomeSidebar = memo(
     const { performGroupAction } = useGroupActions();
 
     const connStatus = store.useConnectionStatus();
-    const notReadyMessage: string | null = useMemo(() => {
-      // if not fully connected yet, show status
-      if (connStatus !== 'Connected') {
-        return `${connStatus}...`;
-      }
-
-      // if still loading the screen data, show loading
-      if (!chats) {
-        return 'Loading...';
-      }
-
-      return null;
-    }, [connStatus, chats]);
 
     const noChats = useMemo(
       () =>
@@ -165,6 +149,8 @@ export const HomeSidebar = memo(
       }
     }, []);
 
+    const { subtitle: syncSubtitle } = useSyncStatus();
+
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
       return !!allChats.find(
@@ -217,9 +203,12 @@ export const HomeSidebar = memo(
           onPressInvite={handlePressInvite}
         >
           <NavigationProvider focusedChannelId={focusedChannelId}>
-            <View userSelect="none" flex={1}>
+            <View userSelect="none" flex={1} position="relative">
               <ScreenHeader
-                title={notReadyMessage ?? screenTitle}
+                title={'Home'}
+                subtitle={syncSubtitle}
+                showSubtitle={true}
+                testID="HomeSidebarHeader"
                 rightControls={
                   <>
                     <ScreenHeader.IconButton
@@ -233,35 +222,37 @@ export const HomeSidebar = memo(
                   </>
                 }
               />
-              {chats && noChats ? (
-                <View
-                  padding="$xl"
-                  margin="$xl"
-                  borderRadius="$m"
-                  backgroundColor="$positiveBackground"
-                  justifyContent="center"
-                >
-                  <Text fontSize="$l">Welcome to Tlon</Text>
-                  <Text fontSize="$s" marginTop="$m">
-                    This is Tlon, an app for messaging friends and constructing
-                    communities.
-                  </Text>
-                  <Text fontSize="$s" marginTop="$m">
-                    To get started, click the &quot;
-                    <Text fontWeight="$xl" fontSize="$l">
-                      +
+              <View flex={1}>
+                {chats && noChats ? (
+                  <View
+                    padding="$xl"
+                    margin="$xl"
+                    borderRadius="$m"
+                    backgroundColor="$positiveBackground"
+                    justifyContent="center"
+                  >
+                    <Text fontSize="$l">Welcome to Tlon</Text>
+                    <Text fontSize="$s" marginTop="$m">
+                      This is Tlon, an app for messaging friends and
+                      constructing communities.
                     </Text>
-                    &quot; button above to create a new chat.
-                  </Text>
-                </View>
-              ) : (
-                <ChatList data={displayData} onPressItem={onPressChat} />
-              )}
+                    <Text fontSize="$s" marginTop="$m">
+                      To get started, click the &quot;
+                      <Text fontWeight="$xl" fontSize="$l">
+                        +
+                      </Text>
+                      &quot; button above to create a new chat.
+                    </Text>
+                  </View>
+                ) : (
+                  <ChatList data={displayData} onPressItem={onPressChat} />
+                )}
+              </View>
+              <MobileAppPromoBanner />
               <GroupPreviewSheet
                 open={!!selectedGroup}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
-                hostStatus={hostConnectionStatus}
                 onActionComplete={handleGroupAction}
               />
               <InviteUsersSheet

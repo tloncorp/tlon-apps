@@ -176,6 +176,28 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await db.hostingUserId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  try {
+    const body = (await response.json()) as User;
+
+    if (body.botEnabled !== null && body.botEnabled !== undefined) {
+      logger.trackEvent('Bot status set', {
+        enabled: body.botEnabled,
+        $set: {
+          botEnabled: body.botEnabled,
+        },
+      });
+      await db.hostingBotEnabled.setValue(body.botEnabled);
+    }
+  } catch (e) {
+    logger.trackError(
+      'Failed to read bot enabled status from hosting heartbeat',
+      {
+        errorMessage: e.toString(),
+        responseText: await response.text(),
+      }
+    );
+  }
+
   // 401 indicates that the authentication token is expired.
   if (response.status === 401) {
     return 'expired';
@@ -266,6 +288,15 @@ export const signUpHostingUser = async (params: {
   const userId = 'id' in result && (result as User).id;
   if (userId) {
     db.hostingUserId.setValue(userId);
+    if (result.botEnabled !== null && result.botEnabled !== undefined) {
+      logger.trackEvent('Bot status set', {
+        enabled: result.botEnabled,
+        $set: {
+          botEnabled: result.botEnabled,
+        },
+      });
+      await db.hostingBotEnabled.setValue(result.botEnabled);
+    }
   }
 
   return result as User;
@@ -301,6 +332,15 @@ export const logInHostingUser = async (params: {
 
   if (user) {
     db.hostingUserId.setValue(user);
+    if (result.botEnabled !== null && result.botEnabled !== undefined) {
+      logger.trackEvent('Bot status set', {
+        enabled: result.botEnabled,
+        $set: {
+          botEnabled: result.botEnabled,
+        },
+      });
+      db.hostingBotEnabled.setValue(result.botEnabled);
+    }
   }
 
   return result as User;
@@ -446,12 +486,13 @@ export const assignShipToUser = async (userId: string) => {
   const nodeId = response.ship.ship.id;
   const isReady = response.ship.status.phase === 'Ready';
   const code = response.code;
+  const personalInviteToken = response.personalLureToken || null;
 
   if (!nodeId) {
     throw new Error('Invalid ship assignment response');
   }
 
-  return { nodeId, isReady, code };
+  return { nodeId, isReady, code, personalInviteToken };
 };
 
 export const getReservableShips = async (user: string) =>
@@ -515,7 +556,7 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<{ status: domain.HostedNodeStatus; isBeingRevived: boolean }> => {
+): Promise<{ status: domain.HostedNodeStatus; showWayfinding: boolean }> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -526,11 +567,11 @@ export const getNodeStatus = async (
   const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
-  const isBeingRevived = result.ship?.showWayfinding ?? false;
+  const showWayfinding = result.ship?.showWayfinding ?? false;
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return { status: domain.HostedNodeStatus.Running, isBeingRevived };
+    return { status: domain.HostedNodeStatus.Running, showWayfinding };
   }
 
   // If user has a paused ship, resume it
@@ -538,11 +579,11 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return { status: domain.HostedNodeStatus.Paused, isBeingRevived };
+    return { status: domain.HostedNodeStatus.Paused, showWayfinding };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return { status: domain.HostedNodeStatus.UnderMaintenance, isBeingRevived };
+    return { status: domain.HostedNodeStatus.UnderMaintenance, showWayfinding };
   }
 
   // If user has a suspended ship, boot it
@@ -559,16 +600,16 @@ export const getNodeStatus = async (
         ) {
           return {
             status: domain.HostedNodeStatus.UnderMaintenance,
-            isBeingRevived,
+            showWayfinding,
           };
         }
         throw err;
       }
     }
-    return { status: domain.HostedNodeStatus.Suspended, isBeingRevived };
+    return { status: domain.HostedNodeStatus.Suspended, showWayfinding };
   }
 
-  return { status: domain.HostedNodeStatus.Unknown, isBeingRevived };
+  return { status: domain.HostedNodeStatus.Unknown, showWayfinding };
 };
 
 export const inviteShipWithLure = async (params: {

@@ -45,6 +45,11 @@ export function updateChannelCursor(channelId: string, cursor: string) {
   }
 }
 
+// Update the last activity timestamp when we receive new data
+export function updateLastActivityTime() {
+  db.lastActivityAt.setValue(Date.now());
+}
+
 // Used to keep track of which groups/channels we're a part of. If we
 // see something new, we refetch init data. Fallback in case we miss
 // something over %channels or %groups
@@ -110,6 +115,7 @@ export const syncInitData = async (
         queryCtx
       )
       .then(() => logger.crumb('set left channels'));
+    updateLastActivityTime();
   };
 
   if (yieldWriter) {
@@ -190,6 +196,12 @@ export const syncSince = async ({
             queryCtx: batchCtx,
             callCtx,
           });
+
+          // make sure we attempt to get latest posts if we haven't succeeded yet
+          const lastSyncedAt = await db.changesSyncedAt.getValue();
+          if (!lastSyncedAt) {
+            await syncLatestPosts();
+          }
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
@@ -249,6 +261,7 @@ export const syncLatestChanges = async ({
   });
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
+  updateLastActivityTime();
   logger.trackEvent('sync changes debug', {
     context: 'updated timestamp',
     ...callCtx,
@@ -260,6 +273,7 @@ export const syncLatestChanges = async ({
     ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
+    hints: result.hints,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,
@@ -301,6 +315,7 @@ export const syncLatestPosts = async (
       allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
       await db.insertLatestPosts(allPosts, queryCtx);
       await db.headsSyncedAt.setValue(Date.now());
+      updateLastActivityTime();
     };
 
     if (yieldWriter) {
@@ -310,7 +325,10 @@ export const syncLatestPosts = async (
       return () => Promise.resolve();
     }
   } catch (e) {
-    logger.trackError('failed to sync latest posts');
+    logger.trackError('failed to sync latest posts', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     return () => Promise.resolve();
   }
 };
@@ -581,6 +599,7 @@ export async function syncPostReference(options: {
   await db.insertChannelPosts({
     posts: [response],
   });
+  updateLastActivityTime();
 }
 
 export async function syncUpdatedPosts(
@@ -600,6 +619,7 @@ export async function syncUpdatedPosts(
   await db.insertChannelPosts({
     posts: response.posts,
   });
+  updateLastActivityTime();
 
   return response;
 }
@@ -627,6 +647,7 @@ export async function syncThreadPosts(
   await db.insertChannelPosts({
     posts: [response, ...(response.replies ?? [])],
   });
+  updateLastActivityTime();
 }
 
 const groupSyncsInProgress = new Set<string>();
@@ -657,6 +678,7 @@ export async function syncGroup(
     await batchEffects('syncGroup', async (ctx) => {
       await db.insertGroups({ groups: [response] }, ctx);
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+      updateLastActivityTime();
     });
   } catch (e) {
     logger.trackError('group sync failed', e);
@@ -732,6 +754,7 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
 
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
   logger.log('received lanyard update', update.type);
+  updateLastActivityTime();
   switch (update.type) {
     // for right now, we'll handle any subscription event as a signal to resync
     default:
@@ -742,6 +765,7 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
 
 async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
   logger.log('received group update', update.type);
+  updateLastActivityTime();
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
   let group: db.Group | null | undefined;
@@ -1118,6 +1142,7 @@ const handleActivityUpdate = async (
   }
 
   await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
+  updateLastActivityTime();
 
   // if we inserted new activity, invalidate the activity page
   // data loader
@@ -1140,6 +1165,7 @@ export const handleContactUpdate = async (
   update: api.ContactsUpdate,
   ctx?: QueryCtx
 ) => {
+  updateLastActivityTime();
   switch (update.type) {
     case 'upsertContact':
       await db.upsertContact(update.contact, ctx);
@@ -1160,6 +1186,7 @@ export const handleContactUpdate = async (
 };
 
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
+  updateLastActivityTime();
   switch (update.type) {
     case 'storageCredentialsChanged': {
       await db.storageCredentials.setValue(update.credentials);
@@ -1225,6 +1252,7 @@ export const handleSettingsUpdate = async (
   update: api.SettingsUpdate,
   ctx?: QueryCtx
 ) => {
+  updateLastActivityTime();
   switch (update.type) {
     case 'updateSetting':
       await db.insertSettings(
@@ -1243,6 +1271,7 @@ export const handleChannelsUpdate = async (
   ctx: QueryCtx
 ) => {
   logger.log('event: channels update', update);
+  updateLastActivityTime();
   switch (update.type) {
     case 'addPost':
       await handleAddPost(update.post, undefined, ctx);
@@ -1335,6 +1364,7 @@ export const handleChatUpdate = async (
   ctx: QueryCtx
 ) => {
   logger.log('event: chat update', update);
+  updateLastActivityTime();
 
   switch (update.type) {
     case 'showPost':
@@ -1493,6 +1523,7 @@ export async function handleAddPost(
       ctx
     );
   }
+  updateLastActivityTime();
 }
 
 export async function syncSequencedPosts(
@@ -1525,12 +1556,15 @@ export async function syncSequencedPosts(
     await db.insertChannelPosts({
       posts: result.posts,
     });
+    updateLastActivityTime();
   }
 
-  await db.setLatestChannelSequenceNum({
-    channelId: options.channelId,
-    sequenceNum: result.newestSequenceNum,
-  });
+  if (result.newestSequenceNum != null) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: result.newestSequenceNum,
+    });
+  }
 
   return result;
 }
@@ -1583,12 +1617,15 @@ export async function syncPosts(
     await db.insertChannelPosts({
       posts: response.posts,
     });
+    updateLastActivityTime();
   }
 
-  await db.setLatestChannelSequenceNum({
-    channelId: options.channelId,
-    sequenceNum: response.newestSequenceNum,
-  });
+  if (response.newestSequenceNum != null) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: response.newestSequenceNum,
+    });
+  }
 
   if (response.deletedPosts?.length) {
     if (options.count && response.deletedPosts.length === options.count) {

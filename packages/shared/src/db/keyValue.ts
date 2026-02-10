@@ -266,6 +266,11 @@ export const hostingUserId = createStorageItem<string>({
   isSecure: true,
 });
 
+export const hostingBotEnabled = createStorageItem<boolean>({
+  key: 'hostingBotEnabled',
+  defaultValue: false,
+});
+
 export const nodeAccessCode = createStorageItem<string | null>({
   key: 'nodeAccessCode',
   defaultValue: null,
@@ -286,6 +291,11 @@ export const CHANGES_SYNCED_AT_KEY = 'changesSyncedAt';
 export const changesSyncedAt = createStorageItem<number | null>({
   key: CHANGES_SYNCED_AT_KEY,
   defaultValue: null,
+});
+
+export const lastActivityAt = createStorageItem<number>({
+  key: 'lastActivityAt',
+  defaultValue: 0,
 });
 
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({

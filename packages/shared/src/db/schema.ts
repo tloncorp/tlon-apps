@@ -502,6 +502,7 @@ export const groups = sqliteTable('groups', {
   lastPostAt: timestamp('last_post_at'),
   syncedAt: timestamp('synced_at'),
   pendingMembersDismissedAt: timestamp('pending_members_dismissed_at'),
+  memberCount: integer('member_count'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -1104,6 +1105,7 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isBot: boolean('is_bot').default(false),
     isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
@@ -1123,6 +1125,12 @@ export const posts = sqliteTable(
     backendTime: text('backend_time'),
     /** freeform data associated with this post */
     blob: text('blob'),
+    /**
+     * Serialized PostDataDraft for posts with pending uploads.
+     * Used by retry logic to re-send with the original draft data.
+     * Cleared when post is successfully sent.
+     */
+    draft: text('draft', { mode: 'json' }),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(

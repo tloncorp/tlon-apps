@@ -134,9 +134,9 @@ export const useCanUpload = () => {
 };
 
 export const useContact = (options: { id: string }) => {
-  const deps = useKeyFromQueryDeps(db.getContact);
+  const deps = useKeyFromQueryDeps(db.getContact, options);
   return useQuery({
-    queryKey: [['contact', deps]],
+    queryKey: [['contact', options.id], deps],
     queryFn: () => db.getContact(options),
   });
 };
@@ -204,6 +204,14 @@ export const useBaseVolumeLevel = (): ub.NotificationLevel => {
   }
 
   return 'medium';
+};
+
+export const useActivityIsEmpty = () => {
+  const depsKey = useKeyFromQueryDeps(db.checkActivityEmpty);
+  return useQuery({
+    queryKey: ['activityIsEmpty', depsKey],
+    queryFn: () => db.checkActivityEmpty(),
+  });
 };
 
 export const useHaveUnreadUnseenActivity = () => {

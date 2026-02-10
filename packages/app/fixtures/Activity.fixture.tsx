@@ -2,7 +2,11 @@ import * as logic from '@tloncorp/shared/logic';
 import { PropsWithChildren } from 'react';
 import { Alert } from 'react-native';
 
-import { ActivityScreenContent, AppDataContextProvider } from '../ui';
+import {
+  ActivityEmptyState,
+  ActivityScreenContent,
+  AppDataContextProvider,
+} from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { activityItems } from './activityHelpers';
 import { exampleContacts, postsByType } from './contentHelpers';
@@ -17,6 +21,8 @@ const baseContentProps = {
   onEndReached: () => {},
   isFetching: false,
   isRefreshing: false,
+  allTabsAreEmpty: false,
+  currentTabIsEmpty: false,
   onRefreshTriggered: () => {},
 } as const;
 
@@ -78,6 +84,17 @@ const counts = [1, 2, 3, 4, 8, 16];
 
 const countVariants = counts.map((count) => activityItems.groupPost(count));
 
+const EmptyStateFixture = () => {
+  return (
+    <ActivityFixtureWrapper>
+      <ActivityEmptyState
+        onInviteFriends={() => Alert.alert('Invite friends pressed')}
+        onNavigateToContacts={() => Alert.alert('Navigate to contacts pressed')}
+      />
+    </ActivityFixtureWrapper>
+  );
+};
+
 export default {
   All: (
     <ActivityFixture
@@ -87,4 +104,5 @@ export default {
   EventTypes: <ActivityFixture items={eventVariants} />,
   ContentTypes: <ActivityFixture items={contentVariants} />,
   Counts: <ActivityFixture items={countVariants} />,
+  EmptyState: <EmptyStateFixture />,
 };

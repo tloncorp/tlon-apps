@@ -2,17 +2,18 @@ import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
+import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
-import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
+import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
@@ -107,6 +108,11 @@ export function RootStack() {
         component={ManageAccountScreen}
         options={{ gestureEnabled: false }}
       />
+      <Root.Screen
+        name="BotSettings"
+        component={BotSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       <Root.Screen name="Theme" component={ThemeScreen} />
       <Root.Screen name="AppInfo" component={AppInfoScreen} />
@@ -131,10 +137,7 @@ export function RootStack() {
         name="InviteSystemContacts"
         component={InviteSystemContactsScreen}
       />
-      <Root.Screen
-        name="InviteUsers"
-        component={InviteUsersScreen}
-      />
+      <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
     </Root.Navigator>
   );
 }

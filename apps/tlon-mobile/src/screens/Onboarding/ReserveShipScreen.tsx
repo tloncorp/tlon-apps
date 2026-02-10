@@ -41,6 +41,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        backgroundColor="$secondaryBackground"
         title={
           signupContext.bootPhase < NodeBootPhase.READY
             ? "We're setting you up"

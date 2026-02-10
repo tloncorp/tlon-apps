@@ -30,7 +30,7 @@ export function EditSectionNameSheet({
 
   const handlePressSave = useCallback(
     async (data: { name: string }) => {
-      onSave?.(data.name);
+      await onSave?.(data.name);
       reset();
       onOpenChange(false);
     },
@@ -56,9 +56,7 @@ export function EditSectionNameSheet({
           />
         </ActionSheet.FormBlock>
         <ActionSheet.FormBlock>
-          <Button hero onPress={handleSubmit(handlePressSave)}>
-            <Button.Text>Save</Button.Text>
-          </Button>
+          <Button preset="primary" onPress={handleSubmit(handlePressSave)} label="Save" centered />
         </ActionSheet.FormBlock>
       </ActionSheet.Content>
     </ActionSheet>

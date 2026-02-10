@@ -2,10 +2,11 @@ import {
   DrawerContentComponentProps,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
-import { View, getVariableValue, useTheme } from '@tamagui/core';
+import { getVariableValue, useTheme } from '@tamagui/core';
+import { getCurrentUserIsHosted } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
@@ -15,6 +16,7 @@ import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../../features/settings/PushNotificationSettingsScreen';
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
+import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -30,6 +32,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -47,6 +52,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const onManageAccountPressed = useCallback(() => {
     navigate('ManageAccount');
   }, [navigate]);
+
+  const onBotSettingsPressed = useCallback(() => {
+    Linking.openURL('https://tlon.network/tlawnbot');
+  }, []);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -74,11 +83,13 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
+      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
+      botEnabled={botEnabled}
     />
   );
 }
@@ -130,12 +141,7 @@ export const SettingsNavigator = () => {
 };
 
 function EmptySettingsScreen() {
-  return (
-    <View
-      flex={1}
-      backgroundColor={getVariableValue(useTheme().secondaryBackground)}
-    />
-  );
+  return <SettingsEmptyState />;
 }
 
 function useHasHostedAuth() {

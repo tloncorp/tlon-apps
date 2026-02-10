@@ -1,9 +1,0 @@
-/overview/udon        Overview
-/changelog/udon       Changelog
-/dev                  Developer
-  /overview/udon      Overview
-  /groups/udon        Groups Reference
-  /chat/udon          Chat Reference
-  /heap/udon          Heap Reference
-  /diary/udon         Diary Reference
-  /hark/udon          Hark Reference

@@ -131,6 +131,7 @@ export class ElectronDb extends BaseDb {
 
     // reset values related to tracking db sync state
     await kv.headsSyncedAt.resetValue();
+    await kv.changesSyncedAt.resetValue();
 
     logger.log('Purged Electron SQLite database, reconnecting');
     await this.setupDb();

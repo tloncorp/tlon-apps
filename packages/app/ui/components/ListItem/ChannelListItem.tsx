@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Button, Icon, Pressable, RawText } from '@tloncorp/ui';
+import { Icon, Pressable, RawText } from '@tloncorp/ui';
 import React, {
   useCallback,
   useEffect,
@@ -15,6 +15,7 @@ import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
@@ -60,19 +61,13 @@ export function ChannelListItem({
 
   const triggerButton = useMemo(
     () => (
-      <Button
-        backgroundColor="transparent"
-        borderWidth="unset"
-        paddingLeft={0}
+      <OverflowTriggerButton
         paddingRight="$s"
         marginHorizontal="$-m"
-        minimal
         onPress={(e) => {
           e.stopPropagation();
         }}
-      >
-        <Icon type="Overflow" />
-      </Button>
+      />
     ),
     []
   );
@@ -220,7 +215,7 @@ export function ChannelListItem({
           )}
         </ListItem>
         {isWeb && !disableOptions && (isHovered || open) && (
-          <View position="absolute" right={10} top="$2xl">
+          <View position="absolute" right={10} top="$3xl">
             <ChatOptionsSheet
               open={open}
               onOpenChange={handleOpenChange}

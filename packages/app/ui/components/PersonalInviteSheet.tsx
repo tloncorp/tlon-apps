@@ -24,7 +24,12 @@ export function PersonalInviteSheet({
   }
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} snapPointsMode="fit">
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPointsMode="fit"
+      modal
+    >
       <ActionSheet.SimpleHeader title="Invite Friends to Tlon Messenger" />
       <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>

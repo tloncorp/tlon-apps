@@ -2,9 +2,7 @@ import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
-import { Button, LoadingSpinner } from '@tloncorp/ui';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
+import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
@@ -30,11 +28,6 @@ export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
   sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
-  sendPost: (
-    content: Story,
-    channelId: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
   groupMembers: db.ChatMember[];
@@ -47,12 +40,6 @@ export interface MessageInputProps {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
   showWayfindingTooltip?: boolean;
@@ -166,26 +153,20 @@ export const MessageInputContainer = memo(
             {goBack ? (
               <View paddingBottom="$xs">
                 <Button
-                  backgroundColor="unset"
-                  borderColor="transparent"
+                  preset="secondary"
+                  icon="ChevronLeft"
                   onPress={goBack}
-                >
-                  <Icon type="ChevronLeft" />
-                </Button>
+                />
               </View>
             ) : null}
 
             {isEditing ? (
-              // using $2xs instead of $xs to match the padding of the attachment button
-              // might need to update the close icon?
               <View marginBottom="$2xs">
                 <Button
-                  backgroundColor="unset"
-                  borderColor="transparent"
+                  preset="secondary"
+                  icon="Close"
                   onPress={cancelEditing}
-                >
-                  <Icon size="$m" type="Close" />
-                </Button>
+                />
               </View>
             ) : null}
             {canUpload && showAttachmentButton ? (
@@ -217,25 +198,22 @@ export const MessageInputContainer = memo(
               <View marginBottom="$xs">
                 {showWayfindingTooltip && <Notices.ChatInputTooltip />}
                 <Button
+                  preset="secondary"
                   disabled={disableSend}
-                  onPress={isEditing ? onPressEdit : onPressSend}
-                  backgroundColor="unset"
-                  borderColor="transparent"
-                  opacity={disableSend ? 0.5 : 1}
+                  loading={isSending}
                   testID="MessageInputSendButton"
-                >
-                  {isEditing ? (
-                    <Icon size="$m" type="Checkmark" />
-                  ) : isSending ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <Icon
-                      color={sendError ? '$negativeActionText' : undefined}
-                      size="$m"
-                      type="ArrowUp"
-                    />
-                  )}
-                </Button>
+                  onPress={isEditing ? onPressEdit : onPressSend}
+                  icon={
+                    isEditing ? (
+                      'Checkmark'
+                    ) : (
+                      <Icon
+                        color={sendError ? '$negativeActionText' : undefined}
+                        type="ArrowUp"
+                      />
+                    )
+                  }
+                />
               </View>
             )}
           </XStack>

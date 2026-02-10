@@ -183,7 +183,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %9
+    $:  %10
         groups=net-groups:v9:gv
         =channels-index:v7:gv
         =foreigns:v8:gv
@@ -318,6 +318,10 @@
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        %fix-duplicate-groups
+      %-  emit
+      [%pass /load/fix-duplicate-groups %arvo %b %wait now.bowl]
     ==
     ::
         %group-command
@@ -712,11 +716,16 @@
       (~(unsubscribe s [subs bowl]) /contact dock)
     (emil:cor caz)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  ?>  ?=(%9 -.old)
+  =^  caz-9-to-10=(list card)  old
+    ?.  ?=(%9 -.old)  [~ old]
+    :_  old(- %10)
+    [%pass /load/fix-duplicate-groups %arvo %b %wait now.bowl]~
+  =?  cor  !=(~ caz-9-to-10)  (emil caz-9-to-10)
+  ?>  ?=(%10 -.old)
+  =.  state  old
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
-  =.  state  old
   =.  cor  inflate-io
   ::  until client bugs are fixed and data validation happens on-ingress,
   ::  always trawl our groups for raw image data (or really, metadata of a
@@ -765,7 +774,8 @@
   cor
   ::
   +$  any-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -870,7 +880,15 @@
         =pimp:imp
     ==
   ::
-  +$  state-9  current-state
+  +$  state-9
+    $:  %9
+        groups=net-groups:v9:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =^subs:s
+        =pimp:imp
+    ==
+  +$  state-10  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -1349,7 +1367,9 @@
     ::  ignore responses after we had left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?|  ?=([%command %leave ~] rest.pole)
+            ?|  ?=(%kick -.sign)
+              ::
+                ?=([%command %leave ~] rest.pole)
                 ?=([%comand %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
@@ -1520,6 +1540,39 @@
     =/  =flag:g  [ship name.pole]
     =/  =token:g  (slav %uv token.pole)
     se-abet:(se-expire-token:(se-abed:se-core flag) token)
+  ::
+      ::  v9 -> v10
+      ::
+      ::  fix overwritten groups.
+      ::
+      ::  there was a bug which caused groups hosted on the same group host
+      ::  to be overwritten in certain situations. we fix this surely by detecting
+      ::  any groups hosted at the same ship and performing a full resync.
+      ::
+      [%load %fix-duplicate-groups ~]
+    =|  hosts=(map ship ?)
+    ::  detect ships hosting multiple groups
+    ::
+    =+  flags=~(tap in ~(key by groups))
+    =.  hosts
+      %+  roll  flags
+      |=  [=flag:g =_hosts]
+      =+  net-group=(~(got by groups) flag)
+      =*  net  -.net-group
+      ?.  ?=(%sub -.net)  hosts
+      ?:  (~(has by hosts) p.flag)
+        (~(put by hosts) p.flag &)
+      (~(put by hosts) p.flag |)
+    %-  ~(rep by hosts)
+    |=  [[=ship many=?] =_cor]
+    ?.  many  cor
+    =/  groups=(list flag:g)
+      (skim flags |=(=flag:g =(p.flag ship)))
+    ::
+    %+  roll  groups
+    |=  [=flag:g =_cor]
+    =.  cor  (tell:l:cor %info leaf+"Restoring group {<flag>}" ~)
+    go-abet:(go-restart-updates:(go-abed:go-core:cor flag) ~)
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -1717,6 +1770,8 @@
     ~>  %spin.['se-ships-subscription-paths']
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
+    =*  sub-len  ^~((lent se-sub-path))
+    ?.  =((scag sub-len path) se-sub-path)  |
     =.  path  (slag ^~((lent se-sub-path)) path)
     ?.  ?=([ship=@ time=@ ~] path)  |
     ?=(^ (find [(slav %p i.path)]~ ships))
@@ -3678,7 +3733,11 @@
           go-core
         ::
             %leave-channels
-          =.  cor  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
+          ::  this error is reported at a warning, not a failure level,
+          ::  because we proactively leave all channels when leaving the
+          ::  group.
+          ::
+          =.  cor  (tell:l %warn %poke-ack 'failed to leave channels' u.p.sign)
           go-core
       ==
     ::

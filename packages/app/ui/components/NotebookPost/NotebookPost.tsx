@@ -210,15 +210,14 @@ export function NotebookPost({
               onReply={handlePress}
               mode="await-trigger"
               trigger={
-                <Button
+                <Button.Frame
                   backgroundColor="$secondaryBackground"
                   borderWidth="unset"
-                  size="$l"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
-                </Button>
+                </Button.Frame>
               }
             />
           </Pressable>
@@ -271,6 +270,7 @@ function NotebookPostHeader({
       {showAuthor && (
         <DetailViewAuthorRow
           authorId={post.authorId}
+          isBot={post.isBot ?? undefined}
           deliveryStatus={post.deliveryStatus}
           editStatus={post.editStatus}
           deleteStatus={post.deleteStatus}

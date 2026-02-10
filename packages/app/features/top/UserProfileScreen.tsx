@@ -21,7 +21,7 @@ import {
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
-import { useConnectionStatus } from './useConnectionStatus';
+import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -35,12 +35,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const currentUserId = useCurrentUserId();
   const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
-  const connectionStatus = useConnectionStatus(userId);
+  const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const hostConnectionStatus = useConnectionStatus(
-    selectedGroup?.hostUserId ?? ''
-  );
   const { resetToDm } = useRootNavigation();
 
   const handleGoToDm = useCallback(
@@ -114,6 +111,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
             <ScreenHeader
               title="Profile"
+              backgroundColor={theme.secondaryBackground.val}
+              useHorizontalTitleLayout={!isWindowNarrow && shouldShowBackButton}
               leftControls={
                 shouldShowBackButton ? (
                   <ScreenHeader.BackButton
@@ -123,9 +122,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
               }
               rightControls={
                 canEdit ? (
-                  <ScreenHeader.TextButton onPress={handlePressEdit}>
-                    Edit
-                  </ScreenHeader.TextButton>
+                  <ScreenHeader.IconButton
+                    onPress={handlePressEdit}
+                    testID="ContactEditButton"
+                    type="Draw"
+                  />
                 ) : null
               }
             />
@@ -139,7 +140,6 @@ export function UserProfileScreen({ route, navigation }: Props) {
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}
             group={selectedGroup ?? undefined}
-            hostStatus={hostConnectionStatus}
             onActionComplete={handleGroupAction}
           />
         </AttachmentProvider>

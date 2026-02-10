@@ -1,6 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -9,6 +9,7 @@ import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -207,6 +208,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            isBot={post.isBot ?? undefined}
             disabled={hideProfilePreview}
             deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
@@ -232,7 +234,6 @@ const ChatMessage = ({
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
         ) : null}
-
 
         {deliveryFailed ? (
           <Pressable
@@ -300,7 +301,7 @@ const ChatMessage = ({
         ) : null}
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-        <View position="absolute" top={0} right={12}>
+        <View position="absolute" top={8} right={12}>
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
@@ -314,14 +315,7 @@ const ChatMessage = ({
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
             trigger={
-              <Button
-                backgroundColor="transparent"
-                borderWidth="unset"
-                size="$l"
-                testID="MessageActionsTrigger"
-              >
-                <Icon type="Overflow" />
-              </Button>
+              <OverflowTriggerButton testID="MessageActionsTrigger" />
             }
             mode="await-trigger"
           />
@@ -350,8 +344,7 @@ const ChatContentRenderer = createContentRenderer({
     },
     image: isWeb ? WebChatImageRenderer : undefined,
     link: {
-      renderDescription: false,
-      renderEmbed: true,
+      renderDescription: true,
       maxWidth: 600,
       imageProps: {
         aspectRatio: 2,

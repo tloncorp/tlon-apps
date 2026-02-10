@@ -1,4 +1,4 @@
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
@@ -6,25 +6,26 @@ import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
 import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { checkIsNodeBusy, scry } from './urbit';
+import { checkIsNodeBusyWithHints, scry } from './urbit';
 
-export async function fetchChangesSince(
-  timestamp: number
-): Promise<
-  db.ChangesResult & { nodeBusyStatus: 'available' | 'busy' | 'unknown' }
+export async function fetchChangesSince(timestamp: number): Promise<
+  db.ChangesResult & {
+    nodeBusyStatus: 'available' | 'busy' | 'unknown';
+    hints?: string;
+  }
 > {
-  const nodeIsBusy = checkIsNodeBusy();
+  const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
   const response = await scry<ub.ChangesV7>({
     app: 'groups-ui',
     path: `/v7/changes/${encodedTimestamp}`,
   });
 
-  const nodeBusyStatus = await Promise.race([nodeIsBusy, timedOutDefault(500)]);
+  const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
 
   const changes = parseChanges(response);
 
-  return { ...changes, nodeBusyStatus };
+  return { ...changes, ...nodeBusyStatus };
 }
 
 export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
@@ -61,6 +62,10 @@ export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
 
 // We want to avoid the UX of waiting too long for the busy check to return. It's served by the runtime,
 // so should in theory always be quicker. But adding a timeout race to be safe.
-async function timedOutDefault(ms: number): Promise<'unknown'> {
-  return new Promise((resolve) => setTimeout(() => resolve('unknown'), ms));
+async function timedOutDefault(
+  ms: number
+): Promise<{ nodeBusyStatus: 'unknown' }> {
+  return new Promise((resolve) =>
+    setTimeout(() => resolve({ nodeBusyStatus: 'unknown' }), ms)
+  );
 }

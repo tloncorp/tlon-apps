@@ -6,6 +6,7 @@ import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { render } from '@urbit/aura';
 
 const logger = createDevLogger('contactsApi', false);
 
@@ -170,6 +171,33 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
     app: 'contacts',
     mark: 'contact-action',
     json: action,
+  });
+};
+
+export const updateSigilColor = async (color: string | null) => {
+  const contactUpdate: ub.ContactBookProfileEdit = {};
+  if (color) {
+    let urbitColor = color.startsWith('#') ? color.slice(1) : color;
+    if (urbitColor.startsWith('0x')) {
+      urbitColor = urbitColor.slice(2);
+    }
+    //NOTE  'tint' parser wants @ux without the leading 0x...
+    const formattedColor = render('ux', BigInt('0x' + urbitColor)).slice(2);
+    contactUpdate.color = {
+      type: 'tint',
+      value: formattedColor,
+    };
+  } else {
+    contactUpdate.color = {
+      type: 'tint',
+      value: '0',
+    };
+  }
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: contactUpdate },
   });
 };
 

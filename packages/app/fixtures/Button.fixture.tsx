@@ -2,32 +2,83 @@ import { Button } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 export default {
-  primary: () => (
+  // Presets
+  'preset/hero': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button>
-        <Button.Text>Primary</Button.Text>
-      </Button>
+      <Button preset="hero" label="Hero Button" />
     </FixtureWrapper>
   ),
-  text: () => (
+  'preset/heroDestructive': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button minimal>
-        <Button.Text>Text Button</Button.Text>
-      </Button>
+      <Button preset="heroDestructive" label="Hero Destructive" />
     </FixtureWrapper>
   ),
-  hero: () => (
+  'preset/positive': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button hero>
-        <Button.Text>Hero Button</Button.Text>
-      </Button>
+      <Button preset="positive" label="Positive Button" />
     </FixtureWrapper>
   ),
-  heroDisabled: () => (
+  'preset/primary': () => (
     <FixtureWrapper fillWidth safeArea={false}>
-      <Button hero disabled>
-        <Button.Text>Hero Button</Button.Text>
-      </Button>
+      <Button preset="primary" label="Primary Button" />
+    </FixtureWrapper>
+  ),
+  'preset/secondary': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="secondary" label="Secondary Button" />
+    </FixtureWrapper>
+  ),
+  'preset/outline': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="outline" label="Outline Button" />
+    </FixtureWrapper>
+  ),
+  'preset/secondaryOutline': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="secondaryOutline" label="Secondary Outline" />
+    </FixtureWrapper>
+  ),
+  'preset/destructive': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="destructive" label="Destructive Button" />
+    </FixtureWrapper>
+  ),
+  'preset/minimal': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="minimal" label="Minimal Button" />
+    </FixtureWrapper>
+  ),
+  'preset/destructiveMinimal': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="destructiveMinimal" label="Destructive Minimal" />
+    </FixtureWrapper>
+  ),
+  // Disabled states
+  'disabled/positive': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="positive" disabled label="Disabled Positive" />
+    </FixtureWrapper>
+  ),
+  'disabled/primary': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="primary" disabled label="Disabled Primary" />
+    </FixtureWrapper>
+  ),
+  // With icons
+  'icons/leading': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="outline" leadingIcon="Settings" label="Settings" />
+    </FixtureWrapper>
+  ),
+  'icons/trailing': () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="primary" trailingIcon="ChevronRight" label="Continue" />
+    </FixtureWrapper>
+  ),
+  // Centered
+  centered: () => (
+    <FixtureWrapper fillWidth safeArea={false}>
+      <Button preset="primary" label="Centered Button" centered />
     </FixtureWrapper>
   ),
 };

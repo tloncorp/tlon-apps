@@ -1,4 +1,8 @@
-import { configurationFromChannel } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  isDmChannelId,
+  isGroupDmChannelId,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useMemberRoles } from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
@@ -81,6 +85,19 @@ export function useChatTitle(
   return null;
 }
 
+export function useChatDescription(
+  channel?: db.Channel | null,
+  group?: db.Group | null
+) {
+  if (group && (!channel || group?.channels?.length === 1)) {
+    return group.description;
+  } else if (channel) {
+    return channel.description;
+  }
+
+  return null;
+}
+
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
   return useMemo(() => {
@@ -100,7 +117,12 @@ export function getGroupTitle(
   group: db.Group,
   disableNicknames: boolean
 ): string {
-  const isPending = group.currentUserIsMember === false;
+  const nonMember = group.currentUserIsMember === false;
+  const havePermission = group.haveInvite || group.joinStatus === 'joining';
+
+  if (group?.privacy === 'secret' && nonMember && !havePermission) {
+    return 'Secret Group';
+  }
 
   if (group?.title && group?.title !== '') {
     return group.title;
@@ -111,7 +133,7 @@ export function getGroupTitle(
         .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
         .join(', ') ?? 'No title'
     );
-  } else if (isPending) {
+  } else if (nonMember) {
     if (group?.members?.length === 1) {
       return `New group by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
     } else {
@@ -224,4 +246,25 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
 
 export function hasNickname(contact: db.Contact | null | undefined): boolean {
   return 'nickname' in (contact ?? {}) && (contact?.nickname?.length ?? 0) > 0;
+}
+
+export function getChannelHost(
+  channel: db.Channel,
+  currentUserId: string
+): string {
+  if (isGroupDmChannelId(channel.id)) {
+    return currentUserId;
+  }
+
+  if (isDmChannelId(channel.id)) {
+    return channel.id;
+  }
+
+  const parts = channel.id.split('/');
+  if (parts.length < 3) {
+    throw new Error(
+      `Invalid channel ID format: ${channel.id}. Expected format: 'type/host/channelId'.`
+    );
+  }
+  return parts[1];
 }

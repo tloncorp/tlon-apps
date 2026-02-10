@@ -583,7 +583,10 @@ export const getLatestPosts = async ({
       };
     });
   } catch (e) {
-    logger.trackError('failed to sync heads');
+    logger.trackError('failed to sync heads', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     return [];
   }
 };
@@ -1158,14 +1161,55 @@ export function toPostsData(
   };
 }
 
+function getAuthorId(author: ub.Author) {
+  if (typeof author === 'string') {
+    return author;
+  } else {
+    return author.ship;
+  }
+}
+
+/**
+ * Type guard to check if an author is a BotProfile.
+ */
+function isBotProfile(author: ub.Author): author is ub.BotProfile {
+  return typeof author === 'object' && author !== null && 'ship' in author;
+}
+
+/**
+ * Normalize author to BotProfile if it's a pinser-botter ship.
+ * This ensures bot authors are consistently represented as BotProfile objects.
+ */
+function normalizeAuthor(author: ub.Author): ub.Author {
+  if (typeof author === 'string' && author.startsWith('~pinser-botter-')) {
+    return {
+      ship: author,
+      nickname: null,
+      avatar: null,
+    };
+  }
+  return author;
+}
+
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
 ): db.Post {
+  // Normalize author to BotProfile if it's a pinser-botter ship
+  if (!isPostTombstone(post)) {
+    post.essay.author = normalizeAuthor(post.essay.author);
+  } else {
+    post.author = normalizeAuthor(post.author);
+  }
+
+  // Check if author is a bot (BotProfile object)
+  const author = isPostTombstone(post) ? post.author : post.essay.author;
+  const isBot = isBotProfile(author);
+
   const channelType = channelId.split('/')[0];
   const getPostType = (
     post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
-  ) => {
+  ): db.PostType => {
     if (isNotice(post)) {
       return 'notice';
     }
@@ -1185,11 +1229,12 @@ export function toPostData(
   if (isPostTombstone(post)) {
     return {
       id: getCanonicalPostId(post.id),
-      authorId: post.author,
+      authorId: getAuthorId(post.author),
       channelId,
       type,
       sentAt: getReceivedAtFromId(post.id),
       isDeleted: true,
+      isBot,
       deletedAt: post['deleted-at'],
       receivedAt: getReceivedAtFromId(post.id),
       sequenceNum: post.seq ? Number(post.seq) : null,
@@ -1253,8 +1298,9 @@ export function toPostData(
     image: post.essay.meta?.image ?? '',
     description: post.essay.meta?.description ?? '',
     cover: post.essay.meta?.cover ?? '',
-    authorId: post.essay.author,
+    authorId: getAuthorId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
+    isBot,
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
@@ -1350,7 +1396,7 @@ export function toPostReplyData(
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
-      authorId: reply.author,
+      authorId: getAuthorId(reply.author),
       channelId,
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
@@ -1372,7 +1418,7 @@ export function toPostReplyData(
     id,
     channelId,
     type: 'reply',
-    authorId: reply.memo.author,
+    authorId: getAuthorId(reply.memo.author),
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),

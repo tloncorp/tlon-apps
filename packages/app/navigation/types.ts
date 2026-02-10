@@ -48,6 +48,7 @@ export type RootStackParamList = {
   Theme: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
+  BotSettings: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -59,6 +60,8 @@ export type RootStackParamList = {
   };
   UserProfile: {
     userId: string;
+    groupId?: string;
+    channelId?: string;
   };
   EditProfile: {
     userId: string;

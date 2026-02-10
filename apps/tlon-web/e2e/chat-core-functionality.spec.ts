@@ -22,14 +22,11 @@ test('should test comprehensive chat functionality', async ({
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and verify group creation
-  await helpers.navigateBack(zodPage);
-  if (await zodPage.getByText('Home').isVisible()) {
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-    await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-  }
+  // Navigate back to Home and navigate to group using stable testID
+  await zodPage.getByTestId('HomeNavIcon').click();
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Send a message in the General channel
   await helpers.sendMessage(zodPage, 'Hello, world!');
@@ -80,12 +77,10 @@ test('should test comprehensive chat functionality', async ({
   await helpers.sendMessage(zodPage, 'Report this message');
 
   // Navigate away and back to work around potential bug mentioned in Maestro test
-  await helpers.navigateBack(zodPage);
-  if (await zodPage.getByText('Home').isVisible()) {
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-    await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-  }
+  await zodPage.getByTestId('HomeNavIcon').click();
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Report the message
   await helpers.reportMessage(zodPage, 'Report this message');

@@ -19,17 +19,12 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
-  // Navigate back to Home and open the group
+  // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-
-  if (await zodPage.getByText('Home').isVisible()) {
-    groupName = '~ten, ~zod';
-    // Click on the group (still named 'Untitled group' until ~ten accepts)
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({
-      timeout: 10000,
-    });
-    await zodPage.getByText(groupName).first().click();
-  }
+  groupName = '~ten, ~zod';
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
 
   // Create a new gallery channel
   await helpers.openGroupSettings(zodPage);
@@ -58,11 +53,15 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Add a reply to the post
   await helpers.sendMessage(zodPage, 'This is a reply');
 
-  // Test editing from detail view header button
-  const editButton = zodPage.getByTestId('ChannelHeaderEditButton');
-  await expect(editButton).toBeVisible();
-  await expect(editButton).toBeAttached();
-  await editButton.click();
+  // Test editing from detail view header button (use .last() to get the one in main content, not sidebar)
+  await helpers.retryInteraction(
+    async () => {
+      const editButton = zodPage.getByTestId('ChannelHeaderEditButton').last();
+      await expect(editButton).toBeVisible({ timeout: 5000 });
+      await editButton.click();
+    },
+    { description: 'Edit button click', maxAttempts: 3 }
+  );
 
   // Wait for the Gallery editor to be ready - it should use DraftInputView with iframe
   await expect(zodPage.locator('iframe')).toBeVisible({ timeout: 10000 });

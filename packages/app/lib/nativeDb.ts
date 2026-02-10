@@ -104,6 +104,7 @@ export class NativeDb extends BaseDb {
 
       // reset values related to tracking db sync state
       await kv.headsSyncedAt.resetValue();
+      await kv.changesSyncedAt.resetValue();
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',

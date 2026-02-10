@@ -882,9 +882,9 @@ export const getChats = createReadQuery(
             lastPost: true,
           },
         },
-        // Just need the first 3 members for possible title generation purposes
+        // Just need the first 4 members for avatar display
         members: {
-          limit: 3,
+          limit: 4,
           orderBy: [asc($chatMembers.joinedAt)],
           with: {
             contact: true,
@@ -1039,7 +1039,8 @@ export const insertGroups = createWriteQuery(
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
-                $groups.haveRequestedInvite
+                $groups.haveRequestedInvite,
+                $groups.memberCount
               ),
             });
         } else {
@@ -2189,18 +2190,26 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
     channels.map((c) => c.id)
   );
 
-  await ctx.db
-    .insert($channels)
-    .values(channels)
-    .onConflictDoUpdate({
-      target: $channels.id,
-      set: conflictUpdateSetAll($channels, [
-        'lastPostId',
-        'lastPostAt',
-        'lastPostSequenceNum',
-        'currentUserIsMember',
-      ]),
-    });
+  const batchSize = 200;
+  for (let i = 0; i < channels.length; i += batchSize) {
+    const batch = channels.slice(i, i + batchSize);
+    if (batch.length === 0) {
+      continue;
+    }
+
+    await ctx.db
+      .insert($channels)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: $channels.id,
+        set: conflictUpdateSetAll($channels, [
+          'lastPostId',
+          'lastPostAt',
+          'lastPostSequenceNum',
+          'currentUserIsMember',
+        ]),
+      });
+  }
 
   for (const channel of channels) {
     logger.log('insertChannels: members', channel.id, channel.members);
@@ -4530,6 +4539,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
           )
         )
       );
+  },
+  ['activityEvents']
+);
+
+export const checkActivityEmpty = createReadQuery(
+  'checkActivityEmpty',
+  async (ctx: QueryCtx) => {
+    const countResult = await ctx.db
+      .select({ count: count() })
+      .from($activityEvents);
+    const countValue = countResult[0]?.count ?? 0;
+    return countValue === 0;
   },
   ['activityEvents']
 );
