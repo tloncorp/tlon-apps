@@ -4,9 +4,9 @@ import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { TimeoutError } from '../client';
 import { createDevLogger } from '@tloncorp/shared/debug';
 import { desig } from '../urbit';
-import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
-import * as utils from '@tloncorp/shared/utils';
-import { EventEmitter } from '@tloncorp/shared/utils/EventEmitter';
+import { readArrayBufferFromBlob } from '../lib/blob';
+import { createTimeoutSignal } from '../lib/timeoutSignal';
+import { EventEmitter } from '../lib/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
   EventSourceMessage,
@@ -924,7 +924,7 @@ export class Urbit {
     result: T;
   }> {
     const { app, path, timeout } = params;
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
       {
@@ -1015,7 +1015,7 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
 
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
     const result = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
@@ -1074,7 +1074,7 @@ export class Urbit {
       path = '/' + path;
     }
 
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
     // Prepare request options with authentication
     const requestOptions: RequestInit = {
       ...this.fetchOptions,

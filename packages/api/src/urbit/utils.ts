@@ -4,7 +4,7 @@ import { PostContent } from '../client';
 import { ChannelType } from '@tloncorp/shared/db';
 import { GroupJoinStatus, GroupPrivacy } from '@tloncorp/shared/db/schema';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import { ContentReference } from '@tloncorp/shared/domain';
+import { ContentReference } from '../types/references';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';

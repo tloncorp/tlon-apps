@@ -4,7 +4,8 @@ import * as LibPhone from 'libphonenumber-js';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import * as domain from '@tloncorp/shared/domain';
+import type { SystemContact } from '@tloncorp/shared/domain/systemContacts';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 
 const logger = createDevLogger('SystemContactsApi', true);
 
@@ -21,9 +22,9 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
     });
     nativeContactBook = data;
   } catch (e) {
-    logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to get native contacts',
-      severity: domain.AnalyticsSeverity.High,
+      severity: AnalyticsSeverity.High,
     });
     return [];
   }
@@ -31,9 +32,9 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
     const processedContacts = parseNativeContacts(nativeContactBook);
     return processedContacts;
   } catch (e) {
-    logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to parse native contacts',
-      severity: domain.AnalyticsSeverity.High,
+      severity: AnalyticsSeverity.High,
     });
     return [];
   }
@@ -41,7 +42,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
 
 export function parseNativeContacts(
   nativeContacts: Contacts.Contact[]
-): domain.SystemContact[] {
+): SystemContact[] {
   const parseCounts = { digitFinds: 0, numberFinds: 0, fallbacks: 0 };
 
   let defaultCountryCode = 'US';
@@ -52,7 +53,7 @@ export function parseNativeContacts(
       logger.log(`Inferred system default country code: ${defaultCountryCode}`);
     }
   } catch (e) {
-    logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'Could not infer system default country code',
     });
   }
@@ -203,7 +204,7 @@ export function parseNativeContacts(
         })
         .filter((num): num is string => num !== null);
 
-      const sysContact: domain.SystemContact = {
+      const sysContact: SystemContact = {
         id: contact.id!,
         firstName: contact.firstName,
         lastName: contact.lastName,

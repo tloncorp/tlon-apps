@@ -3,8 +3,9 @@ import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import { AnalyticsEvent } from '@tloncorp/shared/domain';
-import { Json, getFrondValue, getPatp, simpleHash } from '@tloncorp/shared/logic';
+import { simpleHash } from '@tloncorp/shared/logic/utils';
+import { Json, getFrondValue, getPatp } from '../lib/noun';
+import { AnalyticsEvent } from '../types/analytics';
 import * as ub from '../urbit';
 import { encodeString } from '../urbit';
 import * as NounParsers from './nounParsers';

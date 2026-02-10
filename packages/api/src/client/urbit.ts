@@ -2,8 +2,7 @@ import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
-import { AnalyticsEvent, getConstants } from '@tloncorp/shared/domain';
-import * as Hosting from '@tloncorp/shared/domain/hosting';
+import { getConstants } from '@tloncorp/shared/domain/constants';
 import {
   AuthError,
   ChannelStatus,
@@ -13,6 +12,8 @@ import {
   Urbit,
 } from '../http-api';
 import { preSig } from '../urbit';
+import { AnalyticsEvent } from '../types/analytics';
+import * as Hosting from '../types/hosting';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);

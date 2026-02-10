@@ -3,8 +3,8 @@ import { Poke } from '@urbit/http-api';
 import * as db from '@tloncorp/shared/db';
 import { GroupPrivacy } from '@tloncorp/shared/db/schema';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import * as domain from '@tloncorp/shared/domain';
-import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared/domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
+import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -1686,7 +1686,7 @@ export function toClientGroupV7(
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
     isPersonalGroup:
-      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
+      id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
     joinStatus: undefined, // v7 groups from init are already joined
     hostUserId,
     flaggedPosts,
