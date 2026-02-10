@@ -17,7 +17,7 @@ export default function AddGalleryPost({
 }) {
   const actions: Action[] = [
     {
-      title: 'Image',
+      title: 'Image or File',
       action: () => {
         setRoute('gallery');
         setTimeout(() => {
