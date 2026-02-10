@@ -3,13 +3,13 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import { ContentReference } from '@tloncorp/shared/domain';
+import { IMAGE_URL_REGEX } from '@tloncorp/shared/logic/utils';
 import {
-  IMAGE_URL_REGEX,
   PlaintextPreviewConfig,
   getTextContent,
-} from '@tloncorp/shared/logic';
+} from '@tloncorp/shared/logic/postContent';
 import * as ub from '../urbit';
+import { ContentReference } from '../types/references';
 import {
   ClubAction,
   DmAction,

@@ -1,7 +1,7 @@
 import { da } from '@urbit/aura';
 import _ from 'lodash';
 
-import type { UnionToIntersection } from '@tloncorp/shared/utils';
+import type { UnionToIntersection } from '../lib/utilityTypes';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
