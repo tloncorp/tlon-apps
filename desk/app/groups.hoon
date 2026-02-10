@@ -318,6 +318,10 @@
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        %fix-duplicate-groups
+      %-  emit
+      [%pass /load/fix-duplicate-groups %arvo %b %wait now.bowl]
     ==
     ::
         %group-command
@@ -1567,6 +1571,7 @@
     ::
     %+  roll  groups
     |=  [=flag:g =_cor]
+    =.  cor  (tell:l:cor %info leaf+"Restoring group {<flag>}" ~)
     go-abet:(go-restart-updates:(go-abed:go-core:cor flag) ~)
   ==
 ::  +safe-watch: safely watch a subscription path
