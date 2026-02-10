@@ -1,6 +1,7 @@
 export * from './EventEmitter';
 export * from './ProgressManager';
 export * from './assertNever';
+export * from './auth';
 export * from './blob';
 export * from './featureFlags';
 export * from './file';
