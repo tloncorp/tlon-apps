@@ -442,5 +442,3 @@ CREATE TABLE `volume_settings` (
 );
 --> statement-breakpoint
 CREATE INDEX `volume_settings_item_id_index` ON `volume_settings` (`item_id`);
---> statement-breakpoint
-UPDATE `posts` SET `is_bot` = 1 WHERE `author_id` LIKE '~pinser-botter-%';
