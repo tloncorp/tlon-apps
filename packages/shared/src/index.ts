@@ -1,6 +1,6 @@
-export * as ChannelAction from './types/ChannelActions';
-export type { GroupMeta } from './types/groups';
-export { JSONValue } from './types/JSONValue';
+export * as ChannelAction from '@tloncorp/api/types/ChannelActions';
+export type { GroupMeta } from '@tloncorp/api/types/groups';
+export { JSONValue } from '@tloncorp/api/types/JSONValue';
 export type {
   NativeWebViewOptions,
   NativeCommand,
@@ -9,17 +9,17 @@ export type {
   ActiveTabChange,
   WebAppAction,
   WebAppCommand,
-} from './types/native';
+} from '@tloncorp/api/types/native';
 export type {
   PostCollectionConfiguration,
   PostCollectionLayout,
   PostCollectionLayoutType,
-} from './types/PostCollectionConfiguration';
+} from '@tloncorp/api/types/PostCollectionConfiguration';
 export {
   configurationFromChannel,
   layoutForType,
   layoutTypeFromChannel,
-} from './types/PostCollectionConfiguration';
+} from '@tloncorp/api/types/PostCollectionConfiguration';
 export {
   CollectionRendererId,
   ChannelContentConfiguration,
@@ -28,7 +28,7 @@ export {
   allCollectionRenderers,
   allDraftInputs,
   allContentRenderers,
-} from './api/channelContentConfig';
+} from '@tloncorp/api/api/channelContentConfig';
 export * from './logic';
 export * from './store';
 export * from './domain';

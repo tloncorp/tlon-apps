@@ -1,4 +1,4 @@
-import type { NotificationLevel } from '../urbit/activity';
+import type { NotificationLevel } from '@tloncorp/api/urbit/activity';
 
 /*
  * Signup

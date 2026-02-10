@@ -1,13 +1,12 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
-import { isBrowser } from 'browser-or-node';
 
 import { TimeoutError } from '../api';
-import { createDevLogger } from '../debug';
+import { createDevLogger } from '@tloncorp/shared/debug';
 import { desig } from '../urbit';
-import { readArrayBufferFromBlob } from '../utils';
-import * as utils from '../utils';
-import { EventEmitter } from '../utils/EventEmitter';
+import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
+import * as utils from '@tloncorp/shared/utils';
+import { EventEmitter } from '@tloncorp/shared/utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
   EventSourceMessage,
@@ -36,6 +35,8 @@ import {
 import { hexString, unpackJamBytes } from './utils';
 
 const logger = createDevLogger('UrbitHttpApi', false);
+const isBrowser =
+  typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {

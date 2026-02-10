@@ -8,7 +8,7 @@ import {
   JSONContent,
   constructStory,
   isInline,
-} from '@tloncorp/shared/urbit';
+} from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('processReference', true);
 

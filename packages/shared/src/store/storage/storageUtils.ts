@@ -1,7 +1,7 @@
-import * as api from '../../api';
-import { StorageConfiguration, StorageCredentials, scry } from '../../api';
+import * as api from '@tloncorp/api/api';
+import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api/api';
 import { createDevLogger } from '../../debug';
-import { desig } from '../../urbit';
+import { desig } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('storage utils', false);
 

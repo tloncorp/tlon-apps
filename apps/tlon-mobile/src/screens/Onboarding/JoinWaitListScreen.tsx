@@ -10,7 +10,7 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import { addUserToWaitlist } from '@tloncorp/shared/api';
+import { addUserToWaitlist } from '@tloncorp/api/api';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';

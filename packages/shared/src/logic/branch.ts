@@ -1,9 +1,9 @@
 import { valid } from '@urbit/aura';
 
-import { getPostInfoFromWer } from '../api/harkApi';
+import { getPostInfoFromWer } from '@tloncorp/api/api/harkApi';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
-import { preSig } from '../urbit';
+import { preSig } from '@tloncorp/api/urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('branch', false);

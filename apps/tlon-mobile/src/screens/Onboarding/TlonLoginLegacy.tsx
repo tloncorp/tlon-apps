@@ -15,7 +15,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/api/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';

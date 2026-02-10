@@ -5,15 +5,15 @@ import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
-import * as api from '../api';
+import * as api from '@tloncorp/api/api';
 import {
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
-} from '../api/apiUtils';
+} from '@tloncorp/api/api/apiUtils';
 import * as db from '../db';
 import * as domain from '../domain';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { Stringified } from '../utils';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };

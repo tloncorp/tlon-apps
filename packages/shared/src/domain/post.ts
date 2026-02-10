@@ -1,6 +1,6 @@
 import type { ChannelType } from '../db/schema';
 import type { PostMetadata } from '../db/types';
-import { Block, Inline, Story } from '../urbit';
+import { Block, Inline, Story } from '@tloncorp/api/urbit';
 import { Attachment } from './attachment';
 
 interface _PostDataDraftBase {

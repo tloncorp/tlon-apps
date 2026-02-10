@@ -14,7 +14,7 @@ import {
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/store';
-import { Story } from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/api/urbit';
 import React, {
   useCallback,
   useEffect,

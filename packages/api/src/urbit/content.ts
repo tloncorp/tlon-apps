@@ -1,4 +1,4 @@
-import { UnionToIntersection } from '../utils';
+import { UnionToIntersection } from '@tloncorp/shared/utils';
 
 type Flag = string;
 type Nest = string;

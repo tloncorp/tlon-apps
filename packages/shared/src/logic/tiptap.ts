@@ -8,10 +8,10 @@ import { JSONContent } from '@tiptap/react';
 import { valid } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
-import { Story } from '../urbit/channel';
-import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
-import { Inline, InlineKey, Link, Task } from '../urbit/content';
-import { citeToPath, pathToCite, preSig, desig } from '../urbit/utils';
+import { Story } from '@tloncorp/api/urbit/channel';
+import { Block, Cite, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
+import { Inline, InlineKey, Link, Task } from '@tloncorp/api/urbit/content';
+import { citeToPath, pathToCite, preSig, desig } from '@tloncorp/api/urbit/utils';
 
 export const ALL_MENTION_ID = '-all-';
 

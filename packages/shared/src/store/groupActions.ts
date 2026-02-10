@@ -1,6 +1,6 @@
 import isEqual from 'lodash/isEqual';
 
-import * as api from '../api';
+import * as api from '@tloncorp/api/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';
@@ -9,7 +9,7 @@ import { AnalyticsEvent } from '../domain';
 import { GroupTemplateId, groupTemplatesById } from '../domain/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { createSectionId, getChannelKindFromType } from '../urbit';
+import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);

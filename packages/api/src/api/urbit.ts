@@ -1,9 +1,9 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AnalyticsEvent, getConstants } from '../domain';
-import * as Hosting from '../domain/hosting';
+import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
+import { AnalyticsEvent, getConstants } from '@tloncorp/shared/domain';
+import * as Hosting from '@tloncorp/shared/domain/hosting';
 import {
   AuthError,
   ChannelStatus,

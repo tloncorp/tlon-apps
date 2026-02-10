@@ -1,6 +1,6 @@
 import * as db from '../db';
 import { ContentReference } from '../domain';
-import { parseIdNumber } from '../api/apiUtils';
+import { parseIdNumber } from '@tloncorp/api/api/apiUtils';
 
 function formatId(id: string) {
   return parseIdNumber(id).toString();

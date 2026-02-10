@@ -8,14 +8,19 @@
     ".": "./src/index.ts",
     "./api": "./src/api/index.ts",
     "./client": "./src/client/index.ts",
+    "./debug": "./src/debug.ts",
     "./domain": "./src/domain/index.ts",
+    "./domain/*": "./src/domain/*.ts",
     "./db": "./src/db/index.ts",
     "./db/client": "./src/db/client.ts",
     "./db/migrations": "./src/db/migrations/index.ts",
+    "./db/schema": "./src/db/schema.ts",
     "./db/types": "./src/db/types.ts",
     "./logic": "./src/logic/index.ts",
+    "./logic/*": "./src/logic/*.ts",
     "./perf": "./src/perf.ts",
     "./store": "./src/store/index.ts",
+    "./store/reactQuery": "./src/store/reactQuery.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
     "./urbit/channel": "./src/urbit/channel.ts",
@@ -28,7 +33,8 @@
     "./urbit/sigil": "./src/urbit/sigil.ts",
     "./urbit/ui": "./src/urbit/ui.ts",
     "./urbit/volume": "./src/urbit/volume.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./utils/*": "./src/utils/*.ts"
   },
   "scripts": {
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
@@ -50,6 +56,7 @@
     ]
   },
   "dependencies": {
+    "@tloncorp/api": "workspace:*",
     "@urbit/aura": "^3.0.0",
     "@urbit/nockjs": "^1.6.0",
     "any-ascii": "^0.3.1",

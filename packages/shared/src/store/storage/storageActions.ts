@@ -2,12 +2,12 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { render, da } from '@urbit/aura';
 //REVIEW  why doesn't this work here?
-// import { desig } from '@tloncorp/shared/urbit';
-import { desig } from '../../urbit';
+// import { desig } from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
-import { RNFile, getCurrentUserId } from '../../api';
+import { RNFile, getCurrentUserId } from '@tloncorp/api/api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';

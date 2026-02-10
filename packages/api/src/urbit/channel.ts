@@ -4,7 +4,7 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import { parseIdNumber } from '../api/apiUtils';
-import { Stringified } from '../utils';
+import { Stringified } from '@tloncorp/shared/utils';
 import { Block, Image, Inline, isBlock, isImage } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';

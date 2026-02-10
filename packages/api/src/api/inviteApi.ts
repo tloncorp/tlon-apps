@@ -1,5 +1,5 @@
-import * as db from '../db';
-import { InviteLinkMetadata } from '../domain/invite.types';
+import * as db from '@tloncorp/shared/db';
+import { InviteLinkMetadata } from '@tloncorp/shared/domain/invite.types';
 import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
 

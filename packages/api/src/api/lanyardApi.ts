@@ -1,10 +1,10 @@
 import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
-import { Json, getFrondValue, getPatp, simpleHash } from '../logic';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import { AnalyticsEvent } from '@tloncorp/shared/domain';
+import { Json, getFrondValue, getPatp, simpleHash } from '@tloncorp/shared/logic';
 import * as ub from '../urbit';
 import { encodeString } from '../urbit';
 import * as NounParsers from './nounParsers';

@@ -10,7 +10,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
-import { requestPasswordReset } from '@tloncorp/shared/api';
+import { requestPasswordReset } from '@tloncorp/api/api';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

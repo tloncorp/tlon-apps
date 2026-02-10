@@ -1,6 +1,6 @@
-import * as api from '../api';
+import * as api from '@tloncorp/api/api';
 import { ContentReference } from '../domain';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { assertNever } from '../utils';
 import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';

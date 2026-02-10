@@ -4,10 +4,10 @@ import {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
-} from '../api';
+} from '@tloncorp/api/api';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =

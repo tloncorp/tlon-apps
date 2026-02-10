@@ -6,8 +6,12 @@ import rawChannelPostsData from '../test/channelPosts.json';
 import rawDmPostWithRepliesData from '../test/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from '../test/groupDmPostWithReplies.json';
 import { setupDatabaseTestSuite } from '../test/helpers';
-import * as ub from '../urbit';
-import { toPostData, toPostReplyData, toPostsData } from './postsApi';
+import * as ub from '@tloncorp/api/urbit';
+import {
+  toPostData,
+  toPostReplyData,
+  toPostsData,
+} from '@tloncorp/api/api/postsApi';
 
 setupDatabaseTestSuite();
 

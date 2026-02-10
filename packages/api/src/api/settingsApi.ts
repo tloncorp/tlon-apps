@@ -1,4 +1,4 @@
-import * as db from '../db';
+import * as db from '@tloncorp/shared/db';
 import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
 

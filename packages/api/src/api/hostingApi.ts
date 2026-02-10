@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import * as domain from '../domain';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import * as domain from '@tloncorp/shared/domain';
 import {
   AnalyticsEvent,
   HostedShipResponse,
@@ -10,8 +10,8 @@ import {
   ReservedShip,
   User,
   getConstants,
-} from '../domain';
-import { withRetry } from '../logic';
+} from '@tloncorp/shared/domain';
+import { withRetry } from '@tloncorp/shared/logic';
 
 const logger = createDevLogger('hostingApi', false);
 

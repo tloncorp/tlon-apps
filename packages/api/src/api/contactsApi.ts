@@ -1,7 +1,7 @@
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
-import { normalizeUrbitColor } from '../logic';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import { AnalyticsEvent } from '@tloncorp/shared/domain';
+import { normalizeUrbitColor } from '@tloncorp/shared/logic';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';

@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { checkIfAccountDeleted } from '@tloncorp/shared/api';
+import { checkIfAccountDeleted } from '@tloncorp/api/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';

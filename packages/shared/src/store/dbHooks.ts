@@ -6,13 +6,13 @@ import {
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
-import * as api from '../api';
-import { getMessagesFilter } from '../api';
+import * as api from '@tloncorp/api/api';
+import { getMessagesFilter } from '@tloncorp/api/api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';

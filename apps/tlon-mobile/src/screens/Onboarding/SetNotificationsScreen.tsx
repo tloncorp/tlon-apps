@@ -7,7 +7,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
