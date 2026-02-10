@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   ReactNode,

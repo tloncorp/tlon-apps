@@ -2,14 +2,14 @@ import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '../api';
-import { GetChangedPostsOptions } from '../api';
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '../logic/activity';
+import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,

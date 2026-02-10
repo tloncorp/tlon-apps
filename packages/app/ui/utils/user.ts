@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as urbit from '@tloncorp/shared/urbit';
+import * as urbit from '@tloncorp/api/urbit';
 import { p } from '@urbit/aura';
 
 const USER_ID_SEPARATORS = /([_^-])/;

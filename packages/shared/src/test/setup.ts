@@ -57,8 +57,8 @@ vi.mock('../store/storage', async (importOriginal) => {
 });
 
 export function mockUrbit() {
-  vi.mock('../api/urbit', async (importOriginal) => {
-    const mod = await importOriginal<typeof import('../api/urbit')>();
+  vi.mock('@tloncorp/api', async (importOriginal) => {
+    const mod = await importOriginal<typeof import('@tloncorp/api')>();
     const out: typeof mod = {
       ...mod,
       scry: vi.fn(),

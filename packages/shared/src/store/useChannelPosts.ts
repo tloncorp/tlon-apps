@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelIdType } from '../api/apiUtils';
+import { getChannelIdType } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
