@@ -16,7 +16,9 @@ export type TableName = keyof SchemaWithRelations;
 export { BASE_UNREADS_SINGLETON_KEY, SETTINGS_SINGLETON_KEY };
 export { isGroupEvent, isSystemContact };
 
-export type SystemContact = api.SystemContact;
+export interface SystemContact extends api.SystemContact {
+  sentInvites?: SystemContactSentInvite[] | null;
+}
 export type SystemContactSentInvite = api.SystemContactSentInvite;
 
 export interface Contact extends api.Contact {
@@ -67,6 +69,7 @@ export type ActivityBucket = api.ActivityBucket;
 export interface Group extends api.Group {
   unread?: GroupUnread | null;
   pin?: Pin | null;
+  volumeSettings?: VolumeSettings | null;
   lastPost?: Post | null;
   channels?: Channel[] | null;
   navSections?: GroupNavSection[] | null;
@@ -117,6 +120,8 @@ export interface Post extends api.Post {
   group?: Group | null;
   author?: Contact | null;
   parent?: Post | null;
+  threadUnread?: ThreadUnreadState | null;
+  volumeSettings?: VolumeSettings | null;
   replies?: Post[] | null;
   reactions?: Reaction[] | null;
   images?: PostImage[] | null;
@@ -128,7 +133,9 @@ export type PostMetadata = api.PostMetadata;
 export type ReplyMeta = api.ReplyMeta;
 export type PostImage = api.PostImage;
 export type PostDeliveryStatus = api.PostDeliveryStatus;
-export type Reaction = api.Reaction;
+export interface Reaction extends api.Reaction {
+  contact?: Contact | null;
+}
 export type Pin = api.Pin;
 export type PinType = api.PinType;
 export type Settings = api.Settings;

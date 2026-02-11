@@ -32,14 +32,7 @@ function checkInternalBoundaries({ file, specifier, line, text }) {
     });
   }
 
-  const isAllowedTypeClientImport =
-    file === 'types/PostCollectionConfiguration.ts' &&
-    specifier === '../client/channelContentConfig';
-  if (
-    isTypesFile &&
-    specifier.startsWith('../client') &&
-    !isAllowedTypeClientImport
-  ) {
+  if (isTypesFile && specifier.startsWith('../client')) {
     violations.push({
       file: path.join('src', file),
       line,

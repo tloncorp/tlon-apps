@@ -1,7 +1,7 @@
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
-} from '../client/channelContentConfig';
+} from './channelContentConfig';
 import type { Channel } from './types';
 import * as ChannelAction from './ChannelActions';
 

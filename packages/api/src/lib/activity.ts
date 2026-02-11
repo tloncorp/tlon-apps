@@ -62,18 +62,20 @@ export function isMuted(
 
 // Aggregates events from the same source into a shape that we can use
 // to display
-export interface SourceActivityEvents {
+export interface SourceActivityEvents<
+  TActivityEvent extends ActivityEvent = ActivityEvent,
+> {
   sourceId: string;
   type: ExtendedEventType;
-  newest: ActivityEvent;
-  all: ActivityEvent[];
+  newest: TActivityEvent;
+  all: TActivityEvent[];
 }
 
-export function toSourceActivityEvents(
-  events: ActivityEvent[]
-): SourceActivityEvents[] {
-  const eventMap = new Map<string, SourceActivityEvents>();
-  const eventsList: SourceActivityEvents[] = [];
+export function toSourceActivityEvents<
+  TActivityEvent extends ActivityEvent = ActivityEvent,
+>(events: TActivityEvent[]): SourceActivityEvents<TActivityEvent>[] {
+  const eventMap = new Map<string, SourceActivityEvents<TActivityEvent>>();
+  const eventsList: SourceActivityEvents<TActivityEvent>[] = [];
 
   events.forEach((event) => {
     const key =
@@ -96,7 +98,7 @@ export function toSourceActivityEvents(
           // "source" if it hasn't already been added
           const individualMentionKey = `${key}/${event.postId}`;
           if (!eventMap.has(individualMentionKey)) {
-            const mentionSource: SourceActivityEvents = {
+            const mentionSource: SourceActivityEvents<TActivityEvent> = {
               newest: event,
               all: [event],
               type: event.type as ExtendedEventType,
@@ -112,7 +114,7 @@ export function toSourceActivityEvents(
       }
     } else {
       // Create a new entry in the map
-      const newRollup: SourceActivityEvents = {
+      const newRollup: SourceActivityEvents<TActivityEvent> = {
         newest: event,
         all: [event],
         type: event.type as ExtendedEventType,
@@ -126,11 +128,10 @@ export function toSourceActivityEvents(
   return eventsList;
 }
 
-export function interleaveActivityEvents(
-  listA: ActivityEvent[],
-  listB: ActivityEvent[]
-): ActivityEvent[] {
-  const results: ActivityEvent[] = [];
+export function interleaveActivityEvents<
+  TActivityEvent extends ActivityEvent = ActivityEvent,
+>(listA: TActivityEvent[], listB: TActivityEvent[]): TActivityEvent[] {
+  const results: TActivityEvent[] = [];
 
   let aIndex = 0;
   let bIndex = 0;
@@ -160,7 +161,9 @@ export function interleaveActivityEvents(
   return results;
 }
 
-export function filterDupeEvents(events: ActivityEvent[]): ActivityEvent[] {
+export function filterDupeEvents<
+  TActivityEvent extends ActivityEvent = ActivityEvent,
+>(events: TActivityEvent[]): TActivityEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
     if (seen.has(event.id)) {

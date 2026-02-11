@@ -1,9 +1,18 @@
+import type * as db from '../db';
+import type { SourceActivityEvents as ApiSourceActivityEvents } from '@tloncorp/api/lib/activity';
+
 export * from './utilHooks';
 export * from '@tloncorp/api/lib/utils';
 export * from '@tloncorp/api/lib/references';
 export * from './embed';
 export * from '@tloncorp/api/lib/types';
-export * from '@tloncorp/api/lib/activity';
+export {
+  extractClientVolumes,
+  filterDupeEvents,
+  interleaveActivityEvents,
+  isMuted,
+  toSourceActivityEvents,
+} from '@tloncorp/api/lib/activity';
 export * from '@tloncorp/api/lib/branch';
 export * from '@tloncorp/api/lib/deeplinks';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';
@@ -14,3 +23,5 @@ export * from '@tloncorp/api/lib/wayfinding';
 export * from '@tloncorp/api/lib/postContent';
 export * from '@tloncorp/api/lib/content-helpers';
 export * from '@tloncorp/api/lib/pinning';
+
+export type SourceActivityEvents = ApiSourceActivityEvents<db.ActivityEvent>;

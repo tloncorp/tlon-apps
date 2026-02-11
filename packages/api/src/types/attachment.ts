@@ -9,15 +9,16 @@ import { UploadState } from './uploads';
  */
 export interface ImagePickerAsset {
   uri: string;
+  assetId?: string | null;
   width: number;
   height: number;
   fileSize?: number;
   mimeType?: string;
-  fileName?: string;
-  type?: 'image' | 'video';
-  duration?: number;
-  base64?: string;
-  exif?: Record<string, unknown>;
+  fileName?: string | null;
+  type?: 'image' | 'video' | 'livePhoto' | 'pairedVideo';
+  duration?: number | null;
+  base64?: string | null;
+  exif?: Record<string, unknown> | null;
 }
 
 export type LinkMetadata = PageMetadata | FileMetadata;
@@ -131,6 +132,19 @@ export type FinalizedAttachment =
   | LinkAttachment;
 
 export namespace Attachment {
+  type ImagePickerAssetInput = Omit<
+    ImagePickerAsset,
+    'base64' | 'duration' | 'exif' | 'fileName' | 'fileSize' | 'mimeType' | 'type'
+  > & {
+    base64?: string | null;
+    duration?: number | null;
+    exif?: Record<string, unknown> | null;
+    fileName?: string | null;
+    fileSize?: number | null;
+    mimeType?: string | null;
+    type?: ImagePickerAsset['type'] | null;
+  };
+
   type ImageUploadIntent = {
     type: 'image';
     asset: Pick<
@@ -155,11 +169,21 @@ export namespace Attachment {
     export type Key = string & { __brand: 'Attachment.UploadIntent.Key' };
 
     export function fromImagePickerAsset(
-      asset: ImagePickerAsset
+      asset: ImagePickerAssetInput
     ): UploadIntent {
+      const normalizedAsset: ImagePickerAsset = {
+        ...asset,
+        fileSize: asset.fileSize ?? undefined,
+        mimeType: asset.mimeType ?? undefined,
+        fileName: asset.fileName ?? undefined,
+        type: asset.type ?? undefined,
+        duration: asset.duration ?? undefined,
+        base64: asset.base64 ?? undefined,
+        exif: asset.exif ?? undefined,
+      };
       return {
         type: 'image',
-        asset,
+        asset: normalizedAsset,
       };
     }
 
