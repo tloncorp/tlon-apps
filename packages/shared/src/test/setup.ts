@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { vi } from 'vitest';
 
+import { internalConfigureClient } from '@tloncorp/api/api/urbit';
 import { addCustomEnabledLoggers } from '../debug';
 
 // @ts-expect-error needed to import files that reference __DEV__
@@ -56,16 +57,19 @@ vi.mock('../store/storage', async (importOriginal) => {
   };
 });
 
-export function mockUrbit() {
-  vi.mock('@tloncorp/api', async (importOriginal) => {
-    const mod = await importOriginal<typeof import('@tloncorp/api')>();
-    const out: typeof mod = {
-      ...mod,
-      scry: vi.fn(),
-      trackedPoke: vi.fn(),
-      poke: vi.fn(),
-      getCurrentUserId: () => '~solfer-magfed',
-    };
-    return out;
-  });
-}
+vi.mock('@tloncorp/api/api/urbit', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@tloncorp/api/api/urbit')>();
+  const out: typeof mod = {
+    ...mod,
+    scry: vi.fn(),
+    trackedPoke: vi.fn(),
+    poke: vi.fn(),
+    getCurrentUserId: () => '~solfer-magfed',
+  };
+  return out;
+});
+
+internalConfigureClient({
+  shipName: 'solfer-magfed',
+  shipUrl: 'http://localhost:8080',
+});
