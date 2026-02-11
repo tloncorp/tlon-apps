@@ -11,8 +11,8 @@ import {
 } from '@tloncorp/api/api/channelContentConfig';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
-import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
-import rawChannelPostsData from '../test/channelPosts.json';
+import rawChannelPostWithRepliesData from '../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
+import rawChannelPostsData from '../../../api/src/__tests__/fixtures/channelPosts.json';
 import rawAfterNewestPostData from '../test/channelPostsAfterNewest.json';
 import rawContactsData from '../test/contacts.json';
 import rawGroupsData from '../test/groups.json';
