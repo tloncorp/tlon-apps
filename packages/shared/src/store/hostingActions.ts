@@ -1,4 +1,4 @@
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/client';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';

@@ -6,8 +6,6 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./api": "./src/client/index.ts",
-    "./api/*": "./src/client/*.ts",
     "./client": "./src/client/index.ts",
     "./client/*": "./src/client/*.ts",
     "./types": "./src/types/index.ts",

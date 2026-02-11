@@ -1,7 +1,7 @@
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api/client';
 import { getCurrentUserId, poke, scry } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';

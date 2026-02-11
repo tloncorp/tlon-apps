@@ -2,7 +2,7 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '@tloncorp/api/api';
+import { StructuredChannelDescriptionPayload, toClientGroupV7 } from '@tloncorp/api/client';
 import {
   CollectionRendererId,
   DraftInputId,

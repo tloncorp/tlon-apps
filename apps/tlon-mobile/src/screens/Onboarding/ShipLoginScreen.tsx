@@ -18,7 +18,7 @@ import {
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/api';
+import { getLandscapeAuthCookie } from '@tloncorp/api/client';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';

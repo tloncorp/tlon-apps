@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api/client';
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';

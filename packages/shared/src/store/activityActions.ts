@@ -1,4 +1,4 @@
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/client';
 import * as db from '../db';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';

@@ -1,7 +1,7 @@
 import { da } from '@urbit/aura';
 
-import * as api from '@tloncorp/api';
-import { getCanonicalPostId } from '@tloncorp/api';
+import * as api from '@tloncorp/api/client';
+import { getCanonicalPostId } from '@tloncorp/api/client/apiUtils';
 import * as db from '../db';
 import * as domain from '../domain';
 import * as logic from '../logic';

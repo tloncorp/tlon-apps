@@ -1,4 +1,4 @@
-import { parseContactUpdateEvent } from '@tloncorp/api';
+import { parseContactUpdateEvent } from '@tloncorp/api/client';
 import { getTextContent } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/api/urbit';
 import {

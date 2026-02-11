@@ -1,4 +1,4 @@
-import { poke } from '@tloncorp/api';
+import { poke } from '@tloncorp/api/client';
 import { Platform } from 'react-native';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';

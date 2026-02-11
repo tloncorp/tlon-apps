@@ -3,8 +3,8 @@ import {
   execute,
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
-import * as hostingApi from '@tloncorp/api';
-import { getLandscapeAuthCookie } from '@tloncorp/api';
+import * as hostingApi from '@tloncorp/api/client';
+import { getLandscapeAuthCookie } from '@tloncorp/api/client';
 import { createContext, useContext } from 'react';
 
 interface OnboardingContextValue {

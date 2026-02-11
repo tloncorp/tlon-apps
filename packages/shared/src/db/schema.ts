@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ChannelContentConfiguration } from '@tloncorp/api';
+import { ChannelContentConfiguration } from '@tloncorp/api/client';
 import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
 
 const boolean = (name: string) => {

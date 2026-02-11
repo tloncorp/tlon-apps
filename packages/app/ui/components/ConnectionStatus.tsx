@@ -1,7 +1,7 @@
 import {
   ConnectionState,
   ConnectionStatus as ConnectionStatusType,
-} from '@tloncorp/api';
+} from '@tloncorp/api/client';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { Pressable } from 'react-native';

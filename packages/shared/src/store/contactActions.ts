@@ -1,4 +1,4 @@
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api/client';
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';

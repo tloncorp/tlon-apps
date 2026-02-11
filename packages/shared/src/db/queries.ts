@@ -30,8 +30,8 @@ import {
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
-} from '@tloncorp/api/api';
-import { parseGroupId } from '@tloncorp/api/api/apiUtils';
+} from '@tloncorp/api/client';
+import { parseGroupId } from '@tloncorp/api/client/apiUtils';
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';

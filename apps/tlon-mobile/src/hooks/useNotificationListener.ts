@@ -14,7 +14,7 @@ import {
   syncDms,
   syncGroups,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/api/urbit';
