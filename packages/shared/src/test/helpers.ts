@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import tmp from 'tmp';
 import { beforeAll, beforeEach, vi } from 'vitest';
 
-import * as urbit from '@tloncorp/api/api/urbit';
+import * as urbit from '@tloncorp/api/client/urbit';
 import { setClient } from '../db';
 import { AnySqliteDatabase } from '../db/client';
 import * as schema from '../db/schema';

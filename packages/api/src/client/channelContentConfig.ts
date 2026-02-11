@@ -370,8 +370,7 @@ function makeEnum<SpecSet extends Record<string, ComponentSpec>>(
 ) {
   return Object.entries(specSet).reduce(
     (acc, [id, { enumTag }]) => {
-      // @ts-expect-error trust me bro
-      acc[enumTag] = id;
+      (acc as Record<string, string>)[enumTag] = id;
       return acc;
     },
     {} as {

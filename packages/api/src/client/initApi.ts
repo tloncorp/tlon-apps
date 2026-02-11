@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as db from '../types';
+import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';

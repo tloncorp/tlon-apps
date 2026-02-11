@@ -1,8 +1,9 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
-import { getConstants } from '../types/constants';
+import { createDevLogger, escapeLog, isDev, runIfDev } from '../debug';
+import { AnalyticsEvent, getConstants } from '../types';
+import * as Hosting from '../types/hosting';
 import {
   AuthError,
   ChannelStatus,
@@ -11,10 +12,8 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
+import { getLandscapeAuthCookie } from '../lib/auth';
 import { preSig } from '../urbit';
-import { AnalyticsEvent } from '../types/analytics';
-import * as Hosting from '../types/hosting';
-import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
@@ -142,11 +141,11 @@ export const getCurrentUserIsHosted = () => {
     set up to redirect there
   */
   const env = getConstants();
-  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
+  const implicitUrl = isDev() ? env.DEV_SHIP_URL : window.location.hostname;
   return Hosting.nodeUrlIsHosted(implicitUrl);
 };
 
-export function internalConfigureClient({
+export function configureClient({
   shipName,
   shipUrl,
   verbose,
@@ -202,6 +201,8 @@ export function internalConfigureClient({
     logger.log('client channel-reaped');
   });
 }
+
+export const internalConfigureClient = configureClient;
 
 export function internalRemoveClient() {
   config.client?.delete();
@@ -772,6 +773,11 @@ async function reauth() {
 
             reject(new Error("Couldn't authenticate with urbit"));
             return;
+          }
+
+          // Apply cookie to client for Node.js requests
+          if (config.client) {
+            config.client.cookie = authCookie;
           }
 
           config.pendingAuth = null;

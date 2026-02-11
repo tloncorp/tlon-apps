@@ -6,7 +6,7 @@ import {
 } from '@urbit/aura';
 import bigInt from 'big-integer';
 
-import * as db from '@tloncorp/shared/db/types';
+import * as db from '../types/types';
 import type * as ub from '../urbit';
 import { BadResponseError } from './urbit';
 

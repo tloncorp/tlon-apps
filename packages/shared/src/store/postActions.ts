@@ -1,5 +1,6 @@
-import * as api from '@tloncorp/api';
-import { toPostContent } from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { toPostContent } from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
@@ -153,7 +154,7 @@ async function _sendPost({
   /** Existing post to retry (updates in place instead of creating new) */
   existingPost?: db.Post;
 }) {
-  const authorId = api.getCurrentUserId();
+  const authorId = getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {

@@ -7,8 +7,8 @@ import { desig } from '@tloncorp/api/urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
-import { RNFile, getCurrentUserId } from '@tloncorp/api';
-import { Attachment } from '@tloncorp/api/types/attachment';
+import { RNFile } from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';

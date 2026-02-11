@@ -1,11 +1,10 @@
 import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { simpleHash } from '../lib/utils';
-import { Json, getFrondValue, getPatp } from '../lib/noun';
-import { AnalyticsEvent } from '../types/analytics';
+import * as db from '../types';
+import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../types';
+import { Json, getFrondValue, getPatp, simpleHash } from '../lib';
 import * as ub from '../urbit';
 import { encodeString } from '../urbit';
 import * as NounParsers from './nounParsers';
@@ -273,7 +272,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
       signature: sign?.signature,
     };
 
-    return verif as Json;
+    return verif as unknown as Json;
   })(noun) as unknown as db.Attestation[];
 }
 

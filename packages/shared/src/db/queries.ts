@@ -30,9 +30,9 @@ import {
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
-  getCurrentUserId,
-} from '@tloncorp/api';
-import { parseGroupId } from '@tloncorp/api';
+} from '@tloncorp/api/api';
+import { parseGroupId } from '@tloncorp/api/api/apiUtils';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';

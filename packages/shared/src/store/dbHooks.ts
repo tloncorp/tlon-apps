@@ -6,9 +6,9 @@ import {
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
-import * as api from '@tloncorp/api';
-import { getMessagesFilter } from '@tloncorp/api';
-import { getConstants } from '@tloncorp/api/types/constants';
+import * as api from '@tloncorp/api/api';
+import { getMessagesFilter } from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
@@ -574,7 +574,7 @@ export const useAttestations = () => {
 };
 
 export const useCurrentUserAttestations = () => {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const deps = useKeyFromQueryDeps(db.getUserAttestations);
   return useQuery({
     queryKey: ['attestations', deps],
@@ -596,7 +596,7 @@ export const usePersonalGroup = () => {
   return useQuery({
     queryKey: ['personalGroup', deps],
     queryFn: async () => {
-      const currentUserId = api.getCurrentUserId();
+      const currentUserId = getCurrentUserId();
       const group = await db.getPersonalGroup();
       return logic.personalGroupIsValid({ group, currentUserId })
         ? group

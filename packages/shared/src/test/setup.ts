@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import { vi } from 'vitest';
 
-import { internalConfigureClient } from '@tloncorp/api/api/urbit';
+import { internalConfigureClient } from '@tloncorp/api/client/urbit';
+import * as urbit from '@tloncorp/api/client/urbit';
 import { addCustomEnabledLoggers } from '../debug';
 
 // @ts-expect-error needed to import files that reference __DEV__
@@ -57,17 +58,10 @@ vi.mock('../store/storage', async (importOriginal) => {
   };
 });
 
-vi.mock('@tloncorp/api/api/urbit', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('@tloncorp/api/api/urbit')>();
-  const out: typeof mod = {
-    ...mod,
-    scry: vi.fn(),
-    trackedPoke: vi.fn(),
-    poke: vi.fn(),
-    getCurrentUserId: () => '~solfer-magfed',
-  };
-  return out;
-});
+vi.spyOn(urbit, 'scry').mockImplementation(vi.fn());
+vi.spyOn(urbit, 'trackedPoke').mockImplementation(vi.fn());
+vi.spyOn(urbit, 'poke').mockImplementation(vi.fn());
+vi.spyOn(urbit, 'getCurrentUserId').mockReturnValue('~solfer-magfed');
 
 internalConfigureClient({
   shipName: 'solfer-magfed',

@@ -1,15 +1,15 @@
 import { da, render } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { IMAGE_URL_REGEX } from '../lib/utils';
+import * as db from '../types';
+import { createDevLogger } from '../debug';
+import { ContentReference } from '../types';
 import {
+  IMAGE_URL_REGEX,
   PlaintextPreviewConfig,
   getTextContent,
-} from '../lib/postContent';
+} from '../lib';
 import * as ub from '../urbit';
-import { ContentReference } from '../types/references';
 import {
   ClubAction,
   DmAction,

@@ -1,10 +1,10 @@
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
-import { PersonalGroupSlugs } from '../types/wayfinding';
+import * as db from '../types';
+import { GroupPrivacy } from '../types/types';
+import { createDevLogger } from '../debug';
+import * as domain from '../types';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -1686,7 +1686,7 @@ export function toClientGroupV7(
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
     isPersonalGroup:
-      id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
+      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
     joinStatus: undefined, // v7 groups from init are already joined
     hostUserId,
     flaggedPosts,

@@ -1,11 +1,10 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 
-import { TimeoutError } from '../client';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../debug';
 import { desig } from '../urbit';
-import { readArrayBufferFromBlob } from '../lib/blob';
-import { createTimeoutSignal } from '../lib/timeoutSignal';
+import { readArrayBufferFromBlob } from '../lib';
+import * as utils from '../lib';
 import { EventEmitter } from '../lib/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
@@ -131,7 +130,7 @@ export class Urbit {
   /**
    * Custom fetch implementation to use.
    */
-  fetchFn: typeof fetch = (...args) => fetch(...args);
+  fetchFn: typeof fetch = (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
@@ -142,6 +141,11 @@ export class Urbit {
     const headers: headers = {
       'Content-Type': 'application/json',
     };
+
+    // In Node.js, manually set cookie header
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
 
     return {
       credentials: isBrowser ? 'include' : undefined,
@@ -285,9 +289,14 @@ export class Urbit {
    *
    */
   async getOurName(): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
     const nameResp = await this.fetchFn(`${this.url}/~/name`, {
       method: 'get',
       credentials: 'include',
+      headers,
     });
     const name = await nameResp.text();
     this.our = name;
@@ -317,12 +326,13 @@ export class Urbit {
       if (this.verbose) {
         console.log('Received authentication response', response);
       }
-      if (response.status >= 200 && response.status < 300) {
+      if (response.status < 200 || response.status >= 300) {
         throw new Error('Login failed with status ' + response.status);
       }
       const cookie = response.headers.get('set-cookie');
       if (!this.nodeId && cookie) {
-        this.nodeId = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)?.[1];
+        const match = new RegExp(/urbauth-(~[\w-]+)/).exec(cookie)?.[1];
+        this.nodeId = match;
       }
       if (!isBrowser) {
         this.cookie = cookie || undefined;
@@ -924,7 +934,7 @@ export class Urbit {
     result: T;
   }> {
     const { app, path, timeout } = params;
-    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
       {
@@ -1015,7 +1025,7 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
 
-    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
 
     const result = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
@@ -1074,7 +1084,7 @@ export class Urbit {
       path = '/' + path;
     }
 
-    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     // Prepare request options with authentication
     const requestOptions: RequestInit = {
       ...this.fetchOptions,

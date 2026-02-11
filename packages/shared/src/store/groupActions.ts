@@ -1,6 +1,7 @@
 import isEqual from 'lodash/isEqual';
 
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';
@@ -24,7 +25,7 @@ interface CreateGroupParams {
 }
 
 export async function scaffoldPersonalGroup() {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
   const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
 
@@ -90,7 +91,7 @@ export async function scaffoldPersonalGroup() {
 export async function createDefaultGroup(
   params: CreateGroupParams
 ): Promise<db.Group> {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const groupSlug = getRandomId();
   const groupId = `${currentUserId}/${groupSlug}`;
 
@@ -131,7 +132,7 @@ export async function createGroupFromTemplate(
   params: CreateGroupFromTemplateParams
 ): Promise<db.Group> {
   const template = groupTemplatesById[params.templateId];
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const groupSlug = getRandomId();
   const groupId = `${currentUserId}/${groupSlug}`;
   const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
@@ -211,7 +212,7 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
   if (title) {
     return;
   }
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const contactIds = [...(memberIds ?? []), currentUserId];
   const memberContacts = await Promise.all(
     contactIds.map(

@@ -1,12 +1,12 @@
 import { render, da } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as db from '../types';
+import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';
-import { Stringified } from '../lib/utilityTypes';
+import { Stringified } from '../lib';
 import {
   getCanonicalPostId,
   getChannelIdType,

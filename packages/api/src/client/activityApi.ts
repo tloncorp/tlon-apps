@@ -1,10 +1,10 @@
 import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
-import * as db from '@tloncorp/shared/db';
-import { BASE_UNREADS_SINGLETON_KEY } from '@tloncorp/shared/db/schema';
-import { createDevLogger, runIfDev } from '@tloncorp/shared/debug';
-import { normalizeUrbitColor } from '../lib/utils';
+import * as db from '../types';
+import { BASE_UNREADS_SINGLETON_KEY } from '../types/types';
+import { createDevLogger, runIfDev } from '../debug';
+import { normalizeUrbitColor } from '../lib';
 import * as ub from '../urbit';
 import {
   formatUd,

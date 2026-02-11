@@ -1,4 +1,5 @@
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -114,7 +115,7 @@ export async function confirmPhoneAttestation(
 }
 
 export async function revokeAttestation(attestation: db.Attestation) {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
 
   if (attestation.contactId !== currentUserId) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {

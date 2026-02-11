@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import * as api from '@tloncorp/api';
-import { queryClient } from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';
+import { queryClient } from './reactQuery';
 
 const logger = createDevLogger('useNegotiation', false);
 
@@ -117,7 +118,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     return { ...rest, matchedOrPending: true };
   }
 
-  const us = api.getCurrentUserId();
+  const us = getCurrentUserId();
 
   const shipKeys = ships
     .filter((ship) => ship !== us)

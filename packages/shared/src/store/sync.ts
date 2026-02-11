@@ -2,8 +2,9 @@ import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '@tloncorp/api';
-import { GetChangedPostsOptions } from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { GetChangedPostsOptions } from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
@@ -14,6 +15,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { queryClient } from './reactQuery';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
 import { addContacts, updateContactMetadata } from './contactActions';
@@ -380,7 +382,7 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
 
 export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   logger.log('syncContactDiscovery: starting');
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
   });
@@ -1147,7 +1149,7 @@ const handleActivityUpdate = async (
   // if we inserted new activity, invalidate the activity page
   // data loader
   if (activitySnapshot.activityEvents.length > 0) {
-    api.queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
       refetchType: 'active',
     });

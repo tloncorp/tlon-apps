@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import * as db from '../types';
 import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
 
@@ -106,6 +106,7 @@ export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
   return {
+    id: db.SETTINGS_SINGLETON_KEY,
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
@@ -233,8 +234,8 @@ export async function getAppInfo(): Promise<db.AppInfo> {
     })
   ).initial;
 
-  const groupsPike = pikes?.['groups'] ?? {};
-  const groupsCharge = charges?.['groups'] ?? {};
+  const groupsPike = pikes?.['groups'] ?? ({} as Pike);
+  const groupsCharge = charges?.['groups'] ?? ({} as any);
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',

@@ -1,10 +1,10 @@
 import {
   createInviteLink,
   enableGroup,
-  getCurrentUserId,
   groupsDescribe,
-} from '@tloncorp/api';
-import * as api from '@tloncorp/api';
+} from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import * as api from '@tloncorp/api/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, getConstants } from '../domain';
@@ -148,7 +148,7 @@ export async function createGroupInviteLink(groupId: string) {
 
 export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
   const constants = getConstants();
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   if (invite.inviteType && invite.inviteType === 'user') {
     return;
   }

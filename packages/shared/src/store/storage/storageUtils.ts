@@ -1,5 +1,6 @@
-import * as api from '@tloncorp/api';
-import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import { createDevLogger } from '../../debug';
 import { desig } from '@tloncorp/api/urbit';
 
@@ -81,7 +82,7 @@ export interface MemexUploadParams {
 export const getMemexUpload = async (
   params: Omit<MemexUploadParams, 'token'>
 ) => {
-  const currentUser = api.getCurrentUserId();
+  const currentUser = getCurrentUserId();
   const token = await scry<string>({
     app: 'genuine',
     path: '/secret',

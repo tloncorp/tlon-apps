@@ -3,6 +3,7 @@
  */
 
 import { getConstants } from '../types/constants';
+
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const SUMMARIZATION_PROMPT = `Summarize this software development technical conversation concisely. Each message shows the author's user ID.
@@ -101,7 +102,11 @@ export async function summarizeMessage({
       (error as any).responseStatus = response.status;
       (error as any).responseText = errorText;
       (error as any).responseData = errorData;
-      (error as any).responseHeaders = Object.fromEntries(response.headers.entries());
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value: string, key: string) => {
+        responseHeaders[key] = value;
+      });
+      (error as any).responseHeaders = responseHeaders;
       throw error;
     }
 

@@ -1,4 +1,5 @@
-import * as api from '@tloncorp/api';
+import * as api from '@tloncorp/api/api';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -116,7 +117,7 @@ export async function addContactSuggestions(contactIds: string[]) {
 
 export async function findContactSuggestions() {
   const runContext: Record<string, any> = {};
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const GROUP_SIZE_LIMIT = 14; // arbitrary smaller than trimmed member max
   const MAX_SUGGESTIONS = 6; // arbitrary
 
@@ -287,7 +288,7 @@ export async function updateContactMetadata(
 }
 
 export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
 
   const startFields: Partial<db.Contact> = {
@@ -375,7 +376,7 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
     pinnedGroupsCount: newPinned.length,
   });
 
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const existingContact = await db.getContact({ id: currentUserId });
   const existingPinnedIds =
     existingContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
@@ -396,7 +397,7 @@ export async function updateSigilColor(color: string | null) {
   logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
     editedSigilColor: true,
   });
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const existingContact = await db.getContact({ id: currentUserId });
   const existingColor = existingContact?.color ?? null;
   await db.updateContact({ id: currentUserId, color });

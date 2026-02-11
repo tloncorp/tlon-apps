@@ -2,8 +2,8 @@ import * as api from '@tloncorp/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from '@tloncorp/api';
-import { TimeoutError } from '@tloncorp/api';
+} from '@tloncorp/api/api/channelContentConfig';
+import { TimeoutError, getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -34,7 +34,7 @@ export async function createChannel({
   readers?: string[];
   writers?: string[];
 }) {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
   const channelSlug = customSlug || getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
@@ -448,7 +448,7 @@ export async function upsertDmChannel({
   participants: string[];
 }): Promise<db.Channel> {
   logger.log(`upserting dm channel`, participants);
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   // if it's a group dm
   if (participants.length > 1) {
     logger.log(`its a multi dm`);

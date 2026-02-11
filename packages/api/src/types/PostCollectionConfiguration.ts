@@ -1,5 +1,5 @@
 import { ChannelContentConfiguration, CollectionRendererId } from '../client';
-import * as db from '@tloncorp/shared/db';
+import type { Channel } from './types';
 import * as ChannelAction from './ChannelActions';
 
 /**
@@ -14,13 +14,13 @@ export type PostCollectionLayoutType =
 // If the caller has a non-nullable `channel`, they can then get a
 // non-nullable return value - nice, right?
 export function layoutTypeFromChannel(
-  channel: db.Channel
+  channel: Channel
 ): PostCollectionLayoutType;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null
+  channel: Channel | null
 ): PostCollectionLayoutType | null;
 export function layoutTypeFromChannel(
-  channel: db.Channel | null
+  channel: Channel | null
 ): PostCollectionLayoutType | null {
   const config = channel?.contentConfiguration;
   const configCollectionRenderer =
@@ -156,13 +156,13 @@ export interface PostCollectionConfiguration {
 }
 
 export function configurationFromChannel(
-  channel: db.Channel
+  channel: Channel
 ): PostCollectionConfiguration;
 export function configurationFromChannel(
-  channel: db.Channel | null
+  channel: Channel | null
 ): PostCollectionConfiguration | null;
 export function configurationFromChannel(
-  channel: db.Channel | null
+  channel: Channel | null
 ): PostCollectionConfiguration | null {
   switch (channel?.type) {
     case null:

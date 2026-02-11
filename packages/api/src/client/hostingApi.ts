@@ -1,18 +1,21 @@
 import { Buffer } from 'buffer';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger, isDev } from '../debug';
+import * as domain from '../types';
 import {
-  AssignmentResponse,
-  HostedNodeStatus,
+  AnalyticsEvent,
   HostedShipResponse,
   ReservableShip,
   ReservedShip,
   User,
-} from '../types/hosting';
-import { AnalyticsEvent } from '../types/analytics';
-import { getConstants } from '../types/constants';
-import { withRetry } from '../lib/utils';
+  getConstants,
+} from '../types';
+import {
+  getHostingAuthCookie,
+  getHostingUserId,
+  setHostingSession,
+} from './hostingAuthState';
+import { withRetry } from '../lib';
 
 const logger = createDevLogger('hostingApi', false);
 
@@ -45,6 +48,19 @@ const EXPECTED_ERRORS = [ALREADY_IN_USE, CANNOT_BOOT, RATE_LIMITED];
 
 const MANUAL_UPDATE_REQUIRED_MESSAGE = 'manual update has been requested';
 
+const sanitizeHostingCookie = (cookie: string | null): string | null => {
+  if (!cookie) {
+    return null;
+  }
+  return cookie.replace(/;?\s*HttpOnly;?/i, '').trim();
+};
+
+const getSetCookieHeader = (response: Response): string | null => {
+  return (
+    response.headers.get('set-cookie') ?? response.headers.get('Set-Cookie')
+  );
+};
+
 const hostingFetchResponse = async (
   path: string,
   init?: RequestInit
@@ -62,12 +78,12 @@ const hostingFetchResponse = async (
     };
   }
 
-  if (__DEV__) {
+  if (isDev()) {
     console.debug('Request:', path);
   }
 
-  const hostingCookie = await db.hostingAuthToken.getValue();
-  const modifiedCookie = hostingCookie.replace(' HttpOnly;', '');
+  const hostingCookie = getHostingAuthCookie();
+  const modifiedCookie = sanitizeHostingCookie(hostingCookie);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
   const response = await fetch(`${env.API_URL}${path}`, {
@@ -76,7 +92,7 @@ const hostingFetchResponse = async (
     signal: controller.signal,
     headers: {
       ...fetchInit.headers,
-      Cookie: modifiedCookie,
+      ...(modifiedCookie ? { Cookie: modifiedCookie } : {}),
     },
   });
   clearTimeout(timeoutId);
@@ -174,7 +190,10 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
-  const userId = await db.hostingUserId.getValue();
+  const userId = getHostingUserId();
+  if (!userId) {
+    return 'unknown';
+  }
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
   // 401 indicates that the authentication token is expired.
@@ -259,14 +278,13 @@ export const signUpHostingUser = async (params: {
 
   const result = (await response.json()) as HostingError | User;
 
-  const setCookie = response.headers.get('Set-Cookie');
-  if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
-  }
-
   const userId = 'id' in result && (result as User).id;
-  if (userId) {
-    db.hostingUserId.setValue(userId);
+  const setCookie = getSetCookieHeader(response);
+  if (setCookie || userId) {
+    setHostingSession({
+      ...(setCookie ? { cookie: setCookie } : {}),
+      ...(userId ? { userId } : {}),
+    });
   }
 
   return result as User;
@@ -294,14 +312,13 @@ export const logInHostingUser = async (params: {
     );
   }
 
-  const setCookie = response.headers.get('Set-Cookie');
   const user = 'id' in result && (result as User).id;
-  if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
-  }
-
-  if (user) {
-    db.hostingUserId.setValue(user);
+  const setCookie = getSetCookieHeader(response);
+  if (setCookie || user) {
+    setHostingSession({
+      ...(setCookie ? { cookie: setCookie } : {}),
+      ...(user ? { userId: user } : {}),
+    });
   }
 
   return result as User;
@@ -433,7 +450,7 @@ export const verifyEmailDigits = async (email: string, digits: string) =>
   hostingFetch<object>(`/v1/verify-email-digits/${email}/${digits}`);
 
 export const assignShipToUser = async (userId: string) => {
-  const response = await hostingFetch<AssignmentResponse>(
+  const response = await hostingFetch<domain.AssignmentResponse>(
     `/v1/users/${userId}/assign-ship`,
     {
       method: 'PATCH',
@@ -517,7 +534,7 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<{ status: HostedNodeStatus; showWayfinding: boolean }> => {
+): Promise<{ status: domain.HostedNodeStatus; showWayfinding: boolean }> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -532,7 +549,7 @@ export const getNodeStatus = async (
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return { status: HostedNodeStatus.Running, showWayfinding };
+    return { status: domain.HostedNodeStatus.Running, showWayfinding };
   }
 
   // If user has a paused ship, resume it
@@ -540,11 +557,11 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return { status: HostedNodeStatus.Paused, showWayfinding };
+    return { status: domain.HostedNodeStatus.Paused, showWayfinding };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return { status: HostedNodeStatus.UnderMaintenance, showWayfinding };
+    return { status: domain.HostedNodeStatus.UnderMaintenance, showWayfinding };
   }
 
   // If user has a suspended ship, boot it
@@ -560,17 +577,17 @@ export const getNodeStatus = async (
           err.message.includes(MANUAL_UPDATE_REQUIRED_MESSAGE)
         ) {
           return {
-            status: HostedNodeStatus.UnderMaintenance,
+            status: domain.HostedNodeStatus.UnderMaintenance,
             showWayfinding,
           };
         }
         throw err;
       }
     }
-    return { status: HostedNodeStatus.Suspended, showWayfinding };
+    return { status: domain.HostedNodeStatus.Suspended, showWayfinding };
   }
 
-  return { status: HostedNodeStatus.Unknown, showWayfinding };
+  return { status: domain.HostedNodeStatus.Unknown, showWayfinding };
 };
 
 export const inviteShipWithLure = async (params: {
@@ -586,7 +603,7 @@ export const inviteShipWithLure = async (params: {
   });
 
 export const checkIfAccountDeleted = async (): Promise<boolean> => {
-  const hostingUserId = await db.hostingUserId.getValue();
+  const hostingUserId = getHostingUserId();
   if (hostingUserId) {
     try {
       const user = await withRetry(() => getHostingUser(hostingUserId), {
