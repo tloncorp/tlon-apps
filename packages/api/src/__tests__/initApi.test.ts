@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 
-import rawGroupsInit6 from '../test/groupsInit5.json';
-import type * as ub from '@tloncorp/api/urbit';
-import { toInitData } from '@tloncorp/api/api/initApi';
+import rawGroupsInit6 from './fixtures/groupsInit5.json';
+import type * as ub from '../urbit';
+import { toInitData } from '../client/initApi';
 
 const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit6;
 

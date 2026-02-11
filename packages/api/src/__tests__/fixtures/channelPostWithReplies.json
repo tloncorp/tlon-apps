@@ -1,0 +1,61 @@
+{
+  "revision": "0",
+  "seal": {
+    "id": "170141184506755078862103651047679459328",
+    "replies": {
+      "170.141.184.506.755.085.307.445.457.407.707.185.152": {
+        "memo": {
+          "author": "~pondus-watbel",
+          "sent": 1713197582236,
+          "content": [{ "inline": ["feel better!", { "break": null }] }]
+        },
+        "revision": "0",
+        "seal": {
+          "id": "170141184506755085307445457407707185152",
+          "parent-id": "170141184506755078862103651047679459328",
+          "reacts": {}
+        }
+      },
+      "170.141.184.506.755.139.986.577.963.685.997.707.264": {
+        "memo": {
+          "author": "~ravmel-ropdyl",
+          "sent": 1713200546044,
+          "content": [
+            { "inline": ["indeed, hope you feel better", { "break": null }] }
+          ]
+        },
+        "revision": "0",
+        "seal": {
+          "id": "170141184506755139986577963685997707264",
+          "parent-id": "170141184506755078862103651047679459328",
+          "reacts": {}
+        }
+      }
+    },
+    "reacts": {
+      "~pondus-watbel": ":medical_symbol:",
+      "~natnex-ronret": ":medical_symbol:",
+      "~finmep-lanteb": ":medical_symbol:",
+      "~fodwyt-ragful": ":medical_symbol:"
+    },
+    "meta": {
+      "replyCount": 2,
+      "lastReply": 1713200546546,
+      "lastRepliers": ["~ravmel-ropdyl", "~pondus-watbel"]
+    }
+  },
+  "essay": {
+    "author": "~roslet-tanner",
+    "kind-data": { "chat": null },
+    "sent": 1713197231581,
+    "content": [
+      {
+        "inline": [
+          "I’m a little under the weather, going to be afk this morning ",
+          { "break": null }
+        ]
+      }
+    ]
+  },
+  "type": "post"
+}

@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import {
   v0PeerToClientProfile,
   v0PeersToClientProfiles,
-} from '@tloncorp/api/api/contactsApi';
+} from '../client/contactsApi';
 
 const inputContact: [string, any] = [
   'test',

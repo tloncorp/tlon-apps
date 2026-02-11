@@ -1,19 +1,16 @@
 import { expect, test } from 'vitest';
 
-import { Post } from '../db';
-import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
-import rawChannelPostsData from '../test/channelPosts.json';
-import rawDmPostWithRepliesData from '../test/dmPostWithReplies.json';
-import rawGroupDmPostWithRepliesData from '../test/groupDmPostWithReplies.json';
-import { setupDatabaseTestSuite } from '../test/helpers';
-import * as ub from '@tloncorp/api/urbit';
+import type { Post } from '../types';
+import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
+import rawChannelPostsData from './fixtures/channelPosts.json';
+import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
+import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
+import * as ub from '../urbit';
 import {
   toPostData,
   toPostReplyData,
   toPostsData,
-} from '@tloncorp/api/api/postsApi';
-
-setupDatabaseTestSuite();
+} from '../client/postsApi';
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
