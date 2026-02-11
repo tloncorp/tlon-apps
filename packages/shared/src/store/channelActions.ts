@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from '@tloncorp/api/api/channelContentConfig';
+} from '@tloncorp/api/types/channelContentConfig';
 import { TimeoutError, getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';

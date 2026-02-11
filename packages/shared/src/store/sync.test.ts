@@ -7,7 +7,7 @@ import {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-} from '@tloncorp/api';
+} from '@tloncorp/api/types/channelContentConfig';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../../../api/src/__tests__/fixtures/channelPostWithReplies.json';

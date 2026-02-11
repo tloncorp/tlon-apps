@@ -11,7 +11,7 @@ import {
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from './channelContentConfig';
+} from '../types/channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 

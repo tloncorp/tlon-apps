@@ -9,6 +9,6 @@ export * from '@tloncorp/api/types/onboarding';
 export * from '@tloncorp/api/types/post';
 export * from '@tloncorp/api/types/references';
 export * from '@tloncorp/api/types/system';
-export * from '@tloncorp/api/types/systemContacts';
+export * from '@tloncorp/api/types/systemContactModels';
 export * from '@tloncorp/api/types/uploads';
 export * from '@tloncorp/api/types/wayfinding';

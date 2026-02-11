@@ -14,7 +14,7 @@ import {
   getChannelType,
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
-import { StructuredChannelDescriptionPayload } from './channelContentConfig';
+import { StructuredChannelDescriptionPayload } from '../types/channelContentConfig';
 import {
   BadResponseError,
   getCurrentUserId,

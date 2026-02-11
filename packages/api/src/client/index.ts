@@ -4,7 +4,6 @@ export * from './hostingAuthState';
 
 // Feature APIs
 export * from './initApi';
-export * from './channelContentConfig';
 export * from './groupsApi';
 export * from './channelsApi';
 export * from './postsApi';
@@ -26,4 +25,4 @@ export * from './landscapeApi';
 export * from './upload';
 export * from './apiUtils';
 export * from './systemContactsApi';
-export * from './harkApi';
+export * from '../types/channelContentConfig';

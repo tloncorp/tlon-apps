@@ -28,7 +28,7 @@ export {
   allCollectionRenderers,
   allDraftInputs,
   allContentRenderers,
-} from '@tloncorp/api';
+} from '@tloncorp/api/types/channelContentConfig';
 export * from './logic';
 export * from './store';
 export * from './domain';
