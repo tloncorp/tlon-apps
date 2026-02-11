@@ -2,9 +2,9 @@ import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 
 import { createDevLogger } from '../debug';
+import { readArrayBufferFromBlob } from '../lib/blob';
+import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { desig } from '../urbit';
-import { readArrayBufferFromBlob } from '../lib';
-import * as utils from '../lib';
 import { EventEmitter } from '../lib/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
@@ -934,7 +934,7 @@ export class Urbit {
     result: T;
   }> {
     const { app, path, timeout } = params;
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
       {
@@ -1025,7 +1025,7 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
 
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
     const result = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
@@ -1084,7 +1084,7 @@ export class Urbit {
       path = '/' + path;
     }
 
-    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    const signal = timeout ? createTimeoutSignal(timeout) : undefined;
     // Prepare request options with authentication
     const requestOptions: RequestInit = {
       ...this.fetchOptions,

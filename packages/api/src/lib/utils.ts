@@ -4,19 +4,11 @@ import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
 
-import * as api from '../client';
-import {
-  isDmChannelId,
-  isGroupChannelId,
-  isGroupDmChannelId,
-} from '../client/apiUtils';
 import type * as db from '../types/types';
 import type { ContentReference } from '../types/references';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
-
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -41,6 +33,24 @@ export const SIG_LIKES = [
   '\u2053', // ⁓ (swung dash)
   '\u2241', // ≁ (not tilde)
 ];
+
+type PostContent = (ub.Verse | ContentReference)[] | null;
+
+export function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
+}
+
+export function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
+}
+
+export function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
+}
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
@@ -424,7 +434,7 @@ export const createShortCodeFromTitle = (title: string): string => {
   return shortCode;
 };
 
-export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
+export function extractInlinesFromContent(story: PostContent): ub.Inline[] {
   const inlines =
     story !== null
       ? (story.filter((v) => 'inline' in v) as ub.VerseInline[]).flatMap(
@@ -436,7 +446,7 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 }
 
 export function extractReferencesFromContent(
-  story: api.PostContent
+  story: PostContent
 ): ContentReference[] {
   const references =
     story !== null
@@ -448,7 +458,7 @@ export function extractReferencesFromContent(
   return references;
 }
 
-export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
+export function extractBlocksFromContent(story: PostContent): ub.Block[] {
   const blocks =
     story !== null
       ? (story.filter((v) => 'block' in v) as ub.VerseBlock[]).flatMap(
@@ -460,12 +470,12 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: Stringified<api.PostContent> | api.PostContent
+  content: Stringified<PostContent> | PostContent
 ): {
   inlines: ub.Inline[];
   references: ContentReference[];
   blocks: ub.Block[];
-  story: api.PostContent;
+  story: PostContent;
 } => {
   const story = typeof content === 'string' ? JSON.parse(content) : content;
   const inlines = extractInlinesFromContent(story);
@@ -476,15 +486,15 @@ export const extractContentTypes = (
 };
 
 export const extractContentTypesFromPost = (
-  post: db.Post | { content: api.PostContent }
+  post: db.Post | { content: PostContent }
 ): {
   inlines: ub.Inline[];
   references: ContentReference[];
   blocks: ub.Block[];
-  story: api.PostContent;
+  story: PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content as Stringified<api.PostContent>
+    post.content as Stringified<PostContent>
   );
 
   return { inlines, references, blocks, story };

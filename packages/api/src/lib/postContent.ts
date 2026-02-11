@@ -1,4 +1,4 @@
-import { toContentReference } from '../client/postsApi';
+import { toContentReference } from './contentReferences';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { assertNever } from './assertNever';

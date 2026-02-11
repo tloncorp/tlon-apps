@@ -1,6 +1,5 @@
 import { render, valid, da } from '@urbit/aura';
 
-import { PostContent } from '../client';
 import { ChannelType } from '../types';
 import { GroupJoinStatus, GroupPrivacy } from '../types/types';
 import { createDevLogger } from '../debug';
@@ -11,6 +10,8 @@ import * as ubg from './groups';
 import { Atom } from '@urbit/nockjs';
 
 const logger = createDevLogger('urbitUtils', false);
+
+type PostContent = (ub.Verse | ContentReference)[] | null;
 
 type App = 'chat' | 'heap' | 'diary';
 const APP_PREFIXES = ['chat', 'heap', 'diary'];

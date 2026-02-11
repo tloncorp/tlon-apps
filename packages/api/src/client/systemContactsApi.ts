@@ -1,6 +1,16 @@
-import * as db from '../types';
+import type { SystemContact } from '../types';
 
-export async function getSystemContacts(): Promise<db.SystemContact[]> {
-  // stub for web
-  return [];
+export type SystemContactsProvider = () => Promise<SystemContact[]>;
+
+const emptySystemContactsProvider: SystemContactsProvider = async () => [];
+let systemContactsProvider: SystemContactsProvider = emptySystemContactsProvider;
+
+export function configureSystemContactsProvider(
+  provider?: SystemContactsProvider | null
+): void {
+  systemContactsProvider = provider ?? emptySystemContactsProvider;
+}
+
+export async function getSystemContacts(): Promise<SystemContact[]> {
+  return systemContactsProvider();
 }

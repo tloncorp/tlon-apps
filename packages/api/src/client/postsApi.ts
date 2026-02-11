@@ -9,6 +9,10 @@ import {
   PlaintextPreviewConfig,
   getTextContent,
 } from '../lib';
+import {
+  contentReferenceToCite,
+  toContentReference,
+} from '../lib/contentReferences';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -46,6 +50,8 @@ import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
+
+export { contentReferenceToCite, toContentReference };
 
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -1472,70 +1478,6 @@ export function toUrbitStory(content: PostContent): Story {
     }
     return item;
   });
-}
-
-export function toContentReference(cite: ub.Cite): ContentReference | null {
-  if ('chan' in cite) {
-    const channelId = cite.chan.nest;
-    // I've seen these forms of reference path:
-    // /msg/170141184506828851385935487131294105600
-    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
-    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
-    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
-    const [postId, replyId] = Array.from(
-      cite.chan.where.matchAll(messageIdRegex)
-    ).map((m) => {
-      return m[1].replace(/\./g, '');
-    });
-    if (!postId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return {
-      type: 'reference',
-      referenceType: 'channel',
-      channelId,
-      postId: formatUd(postId),
-      replyId: replyId ? formatUd(replyId) : undefined,
-    };
-  } else if ('group' in cite) {
-    return { type: 'reference', referenceType: 'group', groupId: cite.group };
-  } else if ('desk' in cite) {
-    const parts = cite.desk.flag.split('/');
-    const userId = parts[0];
-    const appId = parts[1];
-    if (!userId || !appId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return { type: 'reference', referenceType: 'app', userId, appId };
-  }
-  return null;
-}
-
-export function contentReferenceToCite(reference: ContentReference): ub.Cite {
-  if (reference.referenceType === 'channel') {
-    return {
-      chan: {
-        nest: reference.channelId,
-        where: `/msg/${reference.postId}${
-          reference.replyId ? '/' + reference.replyId : ''
-        }`,
-      },
-    };
-  } else if (reference.referenceType === 'group') {
-    return {
-      group: reference.groupId,
-    };
-  } else if (reference.referenceType === 'app') {
-    return {
-      desk: {
-        flag: `${reference.userId}/${reference.appId}`,
-        where: '',
-      },
-    };
-  }
-  throw new Error('invalid reference');
 }
 
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {

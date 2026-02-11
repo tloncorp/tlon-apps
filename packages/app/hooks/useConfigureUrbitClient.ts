@@ -13,6 +13,7 @@ import { useShip } from '../contexts/ship';
 // platform.
 import { resetDb } from '../lib/resetDb';
 import { initializePolyfills, platformFetch } from '../platform/polyfills';
+import { getNativeSystemContacts } from '../lib/systemContactsProvider';
 import { useHandleLogout } from './useHandleLogout';
 
 initializePolyfills();
@@ -51,6 +52,7 @@ export function configureUrbitClient({
   authType: 'self' | 'hosted';
   onAuthFailure?: () => void;
 }) {
+  api.configureSystemContactsProvider(getNativeSystemContacts);
   configureClient({
     shipName: ship,
     shipUrl: shipUrl,

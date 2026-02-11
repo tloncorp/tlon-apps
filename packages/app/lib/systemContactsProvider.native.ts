@@ -2,13 +2,16 @@ import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
 import * as LibPhone from 'libphonenumber-js';
 
-import { createDevLogger } from '../debug';
-import type { SystemContact } from '../types/systemContacts';
-import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  type SystemContact,
+} from '@tloncorp/api/types';
+import { createDevLogger } from '@tloncorp/shared';
 
 const logger = createDevLogger('SystemContactsApi', true);
 
-export async function getSystemContacts(): Promise<SystemContact[]> {
+export async function getNativeSystemContacts(): Promise<SystemContact[]> {
   const { status } = await Contacts.getPermissionsAsync();
   if (status !== 'granted') {
     return [];

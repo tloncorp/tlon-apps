@@ -1,4 +1,7 @@
-import { ChannelContentConfiguration, CollectionRendererId } from '../client';
+import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+} from '../client/channelContentConfig';
 import type { Channel } from './types';
 import * as ChannelAction from './ChannelActions';
 
