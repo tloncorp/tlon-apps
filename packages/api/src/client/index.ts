@@ -8,7 +8,7 @@ export * from './landscapeApi';
 export * from './postsApi';
 export * from './urbit';
 export * from './postsApi';
-export * from '../store/reactQuery';
+export { QueryClientProvider, queryClient } from '@tloncorp/shared/store/reactQuery';
 export * from './initApi';
 export * from './upload';
 export * from './settingsApi';

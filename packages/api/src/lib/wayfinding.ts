@@ -1,5 +1,5 @@
-import * as db from '../types';
-import { PersonalGroupNames, PersonalGroupSlugs } from '../types';
+import type * as db from '@tloncorp/shared/db/types';
+import { PersonalGroupNames, PersonalGroupSlugs } from '../types/wayfinding';
 import { getChannelKindFromType } from '../urbit';
 
 export function getPersonalGroupKeys(currentUserId: string) {

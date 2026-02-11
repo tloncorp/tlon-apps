@@ -1,7 +1,7 @@
 import { toContentReference } from '../client/postsApi';
-import { ContentReference } from '../types';
+import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
-import { assertNever } from './index';
+import { assertNever } from './assertNever';
 import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 

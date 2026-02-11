@@ -1,8 +1,8 @@
 import { valid } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../client/harkApi';
-import { createDevLogger } from '../debug';
-import { getConstants } from '../types';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import { getConstants } from '../types/constants';
 import { preSig } from '../urbit';
 import { normalizeUrbitColor } from './utils';
 

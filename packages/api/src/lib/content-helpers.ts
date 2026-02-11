@@ -1,14 +1,14 @@
 import isURL from 'validator/lib/isURL';
 
-import { ChannelType, PostMetadata } from '../types';
-import { createDevLogger } from '../debug';
-import {
+import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
+import { createDevLogger } from '@tloncorp/shared/debug';
+import type {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
-  UploadedFileAttachment,
   UploadedImageAttachment,
-} from '../types';
+} from '../types/attachment';
+import { UploadedFileAttachment } from '../types/attachment';
 import {
   Block,
   Inline,

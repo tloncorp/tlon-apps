@@ -1,4 +1,4 @@
-import { getConstants } from '../types';
+import { getConstants } from '../types/constants';
 
 export const SHIP_COOKIE_REGEX = /(~)[a-z\-]+?(\=)/;
 

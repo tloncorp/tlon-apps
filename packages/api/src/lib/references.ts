@@ -1,5 +1,5 @@
-import * as db from '../types';
-import { ContentReference } from '../types';
+import type * as db from '@tloncorp/shared/db/types';
+import type { ContentReference } from '../types/references';
 import { parseIdNumber } from '../client/apiUtils';
 
 function formatId(id: string) {

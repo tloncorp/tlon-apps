@@ -1,5 +1,4 @@
-import type { ChannelType } from './types';
-import type { PostMetadata } from './types';
+import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
 import { Block, Inline, Story } from '../urbit';
 import { Attachment } from './attachment';
 

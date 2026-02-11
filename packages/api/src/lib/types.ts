@@ -1,4 +1,4 @@
-import * as db from '../types';
+import type * as db from '@tloncorp/shared/db/types';
 
 export function isChatChannel(channel: db.Channel): boolean {
   return (

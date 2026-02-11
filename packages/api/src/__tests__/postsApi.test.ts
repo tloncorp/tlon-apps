@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import type { Post } from '../types';
+import type { Post } from '@tloncorp/shared/db/types';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';

@@ -10,10 +10,11 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
 } from '../client/apiUtils';
-import * as db from '../types';
-import * as domain from '../types';
+import type * as db from '@tloncorp/shared/db/types';
+import type { ContentReference } from '../types/references';
+import { PersonalGroupSlugs } from '../types/wayfinding';
 import * as ub from '../urbit';
-import { Stringified } from './index';
+import type { Stringified } from './utilityTypes';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
@@ -436,12 +437,12 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 
 export function extractReferencesFromContent(
   story: api.PostContent
-): domain.ContentReference[] {
+): ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as domain.ContentReference[])
+        ) as ContentReference[])
       : [];
 
   return references;
@@ -462,7 +463,7 @@ export const extractContentTypes = (
   content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
-  references: domain.ContentReference[];
+  references: ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -478,7 +479,7 @@ export const extractContentTypesFromPost = (
   post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
-  references: domain.ContentReference[];
+  references: ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -694,7 +695,7 @@ export function simpleHash(input: string) {
   return Math.abs(hash).toString(36);
 }
 
-const wayfindingGroup = domain.PersonalGroupSlugs;
+const wayfindingGroup = PersonalGroupSlugs;
 function isWayfindingChannel(id: string | null | undefined): boolean {
   if (!id) return false;
   if (isDmChannelId(id)) return false;
