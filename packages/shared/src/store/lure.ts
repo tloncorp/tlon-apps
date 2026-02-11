@@ -5,10 +5,10 @@ import create from 'zustand';
 
 import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api/api/urbit';
 import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
+import { asyncWithDefault } from '@tloncorp/api/lib/utils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { asyncWithDefault } from '../logic/utils';
 import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {

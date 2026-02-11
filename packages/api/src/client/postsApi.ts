@@ -3,11 +3,11 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import { IMAGE_URL_REGEX } from '@tloncorp/shared/logic/utils';
+import { IMAGE_URL_REGEX } from '../lib/utils';
 import {
   PlaintextPreviewConfig,
   getTextContent,
-} from '@tloncorp/shared/logic/postContent';
+} from '../lib/postContent';
 import * as ub from '../urbit';
 import { ContentReference } from '../types/references';
 import {

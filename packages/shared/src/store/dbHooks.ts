@@ -8,9 +8,9 @@ import { useEffect, useMemo } from 'react';
 
 import * as api from '@tloncorp/api/api';
 import { getMessagesFilter } from '@tloncorp/api/api';
+import { getConstants } from '@tloncorp/api/types/constants';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
-import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
 import * as ub from '@tloncorp/api/urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';

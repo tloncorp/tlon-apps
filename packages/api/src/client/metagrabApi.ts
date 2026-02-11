@@ -2,11 +2,8 @@ import { render } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
 import { createDevLogger } from '@tloncorp/shared/debug';
-import type {
-  LinkMetadata,
-  LinkMetadataError,
-} from '@tloncorp/shared/domain/attachment';
-import { getConstants } from '@tloncorp/shared/domain/constants';
+import type { LinkMetadata, LinkMetadataError } from '../types/attachment';
+import { getConstants } from '../types/constants';
 import * as ub from '../urbit';
 import { AnalyticsEvent } from '../types/analytics';
 import { request } from './urbit';

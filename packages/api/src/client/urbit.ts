@@ -2,7 +2,7 @@ import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
-import { getConstants } from '@tloncorp/shared/domain/constants';
+import { getConstants } from '../types/constants';
 import {
   AuthError,
   ChannelStatus,

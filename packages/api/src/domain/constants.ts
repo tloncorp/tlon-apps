@@ -1,1 +1,1 @@
-export * from '@tloncorp/shared/domain/constants';
+export * from '../types/constants';

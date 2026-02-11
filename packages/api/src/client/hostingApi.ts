@@ -11,8 +11,8 @@ import {
   User,
 } from '../types/hosting';
 import { AnalyticsEvent } from '../types/analytics';
-import { getConstants } from '@tloncorp/shared/domain/constants';
-import { withRetry } from '@tloncorp/shared/logic/utils';
+import { getConstants } from '../types/constants';
+import { withRetry } from '../lib/utils';
 
 const logger = createDevLogger('hostingApi', false);
 

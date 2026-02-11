@@ -6,7 +6,10 @@ import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { GroupTemplateId, groupTemplatesById } from '../domain/groupTemplates';
+import {
+  GroupTemplateId,
+  groupTemplatesById,
+} from '@tloncorp/api/types/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';

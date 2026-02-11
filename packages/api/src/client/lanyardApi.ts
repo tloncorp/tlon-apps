@@ -3,7 +3,7 @@ import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import { simpleHash } from '@tloncorp/shared/logic/utils';
+import { simpleHash } from '../lib/utils';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
 import { AnalyticsEvent } from '../types/analytics';
 import * as ub from '../urbit';

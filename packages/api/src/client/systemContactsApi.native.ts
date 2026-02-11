@@ -4,7 +4,7 @@ import * as LibPhone from 'libphonenumber-js';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import type { SystemContact } from '@tloncorp/shared/domain/systemContacts';
+import type { SystemContact } from '../types/systemContacts';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 
 const logger = createDevLogger('SystemContactsApi', true);

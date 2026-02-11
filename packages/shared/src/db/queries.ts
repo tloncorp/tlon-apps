@@ -40,7 +40,7 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '../logic/activity';
+} from '@tloncorp/api/lib/activity';
 import { Session } from '../store';
 import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
