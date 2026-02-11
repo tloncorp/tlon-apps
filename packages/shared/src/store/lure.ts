@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
 import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api/client/urbit';
+import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import { asyncWithDefault } from '../logic/utils';
 import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {
