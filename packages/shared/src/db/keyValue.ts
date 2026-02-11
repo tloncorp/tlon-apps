@@ -85,13 +85,13 @@ export async function updateStorageCredentials(
   await storageCredentials.setValue({ ...current, ...update });
 }
 
-export type AppInfo = {
+export type StoredAppInfo = {
   groupsVersion: string;
   groupsHash: string;
   groupsSyncNode: string;
 };
 
-export const appInfo = createStorageItem<AppInfo | null>({
+export const appInfo = createStorageItem<StoredAppInfo | null>({
   key: 'settings:appInfo',
   defaultValue: null,
 });

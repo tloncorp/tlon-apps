@@ -9,6 +9,7 @@ import { useEffect, useMemo } from 'react';
 import * as api from '@tloncorp/api/api';
 import { getMessagesFilter } from '@tloncorp/api/api';
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getConstants } from '@tloncorp/api/types/constants';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';

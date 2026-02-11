@@ -11,7 +11,7 @@ import { RNFile } from '@tloncorp/api/api';
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
-import { AnalyticsEvent } from '../../domain';
+import { AnalyticsEvent, Attachment } from '../../domain';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,

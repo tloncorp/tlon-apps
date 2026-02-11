@@ -1,7 +1,7 @@
 import isURL from 'validator/lib/isURL';
 
-import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type { ChannelType, PostMetadata } from '../types/types';
+import { createDevLogger } from '../debug';
 import type {
   FinalizedAttachment,
   LinkAttachment,

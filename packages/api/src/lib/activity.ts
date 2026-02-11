@@ -1,5 +1,5 @@
-import type { ActivityEvent } from '@tloncorp/shared/db/types';
-import type * as db from '@tloncorp/shared/db/types';
+import type { ActivityEvent } from '../types/types';
+import type * as db from '../types/types';
 import {
   ExtendedEventType,
   NotificationLevel,

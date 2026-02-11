@@ -8,7 +8,7 @@ import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { asyncWithDefault } from '../logic/utils';
+import { asyncWithDefault } from '../logic';
 import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {

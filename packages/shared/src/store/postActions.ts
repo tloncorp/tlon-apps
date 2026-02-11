@@ -65,7 +65,7 @@ export async function finalizePostDraft(
     channelId: draft.channelId,
     content: story,
     metadata,
-    blob,
+    blob: blob ?? undefined,
     replyToPostId: draft.replyToPostId,
   };
 
@@ -97,7 +97,7 @@ export function finalizePostDraftUsingLocalAttachments(
     channelId: draft.channelId,
     content: story,
     metadata,
-    blob,
+    blob: blob ?? undefined,
     replyToPostId: draft.replyToPostId,
   };
   if (draft.isEdit) {

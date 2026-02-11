@@ -10,7 +10,7 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
 } from '../client/apiUtils';
-import type * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/types';
 import type { ContentReference } from '../types/references';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import * as ub from '../urbit';
