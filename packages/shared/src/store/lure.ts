@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
 import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api/api/urbit';
+import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
 import { asyncWithDefault } from '../logic/utils';
 import { createGroupInviteLink } from './inviteActions';
 
