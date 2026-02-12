@@ -18,7 +18,7 @@ import {
 } from '@tloncorp/app/ui';
 import { Button } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/api/client';
+import { HostingError } from '@tloncorp/api';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

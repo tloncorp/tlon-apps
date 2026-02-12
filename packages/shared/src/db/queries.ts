@@ -30,9 +30,9 @@ import {
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
-} from '@tloncorp/api/client';
-import { parseGroupId } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client';
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
+import { getCurrentUserId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';

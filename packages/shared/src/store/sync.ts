@@ -2,9 +2,9 @@ import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '@tloncorp/api/client';
-import { GetChangedPostsOptions } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client';
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
+import { getCurrentUserId } from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';

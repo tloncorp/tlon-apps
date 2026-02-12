@@ -1,6 +1,6 @@
-import * as api from '@tloncorp/api/client';
-import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client';
+import * as api from '@tloncorp/api';
+import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api';
+import { getCurrentUserId } from '@tloncorp/api';
 import { createDevLogger } from '../../debug';
 import { desig } from '@tloncorp/api/urbit';
 

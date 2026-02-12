@@ -82,6 +82,15 @@ function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
     /\.test\.[cm]?[jt]sx?$/.test(file) ||
     /\.spec\.[cm]?[jt]sx?$/.test(file);
 
+  if (specifier === '@tloncorp/api/client') {
+    violations.push({
+      file,
+      line,
+      text,
+      reason: 'consumer boundary: use @tloncorp/api (not @tloncorp/api/client)',
+    });
+  }
+
   if (specifier.startsWith('@tloncorp/api/client/')) {
     if (isTestFile && specifier === '@tloncorp/api/client/urbit') {
       return;
@@ -90,7 +99,7 @@ function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
       file,
       line,
       text,
-      reason: 'consumer boundary: use @tloncorp/api/client (not deep client subpaths)',
+      reason: 'consumer boundary: use @tloncorp/api (not deep client subpaths)',
     });
   }
 
@@ -102,7 +111,7 @@ function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
       file,
       line,
       text,
-      reason: 'consumer boundary: @tloncorp/api/api is deprecated; use @tloncorp/api/client',
+      reason: 'consumer boundary: @tloncorp/api/api is deprecated; use @tloncorp/api',
     });
   }
 

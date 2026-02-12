@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/api/types/types';
 import type { ContentReference } from '@tloncorp/api/types/references';
-import { parseIdNumber } from '@tloncorp/api/client';
+import { parseIdNumber } from '@tloncorp/api';
 
 function formatId(id: string) {
   return parseIdNumber(id).toString();

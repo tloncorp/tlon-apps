@@ -4,7 +4,7 @@ import {
   extractNormalizedInviteLink,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api/client';
+import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,

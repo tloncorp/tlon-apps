@@ -1,9 +1,9 @@
-import * as api from '@tloncorp/api/client';
+import * as api from '@tloncorp/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api/types/channelContentConfig';
-import { TimeoutError, getCurrentUserId } from '@tloncorp/api/client';
+import { TimeoutError, getCurrentUserId } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
