@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
 import { isEqual } from 'lodash';
 import { memo, useEffect } from 'react';
-import { View, getVariableValue, useTheme } from 'tamagui';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
@@ -16,6 +16,7 @@ import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
+import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
@@ -107,7 +108,16 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     'chatType' in focusedRouteParams
   ) {
     if (focusedRouteParams.chatType === 'channel') {
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
+      // If groupId is provided, show the group's channel list in the sidebar
+      if ('groupId' in focusedRouteParams && focusedRouteParams.groupId) {
+        return (
+          <GroupChannelsScreenContent
+            groupId={focusedRouteParams.groupId as string}
+            focusedChannelId={focusedRouteParams.chatId as string}
+          />
+        );
+      }
+      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />;
     } else if (focusedRouteParams.chatType === 'group') {
       return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }
@@ -209,5 +219,5 @@ function ChannelStack(
 }
 
 function Empty() {
-  return <View backgroundColor="$secondaryBackground" flex={1} />;
+  return <HomeEmptyState />;
 }

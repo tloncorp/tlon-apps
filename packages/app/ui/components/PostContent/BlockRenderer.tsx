@@ -1,6 +1,14 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
-import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import { formatMemorySize } from '@tloncorp/shared/utils';
+import {
+  FilePreview,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useCopy,
+} from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -13,9 +21,10 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Linking, Platform } from 'react-native';
+import { LayoutRectangle, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -203,6 +212,152 @@ export function ReferenceBlock({
   }
 
   return <ContentReferenceLoader reference={block} {...props} />;
+}
+
+export function FileUploadBlock({
+  block,
+  fullbleed = false,
+}: {
+  block: cn.FileUploadBlockData;
+  fullbleed?: boolean;
+}) {
+  const { openExternalLink } = useNavigation();
+  const isUploading = useMemo(
+    () =>
+      block.file.fileUri.startsWith('file://') ||
+      block.file.fileUri.startsWith('blob:'),
+    [block.file.fileUri]
+  );
+
+  const formattedSize = useMemo(
+    () => formatMemorySize(block.file.size),
+    [block.file.size]
+  );
+
+  const fileTypeCode = useMemo(
+    () =>
+      FilePreview.fileExtensionFrom({
+        filename: block.file.name,
+        mimeType: block.file.mimeType,
+        uri: block.file.fileUri,
+      }),
+    [block.file]
+  );
+
+  const [containerLayout, setContainerLayout] =
+    useState<LayoutRectangle | null>(null);
+  // arbitrary number breakpoints for adjusting layout based on container height
+  // (smaller value => more compact layout)
+  const containerHeightBreakpoint = useMemo(() => {
+    const MEDIUM_HEIGHT = 70;
+    const LARGE_HEIGHT = 100;
+    return containerLayout == null
+      ? Infinity
+      : containerLayout.height < MEDIUM_HEIGHT
+        ? 1
+        : containerLayout.height < LARGE_HEIGHT
+          ? 2
+          : 3;
+  }, [containerLayout]);
+
+  const filePreview = useCallback(
+    () => (
+      <FilePreview
+        fileExtensionLabel={fileTypeCode ?? undefined}
+        size={containerHeightBreakpoint < 2 ? 's' : 'm'}
+      />
+    ),
+    [fileTypeCode, containerHeightBreakpoint]
+  );
+  const filenameView = useCallback(
+    ({
+      ...passed
+    }: Pick<
+      ComponentProps<typeof Text>,
+      'size' | 'numberOfLines' | 'textAlign'
+    >) => (
+      <Text
+        size="$label/xl"
+        ellipsizeMode={passed.numberOfLines === 1 ? 'middle' : 'tail'}
+        flexShrink={0}
+        {...passed}
+      >
+        {block.file.name}
+      </Text>
+    ),
+    [block.file.name]
+  );
+  const fileSizeView = useCallback(
+    ({ ...passed }: Pick<ComponentProps<typeof Text>, 'size'> = {}) => (
+      <Text size="$label/m" color="$secondaryText" {...passed}>
+        {formattedSize}
+      </Text>
+    ),
+    [formattedSize]
+  );
+
+  if (isUploading) {
+    return (
+      <YStack paddingLeft="$l">
+        <BlockquoteSideBorder />
+        <Text color="$tertiaryText">Uploading attachment...</Text>
+      </YStack>
+    );
+  }
+
+  if (fullbleed) {
+    return (
+      <Pressable
+        onLayout={(event) => setContainerLayout(event.nativeEvent.layout)}
+        alignItems="center"
+        justifyContent="center"
+        gap="$s"
+        padding="$2xs"
+        flex={1}
+        flexDirection="column"
+        onPress={() => {
+          openExternalLink(block.file.fileUri);
+        }}
+      >
+        {filePreview()}
+        {filenameView({
+          numberOfLines: containerHeightBreakpoint < 3 ? 1 : 2,
+          size: '$label/m',
+          textAlign: 'center',
+        })}
+        {containerHeightBreakpoint > 1 && fileSizeView({ size: '$label/s' })}
+      </Pressable>
+    );
+  }
+
+  return (
+    <Reference.Frame
+      onPress={() => {
+        openExternalLink(block.file.fileUri);
+      }}
+    >
+      <Reference.Header>
+        <Reference.Title>
+          <Icon
+            type="ChannelNote"
+            color="$tertiaryText"
+            customSize={['$l', '$l']}
+          />
+          <Reference.TitleText>File Upload</Reference.TitleText>
+        </Reference.Title>
+        <Reference.ActionIcon />
+      </Reference.Header>
+      <Reference.Body>
+        <XStack padding="$l" gap="$m">
+          {filePreview()}
+          <YStack gap="$xl" flex={1} justifyContent="center">
+            {filenameView({ numberOfLines: 1 })}
+            {fileSizeView()}
+          </YStack>
+        </XStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
 }
 
 export function BigEmojiBlock({
@@ -514,6 +669,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   rule: RuleBlock,
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
+  file: FileUploadBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -534,6 +690,7 @@ export type DefaultRendererProps = {
   rule: BlockSettings<typeof RuleBlock>;
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
+  file: BlockSettings<typeof FileUploadBlock>;
 };
 
 interface BlockRendererContextValue {

@@ -56,11 +56,13 @@ export const Image = StyledBaseImage.styleable<{
     }
 
     if (parsedSource.isInvalid || hasErrored) {
-      return fallback ?? <DefaultImageFallback />;
+      return fallback === undefined ? <DefaultImageFallback /> : fallback;
     }
 
     return (
-      <ErrorBoundary fallback={fallback ?? <DefaultImageFallback />}>
+      <ErrorBoundary
+        fallback={fallback === undefined ? <DefaultImageFallback /> : fallback}
+      >
         <StyledBaseImage ref={ref} {...props} onError={handleError} />
       </ErrorBoundary>
     );
@@ -90,6 +92,14 @@ function isValidImageSource(source: any) {
       (uri.startsWith('file:') || uri.startsWith('blob:'))
     ) {
       // permit file URIs
+      return true;
+    }
+
+    if (
+      typeof uri === 'string' &&
+      (uri.startsWith('./') || uri.startsWith('/'))
+    ) {
+      // permit relative paths (for web public assets)
       return true;
     }
 

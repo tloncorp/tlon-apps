@@ -183,9 +183,13 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
       // immediately subscribing on a path that generates a fact significantly reduces connection time
-      store.syncGroupPreviews(['~tommur-dostyn/tlon-studio']);
+      store.syncGroupPreviews([GETTING_STARTED_GROUP_ID]);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
+        // should be redundant, but make sure the node peers with the inviter's contact profile
+        if (lureMeta?.inviterUserId) {
+          api.syncUserProfiles([lureMeta.inviterUserId]);
+        }
         return NodeBootPhase.SCAFFOLDING_WAYFINDING;
       }
 
@@ -333,6 +337,12 @@ export function useBootSequence() {
         });
         store.joinGroup(invitedGroup);
       }
+
+      // avoid race condition where remote contacts haven't yet arrived
+      // on the node when we start syncing
+      setTimeout(() => {
+        store.syncContacts();
+      }, 3000);
 
       // give the joins some time to process, then resync & pin
       setTimeout(() => {

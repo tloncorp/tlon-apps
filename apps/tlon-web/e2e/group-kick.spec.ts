@@ -64,7 +64,7 @@ test('should allow kicking users from groups', async ({
 
   // The group should not be visible in ~ten's chat list
   await expect(
-    tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    tenPage.getByTestId('GroupListItem-Untitled group-unpinned')
   ).not.toBeVisible({ timeout: 5000 });
 
   // Verify that unlike ban, ~ten doesn't appear in a "banned" section

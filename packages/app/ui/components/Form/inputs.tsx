@@ -30,6 +30,7 @@ import {
   ViewStyle,
   XStack,
   YStack,
+  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
@@ -189,35 +190,32 @@ const InnerButton = ({
   onPress: onPress,
   ...props
 }: { label: string; onPress?: () => void } & ComponentProps<typeof View>) => {
+  const fieldContext = useContext(FieldContext);
+  const accentBackgrounds: Record<string, string> = {
+    negative: '$negativeBackground',
+    positive: '$positiveBackground',
+  };
+  const backgroundColor =
+    accentBackgrounds[fieldContext.accent ?? ''] ?? '$secondaryBackground';
+
   return (
     <View padding="$l" flexShrink={0} paddingRight={0} {...props}>
-      <TextInputButton onPress={onPress}>
-        <TextInputButtonText>{buttonText}</TextInputButtonText>
-      </TextInputButton>
+      <Pressable
+        onPress={onPress}
+        height="$3xl"
+        paddingHorizontal="$l"
+        borderRadius="$m"
+        backgroundColor={backgroundColor}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Text size="$label/m" color="$secondaryText">
+          {buttonText}
+        </Text>
+      </Pressable>
     </View>
   );
 };
-
-const TextInputButton = styled(Button, {
-  context: FieldContext,
-  backgroundColor: '$secondaryBackground',
-  borderRadius: '$m',
-  height: '$3xl',
-  paddingHorizontal: '$l',
-  variants: {
-    accent: {
-      negative: {
-        backgroundColor: '$negativeBackground',
-        borderColor: '$negativeBorder',
-      },
-      positive: {
-        backgroundColor: '$positiveBackground',
-        color: '$positiveActionText',
-      },
-    },
-    backgroundType: getBackgroundTypeVariantStyle,
-  } as const,
-});
 
 export const ImageInput = XStack.styleable<{
   buttonLabel?: string;
@@ -310,10 +308,16 @@ export const ImageInput = XStack.styleable<{
         >
           <Icon type="Camera" color={canUpload ? '$tertiaryText' : '$border'} />
           {placeholderUri ? (
-            <ImageInputPreviewImage source={{ uri: placeholderUri }} />
+            <ImageInputPreviewImage
+              source={{ uri: placeholderUri }}
+              fallback={null}
+            />
           ) : null}
           {assetUri ? (
-            <ImageInputPreviewImage source={{ uri: assetUri }} />
+            <ImageInputPreviewImage
+              source={{ uri: assetUri }}
+              fallback={null}
+            />
           ) : null}
           {attachment?.uploadState?.status === 'uploading' ? (
             <ImageInputPreviewLoadingFrame>
@@ -420,7 +424,7 @@ export const ToggleGroupInput = ({
       : ['$secondaryBackground', '$background'];
 
   return (
-    <InputFrame>
+    <InputFrame paddingHorizontal={0}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -430,9 +434,12 @@ export const ToggleGroupInput = ({
       >
         <XStack minWidth="100%">
           {options.map((tab, index) => (
-            <Button
+            <Button.Frame
               flex={1}
               minWidth={75}
+              intent="secondary"
+              size="medium"
+              fill="outline"
               key={tab.value}
               onPress={() => onChange(tab.value)}
               padding="$xl"
@@ -444,21 +451,17 @@ export const ToggleGroupInput = ({
               }
             >
               {typeof tab.label === 'string' ? (
-                <Button.Text size="$l">{tab.label}</Button.Text>
+                <Button.Text textAlign="center">{tab.label}</Button.Text>
               ) : (
                 tab.label
               )}
-            </Button>
+            </Button.Frame>
           ))}
         </XStack>
       </ScrollView>
     </InputFrame>
   );
 };
-
-const TextInputButtonText = styled(Text, {
-  size: '$label/m',
-});
 
 export const TextInput = withStaticProperties(TextInputComponent, {
   InnerButton,
@@ -753,3 +756,88 @@ export function CheckboxInputRow<T>({
 export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
+
+const presets = [
+  '$red',
+  '$orange',
+  '$yellow',
+  '$green',
+  '$blue',
+  '$indigo',
+  '$gray900',
+  '$gray500',
+  '$gray100',
+] as const;
+
+const ColorSwatchFrame = styled(Pressable, {
+  width: 56,
+  height: 56,
+  borderRadius: '$l',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderWidth: '$2xs',
+  borderColor: 'transparent',
+  variants: {
+    selected: {
+      true: {
+        borderColor: '$primaryText',
+      },
+    },
+  } as const,
+});
+
+const ColorSwatchInner = styled(View, {
+  width: '$4xl',
+  height: '$4xl',
+  borderRadius: '$m',
+  borderWidth: 1,
+  borderColor: '$shadow',
+});
+
+export const ColorInput = ({
+  value,
+  onChange,
+}: {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+}) => {
+  const handleSelect = useCallback(
+    (color: string) => {
+      if (value === color) {
+        onChange?.(null);
+      } else {
+        onChange?.(color);
+      }
+    },
+    [onChange, value]
+  );
+
+  const handleClear = useCallback(() => {
+    onChange?.(null);
+  }, [onChange]);
+
+  return (
+    <ScrollView
+      contentContainerStyle={{
+        alignItems: 'center',
+      }}
+      horizontal
+    >
+      {presets.map((color) => {
+        const colorValue = getTokenValue(color, 'color');
+        return (
+          <ColorSwatchFrame
+            key={colorValue}
+            selected={value === colorValue}
+            onPress={() => handleSelect(colorValue)}
+          >
+            <ColorSwatchInner backgroundColor={colorValue} />
+          </ColorSwatchFrame>
+        );
+      })}
+      {value && (
+        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
+      )}
+    </ScrollView>
+  );
+};

@@ -2,7 +2,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +18,10 @@ import {
   useInviteSystemContacts,
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
+import {
+  sortSystemContactsIntoSections,
+  useSystemContactSearch,
+} from '../../ui/hooks/systemContactSorters';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InviteSystemContacts'>;
 
@@ -28,30 +31,15 @@ export function InviteSystemContactsScreen(props: Props) {
   const [selectedRecipients, setSelectedRecipients] = useState<
     db.SystemContact[]
   >([]);
-  const [searchResults, setSearchResults] = useState<db.SystemContact[]>([]);
   const insets = useSafeAreaInsets();
 
-  const searchService = useMemo(() => {
-    return new ContactSearchService(systemContacts ?? []);
-  }, [systemContacts]);
-
-  const handleSearch = useCallback(
-    (query: string) => {
-      const results = searchService.search(query);
-      setSearchResults(results);
-    },
-    [searchService]
+  const { displayContacts, handleSearch } = useSystemContactSearch(
+    systemContacts ?? []
   );
 
   const alphabeticalContactSections = useMemo(
-    () =>
-      sortContactsIntoSections(
-        searchResults.length ? searchResults : systemContacts ?? []
-      ) as {
-        label: string;
-        data: db.SystemContact[];
-      }[],
-    [searchResults, systemContacts]
+    () => sortSystemContactsIntoSections(displayContacts),
+    [displayContacts]
   );
 
   const handleItemPress = useCallback(
@@ -264,87 +252,3 @@ export function SystemIconRow({
   );
 }
 
-/*
-Helper logic — lot of duplication with the db.Contact book, but for the time
-being necessary given model differences.
-*/
-export function sortContactsIntoSections(contacts: db.SystemContact[]) {
-  // Create a map to hold contacts grouped by first letter
-  const sections: { [key: string]: db.SystemContact[] } = {};
-
-  // Sort contacts into appropriate sections
-  contacts.forEach((contact) => {
-    // Determine display name and first letter for sorting
-    const firstName = contact.firstName || '';
-    const lastName = contact.lastName || '';
-    const displayName = firstName || lastName;
-
-    // If no name is available, use '#' section
-    if (!displayName) {
-      sections['#'] = sections['#'] || [];
-      sections['#'].push(contact);
-      return;
-    }
-
-    // Get first letter and convert to uppercase
-    const firstLetter = displayName.charAt(0).toUpperCase();
-
-    // Check if the first letter is alphabetical, otherwise use '#'
-    const sectionKey = /[A-Z]/.test(firstLetter) ? firstLetter : '#';
-
-    // Initialize the section if it doesn't exist yet
-    sections[sectionKey] = sections[sectionKey] || [];
-
-    // Add the contact to the appropriate section
-    sections[sectionKey].push(contact);
-  });
-
-  // Convert the sections map to an array of section objects
-  const sectionArray = Object.keys(sections)
-    .sort() // Sort section keys alphabetically
-    .map((key) => ({
-      label: key,
-      data: sections[key].sort((a, b) => {
-        // Sort contacts within each section alphabetically
-        const nameA = (a.firstName || '') + (a.lastName || '');
-        const nameB = (b.firstName || '') + (b.lastName || '');
-        return nameA.localeCompare(nameB);
-      }),
-    }));
-
-  // Move '#' section to the end if it exists
-  if (sectionArray.some((section) => section.label === '#')) {
-    const hashSection = sectionArray.find((section) => section.label === '#');
-    const filteredSections = sectionArray.filter(
-      (section) => section.label !== '#'
-    );
-    return [...filteredSections, hashSection];
-  }
-
-  return sectionArray;
-}
-
-export class ContactSearchService {
-  private fuse: Fuse<db.SystemContact>;
-
-  constructor(contacts: db.SystemContact[]) {
-    // Configure Fuse with appropriate options
-    const options = {
-      keys: ['firstName', 'lastName', 'phoneNumber', 'email'],
-      threshold: 0.4, // Lower threshold means more strict matching
-      ignoreLocation: true,
-      shouldSort: true,
-    };
-
-    this.fuse = new Fuse(contacts, options);
-  }
-
-  // Search contacts with a query string
-  search(query: string): db.SystemContact[] {
-    if (!query.trim()) {
-      return [];
-    }
-
-    return this.fuse.search(query).map((result) => result.item);
-  }
-}

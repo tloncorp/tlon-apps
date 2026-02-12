@@ -10,7 +10,7 @@ import { trimAndroid, trimIos, trimWeb } from './trimSettings';
 trimIos['$emoji/l'].marginBottom = 0;
 trimAndroid['$emoji/l'].marginBottom = -2;
 
-const trimSettings =
+export const trimSettings =
   Platform.OS === 'web'
     ? trimWeb
     : Platform.OS === 'ios'

@@ -4,25 +4,18 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isWeb } from 'tamagui';
+import { getTokenValue } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupContext } from '../../hooks/useGroupContext';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
-  ActionSheet,
   ChatOptionsProvider,
-  ConfirmDialog,
-  ContactListItem,
   ForwardGroupSheetProvider,
-  Icon,
   InviteUsersSheet,
   ListItem,
   PaddedBlock,
-  Pressable,
   ProfileButton,
   ScreenHeader,
   ScrollView,
@@ -39,10 +32,15 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
-  useNotificationLevelOptions,
   useToast,
 } from '../../ui';
-import ConnectionStatus from '../../ui/components/ConnectionStatus';
+import {
+  ChannelQuickActions,
+  LeaveActionsSection,
+  MembersList,
+  SettingsSection,
+} from './chatDetails';
+import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
@@ -95,80 +93,38 @@ export function ChatDetailsScreen(props: Props) {
   );
 }
 
-export function ChatDetailsScreenView() {
+function ChatDetailsScreenView() {
   const {
-    params: { chatType },
+    params: { chatType, chatId },
   } = useRoute<RootStackRouteProp<'ChatDetails'>>();
   const { channel, group } = useChatOptions();
   const {
     onPressGroupMeta: navigateToGroupMeta,
-    onPressChannelMeta: navigateToChannelMeta,
+    onPressEditChannelMeta,
+    onPressEditChannelPrivacy,
   } = useChatSettingsNavigation();
-  const { navigateToGroup, navigateBack } = useRootNavigation();
+  const { navigateToGroup, navigateToChannel, navigateBack } =
+    useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
-
-  const handlePressEdit = useCallback(() => {
-    if (chatType === 'group' && group) {
-      navigateToGroupMeta(group.id);
-    } else if (chatType === 'channel' && channel) {
-      navigateToChannelMeta(channel.id);
-    }
-  }, [channel, chatType, group, navigateToChannelMeta, navigateToGroupMeta]);
-
-  const handlePressBack = useCallback(() => {
-    if (chatType === 'group' && group && !isWindowNarrow) {
-      navigateToGroup(group.id);
-    } else {
-      navigateBack();
-    }
-  }, [chatType, group, navigateToGroup, navigateBack, isWindowNarrow]);
-
-  return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backAction={handlePressBack}
-        title={chatType === 'group' ? 'Group info' : 'Channel info'}
-        rightControls={
-          currentUserIsAdmin ? (
-            <ScreenHeader.TextButton onPress={handlePressEdit}>
-              Edit
-            </ScreenHeader.TextButton>
-          ) : null
-        }
-      />
-      {chatType === 'channel' && channel ? (
-        <ChatDetailsScreenContent chatType="channel" channel={channel} />
-      ) : chatType === 'group' && group ? (
-        <ChatDetailsScreenContent
-          chatType="group"
-          group={group}
-          channel={channel}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-const maxMembersToDisplay = 5;
-
-function ChatDetailsScreenContent({
-  chatType,
-  channel,
-  group,
-}:
-  | { chatType: 'group'; channel?: db.Channel | null; group: db.Group }
-  | { chatType: 'channel'; channel: db.Channel; group?: db.Group | null }) {
-  const currentUser = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
+  const hostStatus = useShipConnectionStatus(group?.hostUserId || '', {
+    enabled: !!group,
+  });
+  const actionsEnabled =
+    currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
   const canInviteToGroup =
-    (group && currentUserIsAdmin) || group?.privacy === 'public';
+    ((group && currentUserIsAdmin) || group?.privacy === 'public') &&
+    actionsEnabled;
+
   const groupTitle = useGroupTitle(group) ?? 'group';
+  const title = useChatTitle(channel, group);
+  const insets = useSafeAreaInsets();
+
   const members = chatType === 'group' ? group?.members : channel?.members;
   const memberCount = members?.length ?? 0;
-  const title = useChatTitle(channel, group);
+
   const subtitle = useMemo(() => {
     if (chatType === 'group') {
       return [
@@ -179,6 +135,10 @@ function ChatDetailsScreenContent({
       ]
         .filter((n) => !!n)
         .join(' ');
+    }
+
+    if (!channel) {
+      return '';
     }
 
     switch (channel.type) {
@@ -197,391 +157,157 @@ function ChatDetailsScreenContent({
     }
   }, [channel, chatType, group, groupTitle, memberCount]);
 
-  const insets = useSafeAreaInsets();
-
-  return (
-    <ScrollView
-      flex={1}
-      contentContainerStyle={{
-        padding: '$l',
-        paddingTop: '$xl',
-        paddingBottom: insets.bottom,
-        gap: '$3xl',
-        flexDirection: 'column',
-      }}
-    >
-      <ListItem alignItems="center" gap="$xl">
-        {chatType === 'group' ? (
-          <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
-        ) : (
-          <ListItem.ChannelIcon model={channel} size="$5xl" />
-        )}
-        <ListItem.MainContent>
-          <ListItem.Title fontSize={24} lineHeight={24}>
-            {title}
-          </ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
-        {chatType === 'group' && group && (
-          <ListItem.EndContent>
-            <ConnectionStatus
-              contactId={group.hostUserId}
-              type="indicator-with-text"
-            />
-          </ListItem.EndContent>
-        )}
-      </ListItem>
-
-      <YStack gap="$l">
-        {chatType === 'group' && (
-          <GroupQuickActions group={group} canInvite={canInviteToGroup} />
-        )}
-        {chatType === 'group' && <GroupSettings group={group} />}
-
-        {members?.length ? (
-          <ChatMembersList
-            chatType={chatType}
-            members={members}
-            canInvite={canInviteToGroup}
-            canManage={currentUserIsAdmin}
-          />
-        ) : null}
-
-        {group ? <GroupLeaveActions group={group} /> : null}
-      </YStack>
-    </ScrollView>
-  );
-}
-
-function GroupLeaveActions({ group }: { group: db.Group }) {
-  const { onLeaveGroup } = useChatSettingsNavigation();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const canLeave = !group.currentUserIsHost;
-  const canDelete = group.currentUserIsHost;
-  const groupTitle = useGroupTitle(group) ?? 'group';
-
-  const { deleteGroup } = useGroupContext({
-    groupId: group.id,
-  });
-
-  const { leaveGroup } = useChatOptions();
-
-  const handleLeaveGroupWithConfirm = useCallback(async () => {
-    const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
-
-    if (isWeb) {
-      const confirmed = window.confirm(`Leave ${groupTitle}?\n\n${message}`);
-      if (confirmed) {
-        await leaveGroup();
-      }
-    } else {
-      Alert.alert(`Leave ${groupTitle}?`, message, [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Leave Group',
-          style: 'destructive',
-          onPress: leaveGroup,
-        },
-      ]);
+  const handlePressEdit = useCallback(() => {
+    if (chatType === 'group' && group) {
+      navigateToGroupMeta(group.id);
+    } else if (chatType === 'channel' && channel && channel.groupId) {
+      onPressEditChannelMeta(channel.id, channel.groupId, true);
     }
-  }, [groupTitle, leaveGroup]);
+  }, [channel, chatType, group, onPressEditChannelMeta, navigateToGroupMeta]);
 
-  const leaveActions = createActionGroup(
-    'negative',
-    canLeave && {
-      title: 'Leave group',
-      action: handleLeaveGroupWithConfirm,
+  const handleEditChannelPrivacy = useCallback(
+    (channelId: string, groupId: string) => {
+      onPressEditChannelPrivacy(channelId, groupId, true);
     },
-    canDelete && {
-      title: 'Delete group',
-      action: () => setShowDeleteDialog(true),
-    }
+    [onPressEditChannelPrivacy]
   );
 
-  const handleDeleteGroup = useCallback(() => {
-    deleteGroup();
-    onLeaveGroup();
-  }, [deleteGroup, onLeaveGroup]);
-
-  return (
-    <>
-      <ActionSheet.ActionGroup
-        padding={0}
-        contentProps={{ borderRadius: '$2xl' }}
-        accent="negative"
-      >
-        {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action
-            key={i}
-            action={action}
-            testID={`GroupLeaveAction-${action.title}`}
-          />
-        ))}
-      </ActionSheet.ActionGroup>
-      <ConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={`Delete ${groupTitle ?? 'This group'}?`}
-        description="This action cannot be undone."
-        confirmText="Delete group"
-        cancelText="Cancel"
-        onConfirm={handleDeleteGroup}
-        destructive
-      />
-    </>
-  );
-}
-
-function GroupSettings({ group }: { group: db.Group }) {
-  const channelCount = group.channels?.length ?? 0;
-
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = useIsAdmin(group.id, currentUserId);
-
-  const { groupRoles } = useGroupContext({
-    groupId: group.id,
-  });
-
-  const {
-    onPressGroupPrivacy,
-    onPressManageChannels,
-    onPressChatVolume,
-    onPressRoles,
-  } = useChatSettingsNavigation();
-
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
-
-  const handlePressGroupPrivacy = useCallback(() => {
-    onPressGroupPrivacy?.(group.id);
-  }, [group.id, onPressGroupPrivacy]);
-
-  const handlePressManageChannels = useCallback(() => {
-    onPressManageChannels?.(group.id);
-  }, [group.id, onPressManageChannels]);
-
-  const handlePressNotificationSettings = useCallback(() => {
-    onPressChatVolume({ type: 'group', id: group.id });
-  }, [group.id, onPressChatVolume]);
-
-  const handlePressRoles = useCallback(() => {
-    onPressRoles?.(group.id);
-  }, [group.id, onPressRoles]);
-
-  return (
-    <ActionSheet.ActionGroup
-      padding={0}
-      contentProps={{
-        backgroundColor: '$background',
-        borderRadius: '$2xl',
-        borderWidth: 0,
-      }}
-    >
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressGroupPrivacy}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupPrivacy"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {capitalize(group?.privacy ?? '')}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressRoles}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupRoles"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {groupRoles?.length ?? 0}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      {currentUserIsAdmin ? (
-        <Pressable onPress={handlePressManageChannels}>
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupChannels"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              alignItems="center"
-              gap="$xl"
-            >
-              <ListItem.Title color="$tertiaryText">
-                {channelCount}
-              </ListItem.Title>
-              <ActionSheet.ActionIcon
-                type="ChevronRight"
-                color="$tertiaryText"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-        </Pressable>
-      ) : null}
-      <Pressable onPress={handlePressNotificationSettings}>
-        <ListItem
-          paddingHorizontal="$2xl"
-          backgroundColor={'$background'}
-          borderRadius="$2xl"
-          alignItems="center"
-          testID="GroupNotifications"
-        >
-          <ActionSheet.ActionContent>
-            <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
-          </ActionSheet.ActionContent>
-          <ListItem.EndContent
-            flexDirection="row"
-            gap="$xl"
-            alignItems="center"
-            justifyContent="flex-end"
-            flex={1}
-          >
-            <ListItem.Title color="$tertiaryText">
-              {
-                notificationOptions.find(
-                  (o) => o.value === group?.volumeSettings?.level
-                )?.title
-              }
-            </ListItem.Title>
-            <ActionSheet.ActionIcon type="ChevronRight" color="$tertiaryText" />
-          </ListItem.EndContent>
-        </ListItem>
-      </Pressable>
-    </ActionSheet.ActionGroup>
-  );
-}
-
-function ChatMembersList({
-  chatType,
-  members,
-  canInvite,
-  canManage,
-}: {
-  chatType: 'group' | 'channel';
-  members?: db.ChatMember[] | null;
-  canInvite: boolean;
-  canManage: boolean;
-}) {
-  const joinedMembers = members?.filter((m) => m.status === 'joined');
-  const memberCount = joinedMembers?.length ?? 0;
-  const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
-    useChatOptions();
-
-  const handlePressSeeAllMembers = useCallback(() => {
-    if (chatType === 'group') {
-      onPressGroupMembers();
+  const handleGoBack = useCallback(() => {
+    if (isWindowNarrow) {
+      navigateBack();
+    } else if (chatType === 'group') {
+      navigateToGroup(chatId);
+    } else if (chatType === 'channel' && channel) {
+      navigateToChannel(channel);
     } else {
-      onPressChannelMembers();
+      navigateBack();
     }
-  }, [chatType, onPressChannelMembers, onPressGroupMembers]);
+  }, [
+    chatType,
+    chatId,
+    channel,
+    navigateToGroup,
+    navigateToChannel,
+    navigateBack,
+    isWindowNarrow,
+  ]);
+
+  const getTitle = () => {
+    switch (chatType) {
+      case 'group':
+        return 'Group info & settings';
+      case 'channel':
+        return 'Channel info';
+      default:
+        return 'Info';
+    }
+  };
+
+  const hasContent =
+    (chatType === 'channel' && channel) || (chatType === 'group' && group);
 
   return (
-    <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-      <TlonText.Text size="$label/xl" color="$tertiaryText">
-        {memberCount} {pluralize(memberCount, 'Member')}
-      </TlonText.Text>
-      <YStack>
-        {canInvite ? (
-          <Pressable onPress={onPressInvite}>
-            <XStack gap="$l" alignItems="center" height="$4xl">
-              <View
-                width="$3xl"
-                height="$3xl"
-                backgroundColor={'$blueSoft'}
-                borderRadius="$xs"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Icon
-                  type="Add"
-                  color="$positiveActionText"
-                  customSize={[20, 20]}
-                />
-              </View>
-              <TlonText.Text size="$label/l" color="$positiveActionText">
-                Invite People
-              </TlonText.Text>
-            </XStack>
-          </Pressable>
-        ) : null}
-        {joinedMembers
-          ?.slice(0, maxMembersToDisplay)
-          .map((member: db.ChatMember) => {
-            return (
-              <ContactListItem
-                size="$3xl"
-                height="auto"
-                padding={0}
-                showNickname
-                key={member.contactId}
-                contactId={member.contactId}
+    <View flex={1} backgroundColor="$secondaryBackground">
+      <ScreenHeader
+        testID="ChatDetailsHeader"
+        backgroundColor="$secondaryBackground"
+        backAction={handleGoBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        title={getTitle()}
+        rightControls={
+          currentUserIsAdmin ? (
+            <ScreenHeader.IconButton
+              aria-label="Edit"
+              onPress={!actionsEnabled ? undefined : handlePressEdit}
+              disabled={!actionsEnabled}
+              type="Draw"
+              testID="DetailsEditButton"
+            />
+          ) : null
+        }
+      />
+      {hasContent && (
+        <ScrollView
+          flex={1}
+          contentContainerStyle={{
+            width: '100%',
+            maxWidth: 600,
+            marginHorizontal: 'auto',
+            gap: '$l',
+            paddingBottom: insets.bottom + getTokenValue('$3xl' as any),
+          }}
+        >
+          <XStack
+            alignItems="flex-start"
+            gap="$xl"
+            paddingHorizontal="$xl"
+            marginVertical="$l"
+          >
+            {chatType === 'group' && group ? (
+              <ListItem.GroupIcon
+                testID="GroupIcon"
+                model={group}
+                size="$5xl"
               />
-            );
-          })}
-        {(memberCount > maxMembersToDisplay || canInvite) && (
-          <Pressable onPress={handlePressSeeAllMembers}>
-            <XStack
-              height="$4xl"
-              justifyContent="space-between"
-              gap="$l"
-              alignItems="center"
-              $group-press={{ backgroundColor: '$secondaryBackground' }}
-              testID="GroupMembers"
-            >
-              <TlonText.Text size="$label/l">
-                {canManage ? 'Manage members' : 'See all '}
+            ) : chatType === 'channel' && channel && group ? (
+              <ListItem.GroupIcon model={group} size="$5xl" />
+            ) : chatType === 'channel' && channel ? (
+              <ListItem.ChannelIcon model={channel} size="$5xl" />
+            ) : null}
+            <YStack gap="$l" flex={1}>
+              <TlonText.Text>{title}</TlonText.Text>
+              <TlonText.Text size={'$label/m'} color={'$secondaryText'}>
+                {subtitle}
               </TlonText.Text>
-              <Icon type="ChevronRight" color="$tertiaryText" />
-            </XStack>
-          </Pressable>
-        )}
-      </YStack>
-    </PaddedBlock>
+            </YStack>
+          </XStack>
+
+          {chatType === 'group' && group && (
+            <>
+              <GroupQuickActions group={group} canInvite={canInviteToGroup} />
+              <GroupDescription group={group} />
+              <SettingsSection
+                entityType="group"
+                group={group}
+                actionsEnabled={actionsEnabled}
+              />
+            </>
+          )}
+
+          {chatType === 'channel' && channel && channel.groupId && (
+            <>
+              <ChannelQuickActions
+                channel={channel}
+                canInvite={canInviteToGroup}
+              />
+              <SettingsSection
+                entityType="channel"
+                channel={channel}
+                group={group}
+                actionsEnabled={actionsEnabled}
+                onEditChannelPrivacy={handleEditChannelPrivacy}
+              />
+            </>
+          )}
+
+          {members?.length ? (
+            <MembersList
+              entityType={chatType}
+              members={members}
+              canInvite={canInviteToGroup}
+              canManage={currentUserIsAdmin && actionsEnabled}
+            />
+          ) : null}
+
+          {chatType === 'group' && group ? (
+            <LeaveActionsSection entityType="group" group={group} />
+          ) : null}
+          {chatType === 'channel' && channel && channel.groupId && (
+            <LeaveActionsSection entityType="channel" channel={channel} />
+          )}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -592,9 +318,8 @@ function GroupQuickActions({
   group: db.Group;
   canInvite?: boolean;
 }) {
-  const { markGroupRead, togglePinned } = useChatOptions();
+  const { markGroupRead, togglePinned, onPressInvite } = useChatOptions();
   const forwardGroupSheet = useForwardGroupSheet();
-  const { onPressInvite } = useChatOptions();
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
   const toast = useToast();
@@ -658,6 +383,7 @@ function GroupQuickActions({
       horizontal
       showsHorizontalScrollIndicator={false}
       width={'100%'}
+      paddingLeft={'$l'}
     >
       {heroActions.actions.map((action, i) => (
         <ProfileButton
@@ -665,6 +391,7 @@ function GroupQuickActions({
           title={action.title}
           onPress={action.action}
           disabled={action.disabled}
+          testID={`GroupQuickAction-${action.title}`}
           hero
         />
       ))}
@@ -674,9 +401,28 @@ function GroupQuickActions({
           title={action.title}
           onPress={action.action}
           disabled={action.disabled}
-          secondary
+          testID={`GroupQuickAction-${action.title}`}
         />
       ))}
     </ScrollView>
   );
 }
+
+const GroupDescription = ({ group }: { group: db.Group }) => {
+  if (!group.description) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$xl">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
+          Description
+        </TlonText.Text>
+        <TlonText.Text size="$body" color="$primaryText">
+          {group.description}
+        </TlonText.Text>
+      </PaddedBlock>
+    </View>
+  );
+};

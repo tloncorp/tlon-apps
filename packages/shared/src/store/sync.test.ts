@@ -329,7 +329,7 @@ test('syncs thread posts', async () => {
   await db.insertChannels([{ id: channelId, type: 'chat' }]);
   await syncThreadPosts({
     postId: channelPostWithRepliesData.seal.id,
-    authorId: channelPostWithRepliesData.essay.author,
+    authorId: channelPostWithRepliesData.essay.author as string,
     channelId,
   });
   const posts = await db.getPosts();

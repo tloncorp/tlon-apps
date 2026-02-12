@@ -1,3 +1,6 @@
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import Sortable, { SortableGridRenderItem } from 'react-native-sortables';
@@ -17,26 +20,28 @@ import {
 export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
-  goBack,
-  goToEditChannel,
+  onGoBack,
+  goToChannelDetails,
   createNavSection,
   deleteNavSection,
   updateNavSection,
   updateGroupNavigation,
+  createdRoleId,
 }: ManageChannelsScreenViewProps) {
   return (
     <ManageChannelsProvider
-      goBack={goBack}
+      onGoBack={onGoBack}
       group={group}
       createNavSection={createNavSection}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       updateNavSection={updateNavSection}
       deleteNavSection={deleteNavSection}
       updateGroupNavigation={updateGroupNavigation}
+      createdRoleId={createdRoleId}
     >
       <ManageChannelsContent
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-        goToEditChannel={goToEditChannel}
+        goToChannelDetails={goToChannelDetails}
         updateGroupNavigation={updateGroupNavigation}
       />
     </ManageChannelsProvider>
@@ -45,11 +50,11 @@ export function ManageChannelsScreenView({
 
 function ManageChannelsContent({
   groupNavSectionsWithChannels,
-  goToEditChannel,
+  goToChannelDetails,
   updateGroupNavigation,
 }: {
   groupNavSectionsWithChannels: ManageChannelsScreenViewProps['groupNavSectionsWithChannels'];
-  goToEditChannel: (channelId: string) => void;
+  goToChannelDetails: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
   const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
@@ -88,7 +93,7 @@ function ManageChannelsContent({
           <ChannelItem
             channel={item.channel}
             index={item.channelIndex}
-            onEdit={() => goToEditChannel(item.channel.id)}
+            onEdit={() => goToChannelDetails(item.channel.id)}
             isEditMode={isEditMode}
             dragHandle={
               <Sortable.Handle>
@@ -101,7 +106,7 @@ function ManageChannelsContent({
 
       return null;
     },
-    [setSectionMenuSection, goToEditChannel, isEditMode]
+    [setSectionMenuSection, goToChannelDetails, isEditMode]
   );
 
   return (

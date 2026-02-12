@@ -1,5 +1,4 @@
 import * as domain from '@tloncorp/shared/domain';
-import { Story } from '@tloncorp/shared/urbit';
 import { Icon } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
@@ -25,6 +24,7 @@ export function ColorInput({
         attachments: [],
         channelType: draftInputContext.channel.type,
         replyToPostId: null,
+        isEdit: false,
       };
       await draftInputContext.sendPostFromDraft(draft);
     } catch (err) {
@@ -78,12 +78,4 @@ export function ColorInput({
       </XStack>
     </SafeAreaView>
   );
-}
-
-function colorPost(color: string): Story {
-  return [
-    {
-      inline: [color],
-    },
-  ];
 }

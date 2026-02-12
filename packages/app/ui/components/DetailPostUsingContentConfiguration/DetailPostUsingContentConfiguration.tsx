@@ -87,6 +87,7 @@ export function DetailPostView({
           channel={channel}
           group={channel.group}
           title={title}
+          description={''}
           goBack={navigateBack}
           showSearchButton={false}
           // showSpinner={isLoadingPosts}

@@ -1,3 +1,5 @@
+import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
@@ -5,8 +7,7 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
-import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
-import { runMigrations, setupDb } from './nativeDb';
+import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
@@ -47,10 +48,19 @@ async function performSync() {
   });
 
   try {
+    // use the background task as an opportunity to refresh hosting auth
+    const authPromise = refreshHostingAuth()
+      .then(() => logger.trackEvent('Background task: refreshed hosting auth'))
+      .catch((err) =>
+        logger.trackError('Background task: failed to refresh hosting auth', {
+          error: err,
+        })
+      );
     const changesStart = Date.now();
     await syncSince({ callCtx: { cause: 'background-sync' } });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
+    await authPromise;
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err instanceof Error ? err : undefined,

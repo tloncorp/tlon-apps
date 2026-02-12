@@ -53,3 +53,62 @@ export interface PostDataFinalizedEdit extends _PostDataFinalizedBase {
  * Nothing left to do but send it.
  */
 export type PostDataFinalized = PostDataFinalizedParent | PostDataFinalizedEdit;
+
+export namespace PostDataDraft {
+  /**
+   * Make a PostDataDraft safe for JSON serialization.
+   * Converts web File objects in attachments to blob URLs.
+   */
+  export function serialize(draft: PostDataDraft): PostDataDraft {
+    return {
+      ...draft,
+      attachments: draft.attachments.map(Attachment.makeSerializable),
+    };
+  }
+
+  /**
+   * Type guard to validate that an unknown value is a valid PostDataDraft.
+   * Used when deserializing drafts from the database.
+   */
+  export function isValid(value: unknown): value is PostDataDraft {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const obj = value as Record<string, unknown>;
+    const hasRequiredFields =
+      typeof obj.channelId === 'string' &&
+      Array.isArray(obj.content) &&
+      Array.isArray(obj.attachments) &&
+      typeof obj.channelType === 'string';
+
+    if (!hasRequiredFields) {
+      return false;
+    }
+
+    // Validate replyToPostId is string or null
+    if (obj.replyToPostId !== null && typeof obj.replyToPostId !== 'string') {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Revoke any blob URLs created during serialization.
+   * Call this when the draft is no longer needed (e.g., after successful send).
+   */
+  export function revokeBlobUrls(draft: PostDataDraft): void {
+    for (const att of draft.attachments) {
+      if (att.type === 'file' && typeof att.localFile === 'string') {
+        // Only revoke blob: URLs, not file:// or other URLs
+        if (att.localFile.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(att.localFile);
+          } catch {
+            // Ignore errors - URL may have already been revoked
+          }
+        }
+      }
+    }
+  }
+}

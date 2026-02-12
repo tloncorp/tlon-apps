@@ -130,6 +130,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
+        backgroundColor="$secondaryBackground"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={
@@ -190,14 +191,13 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 </XStack>
               </YStack>
               <Button
-                secondary
-                pressStyle={{ backgroundColor: '$secondaryBorder' }}
-                backgroundColor="unset"
+                preset="secondaryOutline"
                 marginBottom="$l"
+                width="100%"
+                label="No invite? Join waitlist"
+                centered
                 onPress={() => navigation.navigate('JoinWaitList', {})}
-              >
-                <Button.Text>No invite? Join waitlist</Button.Text>
-              </Button>
+              />
             </YStack>
           </YStack>
         </Pressable>

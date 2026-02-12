@@ -3,9 +3,15 @@ import React, { useEffect } from 'react';
 import { useValue } from 'react-cosmos/client';
 
 import {
-  InviteContactsContent,
   SplashSequence,
+  WelcomePane,
+  GroupsPane,
+  ChannelsPane,
+  PrivacyPane,
+  InvitePane,
+  InviteContactsContent,
 } from '../ui/components/Wayfinding/SplashSequence';
+import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialSystemContacts } from './fakeData';
 
@@ -54,7 +60,89 @@ function InviteContactsFixture() {
   );
 }
 
+const mockDeviceSize = {
+  isTiny: false,
+  isSmall: false,
+  height: 800,
+};
+
+function WelcomePaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('Welcome pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <WelcomePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
+function GroupsPaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('Groups pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <GroupsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
+function ChannelsPaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('Channels pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <ChannelsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
+function PrivacyPaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('Privacy pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <PrivacyPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
+function InvitePaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('Invite pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <InvitePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
+function SplashModalFixture() {
+  const [open, setOpen] = React.useState(true);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <SplashModal open={open} setOpen={setOpen} />
+    </FixtureWrapper>
+  );
+}
+
 export default {
-  'Welcome Sequence': <SplashSequenceFixture />,
+  'Full Sequence': <SplashSequenceFixture />,
   'Invite Contacts': <InviteContactsFixture />,
+  'Welcome Pane': <WelcomePaneFixture />,
+  'Groups Pane': <GroupsPaneFixture />,
+  'Channels Pane': <ChannelsPaneFixture />,
+  'Privacy Pane': <PrivacyPaneFixture />,
+  'Invite Pane': <InvitePaneFixture />,
+  'Splash Modal': <SplashModalFixture />,
 };

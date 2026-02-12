@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { PostContent } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type { ContentReference } from '@tloncorp/shared/domain';
+import { appendFileUploadToPostBlob } from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 
 import {
@@ -173,7 +174,7 @@ export function list(
 export function makePost(
   contact: db.Contact,
   content: PostContent,
-  extra?: object
+  extra?: { blob?: string } & Record<string, unknown>
 ): db.Post {
   const post = createFakePost('chat', JSON.stringify(content));
   post.authorId = contact.id;
@@ -549,6 +550,34 @@ export const postWithEmoji = makePost(exampleContacts.emotive, [
 export const postWithSingleEmoji = makePost(exampleContacts.emotive, [
   verse.inline('🙏', inline.break()),
 ]);
+
+export const postWithFileUpload = makePost(
+  exampleContacts.ed,
+  [verse.inline('Look at this file')],
+  {
+    isEdited: false,
+    blob: appendFileUploadToPostBlob('', {
+      fileUri: 'https://picsum.photos/200',
+      name: 'The Impact of Remote Work on Urban Economies.pdf',
+      mimeType: 'application/pdf',
+      size: 2048,
+    }),
+  }
+);
+
+export const postWithOptimisticIncompleteFileUpload = makePost(
+  exampleContacts.ed,
+  [verse.inline('Look at this file')],
+  {
+    isEdited: false,
+    blob: appendFileUploadToPostBlob('', {
+      fileUri: 'file://local/path/to/file.pdf',
+      name: 'The Impact of Remote Work on Urban Economies.pdf',
+      mimeType: 'application/pdf',
+      size: 2048,
+    }),
+  }
+);
 
 export const postWithEverything = makePost(exampleContacts.mark, [
   block.header('h1', inline.text('All Features Test')),

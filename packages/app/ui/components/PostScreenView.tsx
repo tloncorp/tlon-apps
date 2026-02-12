@@ -71,6 +71,11 @@ interface ChannelContext {
   negotiationMatch: boolean;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
+  parentEditDraftCallbacks?: {
+    getDraft: () => Promise<JSONContent | null>;
+    storeDraft: (draft: JSONContent) => Promise<void>;
+    clearDraft: () => Promise<void>;
+  } | null;
 }
 
 interface GalleryDraftInputProps {
@@ -230,7 +235,7 @@ export function PostScreenView({
   const { bottom } = useSafeAreaInsets();
 
   const isEditingParent = useMemo(() => {
-    return editingPost?.id === focusedPost?.id;
+    return editingPost != null && editingPost.id === focusedPost?.id;
   }, [editingPost, focusedPost]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
@@ -249,6 +254,15 @@ export function PostScreenView({
     focusedPost == null
       ? null
       : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
+  );
+
+  // Separate draft callbacks for editing the parent post (gallery/notebook).
+  // This uses a different key to prevent edit drafts from leaking to
+  // BareChatInput, which uses the thread key for reply drafts.
+  const parentEditDraftCallbacks = store.usePostDraftCallbacks(
+    focusedPost == null
+      ? null
+      : { draftKey: store.draftKeyFor.postEdit({ postId: focusedPost.id }) }
   );
 
   const { attachAssets, clearAttachments } = useAttachmentContext();
@@ -313,23 +327,26 @@ export function PostScreenView({
                     goToEdit={handleEditPress}
                   />
                   {parentPost &&
-                    (editingPost && channel.type === 'gallery' ? (
+                    (isEditingParent && channel.type === 'gallery' ? (
                       <YStack flex={1} backgroundColor="$background">
                         <GalleryDraftInput
                           channel={channel}
                           editingPost={editingPost}
                           getDraft={
-                            draftCallbacks?.getDraft ?? (async () => null)
+                            parentEditDraftCallbacks?.getDraft ??
+                            (async () => null)
                           }
                           group={group}
                           clearDraft={
-                            draftCallbacks?.clearDraft ?? (async () => {})
+                            parentEditDraftCallbacks?.clearDraft ??
+                            (async () => {})
                           }
                           setEditingPost={setEditingPost}
                           setShouldBlur={setGalleryEditShouldBlur}
                           shouldBlur={galleryEditShouldBlur}
                           storeDraft={
-                            draftCallbacks?.storeDraft ?? (async () => {})
+                            parentEditDraftCallbacks?.storeDraft ??
+                            (async () => {})
                           }
                         />
                       </YStack>
@@ -344,6 +361,7 @@ export function PostScreenView({
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
+                          parentEditDraftCallbacks,
                           parentPost,
                           setEditingPost,
                         }}
@@ -360,6 +378,7 @@ export function PostScreenView({
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
+                          parentEditDraftCallbacks,
                           setEditingPost,
                         }}
                       />
@@ -388,7 +407,7 @@ function ConnectedHeader({
   {
     channel: db.Channel;
   },
-  'channel' | 'group' | 'title' | 'showSearchButton' | 'post'
+  'channel' | 'group' | 'title' | 'description' | 'showSearchButton' | 'post'
 >) {
   const isChatChannel = getIsChatChannel(channel);
 
@@ -408,6 +427,7 @@ function ConnectedHeader({
       channel={channel}
       group={channel.group}
       title={headerTitle}
+      description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
       {...passedProps}
@@ -458,6 +478,7 @@ function SinglePostView({
   negotiationMatch,
   onPressDelete,
   onPressRetry,
+  parentEditDraftCallbacks,
   parentPost,
   setEditingPost,
 }: {
@@ -469,6 +490,11 @@ function SinglePostView({
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
+  parentEditDraftCallbacks?: {
+    getDraft: () => Promise<JSONContent | null>;
+    storeDraft: (draft: JSONContent) => Promise<void>;
+    clearDraft: () => Promise<void>;
+  } | null;
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
@@ -542,21 +568,12 @@ function SinglePostView({
         };
   }, [isChatChannel]);
   const bareInputDraftProps = useMemo(() => {
-    // For notebook post, the channel draft corresponds to the note
-    // itself (not the reply input)
-    if (channel.type === 'notebook') {
-      return {
-        getDraft: async () => null,
-        storeDraft: async () => {},
-        clearDraft: async () => {},
-      };
-    }
     return {
       getDraft,
       storeDraft,
       clearDraft,
     };
-  }, [channel.type, getDraft, storeDraft, clearDraft]);
+  }, [getDraft, storeDraft, clearDraft]);
 
   // Helper to scroll to new reply - shared by sendReply and sendReplyFromDraft
   const scrollToNewReply = useCallback(() => {
@@ -588,16 +605,12 @@ function SinglePostView({
 
   const sendReplyFromDraft = useCallback(
     async (draft: domain.PostDataDraft) => {
-      if (draft.isEdit) {
-        await store.finalizeAndSendPost(draft);
-        setEditingPost?.(undefined);
-      } else {
-        draft.replyToPostId = parentPost.id;
-        await store.finalizeAndSendPost(draft);
-        scrollToNewReply();
-      }
+      setEditingPost?.(undefined);
+      draft.replyToPostId = parentPost.id;
+      await store.finalizeAndSendPost(draft);
+      scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply, setEditingPost]
+    [parentPost, store, scrollToNewReply]
   );
 
   const isChatLike = useMemo(
@@ -698,9 +711,9 @@ function SinglePostView({
               setEditingPost?.(undefined);
               await store.finalizeAndSendPost(draft);
             }}
-            getDraft={getDraft}
-            storeDraft={storeDraft}
-            clearDraft={clearDraft}
+            getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
+            storeDraft={parentEditDraftCallbacks?.storeDraft ?? (async () => {})}
+            clearDraft={parentEditDraftCallbacks?.clearDraft ?? (async () => {})}
             groupMembers={groupMembers}
             groupRoles={groupRoles}
           />
