@@ -140,7 +140,7 @@
   =/   =task:clay
     [%into desk & files]
   ;<  ~  bind:m  (send-events:ph-io [%event her /c/sync/0v1abc task]~)
-  ;<  ~  bind:m  (sleep ~s10)
+  ;<  ~  bind:m  (sleep ~s0)
   (pure:m ~)
 --
 ::
