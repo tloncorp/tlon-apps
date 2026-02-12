@@ -5,13 +5,13 @@ import { expect, test, vi } from 'vitest';
 import {
   StructuredChannelDescriptionPayload,
   toClientGroupV7,
-} from '@tloncorp/api/api';
-import '@tloncorp/api/api/channelContentConfig';
+} from '@tloncorp/api';
+import '@tloncorp/api';
 import {
   CollectionRendererId,
   DraftInputId,
   PostContentRendererId,
-} from '@tloncorp/api/api/channelContentConfig';
+} from '@tloncorp/api';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../../../api/src/__tests__/fixtures/channelPostWithReplies.json';

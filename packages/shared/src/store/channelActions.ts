@@ -1,9 +1,9 @@
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from '@tloncorp/api/api/channelContentConfig';
-import { TimeoutError } from '@tloncorp/api/api/urbit';
+} from '@tloncorp/api';
+import { TimeoutError } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';

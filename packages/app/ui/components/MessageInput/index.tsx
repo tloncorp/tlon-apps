@@ -27,7 +27,7 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/api/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import * as api from '@tloncorp/api/api';
-import { queryClient } from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
+import { queryClient } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';
 

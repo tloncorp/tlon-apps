@@ -3,8 +3,8 @@ import {
   enableGroup,
   getCurrentUserId,
   groupsDescribe,
-} from '@tloncorp/api/api';
-import * as api from '@tloncorp/api/api';
+} from '@tloncorp/api';
+import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, getConstants } from '../domain';

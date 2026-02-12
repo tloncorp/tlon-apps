@@ -4,7 +4,7 @@ import {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
-} from '@tloncorp/api/api';
+} from '@tloncorp/api';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
 import * as ub from '@tloncorp/api/urbit';

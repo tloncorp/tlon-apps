@@ -1,4 +1,4 @@
-import { parseGroupId } from '@tloncorp/api/api';
+import { parseGroupId } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { SectionListHeader } from '@tloncorp/ui';
 import Fuse from 'fuse.js';

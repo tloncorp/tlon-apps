@@ -1,6 +1,6 @@
 import isEqual from 'lodash/isEqual';
 
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';

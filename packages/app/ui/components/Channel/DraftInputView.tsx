@@ -1,4 +1,4 @@
-import { DraftInputId } from '@tloncorp/api/api';
+import { DraftInputId } from '@tloncorp/api';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import { DraftInputContext } from '../draftInputs';

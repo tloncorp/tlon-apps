@@ -1,4 +1,4 @@
-import { PostContent } from '@tloncorp/api/api';
+import { PostContent } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { ExtendedEventType } from '@tloncorp/api/urbit';

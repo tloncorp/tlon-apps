@@ -4,7 +4,7 @@ import {
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import { ChannelContentConfiguration } from '@tloncorp/api/api';
+import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';

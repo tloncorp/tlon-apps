@@ -1,5 +1,5 @@
-import * as api from '@tloncorp/api/api';
-import { toPostContent } from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
+import { toPostContent } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';

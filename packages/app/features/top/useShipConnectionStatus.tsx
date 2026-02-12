@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api/api';
-import { ConnectionStatus } from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
+import { ConnectionStatus } from '@tloncorp/api';
 import { debounce } from 'lodash';
 
 import { useCurrentUserId } from '../../ui';

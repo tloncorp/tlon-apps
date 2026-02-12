@@ -1,4 +1,4 @@
-import { toContactsData, toInitData } from '@tloncorp/api/api';
+import { toContactsData, toInitData } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as ub from '@tloncorp/api/urbit';
 import { Button, Text, View } from '@tloncorp/ui';

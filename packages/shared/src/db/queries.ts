@@ -31,8 +31,8 @@ import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
   getCurrentUserId,
-} from '@tloncorp/api/api';
-import { parseGroupId } from '@tloncorp/api/api/apiUtils';
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';

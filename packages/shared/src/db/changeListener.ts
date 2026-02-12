@@ -1,4 +1,4 @@
-import { queryClient } from '@tloncorp/api/api';
+import { queryClient } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('db:changeListener', false);

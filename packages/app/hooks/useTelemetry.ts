@@ -3,7 +3,7 @@ import {
   createDevLogger,
   useCurrentSession,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api/api';
+import * as api from '@tloncorp/api';
 import {
   didInitializeTelemetry,
   hasClearedLegacyWebTelemetry,
