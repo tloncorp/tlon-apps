@@ -146,6 +146,7 @@ export const contacts = sqliteTable(
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
     systemContactId: text('systemContactId'),
+    contrivedNewField: text('contrivedNewField'), // TODO: remove after validating https://github.com/tloncorp/tlon-apps/pull/5487
   },
   (table) => {
     return {
