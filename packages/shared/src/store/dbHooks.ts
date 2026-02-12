@@ -8,7 +8,7 @@ import { useEffect, useMemo } from 'react';
 
 import * as api from '@tloncorp/api/client';
 import { getMessagesFilter } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import { getConstants } from '@tloncorp/api/types/constants';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';

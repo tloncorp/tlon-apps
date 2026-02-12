@@ -15,7 +15,7 @@ import {
   getHostingUserId,
   setHostingSession,
 } from './hostingAuthState';
-import { withRetry } from '../lib';
+import { withRetry } from '../lib/utils';
 
 const logger = createDevLogger('hostingApi', false);
 

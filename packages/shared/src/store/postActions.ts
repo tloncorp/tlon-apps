@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/api/client';
 import { toPostContent } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';

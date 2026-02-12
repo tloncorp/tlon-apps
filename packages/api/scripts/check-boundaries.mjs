@@ -5,7 +5,29 @@ import { fileURLToPath } from 'node:url';
 const thisFile = fileURLToPath(import.meta.url);
 const packageRoot = path.resolve(path.dirname(thisFile), '..');
 const sourceRoot = path.join(packageRoot, 'src');
+const repoRoot = path.resolve(packageRoot, '..', '..');
 const allowedExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const movedApiLibModules = new Set([
+  'activity',
+  'branch',
+  'deeplinks',
+  'featureFlags',
+  'hosting',
+  'pinning',
+  'references',
+  'types',
+  'wayfinding',
+  'wer',
+  'EventEmitter',
+  'ProgressManager',
+  'blob',
+  'formatMemorySize',
+  'number',
+  'object',
+  'spyOn',
+  'telemetryFormatters',
+  'timeoutSignal',
+]);
 
 const violations = [];
 const importSpecifierRegex = /\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
@@ -42,6 +64,71 @@ function checkInternalBoundaries({ file, specifier, line, text }) {
   }
 }
 
+function checkApiExternalBoundaries({ file, specifier, line, text }) {
+  if (specifier.startsWith('@tloncorp/shared')) {
+    violations.push({
+      file: path.join('src', file),
+      line,
+      text,
+      reason: 'external boundary: @tloncorp/api must not import from @tloncorp/shared',
+    });
+  }
+}
+
+function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
+  const isTestFile =
+    file.includes('/__tests__/') ||
+    file.includes('/test/') ||
+    /\.test\.[cm]?[jt]sx?$/.test(file) ||
+    /\.spec\.[cm]?[jt]sx?$/.test(file);
+
+  if (specifier.startsWith('@tloncorp/api/client/')) {
+    if (isTestFile && specifier === '@tloncorp/api/client/urbit') {
+      return;
+    }
+    violations.push({
+      file,
+      line,
+      text,
+      reason: 'consumer boundary: use @tloncorp/api/client (not deep client subpaths)',
+    });
+  }
+
+  if (
+    specifier === '@tloncorp/api/api' ||
+    specifier.startsWith('@tloncorp/api/api/')
+  ) {
+    violations.push({
+      file,
+      line,
+      text,
+      reason: 'consumer boundary: @tloncorp/api/api is deprecated; use @tloncorp/api/client',
+    });
+  }
+
+  if (specifier === '@tloncorp/api/types/native') {
+    violations.push({
+      file,
+      line,
+      text,
+      reason:
+        'consumer boundary: @tloncorp/api/types/native moved to @tloncorp/shared/domain/native',
+    });
+  }
+
+  if (specifier.startsWith('@tloncorp/api/lib/')) {
+    const subpath = specifier.replace('@tloncorp/api/lib/', '');
+    if (movedApiLibModules.has(subpath)) {
+      violations.push({
+        file,
+        line,
+        text,
+        reason: `consumer boundary: @tloncorp/api/lib/${subpath} moved to @tloncorp/shared`,
+      });
+    }
+  }
+}
+
 function scanDirectory(directoryPath) {
   const entries = readdirSync(directoryPath);
   for (const entry of entries) {
@@ -64,18 +151,6 @@ function scanDirectory(directoryPath) {
     const content = readFileSync(fullPath, 'utf8');
     const file = fileInSource(fullPath);
     const lines = content.split('\n');
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      const line = lines[lineIndex];
-      if (line.includes("'@tloncorp/shared") || line.includes('"@tloncorp/shared')) {
-        violations.push({
-          file: path.join('src', file),
-          line: lineIndex + 1,
-          text: line.trim(),
-          reason: 'external boundary: @tloncorp/api must not import from @tloncorp/shared',
-        });
-      }
-    }
-
     importSpecifierRegex.lastIndex = 0;
     let match;
     while ((match = importSpecifierRegex.exec(content)) !== null) {
@@ -90,11 +165,71 @@ function scanDirectory(directoryPath) {
         specifier,
         text: lines[line - 1]?.trim() ?? specifier,
       });
+      checkApiExternalBoundaries({
+        file,
+        line,
+        specifier,
+        text: lines[line - 1]?.trim() ?? specifier,
+      });
+    }
+  }
+}
+
+function scanConsumerDirectory(directoryPath) {
+  const entries = readdirSync(directoryPath);
+  for (const entry of entries) {
+    const fullPath = path.join(directoryPath, entry);
+    const stats = statSync(fullPath);
+
+    if (stats.isDirectory()) {
+      if (
+        entry === 'node_modules' ||
+        entry === 'dist' ||
+        entry === '.git' ||
+        entry === 'coverage'
+      ) {
+        continue;
+      }
+      scanConsumerDirectory(fullPath);
+      continue;
+    }
+
+    const extension = path.extname(entry);
+    if (!allowedExtensions.has(extension)) {
+      continue;
+    }
+
+    const content = readFileSync(fullPath, 'utf8');
+    const file = path.relative(repoRoot, fullPath).replaceAll(path.sep, '/');
+    const lines = content.split('\n');
+
+    importSpecifierRegex.lastIndex = 0;
+    let match;
+    while ((match = importSpecifierRegex.exec(content)) !== null) {
+      const specifier = match[1] ?? match[2];
+      if (!specifier) {
+        continue;
+      }
+      const line = lineForIndex(content, match.index);
+      checkDeprecatedConsumerImports({
+        file,
+        line,
+        specifier,
+        text: lines[line - 1]?.trim() ?? specifier,
+      });
     }
   }
 }
 
 scanDirectory(sourceRoot);
+for (const topLevelDir of ['packages', 'apps']) {
+  const root = path.join(repoRoot, topLevelDir);
+  if (!statSync(root, { throwIfNoEntry: false })) {
+    continue;
+  }
+
+  scanConsumerDirectory(root);
+}
 
 if (violations.length > 0) {
   console.error('Boundary check failed.');

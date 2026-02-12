@@ -1,4 +1,4 @@
-import { MobileNavTab } from '@tloncorp/api/types/native';
+import { MobileNavTab } from '../domain/native';
 
 export function parseActiveTab(pathname: string): MobileNavTab | null {
   const parsedPath = trimFullPath(pathname);

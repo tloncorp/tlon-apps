@@ -1,7 +1,7 @@
 import isEqual from 'lodash/isEqual';
 
 import * as api from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';

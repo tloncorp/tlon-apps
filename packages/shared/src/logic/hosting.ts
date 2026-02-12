@@ -1,4 +1,4 @@
-import { getConstants } from '../types/constants';
+import { getConstants } from '@tloncorp/api/types/constants';
 
 export const SHIP_COOKIE_REGEX = /(~)[a-z\-]+?(\=)/;
 

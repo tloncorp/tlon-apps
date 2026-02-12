@@ -3,7 +3,7 @@ import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api/types/channelContentConfig';
-import { TimeoutError, getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { TimeoutError, getCurrentUserId } from '@tloncorp/api/client';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';

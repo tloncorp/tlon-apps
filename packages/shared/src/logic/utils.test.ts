@@ -4,7 +4,7 @@ import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { PersonalGroupSlugs } from '../domain';
 import { getModelAnalytics, normalizeUrbitColor } from '@tloncorp/api/lib/utils';
-import { isPersonalGroup } from '@tloncorp/api/lib/wayfinding';
+import { isPersonalGroup } from './wayfinding';
 
 describe('normalizeUrbitColor', () => {
   describe('the user submits a color hex value with one or more leading zeroes', () => {

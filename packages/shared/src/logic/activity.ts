@@ -1,11 +1,11 @@
-import type { ActivityEvent } from '../types/types';
-import type * as db from '../types/types';
+import type { ActivityEvent } from '@tloncorp/api/types/types';
+import type * as db from '@tloncorp/api/types/types';
 import {
   ExtendedEventType,
   NotificationLevel,
   VolumeSettings,
   getLevelFromVolumeMap,
-} from '../urbit';
+} from '@tloncorp/api/urbit';
 
 export function extractClientVolumes(
   volume: VolumeSettings

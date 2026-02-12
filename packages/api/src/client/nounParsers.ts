@@ -3,7 +3,8 @@ import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import * as db from '../types';
-import { getFrondValue, getPatp, simpleHash } from '../lib';
+import { getFrondValue, getPatp } from '../lib/noun';
+import { simpleHash } from '../lib/utils';
 import * as ub from '../urbit';
 
 interface HalfSign {

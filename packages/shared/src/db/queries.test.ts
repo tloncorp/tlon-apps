@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { v0PeersToClientProfiles } from '@tloncorp/api/client';
-import { toClientGroupsV7 } from '@tloncorp/api/client/groupsApi';
+import { toClientGroupsV7 } from '@tloncorp/api/client';
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';

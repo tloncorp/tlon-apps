@@ -4,13 +4,13 @@ import _ from 'lodash';
 
 import * as api from '@tloncorp/api/client';
 import { GetChangedPostsOptions } from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
+import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,

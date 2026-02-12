@@ -1,5 +1,5 @@
 import { createDevLogger } from '../debug';
-import { getCanonicalPostId } from './id';
+import { getCanonicalPostId } from '@tloncorp/api/client';
 
 const logger = createDevLogger('wer', true);
 

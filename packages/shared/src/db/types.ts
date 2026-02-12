@@ -1,13 +1,9 @@
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 
 import type * as api from '@tloncorp/api/types/types';
-import {
-  BASE_UNREADS_SINGLETON_KEY,
-  SETTINGS_SINGLETON_KEY,
-  isGroupEvent,
-  isSystemContact,
-} from '@tloncorp/api/types/types';
 import * as schema from './schema';
+import { BASE_UNREADS_SINGLETON_KEY, SETTINGS_SINGLETON_KEY } from './schema';
+import { isGroupEvent, isSystemContact } from '@tloncorp/api/types/types';
 
 export type Schema = typeof schema;
 export type SchemaWithRelations = ExtractTablesWithRelations<Schema>;
@@ -153,7 +149,11 @@ export type Chat = {
   isPending: boolean;
   unreadCount: number;
 } & ({ type: 'group'; group: Group } | { type: 'channel'; channel: Channel });
-export type GroupedChats = api.GroupedChats;
+export interface GroupedChats {
+  pinned: Chat[];
+  unpinned: Chat[];
+  pending: Chat[];
+}
 export type GroupEvent = api.GroupEvent;
 export type ActivityInit = api.ActivityInit;
 export type ChangesResult = api.ChangesResult;

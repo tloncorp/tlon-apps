@@ -3,7 +3,7 @@ import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as api from '@tloncorp/api/client';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';
 import { queryClient } from './reactQuery';

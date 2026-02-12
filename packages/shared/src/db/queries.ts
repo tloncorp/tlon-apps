@@ -31,8 +31,8 @@ import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
 } from '@tloncorp/api/client';
-import { parseGroupId } from '@tloncorp/api/client/apiUtils';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { parseGroupId } from '@tloncorp/api/client';
+import { getCurrentUserId } from '@tloncorp/api/client';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -40,7 +40,7 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '@tloncorp/api/lib/activity';
+} from '../logic/activity';
 import { Session } from '../store';
 import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';

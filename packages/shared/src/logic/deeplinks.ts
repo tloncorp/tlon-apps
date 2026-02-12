@@ -1,9 +1,9 @@
 import { createDevLogger } from '../debug';
-import type { ContentReference } from '../types/references';
-import { getConstants } from '../types/constants';
-import { citeToPath } from '../urbit';
+import type { ContentReference } from '@tloncorp/api/types/references';
+import { getConstants } from '@tloncorp/api/types/constants';
+import { citeToPath } from '@tloncorp/api/urbit';
+import { normalizeUrbitColor } from '@tloncorp/api/lib/utils';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
-import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 

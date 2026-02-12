@@ -1,9 +1,9 @@
 import { valid } from '@urbit/aura';
 
 import { createDevLogger } from '../debug';
-import { getConstants } from '../types/constants';
-import { preSig } from '../urbit';
-import { normalizeUrbitColor } from './utils';
+import { getConstants } from '@tloncorp/api/types/constants';
+import { preSig } from '@tloncorp/api/urbit';
+import { normalizeUrbitColor } from '@tloncorp/api/lib/utils';
 import { getPostInfoFromWer } from './wer';
 
 const logger = createDevLogger('branch', false);

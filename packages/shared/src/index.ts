@@ -9,7 +9,7 @@ export type {
   ActiveTabChange,
   WebAppAction,
   WebAppCommand,
-} from '@tloncorp/api/types/native';
+} from './domain/native';
 export type {
   PostCollectionConfiguration,
   PostCollectionLayout,

@@ -2,9 +2,8 @@ import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../types';
-import { BASE_UNREADS_SINGLETON_KEY } from '../types/types';
 import { createDevLogger, runIfDev } from '../debug';
-import { normalizeUrbitColor } from '../lib';
+import { normalizeUrbitColor } from '../lib/utils';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -17,6 +16,7 @@ import {
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
+const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
 
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
@@ -913,7 +913,11 @@ export function getThreadSource({
   return { source, sourceId };
 }
 
-export function getRootSourceFromChat(chat: db.Chat): {
+export type RootSourceChat =
+  | { type: 'group'; id: string }
+  | { type: 'channel'; channel: Pick<db.Channel, 'id' | 'type'> };
+
+export function getRootSourceFromChat(chat: RootSourceChat): {
   source: ub.Source;
   sourceId: string;
 } {

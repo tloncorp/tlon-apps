@@ -4,11 +4,8 @@ import { Poke } from '../http-api';
 import * as db from '../types';
 import { createDevLogger } from '../debug';
 import { ContentReference } from '../types';
-import {
-  IMAGE_URL_REGEX,
-  PlaintextPreviewConfig,
-  getTextContent,
-} from '../lib';
+import { getTextContent, PlaintextPreviewConfig } from '../lib/postContent';
+import { IMAGE_URL_REGEX } from '../lib/utils';
 import {
   contentReferenceToCite,
   toContentReference,

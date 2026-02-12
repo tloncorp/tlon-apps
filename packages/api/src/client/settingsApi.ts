@@ -3,6 +3,7 @@ import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
 
 const PENDING_MEMBER_DISMISSAL_PREFIX = 'pendingMemberDismissal:';
+const SETTINGS_SINGLETON_KEY = 'settings';
 export function getPendingMemberDismissalKey(groupId: string) {
   return `${PENDING_MEMBER_DISMISSAL_PREFIX}${groupId}`;
 }
@@ -106,7 +107,7 @@ export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
   return {
-    id: db.SETTINGS_SINGLETON_KEY,
+    id: SETTINGS_SINGLETON_KEY,
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
