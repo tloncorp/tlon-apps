@@ -221,6 +221,18 @@ export function RoleFormScreen({ navigation, route }: Props) {
               addUserToRole(contactId, newRoleId)
             )
           );
+
+          if ('returnScreen' in route.params && route.params.returnScreen) {
+            const { returnScreen, returnParams } = route.params;
+            // Navigate back with the created role ID (only SelectChannelRoles uses this pattern)
+            if (returnScreen === 'SelectChannelRoles') {
+              navigation.navigate(returnScreen, {
+                ...returnParams,
+                createdRoleId: newRoleId,
+              } as GroupSettingsStackParamList['SelectChannelRoles']);
+            }
+            return;
+          }
         }
 
         reset();

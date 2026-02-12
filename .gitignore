@@ -3,6 +3,10 @@ node_modules
 ops
 bin
 *.tgz
+*.xst
+zod*
+vere-*
+*.pill
 /rube/zod/
 /rube/bus/
 /rube/urbit

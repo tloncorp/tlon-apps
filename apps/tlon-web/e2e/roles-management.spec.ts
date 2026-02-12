@@ -135,7 +135,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   const generalChannel = page.getByTestId(/^ChannelItem-General-/);
   await expect(generalChannel).toBeVisible({ timeout: 5000 });
   await generalChannel.getByTestId('EditChannelButton').first().click();
-  await expect(page.getByText('Channel settings')).toBeVisible();
+  await expect(page.getByText('Channel info')).toBeVisible();
+
+  // Navigate to Privacy settings to set channel permissions
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel privacy')).toBeVisible();
 
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
@@ -156,9 +160,23 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
 
-  // Navigate back to group settings
-  await helpers.navigateBack(page);
-  await expect(page.getByText('Group Info')).toBeVisible();
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // The exact navigation state varies, so we navigate back until we can open group settings
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').first();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
+      break;
+    }
+  }
+
+  // Open group settings to get to Group Info
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
 
   // Attempt to delete role that still has members/channels assigned
   await page.getByTestId('GroupRoles').click();
@@ -201,6 +219,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Remove role from channel permissions
   await page.getByTestId('GroupChannels').click();
   await page.getByTestId('EditChannelButton').first().click();
+  await expect(page.getByText('Channel info')).toBeVisible();
+
+  // Navigate to Privacy settings to modify channel permissions
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel privacy')).toBeVisible();
 
   // Remove "Renamed role" from readers by clicking the X on the role chip
   await expect(page.getByText('Renamed role').first()).toBeVisible();
@@ -214,17 +237,28 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
-  await page.getByTestId('ChannelSettingsSaveButton').click();
+  await page.getByTestId('ChannelPrivacySaveButton').click();
   await page.waitForTimeout(2000);
 
-  // Navigate back with complex fallback logic
-  await helpers.navigateBack(page);
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').first();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
+      break;
+    }
+  }
 
   // Delete the role (should now be possible)
   await page.waitForTimeout(300);
   await helpers.openGroupSettings(page);
   await page.waitForTimeout(300);
-  await expect(page.getByText('Roles')).toBeVisible();
+  // Use testID selector instead of text to avoid matching multiple "Roles" elements
+  await expect(page.getByTestId('GroupRoles')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
   await expect(page.getByText('Renamed role')).toBeVisible();
   await page.getByText('Renamed role').click();

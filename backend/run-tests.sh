@@ -174,7 +174,7 @@ result=$( $run_click -t 180 $pier <<EOF
   (await-thread %test !>(\`tests))  
 ?:  ?=(%| -.thread-result)  
   %-  (slog %thread-fail p.thread-result)  
-  (pure:m !>(1))  
+  (pure:m !>(|))  
 =+  !<(ok=? p.thread-result)  
 (pure:m !>(ok))  
 EOF

@@ -60,17 +60,6 @@ export function MobileAppPromoBanner() {
         padding="$xl"
         paddingBottom={0}
       >
-        <Pressable
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            padding: 4,
-          }}
-          onPress={handleDismiss}
-        >
-          <Icon type="Close" cursor="pointer" />
-        </Pressable>
         <YStack gap="$xl">
           <TlonText.Text size="$label/l" color="$primaryText">
             Get Tlon for iOS and Android
@@ -93,6 +82,17 @@ export function MobileAppPromoBanner() {
             source={'./mobile-banner.png'}
           />
         </YStack>
+        <Pressable
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            padding: 4,
+          }}
+          onPress={handleDismiss}
+        >
+          <Icon type="Close" cursor="pointer" />
+        </Pressable>
       </View>
     </View>
   );

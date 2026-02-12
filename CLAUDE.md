@@ -24,7 +24,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm run test` - Run all tests with updates
 -   `pnpm run test:ci` - Run all tests in CI mode
 -   `pnpm run e2e` - Run end-to-end tests (web)
--   `pnpm run e2e:test <file1> [file2...]` - Run specific e2e test file(s) with automatic ship management
+-   **E2E tests must be run from `apps/tlon-web` directory**: `cd apps/tlon-web && pnpm e2e:test <filename>`
+    -   Use just the filename, NOT the full path: `channel-details.spec.ts` (correct) vs `e2e/channel-details.spec.ts` (wrong)
+    -   Example: `cd apps/tlon-web && pnpm e2e:test channel-details.spec.ts`
 
 ### Linting
 

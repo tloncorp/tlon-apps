@@ -15,3 +15,5 @@ export * from './spyOn';
 export * from './file';
 export * from './number';
 export * from './formatMemorySize';
+export * from './deferred';
+export * from './useMockedQuery';
