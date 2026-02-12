@@ -198,8 +198,8 @@ export const syncSince = async ({
           });
 
           // make sure we attempt to get latest posts if we haven't succeeded yet
-          const lastSyncedAt = await db.changesSyncedAt.getValue();
-          if (!lastSyncedAt) {
+          const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
+          if (!latestPostsSyncedAt) {
             await syncLatestPosts();
           }
         }));
