@@ -10,8 +10,13 @@ export function platformAlert(
   buttonLabel: string
 ): Promise<void> {
   return new Promise<void>((resolve) => {
-    Alert.alert(title, message, [{ text: buttonLabel, onPress: resolve }], {
-      cancelable: false,
-    });
+    Alert.alert(
+      title,
+      message,
+      [{ text: buttonLabel, onPress: () => resolve() }],
+      {
+        cancelable: false,
+      }
+    );
   });
 }
