@@ -783,14 +783,12 @@ async function reauth() {
           resolve(authCookie);
           return;
         } catch (e) {
-          if (
-            e instanceof AuthFailureError &&
-            [400, 403].includes(e.responseStatus)
-          ) {
+          if (e instanceof AuthFailureError && e.responseStatus === 400) {
             // the info we tried to reauth with is invalid, it's not going to work and they need to logout
             config.pendingAuth = null;
             config.loggingOut = true;
             config.handleAuthFailure?.({ mustLogout: true });
+            return;
           }
           reject(new Error(`Error during reauth: ${e}`));
         }

@@ -5,13 +5,13 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
-import { platformAlert } from '../lib/platformAlert';
 import { resetDb } from '../lib/resetDb';
 import { initializePolyfills, platformFetch } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
@@ -130,11 +130,16 @@ export function useConfigureUrbitClient() {
               authType,
               context: 'Access code invalidated',
             });
-            await platformAlert(
-              'Session Expired',
-              'Your access credentials are no longer valid. This can happen after a factory reset. Please log in again.',
-              'Logout'
-            );
+            await new Promise<void>((resolve) => {
+              Alert.alert(
+                'Session Expired',
+                'Your access credentials are no longer valid. This can happen after a factory reset. Please log in again.',
+                [{ text: 'Logout', onPress: () => resolve() }],
+                {
+                  cancelable: false,
+                }
+              );
+            });
             await logout();
           } else if (authType === 'self') {
             // there's nothing we can do to recover, must log out
