@@ -79,7 +79,7 @@ export function MobileAppPromoBanner() {
           <Image
             style={{ width: '100%', height: 150 }}
             contentFit={'cover'}
-            source={'./mobile-banner.png'}
+            source={`/apps/groups/mobile-banner.png`}
           />
         </YStack>
         <Pressable
