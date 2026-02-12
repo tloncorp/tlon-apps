@@ -43,7 +43,6 @@ export * from './components/InviteUsersSheet';
 export * from './components/InviteUsersWidget';
 export * from './components/ListItem';
 export * from './components/LongPressDisclosure';
-export * from './components/ManageChannels/EditChannelScreenView';
 export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/MessageInput';
 export * from './components/MessageInput/AttachmentPreviewList';

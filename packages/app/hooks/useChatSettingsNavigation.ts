@@ -57,12 +57,7 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
-      const paramsWithOrigin = {
-        ...params,
-        fromChatDetails: params.fromChatDetails ?? true,
-      } as GroupSettingsStackParamList[T];
-
-      if (!isWindowNarrow && 'groupId' in params) {
+      if (!isWindowNarrow && 'groupId' in params && params.groupId) {
         await navigateToGroup(params.groupId);
       }
 
@@ -70,7 +65,7 @@ export const useChatSettingsNavigation = () => {
         () => {
           navigation.navigate('GroupSettings', {
             screen,
-            params: paramsWithOrigin,
+            params,
           } as NavigatorScreenParams<GroupSettingsStackParamList>);
         },
         !isWindowNarrow ? 100 : 0
@@ -122,25 +117,26 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
-  const onPressChatVolume = useCallback(
-    (params: {
-      type: 'group' | 'channel';
-      id: string;
-      fromChatDetails?: boolean;
-    }) => {
-      const { type, id, fromChatDetails } = params;
-
-      if (type === 'group') {
-        navigateToGroupSettings('ChatVolume', {
-          chatType: type,
-          chatId: id,
-          fromChatDetails,
-        });
-      } else {
-        rootNavigateToChatVolume(params);
-      }
+  const onPressCreateRole = useCallback(
+    (
+      groupId: string,
+      returnScreen?: keyof GroupSettingsStackParamList,
+      returnParams?: Record<string, unknown>
+    ) => {
+      navigateToGroupSettings('AddRole', {
+        groupId,
+        returnScreen,
+        returnParams,
+      });
     },
-    [navigateToGroupSettings, rootNavigateToChatVolume]
+    [navigateToGroupSettings]
+  );
+
+  const onPressChatVolume = useCallback(
+    (params: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
+      rootNavigateToChatVolume(params);
+    },
+    [rootNavigateToChatVolume]
   );
 
   const onPressChannelMembers = useCallback(
@@ -164,9 +160,20 @@ export const useChatSettingsNavigation = () => {
     [navigationRef]
   );
 
-  const onPressEditChannel = useCallback(
+  const onPressEditChannelMeta = useCallback(
     (channelId: string, groupId: string, fromChatDetails?: boolean) => {
-      navigateToGroupSettings('EditChannel', {
+      navigateToGroupSettings('EditChannelMeta', {
+        channelId,
+        groupId,
+        fromChatDetails,
+      });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const onPressEditChannelPrivacy = useCallback(
+    (channelId: string, groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('EditChannelPrivacy', {
         channelId,
         groupId,
         fromChatDetails,
@@ -216,7 +223,8 @@ export const useChatSettingsNavigation = () => {
     onPressChannelMembers,
     onPressChannelMeta,
     onPressChannelTemplate,
-    onPressEditChannel,
+    onPressEditChannelMeta,
+    onPressEditChannelPrivacy,
     onPressGroupMeta,
     onPressGroupMembers,
     onPressManageChannels,
@@ -224,6 +232,7 @@ export const useChatSettingsNavigation = () => {
     onPressChatDetails: navigateToChatDetails,
     onPressChatVolume,
     onPressRoles,
+    onPressCreateRole,
     onLeaveGroup,
     onLeaveChannel,
   };
