@@ -3334,6 +3334,8 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
 
   // Combine channel and group updates in a single transaction
   // Update channels
+  // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
+  // lastPostSequenceNum: always the newest post for syncing (even if deleted)
   await ctx.db
     .update($channels)
     .set({
@@ -3341,7 +3343,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ id: $posts.id })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
@@ -3349,7 +3355,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ receivedAt: $posts.receivedAt })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,

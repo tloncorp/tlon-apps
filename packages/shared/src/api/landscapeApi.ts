@@ -12,8 +12,19 @@ export const getLandscapeAuthCookie = async (
   });
 
   if (response.status < 200 || response.status > 299) {
-    throw new Error('Failed to authenticate. Is your access code correct?');
+    throw new AuthFailureError(response.status);
   }
 
   return response.headers.get('set-cookie')?.split(';')[0];
 };
+
+export class AuthFailureError extends Error {
+  public responseStatus: number;
+  constructor(responseStatus: number) {
+    super(
+      `Authentication failed with status ${responseStatus}. Is your access code correct?`
+    );
+    this.name = 'AuthFailureError';
+    this.responseStatus = responseStatus;
+  }
+}
