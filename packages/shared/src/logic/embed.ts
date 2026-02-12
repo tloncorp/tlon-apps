@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { isValidUrl, jsonFetch } from '@tloncorp/api/lib/utils';
+import { isValidUrl, jsonFetch } from './utils';
 
 const OEMBED_PROVIDER = 'https://noembed.com/embed';
 

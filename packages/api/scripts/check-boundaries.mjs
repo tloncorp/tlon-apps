@@ -76,12 +76,6 @@ function checkApiExternalBoundaries({ file, specifier, line, text }) {
 }
 
 function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
-  const isTestFile =
-    file.includes('/__tests__/') ||
-    file.includes('/test/') ||
-    /\.test\.[cm]?[jt]sx?$/.test(file) ||
-    /\.spec\.[cm]?[jt]sx?$/.test(file);
-
   if (specifier === '@tloncorp/api/client') {
     violations.push({
       file,
@@ -92,9 +86,6 @@ function checkDeprecatedConsumerImports({ file, specifier, line, text }) {
   }
 
   if (specifier.startsWith('@tloncorp/api/client/')) {
-    if (isTestFile && specifier === '@tloncorp/api/client/urbit') {
-      return;
-    }
     violations.push({
       file,
       line,

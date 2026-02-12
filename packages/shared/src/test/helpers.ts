@@ -2,12 +2,11 @@ import Database from 'better-sqlite3';
 import { BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import tmp from 'tmp';
-import { beforeAll, beforeEach, vi } from 'vitest';
-
-import * as urbit from '@tloncorp/api/client/urbit';
+import { beforeAll, beforeEach } from 'vitest';
 import { setClient } from '../db';
 import { AnySqliteDatabase } from '../db/client';
 import * as schema from '../db/schema';
+import { scryMock } from './urbitTestMocks';
 
 let dbFile: tmp.FileResult | null = null;
 let client: AnySqliteDatabase | null = null;
@@ -47,9 +46,9 @@ export function setupDatabaseTestSuite() {
 }
 
 export function setScryOutput<T>(output: T) {
-  vi.mocked(urbit.scry).mockImplementationOnce(async () => output);
+  scryMock.mockImplementationOnce(async () => output);
 }
 
 export function setScryOutputs<T>(outputs: T[]) {
-  vi.mocked(urbit.scry).mockImplementation(async () => outputs.shift()!);
+  scryMock.mockImplementation(async () => outputs.shift()!);
 }

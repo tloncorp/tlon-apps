@@ -47,6 +47,7 @@
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly --noEmit false",
     "tsc": "tsc --noEmit",
+    "check:boundaries": "node ./scripts/check-boundaries.mjs",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",

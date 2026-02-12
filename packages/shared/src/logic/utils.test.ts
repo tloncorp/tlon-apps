@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { PersonalGroupSlugs } from '../domain';
-import { getModelAnalytics, normalizeUrbitColor } from '@tloncorp/api/lib/utils';
+import { getModelAnalytics, normalizeUrbitColor } from './utils';
 import { isPersonalGroup } from './wayfinding';
 
 describe('normalizeUrbitColor', () => {

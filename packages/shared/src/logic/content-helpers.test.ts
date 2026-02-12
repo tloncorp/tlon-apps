@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import {
   Mention,
   textAndMentionsToContent,
-} from '@tloncorp/api/lib/content-helpers';
+} from './content-helpers';
 
 test('textAndMentionsToContent: multiline mentions', () => {
   const text = "User One Hello, world! here's more to the message.\nUser Two";

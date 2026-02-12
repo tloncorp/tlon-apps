@@ -1,13 +1,13 @@
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as api from '@tloncorp/api';
-import { getCurrentUserId, poke, scry } from '@tloncorp/api/client/urbit';
+import { getCurrentUserId } from '@tloncorp/api';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
 import { PostDataDraft } from '@tloncorp/api/types/post';
 import { toPostData } from '../logic';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
+import { pokeMock, scryMock } from '../test/urbitTestMocks';
 import { finalizeAndSendPost } from './postActions';
 import { updateSession } from './session';
 import { setUploadState } from './storage';
@@ -42,8 +42,8 @@ describe('sendPost', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.mocked(scry).mockClear();
-    vi.mocked(poke).mockClear();
+    scryMock.mockClear();
+    pokeMock.mockClear();
     updateSession(null);
   });
 
@@ -83,7 +83,7 @@ describe('sendPost', () => {
 
     // directly after the message succeeds sending, sendPosts fetches the
     // channel posts to verify post was received - check for that scry
-    expect(scry).toHaveBeenLastCalledWith(
+    expect(scryMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         app: 'chat',
         path: `/v3/dm/${TEST_CHANNEL}/writs/newest/20/light`,
@@ -104,7 +104,7 @@ describe('sendPost', () => {
     });
 
     let failPoke: (reason?: unknown) => void = () => {};
-    const mockedPoke = vi.mocked(poke).mockImplementation(async (payload) => {
+    const mockedPoke = pokeMock.mockImplementation(async (payload) => {
       if (payload.app !== 'chat' || payload.mark !== 'chat-dm-action-1') {
         // probably safe to just return here, but raising an error for now in caution
         throw new Error('Unrecognized poke');
@@ -161,8 +161,8 @@ describe('finalizeAndSendPost', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.mocked(scry).mockClear();
-    vi.mocked(poke).mockClear();
+    scryMock.mockClear();
+    pokeMock.mockClear();
     updateSession(null);
   });
 
@@ -172,7 +172,7 @@ describe('finalizeAndSendPost', () => {
    */
   function beginSendPostWithAttachments() {
     vi.useFakeTimers();
-    vi.mocked(poke).mockResolvedValue(0);
+    pokeMock.mockResolvedValue(0);
     updateSession({ startTime: Date.now(), channelStatus: 'active' });
     const message = friendlyUniqueString();
     const fakeAsset = buildFakeImageAttachment(LOCAL_URI);
@@ -315,7 +315,7 @@ describe('finalizeAndSendPost', () => {
 
   test('queuing multiple messages', async () => {
     vi.useFakeTimers();
-    vi.mocked(poke).mockResolvedValue(0);
+    pokeMock.mockResolvedValue(0);
     const postData = new Array(2).fill(undefined).map((_, index) => ({
       message: friendlyUniqueString(),
       attachment: buildFakeImageAttachment([LOCAL_URI, index].join('#')),
@@ -431,7 +431,7 @@ describe('finalizeAndSendPost', () => {
   // was happening in the real app
   test('queuing multiple messages without attachments', async () => {
     vi.useFakeTimers();
-    vi.mocked(poke).mockResolvedValue(0);
+    pokeMock.mockResolvedValue(0);
     const postData = new Array(3).fill(undefined).map((_, index) => ({
       message: friendlyUniqueString(),
       attachment: index === 0 ? buildFakeImageAttachment(LOCAL_URI) : null,
@@ -504,7 +504,7 @@ describe('finalizeAndSendPost', () => {
 
     // check that pokes happen in order of sending
     expect(
-      vi.mocked(poke).mock.calls.map((params) => JSON.stringify(params[0].json))
+      pokeMock.mock.calls.map((params) => JSON.stringify(params[0].json))
     ).toMatchObject(postData.map((pd) => expect.stringContaining(pd.message)));
 
     await Promise.all(postData.map((pd) => pd.sendPromise!));
@@ -517,7 +517,7 @@ describe('finalizeAndSendPost', () => {
     const testChannel = (await db.getChannel({ id: 'zod/group/channel' }))!;
 
     vi.useFakeTimers();
-    vi.mocked(poke).mockResolvedValue(0);
+    pokeMock.mockResolvedValue(0);
     updateSession({ startTime: Date.now(), channelStatus: 'active' });
 
     // create parent post
@@ -533,7 +533,7 @@ describe('finalizeAndSendPost', () => {
     });
     await db.insertChannelPosts({ posts: [parentPost] });
 
-    expect(poke).not.toHaveBeenCalled();
+    expect(pokeMock).not.toHaveBeenCalled();
 
     // send reply
     const replyContent = friendlyUniqueString();
@@ -559,7 +559,7 @@ describe('finalizeAndSendPost', () => {
     });
 
     // reply action was sent
-    expect(poke).toHaveBeenCalledWith(
+    expect(pokeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         app: 'channels',
         mark: 'channel-action-1',

@@ -29,6 +29,7 @@ interface Config
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
   lastStatus: string;
+  testOverrides: UrbitTestOverrides | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -95,12 +96,25 @@ export interface ClientParams {
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
 
+export interface UrbitTestOverrides {
+  getCurrentUserId?: () => string;
+  scry?: <T>(params: { app: string; path: string; timeout?: number }) => Promise<T>;
+  poke?: (params: PokeParams) => Promise<number | undefined>;
+  trackedPoke?: <T, R = T>(
+    params: PokeParams,
+    endpoint: UrbitEndpoint,
+    predicate: (event: R) => boolean,
+    requestConfig?: { tag?: string; timeout?: number }
+  ) => Promise<void>;
+}
+
 const config: Config = {
   client: null,
   lastStatus: '',
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
+  testOverrides: null,
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
@@ -119,6 +133,9 @@ export const client = new Proxy(
 ) as Urbit;
 
 export const getCurrentUserId = () => {
+  if (config.testOverrides?.getCurrentUserId) {
+    return config.testOverrides.getCurrentUserId();
+  }
   if (!client.nodeId) {
     throw new Error('Client not initialized');
   }
@@ -204,10 +221,17 @@ export function configureClient({
 
 export const internalConfigureClient = configureClient;
 
+export function internalSetUrbitTestOverrides(
+  overrides: UrbitTestOverrides | null
+) {
+  config.testOverrides = overrides;
+}
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  config.testOverrides = null;
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -400,7 +424,14 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   }
 }
 
-export async function poke({ app, mark, json }: PokeParams) {
+export async function poke({
+  app,
+  mark,
+  json,
+}: PokeParams): Promise<number | undefined> {
+  if (config.testOverrides?.poke) {
+    return config.testOverrides.poke({ app, mark, json });
+  }
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
     app,
@@ -451,6 +482,14 @@ export async function trackedPoke<T, R = T>(
   predicate: (event: R) => boolean,
   requestConfig?: { tag?: string; timeout?: number }
 ) {
+  if (config.testOverrides?.trackedPoke) {
+    return config.testOverrides.trackedPoke(
+      params,
+      endpoint,
+      predicate,
+      requestConfig
+    );
+  }
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
@@ -587,6 +626,9 @@ export async function scry<T>({
   path: string;
   timeout?: number;
 }) {
+  if (config.testOverrides?.scry) {
+    return config.testOverrides.scry<T>({ app, path, timeout });
+  }
   if (!config.client) {
     throw new Error('Client not initialized');
   }
