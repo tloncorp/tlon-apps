@@ -13,7 +13,7 @@ import {
   Urbit,
 } from '../http-api';
 import { preSig } from '../urbit';
-import { getLandscapeAuthCookie } from './landscapeApi';
+import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
@@ -28,6 +28,7 @@ interface Config
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
+  loggingOut: boolean;
   lastStatus: string;
 }
 
@@ -90,7 +91,7 @@ export interface ClientParams {
   verbose?: boolean;
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
-  handleAuthFailure?: () => void;
+  handleAuthFailure?: (params: { mustLogout: boolean }) => void;
   onQuitOrReset?: (cause: 'subscriptionQuit' | 'reset') => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
@@ -101,6 +102,7 @@ const config: Config = {
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
+  loggingOut: false,
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
@@ -731,11 +733,15 @@ function redactPath(path: string) {
 }
 
 async function reauth() {
+  if (config.loggingOut) {
+    return;
+  }
+
   if (!config.getCode) {
     logger.log('No getCode function provided for auth');
     if (config.handleAuthFailure) {
       logger.log('calling auth failure handler');
-      return config.handleAuthFailure();
+      return config.handleAuthFailure({ mustLogout: false });
     }
 
     throw new Error('Unable to authenticate with urbit');
@@ -766,7 +772,7 @@ async function reauth() {
             config.pendingAuth = null;
             if (config.handleAuthFailure) {
               logger.log('auth failed, calling auth failure handler');
-              config.handleAuthFailure();
+              config.handleAuthFailure({ mustLogout: false });
             }
 
             reject(new Error("Couldn't authenticate with urbit"));
@@ -777,6 +783,15 @@ async function reauth() {
           resolve(authCookie);
           return;
         } catch (e) {
+          if (
+            e instanceof AuthFailureError &&
+            [400, 403].includes(e.responseStatus)
+          ) {
+            // the info we tried to reauth with is invalid, it's not going to work and they need to logout
+            config.pendingAuth = null;
+            config.loggingOut = true;
+            config.handleAuthFailure?.({ mustLogout: true });
+          }
           reject(new Error(`Error during reauth: ${e}`));
         }
       };
@@ -789,7 +804,7 @@ async function reauth() {
     logger.error('error getting urbit code', e);
     config.pendingAuth = null;
     if (config.handleAuthFailure) {
-      return config.handleAuthFailure();
+      return config.handleAuthFailure({ mustLogout: false });
     }
 
     throw e;

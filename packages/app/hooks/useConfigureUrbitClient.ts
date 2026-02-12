@@ -11,6 +11,7 @@ import { useShip } from '../contexts/ship';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
+import { platformAlert } from '../lib/platformAlert';
 import { resetDb } from '../lib/resetDb';
 import { initializePolyfills, platformFetch } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
@@ -49,7 +50,7 @@ export function configureUrbitClient({
   ship: string;
   shipUrl: string;
   authType: 'self' | 'hosted';
-  onAuthFailure?: () => void;
+  onAuthFailure?: (params: { mustLogout: boolean }) => void;
 }) {
   configureClient({
     shipName: ship,
@@ -122,9 +123,20 @@ export function useConfigureUrbitClient() {
         ship: params?.shipName ?? ship ?? '',
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
         authType,
-        onAuthFailure: async () => {
+        onAuthFailure: async ({ mustLogout }) => {
           clientLogger.log('Client handling auth failure');
-          if (authType === 'self') {
+          if (mustLogout) {
+            clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+              authType,
+              context: 'Access code invalidated',
+            });
+            await platformAlert(
+              'Session Expired',
+              'Your access credentials are no longer valid. This can happen after a factory reset. Please log in again.',
+              'Logout'
+            );
+            await logout();
+          } else if (authType === 'self') {
             // there's nothing we can do to recover, must log out
             clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
               authType,
