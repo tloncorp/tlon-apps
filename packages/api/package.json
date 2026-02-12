@@ -6,6 +6,11 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./utils": "./src/utils.ts",
+    "./noun": "./src/noun.ts",
+    "./content-helpers": "./src/content-helpers.ts",
+    "./contentReferences": "./src/contentReferences.ts",
+    "./postContent": "./src/postContent.ts",
     "./types": "./src/types/index.ts",
     "./types/*": "./src/types/*.ts",
     "./lib": "./src/lib/index.ts",
