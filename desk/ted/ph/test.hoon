@@ -185,6 +185,11 @@
 ;<  ~  bind:m  (sync-desk ~zod %groups)
 ;<  ~  bind:m  (sync-desk ~bud %groups)
 ;<  ~  bind:m  (sync-desk ~nec %groups)
+;<  =bowl:spider  bind:m  get-bowl
+=+  snap-id=(end 3^4 (sham eny.bowl))
+=+  snap=(cat 3 'aqua-tests-' (scot %uv snap-id))
+~>  %slog.1^(crip "Taking snapshot...")
+;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec]]~)
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
 ;<  results=(list (pair path thread-result))  bind:m
@@ -194,6 +199,7 @@
   ?~  tests  (pure:n (flop results))
   =*  test  i.tests
   =*  name  (rear path.test)
+  ;<  ~  bind:n  (send-events:ph-io [%restore-snap snap]~)
   ;<  now-1=@da  bind:n  get-time
   ;<  =thread-result  bind:n  (await-test-thread test)
   ;<  now-2=@da  bind:n  get-time
