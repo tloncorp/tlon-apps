@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { formatMemorySize } from '@tloncorp/api/lib/formatMemorySize';
+import { convert, formatMemorySize } from '@tloncorp/api/lib/formatMemorySize';
 
 it('truncates trailing zeros', () => {
   expect(formatMemorySize(1126)).toBe('1.1kb');
@@ -20,4 +20,10 @@ it('chooses unit to yield a >=1 result', () => {
 it('rounds up to 1024 of the lower unit when above 1023.9', () => {
   expect(formatMemorySize(1023.95)).toBe('1024b');
   expect(formatMemorySize(1024)).toBe('1kb');
+});
+
+it('can convert among different units using `convert`', () => {
+  expect(convert(1, 'kb').to('b')).toEqual(1024);
+  expect(convert(1, 'kb').to('kb')).toEqual(1);
+  expect(convert(2, 'gb').to('kb')).toEqual(2_097_152);
 });

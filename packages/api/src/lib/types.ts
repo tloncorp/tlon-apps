@@ -8,6 +8,13 @@ export function isChatChannel(channel: db.Channel): boolean {
   );
 }
 
+/**
+ * Ordered posts are the canonical backend source for pinned posts.
+ */
+export function getPinnedPostId(channel: db.Channel): string | null {
+  return channel.order?.[0] ?? null;
+}
+
 export function isChannel(obj: db.Channel | db.Group): obj is db.Channel {
   return !('hostUserId' in obj);
 }

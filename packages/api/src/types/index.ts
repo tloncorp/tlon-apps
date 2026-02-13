@@ -10,6 +10,6 @@ export * from './onboarding';
 export * from './post';
 export * from './references';
 export * from './system';
-export * from './types';
+export * from './systemContacts';
 export * from './uploads';
 export * from './wayfinding';

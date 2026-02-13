@@ -2,13 +2,13 @@ import isURL from 'validator/lib/isURL';
 
 import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
 import { createDevLogger } from '@tloncorp/shared/debug';
-import type {
+import {
   FinalizedAttachment,
   LinkAttachment,
   ReferenceAttachment,
+  UploadedFileAttachment,
   UploadedImageAttachment,
-} from '../types/attachment';
-import { UploadedFileAttachment } from '../types/attachment';
+} from '../types';
 import {
   Block,
   Inline,
@@ -18,27 +18,7 @@ import {
   pathToCite,
 } from '../urbit';
 import { fileFromPath } from './file';
-
-// Inlined from tiptap.ts to avoid @tiptap dependency
-const makeText = (t: string) => ({ type: 'text', text: t });
-const makeMention = (id: string) => ({
-  type: 'mention',
-  attrs: { id },
-});
-const makeParagraph = (content?: JSONContent[]): JSONContent => {
-  const p = { type: 'paragraph' };
-  if (!content) {
-    return p;
-  }
-  if (
-    content.length > 0 &&
-    content[0].type === 'text' &&
-    content[0].text === ''
-  ) {
-    return p;
-  }
-  return { ...p, content };
-};
+import { makeMention, makeParagraph, makeText } from '@tloncorp/shared/logic/tiptap';
 
 const logger = createDevLogger('content-helpers', false);
 

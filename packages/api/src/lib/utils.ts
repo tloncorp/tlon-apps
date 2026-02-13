@@ -3,6 +3,7 @@ import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
+import { useMemo } from 'react';
 
 import * as api from '../client';
 import {
@@ -11,8 +12,7 @@ import {
   isGroupDmChannelId,
 } from '../client/apiUtils';
 import type * as db from '@tloncorp/shared/db/types';
-import type { ContentReference } from '../types/references';
-import { PersonalGroupSlugs } from '../types/wayfinding';
+import * as domain from '../types';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
 
@@ -437,12 +437,12 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 
 export function extractReferencesFromContent(
   story: api.PostContent
-): ContentReference[] {
+): domain.ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as ContentReference[])
+        ) as domain.ContentReference[])
       : [];
 
   return references;
@@ -463,7 +463,7 @@ export const extractContentTypes = (
   content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
-  references: ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -479,7 +479,7 @@ export const extractContentTypesFromPost = (
   post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
-  references: ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -639,6 +639,41 @@ export const getPostTypeFromChannelId = ({
   }
 };
 
+export const usePostMeta = (post: db.Post) => {
+  const { inlines, references, blocks } = useMemo(
+    () => extractContentTypesFromPost(post),
+    [post]
+  );
+  const isText = useMemo(() => isTextPost(post), [post]);
+  const isImage = useMemo(() => isImagePost(post), [post]);
+  const isLink = useMemo(() => textPostIsLink(post), [post]);
+  const isReference = useMemo(() => isReferencePost(post), [post]);
+  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
+  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
+  const image = useMemo(
+    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
+    [blocks, isImage]
+  );
+  const linkedImage = useMemo(
+    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
+    [inlines, isLinkedImage]
+  );
+
+  return {
+    isText,
+    isImage,
+    isLink,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    inlines,
+    references,
+    blocks,
+    image,
+    linkedImage,
+  };
+};
+
 export const getCompositeGroups = (
   groups: db.Group[],
   base: Partial<db.Group>[]
@@ -695,7 +730,7 @@ export function simpleHash(input: string) {
   return Math.abs(hash).toString(36);
 }
 
-const wayfindingGroup = PersonalGroupSlugs;
+const wayfindingGroup = domain.PersonalGroupSlugs;
 function isWayfindingChannel(id: string | null | undefined): boolean {
   if (!id) return false;
   if (isDmChannelId(id)) return false;

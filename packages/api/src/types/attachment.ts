@@ -1,24 +1,8 @@
+import { ImagePickerAsset } from 'expo-image-picker';
 import { memoize, uniqueId } from 'lodash';
 
 import { ContentReference } from './references';
 import { UploadState } from './uploads';
-
-/**
- * Platform-agnostic image asset type (compatible with expo-image-picker's ImagePickerAsset)
- * This allows the package to work in Node.js, web, and React Native environments.
- */
-export interface ImagePickerAsset {
-  uri: string;
-  width: number;
-  height: number;
-  fileSize?: number;
-  mimeType?: string;
-  fileName?: string;
-  type?: 'image' | 'video';
-  duration?: number;
-  base64?: string;
-  exif?: Record<string, unknown>;
-}
 
 export type LinkMetadata = PageMetadata | FileMetadata;
 
@@ -403,7 +387,7 @@ export namespace Attachment {
           };
       }
     } else {
-      return (uploadIntent as { needsUpload: false; finalized: FinalizedAttachment }).finalized;
+      return uploadIntent.finalized;
     }
   }
 

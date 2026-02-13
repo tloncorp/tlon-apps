@@ -1,5 +1,5 @@
-import type { ActivityEvent } from '@tloncorp/shared/db/types';
 import type * as db from '@tloncorp/shared/db/types';
+import type { ActivityEvent } from '@tloncorp/shared/db/types';
 import {
   ExtendedEventType,
   NotificationLevel,
@@ -96,10 +96,10 @@ export function toSourceActivityEvents(
           // "source" if it hasn't already been added
           const individualMentionKey = `${key}/${event.postId}`;
           if (!eventMap.has(individualMentionKey)) {
-            const mentionSource: SourceActivityEvents = {
+            const mentionSource = {
               newest: event,
               all: [event],
-              type: event.type as ExtendedEventType,
+              type: event.type,
               sourceId: `${event.sourceId}/${event.postId}`,
             };
             eventMap.set(individualMentionKey, mentionSource);
@@ -112,10 +112,10 @@ export function toSourceActivityEvents(
       }
     } else {
       // Create a new entry in the map
-      const newRollup: SourceActivityEvents = {
+      const newRollup = {
         newest: event,
         all: [event],
-        type: event.type as ExtendedEventType,
+        type: event.type,
         sourceId: event.sourceId,
       };
       eventMap.set(key, newRollup);

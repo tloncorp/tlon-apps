@@ -2,16 +2,15 @@ import { Buffer } from 'buffer';
 
 import * as db from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared/debug';
+import * as domain from '../types';
 import {
-  AssignmentResponse,
-  HostedNodeStatus,
+  AnalyticsEvent,
   HostedShipResponse,
   ReservableShip,
   ReservedShip,
   User,
-} from '../types/hosting';
-import { AnalyticsEvent } from '../types/analytics';
-import { getConstants } from '../types/constants';
+  getConstants,
+} from '../types';
 import { withRetry } from '../lib/utils';
 
 const logger = createDevLogger('hostingApi', false);
@@ -473,7 +472,7 @@ export const verifyEmailDigits = async (email: string, digits: string) =>
   hostingFetch<object>(`/v1/verify-email-digits/${email}/${digits}`);
 
 export const assignShipToUser = async (userId: string) => {
-  const response = await hostingFetch<AssignmentResponse>(
+  const response = await hostingFetch<domain.AssignmentResponse>(
     `/v1/users/${userId}/assign-ship`,
     {
       method: 'PATCH',
@@ -557,7 +556,7 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<{ status: HostedNodeStatus; showWayfinding: boolean }> => {
+): Promise<{ status: domain.HostedNodeStatus; showWayfinding: boolean }> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -572,7 +571,7 @@ export const getNodeStatus = async (
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return { status: HostedNodeStatus.Running, showWayfinding };
+    return { status: domain.HostedNodeStatus.Running, showWayfinding };
   }
 
   // If user has a paused ship, resume it
@@ -580,11 +579,11 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return { status: HostedNodeStatus.Paused, showWayfinding };
+    return { status: domain.HostedNodeStatus.Paused, showWayfinding };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return { status: HostedNodeStatus.UnderMaintenance, showWayfinding };
+    return { status: domain.HostedNodeStatus.UnderMaintenance, showWayfinding };
   }
 
   // If user has a suspended ship, boot it
@@ -600,17 +599,17 @@ export const getNodeStatus = async (
           err.message.includes(MANUAL_UPDATE_REQUIRED_MESSAGE)
         ) {
           return {
-            status: HostedNodeStatus.UnderMaintenance,
+            status: domain.HostedNodeStatus.UnderMaintenance,
             showWayfinding,
           };
         }
         throw err;
       }
     }
-    return { status: HostedNodeStatus.Suspended, showWayfinding };
+    return { status: domain.HostedNodeStatus.Suspended, showWayfinding };
   }
 
-  return { status: HostedNodeStatus.Unknown, showWayfinding };
+  return { status: domain.HostedNodeStatus.Unknown, showWayfinding };
 };
 
 export const inviteShipWithLure = async (params: {

@@ -38,7 +38,7 @@ export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './perf';
-export * from './electronAuth';
+export * from './electrtonAuth';
 export * from '@urbit/aura';
 export * from './store/dbHooks';
 export * from './utils';

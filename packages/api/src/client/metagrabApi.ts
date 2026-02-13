@@ -2,17 +2,16 @@ import { render } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
 import { createDevLogger } from '@tloncorp/shared/debug';
-import type { LinkMetadata, LinkMetadataError } from '../types/attachment';
-import { getConstants } from '../types/constants';
+import * as domain from '../types';
+import { getConstants } from '../types';
 import * as ub from '../urbit';
-import { AnalyticsEvent } from '../types/analytics';
 import { request } from './urbit';
 
 const logger = createDevLogger('metagrabApi', false);
 
 export async function getLinkMetadata(
   url: string
-): Promise<LinkMetadata | LinkMetadataError> {
+): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
     const encodedUrl = render('uw', Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
@@ -27,7 +26,7 @@ export async function getLinkMetadata(
     logger.log('metagrab response', response);
 
     if (response.status !== 200) {
-      logger.trackError(AnalyticsEvent.ErrorFetchLinkMetadata, {
+      logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, {
         message: `bad metagrab response: ${response.status}`,
         response,
       });
@@ -36,17 +35,17 @@ export async function getLinkMetadata(
 
     const parsed = parseLinkMetadataResponse(url, response);
     if (parsed.type === 'error') {
-      logger.trackError(AnalyticsEvent.ErrorFetchLinkMetadata, {
+      logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, {
         message: `metagrab error: ${parsed.reason}`,
         response,
         parsedResponse: parsed,
       });
     } else {
-      logger.trackEvent(AnalyticsEvent.FetchLinkMetadata);
+      logger.trackEvent(domain.AnalyticsEvent.FetchLinkMetadata);
     }
     return parsed;
   } catch (error) {
-    logger.trackError(AnalyticsEvent.ErrorFetchLinkMetadata, error);
+    logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, error);
     return { type: 'error', reason: 'unknown error' };
   }
 }
@@ -54,7 +53,7 @@ export async function getLinkMetadata(
 function parseLinkMetadataResponse(
   url: string,
   response: ub.LinkMetadataResponse
-): LinkMetadata | LinkMetadataError {
+): domain.LinkMetadata | domain.LinkMetadataError {
   const { result } = response;
   if (!result) {
     return { type: 'redirect' };
@@ -74,7 +73,7 @@ function parseLinkMetadataResponse(
     const siteDescription = description?.[0]?.value;
     const imageData = parseImageData(url, image ?? []);
 
-    const parsed: LinkMetadata = {
+    const parsed: domain.LinkMetadata = {
       type: 'page',
       url,
       siteIconUrl,
@@ -90,7 +89,7 @@ function parseLinkMetadataResponse(
   }
 
   if (result.type === 'file') {
-    const parsed: LinkMetadata = {
+    const parsed: domain.LinkMetadata = {
       type: 'file',
       url,
       mime: result.mime,
@@ -141,7 +140,7 @@ function parseImageData(url: string, data: ub.LinkMetadataItem[]) {
 
 export async function getFallbackLinkMetadata(
   url: string
-): Promise<LinkMetadata | LinkMetadataError> {
+): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
     const env = getConstants();
     const response = await fetch(`${env.INVITE_SERVICE_ENDPOINT}/linkPreview`, {
@@ -159,7 +158,7 @@ export async function getFallbackLinkMetadata(
       throw new Error('fallback link meta payload invalid');
     }
 
-    const meta: LinkMetadata = {
+    const meta: domain.LinkMetadata = {
       type: 'page',
       url,
       siteIconUrl: payload.siteIconUrl || '',

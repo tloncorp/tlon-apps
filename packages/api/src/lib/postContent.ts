@@ -1,4 +1,5 @@
-import { toContentReference } from '../client/postsApi';
+import * as api from '../client';
+import { formatUd } from '../client/apiUtils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { assertNever } from './assertNever';
@@ -161,13 +162,47 @@ export type BlockFromType<T extends BlockType> = Extract<
 >;
 
 export type PostContent = BlockData[];
-type ApiPostContent = (ub.Verse | ContentReference)[] | null;
 
 export interface PlaintextPreviewConfig {
   blockSeparator: string;
   includeLinebreaks: boolean;
   includeRefTag: boolean;
   indentDepth?: number;
+}
+
+function toContentReference(cite: ub.Cite): ContentReference | null {
+  if ('chan' in cite) {
+    const channelId = cite.chan.nest;
+    // I've seen these forms of reference path:
+    // /msg/170141184506828851385935487131294105600
+    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
+    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
+    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
+    const [postId, replyId] = Array.from(
+      cite.chan.where.matchAll(messageIdRegex)
+    ).map((m) => m[1].replace(/\./g, ''));
+    if (!postId) {
+      return null;
+    }
+    return {
+      type: 'reference',
+      referenceType: 'channel',
+      channelId,
+      postId: formatUd(postId),
+      replyId: replyId ? formatUd(replyId) : undefined,
+    };
+  } else if ('group' in cite) {
+    return { type: 'reference', referenceType: 'group', groupId: cite.group };
+  } else if ('desk' in cite) {
+    const parts = cite.desk.flag.split('/');
+    const userId = parts[0];
+    const appId = parts[1];
+    if (!userId || !appId) {
+      return null;
+    }
+    return { type: 'reference', referenceType: 'app', userId, appId };
+  }
+  return null;
 }
 export namespace PlaintextPreviewConfig {
   export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
@@ -338,7 +373,7 @@ export function convertContent(
     return out;
   }
 
-  const story: ApiPostContent =
+  const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
@@ -354,7 +389,7 @@ export function convertContent(
  * applies more type strictness at callsite.
  */
 export function convertContentSafe(
-  story: Exclude<ApiPostContent, null>
+  story: Exclude<api.PostContent, null>
 ): PostContent {
   const blocks: PostContent = [];
   for (const verse of story) {
@@ -491,7 +526,9 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return toContentReference(block.cite) ?? errorMessage('Failed to parse');
+      return (
+        toContentReference(block.cite) ?? errorMessage('Failed to parse')
+      );
     }
     case is(block, 'link'): {
       return {
@@ -643,15 +680,15 @@ export function appendInline(
 }
 
 export function getTextContent(
-  postContent: Exclude<ApiPostContent, null>,
+  postContent: Exclude<api.PostContent, null>,
   config?: PlaintextPreviewConfig
 ): string;
 export function getTextContent(
-  postContent: ApiPostContent,
+  postContent: api.PostContent,
   config?: PlaintextPreviewConfig
 ): string | null;
 export function getTextContent(
-  postContent: ApiPostContent,
+  postContent: api.PostContent,
   config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
 ): string | null {
   return postContent == null
