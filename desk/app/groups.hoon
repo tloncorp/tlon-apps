@@ -4852,7 +4852,8 @@
     ::  clean-up a leaves entry
     =.  leaves  (~(del in leaves) flag)
     =.  token  tok
-    ?.  (can-poke:neg bowl p.flag server)
+    =+  status=(read-status:neg bowl [p.flag server])
+    ?:  ?=(%clash status)
       =.  cor  (tell:log %warn leaf+"+fi-join to {<flag>} failed: protocol mismatch" ~)
       =.  progress  `%error
       fi-core
