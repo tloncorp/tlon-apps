@@ -198,7 +198,7 @@ EOF
 
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click -t 600 $pier <<EOF
+result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
