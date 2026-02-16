@@ -235,17 +235,27 @@ const ButtonFrame = styled(Pressable, {
       true: {},
       false: {},
     },
+    circular: {
+      true: {},
+      false: {},
+    },
     dimmed: {
       true: { opacity: 0.5 },
     },
-    iconOnly: (val: boolean, { props }: { props: { size?: ButtonSize } }) => {
+    iconOnly: (
+      val: boolean,
+      { props }: { props: { size?: ButtonSize; circular?: boolean } }
+    ) => {
       if (!val) return {};
       const sizes = {
         large: { width: '$6xl', paddingHorizontal: 0 },
         medium: { width: 56, paddingHorizontal: 0 },
         small: { width: 42, paddingHorizontal: 0 },
       };
-      return sizes[props.size ?? 'medium'];
+      return {
+        ...sizes[props.size ?? 'medium'],
+        ...(props.circular ? { borderRadius: '100%', aspectRatio: 1 } : null),
+      };
     },
     hasLeadingIcon: {
       small: { paddingLeft: '$l' },
@@ -356,6 +366,7 @@ type TextButtonProps = ButtonBaseProps & {
 
 type IconOnlyButtonProps = ButtonBaseProps & {
   icon: IconProp;
+  circular?: boolean;
   label?: never;
   leadingIcon?: never;
   trailingIcon?: never;
