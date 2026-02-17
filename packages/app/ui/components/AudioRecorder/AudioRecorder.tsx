@@ -214,9 +214,7 @@ export const AudioRecorder = forwardRef<
     });
   }, []);
 
-  const primaryAction = useMemo<
-    'record' | 'stop-record' | 'stop-playback' | 'submit'
-  >(() => {
+  const primaryAction = useMemo<'record' | 'stop-record' | 'submit'>(() => {
     if (state.live) {
       switch (state.recorderState) {
         case RecorderState.stopped:
@@ -226,13 +224,7 @@ export const AudioRecorder = forwardRef<
           return 'stop-record';
       }
     } else {
-      switch (state.playbackState) {
-        case PlayerState.stopped:
-        case PlayerState.paused:
-          return 'submit';
-        case PlayerState.playing:
-          return 'stop-playback';
-      }
+      return 'submit';
     }
   }, [state]);
 
@@ -256,28 +248,13 @@ export const AudioRecorder = forwardRef<
           await refApi.stopRecording();
           break;
 
-        case 'stop-playback':
         case 'submit':
           throw new Error(
             `Invalid primary action ${primaryAction} for live AudioRecorder`
           );
       }
     } else {
-      switch (primaryAction) {
-        case 'submit':
-          onSubmit?.(state.audioFilePath);
-          break;
-
-        case 'stop-playback':
-          await refApi.stopPlayback();
-          break;
-
-        case 'stop-record':
-        case 'record':
-          throw new Error(
-            `Invalid primary action ${primaryAction} for static AudioRecorder`
-          );
-      }
+      onSubmit?.(state.audioFilePath);
     }
   }, [primaryAction, refApi, state, permissions, onSubmit]);
 
@@ -344,7 +321,8 @@ export const AudioRecorder = forwardRef<
           iconOnly
           circular
           size="small"
-          icon="Play"
+          intent="positive"
+          icon={state.playbackState === PlayerState.playing ? 'Add' : 'Play'}
           onPress={refApi.startPlayback}
         />
       )}
@@ -394,8 +372,6 @@ export const AudioRecorder = forwardRef<
             case 'record':
               return 'Record';
             case 'stop-record':
-              return 'Stop';
-            case 'stop-playback':
               return 'Stop';
             case 'submit':
               return 'ArrowUp';
