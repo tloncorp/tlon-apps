@@ -89,6 +89,7 @@ export function ChannelHeader({
   goToChatDetails,
   goToProfile,
   showSpinner,
+  loadingSubtitle = 'Loading messages…',
   showSearchButton = false,
   showEditButton = false,
   post,
@@ -104,6 +105,7 @@ export function ChannelHeader({
   goToChatDetails?: () => void;
   goToProfile?: () => void;
   showSpinner?: boolean;
+  loadingSubtitle?: string;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   post?: db.Post;
@@ -236,26 +238,15 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-
-  const facePileContacts = useMemo(() => {
-    if (!channel?.members) return [];
-
-    // For DMs and group DMs, show all members
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
-      return channel.members
-        .map((member) => member.contact)
-        .filter(Boolean) as db.Contact[];
+  const headerLoadingSubtitle = useMemo(() => {
+    if (showSpinner) {
+      return loadingSubtitle;
     }
-
-    // For single-channel groups, show group members
-    if (channel.type === 'chat' && group?.members) {
-      return group.members
-        .map((member) => member.contact)
-        .filter(Boolean) as db.Contact[];
+    if (connectionStatus !== 'Connected') {
+      return subtitleText;
     }
-
-    return [];
-  }, [channel, group]);
+    return null;
+  }, [showSpinner, loadingSubtitle, connectionStatus, subtitleText]);
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -335,7 +326,7 @@ export function ChannelHeader({
         showSessionStatus
         showSubtitle
         borderBottom
-        isLoading={showSpinner}
+        loadingSubtitle={headerLoadingSubtitle}
         onTitlePress={handleTitlePress}
         useHorizontalTitleLayout={!isWindowNarrow}
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}

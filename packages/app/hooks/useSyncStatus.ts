@@ -77,9 +77,24 @@ export function useSyncStatus() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionStatus, session?.phase, mostRecentSyncTime, refreshTrigger]);
 
+  const loadingSubtitle = useMemo(() => {
+    if (connectionStatus !== 'Connected') {
+      return `${connectionStatus}...`;
+    }
+    if (
+      session?.phase === 'init' ||
+      session?.phase === 'high' ||
+      session?.phase === 'low'
+    ) {
+      return 'Syncing with node...';
+    }
+    return null;
+  }, [connectionStatus, session?.phase]);
+
   return {
     connectionStatus,
     lastSyncTime: mostRecentSyncTime,
     subtitle,
+    loadingSubtitle,
   };
 }
