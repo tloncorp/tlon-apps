@@ -74,7 +74,7 @@ export const ButtonContext = createStyledContext<{
 type ButtonColor = ColorTokens | 'transparent';
 
 const intentColors: {
-  [k: string]: { [k: string]: ButtonColor };
+  [K in ButtonIntent]: { [k: string]: ButtonColor };
 } = {
   primary: {
     action: '$primaryText',
