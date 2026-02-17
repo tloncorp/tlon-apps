@@ -238,15 +238,12 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-  const headerLoadingSubtitle = useMemo(() => {
-    if (showSpinner) {
-      return loadingSubtitle;
-    }
-    if (connectionStatus !== 'Connected') {
-      return subtitleText;
-    }
-    return null;
-  }, [showSpinner, loadingSubtitle, connectionStatus, subtitleText]);
+  const headerLoadingSubtitle =
+    showSpinner
+      ? loadingSubtitle
+      : connectionStatus !== 'Connected'
+        ? subtitleText
+        : null;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -317,44 +314,41 @@ export function ChannelHeader({
   }, [channel.type, goToProfile, goToChatDetails]);
 
   return (
-    <>
-      <ScreenHeader
-        title={displayTitle}
-        titleIcon={avatarElement || titleIcon}
-        subtitle={displaySubtitle}
-        testID="ChannelHeaderTitle"
-        showSessionStatus
-        showSubtitle
-        borderBottom
-        loadingSubtitle={headerLoadingSubtitle}
-        onTitlePress={handleTitlePress}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
-        rightControls={
-          <>
-            {channelHost && !isWindowNarrow && (
-              <ConnectionStatus
-                contactId={channelHost}
-                type="indicator-with-text"
-              />
-            )}
-            {showSearchButton && (
-              <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
-            )}
-            {/* this fragment/map is necessary to be able to provide a key to the items */}
-            {contextItems.map((item, index) => (
-              <Fragment key={index}>{item}</Fragment>
-            ))}
-            {showEditButton && (
-              <ScreenHeader.IconButton
-                onPress={goToEdit}
-                testID="ChannelHeaderEditButton"
-                type="Draw"
-              />
-            )}
-          </>
-        }
-      />
-    </>
+    <ScreenHeader
+      title={displayTitle}
+      titleIcon={avatarElement || titleIcon}
+      subtitle={displaySubtitle}
+      testID="ChannelHeaderTitle"
+      showSubtitle
+      borderBottom
+      loadingSubtitle={headerLoadingSubtitle}
+      onTitlePress={handleTitlePress}
+      useHorizontalTitleLayout={!isWindowNarrow}
+      leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
+      rightControls={
+        <>
+          {channelHost && !isWindowNarrow && (
+            <ConnectionStatus
+              contactId={channelHost}
+              type="indicator-with-text"
+            />
+          )}
+          {showSearchButton && (
+            <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
+          )}
+          {/* this fragment/map is necessary to be able to provide a key to the items */}
+          {contextItems.map((item, index) => (
+            <Fragment key={index}>{item}</Fragment>
+          ))}
+          {showEditButton && (
+            <ScreenHeader.IconButton
+              onPress={goToEdit}
+              testID="ChannelHeaderEditButton"
+              type="Draw"
+            />
+          )}
+        </>
+      }
+    />
   );
 }

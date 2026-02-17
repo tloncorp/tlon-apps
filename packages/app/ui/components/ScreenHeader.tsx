@@ -52,7 +52,6 @@ export const ScreenHeaderComponent = ({
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   backAction?: () => void;
-  showSessionStatus?: boolean;
   borderBottom?: boolean;
   onTitlePress?: () => void;
   useHorizontalTitleLayout?: boolean;
@@ -62,7 +61,6 @@ export const ScreenHeaderComponent = ({
   const { top } = useSafeAreaInsets();
 
   const shouldUseAnimatedTitleLayout = typeof title === 'string';
-
   const activeLoadingText = loadingSubtitle ?? undefined;
   const isLoadingActive = !!activeLoadingText;
   const lastLoadingTextRef = useRef('');
@@ -96,6 +94,8 @@ export const ScreenHeaderComponent = ({
 
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
+  const titleMaxWidth = useHorizontalTitleLayout ? 'unset' : 185;
+  const loadingTextMaxWidth = useHorizontalTitleLayout ? 360 : 240;
 
   // Fallback for non-string titles: swap to loading subtitle while loading.
   const displayTitle =
@@ -110,33 +110,88 @@ export const ScreenHeaderComponent = ({
     alignItems: 'center',
   };
 
-  const getWrapperStyle = () => {
-    if (useHorizontalTitleLayout) {
-      return horizontalTitleStack;
-    }
-  };
-
   const animatedSubtitleStyle = useAnimatedStyle(() => {
     return {
       opacity: subtitleOpacity.value,
     };
   });
 
-  const renderTitleContent = (titleContent: ReactNode) => {
-    if (onTitlePress) {
-      return (
-        <Pressable
-          onPress={onTitlePress}
-          style={{
-            alignSelf: useHorizontalTitleLayout ? 'flex-start' : 'center',
-          }}
+  const subtitleContent = (
+    <Text
+      color="$secondaryText"
+      size="$label/s"
+      numberOfLines={1}
+      paddingTop={5}
+      testID="ScreenHeaderSubtitle"
+    >
+      {resolvedSubtitle}
+    </Text>
+  );
+
+  const subtitleWithDisclosure =
+    typeof resolvedSubtitle === 'string' ? (
+      <LongPressDisclosure text={resolvedSubtitle}>
+        {subtitleContent}
+      </LongPressDisclosure>
+    ) : (
+      subtitleContent
+    );
+
+  const titleCluster = (
+    <XStack
+      alignItems="center"
+      justifyContent="center"
+      gap="$s"
+      height="$4xl"
+    >
+      {titleIcon}
+      {shouldUseAnimatedTitleLayout ? (
+        <HeaderAnimatedTitle
+          title={title}
+          isLoading={isLoadingActive}
+          loadingText={displayLoadingText}
+          leftAlignLoadingText={useHorizontalTitleLayout}
+          titleMaxWidth={titleMaxWidth}
+          loadingTextMaxWidth={loadingTextMaxWidth}
+        />
+      ) : (
+        <Text
+          size="$label/2xl"
+          color="$primaryText"
+          numberOfLines={1}
+          maxWidth={titleMaxWidth}
+          testID="ScreenHeaderTitle"
         >
-          {titleContent}
-        </Pressable>
-      );
-    }
-    return titleContent;
-  };
+          {displayTitle}
+        </Text>
+      )}
+      {onTitlePress && <Icon type="ChevronDown" color="$primaryText" size="$s" />}
+    </XStack>
+  );
+
+  const titleContent = shouldUseAnimatedTitleLayout ? (
+    <HeaderAnimatedCluster
+      isLoading={isLoadingActive}
+      leftAlignWhileLoading={useHorizontalTitleLayout}
+    >
+      {titleCluster}
+    </HeaderAnimatedCluster>
+  ) : (
+    titleCluster
+  );
+
+  const interactiveTitleContent = onTitlePress ? (
+    <Pressable
+      onPress={onTitlePress}
+      style={{
+        alignSelf: useHorizontalTitleLayout ? 'flex-start' : 'center',
+      }}
+    >
+      {titleContent}
+    </Pressable>
+  ) : (
+    titleContent
+  );
 
   return (
     <View
@@ -147,7 +202,7 @@ export const ScreenHeaderComponent = ({
       borderBottomWidth={borderBottom ? 1 : 0}
       testID={testID}
     >
-      <View style={getWrapperStyle()}>
+      <View style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}>
         {/* Only show subtitle on desktop/large screens */}
         {showSubtitle && useHorizontalTitleLayout && (
           <Animated.View
@@ -161,81 +216,11 @@ export const ScreenHeaderComponent = ({
               paddingHorizontal={'$l'}
               position="relative"
             >
-              {typeof resolvedSubtitle === 'string' ? (
-                <LongPressDisclosure text={resolvedSubtitle}>
-                  <Text
-                    color={'$secondaryText'}
-                    size="$label/s"
-                    numberOfLines={1}
-                    paddingTop={5}
-                    testID={'ScreenHeaderSubtitle'}
-                  >
-                    {resolvedSubtitle}
-                  </Text>
-                </LongPressDisclosure>
-              ) : (
-                <Text
-                  color={'$secondaryText'}
-                  size="$label/s"
-                  numberOfLines={1}
-                  paddingTop={5}
-                  testID={'ScreenHeaderSubtitle'}
-                >
-                  {resolvedSubtitle}
-                </Text>
-              )}
+              {subtitleWithDisclosure}
             </View>
           </Animated.View>
         )}
-        {renderTitleContent(
-          shouldUseAnimatedTitleLayout ? (
-            <HeaderAnimatedCluster
-              isLoading={isLoadingActive}
-              leftAlignWhileLoading={useHorizontalTitleLayout}
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="center"
-                gap={'$s'}
-                height={'$4xl'}
-              >
-                {titleIcon}
-                <HeaderAnimatedTitle
-                  title={title}
-                  isLoading={isLoadingActive}
-                  loadingText={displayLoadingText}
-                  leftAlignLoadingText={useHorizontalTitleLayout}
-                  titleMaxWidth={useHorizontalTitleLayout ? 'unset' : 185}
-                  loadingTextMaxWidth={useHorizontalTitleLayout ? 'unset' : 240}
-                />
-                {onTitlePress && (
-                  <Icon type="ChevronDown" color="$primaryText" size="$s" />
-                )}
-              </XStack>
-            </HeaderAnimatedCluster>
-          ) : (
-            <XStack
-              alignItems="center"
-              justifyContent="center"
-              gap={'$s'}
-              height={'$4xl'}
-            >
-              {titleIcon}
-              <Text
-                size={'$label/2xl'}
-                color={'$primaryText'}
-                numberOfLines={1}
-                maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
-                testID={'ScreenHeaderTitle'}
-              >
-                {displayTitle}
-              </Text>
-              {onTitlePress && (
-                <Icon type="ChevronDown" color="$primaryText" size="$s" />
-              )}
-            </XStack>
-          )
-        )}
+        {interactiveTitleContent}
       </View>
       <HeaderControls side="left">
         {backAction ? <HeaderBackButton onPress={backAction} /> : null}
@@ -291,22 +276,18 @@ function HeaderAnimatedCluster({
     );
   }, [clusterScale, clusterTranslateY, isLoading]);
 
-  const animatedClusterPositionStyle = useAnimatedStyle(() => {
+  const animatedClusterStyle = useAnimatedStyle(() => {
+    const scale = clusterScale.value;
     const leftScaleCompensation = leftAlignWhileLoading
-      ? -((1 - clusterScale.value) * clusterWidth.value) / 2
+      ? -((1 - scale) * clusterWidth.value) / 2
       : 0;
 
     return {
       transform: [
         { translateX: leftScaleCompensation },
         { translateY: clusterTranslateY.value },
+        { scale },
       ],
-    };
-  });
-
-  const animatedClusterScaleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: clusterScale.value }],
     };
   });
 
@@ -315,11 +296,9 @@ function HeaderAnimatedCluster({
       onLayout={(event) => {
         clusterWidth.value = event.nativeEvent.layout.width;
       }}
-      style={animatedClusterPositionStyle}
+      style={animatedClusterStyle}
     >
-      <Animated.View style={animatedClusterScaleStyle}>
-        {children}
-      </Animated.View>
+      {children}
     </Animated.View>
   );
 }
@@ -330,14 +309,14 @@ function HeaderAnimatedTitle({
   loadingText,
   leftAlignLoadingText = false,
   titleMaxWidth,
-  loadingTextMaxWidth,
+  loadingTextMaxWidth = 240,
 }: {
   title: string;
   isLoading: boolean;
   loadingText: string;
   leftAlignLoadingText?: boolean;
   titleMaxWidth?: number | 'unset';
-  loadingTextMaxWidth?: number | 'unset';
+  loadingTextMaxWidth?: number;
 }) {
   const theme = useTheme();
   const loadingOpacity = useSharedValue(0);
@@ -345,10 +324,7 @@ function HeaderAnimatedTitle({
   const spinnerRotation = useSharedValue(0);
   const spinnerSize = 8;
   const spinnerGap = 6;
-  const loadingRowWidth =
-    typeof loadingTextMaxWidth === 'number'
-      ? loadingTextMaxWidth + spinnerSize + spinnerGap
-      : undefined;
+  const loadingRowWidth = loadingTextMaxWidth + spinnerSize + spinnerGap;
 
   useEffect(() => {
     if (isLoading) {
@@ -435,7 +411,7 @@ function HeaderAnimatedTitle({
             position: 'absolute',
             top: 36,
             left: leftAlignLoadingText ? 0 : '50%',
-            width: leftAlignLoadingText ? undefined : loadingRowWidth,
+            width: loadingRowWidth,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: leftAlignLoadingText ? 'flex-start' : 'center',
