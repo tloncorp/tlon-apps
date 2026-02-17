@@ -58,6 +58,11 @@ export const AudioRecorder = forwardRef<
       ref?: React.Ref<AudioRecorderMethods>;
       onSubmit?: (audioFilePath: string) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
+      /** If provided, will use this number as a paddingHorizontal *except* for
+       * leading edge of waveform. Use this instead of paddingHorizontal to
+       * show waveform starting flush against the left edge of the container
+       * while still having padding on the right edge. */
+      contentInsetHorizontal?: number;
     } & (
       | {
           startInRecordingMode: true;
@@ -76,6 +81,7 @@ export const AudioRecorder = forwardRef<
     onSubmit,
     dangerouslyOverrideIsAudioAvailable:
       isAudioAvailable = hasRNWaveformNativeModule,
+    contentInsetHorizontal = 20.5,
     ...forwardedProps
   },
   ref
@@ -303,6 +309,12 @@ export const AudioRecorder = forwardRef<
       gap={8}
       alignItems="center"
       position="relative"
+      {...(contentInsetHorizontal == null
+        ? null
+        : {
+            paddingStart: state.live ? undefined : contentInsetHorizontal,
+            paddingEnd: contentInsetHorizontal,
+          })}
       {...forwardedProps}
     >
       {!state.live && (
