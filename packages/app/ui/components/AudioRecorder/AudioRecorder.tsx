@@ -369,14 +369,14 @@ export const AudioRecorder = forwardRef<
         />
       </Pressable>
       <Text
-        color={
-          state.live && state.recorderState === RecorderState.recording
-            ? 'red'
-            : undefined
-        }
         fontVariant={
           // keeps numbers monospaced to prevent layout shift when digits change
           ['tabular-nums']
+        }
+        style={
+          state.live && state.recorderState === RecorderState.recording
+            ? { color: 'red' }
+            : undefined
         }
       >
         {progressLabel}
