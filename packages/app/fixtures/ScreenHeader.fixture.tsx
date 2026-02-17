@@ -12,12 +12,33 @@ function StaticHeaderFixture() {
   );
 }
 
-function AnimatedLoadingHeaderFixture() {
-  const [title] = useValue('Title', { defaultValue: 'Watercooler' });
-  const [loadingSubtitle] = useValue('Loading Subtitle', {
-    defaultValue: 'Loading 231 messages from host...',
+function AnimatedLoadingHeaderFixture({
+  fixtureName,
+  defaultTitle,
+  defaultSubtitle,
+  defaultLoadingSubtitle,
+  useHorizontalTitleLayout = false,
+  showSubtitle = false,
+  withTitleIcon = false,
+}: {
+  fixtureName: string;
+  defaultTitle: string;
+  defaultSubtitle?: string;
+  defaultLoadingSubtitle: string;
+  useHorizontalTitleLayout?: boolean;
+  showSubtitle?: boolean;
+  withTitleIcon?: boolean;
+}) {
+  const [title] = useValue(`${fixtureName} Title`, { defaultValue: defaultTitle });
+  const [subtitle] = useValue(`${fixtureName} Subtitle`, {
+    defaultValue: defaultSubtitle ?? 'Important announcements',
   });
-  const [holdForMs] = useValue('Replay Duration (ms)', { defaultValue: 1400 });
+  const [loadingSubtitle] = useValue(`${fixtureName} Loading Subtitle`, {
+    defaultValue: defaultLoadingSubtitle,
+  });
+  const [holdForMs] = useValue(`${fixtureName} Replay Duration (ms)`, {
+    defaultValue: 1400,
+  });
   const [isLoading, setIsLoading] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,8 +66,21 @@ function AnimatedLoadingHeaderFixture() {
     <FixtureWrapper fillWidth verticalAlign="top" backgroundColor="$background">
       <ScreenHeader
         title={title}
+        subtitle={showSubtitle ? subtitle : undefined}
+        showSubtitle={showSubtitle}
+        titleIcon={withTitleIcon
+          ? (
+              <View
+                width={18}
+                height={18}
+                borderRadius={999}
+                backgroundColor="$tertiaryText"
+              />
+            )
+          : undefined}
+        onTitlePress={useHorizontalTitleLayout ? () => {} : undefined}
         loadingSubtitle={isLoading ? loadingSubtitle : null}
-        useHorizontalTitleLayout={false}
+        useHorizontalTitleLayout={useHorizontalTitleLayout}
         borderBottom
       />
       <View
@@ -78,5 +112,33 @@ function AnimatedLoadingHeaderFixture() {
 
 export default {
   Static: <StaticHeaderFixture />,
-  'Animated Loading': <AnimatedLoadingHeaderFixture />,
+  'Animated Loading (Mobile)': (
+    <AnimatedLoadingHeaderFixture
+      fixtureName="Mobile"
+      defaultTitle="Watercooler"
+      defaultLoadingSubtitle="Loading 231 messages from host..."
+    />
+  ),
+  'Animated Loading (Desktop)': (
+    <AnimatedLoadingHeaderFixture
+      fixtureName="Desktop"
+      defaultTitle="Bulletin Board"
+      defaultSubtitle="Important announcements"
+      defaultLoadingSubtitle="Loading messages…"
+      useHorizontalTitleLayout
+      showSubtitle
+      withTitleIcon
+    />
+  ),
+  'Animated Loading (Desktop Short Title)': (
+    <AnimatedLoadingHeaderFixture
+      fixtureName="Desktop Short Title"
+      defaultTitle="BB"
+      defaultSubtitle="Important announcements"
+      defaultLoadingSubtitle="Syncing messages and metadata from host..."
+      useHorizontalTitleLayout
+      showSubtitle
+      withTitleIcon
+    />
+  ),
 };
