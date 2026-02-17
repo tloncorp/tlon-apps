@@ -57,6 +57,7 @@ export const AudioRecorder = forwardRef<
     {
       ref?: React.Ref<AudioRecorderMethods>;
       onSubmit?: (audioFilePath: string) => void;
+      onCancel?: (audioFilePath: string | null) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
       /** If provided, will use this number as a paddingHorizontal *except* for
        * leading edge of waveform. Use this instead of paddingHorizontal to
@@ -78,6 +79,7 @@ export const AudioRecorder = forwardRef<
   {
     startInRecordingMode,
     startInPlaybackModeWithFilePath,
+    onCancel,
     onSubmit,
     dangerouslyOverrideIsAudioAvailable:
       isAudioAvailable = hasRNWaveformNativeModule,
@@ -324,7 +326,13 @@ export const AudioRecorder = forwardRef<
           intent="secondary"
           size="small"
           icon="Close"
-          onPress={() => refApi.enterRecordingMode()}
+          onPress={() => {
+            if (onCancel) {
+              onCancel(state.audioFilePath);
+            } else {
+              refApi.enterRecordingMode();
+            }
+          }}
         />
       )}
       {!state.live && (
