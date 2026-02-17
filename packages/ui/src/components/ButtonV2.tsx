@@ -20,7 +20,8 @@ export type ButtonIntent =
   | 'helper'
   | 'positive'
   | 'negative'
-  | 'notice';
+  | 'notice'
+  | 'overwrite';
 
 export type ButtonPreset =
   | 'hero'
@@ -112,6 +113,11 @@ const intentColors: {
     border: '$positiveBorder',
     foreground: '$systemNoticeText',
   },
+  overwrite: {
+    action: '$negativeBorder',
+    background: '$negativeActionText',
+    foreground: '$negativeActionText',
+  },
 } as const;
 
 type ButtonColors = {
@@ -139,12 +145,21 @@ function resolveColors(
       return {
         background: c.action,
         border: c.action,
-        foreground:
-          intent === 'secondary'
-            ? '$tertiaryText'
-            : intent === 'notice'
-              ? '$systemNoticeBackground'
-              : '$background',
+        foreground: (() => {
+          switch (intent) {
+            case 'secondary':
+              return '$tertiaryText';
+            case 'notice':
+              return '$systemNoticeBackground';
+            case 'primary':
+            case 'helper':
+            case 'positive':
+            case 'negative':
+              return '$background';
+            default:
+              return c.foreground;
+          }
+        })(),
       };
     case 'outline':
       return {
