@@ -19,7 +19,11 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import { ActivityIncomingEvent } from '@tloncorp/shared/urbit';
-import { Notification, useLastNotificationResponse } from 'expo-notifications';
+import {
+  Notification,
+  clearLastNotificationResponseAsync,
+  useLastNotificationResponse,
+} from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -224,10 +228,12 @@ export default function useNotificationListener() {
             ? notificationResponse.notification.request
             : undefined,
         });
-        return;
+      } else {
+        setNotifToProcess(data);
       }
 
-      setNotifToProcess(data);
+      // Clear so future taps with reused request identifiers are not deduped.
+      void clearLastNotificationResponseAsync().catch(() => {});
     }
   }, [notificationResponse, isTlonEmployee]);
 
