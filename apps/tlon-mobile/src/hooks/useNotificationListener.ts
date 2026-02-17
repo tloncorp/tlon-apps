@@ -233,7 +233,12 @@ export default function useNotificationListener() {
       }
 
       // Clear so future taps with reused request identifiers are not deduped.
-      void clearLastNotificationResponseAsync().catch(() => {});
+      void clearLastNotificationResponseAsync().catch((error) => {
+        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+          context: 'Failed to clear last notification response',
+          error,
+        });
+      });
     }
   }, [notificationResponse, isTlonEmployee]);
 
