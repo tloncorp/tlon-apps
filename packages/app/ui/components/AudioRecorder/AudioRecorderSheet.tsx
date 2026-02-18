@@ -30,6 +30,7 @@ export function AudioRecorderSheet({
       onOpenChangeProp?.(open);
 
       if (open) {
+        // automatically start recording whenever opened
         audioRecorderRef.current?.startRecording();
       } else {
         audioRecorderRef.current?.stopRecording();
@@ -54,6 +55,9 @@ export function AudioRecorderSheet({
 
   return (
     <Sheet
+      animation="simple"
+      modal
+      dismissOnOverlayPress={false}
       {...forwardedProps}
       onOpenChange={useCallback(
         (open: boolean) => {
@@ -63,6 +67,7 @@ export function AudioRecorderSheet({
         [onAnyOpenChange, onOpenChangeProp]
       )}
     >
+      <Sheet.Overlay animation="simple" />
       <Sheet.Frame
         borderRadius="$3.5xl"
         backgroundColor="$background"

@@ -181,6 +181,19 @@ export function AttachmentPreview({
       );
     }
 
+    case 'voicememo': {
+      return (
+        <Container showSpinner={uploading}>
+          <Text
+            style={{ padding: 12, flex: 1 }}
+            backgroundColor="$secondaryBackground"
+          >
+            TODO: Voice memo
+          </Text>
+        </Container>
+      );
+    }
+
     default: {
       // this will raise type error if missing a case
       const _exhaustiveCheck: never = attachment;

@@ -8,6 +8,7 @@ import {
   ReferenceAttachment,
   UploadedFileAttachment,
   UploadedImageAttachment,
+  uploadStateUri,
 } from '../domain';
 import {
   Block,
@@ -550,30 +551,35 @@ type BuildPostBlobDataEntry<
  * An element of the `blob` array on an API resource for a post, used to hold
  * arbitrary off-schema data.
  */
-export type PostBlobDataEntry = BuildPostBlobDataEntry<
-  'file',
-  { version: 1 },
-  {
-    fileUri: string;
-    mimeType?: string;
-    name?: string;
-    /** in bytes */
-    size: number;
-  }
->;
+export type PostBlobDataEntry =
+  | BuildPostBlobDataEntry<
+      'file',
+      { version: 1 },
+      {
+        fileUri: string;
+        mimeType?: string;
+        name?: string;
+        /** in bytes */
+        size: number;
+      }
+    >
+  | BuildPostBlobDataEntry<
+      'voicememo',
+      { version: 1 },
+      {
+        fileUri: string;
+        /** in bytes */
+        size: number;
+        transcription?: string;
+      }
+    >;
 
 type PostBlobData = PostBlobDataEntry[];
 
-export function appendFileUploadToPostBlob(
+export function appendToPostBlob(
   blob: string | undefined,
-  opts: {
-    fileUri: string;
-    mimeType?: string;
-    name?: string;
-    /** in bytes */
-    size: number;
-  }
-) {
+  entry: PostBlobDataEntry
+): string {
   const data: PostBlobData = (() => {
     if (!blob) {
       return [];
@@ -590,7 +596,21 @@ export function appendFileUploadToPostBlob(
     }
     return [];
   })();
-  data.push({
+  data.push(entry);
+  return JSON.stringify(data);
+}
+
+export function appendFileUploadToPostBlob(
+  blob: string | undefined,
+  opts: {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+  }
+) {
+  return appendToPostBlob(blob, {
     type: 'file',
     version: 1,
     fileUri: opts.fileUri,
@@ -598,7 +618,6 @@ export function appendFileUploadToPostBlob(
     mimeType: opts.mimeType,
     size: opts.size,
   });
-  return JSON.stringify(data);
 }
 
 /** Client-side parsed representation of PostBlob data */
@@ -611,11 +630,14 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   }
 
   return arr.map((entry) => {
-    if (entry.type !== 'file' && entry.version != 1) {
-      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
-      return { type: 'unknown' };
+    if (entry.type === 'file' && entry.version === 1) {
+      return entry;
     }
-    return entry;
+    if (entry.type === 'voicememo' && entry.version === 1) {
+      return entry;
+    }
+    logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+    return { type: 'unknown' };
   });
 }
 
@@ -676,6 +698,17 @@ export function toPostData({
             name,
             mimeType: attachment.type,
             size: attachment.size,
+          });
+          break;
+        }
+
+        case 'voicememo': {
+          blob = appendToPostBlob(blob, {
+            type: 'voicememo',
+            version: 1,
+            fileUri: uploadStateUri(attachment.uploadState),
+            size: attachment.size,
+            transcription: undefined,
           });
           break;
         }

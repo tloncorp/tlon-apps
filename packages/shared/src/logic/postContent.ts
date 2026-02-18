@@ -320,6 +320,15 @@ export function convertContent(
           break;
         }
 
+        case 'voicememo': {
+          // treat it like a file for now
+          out.push({
+            type: 'file',
+            file: entry,
+          });
+          break;
+        }
+
         case 'unknown': {
           out.push({
             type: 'blockquote',
