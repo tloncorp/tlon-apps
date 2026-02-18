@@ -3162,7 +3162,7 @@ export const insertChanges = createWriteQuery(
       throw e;
     }
   },
-  []
+  ['channels']
 );
 
 export const insertChannelPosts = createWriteQuery(
@@ -3204,7 +3204,7 @@ export const insertLatestPosts = createWriteQuery(
       await insertPosts(posts, txCtx);
     });
   },
-  ['posts']
+  ['posts', 'channels']
 );
 
 const insertPostsBatchSize = 300;

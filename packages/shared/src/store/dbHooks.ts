@@ -700,6 +700,16 @@ export const useTelemetrySettings = () => {
   });
 };
 
+export const useChannelLatestSequenceNum = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getLatestChannelSequenceNum);
+  const { data } = useQuery({
+    queryKey: [['channelLatestSeqNum', channelId], deps],
+    queryFn: () => db.getLatestChannelSequenceNum({ channelId }),
+    enabled: Boolean(channelId),
+  });
+  return data ?? null;
+};
+
 export const usePendingPostsInChannel = (channelId: string) => {
   const deps = useKeyFromQueryDeps(db.getPendingPosts);
   const { data } = useQuery({
