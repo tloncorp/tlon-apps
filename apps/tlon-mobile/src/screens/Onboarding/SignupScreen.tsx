@@ -195,7 +195,8 @@ export const SignupScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
-        title={isSubmitting ? 'Loading…' : 'Accept invite'}
+        title="Accept invite"
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>

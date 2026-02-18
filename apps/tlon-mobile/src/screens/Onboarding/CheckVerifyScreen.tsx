@@ -90,7 +90,8 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title={isSubmitting ? 'Loading…' : 'Confirm code'}
+        title="Confirm code"
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={() => navigation.goBack()}
         backgroundColor="$secondaryBackground"
       />

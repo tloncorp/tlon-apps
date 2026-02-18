@@ -177,7 +177,8 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title={isSubmitting ? 'Loading…' : 'Tlon Login'}
+        title="Tlon Login"
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
         backAction={goBack}
       />
