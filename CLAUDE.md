@@ -43,6 +43,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm install` - Install all dependencies
 -   `pnpm run deps` - Install dependencies including iOS pods
 
+### Database Migrations
+
+-   `pnpm generate:migration` - Generate Drizzle migration files after schema changes
+-   **NEVER manually create or edit migration files** in `packages/shared/src/db/migrations/`. Always modify the schema in `packages/shared/src/db/schema.ts` and then run `pnpm generate:migration` to let Drizzle generate the migration automatically.
+
 ## Architecture Overview
 
 This is a monorepo for Tlon Messenger containing multiple applications and shared packages:
