@@ -259,7 +259,7 @@ export function useNavigateBackFromPost() {
           channelId: channel.id,
           selectedPostId: isChatShaped ? postId : undefined,
           groupId: channel.groupId ?? undefined,
-        });
+        }, { pop: true });
       }
     },
     [navigation, isWindowNarrow, lastScreenWasActivity]
@@ -428,10 +428,12 @@ export function getDesktopChannelRoute(
     name: tab,
     params: {
       screen: screenName,
+      pop: true,
       params: {
         channelId,
         ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
+        pop: true,
         params: {
           channelId,
           selectedPostId,
