@@ -52,11 +52,9 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <ScreenHeader
-        title="Welcome to Tlon"
+        title={isChecking ? 'Loading…' : 'Welcome to Tlon'}
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         backAction={() => navigation.goBack()}
-        isLoading={isChecking}
       />
 
       <YStack gap="$2xl" padding="$2xl">
