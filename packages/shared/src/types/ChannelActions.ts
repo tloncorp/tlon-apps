@@ -13,6 +13,8 @@ export type Id =
   | 'visibility'
   | 'delete'
   | 'forward'
+  | 'pinPost'
+  | 'unpinPost'
   | 'summarize';
 
 /**
@@ -45,6 +47,8 @@ export function channelActionIdsFor({
         'edit',
         'report',
         'visibility',
+        'pinPost',
+        'unpinPost',
         'delete',
         'summarize',
       ];
@@ -58,6 +62,8 @@ export function channelActionIdsFor({
         'edit',
         'report',
         'visibility',
+        'pinPost',
+        'unpinPost',
         'delete',
         'summarize',
       ];
@@ -87,6 +93,8 @@ export function channelActionIdsFor({
         'edit',
         'visibility',
         'report',
+        'pinPost',
+        'unpinPost',
         'delete',
         'summarize',
       ];
@@ -121,5 +129,7 @@ const STATIC_SPECS = {
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
   debugJson: { isNetworkDependent: false },
+  pinPost: { isNetworkDependent: true },
+  unpinPost: { isNetworkDependent: true },
   summarize: { isNetworkDependent: true },
 } satisfies Record<Id, StaticSpec>;

@@ -76,6 +76,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
   const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
+  const pinnedPostId = logic.getPinnedPostId(channel);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -117,6 +118,16 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'visibility':
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
+      case 'pinPost':
+        // only show for admins, top-level posts, and not already pinned
+        return (
+          currentUserIsAdmin &&
+          !post.parentId &&
+          pinnedPostId !== post.id
+        );
+      case 'unpinPost':
+        // only show for admins on the currently pinned post
+        return currentUserIsAdmin && pinnedPostId === post.id;
       case 'summarize':
         // only show if feature flag is enabled and message has text content
         return (
@@ -132,10 +143,12 @@ const ConnectedAction = memo(function ConnectedAction({
     post.deliveryStatus,
     post.parentId,
     post.authorId,
+    post.id,
     post.reactions?.length,
     post.textContent,
     currentUserId,
     channel.type,
+    pinnedPostId,
     currentUserIsAdmin,
     action.isNetworkDependent,
     connectionStatus,
@@ -275,6 +288,12 @@ export async function handleAction({
       }
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
+    case 'pinPost':
+      store.pinPostToChannel({ channel, postId: post.id });
+      break;
+    case 'unpinPost':
+      store.unpinPostFromChannel({ channel });
+      break;
     case 'summarize': {
       if (!post.textContent) {
         console.error('Cannot summarize: no text content');
@@ -423,6 +442,12 @@ export function useDisplaySpecForChannelActionId(
         const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
         return { label: post.hidden ? showMsg : hideMsg };
       }
+
+      case 'pinPost':
+        return { label: 'Pin post to channel' };
+
+      case 'unpinPost':
+        return { label: 'Unpin post' };
 
       case 'summarize': {
         const hasReplies = post.replyCount && post.replyCount > 0;
