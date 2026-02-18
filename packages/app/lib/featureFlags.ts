@@ -26,11 +26,6 @@ export const featureMeta = {
     label: 'Enable uploading non-image files in chats',
     onlyTlon: true,
   },
-  aiSummarization: {
-    default: false,
-    label: 'Enable AI-powered message and channel summarization',
-    onlyTlon: true,
-  },
 } satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;
 
 export type FeatureName = keyof typeof featureMeta;

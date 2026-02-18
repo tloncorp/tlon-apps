@@ -14,8 +14,7 @@ export type Id =
   | 'delete'
   | 'forward'
   | 'pinPost'
-  | 'unpinPost'
-  | 'summarize';
+  | 'unpinPost';
 
 /**
  * Info about a channel action type that should not change based on context.
@@ -50,7 +49,6 @@ export function channelActionIdsFor({
         'pinPost',
         'unpinPost',
         'delete',
-        'summarize',
       ];
       break;
     case 'notebook':
@@ -65,7 +63,6 @@ export function channelActionIdsFor({
         'pinPost',
         'unpinPost',
         'delete',
-        'summarize',
       ];
       break;
     case 'dm':
@@ -78,7 +75,6 @@ export function channelActionIdsFor({
         'copyText',
         'visibility',
         'delete',
-        'summarize',
       ];
       break;
     case 'chat':
@@ -96,7 +92,6 @@ export function channelActionIdsFor({
         'pinPost',
         'unpinPost',
         'delete',
-        'summarize',
       ];
       if (__DEV__) {
         actions.unshift('debugJson');
@@ -131,5 +126,4 @@ const STATIC_SPECS = {
   debugJson: { isNetworkDependent: false },
   pinPost: { isNetworkDependent: true },
   unpinPost: { isNetworkDependent: true },
-  summarize: { isNetworkDependent: true },
 } satisfies Record<Id, StaticSpec>;

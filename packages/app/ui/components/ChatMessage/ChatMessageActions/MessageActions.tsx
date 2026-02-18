@@ -11,7 +11,6 @@ import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
-import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
@@ -75,7 +74,6 @@ const ConnectedAction = memo(function ConnectedAction({
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
-  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
   const pinnedPostId = logic.getPinnedPostId(channel);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
@@ -128,31 +126,23 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'unpinPost':
         // only show for admins on the currently pinned post
         return currentUserIsAdmin && pinnedPostId === post.id;
-      case 'summarize':
-        // only show if feature flag is enabled and message has text content
-        return (
-          aiSummarizationEnabled &&
-          !!post.textContent &&
-          post.textContent.length > 0
-        );
       default:
         return true;
     }
   }, [
+    action.isNetworkDependent,
+    connectionStatus,
     actionId,
     post.deliveryStatus,
     post.parentId,
+    post.replyCount,
     post.authorId,
     post.id,
     post.reactions?.length,
-    post.textContent,
     currentUserId,
     channel.type,
     pinnedPostId,
     currentUserIsAdmin,
-    action.isNetworkDependent,
-    connectionStatus,
-    aiSummarizationEnabled,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
@@ -294,52 +284,6 @@ export async function handleAction({
     case 'unpinPost':
       store.unpinPostFromChannel({ channel });
       break;
-    case 'summarize': {
-      if (!post.textContent) {
-        console.error('Cannot summarize: no text content');
-        break;
-      }
-
-      const hasReplies = post.replyCount && post.replyCount > 0;
-      const itemType = hasReplies ? 'conversation' : 'message';
-
-      showToast?.({
-        message: `Summarizing ${itemType}...`,
-        duration: 2000,
-      });
-
-      store
-        .summarizeMessages({
-          postId: post.id,
-          currentUserId: api.getCurrentUserId(),
-        })
-        .then(() => {
-          showToast?.({
-            message: 'Summary sent to your DMs',
-            duration: 2000,
-          });
-        })
-        .catch((error) => {
-          console.error('Error in summarize action:', error);
-          const errorMessage = error instanceof Error ? error.message : String(error);
-
-          let message: string;
-          if (errorMessage === 'AI provider is rate-limited. Please try again in a few moments.') {
-            message = errorMessage;
-          } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
-            message = 'AI summarization not configured';
-          } else if (errorMessage.includes('OpenRouter API error')) {
-            message = 'AI service error. Please try again.';
-          } else {
-            message = `Failed to summarize ${itemType}: ${errorMessage}`;
-          }
-          showToast?.({
-            message,
-            duration: 4000,
-          });
-        });
-      break;
-    }
   }
 
   triggerHaptic('success');
@@ -448,20 +392,12 @@ export function useDisplaySpecForChannelActionId(
 
       case 'unpinPost':
         return { label: 'Unpin post' };
-
-      case 'summarize': {
-        const hasReplies = post.replyCount && post.replyCount > 0;
-        return {
-          label: hasReplies ? 'Summarize conversation' : 'Summarize',
-        };
-      }
     }
   }, [
     id,
     postTerm,
     post.authorId,
     post.hidden,
-    post.replyCount,
     currentUserId,
     currentUserIsAdmin,
     isMuted,
