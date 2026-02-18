@@ -56,7 +56,7 @@ export const AudioRecorder = forwardRef<
     typeof View,
     {
       ref?: React.Ref<AudioRecorderMethods>;
-      onSubmit?: (audioFilePath: string) => void;
+      onSubmit?: (opts: { audioFilePath: string }) => void;
       onCancel?: (audioFilePath: string | null) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
       /** If provided, will use this number as a paddingHorizontal *except* for
@@ -262,7 +262,7 @@ export const AudioRecorder = forwardRef<
           );
       }
     } else {
-      onSubmit?.(state.audioFilePath);
+      onSubmit?.({ audioFilePath: state.audioFilePath });
     }
   }, [primaryAction, refApi, state, permissions, onSubmit]);
 

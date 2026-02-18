@@ -199,7 +199,7 @@ export default function AttachmentSheet({
   ]);
 
   const audioRecorder = useAudioRecorderController({
-    onSubmit(audioFilePath) {
+    onSubmit({ audioFilePath }) {
       const audioFile = new File(audioFilePath);
       addAttachment({
         type: 'voicememo',
@@ -402,7 +402,7 @@ export default function AttachmentSheet({
 function useAudioRecorderController({
   onSubmit,
 }: {
-  onSubmit?: (audioFilePath: string) => void;
+  onSubmit?: (opts: { audioFilePath: string }) => void;
 }) {
   const safeAreaInsets = useSafeAreaInsets();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
