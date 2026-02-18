@@ -1483,9 +1483,9 @@ export async function handleAddPost(
   // so skip if we've just added this.
   if (post.id === lastAdded) {
     logger.log('skipping duplicate post.');
-    return;
+  } else {
+    lastAdded = post.id;
   }
-  lastAdded = post.id;
 
   // first check if it's a reply. If it is and we haven't already cached
   // it, we need to add it to the parent post
