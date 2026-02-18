@@ -197,7 +197,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   // don't flow through addToChannelPosts
   const latestSeqNum = useChannelLatestSequenceNum(options.channelId);
   useEffect(() => {
-    if (!query.data || query.isFetching || latestSeqNum == null) return;
+    if (
+      !query.data ||
+      query.isFetching ||
+      latestSeqNum == null ||
+      query.hasPreviousPage
+    )
+      return;
     const newestInQuery = query.data.pages[0]?.posts[0]?.sequenceNum;
     if (newestInQuery != null && newestInQuery < latestSeqNum) {
       postsLogger.log(
