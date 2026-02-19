@@ -320,6 +320,10 @@
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        %fix-duplicate-groups
+      %-  emit
+      [%pass /load/fix-duplicate-groups %arvo %b %wait now.bowl]
     ==
     ::
         %group-command
@@ -1625,6 +1629,7 @@
     ::
     %+  roll  groups
     |=  [=flag:g =_cor]
+    =.  cor  (tell:l:cor %info leaf+"Restoring group {<flag>}" ~)
     go-abet:(go-restart-updates:(go-abed:go-core:cor flag) ~)
   ==
 ::  +safe-watch: safely watch a subscription path
@@ -4847,7 +4852,8 @@
     ::  clean-up a leaves entry
     =.  leaves  (~(del in leaves) flag)
     =.  token  tok
-    ?.  (can-poke:neg bowl p.flag server)
+    =+  status=(read-status:neg bowl [p.flag server])
+    ?:  ?=(%clash status)
       =.  cor  (tell:log %warn leaf+"+fi-join to {<flag>} failed: protocol mismatch" ~)
       =.  progress  `%error
       fi-core
