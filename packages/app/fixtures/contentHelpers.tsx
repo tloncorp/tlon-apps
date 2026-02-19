@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import type { PostContent } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type { ContentReference } from '@tloncorp/shared/domain';
-import { appendFileUploadToPostBlob } from '@tloncorp/shared/logic';
+import {
+  appendFileUploadToPostBlob,
+  appendToPostBlob,
+} from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 
 import {
@@ -561,6 +564,20 @@ export const postWithFileUpload = makePost(
       name: 'The Impact of Remote Work on Urban Economies.pdf',
       mimeType: 'application/pdf',
       size: 2048,
+    }),
+  }
+);
+
+export const postWithVoiceMemo = makePost(
+  exampleContacts.ed,
+  [verse.inline("Don't try playing this")],
+  {
+    isEdited: false,
+    blob: appendToPostBlob('', {
+      type: 'voicememo',
+      version: 1,
+      fileUri: 'https://picsum.photos/200',
+      size: 123456,
     }),
   }
 );

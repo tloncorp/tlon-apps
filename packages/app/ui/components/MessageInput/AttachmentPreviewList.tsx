@@ -188,7 +188,7 @@ export function AttachmentPreview({
             style={{ padding: 12, flex: 1 }}
             backgroundColor="$secondaryBackground"
           >
-            TODO: Voice memo
+            Voice Memo
           </Text>
         </Container>
       );

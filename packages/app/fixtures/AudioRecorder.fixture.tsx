@@ -6,6 +6,7 @@ import {
   AudioRecorder,
   AudioRecorderSheet,
 } from '../ui/components/AudioRecorder';
+import { Waveform } from '../ui/components/AudioRecorder/Waveform';
 import { FixtureWrapper } from './FixtureWrapper';
 
 export default function AudioRecorderFixture() {
@@ -19,6 +20,8 @@ export default function AudioRecorderFixture() {
   const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
     null
   );
+
+  const [waveformValues, setWaveformValues] = useState<number[] | null>(null);
 
   return (
     <>
@@ -35,10 +38,17 @@ export default function AudioRecorderFixture() {
                 : undefined
           }
         />
+        {waveformValues && (
+          <Waveform
+            values={waveformValues}
+            style={{ height: 46, alignSelf: 'stretch' }}
+          />
+        )}
 
         <Button
           title="Toggle modal"
           onPress={() => {
+            setWaveformValues(null);
             setIsSheetOpen((x) => !x);
           }}
         />
@@ -50,6 +60,10 @@ export default function AudioRecorderFixture() {
         audioRecorderProps={{
           startInRecordingMode: true,
           paddingBottom: 50,
+          onSubmit({ waveformPreview }) {
+            setWaveformValues(waveformPreview ?? null);
+            setIsSheetOpen(false);
+          },
           onCancel() {
             setIsSheetOpen(false);
           },
