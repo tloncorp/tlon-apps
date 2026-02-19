@@ -1,9 +1,10 @@
 #!/bin/bash
 
 click=./backend/click
-ship_manifest=./apps/tlon-web/e2e/shipManifest.json
+#ship_manifest=./apps/tlon-web/e2e/shipManifest.json
 ship="~zod"
-pier=${ship#\~}
+pier_dir=${ship#\~}
+pier=$pier_dir-aqua
 
 urbit_bin_url="https://urbit.org/install"
 
@@ -40,8 +41,13 @@ echo $urbit_bin_url
   
 echo "Running backend unit tests"
 
-download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
+#download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
+download_url="https://bootstrap.urbit.org/zod-aqua-tests-409k.xst"
+pill_download_url="https://bootstrap.urbit.org/aqua-tests-v10-1-0.pill"
+
 archive=`basename $download_url`
+pill=`basename $pill_download_url`
+pill_name=`echo $pill | cut -d . -f1`
 
 if [ ! -f $archive ]
 then
@@ -54,6 +60,7 @@ if [ ! -d $pier ]
 then
   echo "Unpacking pier $archive"
   tar -xf $archive
+  mv $pier_dir $pier
 fi
 
 if [ ! -d $pier ]
@@ -62,6 +69,12 @@ then
   exit 1
 else
   echo "Pier ready"
+fi
+
+if [ ! -f $pill ]
+then
+  echo "Downloading aqua test pill $pill"
+  curl -s $pill_download_url > $pill
 fi
 
 function find_vere()
@@ -100,8 +113,6 @@ do
   sleep 3
 done
 
-sleep 5
-
 run_click="$click -b $vere -i - -kp"
 
 # Mount %base
@@ -129,6 +140,13 @@ $run_click $pier <<EOF
 ;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %groups]))  
 (pure:m !>(%ok))  
 EOF
+
+# Insert the jammed pill
+
+if [ ! -f "${pier}/groups/${pill_name}.jam" ]
+then
+  cp $pill ${pier}/groups/${pill_name}.jam
+fi
 
 # Patch the broken +await-thread in /lib/strandio.hoon
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
@@ -163,15 +181,39 @@ do
   sleep 3
 done
 
+echo "Starting %aqua..."
+${run_click} $pier "/lib/pill/hoon"<<EOF
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl    
+;<  ~  bind:m  (poke [~zod %hood] kiln-nuke+!>([%aqua |]))  
+=+  .^(=cone:clay %cx /(scot %p p.byk.bowl)//(scot %da now.bowl)/domes)  
+=/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
+;<  ~      bind:m  (sleep ~s0)  
+;<  ~  bind:m  (poke [~zod %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
+=+  .^(pil=@ %cx /(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam)  
+=/  pill  ;;(pill:pill (cue pil))  
+;<  ~  bind:m  (poke [~zod %aqua] pill+!>(pill))  
+(pure:m !>(%ok))  
+EOF
+
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click -t 180 $pier <<EOF
+result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-=/  tests=path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests ~]  
-;<  =thread-result  bind:m  
-  (await-thread %test !>(\`tests))  
+=/  ph-tests=path  
+  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
+=/  tid  (scot %ta (cat 3 'strand_' (scot %uv (sham %ph-test eny.bowl))))  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`ph-tests)])  
+;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
+;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
+;<  =cage  bind:m  (take-fact /awaiting/[tid])  
+;<  ~      bind:m  (take-kick /awaiting/[tid])  
+=/  thread-result=(each vase [term tang])  
+  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)  
+    %thread-done  [%& q.cage]  
+    %thread-fail  [%| !<([term tang] q.cage)]  
+  ==  
 ?:  ?=(%| -.thread-result)  
   %-  (slog %thread-fail p.thread-result)  
   (pure:m !>(|))  

@@ -205,3 +205,28 @@ export async function updatePendingMemberDismissal(
     }
   }
 }
+
+export async function dismissPinnedPostBanner(postId: string) {
+  const existingDismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
+  if (existingDismissedIds.includes(postId)) {
+    return;
+  }
+
+  // optimistic local update
+  await db.dismissedPinnedPostBannerIds.setValue([
+    ...existingDismissedIds,
+    postId,
+  ]);
+
+  try {
+    const settingKey = api.getDismissedPinnedPostBannerKey(postId);
+    await api.setSetting(settingKey, Date.now());
+  } catch (e) {
+    logger.trackError('failed to dismiss pinned post banner', {
+      postId,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+    // rollback optimistic update
+    await db.dismissedPinnedPostBannerIds.setValue(existingDismissedIds);
+  }
+}

@@ -470,15 +470,21 @@ export const usePostReference = ({
   channelId,
   postId,
   replyId,
+  enabled = true,
 }: {
   channelId: string;
   postId: string;
   replyId?: string;
+  enabled?: boolean;
 }) => {
   const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
     queryKey: [['postReference', postId], deps],
+    enabled: enabled && !!postId,
     queryFn: async () => {
+      if (!postId) {
+        return null;
+      }
       const post = await db.getPostWithRelations({ id: postId });
       if (post) {
         return post;

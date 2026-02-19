@@ -43,6 +43,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm install` - Install all dependencies
 -   `pnpm run deps` - Install dependencies including iOS pods
 
+### Database Migrations
+
+-   `pnpm generate:migration` - Generate Drizzle migration files after schema changes
+-   **NEVER manually create or edit migration files** in `packages/shared/src/db/migrations/`. Always modify the schema in `packages/shared/src/db/schema.ts` and then run `pnpm generate:migration` to let Drizzle generate the migration automatically.
+
 ## Architecture Overview
 
 This is a monorepo for Tlon Messenger containing multiple applications and shared packages:
@@ -353,6 +358,15 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archives are publicly readable once uploaded
 -   Authentication required: `gcloud auth login`
 -   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
+
+**Investigating CI E2E Failures:**
+-   The parallel E2E CI job runs tests in Docker containers across 4 shards. The main job log only shows container status polling and a summary (e.g., "Total tests: 71, Total failures: 1") — it does NOT contain the specific test failure details.
+-   To find the actual failing test, download the `e2e-test-results` artifact: `gh run download <run-id> --name e2e-test-results --dir /tmp/e2e-results`
+-   The artifact contains:
+    -   `junit-merged.xml` — JUnit XML with all test results. Search for `<failure` tags to find the failing test name, file, and error message.
+    -   `merged-report/` — Playwright HTML report (view with `npx playwright show-report /tmp/e2e-results/merged-report`)
+    -   `logs/shard-{1,2,3,4}.log` — Per-shard container logs with detailed Playwright output
+-   Common false positives: Cross-ship sync timeouts (e.g., waiting for reply counts to sync between ships) are a frequent source of flaky failures unrelated to code changes
 
 **Test State Persistence Issues:**
 -   Ship state is nuked between full test runs, but NOT between individual tests in the same run
