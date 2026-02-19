@@ -79,7 +79,9 @@ export function Waveform({
       showsHorizontalScrollIndicator={false}
       renderItem={({ item }) => {
         const [min, max] = effectiveVisualRange;
-        const heightRatio = item == null ? null : (item - min) / (max - min);
+        const range = max - min;
+        const heightRatio =
+          item == null ? null : range === 0 ? 1 : (item - min) / range;
         return (
           <Candle
             active={heightRatio != null}
