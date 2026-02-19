@@ -20,6 +20,7 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, useTheme } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
@@ -82,6 +83,7 @@ export function EditProfileScreenView(props: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
+  const [showPublicProfileControls] = useFeatureFlag('publicProfileControls');
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   const {
@@ -413,7 +415,7 @@ export function EditProfileScreenView(props: Props) {
                   />
                 </Field>
 
-                <PublicProfileControls />
+                {showPublicProfileControls && <PublicProfileControls />}
 
                 <EditAttestationsDisplay
                   attestations={attestations}
@@ -551,10 +553,11 @@ function PublicProfileControls() {
       <XStack
         alignItems="center"
         justifyContent="space-between"
-        paddingHorizontal="$xl"
-        paddingVertical="$l"
-        borderRadius="$l"
-        backgroundColor="$secondaryBackground"
+        paddingHorizontal="$2xl"
+        paddingVertical="$2xl"
+        borderRadius="$xl"
+        borderWidth={1}
+        borderColor="$border"
       >
         <Text size="$body">Public /profile page</Text>
         <Switch
@@ -563,19 +566,15 @@ function PublicProfileControls() {
           disabled={isLoading || isUpdating}
         />
       </XStack>
-      <Text size="$label/s" color="$secondaryText" marginTop="$m">
-        {isEnabled
-          ? 'Your /profile page is public.'
-          : 'Your /profile page is hidden.'}
-      </Text>
       {isEnabled ? (
         <YStack
           marginTop="$l"
-          gap="$m"
-          paddingHorizontal="$xl"
-          paddingVertical="$l"
-          borderRadius="$l"
-          backgroundColor="$secondaryBackground"
+          gap="$l"
+          paddingHorizontal="$2xl"
+          paddingVertical="$2xl"
+          borderRadius="$xl"
+          borderWidth={1}
+          borderColor="$border"
         >
           {PUBLIC_PROFILE_WIDGETS.map((widget) => (
             <XStack
