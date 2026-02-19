@@ -275,7 +275,7 @@ export namespace Attachment {
               localFile: uploadIntent.localUri,
               name: uploadIntent.name,
               size: uploadIntent.size,
-              mimeType: uploadIntent.type,
+              mimeType: uploadIntent.mimeType,
               uploadState,
             };
           }
