@@ -17,7 +17,6 @@ import {
   useState,
 } from 'react';
 import { LayoutChangeEvent } from 'react-native';
-import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -132,8 +131,6 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
-        {currentUserId === props.userId ? <PublicProfileToggle /> : null}
-
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -165,80 +162,6 @@ export function UserProfileScreenView(props: Props) {
           onPressGroup={onPressGroup}
         />
       </ScrollView>
-    </View>
-  );
-}
-
-function PublicProfileToggle() {
-  const showToast = useToast();
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const enabled = await api.getPublicProfileEnabled();
-        if (active) {
-          setIsEnabled(enabled);
-        }
-      } catch (error) {
-        console.warn('Failed to load public profile setting', error);
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    load();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleToggle = useCallback(
-    async (nextValue: boolean) => {
-      const prevValue = isEnabled;
-      setIsEnabled(nextValue);
-      setIsUpdating(true);
-
-      try {
-        await api.setPublicProfileEnabled(nextValue);
-      } catch (error) {
-        setIsEnabled(prevValue);
-        triggerHaptic('error');
-        showToast({
-          message: 'Could not update public profile setting',
-          duration: 2000,
-        });
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [isEnabled, showToast]
-  );
-
-  return (
-    <View paddingHorizontal="$xl" width="100%">
-      <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%">
-        <XStack justifyContent="space-between" alignItems="center">
-          <WidgetPane.Title marginBottom={0}>
-            Public profile
-          </WidgetPane.Title>
-          <Switch
-            value={isEnabled}
-            onValueChange={handleToggle}
-            disabled={isLoading || isUpdating}
-          />
-        </XStack>
-        <Text size="$label/s" color="$secondaryText" marginTop="$m">
-          {isEnabled
-            ? 'Your /profile page is public.'
-            : 'Your /profile page is hidden.'}
-        </Text>
-      </WidgetPane>
     </View>
   );
 }
