@@ -56,16 +56,14 @@ vi.mock('../store/storage', async (importOriginal) => {
   };
 });
 
-export function mockUrbit() {
-  vi.mock('@tloncorp/api', async (importOriginal) => {
-    const mod = await importOriginal<typeof import('@tloncorp/api')>();
-    const out: typeof mod = {
-      ...mod,
-      scry: vi.fn(),
-      trackedPoke: vi.fn(),
-      poke: vi.fn(),
-      getCurrentUserId: () => '~solfer-magfed',
-    };
-    return out;
-  });
-}
+vi.mock('../../../api/src/client/urbit', async (importOriginal) => {
+  const mod = (await importOriginal()) as Record<string, unknown>;
+
+  return {
+    ...mod,
+    scry: vi.fn(),
+    poke: vi.fn(),
+    trackedPoke: vi.fn(),
+    getCurrentUserId: () => '~solfer-magfed',
+  };
+});
