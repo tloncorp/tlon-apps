@@ -26,7 +26,15 @@ export const featureMeta = {
     label: 'Enable uploading non-image files in chats',
     onlyTlon: true,
   },
-} satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;
+  recordVoiceMemos: {
+    default: false,
+    label: 'Enable recording and sending voice memos in chats',
+    onlyTlon: true,
+  },
+} satisfies Record<
+  string,
+  { default: boolean; label: string; onlyTlon: boolean }
+>;
 
 export type FeatureName = keyof typeof featureMeta;
 

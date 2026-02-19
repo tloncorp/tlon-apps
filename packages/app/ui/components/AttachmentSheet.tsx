@@ -299,6 +299,7 @@ export default function AttachmentSheet({
     }
   }, [attachAssets, onOpenChange, onAttach]);
   const [canUploadFiles] = useFeatureFlag('fileUpload');
+  const [canRecordVoiceMemos] = useFeatureFlag('recordVoiceMemos');
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -330,6 +331,7 @@ export default function AttachmentSheet({
               action: startFilePicker,
             },
           mediaType === 'all' &&
+            canRecordVoiceMemos &&
             !isWeb && {
               title: 'Voice Memo',
               description: 'Record an audio message',
@@ -348,6 +350,7 @@ export default function AttachmentSheet({
     [
       startRecordingVoiceMemo,
       canUploadFiles,
+      canRecordVoiceMemos,
       onClearAttachments,
       pickImage,
       startFilePicker,
