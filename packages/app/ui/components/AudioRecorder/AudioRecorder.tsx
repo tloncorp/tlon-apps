@@ -368,8 +368,12 @@ export const AudioRecorder = forwardRef<
           circular
           size="small"
           intent="positive"
-          icon={state.playbackState === PlayerState.playing ? 'Add' : 'Play'}
-          onPress={refApi.startPlayback}
+          icon={state.playbackState === PlayerState.playing ? 'Stop' : 'Play'}
+          onPress={
+            state.playbackState === PlayerState.playing
+              ? refApi.stopPlayback
+              : refApi.startPlayback
+          }
         />
       )}
       <Pressable
