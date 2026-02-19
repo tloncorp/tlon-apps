@@ -37,13 +37,14 @@ COPY ../../../.nvmrc /workspace/
 COPY ../../../tsconfig* /workspace/
 
 # Create directory structure for packages
-RUN mkdir -p /workspace/packages/shared /workspace/packages/ui /workspace/packages/app /workspace/packages/editor
+RUN mkdir -p /workspace/packages/shared /workspace/packages/ui /workspace/packages/app /workspace/packages/editor /workspace/packages/api
 
 # Copy package.json files for all workspaces (more specific paths)
 COPY ../../../packages/shared/package.json /workspace/packages/shared/
 COPY ../../../packages/ui/package.json /workspace/packages/ui/
 COPY ../../../packages/app/package.json /workspace/packages/app/
 COPY ../../../packages/editor/package.json /workspace/packages/editor/
+COPY ../../../packages/api/package.json /workspace/packages/api/
 COPY ../../../apps/tlon-web/package.json /workspace/apps/tlon-web/
 COPY ../../../apps/tlon-mobile/package.json /workspace/apps/tlon-mobile/
 COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
