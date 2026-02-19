@@ -192,9 +192,9 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     setNewPosts([]);
   }, [options.channelId]);
 
-  // Detect when sync has written newer posts to the DB than what our
-  // query currently shows. This covers our bases for sync operations that
-  // don't flow through addToChannelPosts
+  // // Detect when sync has written newer posts to the DB than what our
+  // // query currently shows. This covers our bases for sync operations that
+  // // don't flow through addToChannelPosts
   const latestSeqNum = useChannelLatestSequenceNum(options.channelId);
   useEffect(() => {
     if (
@@ -205,7 +205,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     )
       return;
     const newestInQuery = query.data.pages[0]?.posts[0]?.sequenceNum;
-    if (newestInQuery != null && newestInQuery < latestSeqNum) {
+    const newestInNewPosts = newPosts[0]?.sequenceNum;
+    if (
+      newestInQuery != null &&
+      newestInQuery < latestSeqNum &&
+      newestInNewPosts &&
+      newestInNewPosts < latestSeqNum
+    ) {
       postsLogger.log(
         `stale posts detected (have seq ${newestInQuery}, channel has ${latestSeqNum}), refetching`
       );
@@ -214,7 +220,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     // query.refetch is stable in behavior but changes reference each render. Safe
     // to omit
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestSeqNum, query.data, query.isFetching]);
+  }, [latestSeqNum, query.data, query.isFetching, newPosts]);
 
   const pendingPosts = usePendingPostsInChannel(options.channelId);
   const deletedPosts = useDeletedPosts(options.channelId);
