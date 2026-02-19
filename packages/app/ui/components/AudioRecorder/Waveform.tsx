@@ -76,6 +76,7 @@ export function Waveform({
       data={valuesWithPadding}
       alwaysBounceHorizontal={false}
       horizontal
+      initialNumToRender={maxVisibleCandleCount ?? undefined}
       showsHorizontalScrollIndicator={false}
       renderItem={({ item }) => {
         const [min, max] = effectiveVisualRange;
