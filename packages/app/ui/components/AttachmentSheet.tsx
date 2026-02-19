@@ -454,13 +454,17 @@ function useAudioRecorderController({
 
 async function getAudioDurationSeconds(audioFile: File): Promise<number> {
   const soundPlayer = new AV.Audio.Sound();
-  const status = await soundPlayer.loadAsync(
-    { uri: audioFile.uri },
-    { shouldPlay: false }
-  );
-  const duration =
-    status.isLoaded && status.durationMillis != null
-      ? status.durationMillis / 1000
-      : 0;
-  return duration;
+  try {
+    const status = await soundPlayer.loadAsync(
+      { uri: audioFile.uri },
+      { shouldPlay: false }
+    );
+    const duration =
+      status.isLoaded && status.durationMillis != null
+        ? status.durationMillis / 1000
+        : 0;
+    return duration;
+  } finally {
+    await soundPlayer.unloadAsync();
+  }
 }
