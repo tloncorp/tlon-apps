@@ -459,7 +459,8 @@ function ReviewAttachment({
         onPresentationModeChange?.('inline');
       }
       // Reset posting state after a short delay
-      setTimeout(() => setIsPosting(false), 500);
+      const timeoutHandle = setTimeout(() => setIsPosting(false), 500);
+      return () => clearTimeout(timeoutHandle);
     } catch (error) {
       console.error('Error posting gallery image:', error);
       setIsPosting(false);
