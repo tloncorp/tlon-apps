@@ -93,10 +93,9 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Tlon Login"
-        showSessionStatus={false}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}
-        isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Submit
