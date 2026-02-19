@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import {
@@ -144,21 +144,42 @@ export const AudioRecorder = forwardRef<
         });
       },
       async startRecording() {
-        const status = await permissions.checkHasAudioRecorderPermission();
-        if (status === PermissionStatus.undetermined) {
-          const requestedPermission =
-            await permissions.getAudioRecorderPermission();
-          if (requestedPermission !== PermissionStatus.granted) {
+        try {
+          const status = await permissions.checkHasAudioRecorderPermission();
+          let failedPermission = status === PermissionStatus.denied;
+
+          // if we can, try to request permission
+          if (status === PermissionStatus.undetermined) {
+            const requestedPermission =
+              await permissions.getAudioRecorderPermission();
+            if (requestedPermission !== PermissionStatus.granted) {
+              failedPermission = true;
+            }
+          }
+
+          if (failedPermission) {
+            Alert.alert(
+              'Missing microphone access',
+              "Enable microphone access in your device's settings to record audio."
+            );
+            onCancel?.(null);
             return;
           }
-        }
 
-        await waveformRef.current?.startRecord();
+          await waveformRef.current?.startRecord();
+        } catch (error) {
+          // cancel to avoid trapping user (user can't exit recording mode
+          // without stopping record)
+          Alert.alert('Failed to start recording');
+          onCancel?.(null);
+        }
       },
       async stopRecording() {
         const uri = await waveformRef.current?.stopRecord();
         if (uri == null) {
           console.warn('No uri returned from stopRecord');
+          Alert.alert('Failed to save recording');
+          onCancel?.(null);
           return;
         }
         setElapsedMs(0);
