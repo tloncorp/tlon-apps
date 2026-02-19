@@ -59,13 +59,7 @@ export function AudioRecorderSheet({
       modal
       dismissOnOverlayPress={false}
       {...forwardedProps}
-      onOpenChange={useCallback(
-        (open: boolean) => {
-          onAnyOpenChange(open);
-          onOpenChangeProp?.(open);
-        },
-        [onAnyOpenChange, onOpenChangeProp]
-      )}
+      onOpenChange={onAnyOpenChange}
     >
       <Sheet.Overlay animation="simple" />
       <Sheet.Frame
