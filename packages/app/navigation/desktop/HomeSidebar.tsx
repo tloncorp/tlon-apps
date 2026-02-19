@@ -133,10 +133,6 @@ export const HomeSidebar = memo(
       }
     }, [previewGroupId]);
 
-    const handlePressAddChat = useCallback(() => {
-      createChatSheetRef.current?.open();
-    }, []);
-
     const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
       if (!open) {
         setSelectedGroupId(null);
@@ -149,7 +145,14 @@ export const HomeSidebar = memo(
       }
     }, []);
 
-    const { subtitle: syncSubtitle } = useSyncStatus();
+    const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
+      useSyncStatus();
+    const loadingSubtitle = useMemo(() => {
+      if (syncLoadingSubtitle) {
+        return syncLoadingSubtitle;
+      }
+      return chats ? null : 'Loading...';
+    }, [syncLoadingSubtitle, chats]);
 
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -207,6 +210,7 @@ export const HomeSidebar = memo(
               <ScreenHeader
                 title={'Home'}
                 subtitle={syncSubtitle}
+                loadingSubtitle={loadingSubtitle}
                 showSubtitle={true}
                 testID="HomeSidebarHeader"
                 rightControls={

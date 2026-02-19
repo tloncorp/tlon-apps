@@ -156,7 +156,7 @@ export function EditChannelScreenView({
         <ScreenHeader
           title="Channel settings"
           backAction={goBack}
-          isLoading={isLoading}
+          loadingSubtitle={isLoading ? 'Loading…' : null}
         />
         <ScrollView
           flex={1}

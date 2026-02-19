@@ -72,7 +72,6 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
             Log out
           </ScreenHeader.TextButton>
         }
-        showSessionStatus={false}
       />
       <OnboardingTextBlock>
         <TlonText.Text size="$label/l">

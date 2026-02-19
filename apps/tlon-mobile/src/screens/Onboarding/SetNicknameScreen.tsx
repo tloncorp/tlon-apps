@@ -70,7 +70,6 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       <ScreenHeader
         title="Nickname"
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Next

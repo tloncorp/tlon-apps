@@ -47,7 +47,6 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
             ? "We're setting you up"
             : 'Setup complete!'
         }
-        showSessionStatus={false}
       />
       <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
         <ArvosDiscussing width="100%" height={200} />

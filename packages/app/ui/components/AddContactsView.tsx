@@ -29,7 +29,6 @@ export function AddContactsView(props: {
       <ScreenHeader
         title="Add Contacts"
         backAction={isWindowNarrow ? () => props.goBack() : undefined}
-        showSessionStatus={false}
         borderBottom
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
