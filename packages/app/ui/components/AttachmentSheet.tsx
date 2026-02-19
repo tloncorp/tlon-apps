@@ -4,6 +4,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
+import * as AV from 'expo-av';
 import { File } from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -199,13 +200,17 @@ export default function AttachmentSheet({
   ]);
 
   const audioRecorder = useAudioRecorderController({
-    onSubmit({ audioFilePath, waveformPreview }) {
+    async onSubmit({ audioFilePath, waveformPreview }) {
       const audioFile = new File(audioFilePath);
+      if (audioFile.size == null) {
+        throw new Error('Audio file could not be read');
+      }
       addAttachment({
         type: 'voicememo',
         localUri: audioFile.uri,
-        size: audioFile.size ?? -1,
+        size: audioFile.size,
         waveformPreview,
+        duration: await getAudioDurationSeconds(audioFile),
       });
       audioRecorder.dismiss();
     },
@@ -434,4 +439,17 @@ function useAudioRecorderController({
     present: () => setIsSheetOpen(true),
     dismiss: () => setIsSheetOpen(false),
   };
+}
+
+async function getAudioDurationSeconds(audioFile: File): Promise<number> {
+  const soundPlayer = new AV.Audio.Sound();
+  const status = await soundPlayer.loadAsync(
+    { uri: audioFile.uri },
+    { shouldPlay: false }
+  );
+  const duration =
+    status.isLoaded && status.durationMillis != null
+      ? status.durationMillis / 1000
+      : 0;
+  return duration;
 }

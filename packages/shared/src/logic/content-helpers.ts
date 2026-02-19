@@ -573,6 +573,8 @@ export type PostBlobDataEntry =
         transcription?: string;
         /** waveform preview; values should be between 0 and 1 */
         waveformPreview?: number[];
+        /** in seconds */
+        duration?: number;
       }
     >;
 
@@ -712,6 +714,7 @@ export function toPostData({
             size: attachment.size,
             transcription: undefined,
             waveformPreview: attachment.waveformPreview,
+            duration: attachment.duration,
           });
           break;
         }

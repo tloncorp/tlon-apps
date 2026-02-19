@@ -578,6 +578,7 @@ export const postWithVoiceMemo = makePost(
       version: 1,
       fileUri: 'https://picsum.photos/200',
       size: 123456,
+      duration: 125,
     }),
   }
 );

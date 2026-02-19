@@ -85,6 +85,8 @@ export type VoiceMemoAttachment = {
   size: number;
   /** waveform values to use as a preview */
   waveformPreview?: number[];
+  /** in seconds */
+  duration?: number;
 };
 
 export type UploadedFileAttachment = {
@@ -103,6 +105,8 @@ export type UploadedVoiceMemoAttachment = {
   localUri: string;
   /** in bytes */
   size: number;
+  /** in seconds */
+  duration?: number;
   waveformPreview?: number[];
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
@@ -151,7 +155,11 @@ export namespace Attachment {
         /** in bytes */
         size: number;
         mimeType?: string;
-        isVoiceMemo?: boolean;
+        voiceMemo?:
+          | false
+          | {
+              duration?: number;
+            };
       }
     | { type: 'file'; file: File };
 
@@ -252,11 +260,12 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          if (uploadIntent.isVoiceMemo) {
+          if (uploadIntent.voiceMemo) {
             return {
               type: 'voicememo',
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
               uploadState,
             };
           } else {
@@ -301,11 +310,12 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          if (uploadIntent.isVoiceMemo) {
+          if (uploadIntent.voiceMemo) {
             return {
               type: 'voicememo',
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
               uploadState: {
                 status: 'uploading',
                 localUri: uploadIntent.localUri,
@@ -365,7 +375,7 @@ export namespace Attachment {
           name: attachment.localUri.split('/').pop(), // use filename from URI
           size: attachment.size,
           mimeType: 'audio/mpeg', // TODO: assumption
-          isVoiceMemo: true,
+          voiceMemo: { duration: attachment.duration },
         };
       case 'text':
       // fallthrough
@@ -390,11 +400,12 @@ export namespace Attachment {
         };
       }
       case 'fileUri': {
-        if (uploadIntent.isVoiceMemo) {
+        if (uploadIntent.voiceMemo) {
           return {
             type: 'voicememo',
             localUri: uploadIntent.localUri,
             size: uploadIntent.size,
+            duration: uploadIntent.voiceMemo.duration,
           };
         } else {
           return {
@@ -437,11 +448,12 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          if (uploadIntent.isVoiceMemo) {
+          if (uploadIntent.voiceMemo) {
             return {
               type: 'voicememo',
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
               uploadState,
             };
           } else {

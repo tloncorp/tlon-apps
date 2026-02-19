@@ -1,5 +1,6 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
+import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import { formatMemorySize } from '@tloncorp/shared/utils';
 import {
   FilePreview,
@@ -249,10 +250,11 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
             values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
             style={{ width: '100%', height: 22 }}
           />
-          <Text size="$label/s" color="$secondaryText">
-            {/* TODO: we don't have duration info for voice memos yet, so this is hardcoded */}
-            00:00
-          </Text>
+          {block.voiceMemo.duration != null && (
+            <Text size="$label/s" color="$secondaryText">
+              {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+            </Text>
+          )}
         </YStack>
       </Reference.Body>
     </Reference.Frame>
