@@ -6,7 +6,7 @@ import {
   LayoutRectangle,
   View,
 } from 'react-native';
-import { styled } from 'tamagui';
+import { styled, useTheme } from 'tamagui';
 
 export const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
@@ -72,7 +72,7 @@ export function Waveform({
       {...passedProps}
       contentContainerStyle={{ alignItems: 'center' }}
       onLayout={onLayout}
-      style={[{ flexGrow: 0 }, style]}
+      style={[{ flexGrow: 0, opacity: layout == null ? 0 : 1 }, style]}
       data={valuesWithPadding}
       alwaysBounceHorizontal={false}
       horizontal
@@ -86,14 +86,12 @@ export function Waveform({
             style={[
               {
                 width: candleWidth,
-                marginRight: 1,
+                marginRight: candleSpacing,
               },
               heightRatio != null && {
-                minHeight: 2,
                 height: layout
                   ? layout.height * heightRatio
                   : `${heightRatio * 100}%`,
-                backgroundColor: 'hsla(0, 0%, 0%, 0.8)',
               },
             ]}
           />
@@ -106,13 +104,15 @@ export function Waveform({
 
 const Candle = styled(View, {
   borderRadius: 40,
+  minHeight: 5,
 
   variants: {
     active: {
-      true: {},
+      true: {
+        backgroundColor: '$primaryText',
+      },
       false: {
-        height: 2,
-        backgroundColor: 'hsla(0, 0%, 0%, 0.1)',
+        backgroundColor: '$border',
       },
     },
   },
