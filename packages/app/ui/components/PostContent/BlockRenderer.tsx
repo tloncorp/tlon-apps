@@ -217,8 +217,9 @@ export function ReferenceBlock({
 }
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
+  const { openExternalLink } = useNavigation();
   return (
-    <Reference.Frame>
+    <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
       <Reference.Header>
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
