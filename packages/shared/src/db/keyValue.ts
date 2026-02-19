@@ -23,6 +23,11 @@ export const isTlonEmployee = createStorageItem<boolean>({
 
 export const STORAGE_SETTINGS_QUERY_KEY = ['storageSettings'];
 
+export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
+  key: 'dismissedPinnedPostBannerIds',
+  defaultValue: [],
+});
+
 export const storageConfiguration =
   createStorageItem<StorageConfiguration | null>({
     key: 'storageConfiguration',

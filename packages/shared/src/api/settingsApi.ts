@@ -7,6 +7,11 @@ export function getPendingMemberDismissalKey(groupId: string) {
   return `${PENDING_MEMBER_DISMISSAL_PREFIX}${groupId}`;
 }
 
+const DISMISSED_PINNED_POST_BANNER_PREFIX = 'dismissedPinnedPostBanner:';
+export function getDismissedPinnedPostBannerKey(postId: string) {
+  return `${DISMISSED_PINNED_POST_BANNER_PREFIX}${postId}`;
+}
+
 export function getMessagesFilter(
   value: string | null | undefined
 ): ub.TalkSidebarFilter {
@@ -26,6 +31,9 @@ export function getMessagesFilter(
 
 function getBucket(key: string): string {
   if (key.startsWith(PENDING_MEMBER_DISMISSAL_PREFIX)) {
+    return 'groups';
+  }
+  if (key.startsWith(DISMISSED_PINNED_POST_BANNER_PREFIX)) {
     return 'groups';
   }
 
@@ -73,6 +81,7 @@ export const setSetting = async (key: string, val: any) => {
 export const getSettings = async (): Promise<{
   settings: db.Settings;
   pendingMemberDismissals: db.PendingMemberDismissals;
+  dismissedPinnedPostBannerIds: string[];
 }> => {
   const results = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
@@ -81,8 +90,14 @@ export const getSettings = async (): Promise<{
 
   const settings = toClientSettings(results);
   const pendingMemberDismissals = parsePendingMemberDismissals(results);
+  const dismissedPinnedPostBannerIds =
+    parseDismissedPinnedPostBannerIds(results);
 
-  return { settings, pendingMemberDismissals };
+  return {
+    settings,
+    pendingMemberDismissals,
+    dismissedPinnedPostBannerIds,
+  };
 };
 
 type SidebarSortMode = 'alphabetical' | 'arranged' | 'recent';
@@ -157,6 +172,29 @@ export const parsePendingMemberDismissals = (
     });
 
   return dismissals;
+};
+
+export const parseDismissedPinnedPostBannerIds = (
+  settings: ub.GroupsDeskSettings
+) => {
+  const postIds: string[] = [];
+
+  Object.entries(settings.desk.groups || {})
+    .filter(([key, value]) => {
+      return (
+        key.startsWith(DISMISSED_PINNED_POST_BANNER_PREFIX) &&
+        value !== null &&
+        value !== false
+      );
+    })
+    .forEach(([key]) => {
+      const postId = key.slice(DISMISSED_PINNED_POST_BANNER_PREFIX.length);
+      if (postId.length > 0) {
+        postIds.push(postId);
+      }
+    });
+
+  return postIds;
 };
 
 export interface ChargeUpdateInitial {
@@ -243,10 +281,16 @@ export async function getAppInfo(): Promise<db.AppInfo> {
   };
 }
 
-export type SettingsUpdate = {
-  type: 'updateSetting';
-  setting: Partial<db.Settings>;
-};
+export type SettingsUpdate =
+  | {
+      type: 'updateSetting';
+      setting: Partial<db.Settings>;
+    }
+  | {
+      type: 'dismissPinnedPostBanner';
+      postId: string;
+      dismissed: boolean;
+    };
 
 export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
   subscribe<ub.SettingsEvent>(
@@ -262,10 +306,27 @@ export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
 
       if ('put-entry' in event) {
         const update = event['put-entry'];
+        const entryKey = update['entry-key'];
+
+        if (entryKey.startsWith(DISMISSED_PINNED_POST_BANNER_PREFIX)) {
+          const postId = entryKey.slice(
+            DISMISSED_PINNED_POST_BANNER_PREFIX.length
+          );
+          if (postId.length === 0) {
+            return;
+          }
+          handler({
+            type: 'dismissPinnedPostBanner',
+            postId,
+            dismissed: update.value !== null && update.value !== false,
+          });
+          return;
+        }
+
         handler({
           type: 'updateSetting',
           setting: {
-            [update['entry-key']]: update.value,
+            [entryKey]: update.value,
           },
         });
       }

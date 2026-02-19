@@ -12,7 +12,9 @@ export type Id =
   | 'report'
   | 'visibility'
   | 'delete'
-  | 'forward';
+  | 'forward'
+  | 'pinPost'
+  | 'unpinPost';
 
 /**
  * Info about a channel action type that should not change based on context.
@@ -44,6 +46,8 @@ export function channelActionIdsFor({
         'edit',
         'report',
         'visibility',
+        'pinPost',
+        'unpinPost',
         'delete',
       ];
       break;
@@ -56,6 +60,8 @@ export function channelActionIdsFor({
         'edit',
         'report',
         'visibility',
+        'pinPost',
+        'unpinPost',
         'delete',
       ];
       break;
@@ -83,6 +89,8 @@ export function channelActionIdsFor({
         'edit',
         'visibility',
         'report',
+        'pinPost',
+        'unpinPost',
         'delete',
       ];
       if (__DEV__) {
@@ -116,4 +124,6 @@ const STATIC_SPECS = {
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
   debugJson: { isNetworkDependent: false },
+  pinPost: { isNetworkDependent: true },
+  unpinPost: { isNetworkDependent: true },
 } satisfies Record<Id, StaticSpec>;

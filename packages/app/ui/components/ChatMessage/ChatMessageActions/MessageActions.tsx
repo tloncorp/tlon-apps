@@ -74,6 +74,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
+  const pinnedPostId = logic.getPinnedPostId(channel);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -115,6 +116,16 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'visibility':
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
+      case 'pinPost':
+        // only show for admins, top-level posts, and not already pinned
+        return (
+          currentUserIsAdmin &&
+          !post.parentId &&
+          pinnedPostId !== post.id
+        );
+      case 'unpinPost':
+        // only show for admins on the currently pinned post
+        return currentUserIsAdmin && pinnedPostId === post.id;
       default:
         return true;
     }
@@ -126,9 +137,11 @@ const ConnectedAction = memo(function ConnectedAction({
     post.parentId,
     post.replyCount,
     post.authorId,
+    post.id,
     post.reactions?.length,
     currentUserId,
     channel.type,
+    pinnedPostId,
     currentUserIsAdmin,
   ]);
 
@@ -265,6 +278,12 @@ export async function handleAction({
       }
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
+    case 'pinPost':
+      store.pinPostToChannel({ channel, postId: post.id });
+      break;
+    case 'unpinPost':
+      store.unpinPostFromChannel({ channel });
+      break;
   }
 
   triggerHaptic('success');
@@ -367,6 +386,12 @@ export function useDisplaySpecForChannelActionId(
         const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
         return { label: post.hidden ? showMsg : hideMsg };
       }
+
+      case 'pinPost':
+        return { label: 'Pin post to channel' };
+
+      case 'unpinPost':
+        return { label: 'Unpin post' };
     }
   }, [
     id,
