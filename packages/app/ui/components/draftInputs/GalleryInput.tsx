@@ -149,7 +149,7 @@ export function GalleryInput({
   // Handle image selection
   const handleGalleryImageSet = useCallback(
     (assets?: ImagePickerAsset[] | null) => {
-      const hasAssets = !!assets;
+      const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
     },
