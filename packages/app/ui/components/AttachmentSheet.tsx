@@ -205,12 +205,19 @@ export default function AttachmentSheet({
       if (audioFile.size == null) {
         throw new Error('Audio file could not be read');
       }
+      const duration = await (async () => {
+        try {
+          return await getAudioDurationSeconds(audioFile);
+        } catch {
+          return undefined;
+        }
+      })();
       addAttachment({
         type: 'voicememo',
         localUri: audioFile.uri,
         size: audioFile.size,
         waveformPreview,
-        duration: await getAudioDurationSeconds(audioFile),
+        duration,
       });
       audioRecorder.dismiss();
     },
