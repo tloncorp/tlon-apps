@@ -143,6 +143,15 @@ export const AudioRecorder = forwardRef<
         });
       },
       async startRecording() {
+        const status = await permissions.checkHasAudioRecorderPermission();
+        if (status === PermissionStatus.undetermined) {
+          const requestedPermission =
+            await permissions.getAudioRecorderPermission();
+          if (requestedPermission !== PermissionStatus.granted) {
+            return;
+          }
+        }
+
         await waveformRef.current?.startRecord();
       },
       async stopRecording() {
@@ -179,7 +188,7 @@ export const AudioRecorder = forwardRef<
         await waveformRef.current?.resumePlayer();
       },
     }),
-    []
+    [permissions]
   );
 
   useImperativeHandle(ref, () => refApi);
@@ -242,15 +251,6 @@ export const AudioRecorder = forwardRef<
   }, [state]);
 
   const onPressPrimaryActionButton = useCallback(async () => {
-    const status = await permissions.checkHasAudioRecorderPermission();
-    if (status === PermissionStatus.undetermined) {
-      const requestedPermission =
-        await permissions.getAudioRecorderPermission();
-      if (requestedPermission !== PermissionStatus.granted) {
-        return;
-      }
-    }
-
     if (state.live) {
       switch (primaryAction) {
         case 'record':
@@ -290,14 +290,7 @@ export const AudioRecorder = forwardRef<
       })();
       onSubmit?.({ audioFilePath: state.audioFilePath, waveformPreview });
     }
-  }, [
-    primaryAction,
-    refApi,
-    state,
-    permissions,
-    onSubmit,
-    extractWaveformData,
-  ]);
+  }, [primaryAction, refApi, state, onSubmit, extractWaveformData]);
 
   // changing `onCurrentProgressChange` identity resets Waveform's internal playback
   const onCurrentProgressChange = useMutableCallback((elapsed: number) => {
