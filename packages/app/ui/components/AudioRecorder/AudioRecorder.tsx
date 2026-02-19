@@ -113,6 +113,7 @@ export const AudioRecorder = forwardRef<
   const [elapsedMs, setElapsedMs] = useState<null | number>(null);
   useTimer({
     start: state.live ? state.duration.playbackStartedAt : undefined,
+    intervalMs: 100,
     onTick: (elapsed) => {
       setElapsedMs(
         elapsed +
