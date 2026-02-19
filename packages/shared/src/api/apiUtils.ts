@@ -13,7 +13,13 @@ import { BadResponseError } from './urbit';
 export function formatScryPath(
   ...segments: (string | number | null | undefined)[]
 ) {
-  return '/' + segments.filter((s) => !!s).join('/');
+  return (
+    '/' +
+    segments
+      .filter((s) => s !== null && s !== undefined)
+      .map((s) => (typeof s === 'number' ? render('ud', BigInt(s)) : s))
+      .join('/')
+  );
 }
 
 export function isColor(value: string) {
