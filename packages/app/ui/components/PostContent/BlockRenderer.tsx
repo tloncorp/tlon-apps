@@ -740,6 +740,7 @@ export type DefaultRendererProps = {
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
+  voicememo: BlockSettings<typeof VoiceMemoBlock>;
 };
 
 interface BlockRendererContextValue {

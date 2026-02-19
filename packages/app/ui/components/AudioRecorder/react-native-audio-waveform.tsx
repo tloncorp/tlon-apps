@@ -1,9 +1,9 @@
 import { useAudioPlayer } from '@simform_solutions/react-native-audio-waveform';
 import { NativeModules } from 'react-native';
 
+export type { IWaveformRef } from '@simform_solutions/react-native-audio-waveform';
 export {
   FinishMode,
-  IWaveformRef,
   PermissionStatus,
   PlayerState,
   RecorderState,
