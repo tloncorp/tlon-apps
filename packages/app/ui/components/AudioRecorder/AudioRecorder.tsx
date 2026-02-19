@@ -27,6 +27,7 @@ import {
   Waveform,
   hasRNWaveformNativeModule,
   useAudioPermission,
+  useExtractWaveformDataCallback,
 } from './react-native-audio-waveform';
 
 type State =
@@ -56,7 +57,10 @@ export const AudioRecorder = forwardRef<
     typeof View,
     {
       ref?: React.Ref<AudioRecorderMethods>;
-      onSubmit?: (opts: { audioFilePath: string }) => void;
+      onSubmit?: (opts: {
+        audioFilePath: string;
+        waveformPreview?: number[];
+      }) => void;
       onCancel?: (audioFilePath: string | null) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
       /** If provided, will use this number as a paddingHorizontal *except* for
@@ -119,6 +123,7 @@ export const AudioRecorder = forwardRef<
 
   // NB: `refApi`'s methods are probably what you want instead of this (since they coordinate other state)
   const waveformRef = useRef<IWaveformRef>(null);
+  const extractWaveformData = useExtractWaveformDataCallback();
 
   const refApi = useMemo(
     () => ({
@@ -262,9 +267,37 @@ export const AudioRecorder = forwardRef<
           );
       }
     } else {
-      onSubmit?.({ audioFilePath: state.audioFilePath });
+      const waveformPreview = await (async () => {
+        const multichannelWaveformData = await extractWaveformData?.({
+          playerKey: `PlayerFor${state.audioFilePath}`,
+          path: state.audioFilePath,
+          noOfSamples: 50,
+        });
+        if (
+          multichannelWaveformData == null ||
+          multichannelWaveformData.length === 0
+        ) {
+          return undefined;
+        }
+        // average across channels to produce a mono waveform preview
+        return multichannelWaveformData[0].map(
+          (frame, i) =>
+            multichannelWaveformData.reduce(
+              (acc, channel) => acc + (channel[i] ?? 0),
+              0
+            ) / multichannelWaveformData.length
+        );
+      })();
+      onSubmit?.({ audioFilePath: state.audioFilePath, waveformPreview });
     }
-  }, [primaryAction, refApi, state, permissions, onSubmit]);
+  }, [
+    primaryAction,
+    refApi,
+    state,
+    permissions,
+    onSubmit,
+    extractWaveformData,
+  ]);
 
   // changing `onCurrentProgressChange` identity resets Waveform's internal playback
   const onCurrentProgressChange = useMutableCallback((elapsed: number) => {
@@ -279,7 +312,7 @@ export const AudioRecorder = forwardRef<
             mode: 'live',
             path: null,
             onRecorderStateChange,
-            candleHeightScale: 1,
+            candleHeightScale: 1.5,
           }
         : {
             mode: 'static',

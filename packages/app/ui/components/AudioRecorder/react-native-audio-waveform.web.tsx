@@ -13,3 +13,13 @@ export {
 export type IWaveformRef = unknown;
 
 export const hasRNWaveformNativeModule = NativeModules.AudioWaveform != null;
+
+export function useExtractWaveformDataCallback():
+  | ((args: {
+      playerKey: string;
+      path: string;
+      noOfSamples?: number;
+    }) => Promise<number[][]>)
+  | null {
+  return null;
+}

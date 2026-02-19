@@ -571,6 +571,8 @@ export type PostBlobDataEntry =
         /** in bytes */
         size: number;
         transcription?: string;
+        /** waveform preview; values should be between 0 and 1 */
+        waveformPreview?: number[];
       }
     >;
 
@@ -709,6 +711,7 @@ export function toPostData({
             fileUri: uploadStateUri(attachment.uploadState),
             size: attachment.size,
             transcription: undefined,
+            waveformPreview: attachment.waveformPreview,
           });
           break;
         }

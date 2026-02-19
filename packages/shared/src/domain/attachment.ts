@@ -83,6 +83,8 @@ export type VoiceMemoAttachment = {
   localUri: string;
   /** in bytes */
   size: number;
+  /** waveform values to use as a preview */
+  waveformPreview?: number[];
 };
 
 export type UploadedFileAttachment = {
@@ -101,6 +103,7 @@ export type UploadedVoiceMemoAttachment = {
   localUri: string;
   /** in bytes */
   size: number;
+  waveformPreview?: number[];
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
