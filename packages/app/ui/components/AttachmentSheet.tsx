@@ -218,6 +218,7 @@ export default function AttachmentSheet({
         size: audioFile.size,
         waveformPreview,
         duration,
+        mimeType: audioFile.type ?? undefined,
       });
       audioRecorder.dismiss();
     },

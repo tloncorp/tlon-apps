@@ -87,6 +87,7 @@ export type VoiceMemoAttachment = {
   waveformPreview?: number[];
   /** in seconds */
   duration?: number;
+  mimeType?: string;
 };
 
 export type UploadedFileAttachment = {
@@ -374,7 +375,7 @@ export namespace Attachment {
           localUri: attachment.localUri,
           name: attachment.localUri.split('/').pop(), // use filename from URI
           size: attachment.size,
-          mimeType: 'audio/mpeg', // TODO: assumption
+          mimeType: attachment.mimeType,
           voiceMemo: { duration: attachment.duration },
         };
       case 'text':
