@@ -4,8 +4,6 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
-import * as AV from 'expo-av';
-import { File } from 'expo-file-system/next';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ComponentRef,
@@ -21,6 +19,7 @@ import { isWeb } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
+import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -201,24 +200,20 @@ export default function AttachmentSheet({
 
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
-      const audioFile = new File(audioFilePath);
-      if (audioFile.size == null) {
-        throw new Error('Audio file could not be read');
-      }
       const duration = await (async () => {
         try {
-          return await getAudioDurationSeconds(audioFile);
+          return await fs.getAudioFileDurationSeconds(audioFilePath);
         } catch {
           return undefined;
         }
       })();
       addAttachment({
         type: 'voicememo',
-        localUri: audioFile.uri,
-        size: audioFile.size,
+        localUri: audioFilePath,
+        size: fs.getFileSize(audioFilePath) ?? -1,
         waveformPreview,
-        duration,
-        mimeType: audioFile.type ?? undefined,
+        duration: duration ?? undefined,
+        mimeType: fs.getMimeType(audioFilePath) ?? undefined,
       });
       audioRecorder.dismiss();
     },
@@ -450,21 +445,4 @@ function useAudioRecorderController({
     present: () => setIsSheetOpen(true),
     dismiss: () => setIsSheetOpen(false),
   };
-}
-
-async function getAudioDurationSeconds(audioFile: File): Promise<number> {
-  const soundPlayer = new AV.Audio.Sound();
-  try {
-    const status = await soundPlayer.loadAsync(
-      { uri: audioFile.uri },
-      { shouldPlay: false }
-    );
-    const duration =
-      status.isLoaded && status.durationMillis != null
-        ? status.durationMillis / 1000
-        : 0;
-    return duration;
-  } finally {
-    await soundPlayer.unloadAsync();
-  }
 }
