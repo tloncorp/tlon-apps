@@ -31,7 +31,7 @@ patchedDependencies:
     hash: rib4hjvzksqzwv3bbw4vfi5a5i
     path: patches/@react-navigation__drawer@6.7.2.patch
   '@simform_solutions/react-native-audio-waveform@2.1.6':
-    hash: agcjojdzfwir53ny36olwegcc4
+    hash: a4fa2r3d43epbulffgzabkfham
     path: patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch
   '@tamagui/sheet@1.126.12':
     hash: cr6gzke7qcuv6dkqbx6tr2ssue
@@ -234,7 +234,7 @@ importers:
         version: 1.5.0(react-native-reanimated@3.16.7(@babel/core@7.28.4)(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       '@simform_solutions/react-native-audio-waveform':
         specifier: ^2.1.6
-        version: 2.1.6(patch_hash=agcjojdzfwir53ny36olwegcc4)(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
+        version: 2.1.6(patch_hash=a4fa2r3d43epbulffgzabkfham)(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       '@tamagui/react-native-media-driver':
         specifier: ~1.126.12
         version: 1.126.12(react-dom@18.3.1(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
@@ -956,7 +956,7 @@ importers:
         version: 19.2.2(@react-native-firebase/app@22.4.0(expo@52.0.47(patch_hash=kyxotken6ewmuhlwsddooas3xy)(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(expo@52.0.47(patch_hash=kyxotken6ewmuhlwsddooas3xy)(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))
       '@simform_solutions/react-native-audio-waveform':
         specifier: '*'
-        version: 2.1.6(patch_hash=agcjojdzfwir53ny36olwegcc4)(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
+        version: 2.1.6(patch_hash=a4fa2r3d43epbulffgzabkfham)(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.32.1
         version: 5.32.1(react@18.3.1)
@@ -20601,13 +20601,13 @@ snapshots:
 
   '@sideway/pinpoint@2.0.0': {}
 
-  '@simform_solutions/react-native-audio-waveform@2.1.6(patch_hash=agcjojdzfwir53ny36olwegcc4)(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)':
+  '@simform_solutions/react-native-audio-waveform@2.1.6(patch_hash=a4fa2r3d43epbulffgzabkfham)(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)':
     dependencies:
       lodash: 4.17.21
       react: 18.3.1
       react-native: 0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.28.3(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1)
 
-  '@simform_solutions/react-native-audio-waveform@2.1.6(patch_hash=agcjojdzfwir53ny36olwegcc4)(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)':
+  '@simform_solutions/react-native-audio-waveform@2.1.6(patch_hash=a4fa2r3d43epbulffgzabkfham)(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)':
     dependencies:
       lodash: 4.17.21
       react: 18.3.1
