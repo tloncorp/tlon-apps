@@ -113,7 +113,6 @@ export const AudioRecorder = forwardRef<
   const [elapsedMs, setElapsedMs] = useState<null | number>(null);
   useTimer({
     start: state.live ? state.duration.playbackStartedAt : undefined,
-    intervalMs: 100,
     onTick: (elapsed) => {
       setElapsedMs(
         elapsed +
@@ -486,7 +485,8 @@ function useTimer({
 
     // Wait for the next aligned tick (setTimeout), then schedule regular ticks (setInterval).
     let intervalId: NodeJS.Timeout | null = null;
-    const nextTickTime = (Date.now() - start.getTime()) % intervalMs;
+    const remainder = (Date.now() - start.getTime()) % intervalMs;
+    const nextTickTime = (intervalMs - remainder) % intervalMs;
     const timeoutId = setTimeout(() => {
       onTickRef.current?.(Date.now() - start.getTime(), start);
       intervalId = setInterval(() => {
