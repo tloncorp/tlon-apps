@@ -786,8 +786,6 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 function firstBlockIsPreviewable(content: BlockData[]): boolean {
   return (
     content.length > 0 &&
-    (content[0].type === 'image' ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference')
+    ['image', 'video', 'reference', 'file'].includes(content[0].type)
   );
 }

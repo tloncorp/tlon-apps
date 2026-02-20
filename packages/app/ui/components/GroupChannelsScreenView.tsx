@@ -298,7 +298,7 @@ export const GroupChannelsScreenView = React.memo(
                 <Popover hoverable allowFlip placement="bottom-end">
                   <Popover.Trigger>
                     <ScreenHeader.IconButton
-                      type="Draw"
+                      type="Settings"
                       aria-label="Edit channels"
                       onPress={() =>
                         group && onPressManageChannels(group.id, false)

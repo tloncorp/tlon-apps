@@ -247,6 +247,7 @@ async function _sendPost({
     await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
       const finalizedPostData = await finalizedPostDataPromise;
+
       logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,

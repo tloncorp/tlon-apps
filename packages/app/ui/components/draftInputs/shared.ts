@@ -11,7 +11,7 @@ export type GalleryRoute =
   | 'add-post'
   | 'add-attachment'
   | 'link'
-  | 'image'
+  | 'review-attachment'
   | 'text';
 
 export interface DraftInputHandle {

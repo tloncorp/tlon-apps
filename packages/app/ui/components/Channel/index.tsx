@@ -17,6 +17,7 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import * as logic from '@tloncorp/shared/logic';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -54,6 +55,7 @@ import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
+import { PinnedPostBanner } from './PinnedPostBanner';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
   ConnectedPostView,
@@ -451,6 +453,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                           goToEdit={handleGoToChannelDetails}
                         />
+                        {logic.getPinnedPostId(channel) && (
+                          <PinnedPostBanner
+                            channel={channel}
+                            onPressPost={goToPost}
+                          />
+                        )}
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (
                             <SystemNotices.ConnectedJoinRequestNotice

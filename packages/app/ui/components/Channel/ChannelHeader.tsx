@@ -359,7 +359,7 @@ export function ChannelHeader({
               <ScreenHeader.IconButton
                 onPress={goToEdit}
                 testID="ChannelHeaderEditButton"
-                type="Draw"
+                type="Settings"
               />
             )}
           </>
