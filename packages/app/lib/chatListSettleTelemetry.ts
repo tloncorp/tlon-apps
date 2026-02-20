@@ -18,6 +18,8 @@ type ChatListSettleMeasurement = {
   lastSignature: string | null;
   lastRenderedSignature: string | null;
   lastRenderAtMs: number | null;
+  firstRenderedAtBySignature: Record<string, number>;
+  latestDataPaintAtMs: number | null;
   changeCount: number;
   requiredSyncSource: 'syncSince' | 'none';
   syncCompleted: boolean;
@@ -105,6 +107,11 @@ function captureTimingEvent(
   const aboveTheFoldTerminalPaintDurationMs = currentMeasurement.lastRenderAtMs
     ? currentMeasurement.lastRenderAtMs - currentMeasurement.startedAt
     : null;
+  const latestDataPaintDurationMs = currentMeasurement.latestDataPaintAtMs
+    ? currentMeasurement.latestDataPaintAtMs - currentMeasurement.startedAt
+    : null;
+  const latestDataConfirmedDurationMs =
+    outcome === 'settled' ? Date.now() - currentMeasurement.startedAt : null;
   const aboveTheFoldTerminalPaintMatchesData =
     currentMeasurement.lastRenderedSignature !== null &&
     currentMeasurement.lastSignature !== null
@@ -170,6 +177,8 @@ function captureTimingEvent(
     nativeCacheApplied: currentMeasurement.nativeCacheApplied,
     nativeCacheTotalMs: currentMeasurement.nativeCacheTotalMs,
     aboveTheFoldTerminalPaintDurationMs,
+    latestDataPaintDurationMs,
+    latestDataConfirmedDurationMs,
     aboveTheFoldTerminalPaintMatchesData,
     aboveTheFoldCacheRenderDurationMs,
     cacheVsGroundTruthDiverged,
@@ -214,6 +223,14 @@ function maybeEmitSettled(
     currentMeasurement.settledDataAtMs = Date.now();
   }
   currentMeasurement.settledSignature = currentMeasurement.lastSignature;
+  if (currentMeasurement.settledSignature) {
+    currentMeasurement.latestDataPaintAtMs =
+      currentMeasurement.firstRenderedAtBySignature[
+        currentMeasurement.settledSignature
+      ] ??
+      currentMeasurement.lastRenderAtMs ??
+      null;
+  }
   captureTimingEvent(currentMeasurement, 'settled', strategy);
   stopSettleMeasurement();
   return true;
@@ -258,6 +275,8 @@ export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
     lastSignature: null,
     lastRenderedSignature: null,
     lastRenderAtMs: null,
+    firstRenderedAtBySignature: {},
+    latestDataPaintAtMs: null,
     changeCount: 0,
     requiredSyncSource: 'syncSince',
     syncCompleted: false,
@@ -420,6 +439,10 @@ export function reportChatListRendered(signature: string) {
 
   activeMeasurement.lastRenderedSignature = signature;
   activeMeasurement.lastRenderAtMs = Date.now();
+  if (!activeMeasurement.firstRenderedAtBySignature[signature]) {
+    activeMeasurement.firstRenderedAtBySignature[signature] =
+      activeMeasurement.lastRenderAtMs;
+  }
   if (
     activeMeasurement.cacheUnreadTargetsMatched &&
     activeMeasurement.lastSignature === signature &&
@@ -436,6 +459,9 @@ export function reportChatListRendered(signature: string) {
     activeMeasurement.settledSignature &&
     activeMeasurement.settledSignature === signature
   ) {
+    activeMeasurement.latestDataPaintAtMs =
+      activeMeasurement.firstRenderedAtBySignature[signature] ??
+      activeMeasurement.lastRenderAtMs;
     captureTimingEvent(activeMeasurement, 'settled', 'idle_window');
     stopSettleMeasurement();
   }

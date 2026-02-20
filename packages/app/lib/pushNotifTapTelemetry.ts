@@ -28,9 +28,11 @@ type PushNotifMeasurement = {
   syncFoundNewerMessage: boolean | null;
   latestPostIdAfterSync: string | null;
   latestMessageCachedAtTap: boolean | null;
+  latestMessagePaintAtMs: number | null;
   newestMessageShown: boolean | null;
   newestMessageShownAtMs: number | null;
   lastRenderedPostIds: string[];
+  firstRenderedAtByPostId: Record<string, number>;
 };
 
 type NativeCacheContext = {
@@ -94,11 +96,28 @@ function captureEvent(
     syncDurationMs: current.syncDurationMs,
     syncFoundNewerMessage: current.syncFoundNewerMessage,
     latestMessageCachedAtTap: current.latestMessageCachedAtTap,
+    latestMessagePaintDurationMs: current.latestMessagePaintAtMs
+      ? current.latestMessagePaintAtMs - current.startedAt
+      : null,
+    latestMessageConfirmedDurationMs: current.newestMessageShownAtMs
+      ? current.newestMessageShownAtMs - current.startedAt
+      : null,
     newestMessageShown: current.newestMessageShown,
     newestMessageShownDurationMs: current.newestMessageShownAtMs
       ? current.newestMessageShownAtMs - current.startedAt
       : null,
   });
+}
+
+function updateLatestMessagePaint(current: PushNotifMeasurement) {
+  if (!current.latestPostIdAfterSync) {
+    return;
+  }
+  const firstRenderedAt =
+    current.firstRenderedAtByPostId[current.latestPostIdAfterSync];
+  if (firstRenderedAt && !current.latestMessagePaintAtMs) {
+    current.latestMessagePaintAtMs = firstRenderedAt;
+  }
 }
 
 function updateNewestMessageShown(current: PushNotifMeasurement) {
@@ -179,9 +198,11 @@ export function startPushNotifTapMeasurement({
     syncFoundNewerMessage: null,
     latestPostIdAfterSync: null,
     latestMessageCachedAtTap: null,
+    latestMessagePaintAtMs: null,
     newestMessageShown: null,
     newestMessageShownAtMs: null,
     lastRenderedPostIds: [],
+    firstRenderedAtByPostId: {},
   };
   applyNativeCacheContextToMeasurement(measurement, latestNativeCacheContext);
 
@@ -228,6 +249,7 @@ export async function markPushNotifTapSyncSinceComplete(
     current.cachedPostsRelatedToChannel && syncedLastPostId !== null
       ? current.cachedChannelLatestPostId === syncedLastPostId
       : null;
+  updateLatestMessagePaint(current);
   updateNewestMessageShown(current);
   maybeEmitSettled(current);
 }
@@ -242,6 +264,12 @@ export function reportPushNotifChannelRendered(
   }
 
   current.lastRenderedPostIds = renderedPostIds.slice(0, RENDERED_POST_ID_LIMIT);
+  const renderedAtMs = Date.now();
+  current.lastRenderedPostIds.forEach((postId) => {
+    if (!current.firstRenderedAtByPostId[postId]) {
+      current.firstRenderedAtByPostId[postId] = renderedAtMs;
+    }
+  });
   if (
     current.cachedPostsRelatedToChannel &&
     !current.cacheRenderedAtMs &&
@@ -249,8 +277,9 @@ export function reportPushNotifChannelRendered(
       ? current.lastRenderedPostIds.includes(current.cachedChannelLatestPostId)
       : current.lastRenderedPostIds.length > 0)
   ) {
-    current.cacheRenderedAtMs = Date.now();
+    current.cacheRenderedAtMs = renderedAtMs;
   }
+  updateLatestMessagePaint(current);
   updateNewestMessageShown(current);
   maybeEmitSettled(current);
 }
