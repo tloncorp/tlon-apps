@@ -338,45 +338,49 @@ function AppRoutes() {
       webAppNeedsUpdate={needsUpdate}
       triggerWebAppUpdate={triggerUpdate}
     >
-      <ForwardPostSheetProvider>
-        {isMobile ? (
-          <NavigationContainer<MobileBasePathStackParamList>
-            key="mobile"
-            ref={
-              navigationRef as NavigationContainerRefWithCurrent<MobileBasePathStackParamList>
-            }
-            initialState={initialStateRef.current.mobile}
-            linking={mobileLinkingConfig}
-            theme={theme}
-            onReady={handleNavigationReady}
-            onStateChange={combinedStateChangeHandler}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterMobile,
-            }}
-          >
+      {isMobile ? (
+        <NavigationContainer<MobileBasePathStackParamList>
+          key="mobile"
+          ref={
+            navigationRef as NavigationContainerRefWithCurrent<MobileBasePathStackParamList>
+          }
+          initialState={initialStateRef.current.mobile}
+          linking={mobileLinkingConfig}
+          theme={theme}
+          onReady={handleNavigationReady}
+          onStateChange={combinedStateChangeHandler}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterMobile,
+          }}
+          navigationInChildEnabled
+        >
+          <ForwardPostSheetProvider>
             <BasePathNavigator isMobile={true} />
-          </NavigationContainer>
-        ) : (
-          <NavigationContainer<DesktopBasePathStackParamList>
-            key="desktop"
-            ref={
-              navigationRef as NavigationContainerRefWithCurrent<DesktopBasePathStackParamList>
-            }
-            initialState={initialStateRef.current.desktop}
-            linking={desktopLinkingConfig}
-            theme={theme}
-            onReady={handleNavigationReady}
-            onStateChange={combinedStateChangeHandler}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterDesktop,
-            }}
-          >
+          </ForwardPostSheetProvider>
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer<DesktopBasePathStackParamList>
+          key="desktop"
+          ref={
+            navigationRef as NavigationContainerRefWithCurrent<DesktopBasePathStackParamList>
+          }
+          initialState={initialStateRef.current.desktop}
+          linking={desktopLinkingConfig}
+          theme={theme}
+          onReady={handleNavigationReady}
+          onStateChange={combinedStateChangeHandler}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterDesktop,
+          }}
+          navigationInChildEnabled
+        >
+          <ForwardPostSheetProvider>
             <BasePathNavigator isMobile={false} />
-          </NavigationContainer>
-        )}
-      </ForwardPostSheetProvider>
+          </ForwardPostSheetProvider>
+        </NavigationContainer>
+      )}
     </AppDataProvider>
   );
 }

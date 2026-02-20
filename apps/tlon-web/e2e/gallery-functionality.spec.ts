@@ -40,7 +40,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Navigate to the post
   await zodPage
     .getByText('Test Gallery Post Content')
-    .first()
+    .nth(1)
     .click({ force: true });
   await zodPage.waitForTimeout(2000);
   await expect(

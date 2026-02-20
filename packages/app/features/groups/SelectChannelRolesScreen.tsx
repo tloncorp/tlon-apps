@@ -86,16 +86,24 @@ export function SelectChannelRolesScreen() {
     const params = route.params;
     switch (params.returnScreen) {
       case 'CreateChannelPermissions':
-        navigation.navigate(params.returnScreen, {
-          ...params.returnParams,
-          selectedRoleIds: finalRoleIds,
-        });
+        navigation.navigate(
+          params.returnScreen,
+          {
+            ...params.returnParams,
+            selectedRoleIds: finalRoleIds,
+          },
+          { pop: true }
+        );
         break;
       case 'EditChannelPrivacy':
-        navigation.navigate(params.returnScreen, {
-          ...params.returnParams,
-          selectedRoleIds: finalRoleIds,
-        });
+        navigation.navigate(
+          params.returnScreen,
+          {
+            ...params.returnParams,
+            selectedRoleIds: finalRoleIds,
+          },
+          { pop: true }
+        );
         break;
     }
   }, [navigation, selectedRoleIds, route.params]);

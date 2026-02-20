@@ -557,6 +557,8 @@ export const config =
           // Tamagui v2 expands flex: 1 to flex-grow: 1, flex-shrink: 1, flex-basis: 0 instead of flex-grow: 1, flex-shrink: 1, flex-basis: auto,
           // this brings back the v1 behavior that we rely on.
           styleCompat: 'legacy',
+          // This is also to match v1 default styles.
+          defaultPosition: 'relative',
           allowedStyleValues: {
             space: 'somewhat-strict',
             size: 'somewhat-strict',
@@ -574,6 +576,7 @@ export const config =
         settings: {
           defaultFont: 'body',
           styleCompat: 'legacy',
+          defaultPosition: 'relative',
           allowedStyleValues: {
             space: 'somewhat-strict',
             size: 'somewhat-strict',
