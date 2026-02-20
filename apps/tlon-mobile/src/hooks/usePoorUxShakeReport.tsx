@@ -19,7 +19,7 @@ const SHAKE_HITS_WINDOW_MS = 700;
 const SHAKE_COOLDOWN_MS = 1500;
 
 export function usePoorUxShakeReport() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [details, setDetails] = useState('');
 
   useEffect(() => {
