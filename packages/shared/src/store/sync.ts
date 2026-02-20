@@ -186,16 +186,32 @@ export const syncSince = async ({
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
+  const startedAt = Date.now();
+  let result: 'success' | 'error' = 'success';
+  let hadChanges: boolean | null = null;
+  let unreadTargets:
+    | {
+        channelUnreadCounts: Record<string, number>;
+        groupUnreadCounts: Record<string, number>;
+      }
+    | null = null;
   try {
     await (queryCtx
-      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx }).then(
+          (summary) => {
+            hadChanges = summary.hadChanges;
+            unreadTargets = summary.unreadTargets;
+          }
+        )
       : batchEffects('syncSince', async (batchCtx) => {
-          await syncLatestChanges({
+          const summary = await syncLatestChanges({
             since,
             syncCtx,
             queryCtx: batchCtx,
             callCtx,
           });
+          hadChanges = summary.hadChanges;
+          unreadTargets = summary.unreadTargets;
 
           // make sure we attempt to get latest posts if we haven't succeeded yet
           const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
@@ -204,14 +220,51 @@ export const syncSince = async ({
           }
         }));
   } catch (e) {
+    result = 'error';
     logger.trackError('sync since failed', {
       error: e,
       ...callCtx,
+    });
+  } finally {
+    notifySyncSinceCompletion({
+      cause: callCtx.cause,
+      result,
+      durationMs: Date.now() - startedAt,
+      hadChanges,
+      unreadTargets,
     });
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
 };
+
+type SyncSinceCompletion = {
+  cause?: string;
+  result: 'success' | 'error';
+  durationMs: number;
+  hadChanges: boolean | null;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+};
+
+const syncSinceCompletionObservers = new Set<
+  (event: SyncSinceCompletion) => void
+>();
+
+function notifySyncSinceCompletion(event: SyncSinceCompletion) {
+  syncSinceCompletionObservers.forEach((observer) => observer(event));
+}
+
+export function observeSyncSinceCompletion(
+  observer: (event: SyncSinceCompletion) => void
+) {
+  syncSinceCompletionObservers.add(observer);
+  return () => {
+    syncSinceCompletionObservers.delete(observer);
+  };
+}
 
 export const syncLatestChanges = async ({
   syncCtx,
@@ -224,7 +277,13 @@ export const syncLatestChanges = async ({
   callCtx?: { cause?: string };
   since?: number;
   yieldWriter?: boolean;
-}): Promise<void> => {
+}): Promise<{
+  hadChanges: boolean;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+}> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
   if (since) {
@@ -240,7 +299,10 @@ export const syncLatestChanges = async ({
     } catch (e) {
       logger.trackError('Failed latest changes fallback', e);
     }
-    return;
+    return {
+      hadChanges: true,
+      unreadTargets: null,
+    };
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
@@ -280,6 +342,28 @@ export const syncLatestChanges = async ({
     msToFetch,
     msToWrite,
   });
+  const hadChanges =
+    result.posts.length > 0 ||
+    result.groups.length > 0 ||
+    result.contacts.length > 0 ||
+    result.deletedChannelIds.length > 0 ||
+    result.unreads.channelUnreads.length > 0 ||
+    result.unreads.groupUnreads.length > 0 ||
+    result.unreads.threadActivity.length > 0 ||
+    !!result.unreads.baseUnread;
+  const channelUnreadCounts = Object.fromEntries(
+    result.unreads.channelUnreads.map((u) => [u.channelId, u.count ?? 0])
+  );
+  const groupUnreadCounts = Object.fromEntries(
+    result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
+  );
+  return {
+    hadChanges,
+    unreadTargets: {
+      channelUnreadCounts,
+      groupUnreadCounts,
+    },
+  };
 };
 
 export const syncCachedChanges = async (input: {

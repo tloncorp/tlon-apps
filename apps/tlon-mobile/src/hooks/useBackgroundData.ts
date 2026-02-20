@@ -7,6 +7,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as utils from '@tloncorp/shared/utils';
+import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
 import { useCallback, useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -44,7 +45,13 @@ export function useCachedChanges() {
   }, []);
 
   const checkForCachedChanges = useCallback(async () => {
-    if (!ENABLED) return;
+    if (!ENABLED) {
+      reportChatListNativeCacheResult({
+        present: false,
+        applied: false,
+      });
+      return;
+    }
     const execStart = Date.now();
 
     logger.log(`checking for cached changes...`);
@@ -54,8 +61,18 @@ export function useCachedChanges() {
       cacheResult = await BackgroundCache.retrieveBackgroundData();
     } catch (e) {
       logger.trackError(`Failed to retrieve background data`, e);
+      reportChatListNativeCacheResult({
+        present: false,
+        applied: false,
+      });
     }
-    if (!cacheResult) return;
+    if (!cacheResult) {
+      reportChatListNativeCacheResult({
+        present: false,
+        applied: false,
+      });
+      return;
+    }
 
     const readAt = Date.now();
     logger.log(`cached changes present`);
@@ -70,6 +87,14 @@ export function useCachedChanges() {
       logger.log(`cached changes result`, { begin, end, changes });
     } catch (e) {
       logger.trackEvent('Failed to parse cached changes');
+      reportChatListNativeCacheResult({
+        present: true,
+        applied: false,
+        readMs: readAt - execStart,
+        parseMs: Date.now() - readAt,
+        insertMs: null,
+        totalMs: Date.now() - execStart,
+      });
     }
     const parsedAt = Date.now();
 
@@ -80,6 +105,24 @@ export function useCachedChanges() {
           changes,
           begin,
           end,
+        });
+        const channelUnreadCounts = Object.fromEntries(
+          changes.unreads.channelUnreads.map((u) => [u.channelId, u.count ?? 0])
+        );
+        const groupUnreadCounts = Object.fromEntries(
+          changes.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
+        );
+        reportChatListNativeCacheResult({
+          present: true,
+          applied: didInsert,
+          readMs: readAt - execStart,
+          parseMs: parsedAt - readAt,
+          insertMs: Date.now() - parsedAt,
+          totalMs: Date.now() - execStart,
+          unreadTargets: {
+            channelUnreadCounts,
+            groupUnreadCounts,
+          },
         });
         logger.log(`Synced cache changes: ${Date.now() - execStart}ms`);
         logger.trackEvent('Synced cached changes', {
@@ -95,8 +138,25 @@ export function useCachedChanges() {
           timeToInsert: utils.formattedDuration(parsedAt, Date.now()),
         });
       } catch (e) {
+        reportChatListNativeCacheResult({
+          present: true,
+          applied: false,
+          readMs: readAt - execStart,
+          parseMs: parsedAt - readAt,
+          insertMs: null,
+          totalMs: Date.now() - execStart,
+        });
         logger.trackError(`Failed to sync cached changes`, e);
       }
+    } else {
+      reportChatListNativeCacheResult({
+        present: true,
+        applied: false,
+        readMs: readAt - execStart,
+        parseMs: parsedAt - readAt,
+        insertMs: null,
+        totalMs: Date.now() - execStart,
+      });
     }
   }, []);
 
