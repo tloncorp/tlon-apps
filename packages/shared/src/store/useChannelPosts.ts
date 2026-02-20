@@ -215,7 +215,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       postsLogger.log(
         `stale posts detected (have seq ${newestInQuery}, channel has ${latestSeqNum}), refetching`
       );
-      query.refetch();
+      // disable to test e2e CI
+      // query.refetch();
     }
     // query.refetch is stable in behavior but changes reference each render. Safe
     // to omit
