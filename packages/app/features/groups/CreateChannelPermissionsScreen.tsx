@@ -104,8 +104,9 @@ export function CreateChannelPermissionsScreen() {
       writers: finalWriters,
     });
 
-    navigation.navigate('ManageChannels', { groupId });
-  }, [navigation, groupId, form, channelTitle, channelType]);
+    // Navigate back to channel list
+    navigation.navigate('ManageChannels', { groupId }, { pop: true });
+  }, [navigation, groupId, channelTitle, channelType, readers, writers]);
 
   if (!group) {
     return null;

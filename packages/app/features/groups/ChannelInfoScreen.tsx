@@ -48,7 +48,7 @@ export function ChannelInfoScreen(props: Props) {
   );
 
   const handleAfterDeleteChannel = useCallback(() => {
-    navigation.navigate('ManageChannels', { groupId });
+    navigation.navigate('ManageChannels', { groupId }, { pop: true });
   }, [navigation, groupId]);
 
   return (

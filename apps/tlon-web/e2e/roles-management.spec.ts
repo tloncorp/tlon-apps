@@ -166,7 +166,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
     try {
       const backButton = page.getByTestId('HeaderBackButton').first();
       if (await backButton.isVisible({ timeout: 500 })) {
-        await backButton.click();
+        await helpers.navigateBack(page);
         await page.waitForTimeout(300);
       }
     } catch {
@@ -245,7 +245,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
     try {
       const backButton = page.getByTestId('HeaderBackButton').first();
       if (await backButton.isVisible({ timeout: 500 })) {
-        await backButton.click();
+        await helpers.navigateBack(page);
         await page.waitForTimeout(300);
       }
     } catch {
