@@ -383,7 +383,7 @@ function ConnectedDesktopApp({
     const initializeClient = async () => {
       store.removeClient();
 
-      configureClient({
+      await configureClient({
         shipName: ship,
         shipUrl,
       });
@@ -448,12 +448,12 @@ function ConnectedWebApp() {
   }, []);
 
   useEffect(() => {
-    configureClient({
-      shipName: currentUserId,
-      shipUrl: '',
-    });
-
     const syncStart = async () => {
+      await configureClient({
+        shipName: currentUserId,
+        shipUrl: '',
+      });
+
       // Only call sync.syncStart once during the app's lifecycle
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading

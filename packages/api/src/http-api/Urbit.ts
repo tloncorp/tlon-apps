@@ -335,7 +335,8 @@ export class Urbit {
         this.nodeId = match;
       }
       if (!isBrowser) {
-        this.cookie = cookie || undefined;
+        // Parse only the cookie key=value; ignore attributes like Path/Max-Age.
+        this.cookie = cookie?.split(';')[0].trim() || undefined;
       }
       this.getShipName();
       this.getOurName();
@@ -1028,7 +1029,7 @@ export class Urbit {
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
     const result = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}.json`,
       {
         ...this.fetchOptions,
         signal,

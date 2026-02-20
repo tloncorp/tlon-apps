@@ -41,7 +41,7 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     : fetch(input, newInit);
 };
 
-export function configureUrbitClient({
+export async function configureUrbitClient({
   ship,
   shipUrl,
   authType,
@@ -52,7 +52,7 @@ export function configureUrbitClient({
   authType: 'self' | 'hosted';
   onAuthFailure?: (params: { mustLogout: boolean }) => void;
 }) {
-  configureClient({
+  await configureClient({
     shipName: ship,
     shipUrl: shipUrl,
     verbose: ENABLED_LOGGERS.includes('urbit'),
@@ -118,8 +118,8 @@ export function useConfigureUrbitClient() {
   });
 
   return useCallback(
-    (params?: Partial<ClientParams>) => {
-      configureUrbitClient({
+    async (params?: Partial<ClientParams>) => {
+      await configureUrbitClient({
         ship: params?.shipName ?? ship ?? '',
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
         authType,

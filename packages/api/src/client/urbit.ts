@@ -96,6 +96,8 @@ export interface ClientParams {
   handleAuthFailure?: (params: { mustLogout: boolean }) => void;
   onQuitOrReset?: (cause: 'subscriptionQuit' | 'reset') => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
+  /** Inject a pre-configured Urbit client instead of creating one */
+  client?: Urbit;
 }
 
 export interface UrbitTestOverrides {
@@ -165,7 +167,7 @@ export const getCurrentUserIsHosted = () => {
   return Hosting.nodeUrlIsHosted(implicitUrl);
 };
 
-export function configureClient({
+export async function configureClient({
   shipName,
   shipUrl,
   verbose,
@@ -174,8 +176,14 @@ export function configureClient({
   handleAuthFailure,
   onQuitOrReset,
   onChannelStatusChange,
+  client: injectedClient,
 }: ClientParams) {
-  config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
+  // If no pre-authenticated client was injected and we have a way to get
+  // the auth code, get it now so we can pass it to the Urbit constructor.
+  const code = !injectedClient && getCode ? await getCode() : '';
+
+  config.client =
+    injectedClient || config.client || new Urbit(shipUrl, code, '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
@@ -183,6 +191,12 @@ export function configureClient({
   config.getCode = getCode;
   config.handleAuthFailure = handleAuthFailure;
   config.subWatchers = {};
+
+  // Connect and start event source if we got a code (client needs to authenticate).
+  if (code) {
+    await config.client.connect();
+    await config.client.eventSource();
+  }
 
   // the below event handlers will only fire if verbose is set to true
   config.client.on('status-update', (event) => {

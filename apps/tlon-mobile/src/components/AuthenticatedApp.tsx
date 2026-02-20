@@ -156,7 +156,7 @@ export default function ConnectedAuthenticatedApp() {
 
   useEffect(() => {
     async function setup() {
-      configureClient();
+      await configureClient();
       // we store a flag to ensure this runs only once per login, not anytime
       // the app is opened
       const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();

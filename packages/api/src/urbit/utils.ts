@@ -182,6 +182,9 @@ export function getTextContent(story?: PostContent): string | undefined {
   if (!story) {
     return;
   }
+  if (!Array.isArray(story)) {
+    return typeof story === 'string' ? story : undefined;
+  }
   return story
     .map((verse) => {
       if (isReferenceVerse(verse)) {

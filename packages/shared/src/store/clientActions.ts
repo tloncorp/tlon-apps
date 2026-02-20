@@ -4,14 +4,14 @@ import { getInitializedClient, updateInitializedClient } from './session';
 
 const logger = createDevLogger('ClientActions', false);
 
-export function configureClient(params: api.ClientParams) {
+export async function configureClient(params: api.ClientParams) {
   const clientInitialized = getInitializedClient();
   if (clientInitialized) {
     logger.log('client already initialized, skipping');
     return;
   }
 
-  api.internalConfigureClient(params);
+  await api.internalConfigureClient(params);
   updateInitializedClient(true);
 }
 
