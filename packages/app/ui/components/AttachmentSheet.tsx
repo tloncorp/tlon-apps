@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
@@ -265,8 +264,6 @@ export default function AttachmentSheet({
       onAttach?.(uploadIntents);
     }
   }, [attachAssets, onOpenChange, onAttach]);
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
-
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -290,12 +287,11 @@ export default function AttachmentSheet({
               description: 'Use the image currently in your clipboard',
               action: createAssetFromClipboard,
             },
-          canUploadFiles &&
-            mediaType === 'all' && {
-              title: 'Upload a File',
-              description: 'Upload files from your device',
-              action: startFilePicker,
-            },
+          mediaType === 'all' && {
+            title: 'Upload a File',
+            description: 'Upload files from your device',
+            action: startFilePicker,
+          },
         ],
         showClearOption && [
           'negative',
@@ -307,7 +303,6 @@ export default function AttachmentSheet({
         ]
       ),
     [
-      canUploadFiles,
       onClearAttachments,
       pickImage,
       startFilePicker,
