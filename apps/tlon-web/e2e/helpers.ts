@@ -562,7 +562,9 @@ export async function cleanupExistingGroup(page: Page, groupName?: string) {
 }
 
 /**
- * Navigates back using header back button with fallback logic
+ * Navigates back using header back button with fallback logic.
+ * NativeStack on web renders all stacked screens in the DOM, so there can be
+ * many HeaderBackButton elements. We click the last visible one (the topmost screen).
  */
 export async function navigateBack(page: Page, preferredIndex = -1) {
   const backButtons = page.getByTestId('HeaderBackButton');
@@ -571,12 +573,13 @@ export async function navigateBack(page: Page, preferredIndex = -1) {
     (await backButtons.nth(preferredIndex).isVisible())
   ) {
     await backButtons.nth(preferredIndex).click();
-  } else {
-    for (const i of [2, 1, 0]) {
-      if (await backButtons.nth(i).isVisible()) {
-        await backButtons.nth(i).click();
-        break;
-      }
+    return;
+  }
+  const count = await backButtons.count();
+  for (let i = count - 1; i >= 0; i--) {
+    if (await backButtons.nth(i).isVisible()) {
+      await backButtons.nth(i).click();
+      return;
     }
   }
 }
