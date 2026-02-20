@@ -16,13 +16,17 @@
     "./types/*": "./src/types/*.ts"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "tsc": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepack": "pnpm run clean && pnpm run build && node ./scripts/prepare-publish.mjs",
+    "pack:dry-run": "pnpm run prepack && npm pack ./dist --dry-run"
   },
   "dependencies": {
     "@urbit/aura": "^3.0.0",
@@ -47,5 +51,9 @@
   "files": [
     "dist",
     "src"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
