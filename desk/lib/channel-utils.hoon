@@ -1001,15 +1001,31 @@
       ~
     =,  u.point
     ?^  q.plan  ~  ::TODO  support?
-    =/  base=path
+    =/  base-v4=path
+      %+  weld
+        /(scot %p our.bowl)/channels/(scot %da now.bowl)
+      /v4/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    =/  base-v3=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
       /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    ?.  .^(? %gu base)  ~
-    :+  ~  nest
-    .^  post:c  %gx
-      %+  weld  base
-      /posts/post/(scot %ud p.plan)/channel-post-3
+    =/  post-v4=(unit post:c)
+      ?.  .^(? %gu base-v4)
+        ~
+      .^  (unit post:c)  %gx
+        %+  weld  base-v4
+        /posts/post/(scot %ud p.plan)/channel-post-4
+    ?^  post-v4
+      [~ [nest u.post-v4]]
+    =/  post-v3=(unit post:c)
+      ?.  .^(? %gu base-v3)
+        ~
+      .^  (unit post:c)  %gx
+        %+  weld  base-v3
+        /posts/post/(scot %ud p.plan)/channel-post-3
+    ?~  post-v3
+      ~
+    [~ [nest u.post-v3]]
     ==
   ::
   ++  from-post

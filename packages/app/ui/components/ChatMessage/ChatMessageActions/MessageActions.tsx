@@ -6,7 +6,7 @@ import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
@@ -18,6 +18,12 @@ import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 
 const ENABLE_COPY_JSON = __DEV__;
+
+function getExposeReferencePath(post: db.Post) {
+  const [kind, host, channelName] = post.channelId.split('/');
+  const postId = post.id.replaceAll('.', '');
+  return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+}
 
 export default function MessageActions({
   dismiss,
@@ -45,6 +51,11 @@ export default function MessageActions({
           {...{ dismiss, onReply, onEdit, onViewReactions, post, actionId }}
         />
       ))}
+      <PublicProfileExposeAction
+        post={post}
+        dismiss={dismiss}
+        last={!ENABLE_COPY_JSON}
+      />
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
   );
@@ -179,6 +190,114 @@ const ConnectedAction = memo(function ConnectedAction({
   );
 });
 
+function PublicProfileExposeAction({
+  post,
+  dismiss,
+  last,
+}: {
+  post: db.Post;
+  dismiss: () => void;
+  last?: boolean;
+}) {
+  const channel = useChannelContext();
+  const showToast = useToast();
+  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
+  const [isShownOnProfile, setIsShownOnProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const referencePath = getExposeReferencePath(post);
+  const isEligible =
+    channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
+
+  useEffect(() => {
+    if (!isEligible) {
+      setPublicProfileEnabled(false);
+      setIsShownOnProfile(false);
+      setIsLoading(false);
+      return;
+    }
+
+    let active = true;
+    const load = async () => {
+      try {
+        const enabled = await api.getPublicProfileEnabled();
+        if (!active) {
+          return;
+        }
+
+        setPublicProfileEnabled(enabled);
+        if (!enabled) {
+          setIsShownOnProfile(false);
+          return;
+        }
+
+        const shown = await api.getPublicProfilePostShown(referencePath);
+        if (active) {
+          setIsShownOnProfile(shown);
+        }
+      } catch (error) {
+        console.warn('Failed to load public profile message action state', error);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    setIsLoading(true);
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, [isEligible, referencePath]);
+
+  const onPress = useCallback(async () => {
+    if (isUpdating) {
+      return;
+    }
+
+    const nextShownState = !isShownOnProfile;
+    setIsShownOnProfile(nextShownState);
+    setIsUpdating(true);
+
+    try {
+      await api.setPublicProfilePostShown(referencePath, nextShownState);
+      triggerHaptic('success');
+      dismiss();
+      return;
+    } catch {
+      setIsShownOnProfile(!nextShownState);
+      triggerHaptic('error');
+      showToast({
+        message: nextShownState
+          ? 'Could not show post on public profile'
+          : 'Could not hide post from public profile',
+        duration: 2000,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [dismiss, isShownOnProfile, isUpdating, referencePath, showToast]);
+
+  if (isLoading || !publicProfileEnabled) {
+    return null;
+  }
+
+  return (
+    <ActionList.Action
+      height="auto"
+      onPress={() => {
+        void onPress();
+      }}
+      disabled={isUpdating}
+      last={last}
+    >
+      {isShownOnProfile ? 'Hide from public profile' : 'Show on public profile'}
+    </ActionList.Action>
+  );
+}
+
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {
     return JSON.stringify(post.content, null, 2);
@@ -203,7 +322,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
-  showToast,
+  showToast: _showToast,
 }: {
   id: ChannelAction.Id;
   post: db.Post;

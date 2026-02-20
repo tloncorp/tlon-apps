@@ -8,6 +8,11 @@ export interface PublicProfileWidget {
   term: string;
 }
 
+function normalizeReferencePath(path: string) {
+  const withLeadingSlash = path.startsWith('/') ? path : `/${path}`;
+  return withLeadingSlash.replaceAll("'", '');
+}
+
 async function scryProfileBoolean(path: string) {
   return scry<boolean>({
     app: 'profile',
@@ -121,6 +126,39 @@ export async function setPublicProfileWidgetEnabled(
         }
       : {
           'del-widget': widget,
+        },
+  });
+}
+
+export async function getPublicProfilePostShown(path: string) {
+  const referencePath = normalizeReferencePath(path);
+  try {
+    return await scry<boolean>({
+      app: 'expose',
+      path: `/x/show${referencePath}`,
+    });
+  } catch {
+    try {
+      return await scry<boolean>({
+        app: 'expose',
+        path: `/u/show${referencePath}`,
+      });
+    } catch {
+      return false;
+    }
+  }
+}
+
+export async function setPublicProfilePostShown(path: string, shown: boolean) {
+  return poke({
+    app: 'expose',
+    mark: 'json',
+    json: shown
+      ? {
+          show: normalizeReferencePath(path),
+        }
+      : {
+          hide: normalizeReferencePath(path),
         },
   });
 }
