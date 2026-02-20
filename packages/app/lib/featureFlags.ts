@@ -26,6 +26,11 @@ export const featureMeta = {
     label: 'Enable uploading non-image files in chats',
     onlyTlon: true,
   },
+  markdownNotebooks: {
+    default: false,
+    label: 'Enable Markdown mode for notebook posts',
+    onlyTlon: true,
+  },
 } satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;
 
 export type FeatureName = keyof typeof featureMeta;
