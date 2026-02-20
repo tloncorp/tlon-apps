@@ -71,12 +71,7 @@ export function SearchResults({
   }, [search, insets.bottom]);
 
   return (
-    <YStack
-      marginHorizontal="$m"
-      marginTop="$true"
-      flex={1}
-      onTouchStart={Keyboard.dismiss}
-    >
+    <YStack marginTop="$true" flex={1} onTouchStart={Keyboard.dismiss}>
       {isInitial && (
         <Stack flex={1} justifyContent="center" alignItems="center">
           <SizableText color="$secondaryText">
