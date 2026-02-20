@@ -369,6 +369,11 @@
     ::
     [~ this]
   ::
+      [%contacts %set ~]
+    ::  we tried our best to update our contacts profile. if it worked, great!
+    ::  if it didn't, there's not much we can do about it.
+    [~ this]
+  ::
       [%contacts %news ~]
     ?-  -.sign
       %poke-ack  !!
