@@ -40,6 +40,7 @@ import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
+import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
@@ -56,6 +57,7 @@ function AuthenticatedApp() {
   useFindSuggestedContacts();
   useSyncAppBadge();
   const checkForCachedChanges = useCachedChanges();
+  const { poorUxReportModal } = usePoorUxShakeReport();
 
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
@@ -143,6 +145,7 @@ function AuthenticatedApp() {
   return (
     <ZStack flex={1}>
       <RootStack />
+      {poorUxReportModal}
     </ZStack>
   );
 }
