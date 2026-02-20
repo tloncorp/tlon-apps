@@ -1,6 +1,7 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
+import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
@@ -265,6 +266,10 @@ export default function useNotificationListener() {
         AnalyticsEvent.ActionTappedPushNotif,
         logic.getModelAnalytics({ channel })
       );
+      startPushNotifTapMeasurement({
+        channelId: channel.id,
+        initialLastPostId: channel.lastPostId ?? null,
+      });
 
       const routeStack: RouteStack = [{ name: 'ChatList' }];
       if (channel.groupId) {

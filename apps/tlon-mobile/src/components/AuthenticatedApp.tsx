@@ -13,6 +13,10 @@ import {
   setChatListNetworkContext,
   startChatListSettleMeasurement,
 } from '@tloncorp/app/lib/chatListSettleTelemetry';
+import {
+  markPushNotifTapMeasurementAbandoned,
+  markPushNotifTapSyncSinceComplete,
+} from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -56,7 +60,9 @@ function AuthenticatedApp() {
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
       if (status === 'inactive' || status === 'background') {
-        const didAbandon = markChatListMeasurementAbandoned(status);
+        const didAbandonChatList = markChatListMeasurementAbandoned(status);
+        const didAbandonPushNotif = markPushNotifTapMeasurementAbandoned(status);
+        const didAbandon = didAbandonChatList || didAbandonPushNotif;
         if (didAbandon) {
           // we want to make sure the flush call gets time to execute, but
           // avoid blocking if it hangs
@@ -115,6 +121,7 @@ function AuthenticatedApp() {
           event.hadChanges,
           event.unreadTargets
         );
+        void markPushNotifTapSyncSinceComplete(event.result, event.durationMs);
       }
     });
   }, []);
