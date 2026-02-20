@@ -119,9 +119,18 @@ function AuthenticatedApp() {
           event.result,
           event.durationMs,
           event.hadChanges,
+          event.nodeBusyStatus,
+          event.postsCount,
+          event.neededToSyncLatestPosts,
           event.unreadTargets
         );
-        void markPushNotifTapSyncSinceComplete(event.result, event.durationMs);
+        void markPushNotifTapSyncSinceComplete(
+          event.result,
+          event.durationMs,
+          event.nodeBusyStatus,
+          event.postsCount,
+          event.neededToSyncLatestPosts
+        );
       }
     });
   }, []);

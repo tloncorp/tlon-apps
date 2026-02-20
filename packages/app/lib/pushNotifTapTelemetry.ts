@@ -25,6 +25,9 @@ type PushNotifMeasurement = {
   syncRequestCompleted: boolean;
   syncResult: SyncSinceResult | null;
   syncDurationMs: number | null;
+  syncNodeBusyStatus: string | null;
+  syncPostsCount: number | null;
+  neededToSyncLatestPosts: boolean;
   syncFoundNewerMessage: boolean | null;
   latestPostIdAfterSync: string | null;
   latestMessageCachedAtTap: boolean | null;
@@ -94,6 +97,9 @@ function captureEvent(
     syncRequestCompleted: current.syncRequestCompleted,
     syncResult: current.syncResult,
     syncDurationMs: current.syncDurationMs,
+    nodeBusyStatus: current.syncNodeBusyStatus,
+    syncPostsCount: current.syncPostsCount,
+    neededToSyncLatestPosts: current.neededToSyncLatestPosts,
     syncFoundNewerMessage: current.syncFoundNewerMessage,
     latestMessageCachedAtTap: current.latestMessageCachedAtTap,
     latestMessagePaintDurationMs: current.latestMessagePaintAtMs
@@ -195,6 +201,9 @@ export function startPushNotifTapMeasurement({
     syncRequestCompleted: false,
     syncResult: null,
     syncDurationMs: null,
+    syncNodeBusyStatus: null,
+    syncPostsCount: null,
+    neededToSyncLatestPosts: false,
     syncFoundNewerMessage: null,
     latestPostIdAfterSync: null,
     latestMessageCachedAtTap: null,
@@ -217,7 +226,10 @@ export function startPushNotifTapMeasurement({
 
 export async function markPushNotifTapSyncSinceComplete(
   result: SyncSinceResult,
-  durationMs: number
+  durationMs: number,
+  nodeBusyStatus: string | null = null,
+  postsCount: number | null = null,
+  neededToSyncLatestPosts = false
 ) {
   const current = measurement;
   if (!current) {
@@ -227,6 +239,9 @@ export async function markPushNotifTapSyncSinceComplete(
   current.syncRequestCompleted = true;
   current.syncResult = result;
   current.syncDurationMs = durationMs;
+  current.syncNodeBusyStatus = nodeBusyStatus;
+  current.syncPostsCount = postsCount;
+  current.neededToSyncLatestPosts = neededToSyncLatestPosts;
 
   if (result !== 'success') {
     current.latestPostIdAfterSync = current.initialLastPostId;

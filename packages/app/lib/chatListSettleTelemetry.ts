@@ -24,6 +24,9 @@ type ChatListSettleMeasurement = {
   requiredSyncSource: 'syncSince' | 'none';
   syncCompleted: boolean;
   syncDurationMs: number | null;
+  syncNodeBusyStatus: string | null;
+  syncPostsCount: number | null;
+  neededToSyncLatestPosts: boolean;
   syncResult: SyncSinceResult | 'not-required' | null;
   syncHadChanges: boolean | null;
   syncUnreadTargets: {
@@ -164,6 +167,9 @@ function captureTimingEvent(
     requiredSyncSource: currentMeasurement.requiredSyncSource,
     syncResult: currentMeasurement.syncResult,
     syncDurationMs: currentMeasurement.syncDurationMs,
+    nodeBusyStatus: currentMeasurement.syncNodeBusyStatus,
+    syncPostsCount: currentMeasurement.syncPostsCount,
+    neededToSyncLatestPosts: currentMeasurement.neededToSyncLatestPosts,
     syncHadChanges: currentMeasurement.syncHadChanges,
     syncUnreadTargetsMatched: currentMeasurement.syncUnreadTargetsMatched,
     syncUnreadTargetsCount:
@@ -281,6 +287,9 @@ export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
     requiredSyncSource: 'syncSince',
     syncCompleted: false,
     syncDurationMs: null,
+    syncNodeBusyStatus: null,
+    syncPostsCount: null,
+    neededToSyncLatestPosts: false,
     syncResult: null,
     syncHadChanges: null,
     syncUnreadTargets: null,
@@ -331,6 +340,9 @@ export function markChatListSyncSinceComplete(
   result: SyncSinceResult,
   durationMs: number,
   hadChanges: boolean | null = null,
+  nodeBusyStatus: string | null = null,
+  postsCount: number | null = null,
+  neededToSyncLatestPosts = false,
   unreadTargets: {
     channelUnreadCounts: Record<string, number>;
     groupUnreadCounts: Record<string, number>;
@@ -347,6 +359,9 @@ export function markChatListSyncSinceComplete(
   activeMeasurement.syncCompleted = true;
   activeMeasurement.syncResult = result;
   activeMeasurement.syncDurationMs = durationMs;
+  activeMeasurement.syncNodeBusyStatus = nodeBusyStatus;
+  activeMeasurement.syncPostsCount = postsCount;
+  activeMeasurement.neededToSyncLatestPosts = neededToSyncLatestPosts;
   activeMeasurement.syncHadChanges = hadChanges;
   activeMeasurement.syncUnreadTargets = unreadTargets;
   activeMeasurement.syncUnreadTargetsMatched = unreadTargets

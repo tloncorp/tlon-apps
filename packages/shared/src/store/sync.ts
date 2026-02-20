@@ -195,12 +195,17 @@ export const syncSince = async ({
         groupUnreadCounts: Record<string, number>;
       }
     | null = null;
+  let nodeBusyStatus: string | null = null;
+  let postsCount: number | null = null;
+  let neededToSyncLatestPosts = false;
   try {
     await (queryCtx
       ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx }).then(
           (summary) => {
             hadChanges = summary.hadChanges;
             unreadTargets = summary.unreadTargets;
+            nodeBusyStatus = summary.nodeBusyStatus;
+            postsCount = summary.postsCount;
           }
         )
       : batchEffects('syncSince', async (batchCtx) => {
@@ -212,10 +217,13 @@ export const syncSince = async ({
           });
           hadChanges = summary.hadChanges;
           unreadTargets = summary.unreadTargets;
+          nodeBusyStatus = summary.nodeBusyStatus;
+          postsCount = summary.postsCount;
 
           // make sure we attempt to get latest posts if we haven't succeeded yet
           const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
           if (!latestPostsSyncedAt) {
+            neededToSyncLatestPosts = true;
             await syncLatestPosts();
           }
         }));
@@ -232,6 +240,9 @@ export const syncSince = async ({
       durationMs: Date.now() - startedAt,
       hadChanges,
       unreadTargets,
+      nodeBusyStatus,
+      postsCount,
+      neededToSyncLatestPosts,
     });
   }
   logger.log(`sync since complete`);
@@ -243,6 +254,9 @@ type SyncSinceCompletion = {
   result: 'success' | 'error';
   durationMs: number;
   hadChanges: boolean | null;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
+  neededToSyncLatestPosts: boolean;
   unreadTargets: {
     channelUnreadCounts: Record<string, number>;
     groupUnreadCounts: Record<string, number>;
@@ -279,6 +293,8 @@ export const syncLatestChanges = async ({
   yieldWriter?: boolean;
 }): Promise<{
   hadChanges: boolean;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
   unreadTargets: {
     channelUnreadCounts: Record<string, number>;
     groupUnreadCounts: Record<string, number>;
@@ -301,6 +317,8 @@ export const syncLatestChanges = async ({
     }
     return {
       hadChanges: true,
+      nodeBusyStatus: null,
+      postsCount: null,
       unreadTargets: null,
     };
   }
@@ -359,6 +377,8 @@ export const syncLatestChanges = async ({
   );
   return {
     hadChanges,
+    nodeBusyStatus: result.nodeBusyStatus ?? null,
+    postsCount: result.posts.length,
     unreadTargets: {
       channelUnreadCounts,
       groupUnreadCounts,
