@@ -414,7 +414,7 @@
             ::  if we already have a cache entry, don't do an eager
             ::  over-the-network lookup, assume it hasn't gone stale
             ::
-            =+  .^  cache=(unit (unit said:d))
+            =+  .^  cache=(unit (unit *))
                   %gx  (scot %p our.bowl)  %channels  (scot %da now.bowl)
                   %v3  %said  (snoc path %noun)
                 ==
