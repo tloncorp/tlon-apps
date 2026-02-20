@@ -1054,7 +1054,7 @@ export async function createNotebookPost(
   await postButton.click();
 
   // Wait for post to appear in the channel with the correct title
-  await expect(page.getByText(title).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
 
   // Wait for backend to sync the post data to prevent 500 "hosed" errors
   // This prevents race conditions when immediately clicking the post
@@ -1099,7 +1099,7 @@ export async function createGalleryPost(page: Page, content: string) {
 
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(1500);
-  await expect(page.getByText(content).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(content).first()).toBeVisible();
 }
 
 // Chat-related helper functions
@@ -1114,18 +1114,18 @@ export async function sendMessage(page: Page, message: string) {
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
   await expect(page.getByTestId('MessageInputSendButton')).toBeVisible({
-    timeout: 15000,
+    timeout: 10000,
   });
   await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
-  ).toBeVisible({ timeout: 30000 });
+  ).toBeVisible({ timeout: 10000 });
   // Wait for input to be cleared to prevent race conditions
   await expect(async () => {
     const inputValue = await page.getByTestId('MessageInput').inputValue();
     return inputValue === '';
-  }).toPass({ timeout: 10000, intervals: [100, 200, 500, 1000] });
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
 }
 
 /**
@@ -1140,7 +1140,7 @@ export async function longPressMessage(page: Page, messageText: string) {
   try {
     await expect(
       page.getByTestId('ChatMessageDeliveryStatus').first()
-    ).not.toBeVisible({ timeout: 30000 });
+    ).not.toBeVisible({ timeout: 10000 });
 
     // Not really a longpress since this is web.
     const postElement = page
@@ -1149,7 +1149,7 @@ export async function longPressMessage(page: Page, messageText: string) {
       .first();
 
     // Ensure the post is visible and ready for interaction
-    await expect(postElement).toBeVisible({ timeout: 30000 });
+    await expect(postElement).toBeVisible({ timeout: 10000 });
     await postElement.hover({ force: true });
 
     // Wait for message actions trigger to appear
@@ -1206,9 +1206,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .getByTestId('MessageInputSendButton')
     .click();
   await page.waitForTimeout(1000);
-  await expect(page.getByText(replyText, { exact: true })).toBeVisible({
-    timeout: 30000,
-  });
+  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
   await page.waitForTimeout(1000);
 }
 
@@ -1289,7 +1287,7 @@ export async function quoteReply(
 
   await expect(
     page.getByText(replyText, { exact: true }).first()
-  ).toBeVisible({ timeout: 30000 });
+  ).toBeVisible();
 }
 
 /**
@@ -1334,9 +1332,7 @@ export async function threadQuoteReply(
     .click();
 
   await page.waitForTimeout(1000);
-  await expect(page.getByText(replyText, { exact: true })).toBeVisible({
-    timeout: 30000,
-  });
+  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
 }
 
 /**
@@ -1440,13 +1436,13 @@ export async function waitForSessionStability(page: Page) {
 
   for (const state of loadingStates) {
     await expect(screenHeaderSubtitle.getByText(state))
-      .not.toBeVisible({ timeout: 5000 })
+      .not.toBeVisible({ timeout: 1000 })
       .catch(() => {}); // Element might not exist, that's okay
   }
 
   // Check for message delivery status
   await expect(page.getByTestId('ChatMessageDeliveryStatus').first())
-    .not.toBeVisible({ timeout: 5000 })
+    .not.toBeVisible({ timeout: 1000 })
     .catch(() => {});
 }
 
@@ -1492,7 +1488,7 @@ export async function editMessage(
 
   // Wait for the edited message to appear
   await expect(page.getByText(newText, { exact: true })).toBeVisible({
-    timeout: 30000, // Generous timeout for CI environment
+    timeout: 15000, // Increased timeout for CI environment
   });
 }
 
