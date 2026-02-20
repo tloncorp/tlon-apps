@@ -97,7 +97,7 @@ export function CreateChannelPermissionsScreen() {
     });
 
     // Navigate back to channel list
-    navigation.navigate('ManageChannels', { groupId });
+    navigation.navigate('ManageChannels', { groupId }, { pop: true });
   }, [navigation, groupId, channelTitle, channelType, readers, writers]);
 
   if (!group) {

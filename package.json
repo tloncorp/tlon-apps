@@ -64,7 +64,7 @@
       "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
       "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch",
       "expo-background-task@1.0.10": "patches/expo-background-task@1.0.10.patch",
-      "@tamagui/dialog@2.0.0-rc.0": "patches/@tamagui__dialog@2.0.0-rc.0.patch"
+      "@tamagui/sheet@2.0.0-rc.0": "patches/@tamagui__sheet@2.0.0-rc.0.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

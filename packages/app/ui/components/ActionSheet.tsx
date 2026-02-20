@@ -255,6 +255,8 @@ const ActionSheetComponent = ({
       >
         <Popover.Trigger>{trigger}</Popover.Trigger>
         <Popover.Content
+          elevate
+          zIndex={1000000}
           padding={1}
           borderColor="$border"
           borderWidth={1}
@@ -276,7 +278,7 @@ const ActionSheetComponent = ({
 
   if (mode === 'dialog') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange} disableRemoveScroll>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <Dialog.Portal>
           <VisuallyHidden>
             <Dialog.Title>{title}</Dialog.Title>
@@ -285,7 +287,6 @@ const ActionSheetComponent = ({
             backgroundColor="$darkOverlay"
             key="overlay"
             opacity={0.5}
-            pointerEvents="none"
           />
           <Dialog.Content
             borderWidth={1}
@@ -319,10 +320,7 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ScrollView
-              flexShrink={1}
-              showsVerticalScrollIndicator={true}
-            >
+            <ScrollView flex={1} showsVerticalScrollIndicator={true}>
               <ActionSheetContext.Provider value={actionSheetContextValue}>
                 {children}
               </ActionSheetContext.Provider>

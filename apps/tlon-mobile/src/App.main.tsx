@@ -221,6 +221,7 @@ export default function ConnectedApp() {
         ref={navigationContainerRef}
         onReady={onReady}
         onStateChange={onStateChange}
+        navigationInChildEnabled
       >
         <BaseProviderStack migrationState={migrationState}>
           <ErrorBoundary>

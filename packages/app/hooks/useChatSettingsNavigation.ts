@@ -71,17 +71,22 @@ export const useChatSettingsNavigation = () => {
           channelId,
           groupId: params.groupId,
           screen: 'GroupSettings',
+          pop: true,
           params: {
-            screen,
-            params,
+            state: {
+              routes: [{ name: screen, params }],
+              index: 0,
+            },
           },
         });
         return;
       }
 
       navigation.navigate('GroupSettings', {
-        screen,
-        params,
+        state: {
+          routes: [{ name: screen, params }],
+          index: 0,
+        },
       } as NavigatorScreenParams<GroupSettingsStackParamList>);
     },
     [navigation, isWindowNarrow]
