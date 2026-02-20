@@ -44,6 +44,7 @@ function AuthenticatedApp() {
     async (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        console.log('contrived diff');
         await checkForCachedChanges();
         telemetry.captureAppActive();
         checkNodeStopped();
