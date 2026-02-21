@@ -8,8 +8,14 @@ import {
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { Accelerometer } from 'expo-sensors';
-import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AppState,
+  AppStateStatus,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+} from 'react-native';
 
 const logger = createDevLogger('PoorUxReport', false);
 const SHAKE_UPDATE_INTERVAL_MS = 250;
@@ -17,10 +23,32 @@ const SHAKE_DELTA_THRESHOLD = 1.1;
 const SHAKE_HITS_REQUIRED = 2;
 const SHAKE_HITS_WINDOW_MS = 700;
 const SHAKE_COOLDOWN_MS = 1500;
+const FOREGROUND_SHAKE_GRACE_MS = 1500;
 
 export function usePoorUxShakeReport() {
   const [visible, setVisible] = useState(false);
   const [details, setDetails] = useState('');
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const ignoreShakesUntilRef = useRef<number>(
+    Date.now() + FOREGROUND_SHAKE_GRACE_MS
+  );
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      appStateRef.current = nextState;
+      if (nextState === 'active') {
+        ignoreShakesUntilRef.current = Date.now() + FOREGROUND_SHAKE_GRACE_MS;
+        return;
+      }
+
+      setVisible(false);
+    };
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let lastMagnitude = 1;
@@ -30,8 +58,15 @@ export function usePoorUxShakeReport() {
 
     Accelerometer.setUpdateInterval(SHAKE_UPDATE_INTERVAL_MS);
 
-    const subscription = Accelerometer.addListener(({ x, y, z }) => {
-      const now = Date.now();
+    const subscription = Accelerometer.addListener(
+      ({ x, y, z }: { x: number; y: number; z: number }) => {
+        const now = Date.now();
+        if (appStateRef.current !== 'active') {
+          return;
+        }
+      if (now < ignoreShakesUntilRef.current) {
+        return;
+      }
       if (now < cooldownUntil) {
         return;
       }
@@ -55,7 +90,8 @@ export function usePoorUxShakeReport() {
         shakeHits = 0;
         setVisible((prev) => (prev ? prev : true));
       }
-    });
+      }
+    );
 
     return () => {
       subscription.remove();
