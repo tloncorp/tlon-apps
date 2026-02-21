@@ -1,4 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
+import { useIsUserActive } from '../../../hooks/useUserActivity';
 import {
   Attachment,
   DraftInputId,
@@ -225,13 +226,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
+    const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
     const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
+    
+    // Only mark as read when user is actively using the app (not idle)
+    // This prevents auto-marking on desktop when user is AFK
     useEffect(() => {
-      if (hasUnreads && hasLoaded && inView) {
+      if (hasUnreads && hasLoaded && inView && isUserActive) {
         markRead();
       }
-    }, [hasUnreads, hasLoaded, inView, markRead]);
+    }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {

@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useIsUserActive } from '../../hooks/useUserActivity';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -503,6 +504,7 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+  const isUserActive = useIsUserActive();
 
   // Auto-scroll setup for gallery/notebook posts:
   // Chat channels use an inverted Scroller component and don't need auto-scroll here.
@@ -592,6 +594,7 @@ function SinglePostView({
   }, [isChatChannel, REPLIES_SECTION_INDEX]);
 
   const hasLoadedReplies = !!(posts && channel && parentPost);
+  // Only mark thread as read when user is actively using the app (not idle)
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
       ? null
@@ -599,7 +602,7 @@ function SinglePostView({
           channel,
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
-          shouldMarkRead: isFocusedPost && hasLoadedReplies,
+          shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
         }
   );
 
