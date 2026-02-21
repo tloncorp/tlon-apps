@@ -1849,10 +1849,13 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   try {
     let didLoadCachedContacts = false;
 
+    // it's important that this isn't within the main batchEffects block. If we're
+    // returning from a cold open, we don't want to wait for all of High Priority sync
+    // to complete before showing changes
+    await syncSince({ callCtx: { cause: 'sync-start' } });
+
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
-        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
-
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
