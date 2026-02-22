@@ -38,10 +38,13 @@ export function usePoorUxShakeReport() {
       appStateRef.current = nextState;
       if (nextState === 'active') {
         ignoreShakesUntilRef.current = Date.now() + FOREGROUND_SHAKE_GRACE_MS;
+        setVisible(false);
+        setDetails('');
         return;
       }
 
       setVisible(false);
+      setDetails('');
     };
 
     const subscription = AppState.addEventListener('change', onAppStateChange);
