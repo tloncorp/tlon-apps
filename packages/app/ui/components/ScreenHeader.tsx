@@ -7,7 +7,7 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { Pressable, ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -322,7 +322,9 @@ function HeaderAnimatedTitle({
   const loadingOpacity = useSharedValue(0);
   const loadingTranslateY = useSharedValue(6);
   const spinnerRotation = useSharedValue(0);
-  const spinnerSize = 8;
+  const isAndroid = Platform.OS === 'android';
+  const spinnerSize = isAndroid ? 10 : 8;
+  const spinnerBorderWidth = 1;
   const spinnerGap = 6;
   const loadingRowWidth = loadingTextMaxWidth + spinnerSize + spinnerGap;
 
@@ -336,6 +338,7 @@ function HeaderAnimatedTitle({
         duration: 165,
         easing: Easing.out(Easing.cubic),
       });
+      spinnerRotation.value = 0;
       spinnerRotation.value = withRepeat(
         withTiming(360, { duration: 900, easing: Easing.linear }),
         -1,
@@ -359,12 +362,7 @@ function HeaderAnimatedTitle({
       cancelAnimation(spinnerRotation);
       spinnerRotation.value = 0;
     };
-  }, [
-    isLoading,
-    loadingOpacity,
-    loadingTranslateY,
-    spinnerRotation,
-  ]);
+  }, [isLoading, loadingOpacity, loadingTranslateY, spinnerRotation]);
 
   const animatedLoadingStyle = useAnimatedStyle(() => {
     return {
@@ -388,6 +386,7 @@ function HeaderAnimatedTitle({
   });
 
   const spinnerColor = getVariableValue(theme.secondaryText);
+  const spinnerStrokeStyle = { borderColor: spinnerColor, borderTopColor: 'transparent' };
 
   return (
     <View
@@ -412,6 +411,7 @@ function HeaderAnimatedTitle({
             top: 36,
             left: leftAlignLoadingText ? 0 : '50%',
             width: loadingRowWidth,
+            height: 16,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: leftAlignLoadingText ? 'flex-start' : 'center',
@@ -419,23 +419,32 @@ function HeaderAnimatedTitle({
           animatedLoadingStyle,
         ]}
       >
-        <Animated.View
-          style={[
-            {
-              width: spinnerSize,
-              height: spinnerSize,
-              borderRadius: 4,
-              borderWidth: 1,
-              borderColor: spinnerColor,
-              borderTopColor: 'transparent',
-              marginRight: spinnerGap,
-            },
-            animatedSpinnerStyle,
-          ]}
-        />
+        {isAndroid ? (
+          <ActivityIndicator
+            animating={isLoading}
+            size={spinnerSize}
+            color={spinnerColor}
+            style={{ width: spinnerSize, height: spinnerSize, marginRight: spinnerGap }}
+          />
+        ) : (
+          <Animated.View
+            style={[
+              {
+                width: spinnerSize,
+                height: spinnerSize,
+                borderRadius: spinnerSize / 2,
+                borderWidth: spinnerBorderWidth,
+                marginRight: spinnerGap,
+              },
+              spinnerStrokeStyle,
+              animatedSpinnerStyle,
+            ]}
+          />
+        )}
         <Text
           size="$label/s"
           color="$secondaryText"
+          trimmed={false}
           numberOfLines={1}
           maxWidth={loadingTextMaxWidth}
           testID="ScreenHeaderLoadingText"
