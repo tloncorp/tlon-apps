@@ -8,6 +8,9 @@ import { useNag } from '../../hooks/useNag';
 
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
+  const isWeb = Platform.OS === 'web';
+  const isE2ERun =
+    isWeb && Boolean((globalThis as any).__TLON_E2E__ === true);
 
   const nag = useNag({
     key: 'mobileAppPromoBanner',
@@ -16,14 +19,12 @@ export function MobileAppPromoBanner() {
     initialDelay: 500,
   });
 
-  const isWeb = Platform.OS === 'web';
-
   useEffect(() => {
-    if (nag.shouldShow) {
+    if (!isE2ERun && nag.shouldShow) {
       const timer = setTimeout(() => setIsVisible(true), 300);
       return () => clearTimeout(timer);
     }
-  }, [nag.shouldShow]);
+  }, [isE2ERun, nag.shouldShow]);
 
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
@@ -38,7 +39,7 @@ export function MobileAppPromoBanner() {
     }
   }, []);
 
-  if (!isWeb || !nag.shouldShow) {
+  if (!isWeb || isE2ERun || !nag.shouldShow) {
     return null;
   }
 

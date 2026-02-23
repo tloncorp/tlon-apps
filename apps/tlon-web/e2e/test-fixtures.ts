@@ -17,6 +17,12 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
 const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
+async function markContextAsE2E(context: BrowserContext) {
+  await context.addInitScript(() => {
+    (globalThis as any).__TLON_E2E__ = true;
+  });
+}
+
 async function performCleanup(page: Page, shipName: string) {
   try {
     // Dismiss any lingering modals from failed cleanup
@@ -72,6 +78,7 @@ export const test = base.extend<TestFixtures>({
     const context = await browser.newContext({
       storageState: shipManifest['~zod'].authFile,
     });
+    await markContextAsE2E(context);
     const page = await context.newPage();
 
     // Attach error detector if in production mode
@@ -106,6 +113,7 @@ export const test = base.extend<TestFixtures>({
     const context = await browser.newContext({
       storageState: shipManifest['~ten'].authFile,
     });
+    await markContextAsE2E(context);
     const page = await context.newPage();
 
     // Attach error detector if in production mode
@@ -139,6 +147,7 @@ export const test = base.extend<TestFixtures>({
     const context = await browser.newContext({
       storageState: shipManifest['~bus'].authFile,
     });
+    await markContextAsE2E(context);
     const page = await context.newPage();
 
     // Attach error detector if in production mode
