@@ -1954,7 +1954,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // it's important that this isn't within the main batchEffects block. If we're
     // returning from a cold open, we don't want to wait for all of High Priority sync
     // to complete before showing changes
-    await syncSince({ callCtx: { cause: 'sync-start' } });
+    syncSince({ callCtx: { cause: 'sync-start' } }).catch((error) =>
+      logger.trackError('sync start: changes sync failed', { error })
+    );
 
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
