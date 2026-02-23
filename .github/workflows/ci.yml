@@ -73,7 +73,7 @@ jobs:
           retention-days: 7
   # Backend unit tests
   backend-test:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Tests
     steps:
       - name: Checkout
@@ -86,7 +86,7 @@ jobs:
           ./backend/run-tests.sh
   # Backend aqua tests
   backend-aqua-test:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Aqua Tests
     steps:
       - name: Checkout
