@@ -1,5 +1,6 @@
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
+import { Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
@@ -29,29 +30,35 @@ export function ChatInput({
   const isWindowNarrow = useIsWindowNarrow();
   const showWayfindingTooltip = store.useShowChatInputWayfinding(channel.id);
 
+  const input = (
+    <BareChatInput
+      shouldBlur={shouldBlur}
+      setShouldBlur={setShouldBlur}
+      sendPostFromDraft={sendPostFromDraft}
+      groupId={channel.groupId}
+      channelId={channel.id}
+      groupMembers={group?.members ?? []}
+      groupRoles={group?.roles ?? []}
+      storeDraft={storeDraft}
+      clearDraft={clearDraft}
+      getDraft={getDraft}
+      editingPost={editingPost}
+      setEditingPost={setEditingPost}
+      channelType={channel.type}
+      shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
+      showInlineAttachments
+      showAttachmentButton
+      showWayfindingTooltip={showWayfindingTooltip}
+    />
+  );
+
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
-      <ParentAgnosticKeyboardAvoidingView>
-        <BareChatInput
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          sendPostFromDraft={sendPostFromDraft}
-          groupId={channel.groupId}
-          channelId={channel.id}
-          groupMembers={group?.members ?? []}
-          groupRoles={group?.roles ?? []}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          channelType={channel.type}
-          shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
-          showInlineAttachments
-          showAttachmentButton
-          showWayfindingTooltip={showWayfindingTooltip}
-        />
-      </ParentAgnosticKeyboardAvoidingView>
+      {Platform.OS === 'android' ? (
+        input
+      ) : (
+        <ParentAgnosticKeyboardAvoidingView>{input}</ParentAgnosticKeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }

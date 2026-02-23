@@ -42,12 +42,15 @@ public class MainActivity extends ReactActivity {
     if (Build.VERSION.SDK_INT >= 35) {
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            Insets innerPadding = insets.getInsets(WindowInsetsCompat.Type.ime());
+            Insets systemBarsInsets = insets.getInsets(
+              WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+            );
+            Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             rootView.setPadding(
-                innerPadding.left,
-                innerPadding.top,
-                innerPadding.right,
-                innerPadding.bottom
+                systemBarsInsets.left,
+                systemBarsInsets.top,
+                systemBarsInsets.right,
+                Math.max(systemBarsInsets.bottom, imeInsets.bottom)
             );
             return insets;
         });
