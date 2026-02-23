@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {
   Keyboard,
-  KeyboardEvent,
   LayoutAnimation,
   Platform,
   StyleProp,
@@ -12,11 +11,12 @@ import {
 } from 'react-native';
 
 /**
- * React Native's `KeyboardAvoidingView` does not work when its parent has a
- * vertical offset within the screen (causes content to show below keyboard).
- * This component works in those cases, but is more likely to have timing
- * issues (since it uses async `measure` instead of `onLayout`).
+ * React Native's `KeyboardAvoidingView` can misbehave when its parent has a
+ * vertical offset within the screen (content can end up below keyboard).
  *
+ * This component uses measurement-based padding on iOS to handle that case.
+ * On Android we rely on native window resizing/insets (`adjustResize`) and do
+ * not apply JS-driven keyboard layout adjustments.
  */
 export function ParentAgnosticKeyboardAvoidingView({
   children,
@@ -25,6 +25,14 @@ export function ParentAgnosticKeyboardAvoidingView({
 }: Omit<ViewProps, 'ref' | 'onLayout' | 'style'> & {
   contentContainerStyle?: StyleProp<ViewStyle>;
 }) {
+  if (Platform.OS === 'android') {
+    return (
+      <View {...passedProps} style={contentContainerStyle}>
+        {children}
+      </View>
+    );
+  }
+
   const containerRef = React.useRef<React.ElementRef<typeof View>>(null);
   const [keyboardFrame, setKeyboardFrame] = React.useState<{
     screenY: number;
@@ -42,29 +50,12 @@ export function ParentAgnosticKeyboardAvoidingView({
   }, []);
 
   React.useEffect(() => {
-    const handleKeyboardEvent = (event: KeyboardEvent) => {
-      keyboardAnimationDurationRef.current = event.duration ?? (Platform.OS === 'android' ? 250 : null);
+    const sub = Keyboard.addListener('keyboardWillChangeFrame', (event) => {
+      keyboardAnimationDurationRef.current = event.duration;
       measure();
       setKeyboardFrame(event.endCoordinates);
-    };
-
-    const handleKeyboardHide = () => {
-      keyboardAnimationDurationRef.current = Platform.OS === 'android' ? 250 : null;
-      measure();
-      setKeyboardFrame(null);
-    };
-
-    if (Platform.OS === 'android') {
-      const showSub = Keyboard.addListener('keyboardDidShow', handleKeyboardEvent);
-      const hideSub = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
-      return () => {
-        showSub.remove();
-        hideSub.remove();
-      };
-    }
-
-    const frameSub = Keyboard.addListener('keyboardWillChangeFrame', handleKeyboardEvent);
-    return () => frameSub.remove();
+    });
+    return () => sub.remove();
   }, [measure]);
 
   const adjustmentPaddingBottom = React.useMemo(() => {
@@ -74,17 +65,12 @@ export function ParentAgnosticKeyboardAvoidingView({
     return containerFrame.pageY + containerFrame.height - keyboardFrame.screenY;
   }, [keyboardFrame, containerFrame]);
 
-  // Why `useLayoutEffect`?
-  // Using `useEffect` here causes animation to fail - likely because
-  // `useEffect` is not guaranteed to run before applying the layout, causing
-  // `configureNext` to fire after changing padding.
   React.useLayoutEffect(() => {
     const duration = keyboardAnimationDurationRef.current;
     if (duration == null) {
       return;
     }
     LayoutAnimation.configureNext({
-      // We have to pass the duration equal to minimal accepted duration defined here: RCTLayoutAnimation.m
       duration: duration > 10 ? duration : 10,
       update: {
         duration: duration > 10 ? duration : 10,
