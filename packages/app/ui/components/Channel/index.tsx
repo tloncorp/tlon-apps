@@ -17,6 +17,7 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import * as logic from '@tloncorp/shared/logic';
 import { JSONContent } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -54,6 +55,7 @@ import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
+import { PinnedPostBanner } from './PinnedPostBanner';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
   ConnectedPostView,
@@ -86,7 +88,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  goToEditChannel?: (groupId: string, channelId: string) => void;
+  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -137,7 +139,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
-      goToEditChannel,
+      goToChannelDetails,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -219,17 +221,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onGroupAction]
     );
 
-    const handleGoToEditChannel = useCallback(() => {
+    const handleGoToChannelDetails = useCallback(() => {
       if (!channel.groupId) return;
 
       if (isSingleChannelGroup) {
         return;
       } else {
-        if (goToEditChannel) {
-          goToEditChannel(channel.groupId, channel.id);
+        if (goToChannelDetails) {
+          goToChannelDetails(channel.groupId, channel.id);
         }
       }
-    }, [goToEditChannel, channel.groupId, channel.id, group?.channels?.length]);
+    }, [goToChannelDetails, channel.groupId, channel.id, group?.channels?.length]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -519,8 +521,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               channel.type === 'gallery') &&
                             draftInputPresentationMode !== 'fullscreen'
                           }
-                          goToEdit={handleGoToEditChannel}
+                          goToEdit={handleGoToChannelDetails}
                         />
+                        {logic.getPinnedPostId(channel) && (
+                          <PinnedPostBanner
+                            channel={channel}
+                            onPressPost={goToPost}
+                          />
+                        )}
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (
                             <SystemNotices.ConnectedJoinRequestNotice

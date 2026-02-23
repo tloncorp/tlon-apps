@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
@@ -18,6 +17,10 @@ import {
 } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
+import {
+  StorageQuotaIndicator,
+  useStorageInfoQuery,
+} from './StorageQuotaIndicator';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -261,25 +264,18 @@ export default function AttachmentSheet({
       onAttach?.(uploadIntents);
     }
   }, [attachAssets, onOpenChange, onAttach]);
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
-
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
         [
           'neutral',
           {
-            title: isWeb ? 'Upload an image' : 'Photo Library',
+            title: isWeb ? 'Upload an Image' : 'Photo Library',
             description: isWeb
               ? 'Upload an image from your computer'
               : 'Choose a photo from your library',
             action: pickImage,
           },
-          canUploadFiles &&
-            mediaType === 'all' && {
-              title: 'Upload a file',
-              action: startFilePicker,
-            },
           !isWeb && {
             title: 'Take a Photo',
             description: 'Use your camera to take a photo',
@@ -291,6 +287,11 @@ export default function AttachmentSheet({
               description: 'Use the image currently in your clipboard',
               action: createAssetFromClipboard,
             },
+          mediaType === 'all' && {
+            title: 'Upload a File',
+            description: 'Upload files from your device',
+            action: startFilePicker,
+          },
         ],
         showClearOption && [
           'negative',
@@ -302,7 +303,6 @@ export default function AttachmentSheet({
         ]
       ),
     [
-      canUploadFiles,
       onClearAttachments,
       pickImage,
       startFilePicker,
@@ -316,6 +316,7 @@ export default function AttachmentSheet({
 
   const title = 'Attach a file';
   const subtitle = 'Choose a file to attach';
+  const storageInfoQuery = useStorageInfoQuery();
 
   return (
     <ActionSheet
@@ -324,21 +325,30 @@ export default function AttachmentSheet({
       modal
     >
       <ActionSheet.Header>
-        <ListItem.MainContent>
-          <ListItem.Title>{title}</ListItem.Title>
-          <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-        </ListItem.MainContent>
-        <ListItem.EndContent
-          onPress={() => onOpenChange(false)}
-          testID="AttachmentSheetCloseButton"
-        >
-          <Button
-            preset="minimal"
-            onPress={() => onOpenChange(false)}
-            testID="AttachmentSheetCloseButton"
-            label="Cancel"
-          />
-        </ListItem.EndContent>
+        {storageInfoQuery.isSuccess && storageInfoQuery.data == null ? (
+          // If we definitively do not have storage info, fall back to info box
+          <>
+            <ListItem.MainContent>
+              <ListItem.Title>{title}</ListItem.Title>
+              <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+            </ListItem.MainContent>
+            <ListItem.EndContent
+              onPress={() => onOpenChange(false)}
+              testID="AttachmentSheetCloseButton"
+            >
+              <Button
+                preset="minimal"
+                onPress={() => onOpenChange(false)}
+                testID="AttachmentSheetCloseButton"
+                label="Cancel"
+              />
+            </ListItem.EndContent>
+          </>
+        ) : (
+          <ListItem.MainContent height={undefined}>
+            <StorageQuotaIndicator storageInfoQuery={storageInfoQuery} />
+          </ListItem.MainContent>
+        )}
       </ActionSheet.Header>
       <ActionSheet.Content>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />

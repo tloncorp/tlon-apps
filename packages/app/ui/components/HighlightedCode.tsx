@@ -14,9 +14,18 @@ export function HighlightedCode({
   lang?: string;
 }) {
   return useMemo(() => {
-    const trustedLang = lang && refractor.registered(lang) ? lang : 'plaintext';
-    const tree = refractor.highlight(code, trustedLang) as TreeNode;
-    return hastToReactNative(tree);
+    // Handle empty/falsy language strings by defaulting to 'plaintext'
+    // Also trim whitespace in case of malformed language strings
+    const language = lang?.trim() || 'plaintext';
+
+    try {
+      const tree = refractor.highlight(code, language) as TreeNode;
+      return hastToReactNative(tree);
+    } catch {
+      // If the language is not registered, fall back to plaintext
+      const tree = refractor.highlight(code, 'plaintext') as TreeNode;
+      return hastToReactNative(tree);
+    }
   }, [code, lang]);
 }
 

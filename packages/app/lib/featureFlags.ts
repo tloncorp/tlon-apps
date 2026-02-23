@@ -21,14 +21,9 @@ export const featureMeta = {
     label: 'Enable contacts tab',
     onlyTlon: false,
   },
-  fileUpload: {
+  markdownNotebooks: {
     default: false,
-    label: 'Enable uploading non-image files in chats',
-    onlyTlon: true,
-  },
-  aiSummarization: {
-    default: false,
-    label: 'Enable AI-powered message and channel summarization',
+    label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
 } satisfies Record<string, { default: boolean; label: string; onlyTlon: boolean }>;

@@ -337,6 +337,9 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const result = await syncQueue.add('settings', ctx, () => api.getSettings());
   logger.log('got settings from api', result);
   await db.insertSettings(result.settings);
+  await db.dismissedPinnedPostBannerIds.setValue(
+    result.dismissedPinnedPostBannerIds
+  );
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1262,6 +1265,17 @@ export const handleSettingsUpdate = async (
         },
         ctx
       );
+      break;
+    case 'dismissPinnedPostBanner':
+      await db.dismissedPinnedPostBannerIds.setValue((current) => {
+        if (update.dismissed) {
+          if (current.includes(update.postId)) {
+            return current;
+          }
+          return [...current, update.postId];
+        }
+        return current.filter((postId) => postId !== update.postId);
+      });
       break;
   }
 };

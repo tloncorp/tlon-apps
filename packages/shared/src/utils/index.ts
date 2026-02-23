@@ -3,6 +3,7 @@
  * really really good typescript.
  */
 export * from './assertNever';
+export * from './blob';
 export * from './object';
 export type * from './utilityTypes';
 export * from './timeoutSignal';
@@ -13,3 +14,6 @@ export * from './telemetryFormatters';
 export * from './spyOn';
 export * from './file';
 export * from './number';
+export * from './formatMemorySize';
+export * from './deferred';
+export * from './useMockedQuery';

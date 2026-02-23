@@ -17,7 +17,7 @@
     "@tloncorp/ui": "workspace:*",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
-    "sqlocal": "^0.11.1"
+    "sqlocal": "^0.14.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",
@@ -38,6 +38,7 @@
     "react-native-polyfill-globals": "*",
     "react-native-safe-area-context": "*",
     "tamagui": "~1.126.12",
+    "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"
   }
 }

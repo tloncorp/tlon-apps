@@ -17,7 +17,7 @@ export default function AddGalleryPost({
 }) {
   const actions: Action[] = [
     {
-      title: 'Image',
+      title: 'Image or File',
       action: () => {
         setRoute('gallery');
         setTimeout(() => {
@@ -42,7 +42,7 @@ export default function AddGalleryPost({
     },
   ];
 
-  const handleImageSet = useCallback(
+  const handleAttachmentSet = useCallback(
     (assets: Attachment.UploadIntent[]) => {
       onSetImage(Attachment.UploadIntent.extractImagePickerAssets(assets));
     },
@@ -68,8 +68,8 @@ export default function AddGalleryPost({
       <AttachmentSheet
         isOpen={route === 'add-attachment'}
         onOpenChange={onClose}
-        onAttach={handleImageSet}
-        mediaType="image"
+        onAttach={handleAttachmentSet}
+        mediaType="all"
       />
     </>
   );

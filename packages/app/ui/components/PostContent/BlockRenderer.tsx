@@ -1,6 +1,13 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
-import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import {
+  ForwardingProps,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useCopy,
+} from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -22,7 +29,9 @@ import {
   Reference,
 } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
+import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
 
@@ -203,6 +212,17 @@ export function ReferenceBlock({
   }
 
   return <ContentReferenceLoader reference={block} {...props} />;
+}
+
+export function FileUploadBlock({
+  block,
+  ...passedProps
+}: ForwardingProps<
+  typeof FileUploadPreview,
+  { block: cn.FileUploadBlockData },
+  'file'
+>) {
+  return <FileUploadPreview file={block.file} {...passedProps} />;
 }
 
 export function BigEmojiBlock({
@@ -429,17 +449,6 @@ export function BlockquoteBlock({
   );
 }
 
-export const BlockquoteSideBorder = styled(View, {
-  name: 'BlockquoteSideBorder',
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  borderRadius: 1,
-  left: -2,
-  backgroundColor: '$border',
-});
-
 export function HeaderBlock({
   block,
   ...props
@@ -514,6 +523,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   rule: RuleBlock,
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
+  file: FileUploadBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -534,6 +544,7 @@ export type DefaultRendererProps = {
   rule: BlockSettings<typeof RuleBlock>;
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
+  file: BlockSettings<typeof FileUploadBlock>;
 };
 
 interface BlockRendererContextValue {

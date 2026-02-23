@@ -13,6 +13,7 @@ import {
   BlockFromType,
   BlockType,
   PostContent,
+  parsePostBlob,
 } from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
@@ -40,6 +41,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
+import { Reference } from '../ContentReference';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
@@ -79,6 +81,11 @@ export function GalleryPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
+  const hasFileUpload = useMemo(() => {
+    if (!post.blob) return false;
+    const blobData = parsePostBlob(post.blob);
+    return blobData != null && blobData.some((x) => x.type === 'file');
+  }, [post.blob]);
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -175,6 +182,19 @@ export function GalleryPost({
     >
       <GalleryPostFrame {...rest}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
+        {hasFileUpload && (
+          <GalleryPostRow>
+            <XStack alignItems="center" gap="$xs">
+              <Icon
+                type="ChannelNote"
+                color="$tertiaryText"
+                customSize={['$l', '$l']}
+              />
+              <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
+            </XStack>
+            <Reference.ActionIcon />
+          </GalleryPostRow>
+        )}
         <GalleryContentRenderer
           testID="GalleryPostContentPreview"
           post={post}
@@ -210,6 +230,9 @@ export function GalleryPost({
               mode="await-trigger"
               trigger={
                 <Button.Frame
+                  // with padding, this Button is larger than the row displayed
+                  // for file uploads, causing unsightly overlaps
+                  padding={0}
                   borderWidth="unset"
                   onPress={handleOverflowPress}
                   testID="MessageActionsTrigger"
@@ -225,7 +248,7 @@ export function GalleryPost({
   );
 }
 
-export function GalleryPostHeader({ post }: { post: db.Post }) {
+function GalleryPostRow({ children }: PropsWithChildren) {
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -238,19 +261,31 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
         padding="$l"
         gap="$m"
       >
-        <ContactName
-          userId={post.authorId}
-          showNickname
-          size="$label/m"
-          color="$tertiaryText"
-        />
-        <Text size="$label/m" color="$tertiaryText">
-          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
-            ? makePrettyShortDate(new Date(post.receivedAt))
-            : makePrettyDaysSince(new Date(post.receivedAt))}
-        </Text>
+        {children}
       </XStack>
     </View>
+  );
+}
+GalleryPostRow.Text = styled(Text, {
+  size: '$label/m',
+  color: '$tertiaryText',
+});
+
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <GalleryPostRow>
+      <ContactName
+        userId={post.authorId}
+        showNickname
+        size="$label/m"
+        color="$tertiaryText"
+      />
+      <GalleryPostRow.Text>
+        {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+          ? makePrettyShortDate(new Date(post.receivedAt))
+          : makePrettyDaysSince(new Date(post.receivedAt))}
+      </GalleryPostRow.Text>
+    </GalleryPostRow>
   );
 }
 
@@ -627,6 +662,9 @@ const LargeContentRenderer = createContentRenderer({
         aspectRatio: 1.5,
       },
     },
+    file: {
+      fullbleed: false,
+    },
   },
 });
 
@@ -676,6 +714,9 @@ const SmallContentRenderer = createContentRenderer({
         aspectRatio: 'unset',
       },
       ...noWrapperPadding,
+    },
+    file: {
+      fullbleed: true,
     },
   },
 });
@@ -745,8 +786,6 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 function firstBlockIsPreviewable(content: BlockData[]): boolean {
   return (
     content.length > 0 &&
-    (content[0].type === 'image' ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference')
+    ['image', 'video', 'reference', 'file'].includes(content[0].type)
   );
 }

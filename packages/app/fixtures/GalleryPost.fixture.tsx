@@ -30,6 +30,7 @@ const {
   postWithDeleted,
   postWithHidden,
   postWithLink,
+  postWithFileUpload,
 } = content;
 
 // unsupported
@@ -154,6 +155,7 @@ export default {
         postWithText,
         postWithHidden,
         postWithDeleted,
+        postWithFileUpload,
       ]}
     />
   ),
@@ -170,5 +172,6 @@ export default {
   Mention: <GalleryPostFixture posts={[postWithMention]} />,
   Text: <GalleryPostFixture posts={[postWithText]} />,
   Link: <GalleryPostFixture posts={[postWithLink]} />,
+  FileUpload: <GalleryPostFixture posts={[postWithFileUpload]} />,
   DeliveryStates: <PostVariantsFixture post={postWithImage} />,
 };

@@ -167,8 +167,9 @@
   ==
 =/  verbose  |
 ::
+::
 %-  %-  agent:neg
-    :+  notify=|
+    :+  notify=&
       [~.groups^%2 ~ ~]
     %-  my
     :~  %groups^[~.groups^%2 ~ ~]
@@ -183,10 +184,11 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %10
+    $:  %11
         groups=net-groups:v9:gv
         =channels-index:v7:gv
-        =foreigns:v8:gv
+        =foreigns:v10:gv
+        leaves=(set flag:gv)
         =^subs:s
         =pimp:imp
     ==
@@ -495,7 +497,7 @@
         %group-join
       ?>  from-self
       =+  !<(=join:v0:gv vase)
-      =/  far=(unit foreign:v8:gv)  (~(get by foreigns) flag.join)
+      =/  far=(unit foreign:g)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
         ?~  far  ~
         =*  invites  invites.u.far
@@ -543,7 +545,7 @@
       =+  !<(=flag:g vase)
       ?>  from-self
       ~|  f=flag
-      =/  =foreign:v8:gv  (~(got by foreigns) flag)
+      =/  =foreign:g  (~(got by foreigns) flag)
       ::  backward compatibility: decline all invites
       ::
       %+  roll  invites.foreign
@@ -551,6 +553,17 @@
       =/  =a-foreigns:v7:gv
         [%foreign flag %decline token.invite]
       (poke:cor group-foreign-1+!>(a-foreigns))
+    ::
+        %negotiate-notification
+      =+  !<([match=? =gill:gall] vase)
+      ?.  match  cor
+      ?.  =(%groups q.gill)  cor
+      =/  lev=(list flag:g)
+        %+  skim  ~(tap in leaves)
+        |=(=flag:g =(p.flag p.gill))
+      %+  roll  lev
+      |=  [=flag:g =_cor]
+      fi-abet:fi-leave:(fi-abed:fi-core:cor flag)
   ::
     %reset-all-perms  reset-all-perms
   ::
@@ -721,7 +734,8 @@
     :_  old(- %10)
     [%pass /load/fix-duplicate-groups %arvo %b %wait now.bowl]~
   =?  cor  !=(~ caz-9-to-10)  (emil caz-9-to-10)
-  ?>  ?=(%10 -.old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
   =.  state  old
   ::  initialize .active-channels on each reload
   =.  cor
@@ -774,7 +788,8 @@
   cor
   ::
   +$  any-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -888,7 +903,15 @@
         =^subs:s
         =pimp:imp
     ==
-  +$  state-10  current-state
+  +$  state-10
+    $:  %10
+        groups=net-groups:v9:gv
+        =channels-index:v7:gv
+        =foreigns:v8:gv
+        =^subs:s
+        =pimp:imp
+    ==
+  +$  state-11  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -1025,6 +1048,18 @@
     %=  state-8
       -  %9
       groups  (~(run by groups.state-8) v9:net-group:v7:gc)
+    ==
+  ++  state-10-to-11
+    |=  state-10
+    ~>  %spin.['state-10-to-11']
+    ^-  state-11
+    :*  %11
+        groups
+        channels-index
+        foreigns  ::  implicit $foreign migration v8 -> v10
+        ~  ::  leaves
+        subs
+        pimp
     ==
   --
 ::
@@ -1180,7 +1215,7 @@
       %-  some
       :-  flag
       %-  gang:v2:foreign:v7:gc
-      (v7:foreign:v8:gc foreign)
+      (v7:foreign:v10:gc foreign)
     ``noun+!>([groups-light-ui-2 gangs-2])
   ::
       [%x %v2 %init ~]
@@ -1192,7 +1227,9 @@
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
-    ``noun+!>([groups-light-ui-7 `foreigns:v8:gv`foreigns])
+    =/  foreigns-8=foreigns:v8:gv
+      (~(run by foreigns) v8:foreign:v10:gc)
+    ``noun+!>([groups-light-ui-7 foreigns-8])
   ::
       [%x %v3 %init ~]
     =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
@@ -1203,7 +1240,9 @@
       ::  restore member count after dropping seats
       ::
       -(member-count ~(wyt by seats.group))
-    ``noun+!>([groups-light-ui-9 `foreigns:v8:gv`foreigns])
+    =/  foreigns-8=foreigns:v8:gv
+      (~(run by foreigns) v8:foreign:v10:gc)
+    ``noun+!>([groups-light-ui-9 foreigns-8])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-9=groups:v9:gv  (~(run by groups) tail)
@@ -1305,19 +1344,28 @@
     =+  ship=(slav %p ship.pole)
     ``loob+!>((~(has by groups) [ship name.pole]))
   ::
-      [%x ver=?(%v1) %foreigns ~]
+      [%x ver=?(%v1 %v2) %foreigns ~]
     ?-    ver.pole
         %v1
-      ``foreigns-1+!>(`foreigns:v8:gv`foreigns)
+      =/  foreigns-8=foreigns:v8:gv
+        (~(run by foreigns) v8:foreign:v10:gc)
+      ``foreigns-1+!>(foreigns-8)
+    ::
+        %v2
+      =/  foreigns-10=foreigns:v10:gv  foreigns
+      ``foreigns-2+!>(foreigns-10)
     ==
   ::
-      [%x ver=?(%v1) %foreigns ship=@ name=@ ~]
+      [%x ver=?(%v1 %v2) %foreigns ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ?-    ver.pole
         %v1
-      ``foreign-1+!>(`foreign:v8:gv`u.far)
+      ``foreign-1+!>((v8:foreign:v10:gc u.far))
+    ::
+        %v2
+      ``foreign-2+!>(`foreign:v10:gv`u.far)
     ==
   ==
   ++  changes
@@ -1364,13 +1412,13 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ::  ignore responses after we had left the group
+    ::  ignore responses after we have left the group
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
             ?|  ?=(%kick -.sign)
               ::
                 ?=([%command %leave ~] rest.pole)
-                ?=([%comand %delete ~] rest.pole)
+                ?=([%command %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
             ==
@@ -1384,6 +1432,15 @@
   ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    ::  ignore responses after foreign group has been deleted
+    ::
+    ?:  ?&  !(~(has by foreigns) ship name.pole)
+            ?|  ?=(%kick -.sign)
+              ::
+                ?=([%command %leave ~] rest.pole)
+            ==
+        ==
+      cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
   ::
       [%chan app=@ ship=@ name=@ rest=*]
@@ -1458,13 +1515,14 @@
     ::  %watch: we have issued a watch to the group. there should already
     ::          be a group entry. if there is, resubscribe. if there is
     ::          not, set error.
-    ::  %done: do nothing.
-    ::  %error: do nothing.
+    ::  %leave: do nothing
+    ::  %done: do nothing
+    ::  %error: do nothing
     ::
     %+  roll  ~(tap by foreigns)
     |=  [[=flag:g far=foreign:g] =_cor]
     ?~  progress.far  cor
-    ?:  ?=(?(%done %error) u.progress.far)  cor
+    ?:  ?=(?(%done %leave %error) u.progress.far)  cor
     =*  fc  (fi-abed:fi-core:cor flag)
     ::
     =.  cor  fi-abet:fi-cancel:fc
@@ -1976,6 +2034,8 @@
     =.  se-core
       %+  roll  ~(tap by invited.ad)
       |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
+      =+  status=(read-status:neg bowl [ship dap.bowl])
+      ?:  ?=(%clash status)  se-core
       (emit:se-core (revoke-invite:se-pass ship tok))
     se-core(gone &)
   ::  +se-join: handle group join request
@@ -2313,9 +2373,10 @@
         %add
       =*  c-token-add  c-token-add.c-token
       =/  =token:g
-        =+  i=(end 7 eny.bowl)
-        |-  ?.  (~(has by tokens.ad) i)  i
-        $(i +(i))
+        |-
+        =+  i=(end 7 (shas %entry-token eny.bowl))
+        ?.  (~(has by tokens.ad) i)  i
+        $(eny.bowl +(eny.bowl))
       =/  =token-meta:g
         =,  c-token-add
         :*  scheme
@@ -3141,7 +3202,7 @@
     ^+  se-core
     ?+    wire  ~|(se-agent-bad+wire !!)
         [%invite %send ship=@ ~]
-      =+  ship=(slav %p i.t.t.wire)
+      =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -3149,7 +3210,7 @@
       se-core
     ::
         [%invite %send ship=@ %old ~]
-      =+  ship=(slav %p i.t.t.wire)
+      =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -3460,13 +3521,19 @@
       %+  roll  ~(tap in ~(key by channels.group))
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
-    =?  go-core  send-leave  (emit leave-group:go-pass)
+    =?  cor  send-leave
+      ?:  (can-poke:neg bowl [p.flag server])
+        =.  go-core  (emit leave-group:go-pass)
+        cor
+      fi-abet:fi-mismatch-leave:(fi-abed:fi-core flag)
     ?:  go-our-host  go-core(gone &)
     ::  revoke all invitations
     ::
     =.  go-core
       %+  roll  ~(tap by invited.ad)
       |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
+      =+  status=(read-status:neg bowl [ship dap.bowl])
+      ?:  ?=(%clash status)  go-core
       (emit:go-core (revoke-invite:go-pass ship tok))
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
@@ -3678,7 +3745,7 @@
         ::  invited a ship to the group
         ::
         [%invite %send ship=@ ~]
-      =+  ship=(slav %p i.t.t.wire)
+      =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
@@ -3687,7 +3754,7 @@
         ::  invited a ship to the group (backcompat)
         ::
         [%invite %send ship=@ %old ~]
-      =+  ship=(slav %p i.t.t.wire)
+      =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
@@ -4680,8 +4747,9 @@
   ++  fi-give-update
     =/  gang-2
       %-  gang:v2:foreign:v7:gc
-      (v7:foreign:v8:gc foreign)
-    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign ~)))
+      (v7:foreign:v10:gc foreign)
+    =/  foreign-8  (v8:foreign:v10:gc foreign)
+    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign-8 ~)))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
@@ -4781,8 +4849,15 @@
         ==
       ::  join already in progress
       fi-core
-    =.  progress  `%join
+    ::  clean-up a leaves entry
+    =.  leaves  (~(del in leaves) flag)
     =.  token  tok
+    =+  status=(read-status:neg bowl [p.flag server])
+    ?:  ?=(%clash status)
+      =.  cor  (tell:log %warn leaf+"+fi-join to {<flag>} failed: protocol mismatch" ~)
+      =.  progress  `%error
+      fi-core
+    =.  progress  `%join
     =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     =.  cor
@@ -4802,6 +4877,8 @@
         ==
       ::  join already in progress
       fi-core
+    ::  clean-up a leaves entry
+    =.  leaves  (~(del in leaves) flag)
     =.  progress  `%ask
     =.  token  ~
     =.  cor  (emil (ask:fi-pass story))
@@ -4856,14 +4933,19 @@
       =.  progress  ~
       fi-core
     ::
-        %error
-      =.  progress  ~
-      fi-core
-    ::
         ::NB  should never be hit as long as we delete
         ::    foreigns on done.
         %done
       =.  cor  (tell:l %warn 'cancel invoked on a %done foreign group' ~)
+      fi-core
+    ::
+        %leave
+      =.  leaves  (~(del in leaves) flag)
+      =.  progress  ~
+      fi-core
+    ::
+        %error
+      =.  progress  ~
       fi-core
     ==
   ::  +fi-invite: receive a group invitation
@@ -4920,6 +5002,21 @@
     =.  cor
       %-  submit-activity
       [%read [%group flag] %all ~ |]
+    fi-core
+  ::  +fi-mismatch-leave: schedule a mismatched group leave
+  ::
+  ++  fi-mismatch-leave
+    ^+  fi-core
+    =.  leaves  (~(put in leaves) flag)
+    =.  progress  `%leave
+    fi-core
+  ::  +fi-leave: leave the group
+  ::
+  ++  fi-leave
+    ^+  fi-core
+    =.  leaves  (~(del in leaves) flag)
+    =.  cor  (emit leave-group:fi-pass)
+    =.  progress  `%done
     fi-core
   ::  +fi-watch: handle watch request
   ::
