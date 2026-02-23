@@ -1,7 +1,9 @@
 import * as React from 'react';
 import {
   Keyboard,
+  KeyboardEvent,
   LayoutAnimation,
+  Platform,
   StyleProp,
   StyleSheet,
   View,
@@ -15,8 +17,6 @@ import {
  * This component works in those cases, but is more likely to have timing
  * issues (since it uses async `measure` instead of `onLayout`).
  *
- * This component does not support Android - which isn't an issue for us,
- * since we use `windowSoftInputMode="adjustResize"`.
  */
 export function ParentAgnosticKeyboardAvoidingView({
   children,
@@ -42,12 +42,29 @@ export function ParentAgnosticKeyboardAvoidingView({
   }, []);
 
   React.useEffect(() => {
-    const sub = Keyboard.addListener('keyboardWillChangeFrame', (event) => {
-      keyboardAnimationDurationRef.current = event.duration;
+    const handleKeyboardEvent = (event: KeyboardEvent) => {
+      keyboardAnimationDurationRef.current = event.duration ?? (Platform.OS === 'android' ? 250 : null);
       measure();
       setKeyboardFrame(event.endCoordinates);
-    });
-    return () => sub.remove();
+    };
+
+    const handleKeyboardHide = () => {
+      keyboardAnimationDurationRef.current = Platform.OS === 'android' ? 250 : null;
+      measure();
+      setKeyboardFrame(null);
+    };
+
+    if (Platform.OS === 'android') {
+      const showSub = Keyboard.addListener('keyboardDidShow', handleKeyboardEvent);
+      const hideSub = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }
+
+    const frameSub = Keyboard.addListener('keyboardWillChangeFrame', handleKeyboardEvent);
+    return () => frameSub.remove();
   }, [measure]);
 
   const adjustmentPaddingBottom = React.useMemo(() => {

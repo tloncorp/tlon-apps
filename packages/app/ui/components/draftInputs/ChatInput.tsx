@@ -1,6 +1,5 @@
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
-import { Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
@@ -54,11 +53,7 @@ export function ChatInput({
 
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
-      {Platform.OS === 'android' ? (
-        input
-      ) : (
-        <ParentAgnosticKeyboardAvoidingView>{input}</ParentAgnosticKeyboardAvoidingView>
-      )}
+      <ParentAgnosticKeyboardAvoidingView>{input}</ParentAgnosticKeyboardAvoidingView>
     </SafeAreaView>
   );
 }
