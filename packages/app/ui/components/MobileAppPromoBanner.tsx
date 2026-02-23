@@ -1,5 +1,6 @@
+import { getConstants } from '@tloncorp/shared/domain';
 import { Icon, Image, TlonText } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -8,9 +9,10 @@ import { useNag } from '../../hooks/useNag';
 
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
+  const isE2eRun = useMemo(() => {
+    return getConstants().TLON_IS_E2E;
+  }, []);
   const isWeb = Platform.OS === 'web';
-  const isE2ERun =
-    isWeb && Boolean((globalThis as any).__TLON_E2E__ === true);
 
   const nag = useNag({
     key: 'mobileAppPromoBanner',
@@ -20,11 +22,11 @@ export function MobileAppPromoBanner() {
   });
 
   useEffect(() => {
-    if (!isE2ERun && nag.shouldShow) {
+    if (!isE2eRun && nag.shouldShow) {
       const timer = setTimeout(() => setIsVisible(true), 300);
       return () => clearTimeout(timer);
     }
-  }, [isE2ERun, nag.shouldShow]);
+  }, [isE2eRun, nag.shouldShow]);
 
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
@@ -39,7 +41,7 @@ export function MobileAppPromoBanner() {
     }
   }, []);
 
-  if (!isWeb || isE2ERun || !nag.shouldShow) {
+  if (!isWeb || isE2eRun || !nag.shouldShow) {
     return null;
   }
 

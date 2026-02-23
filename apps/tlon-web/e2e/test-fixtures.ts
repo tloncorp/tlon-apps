@@ -19,7 +19,7 @@ const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
 async function markContextAsE2E(context: BrowserContext) {
   await context.addInitScript(() => {
-    (globalThis as any).__TLON_E2E__ = true;
+    (globalThis as any).TLON_IS_E2E = true;
   });
 }
 
