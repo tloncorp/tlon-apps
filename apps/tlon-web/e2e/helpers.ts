@@ -1605,8 +1605,12 @@ export async function leaveDM(page: Page, contactId: string) {
   await waitForSessionStability(page);
 
   await page.getByTestId('HomeNavIcon').click();
+
   await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
+  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
+  await page.waitForTimeout(500);
+
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
