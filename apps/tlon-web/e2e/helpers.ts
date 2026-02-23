@@ -1121,7 +1121,7 @@ export async function sendMessage(page: Page, message: string) {
   // Wait for message to appear
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
-  ).toBeVisible({ timeout: 15000 });
+  ).toBeVisible({ timeout: 10000 });
   // Wait for input to be cleared to prevent race conditions
   await expect(async () => {
     const inputValue = await page.getByTestId('MessageInput').inputValue();
@@ -1606,11 +1606,6 @@ export async function leaveDM(page: Page, contactId: string) {
 
   await page.getByTestId('HomeNavIcon').click();
 
-  // Tap to select the chat in the sidebar, may cause it to shuffle locations
-  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
-  await page.waitForTimeout(500);
-
-  // Tap again to confirm trigger is visible on the correct sidebar item
   await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
 
