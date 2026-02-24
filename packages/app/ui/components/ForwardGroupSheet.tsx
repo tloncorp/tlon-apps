@@ -1,21 +1,20 @@
 import { forwardGroup } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, useToast } from '@tloncorp/ui';
 import {
   PropsWithChildren,
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { YStack, getTokenValue } from 'tamagui';
 
-import { useChatTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelSelector } from './ForwardChannelSelector';
+import {
+  FORWARD_SHEET_SNAP_POINTS,
+  useForwardToChannelSheet,
+} from './useForwardToChannelSheet';
 
 const ForwardGroupSheetContext = createContext<{
   open: (group: db.Group) => void;
@@ -30,79 +29,32 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     setGroup(group);
   }, []);
 
-  const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
-    null
-  );
-  const selectedChannelTitle = useChatTitle(selectedChannel);
-  const [isSending, setIsSending] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const handleChannelSelected = useCallback((channel: db.Channel) => {
-    setSelectedChannel(channel);
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setGroup(null);
+    }
   }, []);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedChannel(null);
-      setErrorMessage(null);
-    }
-  }, [isOpen]);
-
-  const showToast = useToast();
-  const handleSendItem = useCallback(async () => {
-    if (group && selectedChannel) {
-      setIsSending(true);
-      setErrorMessage(null);
-      try {
-        await forwardGroup({
-          groupId: group.id,
-          channelId: selectedChannel.id,
-        });
-        setIsOpen(false);
-        showToast({
-          message: `Forwarded group to ${selectedChannelTitle}`,
-          duration: 1500,
-        });
-      } catch (error) {
-        setErrorMessage('Failed to forward group');
-        setTimeout(() => setErrorMessage(null), 1500);
-      } finally {
-        setIsSending(false);
+  const handleForwardToChannel = useCallback(
+    async (channel: db.Channel) => {
+      if (!group) {
+        throw new Error('Missing group');
       }
-    }
-  }, [group, selectedChannel, selectedChannelTitle, showToast]);
-
-  const insets = useSafeAreaInsets();
-
-  const renderFooter = useCallback(() => {
-    if (!selectedChannel) {
-      return null;
-    }
-    return (
-      <YStack
-        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
-        paddingHorizontal="$xl"
-      >
-        <Button
-          preset="primary"
-          onPress={handleSendItem}
-          disabled={isSending || !!errorMessage}
-          label={isSending
-            ? `Forwarding...`
-            : errorMessage
-              ? errorMessage
-              : `Forward to ${selectedChannelTitle}`}
-          centered
-        />
-      </YStack>
-    );
-  }, [
-    handleSendItem,
-    insets.bottom,
-    isSending,
-    errorMessage,
-    selectedChannelTitle,
-    selectedChannel,
-  ]);
+      await forwardGroup({
+        groupId: group.id,
+        channelId: channel.id,
+      });
+    },
+    [group]
+  );
+  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+    isOpen,
+    onClose: () => handleOpenChange(false),
+    onForwardToChannel: handleForwardToChannel,
+    successMessage: (channelTitle) => `Forwarded group to ${channelTitle}`,
+    failureMessage: 'Failed to forward group',
+  });
 
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
@@ -110,8 +62,9 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
       {children}
       <ActionSheet
         open={isOpen}
-        onOpenChange={setIsOpen}
-        snapPointsMode="fit"
+        onOpenChange={handleOpenChange}
+        snapPointsMode="percent"
+        snapPoints={FORWARD_SHEET_SNAP_POINTS}
         footerComponent={renderFooter}
       >
         <ActionSheet.Content flex={1} paddingBottom="$s">
