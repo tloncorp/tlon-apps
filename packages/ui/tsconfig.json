@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig",
-  "include": ["./src", "tamagui.d.ts"],
+  "include": ["./src", "tamagui.d.ts", "../../types.d.ts"],
   "compilerOptions": {
     "composite": true
   }

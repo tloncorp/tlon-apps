@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig",
-  "include": ["**/*.ts", "**/*.tsx", "window.ts", "tamagui.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "window.ts", "tamagui.d.ts", "../../types.d.ts"],
   "compilerOptions": {
     "composite": true,
     "noEmit": true,
