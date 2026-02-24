@@ -27,6 +27,8 @@ export class WebDb extends BaseDb {
         databasePath: ':memory:',
         verbose: false,
       });
+      const { driver } = this.sqlocal;
+      this.client = drizzle(driver, { schema });
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the
@@ -37,6 +39,19 @@ export class WebDb extends BaseDb {
           await this.loadDbFromFile();
           // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
           await this.sqlocal.sql`select null`;
+
+          const { applied } = await migrate(
+            this.client,
+            migrations,
+            this.sqlocal,
+            { dryRun: true }
+          );
+          if (applied.length > 0) {
+            // We need to apply migrations - since we don't do delta
+            // migrations, we need to purge the DB and start fresh.
+            // We can do this by throwing to the catch below.
+            throw new Error('Loaded DB is outdated, needs migrations');
+          }
         } catch (e) {
           console.warn(
             'Failed to load DB from file, continuing with empty DB',
@@ -58,9 +73,6 @@ export class WebDb extends BaseDb {
         this.processChanges()
       );
 
-      const { driver } = this.sqlocal;
-
-      this.client = drizzle(driver, { schema });
       setClient(this.client);
 
       const dbInfo = await this.sqlocal.getDatabaseInfo();
