@@ -154,7 +154,9 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
             out.applied.push(migrationHash);
           }
         } else {
-          console.warn(`Migration SQL not found for hash: ${migrationHash}`);
+          console.warn(
+            `Migration SQL not found for tag: ${migrationHash} (key: ${migrationKey})`
+          );
         }
       }
     }
