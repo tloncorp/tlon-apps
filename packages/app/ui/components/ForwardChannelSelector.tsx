@@ -1,20 +1,19 @@
+import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   ComponentProps,
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import { ScrollViewProps } from 'react-native';
-import { XStack } from 'tamagui';
+import { Text, View, XStack, getTokenValue } from 'tamagui';
 
-import {
-  FilteredChatList,
-  FilteredChatListRef,
-} from '../../features/chat-list/FilteredChatList';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { useResolvedChats } from '../../hooks/useResolvedChats';
 import { ActionSheet } from './ActionSheet';
+import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
 type ForwardChannelSelectorProps = {
@@ -26,8 +25,30 @@ export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
 }: ForwardChannelSelectorProps) {
-  const chatListRef = useRef<FilteredChatListRef>(null);
   const [query, setQuery] = useState('');
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
+    null
+  );
+  const { data: chats } = store.useCurrentChats();
+  const resolvedChats = useResolvedChats(chats);
+  const filteredChatsConfig = useMemo(
+    () => ({
+      ...resolvedChats,
+      pending: [],
+      searchQuery: query,
+      activeTab: 'channels' as const,
+    }),
+    [resolvedChats, query]
+  );
+  const displayData = useFilteredChats(filteredChatsConfig);
+
+  const channels = useMemo(() => {
+    const allChats = displayData.flatMap((section) => section.data);
+
+    return allChats.flatMap((chat) =>
+      chat.type === 'channel' ? [chat.channel] : []
+    );
+  }, [displayData]);
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
@@ -36,28 +57,38 @@ export function ForwardChannelSelector({
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
+      setSelectedChannelId(null);
     }
   }, [isOpen]);
 
-  const listProps = useMemo(() => {
-    return {
-      renderScrollComponent: (props: ScrollViewProps) => (
-        <ActionSheet.ScrollableContent
-          {...(props as ComponentProps<typeof ActionSheet.ScrollableContent>)}
-        />
-      ),
-    };
-  }, []);
-
-  const handleItemSelected = useCallback(
-    (item: db.Chat) => {
-      if (item.type === 'channel') {
-        chatListRef.current?.selectChat(item);
-        onChannelSelected(item.channel);
-      }
+  const handleChannelSelected = useCallback(
+    (channel: db.Channel) => {
+      setSelectedChannelId(channel.id);
+      onChannelSelected(channel);
     },
     [onChannelSelected]
   );
+
+  const renderItem: ListRenderItem<db.Channel> = useCallback(
+    ({ item }: { item: db.Channel }) => (
+      <ForwardChannelListItem
+        channel={item}
+        selected={selectedChannelId === item.id}
+        onPress={handleChannelSelected}
+      />
+    ),
+    [handleChannelSelected, selectedChannelId]
+  );
+
+  const contentContainerStyle = useMemo(
+    () => ({
+      padding: getTokenValue('$l', 'size'),
+      paddingBottom: 100,
+    }),
+    []
+  );
+
+  const isSearching = query.trim() !== '';
 
   return (
     <>
@@ -68,15 +99,30 @@ export function ForwardChannelSelector({
         ></SearchBar>
       </XStack>
 
-      {isOpen && (
-        <FilteredChatList
-          ref={chatListRef}
-          listType="channels"
-          searchQuery={query}
-          onPressItem={handleItemSelected}
-          listProps={listProps}
-        />
-      )}
+      {isOpen ? (
+        <View flex={1}>
+          {isSearching && channels.length === 0 ? (
+            <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
+              No results found
+            </Text>
+          ) : (
+            <FlashList<db.Channel>
+              data={channels}
+              contentContainerStyle={contentContainerStyle}
+              keyExtractor={(channel) => channel.id}
+              renderItem={renderItem}
+              estimatedItemSize={72}
+              renderScrollComponent={(props) => (
+                <ActionSheet.ScrollableContent
+                  {...(props as ComponentProps<
+                    typeof ActionSheet.ScrollableContent
+                  >)}
+                />
+              )}
+            />
+          )}
+        </View>
+      ) : null}
     </>
   );
 }
