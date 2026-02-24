@@ -30,21 +30,6 @@ export { SyncPriority, syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
-// Used to track latest post we've seen for each channel.
-// Updated when:
-// - We load channel heads
-// - We create a new post locally
-// - We receive a new post from a subscription
-export const channelCursors = new Map<string, string>();
-export function updateChannelCursor(channelId: string, cursor: string) {
-  if (
-    !channelCursors.has(channelId) ||
-    cursor > channelCursors.get(channelId)!
-  ) {
-    channelCursors.set(channelId, cursor);
-  }
-}
-
 // Update the last activity timestamp when we receive new data
 export function updateLastActivityTime() {
   db.lastActivityAt.setValue(Date.now());
@@ -425,9 +410,7 @@ function notifyChannelPostListenersFromLatestChanges(
       continue;
     }
 
-    const older = channelCursors.get(post.channelId);
-    addToChannelPosts(post, older);
-    updateChannelCursor(post.channelId, post.id);
+    addToChannelPosts(post);
   }
 }
 
@@ -461,7 +444,6 @@ export const syncLatestPosts = async (
     logger.crumb('got latest posts from api');
     const allPosts = result.map((p) => p.latestPost);
     const writer = async (): Promise<void> => {
-      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
       await db.insertLatestPosts(allPosts, queryCtx);
       await db.headsSyncedAt.setValue(Date.now());
       updateLastActivityTime();
@@ -1662,9 +1644,7 @@ export async function handleAddPost(
       ctx
     );
   } else {
-    const older = channelCursors.get(post.channelId);
-    addToChannelPosts(post, older);
-    updateChannelCursor(post.channelId, post.id);
+    addToChannelPosts(post);
     await db.insertChannelPosts(
       {
         posts: [post],
@@ -1921,9 +1901,6 @@ export const handleDiscontinuity = async (config: {
   } else {
     updateSession(null);
   }
-
-  // drop potentially outdated newest post markers
-  channelCursors.clear();
 
   // clear any existing channel queries
   clearChannelPostsQueries();
