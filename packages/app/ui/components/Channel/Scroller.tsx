@@ -324,10 +324,21 @@ const Scroller = forwardRef(
     );
 
     const insets = useSafeAreaInsets();
+    const rootVerticalPadding = getTokens().space.l.val;
 
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
+          if (
+            collectionLayoutType === 'comfy-list-top-to-bottom' ||
+            collectionLayoutType === 'grid'
+          ) {
+            return {
+              flex: 1,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
+            };
+          }
           return { flex: 1 };
         }
 
@@ -342,7 +353,8 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
 
@@ -350,11 +362,12 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
         }
-      }, [insets, posts?.length, collectionLayoutType])
+      }, [insets.bottom, posts?.length, collectionLayoutType, rootVerticalPadding])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
