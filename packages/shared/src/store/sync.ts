@@ -30,21 +30,6 @@ export { SyncPriority, syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
-// Used to track latest post we've seen for each channel.
-// Updated when:
-// - We load channel heads
-// - We create a new post locally
-// - We receive a new post from a subscription
-export const channelCursors = new Map<string, string>();
-export function updateChannelCursor(channelId: string, cursor: string) {
-  if (
-    !channelCursors.has(channelId) ||
-    cursor > channelCursors.get(channelId)!
-  ) {
-    channelCursors.set(channelId, cursor);
-  }
-}
-
 // Update the last activity timestamp when we receive new data
 export function updateLastActivityTime() {
   db.lastActivityAt.setValue(Date.now());
@@ -186,32 +171,97 @@ export const syncSince = async ({
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
+  const startedAt = Date.now();
+  let result: 'success' | 'error' = 'success';
+  let hadChanges: boolean | null = null;
+  let unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null = null;
+  let nodeBusyStatus: string | null = null;
+  let postsCount: number | null = null;
+  let neededToSyncLatestPosts = false;
   try {
     await (queryCtx
-      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx }).then(
+          (summary) => {
+            hadChanges = summary.hadChanges;
+            unreadTargets = summary.unreadTargets;
+            nodeBusyStatus = summary.nodeBusyStatus;
+            postsCount = summary.postsCount;
+          }
+        )
       : batchEffects('syncSince', async (batchCtx) => {
-          await syncLatestChanges({
+          const summary = await syncLatestChanges({
             since,
             syncCtx,
             queryCtx: batchCtx,
             callCtx,
           });
+          hadChanges = summary.hadChanges;
+          unreadTargets = summary.unreadTargets;
+          nodeBusyStatus = summary.nodeBusyStatus;
+          postsCount = summary.postsCount;
 
           // make sure we attempt to get latest posts if we haven't succeeded yet
           const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
           if (!latestPostsSyncedAt) {
+            neededToSyncLatestPosts = true;
             await syncLatestPosts();
           }
         }));
   } catch (e) {
+    result = 'error';
     logger.trackError('sync since failed', {
       error: e,
       ...callCtx,
+    });
+  } finally {
+    notifySyncSinceCompletion({
+      cause: callCtx.cause,
+      result,
+      durationMs: Date.now() - startedAt,
+      hadChanges,
+      unreadTargets,
+      nodeBusyStatus,
+      postsCount,
+      neededToSyncLatestPosts,
     });
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
 };
+
+type SyncSinceCompletion = {
+  cause?: string;
+  result: 'success' | 'error';
+  durationMs: number;
+  hadChanges: boolean | null;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
+  neededToSyncLatestPosts: boolean;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+};
+
+const syncSinceCompletionObservers = new Set<
+  (event: SyncSinceCompletion) => void
+>();
+
+function notifySyncSinceCompletion(event: SyncSinceCompletion) {
+  syncSinceCompletionObservers.forEach((observer) => observer(event));
+}
+
+export function observeSyncSinceCompletion(
+  observer: (event: SyncSinceCompletion) => void
+) {
+  syncSinceCompletionObservers.add(observer);
+  return () => {
+    syncSinceCompletionObservers.delete(observer);
+  };
+}
 
 export const syncLatestChanges = async ({
   syncCtx,
@@ -224,7 +274,15 @@ export const syncLatestChanges = async ({
   callCtx?: { cause?: string };
   since?: number;
   yieldWriter?: boolean;
-}): Promise<void> => {
+}): Promise<{
+  hadChanges: boolean;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+}> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
   if (since) {
@@ -240,7 +298,12 @@ export const syncLatestChanges = async ({
     } catch (e) {
       logger.trackError('Failed latest changes fallback', e);
     }
-    return;
+    return {
+      hadChanges: true,
+      nodeBusyStatus: null,
+      postsCount: null,
+      unreadTargets: null,
+    };
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
@@ -254,7 +317,22 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
+  const topLevelPosts = result.posts.filter(
+    (post) =>
+      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
+  );
+  const latestSeqByChannelBeforeSync = await db.getLatestChannelSequenceNums(
+    {
+      channelIds: [...new Set(topLevelPosts.map((post) => post.channelId))],
+    },
+    queryCtx
+  );
+
   await db.insertChanges(result, queryCtx);
+  notifyChannelPostListenersFromLatestChanges(
+    topLevelPosts,
+    latestSeqByChannelBeforeSync
+  );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -280,7 +358,61 @@ export const syncLatestChanges = async ({
     msToFetch,
     msToWrite,
   });
+  const hadChanges =
+    result.posts.length > 0 ||
+    result.groups.length > 0 ||
+    result.contacts.length > 0 ||
+    result.deletedChannelIds.length > 0 ||
+    result.unreads.channelUnreads.length > 0 ||
+    result.unreads.groupUnreads.length > 0 ||
+    result.unreads.threadActivity.length > 0 ||
+    !!result.unreads.baseUnread;
+  const channelUnreadCounts = Object.fromEntries(
+    result.unreads.channelUnreads.map((u) => [u.channelId, u.count ?? 0])
+  );
+  const groupUnreadCounts = Object.fromEntries(
+    result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
+  );
+  return {
+    hadChanges,
+    nodeBusyStatus: result.nodeBusyStatus ?? null,
+    postsCount: result.posts.length,
+    unreadTargets: {
+      channelUnreadCounts,
+      groupUnreadCounts,
+    },
+  };
 };
+
+function notifyChannelPostListenersFromLatestChanges(
+  posts: db.Post[],
+  latestSeqByChannelBeforeSync: Map<string, number | null>
+) {
+  if (!posts.length) {
+    return;
+  }
+
+  const seenIds = new Set<string>();
+  for (const post of posts) {
+    if (seenIds.has(post.id)) {
+      continue;
+    }
+    seenIds.add(post.id);
+
+    const postSeq = post.sequenceNum;
+    if (postSeq == null) {
+      continue;
+    }
+
+    const previousLatestSeq =
+      latestSeqByChannelBeforeSync.get(post.channelId) ?? null;
+    if (previousLatestSeq != null && postSeq <= previousLatestSeq) {
+      continue;
+    }
+
+    addToChannelPosts(post);
+  }
+}
 
 export const syncCachedChanges = async (input: {
   begin: number;
@@ -312,7 +444,6 @@ export const syncLatestPosts = async (
     logger.crumb('got latest posts from api');
     const allPosts = result.map((p) => p.latestPost);
     const writer = async (): Promise<void> => {
-      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
       await db.insertLatestPosts(allPosts, queryCtx);
       await db.headsSyncedAt.setValue(Date.now());
       updateLastActivityTime();
@@ -1513,9 +1644,7 @@ export async function handleAddPost(
       ctx
     );
   } else {
-    const older = channelCursors.get(post.channelId);
-    addToChannelPosts(post, older);
-    updateChannelCursor(post.channelId, post.id);
+    addToChannelPosts(post);
     await db.insertChannelPosts(
       {
         posts: [post],
@@ -1773,9 +1902,6 @@ export const handleDiscontinuity = async (config: {
     updateSession(null);
   }
 
-  // drop potentially outdated newest post markers
-  channelCursors.clear();
-
   // clear any existing channel queries
   clearChannelPostsQueries();
 
@@ -1849,10 +1975,15 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   try {
     let didLoadCachedContacts = false;
 
+    // it's important that this isn't within the main batchEffects block. If we're
+    // returning from a cold open, we don't want to wait for all of High Priority sync
+    // to complete before showing changes
+    syncSince({ callCtx: { cause: 'sync-start' } }).catch((error) =>
+      logger.trackError('sync start: changes sync failed', { error })
+    );
+
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
-        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
-
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;

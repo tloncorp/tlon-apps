@@ -55,11 +55,13 @@ struct CachedChanges: Codable {
     let beginTimestamp: Date
     let endTimestamp: Date
     let changesData: Data
+    let notificationReceivedAt: Date?
     
-    init(begin: Date, end: Date, changes: ChangesResult) throws {
+    init(begin: Date, end: Date, changes: ChangesResult, notificationReceivedAt: Date? = nil) throws {
         self.beginTimestamp = begin
         self.endTimestamp = end
         self.changesData = try changes.toJSONData()
+        self.notificationReceivedAt = notificationReceivedAt
     }
     
     func getChanges() throws -> ChangesResult {
@@ -67,11 +69,14 @@ struct CachedChanges: Codable {
     }
     
     func toJSON() throws -> Data {
-        let dict: [String: Any] = [
+        var dict: [String: Any] = [
             "beginTimestamp": beginTimestamp.javascriptTimestampCeil,
             "endTimestamp": endTimestamp.javascriptTimestampFloor,
             "changes": try JSONSerialization.jsonObject(with: changesData)
         ]
+        if let notificationReceivedAt {
+            dict["notificationReceivedAtMs"] = notificationReceivedAt.javascriptTimestampFloor
+        }
         return try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)
     }
 }
