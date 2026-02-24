@@ -12,7 +12,6 @@ import {
 import {
   PermissionActionButtons,
   processFinalPermissions,
-  RoleChipsDisplay,
   useChannelPermissionState,
   usePermissionFormSync,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
@@ -25,12 +24,19 @@ type Props = NativeStackScreenProps<
 >;
 
 export function EditChannelPrivacyScreen(props: Props) {
-  const { groupId, channelId, fromChatDetails, createdRoleId, selectedRoleIds } =
-    props.route.params;
+  const {
+    groupId,
+    channelId,
+    fromChatDetails,
+    createdRoleId,
+    selectedRoleIds,
+  } = props.route.params;
   const { navigation } = props;
 
-  const { channel, group, updateChannel, handleGoBack } =
-    useChannelEditScreen({ groupId, channelId });
+  const { channel, group, updateChannel, handleGoBack } = useChannelEditScreen({
+    groupId,
+    channelId,
+  });
 
   // Get initial values from channel
   const initialValues = useMemo(
@@ -40,7 +46,7 @@ export function EditChannelPrivacyScreen(props: Props) {
 
   const [isPrivate, setIsPrivate] = useState(initialValues.isPrivate);
 
-  const { readers, setReaders, writers, setWriters, handleRemoveRole } =
+  const { readers, setReaders, writers, setWriters } =
     useChannelPermissionState({
       initialReaders: initialValues.readers,
       initialWriters: initialValues.writers,
@@ -164,20 +170,6 @@ export function EditChannelPrivacyScreen(props: Props) {
                 isPrivate={isPrivate}
                 onTogglePrivate={handleTogglePrivate}
               />
-              {isPrivate && (
-                <YStack
-                  padding="$xl"
-                  gap="$2xl"
-                  borderTopWidth={1}
-                  borderTopColor="$secondaryBorder"
-                >
-                  <RoleChipsDisplay
-                    groupRoles={group.roles ?? []}
-                    readers={readers}
-                    onRemoveRole={handleRemoveRole}
-                  />
-                </YStack>
-              )}
             </YStack>
             <PermissionTable groupRoles={group.roles ?? []} />
             {isPrivate && (

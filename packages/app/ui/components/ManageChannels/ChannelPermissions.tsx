@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import { Button, Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Platform, Switch } from 'react-native';
@@ -39,14 +39,13 @@ export function PrivateChannelToggle({
       pointerEvents="auto"
     >
       <YStack gap="$xl" flex={1} pointerEvents="auto">
-        <Text size="$label/l">Private Channel</Text>
+        <Text size="$label/l">Custom Permissions</Text>
         <Text size="$label/s" color="$tertiaryText">
-          By making a channel private, only select members and roles will be
-          able to view this channel.
+          Only selected roles will be able to view or write to this channel.
         </Text>
       </YStack>
       {Platform.OS === 'android' ? (
-        // Android-specific: Wrap Switch in Pressable to handle tap gestures before
+        // Android-specific: Wrap Switch in Pressable to handle tap gestures befored
         // they reach the Sheet's pan gesture handler. The Switch itself has
         // pointerEvents="none" to make it purely visual, while Pressable handles
         // all touch interaction. This fixes Switch tap detection issues in sheets
@@ -100,7 +99,8 @@ export function RoleChip({
   );
 }
 
-const checkboxColumnWidth = 100;
+const checkboxColumnWidth = 75;
+const actionsColumnWidth = 75;
 
 export function PermissionTable({
   groupRoles,
@@ -180,6 +180,23 @@ export function PermissionTable({
     [readers, writers, setValue]
   );
 
+  const handleDeleteRole = useCallback(
+    (roleId: string) => {
+      if (roleId === 'admin') return;
+      setValue(
+        'readers',
+        readers.filter((readerId) => readerId !== roleId),
+        { shouldDirty: true }
+      );
+      setValue(
+        'writers',
+        writers.filter((writerId) => writerId !== roleId),
+        { shouldDirty: true }
+      );
+    },
+    [readers, writers, setValue]
+  );
+
   if (!isPrivate || displayedRoles.length === 0) return null;
 
   return (
@@ -202,6 +219,9 @@ export function PermissionTable({
         </Text>
         <PermissionTableHeaderCell>Read</PermissionTableHeaderCell>
         <PermissionTableHeaderCell>Write</PermissionTableHeaderCell>
+        <PermissionTableHeaderCell width={actionsColumnWidth}>
+          Remove
+        </PermissionTableHeaderCell>
       </XStack>
       <YStack>
         {displayedRoles.map((role, index) => (
@@ -218,6 +238,7 @@ export function PermissionTable({
               canWrite={writers.includes(role.value)}
               onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
+              onDeleteRole={() => handleDeleteRole(role.value)}
             />
           </YStack>
         ))}
@@ -228,12 +249,14 @@ export function PermissionTable({
 
 function PermissionTableHeaderCell({
   children,
+  width = checkboxColumnWidth,
 }: {
   children: React.ReactNode;
+  width?: number;
 }) {
   return (
     <XStack
-      width={checkboxColumnWidth}
+      width={width}
       alignItems="center"
       justifyContent="center"
       borderLeftWidth={1}
@@ -252,12 +275,14 @@ function PermissionTableRow({
   canWrite,
   onToggleRead,
   onToggleWrite,
+  onDeleteRole,
 }: {
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
   onToggleRead: () => void;
   onToggleWrite: () => void;
+  onDeleteRole: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
@@ -294,18 +319,30 @@ function PermissionTableRow({
           </Pressable>
         )}
       </PermissionTableControlCell>
+      <PermissionTableControlCell width={actionsColumnWidth}>
+        {role.value !== 'admin' ? (
+          <IconButton
+            onPress={onDeleteRole}
+            testID={`RemoveRole-${role.label}`}
+          >
+            <Icon type="Close" size="$m" />
+          </IconButton>
+        ) : null}
+      </PermissionTableControlCell>
     </XStack>
   );
 }
 
 function PermissionTableControlCell({
   children,
+  width = checkboxColumnWidth,
 }: {
   children: React.ReactNode;
+  width?: number;
 }) {
   return (
     <XStack
-      width={checkboxColumnWidth}
+      width={width}
       justifyContent="center"
       alignItems="center"
       borderLeftWidth={1}

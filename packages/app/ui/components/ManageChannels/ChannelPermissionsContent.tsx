@@ -71,19 +71,13 @@ interface PermissionActionButtonsProps {
 }
 
 /**
- * The "Add roles" and "Create new role" buttons.
+ * The "Add roles" button.
  * Used by both CreateChannelPermissionsScreen and EditChannelPrivacyScreen.
  */
 export function PermissionActionButtons({
   onSelectRoles,
-  onCreateRole,
 }: PermissionActionButtonsProps) {
-  return (
-    <XStack gap="$m">
-      <Button preset="positive" onPress={onSelectRoles} label="Add roles" />
-      <Button preset="positive" onPress={onCreateRole} label="Create new role" />
-    </XStack>
-  );
+  return <Button onPress={onSelectRoles} label="Add roles" />;
 }
 
 /**

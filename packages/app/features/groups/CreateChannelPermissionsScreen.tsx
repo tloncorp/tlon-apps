@@ -12,7 +12,6 @@ import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermi
 import {
   PermissionActionButtons,
   processFinalPermissions,
-  RoleChipsDisplay,
   useChannelPermissionState,
   usePermissionFormSync,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
@@ -37,7 +36,7 @@ export function CreateChannelPermissionsScreen() {
 
   const { data: group } = useGroup({ id: groupId });
 
-  const { readers, writers, handleRemoveRole } = useChannelPermissionState({
+  const { readers, writers } = useChannelPermissionState({
     initialReaders: ['admin'],
     initialWriters: ['admin'],
     createdRoleId,
@@ -116,21 +115,6 @@ export function CreateChannelPermissionsScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom }}
         >
           <YStack gap="$2xl" padding="$xl">
-            <YStack
-              width="100%"
-              overflow="hidden"
-              borderRadius="$m"
-              borderWidth={1}
-              borderColor="$secondaryBorder"
-              padding="$xl"
-              gap="$2xl"
-            >
-              <RoleChipsDisplay
-                groupRoles={group.roles ?? []}
-                readers={readers}
-                onRemoveRole={handleRemoveRole}
-              />
-            </YStack>
             <PermissionTable groupRoles={group.roles ?? []} />
             <PermissionActionButtons
               onSelectRoles={handleSelectRoles}
