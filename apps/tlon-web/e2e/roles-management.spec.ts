@@ -139,7 +139,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Navigate to Privacy settings to set channel permissions
   await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel privacy')).toBeVisible();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
 
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
