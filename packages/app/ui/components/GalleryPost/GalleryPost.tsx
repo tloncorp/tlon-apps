@@ -427,6 +427,7 @@ export function GalleryPostDetailView({
       <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow
           authorId={post.authorId}
+          isBot={post.isBot ?? undefined}
           sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}

@@ -69,6 +69,8 @@ import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
+const HEADER_LOADING_SHOW_DELAY_MS = 180;
+const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 
 interface ChannelProps {
   channel: db.Channel;
@@ -169,6 +171,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [editingConfiguration, setEditingConfiguration] = useState(false);
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+    const [showHeaderLoading, setShowHeaderLoading] = useState(false);
+    const headerLoadingShownAtRef = useRef<number | null>(null);
+    const headerLoadingShowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+    const headerLoadingHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
     const title = utils.useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
@@ -230,6 +240,66 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
     const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
+
+    useEffect(() => {
+      const clearShowTimeout = () => {
+        if (headerLoadingShowTimeoutRef.current) {
+          clearTimeout(headerLoadingShowTimeoutRef.current);
+          headerLoadingShowTimeoutRef.current = null;
+        }
+      };
+      const clearHideTimeout = () => {
+        if (headerLoadingHideTimeoutRef.current) {
+          clearTimeout(headerLoadingHideTimeoutRef.current);
+          headerLoadingHideTimeoutRef.current = null;
+        }
+      };
+
+      if (isLoadingPosts) {
+        clearHideTimeout();
+        if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
+          return;
+        }
+
+        headerLoadingShowTimeoutRef.current = setTimeout(() => {
+          headerLoadingShownAtRef.current = Date.now();
+          setShowHeaderLoading(true);
+          headerLoadingShowTimeoutRef.current = null;
+        }, HEADER_LOADING_SHOW_DELAY_MS);
+        return;
+      }
+
+      clearShowTimeout();
+      clearHideTimeout();
+
+      if (!showHeaderLoading) {
+        headerLoadingShownAtRef.current = null;
+        return;
+      }
+
+      const elapsed = headerLoadingShownAtRef.current
+        ? Date.now() - headerLoadingShownAtRef.current
+        : 0;
+      const hideDelay = Math.max(HEADER_LOADING_MIN_VISIBLE_MS - elapsed, 0);
+
+      headerLoadingHideTimeoutRef.current = setTimeout(() => {
+        headerLoadingShownAtRef.current = null;
+        setShowHeaderLoading(false);
+        headerLoadingHideTimeoutRef.current = null;
+      }, hideDelay);
+    }, [isLoadingPosts, showHeaderLoading]);
+
+    useEffect(() => {
+      return () => {
+        if (headerLoadingShowTimeoutRef.current) {
+          clearTimeout(headerLoadingShowTimeoutRef.current);
+        }
+        if (headerLoadingHideTimeoutRef.current) {
+          clearTimeout(headerLoadingHideTimeoutRef.current);
+        }
+      };
+    }, []);
+
     useEffect(() => {
       if (hasUnreads && hasLoaded && inView) {
         markRead();
@@ -452,7 +522,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           goToChatDetails={goToChatDetails}
                           goToProfile={handleGoToProfile}
                           goToSearch={goToSearch}
-                          showSpinner={isLoadingPosts}
+                          showSpinner={showHeaderLoading}
                           showSearchButton={
                             channel.type === 'chat' ||
                             channel.type === 'dm' ||

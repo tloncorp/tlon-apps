@@ -357,6 +357,7 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`is_deleted` integer,
+	`is_bot` integer DEFAULT false,
 	`is_sequence_stub` integer DEFAULT false,
 	`deleted_at` integer,
 	`delivery_status` text,

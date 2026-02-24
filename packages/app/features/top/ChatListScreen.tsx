@@ -15,6 +15,7 @@ import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
@@ -38,6 +39,9 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import {
+  reportChatListFirstPaint,
+} from '../../lib/chatListSettleTelemetry';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -110,29 +114,15 @@ export function ChatListScreenView({
   );
 
   const connStatus = store.useConnectionStatus();
-  const isSyncing = store.useIsSyncing();
-  const notReadyMessage: string | null = useMemo(() => {
-    // if not fully connected yet, show status
-    // if (connStatus !== 'Connected') {
-    //   return `${connStatus}...`;
-    // }
 
-    if (isSyncing) {
-      return 'Syncing...';
+  const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
+    useSyncStatus();
+  const loadingSubtitle = useMemo(() => {
+    if (syncLoadingSubtitle) {
+      return syncLoadingSubtitle;
     }
-
-    // if still loading the screen data, show loading
-    if (
-      !chats ||
-      (!chats.unpinned.length && !chats.pinned.length && !chats.pending.length)
-    ) {
-      return 'Loading...';
-    }
-
-    return null;
-  }, [isSyncing, chats]);
-
-  const { subtitle: syncSubtitle } = useSyncStatus();
+    return chats ? null : 'Loading...';
+  }, [syncLoadingSubtitle, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -224,6 +214,8 @@ export function ChatListScreenView({
     }
   }, [isFocused]);
 
+  useChatListSettleTelemetry({ chats, isFocused });
+
   useEffect(() => {
     if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
       identifyTlonEmployee();
@@ -277,6 +269,11 @@ export function ChatListScreenView({
     searchQuery,
     activeTab,
   });
+  const handleChatListLoad = useCallback(() => {
+    if (chats) {
+      reportChatListFirstPaint();
+    }
+  }, [chats]);
 
   return (
     <RequestsProvider
@@ -295,6 +292,7 @@ export function ChatListScreenView({
             <ScreenHeader
               title="Home"
               subtitle={syncSubtitle}
+              loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
               leftControls={
                 personalInvite ? (
@@ -346,7 +344,11 @@ export function ChatListScreenView({
                     onPressTryAll={handlePressTryAll}
                   />
                 ) : (
-                  <ChatList data={displayData} onPressItem={onPressChat} />
+                  <ChatList
+                    data={displayData}
+                    onPressItem={onPressChat}
+                    onLoad={handleChatListLoad}
+                  />
                 )}
               </>
             ) : null}

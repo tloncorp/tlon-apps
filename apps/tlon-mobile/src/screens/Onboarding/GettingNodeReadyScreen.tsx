@@ -196,7 +196,6 @@ export function GettingNodeReadyScreen({
               Log out
             </ScreenHeader.TextButton>
           }
-          showSessionStatus={false}
         />
         <YStack
           flex={1}

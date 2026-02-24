@@ -29,7 +29,6 @@ export function AddContactsView(props: {
       <ScreenHeader
         title="Add Contacts"
         backAction={isWindowNarrow ? () => props.goBack() : undefined}
-        showSessionStatus={false}
         borderBottom
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
@@ -42,7 +41,7 @@ export function AddContactsView(props: {
       />
       <YStack
         flex={1}
-        paddingTop={top + 20}
+        paddingTop="$m"
         paddingBottom={bottom + 20}
         paddingHorizontal="$2xl"
         marginHorizontal="auto"
@@ -62,9 +61,11 @@ export function AddContactsView(props: {
           marginTop="$m"
           onPress={handleAddContacts}
           disabled={newContacts.length === 0}
-          label={newContacts.length === 0
-            ? 'Add contact'
-            : `Add ${newContacts.length} contact${newContacts.length > 1 ? 's' : ''}`}
+          label={
+            newContacts.length === 0
+              ? 'Add contact'
+              : `Add ${newContacts.length} contact${newContacts.length > 1 ? 's' : ''}`
+          }
           centered
         />
       </YStack>

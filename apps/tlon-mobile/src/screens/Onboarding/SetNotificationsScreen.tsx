@@ -55,7 +55,6 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
     >
       <ScreenHeader
         title="Notifications"
-        showSessionStatus={false}
         backgroundColor="$secondaryBackground"
       />
       <View

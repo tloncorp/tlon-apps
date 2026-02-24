@@ -7,6 +7,7 @@ export type User = {
   requirePhoneNumberVerification: boolean;
   phoneNumberVerifiedAt?: string;
   verified: boolean;
+  botEnabled?: boolean;
 };
 
 export type ReservableShip = {
