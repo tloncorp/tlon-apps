@@ -180,6 +180,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
+    const isNotebookOrGallery =
+      channel.type === 'notebook' || channel.type === 'gallery';
+    const pinnedPostId = logic.getPinnedPostId(channel);
     const isSingleChannelGroup = group?.channels?.length === 1;
 
     // For DMs, get the other participant's ID
@@ -393,6 +396,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       return validGroup && validPlatform;
     }, [group]);
 
+    const shouldShowPinnedPostBanner = useMemo(() => {
+      if (!pinnedPostId) return false;
+      if (!isNotebookOrGallery) return true;
+      return (
+        editingPost == null && draftInputPresentationMode !== 'fullscreen'
+      );
+    }, [
+      pinnedPostId,
+      isNotebookOrGallery,
+      editingPost,
+      draftInputPresentationMode,
+    ]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
@@ -453,7 +469,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                           goToEdit={handleGoToChannelDetails}
                         />
-                        {logic.getPinnedPostId(channel) && (
+                        {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner
                             channel={channel}
                             onPressPost={goToPost}
