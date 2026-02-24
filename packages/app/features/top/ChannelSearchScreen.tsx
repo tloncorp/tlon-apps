@@ -10,6 +10,7 @@ import {
   SearchBar,
   SearchResults,
   View,
+  XStack,
   YStack,
   useChannelTitle,
   useGroupTitle,
@@ -67,12 +68,14 @@ export default function ChannelSearchScreen(props: Props) {
         borderBottom
       />
       <View paddingTop="$2xl" flex={1}>
-        <SearchBar
-          onChangeQuery={setQuery}
-          placeholder={`Search ${title ?? ''}`}
-          inputProps={{ autoFocus: true }}
-          onPressCancel={() => props.navigation.pop()}
-        />
+        <XStack flexShrink={1} marginHorizontal="$m">
+          <SearchBar
+            onChangeQuery={setQuery}
+            placeholder={`Search ${title ?? ''}`}
+            inputProps={{ autoFocus: true }}
+            onPressCancel={() => props.navigation.pop()}
+          />
+        </XStack>
 
         <SearchResults
           posts={posts ?? []}

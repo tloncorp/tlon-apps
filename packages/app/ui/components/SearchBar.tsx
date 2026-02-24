@@ -49,7 +49,7 @@ export function SearchBar({
   );
 
   return (
-    <YStack alignItems="center" {...rest}>
+    <YStack flexGrow={1} alignItems="center" {...rest}>
       <TextInput
         frameStyle={{ width: '100%' }}
         icon="Search"
