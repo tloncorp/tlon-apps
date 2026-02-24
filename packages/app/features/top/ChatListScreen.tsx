@@ -15,6 +15,7 @@ import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
@@ -38,6 +39,9 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import {
+  reportChatListFirstPaint,
+} from '../../lib/chatListSettleTelemetry';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -210,6 +214,8 @@ export function ChatListScreenView({
     }
   }, [isFocused]);
 
+  useChatListSettleTelemetry({ chats, isFocused });
+
   useEffect(() => {
     if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
       identifyTlonEmployee();
@@ -263,6 +269,11 @@ export function ChatListScreenView({
     searchQuery,
     activeTab,
   });
+  const handleChatListLoad = useCallback(() => {
+    if (chats) {
+      reportChatListFirstPaint();
+    }
+  }, [chats]);
 
   return (
     <RequestsProvider
@@ -333,7 +344,11 @@ export function ChatListScreenView({
                     onPressTryAll={handlePressTryAll}
                   />
                 ) : (
-                  <ChatList data={displayData} onPressItem={onPressChat} />
+                  <ChatList
+                    data={displayData}
+                    onPressItem={onPressChat}
+                    onLoad={handleChatListLoad}
+                  />
                 )}
               </>
             ) : null}
