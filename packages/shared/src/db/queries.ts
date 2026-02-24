@@ -2732,6 +2732,36 @@ export const getLatestChannelSequenceNum = createReadQuery(
   ['channels']
 );
 
+export const getLatestChannelSequenceNums = createReadQuery(
+  'getLatestChannelSequenceNums',
+  async (
+    options: { channelIds: string[] },
+    ctx: QueryCtx
+  ): Promise<Map<string, number | null>> => {
+    const result = new Map<string, number | null>(
+      options.channelIds.map((channelId) => [channelId, null])
+    );
+    if (!options.channelIds.length) {
+      return result;
+    }
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: inArray($channels.id, options.channelIds),
+      columns: {
+        id: true,
+        lastPostSequenceNum: true,
+      },
+    });
+
+    channels.forEach((channel) => {
+      result.set(channel.id, channel.lastPostSequenceNum ?? null);
+    });
+
+    return result;
+  },
+  ['channels']
+);
+
 export const setLatestChannelSequenceNum = createWriteQuery(
   'setLatestChannelSequenceNum',
   async (

@@ -10,10 +10,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
-import {
-  useChannelLatestSequenceNum,
-  usePendingPostsInChannel,
-} from './dbHooks';
+import { usePendingPostsInChannel } from './dbHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
@@ -191,35 +188,6 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   useEffect(() => {
     setNewPosts([]);
   }, [options.channelId]);
-
-  // // Detect when sync has written newer posts to the DB than what our
-  // // query currently shows. This covers our bases for sync operations that
-  // // don't flow through addToChannelPosts
-  const latestSeqNum = useChannelLatestSequenceNum(options.channelId);
-  useEffect(() => {
-    if (
-      !query.data ||
-      query.isFetching ||
-      latestSeqNum == null ||
-      query.hasPreviousPage
-    )
-      return;
-    const newestInQuery = query.data.pages[0]?.posts[0]?.sequenceNum;
-    const newestInNewPosts = newPosts[0]?.sequenceNum;
-    if (
-      newestInQuery != null &&
-      newestInQuery < latestSeqNum &&
-      (!newestInNewPosts || newestInNewPosts < latestSeqNum)
-    ) {
-      postsLogger.log(
-        `stale posts detected (have seq ${newestInQuery}, channel has ${latestSeqNum}), refetching`
-      );
-      query.refetch();
-    }
-    // query.refetch is stable in behavior but changes reference each render. Safe
-    // to omit
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestSeqNum, query.data, query.isFetching, newPosts]);
 
   const pendingPosts = usePendingPostsInChannel(options.channelId);
   const deletedPosts = useDeletedPosts(options.channelId);

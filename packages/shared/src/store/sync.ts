@@ -332,7 +332,22 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
+  const topLevelPosts = result.posts.filter(
+    (post) =>
+      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
+  );
+  const latestSeqByChannelBeforeSync = await db.getLatestChannelSequenceNums(
+    {
+      channelIds: [...new Set(topLevelPosts.map((post) => post.channelId))],
+    },
+    queryCtx
+  );
+
   await db.insertChanges(result, queryCtx);
+  notifyChannelPostListenersFromLatestChanges(
+    topLevelPosts,
+    latestSeqByChannelBeforeSync
+  );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -383,6 +398,38 @@ export const syncLatestChanges = async ({
     },
   };
 };
+
+function notifyChannelPostListenersFromLatestChanges(
+  posts: db.Post[],
+  latestSeqByChannelBeforeSync: Map<string, number | null>
+) {
+  if (!posts.length) {
+    return;
+  }
+
+  const seenIds = new Set<string>();
+  for (const post of posts) {
+    if (seenIds.has(post.id)) {
+      continue;
+    }
+    seenIds.add(post.id);
+
+    const postSeq = post.sequenceNum;
+    if (postSeq == null) {
+      continue;
+    }
+
+    const previousLatestSeq =
+      latestSeqByChannelBeforeSync.get(post.channelId) ?? null;
+    if (previousLatestSeq != null && postSeq <= previousLatestSeq) {
+      continue;
+    }
+
+    const older = channelCursors.get(post.channelId);
+    addToChannelPosts(post, older);
+    updateChannelCursor(post.channelId, post.id);
+  }
+}
 
 export const syncCachedChanges = async (input: {
   begin: number;
