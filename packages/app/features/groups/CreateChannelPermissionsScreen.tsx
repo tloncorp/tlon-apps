@@ -57,9 +57,10 @@ export function CreateChannelPermissionsScreen() {
   usePermissionFormSync(form.setValue, readers, writers);
 
   const handleSelectRoles = useCallback(() => {
+    const currentReaders = form.getValues('readers');
     navigation.navigate('SelectChannelRoles', {
       groupId,
-      selectedRoleIds: readers,
+      selectedRoleIds: currentReaders,
       returnScreen: 'CreateChannelPermissions',
       returnParams: {
         groupId,
@@ -67,7 +68,7 @@ export function CreateChannelPermissionsScreen() {
         channelType,
       },
     });
-  }, [navigation, groupId, readers, channelTitle, channelType]);
+  }, [navigation, groupId, form, channelTitle, channelType]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -82,9 +83,15 @@ export function CreateChannelPermissionsScreen() {
   }, [navigation, groupId, channelTitle, channelType]);
 
   const handleCreateChannel = useCallback(() => {
+    const {
+      readers: currentReaders,
+      writers: currentWriters,
+      isPrivate: currentIsPrivate,
+    } = form.getValues();
     const { finalReaders, finalWriters } = processFinalPermissions(
-      readers,
-      writers
+      currentReaders,
+      currentWriters,
+      currentIsPrivate
     );
 
     createChannel({
@@ -97,7 +104,7 @@ export function CreateChannelPermissionsScreen() {
 
     // Navigate back to channel list
     navigation.navigate('ManageChannels', { groupId });
-  }, [navigation, groupId, channelTitle, channelType, readers, writers]);
+  }, [navigation, groupId, form, channelTitle, channelType]);
 
   if (!group) {
     return null;

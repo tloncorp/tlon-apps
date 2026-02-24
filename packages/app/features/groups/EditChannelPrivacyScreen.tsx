@@ -99,9 +99,10 @@ export function EditChannelPrivacyScreen(props: Props) {
   );
 
   const handleSelectRoles = useCallback(() => {
+    const currentReaders = form.getValues('readers');
     navigation.navigate('SelectChannelRoles', {
       groupId,
-      selectedRoleIds: readers,
+      selectedRoleIds: currentReaders,
       returnScreen: 'EditChannelPrivacy',
       returnParams: {
         groupId,
@@ -109,7 +110,7 @@ export function EditChannelPrivacyScreen(props: Props) {
         fromChatDetails,
       },
     });
-  }, [navigation, groupId, channelId, fromChatDetails, readers]);
+  }, [navigation, groupId, channelId, fromChatDetails, form]);
 
   const handleCreateRole = useCallback(() => {
     navigation.navigate('AddRole', {
@@ -127,15 +128,20 @@ export function EditChannelPrivacyScreen(props: Props) {
   const handleSave = useCallback(() => {
     if (!channel) return;
 
+    const {
+      readers: currentReaders,
+      writers: currentWriters,
+      isPrivate: currentIsPrivate,
+    } = form.getValues();
     const { finalReaders, finalWriters } = processFinalPermissions(
-      readers,
-      writers,
-      isPrivate
+      currentReaders,
+      currentWriters,
+      currentIsPrivate
     );
 
     updateChannel({ ...channel }, finalReaders, finalWriters);
     handleGoBack();
-  }, [channel, isPrivate, readers, writers, updateChannel, handleGoBack]);
+  }, [channel, form, updateChannel, handleGoBack]);
 
   if (!group || !channel) {
     return null;
@@ -145,7 +151,7 @@ export function EditChannelPrivacyScreen(props: Props) {
     <FormProvider {...form}>
       <View backgroundColor="$background" flex={1}>
         <ScreenHeader
-          title="Channel privacy"
+          title="Channel permissions"
           backAction={handleGoBack}
           rightControls={
             <ScreenHeader.TextButton
