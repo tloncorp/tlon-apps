@@ -136,9 +136,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         title="Connect Ship"
-        showSessionStatus={false}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={() => navigation.goBack()}
-        isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Connect

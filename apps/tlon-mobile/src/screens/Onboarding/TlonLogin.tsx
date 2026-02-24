@@ -178,10 +178,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Tlon Login"
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         backAction={goBack}
-        isLoading={isSubmitting}
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">

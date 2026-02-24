@@ -185,9 +185,7 @@ function ToastView({
       <Pressable onPress={onDismiss}>
         <ToastBox
           backgroundColor={'$positiveActionText'}
-          marginBottom={
-            insets.bottom + (Platform.OS === 'web' ? 60 : 64)
-          }
+          marginBottom={insets.bottom + (Platform.OS === 'web' ? 60 : 64)}
           testID="ToastMessage"
         >
           <ToastText>{message}</ToastText>
