@@ -2,27 +2,20 @@ import { forwardPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
 import {
-  ComponentProps,
   PropsWithChildren,
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import { ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { XStack, YStack, getTokenValue } from 'tamagui';
+import { YStack, getTokenValue } from 'tamagui';
 
-import {
-  FilteredChatList,
-  FilteredChatListRef,
-} from '../../features/chat-list/FilteredChatList';
 import { useChatTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
-import { SearchBar } from './SearchBar';
+import { ForwardChannelSelector } from './ForwardChannelSelector';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;
@@ -31,23 +24,11 @@ const ForwardPostSheetContext = createContext<{
 export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   const [isOpen, setIsOpen] = useState(false);
   const [post, setPost] = useState<db.Post | null>(null);
-  const chatListRef = useRef<FilteredChatListRef>(null);
 
   const handleOpen = useCallback((post: db.Post) => {
     setIsOpen(true);
     setPost(post);
   }, []);
-
-  const [query, setQuery] = useState<string>('');
-  const handleQueryChanged = useCallback((newQuery: string) => {
-    setQuery(newQuery);
-  }, []);
-  // Clear the query when the action sheet is closed
-  useEffect(() => {
-    if (!isOpen) {
-      setQuery('');
-    }
-  }, [isOpen]);
 
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
     null
@@ -55,12 +36,17 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   const selectedChannelTitle = useChatTitle(selectedChannel);
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const handleItemSelected = useCallback((item: db.Chat) => {
-    if (item.type === 'channel') {
-      chatListRef.current?.selectChat(item);
-      setSelectedChannel(item.channel);
-    }
+  const handleChannelSelected = useCallback((channel: db.Channel) => {
+    setSelectedChannel(channel);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedChannel(null);
+      setErrorMessage(null);
+    }
+  }, [isOpen]);
+
   const showToast = useToast();
   const handleSendItem = useCallback(async () => {
     if (post && selectedChannel) {
@@ -83,16 +69,6 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   }, [post, selectedChannel, selectedChannelTitle, showToast]);
 
   const insets = useSafeAreaInsets();
-
-  const listProps = useMemo(() => {
-    return {
-      renderScrollComponent: (props: ScrollViewProps) => (
-        <ActionSheet.ScrollableContent
-          {...(props as ComponentProps<typeof ActionSheet.ScrollableContent>)}
-        />
-      ),
-    };
-  }, []);
 
   const renderFooter = useCallback(() => {
     if (!selectedChannel) {
@@ -132,27 +108,16 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
       <ActionSheet
         open={isOpen}
         onOpenChange={setIsOpen}
-        snapPointsMode="fit"
+        snapPointsMode="percent"
+        snapPoints={[85]}
         footerComponent={renderFooter}
       >
         <ActionSheet.Content flex={1} paddingBottom="$s">
           <ActionSheet.SimpleHeader title={'Forward to channel'} />
-          <XStack paddingHorizontal="$xl">
-            <SearchBar
-              placeholder="Search channels"
-              onChangeQuery={handleQueryChanged}
-            ></SearchBar>
-          </XStack>
-
-          {isOpen && (
-            <FilteredChatList
-              ref={chatListRef}
-              listType="channels"
-              searchQuery={query}
-              onPressItem={handleItemSelected}
-              listProps={listProps}
-            />
-          )}
+          <ForwardChannelSelector
+            isOpen={isOpen}
+            onChannelSelected={handleChannelSelected}
+          />
         </ActionSheet.Content>
       </ActionSheet>
     </ForwardPostSheetContext.Provider>
