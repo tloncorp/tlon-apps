@@ -76,52 +76,64 @@ jobs:
             ./apps/tlon-web/playwright-report/
           retention-days: 7
 
-  detect-desk-changes:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    outputs:
-      has_desk_changes: ${{ steps.filter.outputs.desk }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Detect desk file changes
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            desk:
-              - 'desk/**'
-
   # Backend unit tests
   backend-test:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Tests
-    needs: detect-desk-changes
-    if: needs.detect-desk-changes.outputs.has_desk_changes == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Backend Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
+
+      - name: Skip backend tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend tests."
   # Backend aqua tests
   backend-aqua-test:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Aqua Tests
-    needs: detect-desk-changes
-    if: needs.detect-desk-changes.outputs.has_desk_changes == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Backend Aqua Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-aqua-tests.sh
+
+      - name: Skip backend aqua tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend aqua tests."
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     runs-on: blacksmith-16vcpu-ubuntu-2204
