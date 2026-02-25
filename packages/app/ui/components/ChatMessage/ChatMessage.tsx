@@ -2,8 +2,16 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack, isWeb } from 'tamagui';
+import {
+  ComponentProps,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { View, XStack, YStack, isWeb, useTheme } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
@@ -59,6 +67,35 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
+  // Auto-dismiss highlight after 5 seconds
+  const [showHighlight, setShowHighlight] = useState(isHighlighted);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isHighlighted) {
+      setShowHighlight(true);
+      highlightTimerRef.current = setTimeout(() => {
+        setShowHighlight(false);
+        highlightTimerRef.current = null;
+      }, 5000);
+      return () => {
+        if (highlightTimerRef.current) {
+          clearTimeout(highlightTimerRef.current);
+        }
+      };
+    } else {
+      setShowHighlight(false);
+    }
+  }, [isHighlighted]);
+
+  const theme = useTheme();
+  const highlightStyle = useMemo(
+    () =>
+      showHighlight
+        ? { backgroundColor: theme.secondaryBackground?.val }
+        : undefined,
+    [showHighlight, theme.secondaryBackground?.val]
+  );
+
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
@@ -197,7 +234,7 @@ const ChatMessage = ({
       testID="Post"
     >
       <YStack
-        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
+        style={highlightStyle}
         key={post.id}
       >
         {showAuthor ? (
@@ -360,6 +397,7 @@ export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);
 
   const areOtherPropsEqual =
+    prev.isHighlighted === next.isHighlighted &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

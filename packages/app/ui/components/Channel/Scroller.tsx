@@ -98,7 +98,6 @@ const Scroller = forwardRef(
       setActiveMessage,
       isLoading,
       onPressScrollToBottom,
-      highlightedPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -128,7 +127,6 @@ const Scroller = forwardRef(
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
-      highlightedPostId?: string | null;
     },
     ref
   ) => {
@@ -255,16 +253,15 @@ const Scroller = forwardRef(
           previousItem?.type === 'notice' ||
           previousItem?.isDeleted === true ||
           isFirstPostOfDay;
+        const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
-
-        const isFirstUnread = post.id === firstUnreadId;
 
         return (
           <ScrollerItem
             item={post}
             index={index}
-            isSelected={highlightedPostId != null && highlightedPostId === post.id}
+            isSelected={isSelected}
             showUnreadDivider={showDividers && isFirstUnread}
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
@@ -749,6 +746,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isIndexEqual = prev.index === next.index;
 
   const areOtherPropsEqual =
+    prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

@@ -71,7 +71,6 @@ import { ReadOnlyNotice } from './ReadOnlyNotice';
 const useApp = () => {};
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
-const HIGHLIGHT_DURATION_MS = 5000;
 
 interface ChannelProps {
   channel: db.Channel;
@@ -173,12 +172,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
     const [showHeaderLoading, setShowHeaderLoading] = useState(false);
-    const [highlightedPostId, setHighlightedPostId] = useState<
-      string | null | undefined
-    >(selectedPostId);
-    const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
     const headerLoadingShownAtRef = useRef<number | null>(null);
     const headerLoadingShowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
       null
@@ -310,37 +303,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       }
     }, [hasUnreads, hasLoaded, inView, markRead]);
 
-    const startHighlight = useCallback((postId: string) => {
-      if (highlightTimerRef.current) {
-        clearTimeout(highlightTimerRef.current);
-      }
-      setHighlightedPostId(postId);
-      highlightTimerRef.current = setTimeout(() => {
-        setHighlightedPostId(null);
-        highlightTimerRef.current = null;
-      }, HIGHLIGHT_DURATION_MS);
-    }, []);
-
-    useEffect(() => {
-      if (selectedPostId) {
-        startHighlight(selectedPostId);
-      } else {
-        if (highlightTimerRef.current) {
-          clearTimeout(highlightTimerRef.current);
-          highlightTimerRef.current = null;
-        }
-        setHighlightedPostId(null);
-      }
-    }, [selectedPostId, startHighlight]);
-
-    useEffect(() => {
-      return () => {
-        if (highlightTimerRef.current) {
-          clearTimeout(highlightTimerRef.current);
-        }
-      };
-    }, []);
-
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
         const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
@@ -350,15 +312,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           anchorIndex !== -1 &&
           collectionRef.current
         ) {
-          // If the post is already loaded, scroll to it and highlight it briefly
+          // If the post is already loaded, scroll to it
           collectionRef.current?.scrollToPostAtIndex?.(anchorIndex);
-          startHighlight(post.id);
           return;
         }
 
         onPressRef(refChannel, post);
       },
-      [onPressRef, posts, channel, startHighlight]
+      [onPressRef, posts, channel]
     );
 
     const { clearAttachments } = useAttachmentContext();
@@ -592,7 +553,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                     goToPost,
                                     hasNewerPosts,
                                     hasOlderPosts,
-                                    highlightedPostId,
                                     initialChannelUnread,
                                     isLoadingPosts: isLoadingPosts ?? false,
                                     loadPostsError,

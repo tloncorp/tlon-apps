@@ -132,7 +132,6 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
-        highlightedPostId={ctx.highlightedPostId}
       />
     );
   }
