@@ -1,5 +1,7 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -72,6 +74,22 @@ export function NotebookPost({
 
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
+
+  const { data: exposedCites } = store.useExposedPostCites();
+  const exposeReferencePath = useMemo(() => {
+    const [kind, host, channelName] = post.channelId.split('/');
+    const postId = post.id.replaceAll('.', '');
+    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+  }, [post.channelId, post.id]);
+  const isExposed = useMemo(() => {
+    if (!exposedCites) return false;
+    return exposedCites.has(exposeReferencePath);
+  }, [exposeReferencePath, exposedCites]);
+  const publicPostUrl = useMemo(() => {
+    if (!isExposed) return null;
+    const shipUrl = api.getCurrentShipUrl();
+    return `${shipUrl}/expose${exposeReferencePath}`;
+  }, [isExposed, exposeReferencePath]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -171,11 +189,13 @@ export function NotebookPost({
               </Text>
             )}
 
-            {showReplies && hasReplies ? (
+            {(showReplies && hasReplies) || isExposed ? (
               <ChatMessageReplySummary
                 post={post}
                 showTime={false}
                 textColor="$tertiaryText"
+                showPubliclyViewable={isExposed}
+                publicPostUrl={publicPostUrl ?? undefined}
               />
             ) : null}
           </>
@@ -290,6 +310,22 @@ export function NotebookPostDetailView({
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
+  const { data: exposedCites } = store.useExposedPostCites();
+  const exposeReferencePath = useMemo(() => {
+    const [kind, host, channelName] = post.channelId.split('/');
+    const postId = post.id.replaceAll('.', '');
+    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+  }, [post.channelId, post.id]);
+  const isExposed = useMemo(() => {
+    if (!exposedCites) return false;
+    return exposedCites.has(exposeReferencePath);
+  }, [exposeReferencePath, exposedCites]);
+  const publicPostUrl = useMemo(() => {
+    if (!isExposed) return null;
+    const shipUrl = api.getCurrentShipUrl();
+    return `${shipUrl}/expose${exposeReferencePath}`;
+  }, [isExposed, exposeReferencePath]);
+
   const handlePressImage = useCallback(
     (src: string) => {
       onPressImage?.(post, src);
@@ -316,6 +352,16 @@ export function NotebookPostDetailView({
         borderBottomColor="$border"
         testID="NotebookPostHeaderDetailView"
       />
+      {isExposed && (
+        <View paddingHorizontal={'$xl'}>
+          <ChatMessageReplySummary
+            post={post}
+            showTime={false}
+            showPubliclyViewable
+            publicPostUrl={publicPostUrl ?? undefined}
+          />
+        </View>
+      )}
       <NotebookContentRenderer
         marginTop="$-l"
         marginHorizontal="$-l"
