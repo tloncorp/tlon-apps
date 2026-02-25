@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
 
@@ -12,8 +12,6 @@ import {
 import {
   PermissionActionButtons,
   processFinalPermissions,
-  useChannelPermissionState,
-  usePermissionFormSync,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import { getChannelPrivacyDefaults } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
@@ -38,64 +36,64 @@ export function EditChannelPrivacyScreen(props: Props) {
     channelId,
   });
 
-  // Get initial values from channel
-  const initialValues = useMemo(
-    () => getChannelPrivacyDefaults(channel),
-    [channel]
-  );
-
-  const [isPrivate, setIsPrivate] = useState(initialValues.isPrivate);
-
-  const { readers, setReaders, writers, setWriters } =
-    useChannelPermissionState({
-      initialReaders: initialValues.readers,
-      initialWriters: initialValues.writers,
-      createdRoleId,
-      selectedRoleIds,
-      onCreatedRoleProcessed: useCallback(() => setIsPrivate(true), []),
-      onSelectedRolesProcessed: useCallback(() => setIsPrivate(true), []),
-    });
-
-  // Reset state when channel data loads
-  useEffect(() => {
-    if (channel) {
-      const defaults = getChannelPrivacyDefaults(channel);
-      // Only reset isPrivate from defaults if we don't have selectedRoleIds
-      // (selectedRoleIds means user just selected roles and expects private mode)
-      if (!selectedRoleIds) {
-        setIsPrivate(defaults.isPrivate);
-        setReaders(defaults.readers);
-      } else {
-        // If we have selectedRoleIds, ensure private mode is on
-        setIsPrivate(true);
-      }
-      setWriters(defaults.writers);
-    }
-  }, [channel, selectedRoleIds, setReaders, setWriters]);
-
-  // Create form for PermissionTable
   const form = useForm({
     defaultValues: {
-      isPrivate,
-      readers,
-      writers,
+      isPrivate: false,
+      readers: [] as string[],
+      writers: [] as string[],
     },
   });
 
-  usePermissionFormSync(form.setValue, readers, writers, isPrivate);
+  const isPrivate = form.watch('isPrivate');
+
+  // Reset form when channel data loads
+  useEffect(() => {
+    if (!channel) return;
+    const defaults = getChannelPrivacyDefaults(channel);
+    if (!selectedRoleIds) {
+      form.reset({
+        isPrivate: defaults.isPrivate,
+        readers: defaults.readers,
+        writers: defaults.writers,
+      });
+    } else {
+      form.setValue('isPrivate', true);
+      form.setValue('writers', defaults.writers);
+    }
+  }, [channel, selectedRoleIds, form]);
+
+  // Handle newly created role returned from AddRole screen
+  useEffect(() => {
+    if (!createdRoleId) return;
+    const currentReaders = form.getValues('readers');
+    if (!currentReaders.includes(createdRoleId)) {
+      const base = currentReaders.includes('admin')
+        ? currentReaders
+        : ['admin', ...currentReaders];
+      form.setValue('readers', [...base, createdRoleId]);
+      form.setValue('isPrivate', true);
+    }
+  }, [createdRoleId, form]);
+
+  // Handle roles selected from SelectChannelRoles screen
+  useEffect(() => {
+    if (!selectedRoleIds) return;
+    form.setValue('readers', selectedRoleIds);
+    form.setValue('isPrivate', true);
+  }, [selectedRoleIds, form]);
 
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
-      setIsPrivate(value);
+      form.setValue('isPrivate', value);
       if (value) {
-        setReaders(['admin']);
-        setWriters(['admin']);
+        form.setValue('readers', ['admin']);
+        form.setValue('writers', ['admin']);
       } else {
-        setReaders([]);
-        setWriters([]);
+        form.setValue('readers', []);
+        form.setValue('writers', []);
       }
     },
-    [setReaders, setWriters]
+    [form]
   );
 
   const handleSelectRoles = useCallback(() => {
@@ -111,19 +109,6 @@ export function EditChannelPrivacyScreen(props: Props) {
       },
     });
   }, [navigation, groupId, channelId, fromChatDetails, form]);
-
-  const handleCreateRole = useCallback(() => {
-    navigation.navigate('AddRole', {
-      groupId,
-      fromChatDetails,
-      returnScreen: 'EditChannelPrivacy',
-      returnParams: {
-        groupId,
-        channelId,
-        fromChatDetails,
-      },
-    });
-  }, [navigation, groupId, channelId, fromChatDetails]);
 
   const handleSave = useCallback(() => {
     if (!channel) return;
@@ -179,10 +164,7 @@ export function EditChannelPrivacyScreen(props: Props) {
             </YStack>
             <PermissionTable groupRoles={group.roles ?? []} />
             {isPrivate && (
-              <PermissionActionButtons
-                onSelectRoles={handleSelectRoles}
-                onCreateRole={handleCreateRole}
-              />
+              <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             )}
           </YStack>
         </ScrollView>

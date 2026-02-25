@@ -2,7 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createChannel, useGroup } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
@@ -12,8 +12,6 @@ import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermi
 import {
   PermissionActionButtons,
   processFinalPermissions,
-  useChannelPermissionState,
-  usePermissionFormSync,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
@@ -36,25 +34,33 @@ export function CreateChannelPermissionsScreen() {
 
   const { data: group } = useGroup({ id: groupId });
 
-  const { readers, writers } = useChannelPermissionState({
-    initialReaders: ['admin'],
-    initialWriters: ['admin'],
-    createdRoleId,
-    selectedRoleIds,
-  });
-
-  // Create form for PermissionTable
   const form = useForm({
     defaultValues: {
       title: channelTitle,
       description: '',
       isPrivate: true,
-      readers,
-      writers,
+      readers: selectedRoleIds ?? ['admin'],
+      writers: ['admin'],
     },
   });
 
-  usePermissionFormSync(form.setValue, readers, writers);
+  // Handle newly created role returned from AddRole screen
+  useEffect(() => {
+    if (!createdRoleId) return;
+    const currentReaders = form.getValues('readers');
+    if (!currentReaders.includes(createdRoleId)) {
+      const base = currentReaders.includes('admin')
+        ? currentReaders
+        : ['admin', ...currentReaders];
+      form.setValue('readers', [...base, createdRoleId]);
+    }
+  }, [createdRoleId, form]);
+
+  // Handle roles selected from SelectChannelRoles screen
+  useEffect(() => {
+    if (!selectedRoleIds) return;
+    form.setValue('readers', selectedRoleIds);
+  }, [selectedRoleIds, form]);
 
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
@@ -69,18 +75,6 @@ export function CreateChannelPermissionsScreen() {
       },
     });
   }, [navigation, groupId, form, channelTitle, channelType]);
-
-  const handleCreateRole = useCallback(() => {
-    navigation.navigate('AddRole', {
-      groupId,
-      returnScreen: 'CreateChannelPermissions',
-      returnParams: {
-        groupId,
-        channelTitle,
-        channelType,
-      },
-    });
-  }, [navigation, groupId, channelTitle, channelType]);
 
   const handleCreateChannel = useCallback(() => {
     const {
@@ -102,7 +96,6 @@ export function CreateChannelPermissionsScreen() {
       writers: finalWriters,
     });
 
-    // Navigate back to channel list
     navigation.navigate('ManageChannels', { groupId });
   }, [navigation, groupId, form, channelTitle, channelType]);
 
@@ -123,10 +116,7 @@ export function CreateChannelPermissionsScreen() {
         >
           <YStack gap="$2xl" padding="$xl">
             <PermissionTable groupRoles={group.roles ?? []} />
-            <PermissionActionButtons
-              onSelectRoles={handleSelectRoles}
-              onCreateRole={handleCreateRole}
-            />
+            <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             <Button
               preset="primary"
               onPress={handleCreateChannel}
