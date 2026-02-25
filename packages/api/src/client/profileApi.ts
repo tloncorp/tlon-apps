@@ -279,6 +279,19 @@ export async function getPublicProfilePostShown(path: string) {
   return getPublicProfilePostShownFromContacts(referencePathVariants);
 }
 
+export async function getExposedPostCitesNormalized(): Promise<Set<string>> {
+  try {
+    const selfContactResponse = await scry<unknown>({
+      app: 'contacts',
+      path: '/v1/self',
+    });
+    const selfContact = getContactFromSelfScry(selfContactResponse);
+    return new Set(getExposeCitesFromContact(selfContact));
+  } catch {
+    return new Set();
+  }
+}
+
 export async function setPublicProfilePostShown(path: string, shown: boolean) {
   const referencePathVariants = getReferencePathVariants(path);
   if (!shown) {

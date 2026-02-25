@@ -128,6 +128,8 @@ export const getCurrentUserId = () => {
   return client.nodeId;
 };
 
+export const getCurrentShipUrl = () => config.shipUrl;
+
 export const getCurrentUserIsHosted = () => {
   if (!client.nodeId) {
     throw new Error('Client not initialized');

@@ -727,3 +727,11 @@ export const usePendingPostsInChannel = (channelId: string) => {
   const pendingPosts = logic.useOptimizedQueryResults(data);
   return pendingPosts ?? [];
 };
+
+export const useExposedPostCites = () => {
+  return useQuery({
+    queryKey: ['exposedPostCites'],
+    queryFn: () => api.getExposedPostCitesNormalized(),
+    staleTime: 5 * 60 * 1000,
+  });
+};

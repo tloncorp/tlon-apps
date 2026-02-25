@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { Pressable } from '@tloncorp/ui';
+import { Icon, Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { formatDistanceToNow } from 'date-fns';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import { Linking } from 'react-native';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -15,12 +16,16 @@ export const ChatMessageReplySummary = React.memo(
     textColor,
     showTime = true,
     showEditedIndicator = false,
+    showPubliclyViewable = false,
+    publicPostUrl,
   }: {
     post: db.Post;
     onPress?: () => void;
     textColor?: ColorTokens;
     showTime?: boolean;
     showEditedIndicator?: boolean;
+    showPubliclyViewable?: boolean;
+    publicPostUrl?: string;
     // Since this component is used in places other than a chat log, we need to
     // be able to toggle the Chat message padding on and off
   }) {
@@ -33,8 +38,15 @@ export const ChatMessageReplySummary = React.memo(
 
     const hasReplies = !!(replyCount && replyContactIds && replyTime);
 
-    // Show the component if there are replies OR if we need to show the edited indicator
-    if (!hasReplies && !showEditedIndicator) {
+    const handleOpenPublicPost = useCallback(() => {
+      if (publicPostUrl) {
+        Linking.openURL(publicPostUrl);
+      }
+    }, [publicPostUrl]);
+
+    // Show the component if there are replies OR if we need to show the edited
+    // indicator OR the publicly viewable indicator
+    if (!hasReplies && !showEditedIndicator && !showPubliclyViewable) {
       return null;
     }
 
@@ -67,6 +79,20 @@ export const ChatMessageReplySummary = React.memo(
           <Text size="$label/m" paddingTop={1} color="$tertiaryText">
             Edited
           </Text>
+        )}
+        {showPubliclyViewable && (
+          <Pressable onPress={handleOpenPublicPost}>
+            <XStack gap="$xs" alignItems="center">
+              <Icon
+                type="EyeOpen"
+                customSize={[14, 14]}
+                color="$tertiaryText"
+              />
+              <Text size="$label/m" paddingTop={1} color="$tertiaryText">
+                Publicly viewable
+              </Text>
+            </XStack>
+          </Pressable>
         )}
       </XStack>
     );

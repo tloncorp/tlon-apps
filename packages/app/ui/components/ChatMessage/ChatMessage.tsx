@@ -1,5 +1,7 @@
 import { ChannelAction } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -140,6 +142,25 @@ const ChatMessage = ({
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
+  const { data: exposedCites } = store.useExposedPostCites();
+  const isExposeEligible =
+    channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
+  const exposeReferencePath = useMemo(() => {
+    if (!isExposeEligible) return null;
+    const [kind, host, channelName] = post.channelId.split('/');
+    const postId = post.id.replaceAll('.', '');
+    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+  }, [isExposeEligible, post.channelId, post.id]);
+  const isExposed = useMemo(() => {
+    if (!exposeReferencePath || !exposedCites) return false;
+    return exposedCites.has(exposeReferencePath);
+  }, [exposeReferencePath, exposedCites]);
+  const publicPostUrl = useMemo(() => {
+    if (!isExposed || !exposeReferencePath) return null;
+    const shipUrl = api.getCurrentShipUrl();
+    return `${shipUrl}/expose${exposeReferencePath}`;
+  }, [isExposed, exposeReferencePath]);
+
   if (!post) {
     return null;
   }
@@ -184,7 +205,7 @@ const ChatMessage = ({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   const shouldRenderReplySummary =
-    shouldRenderReplies || (!showAuthor && post.isEdited);
+    shouldRenderReplies || (!showAuthor && post.isEdited) || isExposed;
 
   return (
     <Pressable
@@ -295,6 +316,8 @@ const ChatMessage = ({
               post={post}
               onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
               showEditedIndicator={!showAuthor && !!post.isEdited}
+              showPubliclyViewable={isExposed}
+              publicPostUrl={publicPostUrl ?? undefined}
             />
           </XStack>
         ) : null}
