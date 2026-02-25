@@ -49,7 +49,10 @@ export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
     posts ? toPostsData(chatId, posts).posts : []
   );
 
-  const posts = [...channelPosts, ...chatPosts];
+  const posts = [...channelPosts, ...chatPosts].flatMap((post) => [
+    post,
+    ...((post.replies || []) as db.Post[]),
+  ]);
 
   const contacts = Object.entries(input.contacts)
     .filter(([_id, entry]) => entry)
