@@ -33,6 +33,7 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
+  onExposeSuccess,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
@@ -40,6 +41,7 @@ export default function MessageActions({
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
+  onExposeSuccess?: (message: string, url?: string) => void;
 }) {
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
@@ -55,6 +57,7 @@ export default function MessageActions({
       <PublicProfileExposeAction
         post={post}
         dismiss={dismiss}
+        onExposeSuccess={onExposeSuccess}
         last={!ENABLE_COPY_JSON}
       />
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
@@ -194,14 +197,15 @@ const ConnectedAction = memo(function ConnectedAction({
 function PublicProfileExposeAction({
   post,
   dismiss,
+  onExposeSuccess,
   last,
 }: {
   post: db.Post;
   dismiss: () => void;
+  onExposeSuccess?: (message: string, url?: string) => void;
   last?: boolean;
 }) {
   const channel = useChannelContext();
-  const showToast = useToast();
   const queryClient = useQueryClient();
   const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
   const [isShownOnProfile, setIsShownOnProfile] = useState(false);
@@ -267,21 +271,27 @@ function PublicProfileExposeAction({
       await api.setPublicProfilePostShown(referencePath, nextShownState);
       queryClient.invalidateQueries({ queryKey: ['exposedPostCites'] });
       triggerHaptic('success');
+      if (nextShownState) {
+        const shipUrl = api.getCurrentShipUrl();
+        const publicUrl = `${shipUrl}/expose${referencePath}`;
+        onExposeSuccess?.('Post published; URL copied', publicUrl);
+      } else {
+        onExposeSuccess?.('Post hidden from public profile');
+      }
       dismiss();
       return;
     } catch {
       setIsShownOnProfile(!nextShownState);
       triggerHaptic('error');
-      showToast({
-        message: nextShownState
+      onExposeSuccess?.(
+        nextShownState
           ? 'Could not show post on public profile'
-          : 'Could not hide post from public profile',
-        duration: 2000,
-      });
+          : 'Could not hide post from public profile'
+      );
     } finally {
       setIsUpdating(false);
     }
-  }, [dismiss, isShownOnProfile, isUpdating, queryClient, referencePath, showToast]);
+  }, [dismiss, isShownOnProfile, isUpdating, onExposeSuccess, queryClient, referencePath]);
 
   if (isLoading || !publicProfileEnabled) {
     return null;

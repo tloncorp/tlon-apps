@@ -128,7 +128,17 @@ export const getCurrentUserId = () => {
   return client.nodeId;
 };
 
-export const getCurrentShipUrl = () => config.shipUrl;
+export const getCurrentShipUrl = () => {
+  if (config.shipUrl) {
+    return config.shipUrl;
+  }
+  // On web, shipUrl is intentionally empty (requests are same-origin).
+  // Fall back to the window origin to construct absolute URLs.
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
 
 export const getCurrentUserIsHosted = () => {
   if (!client.nodeId) {

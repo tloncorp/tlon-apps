@@ -1,6 +1,7 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Modal } from '@tloncorp/ui';
+import { Modal, useToast } from '@tloncorp/ui';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { ElementRef, RefObject, useCallback, useRef, useState } from 'react';
 import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
@@ -31,6 +32,17 @@ export function usePostContextMenu(opts: {
   const [presentation, setPresentation] =
     useState<PostContextMenuPresentation | null>(null);
 
+  const showToast = useToast();
+  const handleExposeSuccess = useCallback(
+    (message: string, url?: string) => {
+      if (url) {
+        Clipboard.setString(url);
+      }
+      showToast({ message, duration: 2000 });
+    },
+    [showToast]
+  );
+
   const performActionAndDismissCallback = useCallback(
     (actionType: PostContextMenuActions) => {
       return () => {
@@ -59,6 +71,7 @@ export function usePostContextMenu(opts: {
             onReply={performActionAndDismissCallback('startThread')}
             onEdit={performActionAndDismissCallback('edit')}
             onViewReactions={performActionAndDismissCallback('viewReactions')}
+            onExposeSuccess={handleExposeSuccess}
             mode="immediate"
           />
         )}

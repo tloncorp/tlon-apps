@@ -7,6 +7,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
   DESKTOP_SIDEBAR_WIDTH,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
@@ -15,6 +16,7 @@ import {
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
+  useToast,
 } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -194,6 +196,17 @@ const Scroller = forwardRef(
         });
       }
     };
+
+    const showToast = useToast();
+    const handleExposeSuccess = useCallback(
+      (message: string, url?: string) => {
+        if (url) {
+          Clipboard.setString(url);
+        }
+        showToast({ message, duration: 2000 });
+      },
+      [showToast]
+    );
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
@@ -546,6 +559,7 @@ const Scroller = forwardRef(
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
+              onExposeSuccess={handleExposeSuccess}
               mode="immediate"
             />
           </Modal>

@@ -2,7 +2,8 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { Pressable, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -126,6 +127,17 @@ const ChatMessage = ({
   const handleEmojiPickerPressed = useCallback(() => {
     onShowEmojiPicker?.(post);
   }, [post, onShowEmojiPicker]);
+
+  const showToast = useToast();
+  const handleExposeSuccess = useCallback(
+    (message: string, url?: string) => {
+      if (url) {
+        Clipboard.setString(url);
+      }
+      showToast({ message, duration: 2000 });
+    },
+    [showToast]
+  );
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
@@ -336,6 +348,7 @@ const ChatMessage = ({
             onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
+            onExposeSuccess={handleExposeSuccess}
             trigger={
               <OverflowTriggerButton testID="MessageActionsTrigger" />
             }

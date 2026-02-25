@@ -16,6 +16,7 @@ export type ChatMessageActionsProps = {
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   onShowEmojiPicker?: () => void;
+  onExposeSuccess?: (message: string, url?: string) => void;
   trigger?: React.ReactNode;
   mode: 'await-trigger' | 'immediate';
 };
