@@ -160,6 +160,7 @@ export namespace Attachment {
           | false
           | {
               duration?: number;
+              waveformPreview?: number[];
             };
       }
     | { type: 'file'; file: File };
@@ -267,6 +268,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
               uploadState,
             };
           } else {
@@ -317,6 +319,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
               uploadState: {
                 status: 'uploading',
                 localUri: uploadIntent.localUri,
@@ -376,7 +379,10 @@ export namespace Attachment {
           name: attachment.localUri.split('/').pop(), // use filename from URI
           size: attachment.size,
           mimeType: attachment.mimeType,
-          voiceMemo: { duration: attachment.duration },
+          voiceMemo: {
+            duration: attachment.duration,
+            waveformPreview: attachment.waveformPreview,
+          },
         };
       case 'text':
       // fallthrough
@@ -407,6 +413,7 @@ export namespace Attachment {
             localUri: uploadIntent.localUri,
             size: uploadIntent.size,
             duration: uploadIntent.voiceMemo.duration,
+            waveformPreview: uploadIntent.voiceMemo.waveformPreview,
           };
         } else {
           return {
@@ -455,6 +462,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
               uploadState,
             };
           } else {
