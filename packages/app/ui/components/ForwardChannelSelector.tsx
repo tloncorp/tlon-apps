@@ -52,6 +52,8 @@ export function ForwardChannelSelector({
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
+    // Reset explicit row selection on a new query so top result is highlighted.
+    setSelectedChannelId(null);
   }, []);
 
   useEffect(() => {
@@ -60,6 +62,16 @@ export function ForwardChannelSelector({
       setSelectedChannelId(null);
     }
   }, [isOpen]);
+
+  const highlightedChannelId = useMemo(() => {
+    if (!channels.length) {
+      return null;
+    }
+    if (selectedChannelId && channels.some((c) => c.id === selectedChannelId)) {
+      return selectedChannelId;
+    }
+    return channels[0].id;
+  }, [channels, selectedChannelId]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -73,11 +85,11 @@ export function ForwardChannelSelector({
     ({ item }: { item: db.Channel }) => (
       <ForwardChannelListItem
         channel={item}
-        selected={selectedChannelId === item.id}
+        selected={highlightedChannelId === item.id}
         onPress={handleChannelSelected}
       />
     ),
-    [handleChannelSelected, selectedChannelId]
+    [handleChannelSelected, highlightedChannelId]
   );
 
   const contentContainerStyle = useMemo(
