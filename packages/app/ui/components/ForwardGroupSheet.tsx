@@ -9,12 +9,10 @@ import {
   useState,
 } from 'react';
 
-import { ActionSheet } from './ActionSheet';
-import { ForwardChannelSelector } from './ForwardChannelSelector';
 import {
-  FORWARD_SHEET_SNAP_POINTS,
   useForwardToChannelSheet,
 } from './useForwardToChannelSheet';
+import { ForwardToChannelSheet } from './ForwardToChannelSheet';
 
 const ForwardGroupSheetContext = createContext<{
   open: (group: db.Group) => void;
@@ -60,21 +58,13 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
   return (
     <ForwardGroupSheetContext.Provider value={contextValue}>
       {children}
-      <ActionSheet
+      <ForwardToChannelSheet
         open={isOpen}
         onOpenChange={handleOpenChange}
-        snapPointsMode="percent"
-        snapPoints={FORWARD_SHEET_SNAP_POINTS}
+        title="Forward group"
+        onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
-      >
-        <ActionSheet.Content flex={1} paddingBottom="$s">
-          <ActionSheet.SimpleHeader title={'Forward group'} />
-          <ForwardChannelSelector
-            isOpen={isOpen}
-            onChannelSelected={handleChannelSelected}
-          />
-        </ActionSheet.Content>
-      </ActionSheet>
+      />
     </ForwardGroupSheetContext.Provider>
   );
 };

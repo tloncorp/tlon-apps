@@ -9,12 +9,10 @@ import {
   useState,
 } from 'react';
 
-import { ActionSheet } from './ActionSheet';
-import { ForwardChannelSelector } from './ForwardChannelSelector';
 import {
-  FORWARD_SHEET_SNAP_POINTS,
   useForwardToChannelSheet,
 } from './useForwardToChannelSheet';
+import { ForwardToChannelSheet } from './ForwardToChannelSheet';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;
@@ -57,21 +55,13 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   return (
     <ForwardPostSheetContext.Provider value={contextValue}>
       {children}
-      <ActionSheet
+      <ForwardToChannelSheet
         open={isOpen}
         onOpenChange={handleOpenChange}
-        snapPointsMode="percent"
-        snapPoints={FORWARD_SHEET_SNAP_POINTS}
+        title="Forward to channel"
+        onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
-      >
-        <ActionSheet.Content flex={1} paddingBottom="$s">
-          <ActionSheet.SimpleHeader title={'Forward to channel'} />
-          <ForwardChannelSelector
-            isOpen={isOpen}
-            onChannelSelected={handleChannelSelected}
-          />
-        </ActionSheet.Content>
-      </ActionSheet>
+      />
     </ForwardPostSheetContext.Provider>
   );
 };
