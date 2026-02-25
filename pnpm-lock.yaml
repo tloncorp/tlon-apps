@@ -1085,6 +1085,9 @@ importers:
 
   packages/scripts:
     dependencies:
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../api
       '@tloncorp/shared':
         specifier: workspace:*
         version: link:../shared
