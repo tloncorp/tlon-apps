@@ -2,14 +2,8 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import { ComponentProps, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
-import { View, XStack, YStack, isWeb, useTheme } from 'tamagui';
+import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
@@ -25,6 +19,7 @@ import {
 import { PostErrorMessage } from '../PostErrorMessage';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
+import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -65,22 +60,6 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
-  // Highlight with fade-out: show immediately, hold for 3s, fade out over 2s
-  const theme = useTheme();
-  const highlightOpacity = useSharedValue(isHighlighted ? 1 : 0);
-  useEffect(() => {
-    if (isHighlighted) {
-      highlightOpacity.value = 1;
-      highlightOpacity.value = withDelay(3000, withTiming(0, { duration: 2000 }));
-    } else {
-      highlightOpacity.value = 0;
-    }
-  }, [isHighlighted, highlightOpacity]);
-
-  const highlightOverlayStyle = useAnimatedStyle(() => ({
-    opacity: highlightOpacity.value,
-  }));
-
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
@@ -219,22 +198,7 @@ const ChatMessage = ({
       testID="Post"
     >
       <YStack key={post.id}>
-        {isHighlighted && (
-          <Animated.View
-            style={[
-              {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: theme.secondaryBackground?.val,
-              },
-              highlightOverlayStyle,
-            ]}
-            pointerEvents="none"
-          />
-        )}
+        {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
         {showAuthor ? (
           <AuthorRow
             padding="$l"
