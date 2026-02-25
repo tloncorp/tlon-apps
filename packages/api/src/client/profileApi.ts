@@ -286,7 +286,16 @@ export async function getExposedPostCitesNormalized(): Promise<Set<string>> {
       path: '/v1/self',
     });
     const selfContact = getContactFromSelfScry(selfContactResponse);
-    return new Set(getExposeCitesFromContact(selfContact));
+    const rawCites = getExposeCitesFromContact(selfContact);
+    // Expand each cite to all path variants (UD, numeric, normalized) so
+    // lookups succeed regardless of which format the %expose agent stored.
+    const allVariants = new Set<string>();
+    for (const cite of rawCites) {
+      for (const variant of getReferencePathVariants(cite)) {
+        allVariants.add(variant);
+      }
+    }
+    return allVariants;
   } catch {
     return new Set();
   }

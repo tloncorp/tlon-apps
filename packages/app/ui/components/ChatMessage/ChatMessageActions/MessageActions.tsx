@@ -6,6 +6,7 @@ import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -201,6 +202,7 @@ function PublicProfileExposeAction({
 }) {
   const channel = useChannelContext();
   const showToast = useToast();
+  const queryClient = useQueryClient();
   const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
   const [isShownOnProfile, setIsShownOnProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -263,6 +265,7 @@ function PublicProfileExposeAction({
 
     try {
       await api.setPublicProfilePostShown(referencePath, nextShownState);
+      queryClient.invalidateQueries({ queryKey: ['exposedPostCites'] });
       triggerHaptic('success');
       dismiss();
       return;
@@ -278,7 +281,7 @@ function PublicProfileExposeAction({
     } finally {
       setIsUpdating(false);
     }
-  }, [dismiss, isShownOnProfile, isUpdating, referencePath, showToast]);
+  }, [dismiss, isShownOnProfile, isUpdating, queryClient, referencePath, showToast]);
 
   if (isLoading || !publicProfileEnabled) {
     return null;
