@@ -12,6 +12,7 @@ export interface PostCollectionContextValue {
   goToPost: (post: db.Post) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
+  highlightedPostId?: string | null;
   initialChannelUnread?: db.ChannelUnread | null;
   isLoadingPosts: boolean;
   loadPostsError?: Error | null;

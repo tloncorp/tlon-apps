@@ -50,7 +50,7 @@ export function ConnectedPostView({
     () => ({
       post: livePost,
       onPress: ctx.goToPost,
-      isHighlighted: ctx.selectedPostId === livePost.id,
+      isHighlighted: ctx.highlightedPostId === livePost.id,
       onPressRetry: () => ctx.onPressRetrySend(livePost),
       onPressDelete: () => ctx.onPressDelete(livePost),
       editPost,

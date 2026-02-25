@@ -98,6 +98,7 @@ const Scroller = forwardRef(
       setActiveMessage,
       isLoading,
       onPressScrollToBottom,
+      highlightedPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -127,6 +128,7 @@ const Scroller = forwardRef(
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
+      highlightedPostId?: string | null;
     },
     ref
   ) => {
@@ -262,7 +264,7 @@ const Scroller = forwardRef(
           <ScrollerItem
             item={post}
             index={index}
-            isSelected={isSelected}
+            isSelected={highlightedPostId != null && highlightedPostId === post.id}
             showUnreadDivider={showDividers && isFirstUnread}
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
