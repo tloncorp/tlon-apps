@@ -270,6 +270,7 @@ function NotebookPostHeader({
       {showAuthor && (
         <DetailViewAuthorRow
           authorId={post.authorId}
+          isBot={post.isBot ?? undefined}
           deliveryStatus={post.deliveryStatus}
           editStatus={post.editStatus}
           deleteStatus={post.deleteStatus}

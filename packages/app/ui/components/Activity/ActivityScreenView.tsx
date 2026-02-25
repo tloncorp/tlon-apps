@@ -34,6 +34,7 @@ export function ActivityScreenView({
   bucketFetchers,
   refresh,
   subtitle,
+  loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
 }: {
@@ -46,6 +47,7 @@ export function ActivityScreenView({
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
   subtitle?: string;
+  loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
 }) {
@@ -204,6 +206,7 @@ export function ActivityScreenView({
       seenMarker={activitySeenMarker ?? Date.now()}
       onGroupAction={onGroupAction}
       subtitle={subtitle}
+      loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
     />
@@ -224,6 +227,7 @@ export function ActivityScreenContent({
   onGroupAction,
   seenMarker,
   subtitle,
+  loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
 }: {
@@ -240,6 +244,7 @@ export function ActivityScreenContent({
   seenMarker: number;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   subtitle?: string;
+  loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
 }) {
@@ -307,6 +312,8 @@ export function ActivityScreenContent({
               activeTab={activeTab}
               onTabPress={onPressTab}
               markAllRead={markAllRead}
+              subtitle={subtitle}
+              loadingSubtitle={loadingSubtitle}
             />
             {currentTabIsEmpty ? (
               <XStack flex={1} justifyContent="center" paddingTop="$6xl">

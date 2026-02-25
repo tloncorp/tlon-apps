@@ -21,9 +21,9 @@ export const featureMeta = {
     label: 'Enable contacts tab',
     onlyTlon: false,
   },
-  fileUpload: {
+  markdownNotebooks: {
     default: false,
-    label: 'Enable uploading non-image files in chats',
+    label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
   recordVoiceMemos: {

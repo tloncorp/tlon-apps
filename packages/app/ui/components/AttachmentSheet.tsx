@@ -301,7 +301,6 @@ export default function AttachmentSheet({
       onAttach?.(uploadIntents);
     }
   }, [attachAssets, onOpenChange, onAttach]);
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
   const [canRecordVoiceMemos] = useFeatureFlag('recordVoiceMemos');
 
   const actionGroups: ActionGroup[] = useMemo(
@@ -327,12 +326,11 @@ export default function AttachmentSheet({
               description: 'Use the image currently in your clipboard',
               action: createAssetFromClipboard,
             },
-          canUploadFiles &&
-            mediaType === 'all' && {
-              title: 'Upload a File',
-              description: 'Upload files from your device',
-              action: startFilePicker,
-            },
+          mediaType === 'all' && {
+            title: 'Upload a File',
+            description: 'Upload files from your device',
+            action: startFilePicker,
+          },
           mediaType === 'all' &&
             canRecordVoiceMemos &&
             !isWeb && {
@@ -352,7 +350,6 @@ export default function AttachmentSheet({
       ),
     [
       startRecordingVoiceMemo,
-      canUploadFiles,
       canRecordVoiceMemos,
       onClearAttachments,
       pickImage,

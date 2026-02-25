@@ -22,7 +22,8 @@ export function ActivityScreen(props: Props) {
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
-  const { subtitle: syncSubtitle } = useSyncStatus();
+  const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
+    useSyncStatus();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -40,12 +41,12 @@ export function ActivityScreen(props: Props) {
     return allFetcher.isFetching && !allFetcher.activity.length;
   }, [allFetcher.isFetching, allFetcher.activity.length]);
 
-  const subtitle = useMemo(() => {
+  const loadingSubtitle = useMemo(() => {
     if (isLoading) {
       return 'Loading...';
     }
-    return syncSubtitle;
-  }, [isLoading, syncSubtitle]);
+    return syncLoadingSubtitle;
+  }, [isLoading, syncLoadingSubtitle]);
 
   const handleRefreshActivity = useCallback(async () => {
     return store.resetActivity();
@@ -106,7 +107,8 @@ export function ActivityScreen(props: Props) {
           goToUserProfile={handleGoToUserProfile}
           refresh={handleRefreshActivity}
           onGroupAction={performGroupAction}
-          subtitle={subtitle}
+          subtitle={syncSubtitle}
+          loadingSubtitle={loadingSubtitle}
           onNavigateToContacts={handleNavigateToContacts}
           onInviteFriends={handleInviteFriends}
         />

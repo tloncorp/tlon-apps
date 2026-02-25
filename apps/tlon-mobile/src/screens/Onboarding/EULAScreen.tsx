@@ -12,7 +12,6 @@ export const EULAScreen = ({ navigation }: Props) => {
       <ScreenHeader
         title="EULA"
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         backAction={() => navigation.goBack()}
       />
       <ScrollView style={{ flex: 1 }}>

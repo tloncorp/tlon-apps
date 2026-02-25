@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
@@ -35,11 +34,9 @@ export const FileDrop: FileDropComponent = ({
     [onAssetsDropped]
   );
 
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
   const { getInputProps, getRootProps } = useDropzone({
     onDrop: handleDrop,
     noClick: true,
-    accept: canUploadFiles ? undefined : { 'image/*': [] },
   });
 
   return (

@@ -253,10 +253,9 @@ const Scroller = forwardRef(
           previousItem?.type === 'notice' ||
           previousItem?.isDeleted === true ||
           isFirstPostOfDay;
+        const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
-
-        const isFirstUnread = post.id === firstUnreadId;
 
         return (
           <ScrollerItem
@@ -747,6 +746,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isIndexEqual = prev.index === next.index;
 
   const areOtherPropsEqual =
+    prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

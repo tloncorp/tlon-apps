@@ -5,6 +5,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
@@ -49,7 +50,7 @@ export function configureUrbitClient({
   ship: string;
   shipUrl: string;
   authType: 'self' | 'hosted';
-  onAuthFailure?: () => void;
+  onAuthFailure?: (params: { mustLogout: boolean }) => void;
 }) {
   configureClient({
     shipName: ship,
@@ -122,9 +123,25 @@ export function useConfigureUrbitClient() {
         ship: params?.shipName ?? ship ?? '',
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
         authType,
-        onAuthFailure: async () => {
+        onAuthFailure: async ({ mustLogout }) => {
           clientLogger.log('Client handling auth failure');
-          if (authType === 'self') {
+          if (mustLogout) {
+            clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+              authType,
+              context: 'Access code invalidated',
+            });
+            await new Promise<void>((resolve) => {
+              Alert.alert(
+                'Session Expired',
+                'Your access credentials are no longer valid. This can happen after a factory reset. Please log in again.',
+                [{ text: 'Logout', onPress: () => resolve() }],
+                {
+                  cancelable: false,
+                }
+              );
+            });
+            await logout();
+          } else if (authType === 'self') {
             // there's nothing we can do to recover, must log out
             clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
               authType,
