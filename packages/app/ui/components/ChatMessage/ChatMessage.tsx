@@ -2,15 +2,13 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import {
-  ComponentProps,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ComponentProps, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { View, XStack, YStack, isWeb, useTheme } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
@@ -67,34 +65,21 @@ const ChatMessage = ({
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
-  // Auto-dismiss highlight after 5 seconds
-  const [showHighlight, setShowHighlight] = useState(isHighlighted);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Highlight with fade-out: show immediately, hold for 3s, fade out over 2s
+  const theme = useTheme();
+  const highlightOpacity = useSharedValue(isHighlighted ? 1 : 0);
   useEffect(() => {
     if (isHighlighted) {
-      setShowHighlight(true);
-      highlightTimerRef.current = setTimeout(() => {
-        setShowHighlight(false);
-        highlightTimerRef.current = null;
-      }, 5000);
-      return () => {
-        if (highlightTimerRef.current) {
-          clearTimeout(highlightTimerRef.current);
-        }
-      };
+      highlightOpacity.value = 1;
+      highlightOpacity.value = withDelay(3000, withTiming(0, { duration: 2000 }));
     } else {
-      setShowHighlight(false);
+      highlightOpacity.value = 0;
     }
-  }, [isHighlighted]);
+  }, [isHighlighted, highlightOpacity]);
 
-  const theme = useTheme();
-  const highlightStyle = useMemo(
-    () =>
-      showHighlight
-        ? { backgroundColor: theme.secondaryBackground?.val }
-        : undefined,
-    [showHighlight, theme.secondaryBackground?.val]
-  );
+  const highlightOverlayStyle = useAnimatedStyle(() => ({
+    opacity: highlightOpacity.value,
+  }));
 
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -233,10 +218,23 @@ const ChatMessage = ({
       cursor="default"
       testID="Post"
     >
-      <YStack
-        style={highlightStyle}
-        key={post.id}
-      >
+      <YStack key={post.id}>
+        {isHighlighted && (
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: theme.secondaryBackground?.val,
+              },
+              highlightOverlayStyle,
+            ]}
+            pointerEvents="none"
+          />
+        )}
         {showAuthor ? (
           <AuthorRow
             padding="$l"
