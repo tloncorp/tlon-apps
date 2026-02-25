@@ -139,7 +139,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Navigate to Privacy settings to set channel permissions
   await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel privacy')).toBeVisible();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
 
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
@@ -223,7 +223,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Navigate to Privacy settings to modify channel permissions
   await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel privacy')).toBeVisible();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
 
   // Remove "Renamed role" from readers by clicking the X on the role chip
   await expect(page.getByText('Renamed role').first()).toBeVisible();

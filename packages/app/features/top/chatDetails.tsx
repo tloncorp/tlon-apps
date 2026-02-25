@@ -385,8 +385,8 @@ export function SettingsSection({
         (channel.writerRoles?.length ?? 0) > 0;
       return [
         {
-          title: 'Privacy',
-          endValue: isPrivate ? 'Private' : 'Public',
+          title: 'Permissions',
+          endValue: isPrivate ? 'Custom' : 'Public',
           testID: 'ChannelPrivacy',
           disabled: !actionsEnabled,
           onPress: handlePressEditChannelPrivacy,
