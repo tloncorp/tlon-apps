@@ -7,7 +7,9 @@ import {
   makePrettyDaysSince,
   makePrettyShortDate,
 } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import {
   BlockData,
   BlockFromType,
@@ -38,6 +40,7 @@ import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
@@ -98,6 +101,22 @@ export function GalleryPost({
 
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
+
+  const { data: exposedCites } = store.useExposedPostCites();
+  const exposeReferencePath = useMemo(() => {
+    const [kind, host, channelName] = post.channelId.split('/');
+    const postId = post.id.replaceAll('.', '');
+    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+  }, [post.channelId, post.id]);
+  const isExposed = useMemo(() => {
+    if (!exposedCites) return false;
+    return exposedCites.has(exposeReferencePath);
+  }, [exposeReferencePath, exposedCites]);
+  const publicPostUrl = useMemo(() => {
+    if (!isExposed) return null;
+    const shipUrl = api.getCurrentShipUrl();
+    return `${shipUrl}/expose${exposeReferencePath}`;
+  }, [isExposed, exposeReferencePath]);
 
   const handleRetryPressed = useCallback(async () => {
     try {
@@ -208,6 +227,8 @@ export function GalleryPost({
             post={post}
             deliveryFailed={deliveryFailed}
             onPressRetry={handleRetryPressed}
+            isExposed={isExposed}
+            publicPostUrl={publicPostUrl ?? undefined}
           />
         )}
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
@@ -293,11 +314,15 @@ export function GalleryPostFooter({
   post,
   deliveryFailed,
   onPressRetry,
+  isExposed,
+  publicPostUrl,
   ...props
 }: {
   post: db.Post;
   deliveryFailed?: boolean;
   onPressRetry?: () => void;
+  isExposed?: boolean;
+  publicPostUrl?: string;
 } & ComponentProps<typeof XStack>) {
   const isWindowNarrow = useIsWindowNarrow();
   const retryVerb = useMemo(() => {
@@ -332,11 +357,21 @@ export function GalleryPostFooter({
             </Text>
           </Pressable>
         ) : (
-          <XStack alignItems="center" gap="$xs" justifyContent="center">
-            <Text size="$label/m" color="$tertiaryText">
-              {post.replyCount}
-            </Text>
-            <Icon color="$tertiaryText" size="$s" type="Messages" />
+          <XStack alignItems="center" gap="$m">
+            {isExposed && (
+              <ChatMessageReplySummary
+                post={post}
+                showTime={false}
+                showPubliclyViewable
+                publicPostUrl={publicPostUrl}
+              />
+            )}
+            <XStack alignItems="center" gap="$xs" justifyContent="center">
+              <Text size="$label/m" color="$tertiaryText">
+                {post.replyCount}
+              </Text>
+              <Icon color="$tertiaryText" size="$s" type="Messages" />
+            </XStack>
           </XStack>
         )}
       </XStack>
@@ -360,6 +395,22 @@ export function GalleryPostDetailView({
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const content = usePostContent(post);
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
+
+  const { data: exposedCites } = store.useExposedPostCites();
+  const exposeReferencePath = useMemo(() => {
+    const [kind, host, channelName] = post.channelId.split('/');
+    const postId = post.id.replaceAll('.', '');
+    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+  }, [post.channelId, post.id]);
+  const isExposed = useMemo(() => {
+    if (!exposedCites) return false;
+    return exposedCites.has(exposeReferencePath);
+  }, [exposeReferencePath, exposedCites]);
+  const publicPostUrl = useMemo(() => {
+    if (!isExposed) return null;
+    const shipUrl = api.getCurrentShipUrl();
+    return `${shipUrl}/expose${exposeReferencePath}`;
+  }, [isExposed, exposeReferencePath]);
 
   const firstImage = useMemo(() => {
     const img = content.find((block) => block.type === 'image');
@@ -432,6 +483,15 @@ export function GalleryPostDetailView({
           color="$primaryText"
           showSentAt={true}
         />
+
+        {isExposed && (
+          <ChatMessageReplySummary
+            post={post}
+            showTime={false}
+            showPubliclyViewable
+            publicPostUrl={publicPostUrl ?? undefined}
+          />
+        )}
 
         {post.title ? <Text size="$body">{post.title}</Text> : null}
 
