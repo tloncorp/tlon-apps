@@ -5,6 +5,7 @@ import {
   validateNickname,
 } from '@tloncorp/shared/logic';
 import {
+  Button,
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
@@ -16,6 +17,7 @@ import {
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, useTheme } from 'tamagui';
@@ -33,6 +35,7 @@ import {
   ControlledTextareaField,
   Field,
   FormFrame,
+  TextInput,
 } from './Form';
 import { ScreenHeader } from './ScreenHeader';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
@@ -460,6 +463,17 @@ function PublicProfileControls() {
     useState<Record<string, boolean>>(DEFAULT_WIDGET_STATE);
   const [updatingWidget, setUpdatingWidget] = useState<string | null>(null);
 
+  const publicProfileUrl = useMemo(
+    () => `${api.getCurrentShipUrl()}/profile`,
+    []
+  );
+
+  const handleCopyProfileUrl = useCallback(() => {
+    Clipboard.setString(publicProfileUrl);
+    triggerHaptic('baseButtonClick');
+    showToast({ message: 'Profile URL copied', duration: 2000 });
+  }, [publicProfileUrl, showToast]);
+
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -550,50 +564,69 @@ function PublicProfileControls() {
 
   return (
     <Field label="Public profile">
-      <XStack
-        alignItems="center"
-        justifyContent="space-between"
-        paddingHorizontal="$2xl"
-        paddingVertical="$2xl"
+      <YStack
         borderRadius="$xl"
         borderWidth={1}
         borderColor="$border"
+        overflow="hidden"
       >
-        <Text size="$body">Public /profile page</Text>
-        <Switch
-          value={isEnabled}
-          onValueChange={handleToggle}
-          disabled={isLoading || isUpdating}
-        />
-      </XStack>
-      {isEnabled ? (
-        <YStack
-          marginTop="$l"
-          gap="$l"
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
           paddingHorizontal="$2xl"
           paddingVertical="$2xl"
-          borderRadius="$xl"
-          borderWidth={1}
-          borderColor="$border"
         >
-          {PUBLIC_PROFILE_WIDGETS.map((widget) => (
-            <XStack
-              key={widget.term}
-              justifyContent="space-between"
-              alignItems="center"
+          <Text size="$body">Public /profile page</Text>
+          <Switch
+            value={isEnabled}
+            onValueChange={handleToggle}
+            disabled={isLoading || isUpdating}
+          />
+        </XStack>
+        {isEnabled ? (
+          <>
+            <View
+              paddingHorizontal="$2xl"
+              paddingTop="$l"
+              paddingBottom="$l"
+              borderTopWidth={1}
+              borderTopColor="$border"
             >
-              <Text size="$body">{widget.label}</Text>
-              <Switch
-                value={widgetState[widget.term] ?? false}
-                onValueChange={(value) => {
-                  void handleWidgetToggle(widget.term, value);
-                }}
-                disabled={isLoading || isUpdating || updatingWidget !== null}
+              <TextInput
+                value={publicProfileUrl}
+                editable={false}
+                rightControls={
+                  <Button
+                    icon="Copy"
+                    size="small"
+                    fill="ghost"
+                    intent="secondary"
+                    onPress={handleCopyProfileUrl}
+                  />
+                }
               />
-            </XStack>
-          ))}
-        </YStack>
-      ) : null}
+            </View>
+            {PUBLIC_PROFILE_WIDGETS.map((widget) => (
+              <XStack
+                key={widget.term}
+                justifyContent="space-between"
+                alignItems="center"
+                paddingHorizontal="$2xl"
+                paddingVertical="$2xl"
+              >
+                <Text size="$body">{widget.label}</Text>
+                <Switch
+                  value={widgetState[widget.term] ?? false}
+                  onValueChange={(value) => {
+                    void handleWidgetToggle(widget.term, value);
+                  }}
+                  disabled={isLoading || isUpdating || updatingWidget !== null}
+                />
+              </XStack>
+            ))}
+          </>
+        ) : null}
+      </YStack>
     </Field>
   );
 }
