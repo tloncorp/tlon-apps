@@ -18,7 +18,7 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
-import { fileFromPath } from '../utils/file';
+import { File as fs } from '../utils';
 import { makeMention, makeParagraph, makeText } from './tiptap';
 
 const logger = createDevLogger('content-helpers', false);
@@ -695,7 +695,9 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+              : fs.filenameFromPath(attachment.localFile, {
+                  decodeURI: true,
+                })) ??
             undefined;
           blob = appendFileUploadToPostBlob(blob, {
             fileUri: UploadedFileAttachment.uri(attachment),
