@@ -1,11 +1,12 @@
 import * as db from '@tloncorp/shared/db';
+import { defaultTemplateChannelTitles } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { XStack, YStack } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
-import { useChannelTitle, useIsAdmin } from '../../utils';
+import { useChatTitle, useIsAdmin } from '../../utils';
 import WayfindingNotice from '../Wayfinding/Notices';
 
 export function EmptyChannelNotice({
@@ -25,31 +26,42 @@ export function EmptyChannelNotice({
     useChatOptions();
   const group = useGroup(channel.groupId ?? '');
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
-  const channelTitle = useChannelTitle(channel);
   const isDefaultPersonalChannel = useMemo(() => {
     return logic.isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
 
   const isSingleChannelGroup = (group?.channels?.length ?? 0) <= 1;
+  const title = useChatTitle(channel, group);
+  const displayTitle = !title || title === 'Untitled group' ? 'your group' : title;
+  const headingTitle = useMemo(() => {
+    if (!title || title === 'Untitled group') return 'your group';
+    if (!isSingleChannelGroup && group?.title && defaultTemplateChannelTitles.has(title)) {
+      return `${group.title}'s ${title}`;
+    }
+    return title;
+  }, [title, isSingleChannelGroup, group?.title]);
   const memberCount = group?.members?.length ?? group?.memberCount ?? 0;
   const roleCount = group?.roles?.length ?? 0;
   const memberText = memberCount === 1 ? '1 Member' : `${memberCount} Members`;
   const roleText = roleCount === 1 ? '1 Role' : `${roleCount} Roles`;
 
   const subtitle = useMemo(() => {
-    const name = channelTitle ?? 'this channel';
+    const name = displayTitle;
     if (channel.type === 'dm') {
       return `This is the start of your conversation.`;
     }
     if (channel.type === 'groupDm') {
       return `This is the start of this group conversation.`;
     }
+    if (isSingleChannelGroup) {
+      return `This is the start of ${name}.`;
+    }
     const privacy = group?.privacy;
     if (privacy) {
-      return `This is the start of the ${name} ${privacy} channel.`;
+      return `This is the start of the ${privacy} ${name} channel.`;
     }
     return `This is the start of the ${name} channel.`;
-  }, [channel.type, group?.privacy, channelTitle]);
+  }, [channel.type, isSingleChannelGroup, group?.privacy, displayTitle]);
 
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
@@ -97,7 +109,7 @@ export function EmptyChannelNotice({
       gap="$m"
     >
       <Text size="$title/l" color="$primaryText">
-        Welcome to {channelTitle}!
+        Welcome to {headingTitle}!
       </Text>
       <Text size="$label/l" color="$secondaryText">
         {subtitle}
