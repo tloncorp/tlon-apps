@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { defaultTemplateChannelTitles } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
-import { XStack, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
 import { useChatTitle, useIsAdmin } from '../../utils';
@@ -22,8 +22,12 @@ export function EmptyChannelNotice({
   loadPostsError?: Error | null;
   onPressRetryLoad?: () => void;
 }) {
-  const { onPressInvite, onPressGroupMeta, onPressChannelMeta, onPressChatDetails } =
-    useChatOptions();
+  const {
+    onPressInvite,
+    onPressGroupMeta,
+    onPressChannelMeta,
+    onPressChatDetails,
+  } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isDefaultPersonalChannel = useMemo(() => {
@@ -32,10 +36,15 @@ export function EmptyChannelNotice({
 
   const isSingleChannelGroup = (group?.channels?.length ?? 0) <= 1;
   const title = useChatTitle(channel, group);
-  const displayTitle = !title || title === 'Untitled group' ? 'your group' : title;
+  const displayTitle =
+    !title || title === 'Untitled group' ? 'your group' : title;
   const headingTitle = useMemo(() => {
     if (!title || title === 'Untitled group') return 'your group';
-    if (!isSingleChannelGroup && group?.title && defaultTemplateChannelTitles.has(title)) {
+    if (
+      !isSingleChannelGroup &&
+      group?.title &&
+      defaultTemplateChannelTitles.has(title)
+    ) {
       return `${group.title}'s ${title}`;
     }
     return title;
@@ -104,61 +113,50 @@ export function EmptyChannelNotice({
     <YStack
       flex={1}
       justifyContent="flex-end"
-      paddingHorizontal="$l"
-      paddingBottom="$l"
-      gap="$m"
+      paddingHorizontal="$xl"
+      paddingVertical={'$2xl'}
     >
-      <Text size="$title/l" color="$primaryText">
-        Welcome to {headingTitle}!
-      </Text>
-      <Text size="$label/l" color="$secondaryText">
-        {subtitle}
-      </Text>
+      <YStack gap="$xl" paddingBottom="$2xl" paddingLeft="$xl">
+        <Text size="$title/l" color="$primaryText">
+          Welcome to {headingTitle}!
+        </Text>
+        <Text size="$body" color="$secondaryText">
+          {subtitle}
+        </Text>
+      </YStack>
       {isGroupAdmin && (
-        <YStack gap="$m" marginTop="$s">
-          <Pressable
-            flexDirection="row"
-            alignItems="center"
-            gap="$s"
+        <YStack>
+          <Button
+            fill="ghost"
+            intent="positive"
+            centered={false}
+            label="Invite people"
+            leadingIcon="Add"
             onPress={onPressInvite}
-          >
-            <Icon type="Add" color="$positiveActionText" size="$s" />
-            <Text size="$label/l" color="$positiveActionText">
-              Invite people
-            </Text>
-          </Pressable>
-          <Pressable
-            flexDirection="row"
-            alignItems="center"
-            gap="$s"
-            onPress={isSingleChannelGroup ? () => onPressGroupMeta() : onPressChannelMeta}
-          >
-            <Icon type="Channel" color="$positiveActionText" size="$s" />
-            <Text size="$label/l" color="$positiveActionText">
-              {isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
-            </Text>
-          </Pressable>
-          <Pressable
-            flexDirection="row"
-            alignItems="center"
-            justifyContent="space-between"
-            backgroundColor="$secondaryBackground"
-            borderRadius="$xl"
-            paddingHorizontal="$l"
-            paddingVertical="$m"
+          />
+          <Button
+            fill="ghost"
+            intent="positive"
+            centered={false}
+            label={isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
+            leadingIcon="Channel"
+            onPress={
+              isSingleChannelGroup
+                ? () => onPressGroupMeta()
+                : onPressChannelMeta
+            }
+          />
+          <Button
+            preset="secondaryOutline"
+            centered={false}
+            label={`${memberText} · ${roleText}`}
+            leadingIcon={'Settings'}
+            trailingIcon={'ChevronRight'}
             onPress={() =>
               channel.groupId &&
               onPressChatDetails({ type: 'group', id: channel.groupId })
             }
-          >
-            <XStack gap="$s" alignItems="center">
-              <Icon type="Profile" color="$tertiaryText" size="$s" />
-              <Text size="$label/l" color="$primaryText">
-                {memberText} · {roleText}
-              </Text>
-            </XStack>
-            <Icon type="ChevronRight" color="$tertiaryText" size="$s" />
-          </Pressable>
+          />
         </YStack>
       )}
     </YStack>
