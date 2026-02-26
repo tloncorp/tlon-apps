@@ -1177,6 +1177,8 @@ export function toPostsData(
     otherPosts.push(postData);
   }
 
+  const ownEncryptedSentAts: number[] = [];
+
   // Attempt decryption of signal:message posts in time order.
   // Messages that arrived while the app was closed can be decrypted if the
   // ratchet state was properly backed up. Already-decrypted messages (ratchet
@@ -1190,7 +1192,6 @@ export function toPostsData(
     }
 
     let didDecrypt = false;
-    const ownEncryptedSentAts: number[] = [];
     const signalCount = (blob: string | null | undefined): number => {
       if (!blob || !isSignalBlob(blob)) return Number.POSITIVE_INFINITY;
       try {
@@ -1279,7 +1280,12 @@ export function toPostsData(
   // This clears the "sending" indicator without overwriting plaintext content.
   if (ownEncryptedSentAts.length > 0) {
     db.confirmPostDelivery({ channelId, sentAts: ownEncryptedSentAts }).catch(
-      () => {}
+      (error) => {
+        logger.log('confirmPostDelivery failed after historical decrypt', {
+          channelId,
+          error,
+        });
+      }
     );
   }
 
