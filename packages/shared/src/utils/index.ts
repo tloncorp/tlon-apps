@@ -17,3 +17,4 @@ export * from './number';
 export * from './formatMemorySize';
 export * from './deferred';
 export * from './useMockedQuery';
+export { default as File } from './files';

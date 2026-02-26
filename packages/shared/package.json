@@ -69,6 +69,8 @@
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": "*",
+    "expo-file-system": "*",
+    "expo-av": "*",
     "@tanstack/react-query": "^5.32.1",
     "@tiptap/core": "^2.6.6",
     "@tiptap/pm": "^2.6.6",

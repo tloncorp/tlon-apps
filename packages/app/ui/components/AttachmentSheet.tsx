@@ -3,6 +3,7 @@ import {
   PLACEHOLDER_ASSET_URI,
   createDevLogger,
 } from '@tloncorp/shared';
+import { File as fs } from '@tloncorp/shared/utils';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -19,7 +20,6 @@ import { isWeb } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
-import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,

@@ -10,6 +10,9 @@ const module: FilesModule = {
   getFileSize(uri: string): number | null {
     return new File(uri).size;
   },
+  getMd5(uri: string): string | null {
+    return new File(uri).md5;
+  },
   async getAudioFileDurationSeconds(uri: string): Promise<number | null> {
     const soundPlayer = new AV.Audio.Sound();
     try {
