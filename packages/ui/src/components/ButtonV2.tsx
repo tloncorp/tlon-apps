@@ -253,6 +253,10 @@ const ButtonFrame = styled(Pressable, {
     symmetricPadding: {
       small: { paddingHorizontal: '$xl' },
     },
+    centered: {
+      true: { justifyContent: 'center' },
+      false: { justifyContent: 'flex-start' },
+    },
     shadow: {
       true: {
         shadowColor: '$shadow',
@@ -269,6 +273,7 @@ const ButtonFrame = styled(Pressable, {
     fill: 'solid',
     intent: 'primary',
     disabled: false,
+    centered: true,
   },
 });
 
@@ -386,7 +391,7 @@ function ButtonImpl({
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
   const fill = fillProp ?? presetConfig?.fill ?? 'solid';
   const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
-  const centered = centeredProp ?? presetConfig?.centered ?? false;
+  const centered = centeredProp ?? presetConfig?.centered ?? true;
 
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;
@@ -429,6 +434,7 @@ function ButtonImpl({
         size={size}
         fill={fill}
         intent={intent}
+        centered={centered}
         iconOnly={isIconOnly}
         hasLeadingIcon={leadingIcon && size === 'small' ? 'small' : undefined}
         symmetricPadding={
