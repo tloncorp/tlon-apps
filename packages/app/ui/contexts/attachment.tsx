@@ -214,8 +214,8 @@ export const AttachmentProvider = ({
     for (const att of attachments) {
       if (att.type === 'voicememo' && att.transcription == null) {
         Transcription.requestTranscriptionPermissionsIfNeeded().then(
-          ({ authorized }) => {
-            if (authorized) {
+          ({ status }) => {
+            if (status === 'granted') {
               Transcription.transcribeAudioFileWithGlobalCache(
                 att.localUri
               ).then((text) => {

@@ -62,8 +62,8 @@ export async function finalizePostDraft(
       // attachment, and if the user declines, we want to bail out of the outer
       // loop.
       if (
-        !(await Transcription.requestTranscriptionPermissionsIfNeeded())
-          .authorized
+        (await Transcription.requestTranscriptionPermissionsIfNeeded())
+          .status !== 'granted'
       ) {
         break transcribeAll;
       }
