@@ -17,7 +17,35 @@ export * from './storageApi';
 export * from './vitalsApi';
 export * from './lanyardApi';
 export * from './inviteApi';
-export * from './hostingApi';
+export {
+  HostingError,
+  addUserToWaitlist,
+  allocateReservedShip,
+  assignShipToUser,
+  bootShip,
+  checkIfAccountDeleted,
+  checkPhoneVerify,
+  clearShipRevivalStatus,
+  getHostingAvailability,
+  getHostingHeartBeat,
+  getHostingUser,
+  getNodeStatus,
+  getReservableShips,
+  getShip,
+  getShipAccessCode,
+  inviteShipWithLure,
+  logInHostingUser,
+  requestLoginOtp,
+  requestPasswordReset,
+  requestPhoneVerify,
+  requestSignupOtp,
+  reserveShip,
+  resendEmailVerification,
+  resumeShip,
+  signUpHostingUser,
+  verifyEmailDigits,
+} from './hostingApi';
+export type { HostingHeartBeatCode } from './hostingApi';
 export * from './apiUtils';
 export * from './systemContactsApi';
 export * from './metagrabApi';
