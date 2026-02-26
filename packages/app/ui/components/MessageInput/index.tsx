@@ -9,6 +9,7 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore -- generated editorHtml asset has no stable typings across all workspace tsc projects
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
