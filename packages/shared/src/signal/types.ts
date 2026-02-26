@@ -63,7 +63,8 @@ export type AuthType = 'passkey' | 'passphrase';
 export type SignalBlobType =
   | 'signal:send-initiation'
   | 'signal:init-ack'
-  | 'signal:message';
+  | 'signal:message'
+  | 'signal:rekey';
 
 export interface SignalBlob {
   type: SignalBlobType;

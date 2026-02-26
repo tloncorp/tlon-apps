@@ -28,7 +28,10 @@ const logger = createDevLogger('signalActions', false);
 
 export async function setupPasskeyAuth(): Promise<void> {
   const userId = getCurrentUserId();
+  // Notify peers to discard their sessions before we rekey
+  await broadcastRekey();
   const passkey = await passkeyRegister(userId);
+  signalStore.clearAllSessions();
   finalizeAuth(passkey, 'passkey');
 
   const spk = signalStore.getSpk();
@@ -45,7 +48,10 @@ export async function setupPasskeyAuth(): Promise<void> {
 export async function setupPassphraseAuth(
   passphrase: string
 ): Promise<void> {
+  // Notify peers to discard their sessions before we rekey
+  await broadcastRekey();
   const passkey = await registerWithPassphrase(passphrase);
+  signalStore.clearAllSessions();
   finalizeAuth(passkey, 'passphrase');
 
   const spk = signalStore.getSpk();
@@ -100,6 +106,34 @@ export function isSignalUnlocked(): boolean {
 
 export function getSignalAuthType() {
   return signalStore.authType;
+}
+
+// --- Rekey ---
+
+/**
+ * Notify all peers with active sessions to discard them.
+ * Called before re-registration so the peer tears down its
+ * old session and accepts the upcoming fresh initiation.
+ */
+async function broadcastRekey(): Promise<void> {
+  const sessions = signalStore.getAllSessions();
+  const authorId = getCurrentUserId();
+  const blob = makeSignalBlob('signal:rekey', {});
+  const promises: Promise<void>[] = [];
+  for (const [channelId, session] of sessions) {
+    if (session.status === 'active' || session.status === 'pending') {
+      promises.push(
+        sendPost({
+          channelId,
+          authorId,
+          sentAt: Date.now(),
+          content: [{ inline: [{ bold: ['Encryption keys changed'] }] }],
+          blob,
+        }).catch((e) => logger.log('failed to send rekey', channelId, e))
+      );
+    }
+  }
+  await Promise.allSettled(promises);
 }
 
 // --- E2E Lifecycle ---
@@ -276,9 +310,21 @@ export function processSignalBlob(
 
   // Skip processing our own handshake blobs — we already handled them when sending
   if (authorId === currentUserId) {
-    if (signalMsg.type === 'signal:send-initiation' || signalMsg.type === 'signal:init-ack') {
+    if (
+      signalMsg.type === 'signal:send-initiation' ||
+      signalMsg.type === 'signal:init-ack' ||
+      signalMsg.type === 'signal:rekey'
+    ) {
       return 'handshake';
     }
+  }
+
+  if (signalMsg.type === 'signal:rekey') {
+    // Peer rotated their keys — discard our session so the
+    // subsequent initiation can establish a fresh one.
+    logger.log('processSignalBlob: peer rekeyed, discarding session', channelId);
+    signalStore.removeSession(channelId);
+    return 'handshake';
   }
 
   if (signalMsg.type === 'signal:send-initiation') {
@@ -301,14 +347,19 @@ function handleInitiation(
   payload: Record<string, string>,
   authorId: string
 ): 'handshake' {
-  // Don't overwrite an existing active session — this prevents the
-  // double-initiation race where both ships send initiations and each
-  // overwrites the other's session with mismatched key material.
   const existing = signalStore.getSession(channelId);
-  if (existing?.status === 'active') {
-    logger.log('handleInitiation: session already active, skipping');
-    return 'handshake';
+  if (existing?.status === 'pending') {
+    // Both ships initiated simultaneously — use deterministic tie-breaker.
+    // The ship with the lower name wins as initiator; the other becomes
+    // responder by accepting this initiation.
+    const currentUserId = getCurrentUserId();
+    if (currentUserId < authorId) {
+      logger.log('handleInitiation: double-initiation race, we win as initiator');
+      return 'handshake';
+    }
+    logger.log('handleInitiation: double-initiation race, accepting theirs');
   }
+  // Active sessions are always replaced — the peer may have rotated keys.
 
   const ephemeral = toBytes(payload.ephemeral);
   const theirIdentityDHPub = toBytes(payload.public);

@@ -1462,7 +1462,7 @@ export function toPostData(
     result.blob = null;
     try {
       const sig = parseSignalBlob(post.essay.blob);
-      if (sig.type === 'signal:send-initiation' || sig.type === 'signal:init-ack') {
+      if (sig.type === 'signal:send-initiation' || sig.type === 'signal:init-ack' || sig.type === 'signal:rekey') {
         result.type = 'notice';
       } else if (sig.type === 'signal:message') {
         // Historical encrypted message that can't be decrypted inline.

@@ -278,9 +278,11 @@ export default ({ mode }: { mode: string }) => {
           : {}),
       },
     },
+    assetsInclude: ['**/*.wasm'],
     optimizeDeps: {
       exclude: [
         'sqlocal',
+        'signal-core',
         ...(mode === 'electron' ? ['virtual:pwa-register/react'] : []),
       ],
     },

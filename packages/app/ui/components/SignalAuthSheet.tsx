@@ -258,17 +258,18 @@ export function SignalAuthSheet({
           </>
         )}
 
-        {step !== 'choose' && !isReturning && (
+        {step !== 'choose' && (
           <ActionSheet.FormBlock>
             <Button
               preset="secondary"
               onPress={() => {
+                setIsReturning(false);
                 setStep('choose');
                 setError(null);
                 reset();
               }}
               disabled={busy}
-              label="Use a different method"
+              label={isReturning ? 'Reset and create new identity' : 'Use a different method'}
               centered
             />
           </ActionSheet.FormBlock>

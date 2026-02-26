@@ -179,7 +179,7 @@ export function subscribeToChatUpdates(
           if (isOwnPost) {
             // Own handshake blobs: emit as notice for display
             const ownSig = parseSignalBlob(rawBlob);
-            if (ownSig.type === 'signal:send-initiation' || ownSig.type === 'signal:init-ack') {
+            if (ownSig.type === 'signal:send-initiation' || ownSig.type === 'signal:init-ack' || ownSig.type === 'signal:rekey') {
               return eventHandler({
                 type: 'addPost',
                 post: { ...post, type: 'notice' },

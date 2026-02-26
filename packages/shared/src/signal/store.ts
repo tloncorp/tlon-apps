@@ -128,6 +128,10 @@ class SignalStore {
     this.sessions.delete(channelId);
   }
 
+  clearAllSessions(): void {
+    this.sessions.clear();
+  }
+
   isE2EActive(channelId: string): boolean {
     const session = this.sessions.get(channelId);
     return session?.status === 'active';

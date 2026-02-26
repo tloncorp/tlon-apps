@@ -3,6 +3,7 @@
   "version": "5.7.0",
   "private": true,
   "scripts": {
+    "prebuild": "pnpm --filter @tloncorp/shared build:wasm",
     "build": "vite build",
     "build:test": "cross-env VITE_DISABLE_SPLASH_MODAL=true vite build",
     "build:mock": "tsc && vite build --mode staging",

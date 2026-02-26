@@ -26,3 +26,4 @@ dump.sqlite3
 # Signal WASM
 packages/shared/src/signal/pkg/
 core/target/
+packages/shared/src/signal/core/target/

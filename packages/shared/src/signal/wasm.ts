@@ -10,12 +10,7 @@ interface SignalCoreModule {
 let initPromise: Promise<SignalCoreModule> | null = null;
 
 async function load(): Promise<SignalCoreModule> {
-  // Use a variable to prevent Rollup from statically resolving this import.
-  // The WASM pkg is built separately (build:wasm) and won't exist during
-  // the main vite build — it's loaded at runtime only when passphrase auth
-  // is actually used.
-  const modPath = './pkg/signal_core';
-  const mod = await (Function('p', 'return import(p)')(modPath) as Promise<SignalCoreModule>);
+  const mod: SignalCoreModule = await import('./pkg/signal_core');
   const initWasm = mod.default;
   await initWasm();
   return mod;
