@@ -18,39 +18,7 @@ export * from './lanyardApi';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './landscapeApi';
-
-// Temporary: keep these as explicit re-exports to reduce cycle-related
-// initialization issues. Revert to barrel-style export after API/storage
-// boundaries are further decoupled.
-export {
-  HostingError,
-  addUserToWaitlist,
-  allocateReservedShip,
-  assignShipToUser,
-  bootShip,
-  checkIfAccountDeleted,
-  checkPhoneVerify,
-  clearShipRevivalStatus,
-  getHostingAvailability,
-  getHostingHeartBeat,
-  getHostingUser,
-  getNodeStatus,
-  getReservableShips,
-  getShip,
-  getShipAccessCode,
-  inviteShipWithLure,
-  logInHostingUser,
-  requestLoginOtp,
-  requestPasswordReset,
-  requestPhoneVerify,
-  requestSignupOtp,
-  reserveShip,
-  resendEmailVerification,
-  resumeShip,
-  signUpHostingUser,
-  verifyEmailDigits,
-} from './hostingApi';
-export type { HostingHeartBeatCode } from './hostingApi';
+export * from './hostingApi';
 
 // Supporting types + utilities
 export * from './upload';
