@@ -27,3 +27,4 @@ export * from './systemContactActions';
 export * from './blockingActions';
 export * from './metagrabActions';
 export { useChannelContext } from './useChannelContext';
+export * from './signalActions';

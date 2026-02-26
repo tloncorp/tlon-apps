@@ -28,7 +28,8 @@
     "./urbit/sigil": "./src/urbit/sigil.ts",
     "./urbit/ui": "./src/urbit/ui.ts",
     "./urbit/volume": "./src/urbit/volume.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./signal": "./src/signal/index.ts"
   },
   "scripts": {
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
@@ -62,7 +63,10 @@
     "sorted-btree": "^1.8.1",
     "unified": "^11.0.0",
     "uuid": "^9.0.0",
-    "validator": "^13.7.0"
+    "validator": "^13.7.0",
+    "@noble/curves": "^1.4.0",
+    "@noble/ciphers": "^0.5.0",
+    "@noble/hashes": "^1.4.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",

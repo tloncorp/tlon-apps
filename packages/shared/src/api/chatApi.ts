@@ -1,11 +1,17 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { isSignalBlob } from '../signal/types';
+import {
+  processSignalBlob,
+  decryptPostBlob,
+} from '../store/signalActions';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
   deriveFullWritReply,
   fromClientMeta,
   getCanonicalPostId,
+  isDmChannelId,
   toClientMeta,
 } from './apiUtils';
 import {
@@ -160,7 +166,62 @@ export function subscribeToChatUpdates(
       if ('add' in delta) {
         logger.log('add dm', id, delta);
         const writ = deriveFullWrit(id, delta);
-        const post = toPostData(channelId, writ);
+        let post = toPostData(channelId, writ);
+
+        // Signal Protocol intercept for DMs
+        if (isDmChannelId(channelId) && post.blob && isSignalBlob(post.blob)) {
+          const currentUserId = getCurrentUserId();
+          const isOwnPost = post.authorId === currentUserId;
+
+          if (isOwnPost) {
+            // Own posts: strip the signal blob so it doesn't render as
+            // "Upgrade your app". The sender already has the optimistic
+            // plaintext post locally — we just need to suppress the blob.
+            return eventHandler({
+              type: 'addPost',
+              post: { ...post, blob: null },
+            });
+          }
+
+          const blobType = processSignalBlob(
+            channelId,
+            post.blob,
+            post.authorId
+          );
+
+          if (blobType === 'handshake') {
+            // Handshake message — show as system notice, strip signal blob
+            return eventHandler({
+              type: 'addPost',
+              post: {
+                ...post,
+                blob: null,
+                textContent: 'Encrypted conversation established',
+              },
+            });
+          }
+
+          if (blobType === 'message') {
+            // Encrypted message — decrypt and replace content
+            const decrypted = decryptPostBlob(channelId, post.blob!);
+            if (decrypted) {
+              post = {
+                ...post,
+                content: JSON.stringify(decrypted.content),
+                blob: decrypted.blob ?? null,
+                textContent: undefined,
+              };
+            } else {
+              // Decryption failed — strip signal blob, show error
+              post = {
+                ...post,
+                blob: null,
+                textContent: 'Failed to decrypt message',
+              };
+            }
+          }
+        }
+
         return eventHandler({ type: 'addPost', post });
       }
 

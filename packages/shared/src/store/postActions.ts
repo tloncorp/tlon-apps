@@ -1,11 +1,12 @@
 import * as api from '../api';
-import { toPostContent } from '../api';
+import { isDmChannelId, toPostContent } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
+import { encryptPostContent, isE2EActive, backupRatchetState } from './signalActions';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -261,6 +262,27 @@ async function _sendPost({
         }),
       });
 
+      // Signal E2E encryption intercept: encrypt content for DMs with active E2E
+      let sendContent = finalizedPostData.content;
+      let sendBlob = finalizedPostData.blob;
+      if (
+        isDmChannelId(channel.id) &&
+        isE2EActive(channel.id) &&
+        finalizedPostData.replyToPostId == null
+      ) {
+        const encrypted = encryptPostContent(
+          channel.id,
+          finalizedPostData.content,
+          finalizedPostData.blob
+        );
+        if (encrypted) {
+          sendContent = encrypted.content as typeof sendContent;
+          sendBlob = encrypted.blob;
+          // Schedule state backup after send
+          backupRatchetState(channel.id).catch(() => {});
+        }
+      }
+
       // Send to the appropriate API endpoint based on whether this is a reply
       if (finalizedPostData.replyToPostId != null) {
         // Reply - look up parent author from DB
@@ -287,8 +309,8 @@ async function _sendPost({
         return api.sendPost({
           channelId: channel.id,
           authorId,
-          content: finalizedPostData.content,
-          blob: finalizedPostData.blob,
+          content: sendContent,
+          blob: sendBlob,
           metadata: finalizedPostData.metadata,
           sentAt: cachePost.sentAt,
         });

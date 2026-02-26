@@ -24,3 +24,4 @@ export * from './systemContactsApi';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './vitalsApi';
+export * from './signalApi';

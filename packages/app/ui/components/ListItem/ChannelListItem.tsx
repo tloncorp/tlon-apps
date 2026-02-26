@@ -1,5 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { isE2EActive, isSignalUnlocked } from '@tloncorp/shared/store';
 import { Icon, Pressable, RawText } from '@tloncorp/ui';
 import React, {
   useCallback,
@@ -120,6 +121,8 @@ export function ChannelListItem({
   const groupTitle = utils.useGroupTitle(model.group);
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
+  const showE2ELock =
+    model.type === 'dm' && isSignalUnlocked() && isE2EActive(model.id);
 
   return (
     <View ref={containerRef}>
@@ -199,7 +202,9 @@ export function ChannelListItem({
               {model.lastPost?.receivedAt ? (
                 <ListItem.Time time={model.lastPost.receivedAt} />
               ) : null}
-
+              {showE2ELock && (
+                <Icon type="Lock" size="$s" color="$positiveActionText" />
+              )}
               {model.isDmInvite ? (
                 <Badge text="Invite" />
               ) : (

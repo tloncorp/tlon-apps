@@ -61,6 +61,7 @@ import {
   ConnectedPostView,
   PostCollectionHandle,
 } from '../postCollectionViews/shared';
+import { E2EHeaderButton } from '../E2EHeaderButton';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
@@ -508,6 +509,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                   >
                     <ChannelHeaderItemsProvider>
                       <>
+                        {isDM && <E2EHeaderButton />}
                         <ChannelHeader
                           channel={channel}
                           group={group}

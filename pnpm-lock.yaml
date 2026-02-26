@@ -1083,6 +1083,15 @@ importers:
 
   packages/shared:
     dependencies:
+      '@noble/ciphers':
+        specifier: ^0.5.0
+        version: 0.5.3
+      '@noble/curves':
+        specifier: ^1.4.0
+        version: 1.9.7
+      '@noble/hashes':
+        specifier: ^1.4.0
+        version: 1.8.0
       '@react-native-async-storage/async-storage':
         specifier: '*'
         version: 1.23.1(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))
@@ -3886,6 +3895,17 @@ packages:
   '@mswjs/interceptors@0.17.3':
     resolution: {integrity: sha512-jBRFPeHBPqKv3od8KPjmrvt4b/+e1DorizFDYJ8NQCrjFT9YGnxA8ojGi0MIo64x/JgdjYkhP8bG9EY4BGPoqg==}
     engines: {node: '>=14'}
+
+  '@noble/ciphers@0.5.3':
+    resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
+
+  '@noble/curves@1.9.7':
+    resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -11565,6 +11585,7 @@ packages:
   prebuild-install@7.1.1:
     resolution: {integrity: sha512-jAXscXWMcCK8GgCoHOfIr0ODh5ai8mj63L2nWrjuAgXE6tDyYGnx4/8o/rCgU+B4JSyZBKbeZqzhtwtC3ovxjw==}
     engines: {node: '>=10'}
+    deprecated: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
     hasBin: true
 
   prelude-ls@1.2.1:
@@ -18944,6 +18965,14 @@ snapshots:
       web-encoding: 1.1.5
     transitivePeerDependencies:
       - supports-color
+
+  '@noble/ciphers@0.5.3': {}
+
+  '@noble/curves@1.9.7':
+    dependencies:
+      '@noble/hashes': 1.8.0
+
+  '@noble/hashes@1.8.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
