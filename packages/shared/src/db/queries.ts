@@ -2549,9 +2549,14 @@ export const setJoinedGroupChannels = createWriteQuery(
       return await ctx.db
         .update($channels)
         .set({
-          currentUserIsMember: inArray($channels.id, channelsWhereMember),
+          currentUserIsMember: true,
         })
-        .where(isNotNull($channels.groupId));
+        .where(
+          and(
+            inArray($channels.id, channelsWhereMember),
+            isNotNull($channels.groupId)
+          )
+        );
     }
   },
   ['channels']
