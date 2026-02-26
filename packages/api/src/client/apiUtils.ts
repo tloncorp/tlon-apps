@@ -1,14 +1,15 @@
 import {
   render,
-  parse,
-  tryParse,
   da
 } from '@urbit/aura';
 import bigInt from 'big-integer';
 
-import * as db from '@tloncorp/shared/db/types';
+import { getCanonicalPostId, parseIdNumber } from '../lib/id';
+import * as api from '../types';
 import type * as ub from '../urbit';
 import { BadResponseError } from './urbit';
+
+export { getCanonicalPostId, parseIdNumber };
 
 export function formatScryPath(
   ...segments: (string | number | null | undefined)[]
@@ -24,7 +25,7 @@ export function isColor(value: string) {
 // it's possible for these to be massive and cause issues.
 const maxImageStringSize = 2048;
 
-export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
+export function toClientMeta(meta: ub.GroupMeta): api.ClientMeta {
   const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
   const iconImageData = iconImage
     ? isColor(iconImage)
@@ -47,7 +48,7 @@ export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   };
 }
 
-export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
+export function fromClientMeta(meta: api.ClientMeta): ub.GroupMeta {
   return {
     title: meta.title ?? '',
     image: meta.iconImage ?? meta.iconImageColor ?? '',
@@ -71,10 +72,6 @@ export function udToDate(das: string) {
 //  representations, making it slightly unclear/ambiguous what we were actually
 //  *intending* to parse. the backend is wildly inconsistent, so this is easier
 //  and safer than figuring all that out. (we'll tighten things up Soon™.)
-export function parseIdNumber(id: string): bigint {
-  return tryParse('ud', id) || BigInt(id);
-}
-
 export function formatDateParam(date: Date) {
   return render('ud', da.fromUnix(date!.getTime()));
 }
@@ -148,19 +145,6 @@ export async function with404Handler<T>(
     throw e;
   }
 }
-export function getCanonicalPostId(inputId: string) {
-  let id = inputId;
-  // Dm and club posts come prefixed with the author, so we strip it
-  if (id[0] === '~') {
-    id = id.split('/').pop()!;
-  }
-  // The id in group post ids doesn't come dot separated, so we format it
-  if (id[3] !== '.') {
-    id = render('ud', BigInt(id));  //REVIEW  weird, and dot check is not ideal
-  }
-  return id;
-}
-
 export function toPostEssay({
   content,
   authorId,
@@ -172,7 +156,7 @@ export function toPostEssay({
   content: ub.Story;
   authorId: string;
   sentAt: number;
-  channelType: db.ChannelType;
+  channelType: api.ChannelType;
   blob?: string;
   metadata?: ub.Metadata;
 }): ub.PostEssay {

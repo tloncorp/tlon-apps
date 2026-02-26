@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
@@ -11,7 +11,7 @@ import {
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from './channelContentConfig';
+} from '../types/channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
@@ -48,7 +48,7 @@ export const respondToDMInvite = ({
   channel,
   accept,
 }: {
-  channel: db.Channel;
+  channel: api.Channel;
   accept: boolean;
 }) => {
   const currentUserId = getCurrentUserId();
@@ -75,7 +75,7 @@ export const updateDMMeta = async ({
   meta,
 }: {
   channelId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
     multiDmAction(channelId, { meta: fromClientMeta(meta) }),
@@ -94,9 +94,9 @@ export const updateDMMeta = async ({
 export type ChatEvent =
   | { type: 'showPost'; postId: string }
   | { type: 'hidePost'; postId: string }
-  | { type: 'syncDmInvites'; channels: db.Channel[] }
+  | { type: 'syncDmInvites'; channels: api.Channel[] }
   | { type: 'groupDmsUpdate' }
-  | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
+  | { type: 'addPost'; post: api.Post; replyMeta?: api.ReplyMeta | null }
   | { type: 'deletePost'; postId: string }
   | { type: 'addReaction'; postId: string; userId: string; react: string }
   | { type: 'deleteReaction'; postId: string; userId: string }
@@ -299,7 +299,7 @@ export function multiDmAction(id: string, delta: ub.ClubDelta) {
   };
 }
 
-export type GetDmsResponse = db.Channel[];
+export type GetDmsResponse = api.Channel[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {
   const result = (await scry({ app: 'chat', path: '/dm' })) as string[];
@@ -309,11 +309,11 @@ export const getDms = async (): Promise<GetDmsResponse> => {
 export const toClientDms = (
   dmContacts: string[],
   areInvites?: boolean
-): db.Channel[] => {
+): api.Channel[] => {
   return dmContacts.map((id) => toClientDm(id, areInvites));
 };
 
-export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
+export const toClientDm = (id: string, isInvite?: boolean): api.Channel => {
   return {
     id,
     type: 'dm' as const,
@@ -333,9 +333,9 @@ export const getGroupDms = async (): Promise<GetDmsResponse> => {
 export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
   const currentUserId = getCurrentUserId();
   return Object.entries(groupDms)
-    .map(([id, club]): db.Channel | null => {
+    .map(([id, club]): api.Channel | null => {
       const joinedMembers = club.team.map(
-        (member): db.ChatMember => ({
+        (member): api.ChatMember => ({
           contactId: member,
           chatId: id,
           membershipType: 'channel',
@@ -343,7 +343,7 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
         })
       );
       const invitedMembers = club.hive.map(
-        (member): db.ChatMember => ({
+        (member): api.ChatMember => ({
           contactId: member,
           chatId: id,
           membershipType: 'channel',
@@ -382,5 +382,5 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
         description: decodedDesc.description,
       };
     })
-    .filter(Boolean) as db.Channel[];
+    .filter(Boolean) as api.Channel[];
 };

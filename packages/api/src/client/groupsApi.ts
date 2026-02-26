@@ -1,10 +1,10 @@
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
-import { PersonalGroupSlugs } from '../types/wayfinding';
+import * as api from '../types';
+import { GroupPrivacy } from '../types';
+import { createDevLogger } from '../debug';
+import * as domain from '../types';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -14,7 +14,7 @@ import {
   getChannelType,
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
-import { StructuredChannelDescriptionPayload } from './channelContentConfig';
+import { StructuredChannelDescriptionPayload } from '../types/channelContentConfig';
 import {
   BadResponseError,
   getCurrentUserId,
@@ -62,12 +62,12 @@ export const getPinnedItems = async () => {
   return toClientPinnedItems(pinnedItems);
 };
 
-export const toClientPinnedItems = (rawItems: string[]): db.Pin[] => {
+export const toClientPinnedItems = (rawItems: string[]): api.Pin[] => {
   const items = rawItems.map(toClientPinnedItem);
   return items.reverse();
 };
 
-export const toClientPinnedItem = (rawItem: string, index: number): db.Pin => {
+export const toClientPinnedItem = (rawItem: string, index: number): api.Pin => {
   const type = getPinnedItemType(rawItem);
   return {
     type,
@@ -309,7 +309,7 @@ export const pinItem = async (itemId: string) => {
 
 export const getChannelPreview = async (
   channelId: string
-): Promise<db.Channel | null> => {
+): Promise<api.Channel | null> => {
   const channelPreview = await subscribeOnce<ub.ChannelPreview>(
     {
       app: 'groups',
@@ -368,10 +368,10 @@ export const createGroup = async ({
   placeHolderTitle,
   memberIds,
 }: {
-  group: db.Group;
+  group: api.Group;
   memberIds?: string[];
   placeHolderTitle?: string;
-}): Promise<db.Group> => {
+}): Promise<api.Group> => {
   const payload: ub.GroupCreateThreadInput = {
     groupId: group.id,
     meta: {
@@ -499,7 +499,7 @@ export const addNavSection = async ({
   navSection,
 }: {
   groupId: string;
-  navSection: db.GroupNavSection;
+  navSection: api.GroupNavSection;
 }) => {
   return await trackedPoke<ub.V1GroupResponse>(
     groupAction4({
@@ -563,7 +563,7 @@ export const updateNavSection = async ({
   navSection,
 }: {
   groupId: string;
-  navSection: db.GroupNavSection;
+  navSection: api.GroupNavSection;
 }) => {
   return await poke(
     groupAction4({
@@ -724,7 +724,7 @@ export const updateGroupNavigation = async ({
   navSections,
 }: {
   groupId: string;
-  navSections: db.GroupNavSection[];
+  navSections: api.GroupNavSection[];
 }) => {
   const sections: Record<string, ub.GroupNavigationSectionData> = {};
 
@@ -760,7 +760,7 @@ export const addGroupRole = async ({
 }: {
   groupId: string;
   roleId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 }) => {
   return await poke(
     groupAction4({
@@ -815,7 +815,7 @@ export const updateGroupRole = async ({
 }: {
   groupId: string;
   roleId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 }) => {
   return await poke(
     groupAction4({
@@ -924,23 +924,23 @@ export type GroupDelete = {
 
 export type GroupAdd = {
   type: 'addGroup';
-  group: db.Group;
+  group: api.Group;
 };
 
 export type GroupEdit = {
   type: 'editGroup';
   groupId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 };
 
 export type GroupChannelAdd = {
   type: 'addChannel';
-  channel: db.Channel;
+  channel: api.Channel;
 };
 
 export type GroupChannelUpdate = {
   type: 'updateChannel';
-  channel: db.Channel;
+  channel: api.Channel;
 };
 
 export type GroupChannelJoin = {
@@ -972,7 +972,7 @@ export type GroupNavSectionAdd = {
   navSectionId: string;
   sectionId: string;
   groupId: string;
-  clientMeta: db.ClientMeta;
+  clientMeta: api.ClientMeta;
 };
 
 export type GroupNavSectionDelete = {
@@ -984,7 +984,7 @@ export type GroupNavSectionEdit = {
   type: 'editNavSection';
   navSectionId: string;
   sectionId: string;
-  clientMeta: db.ClientMeta;
+  clientMeta: api.ClientMeta;
 };
 
 export type GroupNavSectionMove = {
@@ -1039,7 +1039,7 @@ export type GroupRoleAdd = {
   type: 'addRole';
   groupId: string;
   roleId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 };
 
 export type GroupRoleDelete = {
@@ -1052,7 +1052,7 @@ export type GroupRoleEdit = {
   type: 'editRole';
   roleId: string;
   groupId: string;
-  meta: db.ClientMeta;
+  meta: api.ClientMeta;
 };
 
 export type GroupInviteMembers = {
@@ -1069,7 +1069,7 @@ export type GroupRevokeMemberInvites = {
 
 export type GroupJoinRequest = {
   type: 'groupJoinRequest';
-  request: db.GroupJoinRequest;
+  request: api.GroupJoinRequest;
 };
 
 export type GroupRevokeJoinRequests = {
@@ -1132,7 +1132,7 @@ export type GroupFlagContent = {
 
 export type SetUnjoinedGroups = {
   type: 'setUnjoinedGroups';
-  groups: db.Group[];
+  groups: api.Group[];
 };
 
 export type GroupUpdateUnknown = {
@@ -1545,8 +1545,8 @@ export const toV1GroupsUpdate = (
 const extractFlaggedPosts = (
   groupId: string,
   flaggedContent?: FlaggedContent
-): db.GroupFlaggedPosts[] => {
-  const flaggedPosts: db.GroupFlaggedPosts[] = [];
+): api.GroupFlaggedPosts[] => {
+  const flaggedPosts: api.GroupFlaggedPosts[] = [];
 
   if (!flaggedContent) {
     return flaggedPosts;
@@ -1584,11 +1584,11 @@ export function toClientGroupV7(
   id: string,
   group: ub.GroupV7,
   isJoined: boolean
-): db.Group {
+): api.Group {
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
-  const rolesById: Record<string, db.GroupRole> = {};
-  const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
+  const rolesById: Record<string, api.GroupRole> = {};
+  const flaggedPosts: api.GroupFlaggedPosts[] = extractFlaggedPosts(
     id,
     group['flagged-content']
   );
@@ -1596,7 +1596,7 @@ export function toClientGroupV7(
   logger.log('admissions', group.admissions);
 
   // v7 uses admissions.banned instead of cordon.open
-  const bannedMembers: db.GroupMemberBan[] =
+  const bannedMembers: api.GroupMemberBan[] =
     group.admissions?.banned?.ships?.map((ship) => ({
       contactId: ship,
       groupId: id,
@@ -1605,7 +1605,7 @@ export function toClientGroupV7(
   logger.log('bannedMembers', bannedMembers);
 
   // v7 uses admissions.requests instead of cordon.shut.ask
-  const joinRequests: db.GroupJoinRequest[] = group.admissions?.requests
+  const joinRequests: api.GroupJoinRequest[] = group.admissions?.requests
     ? Object.entries(group.admissions.requests).map(([ship, request]) => ({
         contactId: ship,
         groupId: id,
@@ -1614,7 +1614,7 @@ export function toClientGroupV7(
     : [];
 
   // v7 uses admissions.invited instead of cordon.shut.pending
-  const invitedMembers: db.ChatMember[] = group.admissions?.invited
+  const invitedMembers: api.ChatMember[] = group.admissions?.invited
     ? Object.entries(group.admissions.invited)
         // filter out members who have already joined
         .filter(([ship]) => !group.seats?.[ship])
@@ -1629,7 +1629,7 @@ export function toClientGroupV7(
     : [];
 
   // v7 uses seats instead of fleet (and seats use 'roles' not 'sects')
-  const members: db.ChatMember[] = (
+  const members: api.ChatMember[] = (
     group.seats ? Object.entries(group.seats) : []
   )
     .map(([userId, seat]) => {
@@ -1662,7 +1662,7 @@ export function toClientGroupV7(
   // v7 uses roles instead of cabals (and role IS the meta, no nested .meta property)
   const roles = (group.roles ? Object.entries(group.roles) : []).map(
     ([roleId, role]) => {
-      const data: db.GroupRole = {
+      const data: api.GroupRole = {
         id: roleId,
         groupId: id,
         ...toClientMeta(role), // v7 role IS the meta object
@@ -1686,7 +1686,7 @@ export function toClientGroupV7(
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
     isPersonalGroup:
-      id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
+      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
     joinStatus: undefined, // v7 groups from init are already joined
     hostUserId,
     flaggedPosts,
@@ -1696,14 +1696,14 @@ export function toClientGroupV7(
         if (!zone) {
           return;
         }
-        const data: db.GroupNavSection = {
+        const data: api.GroupNavSection = {
           id: `${id}-${zoneId}`,
           sectionId: zoneId,
           groupId: id,
           ...toClientMeta(zone.meta),
           sectionIndex: i,
           channels: (zone.order ?? []).map((channelId, ci) => {
-            const data: db.GroupNavSectionChannel = {
+            const data: api.GroupNavSectionChannel = {
               channelIndex: ci,
               channelId: channelId,
               groupNavSectionId: `${id}-${zoneId}`,
@@ -1713,7 +1713,7 @@ export function toClientGroupV7(
         };
         return data;
       })
-      .filter((s): s is db.GroupNavSection => !!s),
+      .filter((s): s is api.GroupNavSection => !!s),
     members,
     bannedMembers,
     joinRequests,
@@ -1738,7 +1738,7 @@ export function toClientGroupsFromPreview(
 export function toClientGroupFromPreview(
   id: string,
   preview: ub.GroupPreview
-): db.Group {
+): api.Group {
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
 
@@ -1760,7 +1760,7 @@ const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
 export function toClientGroupFromForeign(
   id: string,
   foreign: ub.Foreign
-): db.Group {
+): api.Group {
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
   const privacy = extractGroupPrivacy(foreign.preview);
@@ -1791,7 +1791,7 @@ export function toClientGroupsFromForeigns(
   );
 }
 
-function getJoinStatusFromForeign(foreign: ub.Foreign): db.Group['joinStatus'] {
+function getJoinStatusFromForeign(foreign: ub.Foreign): api.Group['joinStatus'] {
   if (!foreign.progress) {
     return undefined;
   }
@@ -1831,7 +1831,7 @@ function toClientChannels({
   channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
   currentUserRoles?: string[];
-}): db.Channel[] {
+}): api.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
     toClientChannel({ id, channel, groupId, currentUserRoles })
   );
@@ -1847,7 +1847,7 @@ function toClientChannel({
   channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
   currentUserRoles?: string[];
-}): db.Channel {
+}): api.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
 
@@ -1889,7 +1889,7 @@ function toClientChannelFromPreview({
   id: string;
   channel: ub.ChannelPreview;
   groupId: string;
-}): db.Channel {
+}): api.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
 
@@ -1915,7 +1915,7 @@ function toClientGroupMember({
   contactId: string;
   vessel: { sects: string[]; joined: number };
   status: 'invited' | 'joined';
-}): db.ChatMember {
+}): api.ChatMember {
   return {
     membershipType: 'group',
     contactId,
@@ -1953,6 +1953,6 @@ export const rejectGroupInvitation = async (id: string) =>
 
 export type GroupsUpdate =
   | { type: 'unknown' }
-  | { type: 'addGroups'; groups: db.Group[] }
+  | { type: 'addGroups'; groups: api.Group[] }
   | { type: 'deleteGroup'; groupId: string }
-  | { type: 'setUnjoinedGroups'; groups: db.Group[] };
+  | { type: 'setUnjoinedGroups'; groups: api.Group[] };

@@ -1,7 +1,3 @@
-import type { S3Client } from '@aws-sdk/client-s3';
-import * as ImagePicker from 'expo-image-picker';
-import type { GetState, SetState } from 'zustand';
-
 export type RNFile = {
   blob: Blob;
   name: string;
@@ -11,7 +7,21 @@ export type RNFile = {
   width?: number;
 };
 
-export type MessageAttachments = ImagePicker.ImagePickerAsset[];
+// Platform-neutral image asset shape used by attachment workflows.
+export type ImageAsset = {
+  uri: string;
+  width?: number;
+  height?: number;
+  fileName?: string | null;
+  fileSize?: number;
+  mimeType?: string | null;
+  type?: string;
+  duration?: number | null;
+  exif?: Record<string, unknown> | null;
+  [key: string]: unknown;
+};
+
+export type MessageAttachments = ImageAsset[];
 
 export interface FileStoreFile {
   key: string;
@@ -67,8 +77,10 @@ export type NativeUploader = (
   additionalHeaders?: Record<string, string>
 ) => Promise<void>;
 
+export type StorageClient = unknown;
+
 export interface FileStore {
-  client: S3Client | null;
+  client: StorageClient | null;
   uploaders: Record<string, Uploader>;
   getUploader: (key: string) => Uploader;
   createClient: (s3: StorageCredentials, region: string) => void;
@@ -129,6 +141,12 @@ export interface StorageState {
   start: () => Promise<void>;
   getCredentials: () => Promise<StorageCredentials> | undefined;
   getConfiguration: () => Promise<StorageConfiguration> | undefined;
-  set: SetState<StorageState>;
-  get: GetState<StorageState>;
+  set: (
+    nextState:
+      | StorageState
+      | Partial<StorageState>
+      | ((state: StorageState) => StorageState | Partial<StorageState>),
+    replace?: boolean
+  ) => void;
+  get: () => StorageState;
 }

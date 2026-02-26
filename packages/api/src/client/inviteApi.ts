@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import * as api from '../types';
 import { InviteLinkMetadata } from '../types/invite.types';
 import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
@@ -61,7 +61,7 @@ export async function checkExistingUserInviteLink(): Promise<string | null> {
 }
 
 export async function createPersonalInviteLink(
-  currentUser?: db.Contact | null
+  currentUser?: api.Contact | null
 ): Promise<string> {
   const currentUserId = getCurrentUserId();
 

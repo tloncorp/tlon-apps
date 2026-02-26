@@ -1,7 +1,6 @@
 import { Buffer } from 'buffer';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger, isDev } from '../debug';
 import * as domain from '../types';
 import {
   AnalyticsEvent,
@@ -11,6 +10,11 @@ import {
   User,
   getConstants,
 } from '../types';
+import {
+  getHostingAuthCookie,
+  getHostingUserId,
+  setHostingSession,
+} from './hostingAuthState';
 import { withRetry } from '../lib/utils';
 
 const logger = createDevLogger('hostingApi', false);
@@ -61,11 +65,11 @@ const hostingFetchResponse = async (
     };
   }
 
-  if (__DEV__) {
+  if (isDev()) {
     console.debug('Request:', path);
   }
 
-  const hostingCookie = await db.hostingAuthToken.getValue();
+  const hostingCookie = await getHostingAuthCookie();
   const modifiedCookie = hostingCookie.replace(' HttpOnly;', '');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
@@ -173,30 +177,8 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
-  const userId = await db.hostingUserId.getValue();
+  const userId = await getHostingUserId();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
-
-  try {
-    const body = (await response.json()) as User;
-
-    if (body.botEnabled !== null && body.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: body.botEnabled,
-        $set: {
-          botEnabled: body.botEnabled,
-        },
-      });
-      await db.hostingBotEnabled.setValue(body.botEnabled);
-    }
-  } catch (e) {
-    logger.trackError(
-      'Failed to read bot enabled status from hosting heartbeat',
-      {
-        errorMessage: e.toString(),
-        responseText: await response.text(),
-      }
-    );
-  }
 
   // 401 indicates that the authentication token is expired.
   if (response.status === 401) {
@@ -281,22 +263,12 @@ export const signUpHostingUser = async (params: {
   const result = (await response.json()) as HostingError | User;
 
   const setCookie = response.headers.get('Set-Cookie');
-  if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
-  }
-
   const userId = 'id' in result && (result as User).id;
-  if (userId) {
-    db.hostingUserId.setValue(userId);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
-        },
-      });
-      await db.hostingBotEnabled.setValue(result.botEnabled);
-    }
+  if (setCookie || userId) {
+    setHostingSession({
+      ...(setCookie ? { cookie: setCookie } : {}),
+      ...(userId ? { userId } : {}),
+    });
   }
 
   return result as User;
@@ -325,22 +297,12 @@ export const logInHostingUser = async (params: {
   }
 
   const setCookie = response.headers.get('Set-Cookie');
-  const user = 'id' in result && (result as User).id;
-  if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
-  }
-
-  if (user) {
-    db.hostingUserId.setValue(user);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
-        },
-      });
-      db.hostingBotEnabled.setValue(result.botEnabled);
-    }
+  const userId = 'id' in result && (result as User).id;
+  if (setCookie || userId) {
+    setHostingSession({
+      ...(setCookie ? { cookie: setCookie } : {}),
+      ...(userId ? { userId } : {}),
+    });
   }
 
   return result as User;
@@ -625,7 +587,7 @@ export const inviteShipWithLure = async (params: {
   });
 
 export const checkIfAccountDeleted = async (): Promise<boolean> => {
-  const hostingUserId = await db.hostingUserId.getValue();
+  const hostingUserId = await getHostingUserId();
   if (hostingUserId) {
     try {
       const user = await withRetry(() => getHostingUser(hostingUserId), {

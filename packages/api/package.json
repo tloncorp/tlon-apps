@@ -6,23 +6,46 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./api": "./src/client/index.ts",
-    "./api/*": "./src/client/*.ts",
-    "./client": "./src/client/index.ts",
-    "./client/*": "./src/client/*.ts",
     "./lib/utilityTypes": "./src/lib/utilityTypes.d.ts",
     "./lib/*": "./src/lib/*.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/*": "./src/urbit/*.ts",
     "./http-api": "./src/http-api/index.ts",
     "./http-api/*": "./src/http-api/*.ts",
-    "./types/*": "./src/types/*.ts",
-    "./package.json": "./package.json"
+    "./types": "./src/types/index.ts",
+    "./types/*": "./src/types/*.ts"
   },
   "scripts": {
-    "tsc": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tsc": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
+    "lint:format": "prettier src/ --write",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@tloncorp/shared": "workspace:*"
-  }
+    "@urbit/aura": "^3.0.0",
+    "@urbit/nockjs": "^1.6.0",
+    "any-ascii": "^0.3.2",
+    "big-integer": "^1.6.52",
+    "buffer": "^6.0.3",
+    "date-fns": "^3.6.0",
+    "emoji-regex": "^10.3.0",
+    "exponential-backoff": "^3.1.1",
+    "libphonenumber-js": "^1.10.51",
+    "lodash": "^4.17.21",
+    "sorted-btree": "^1.8.1",
+    "validator": "^13.7.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.202",
+    "@types/validator": "^13.7.0",
+    "typescript": "5.4.5",
+    "vitest": "^1.5.0"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
 }

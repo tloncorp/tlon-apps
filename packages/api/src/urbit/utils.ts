@@ -1,16 +1,17 @@
 import { render, valid, da } from '@urbit/aura';
 
-import { PostContent } from '../client';
-import { ChannelType } from '@tloncorp/shared/db';
-import { GroupJoinStatus, GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { ContentReference } from '../types/references';
+import { ChannelType } from '../types';
+import { GroupJoinStatus, GroupPrivacy } from '../types';
+import { createDevLogger } from '../debug';
+import { ContentReference } from '../types';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';
 import { Atom } from '@urbit/nockjs';
 
 const logger = createDevLogger('urbitUtils', false);
+
+type PostContent = (ub.Verse | ContentReference)[] | null;
 
 type App = 'chat' | 'heap' | 'diary';
 const APP_PREFIXES = ['chat', 'heap', 'diary'];

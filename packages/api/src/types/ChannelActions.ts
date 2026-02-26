@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import type { Channel } from './types';
 
 export type Id =
   | 'debugJson'
@@ -28,7 +28,7 @@ export function channelActionIdsFor({
   channel,
   canWrite,
 }: {
-  channel: db.Channel;
+  channel: Channel;
   canWrite?: boolean;
 }): Id[] {
   const channelType = channel?.type;

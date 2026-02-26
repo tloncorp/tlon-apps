@@ -1,15 +1,16 @@
 import { da, render } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
+import { ContentReference } from '../types';
+import { getTextContent, PlaintextPreviewConfig } from '../lib/postContent';
 import { IMAGE_URL_REGEX } from '../lib/utils';
 import {
-  PlaintextPreviewConfig,
-  getTextContent,
-} from '../lib/postContent';
+  contentReferenceToCite,
+  toContentReference,
+} from '../lib/contentReferences';
 import * as ub from '../urbit';
-import { ContentReference } from '../types/references';
 import {
   ClubAction,
   DmAction,
@@ -47,9 +48,11 @@ import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
+export { contentReferenceToCite, toContentReference };
+
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
-export type PostContentAndFlags = [PostContent, db.PostFlags | null];
+export type PostContentAndFlags = [PostContent, api.PostFlags | null];
 
 export function chatAction(
   whom: string,
@@ -148,7 +151,7 @@ export const sendPost = async ({
   sentAt: number;
   content: Story;
   blob?: string;
-  metadata?: db.PostMetadata;
+  metadata?: api.PostMetadata;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -217,7 +220,7 @@ export const editPost = async ({
   sentAt: number;
   content: Story;
   parentId?: string;
-  metadata?: db.PostMetadata;
+  metadata?: api.PostMetadata;
   blob?: string;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
@@ -409,8 +412,8 @@ export type GetChannelPostsOptions = {
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
-  posts: db.Post[];
-  deletedPosts?: db.Post[];
+  posts: api.Post[];
+  deletedPosts?: api.Post[];
   totalPosts?: number;
 }
 
@@ -487,9 +490,9 @@ export const getChannelPosts = async ({
 // without reintroducing windowing, we insert dummy posts whenever fetching a known
 // contiguous block of posts
 export function fillSequenceGaps(
-  responsePosts: db.Post[],
+  responsePosts: api.Post[],
   config: { upperBound: number | null; lowerBound: number | null }
-): { posts: db.Post[]; numStubs: number } {
+): { posts: api.Post[]; numStubs: number } {
   // --- Step 1: Handle empty input ---
   if (!responsePosts.length) {
     return { posts: [], numStubs: 0 };
@@ -502,7 +505,7 @@ export function fillSequenceGaps(
   let maxSeq = config.upperBound ?? 0;
   let numStubs = 0;
 
-  const existingPostMap = new Map<number, db.Post>();
+  const existingPostMap = new Map<number, api.Post>();
   for (const post of responsePosts) {
     if (typeof post.sequenceNum !== 'number') {
       // this should never happen
@@ -522,7 +525,7 @@ export function fillSequenceGaps(
   }
 
   // --- Step 3: Iterate through the range and fill gaps ---
-  const mergedPosts: db.Post[] = [];
+  const mergedPosts: api.Post[] = [];
   const examplePost = responsePosts[0];
   let previousSentAt = examplePost.sentAt;
   for (let i = minSeq; i <= maxSeq; i++) {
@@ -551,7 +554,7 @@ export function fillSequenceGaps(
 export type PostWithUpdateTime = {
   channelId: string;
   updatedAt: number;
-  latestPost: db.Post;
+  latestPost: api.Post;
 };
 
 export type GetLatestPostsResponse = PostWithUpdateTime[];
@@ -876,7 +879,7 @@ export async function removeReaction({
   }
 }
 
-export async function showPost(post: db.Post) {
+export async function showPost(post: api.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
@@ -904,7 +907,7 @@ export async function showPost(post: db.Post) {
   return poke(action);
 }
 
-export async function hidePost(post: db.Post) {
+export async function hidePost(post: api.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
@@ -939,7 +942,7 @@ export async function reportPost(
   currentUserId: string,
   groupId: string,
   channelId: string,
-  post: db.Post
+  post: api.Post
 ) {
   await hidePost(post);
 
@@ -1133,10 +1136,10 @@ export function toPagedPostsData(
 export function toPostsData(
   channelId: string,
   posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-): { posts: db.Post[]; deletedPosts: db.Post[] } {
+): { posts: api.Post[]; deletedPosts: api.Post[] } {
   const entries = Object.entries(posts);
-  const deletedPosts: db.Post[] = [];
-  const otherPosts: db.Post[] = [];
+  const deletedPosts: api.Post[] = [];
+  const otherPosts: api.Post[] = [];
 
   for (const [, post] of entries) {
     // post will only be null if it was deleted and we're interacting with an
@@ -1194,7 +1197,7 @@ function normalizeAuthor(author: ub.Author): ub.Author {
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
-): db.Post {
+): api.Post {
   // Normalize author to BotProfile if it's a pinser-botter ship
   if (!isPostTombstone(post)) {
     post.essay.author = normalizeAuthor(post.essay.author);
@@ -1205,11 +1208,10 @@ export function toPostData(
   // Check if author is a bot (BotProfile object)
   const author = isPostTombstone(post) ? post.author : post.essay.author;
   const isBot = isBotProfile(author);
-
   const channelType = channelId.split('/')[0];
   const getPostType = (
     post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
-  ): db.PostType => {
+  ): api.PostType => {
     if (isNotice(post)) {
       return 'notice';
     }
@@ -1371,12 +1373,12 @@ function getReplyData(
   postId: string,
   channelId: string,
   post: ub.PostDataResponse
-): db.Post[] {
+): api.Post[] {
   return Object.entries(post.seal.replies ?? {}).map(([, reply]) =>
     toPostReplyData(channelId, postId, reply)
   );
 }
-export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
+export function toReplyMeta(meta?: ub.ReplyMeta | null): api.ReplyMeta | null {
   if (!meta) {
     return null;
   }
@@ -1391,7 +1393,7 @@ export function toPostReplyData(
   channelId: string,
   postId: string,
   reply: ub.Reply | ub.WritReply | ub.PostTombstone
-): db.Post {
+): api.Post {
   if (isPostTombstone(reply)) {
     return {
       id: getCanonicalPostId(reply.id),
@@ -1444,11 +1446,11 @@ export function toSequenceStubPost({
   sentAt,
 }: {
   channelId: string;
-  type: db.PostType;
+  type: api.PostType;
   sequenceNum: number;
   sentAt?: number;
-}): db.Post {
-  const stubPost: db.Post = {
+}): api.Post {
+  const stubPost: api.Post = {
     id: `sequence-stub-${channelId}-${sequenceNum}`,
     type,
     channelId,
@@ -1467,7 +1469,7 @@ export function toPostContent(story?: ub.Story): PostContentAndFlags {
   if (!story) {
     return [null, null];
   }
-  const flags: db.PostFlags = {
+  const flags: api.PostFlags = {
     hasAppReference: false,
     hasChannelReference: false,
     hasGroupReference: false,
@@ -1509,71 +1511,7 @@ export function toUrbitStory(content: PostContent): Story {
   });
 }
 
-export function toContentReference(cite: ub.Cite): ContentReference | null {
-  if ('chan' in cite) {
-    const channelId = cite.chan.nest;
-    // I've seen these forms of reference path:
-    // /msg/170141184506828851385935487131294105600
-    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
-    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
-    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
-    const [postId, replyId] = Array.from(
-      cite.chan.where.matchAll(messageIdRegex)
-    ).map((m) => {
-      return m[1].replace(/\./g, '');
-    });
-    if (!postId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return {
-      type: 'reference',
-      referenceType: 'channel',
-      channelId,
-      postId: formatUd(postId),
-      replyId: replyId ? formatUd(replyId) : undefined,
-    };
-  } else if ('group' in cite) {
-    return { type: 'reference', referenceType: 'group', groupId: cite.group };
-  } else if ('desk' in cite) {
-    const parts = cite.desk.flag.split('/');
-    const userId = parts[0];
-    const appId = parts[1];
-    if (!userId || !appId) {
-      console.error('found invalid ref', cite);
-      return null;
-    }
-    return { type: 'reference', referenceType: 'app', userId, appId };
-  }
-  return null;
-}
-
-export function contentReferenceToCite(reference: ContentReference): ub.Cite {
-  if (reference.referenceType === 'channel') {
-    return {
-      chan: {
-        nest: reference.channelId,
-        where: `/msg/${reference.postId}${
-          reference.replyId ? '/' + reference.replyId : ''
-        }`,
-      },
-    };
-  } else if (reference.referenceType === 'group') {
-    return {
-      group: reference.groupId,
-    };
-  } else if (reference.referenceType === 'app') {
-    return {
-      desk: {
-        flag: `${reference.userId}/${reference.appId}`,
-        where: '',
-      },
-    };
-  }
-  throw new Error('invalid reference');
-}
-
-function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
+function parseKindData(kindData?: ub.KindData): api.PostMetadata | undefined {
   if (!kindData) {
     return;
   }
@@ -1601,7 +1539,7 @@ function isChatData(data: KindData): data is KindDataChat {
 }
 
 export function getContentImages(postId: string, content?: ub.Story | null) {
-  return (content || []).reduce<db.PostImage[]>((memo, story) => {
+  return (content || []).reduce<api.PostImage[]>((memo, story) => {
     if (ub.isBlockVerse(story) && ub.isImage(story.block)) {
       memo.push({ ...story.block.image, postId });
     }
@@ -1612,7 +1550,7 @@ export function getContentImages(postId: string, content?: ub.Story | null) {
 export function toReactionsData(
   reacts: Record<string, ub.React>,
   postId: string
-): db.Reaction[] {
+): api.Reaction[] {
   return Object.entries(reacts)
     .filter(([, r]) => {
       const isString = typeof r === 'string';

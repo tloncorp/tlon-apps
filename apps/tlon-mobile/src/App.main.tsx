@@ -37,9 +37,12 @@ import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
+import { configureMobileSystemContactsProvider } from './lib/systemContactsProvider';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
+
+configureMobileSystemContactsProvider();
 
 if (Platform.OS === 'ios') {
   SplashScreen.preventAutoHideAsync().catch((err) => {

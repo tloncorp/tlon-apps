@@ -79,4 +79,42 @@ module.exports = {
       },
     ],
   },
+  overrides: [
+    {
+      files: ['packages/api/src/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+      excludedFiles: [
+        'packages/api/src/__tests__/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+        'packages/api/src/test/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              '@tloncorp/shared',
+              '@tloncorp/shared/*',
+              '../client',
+              '../client/*',
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ['apps/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              '@tloncorp/api/client*',
+              '@tloncorp/api/api*',
+              '@tloncorp/api/lib*',
+              '@tloncorp/api/types/native*',
+            ],
+          },
+        ],
+      },
+    },
+  ],
 };

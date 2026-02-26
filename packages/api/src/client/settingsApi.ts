@@ -1,8 +1,9 @@
-import * as db from '@tloncorp/shared/db';
+import * as api from '../types';
 import * as ub from '../urbit';
 import { poke, scry, subscribe } from './urbit';
 
 const PENDING_MEMBER_DISMISSAL_PREFIX = 'pendingMemberDismissal:';
+const SETTINGS_SINGLETON_KEY = 'settings';
 export function getPendingMemberDismissalKey(groupId: string) {
   return `${PENDING_MEMBER_DISMISSAL_PREFIX}${groupId}`;
 }
@@ -79,8 +80,8 @@ export const setSetting = async (key: string, val: any) => {
 };
 
 export const getSettings = async (): Promise<{
-  settings: db.Settings;
-  pendingMemberDismissals: db.PendingMemberDismissals;
+  settings: api.Settings;
+  pendingMemberDismissals: api.PendingMemberDismissals;
   dismissedPinnedPostBannerIds: string[];
 }> => {
   const results = await scry<ub.GroupsDeskSettings>({
@@ -119,8 +120,9 @@ const toClientSidebarSort = (
 
 export const toClientSettings = (
   settings: ub.GroupsDeskSettings
-): db.Settings => {
+): api.Settings => {
   return {
+    id: SETTINGS_SINGLETON_KEY,
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
@@ -155,7 +157,7 @@ export const toClientSettings = (
 export const parsePendingMemberDismissals = (
   settings: ub.GroupsDeskSettings
 ) => {
-  const dismissals: db.PendingMemberDismissals = [];
+  const dismissals: api.PendingMemberDismissals = [];
 
   Object.entries(settings.desk.groups || {})
     .filter(([key]) => key.startsWith(PENDING_MEMBER_DISMISSAL_PREFIX))
@@ -259,7 +261,7 @@ export interface Pikes {
   [desk: string]: Pike;
 }
 
-export async function getAppInfo(): Promise<db.AppInfo> {
+export async function getAppInfo(): Promise<api.AppInfo> {
   const pikes = await scry<Pikes>({
     app: 'hood',
     path: '/kiln/pikes',
@@ -271,8 +273,8 @@ export async function getAppInfo(): Promise<db.AppInfo> {
     })
   ).initial;
 
-  const groupsPike = pikes?.['groups'] ?? {};
-  const groupsCharge = charges?.['groups'] ?? {};
+  const groupsPike = pikes?.['groups'] ?? ({} as Pike);
+  const groupsCharge = charges?.['groups'] ?? ({} as any);
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',
@@ -284,7 +286,7 @@ export async function getAppInfo(): Promise<db.AppInfo> {
 export type SettingsUpdate =
   | {
       type: 'updateSetting';
-      setting: Partial<db.Settings>;
+      setting: Partial<api.Settings>;
     }
   | {
       type: 'dismissPinnedPostBanner';

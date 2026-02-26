@@ -3,7 +3,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { parseIdNumber } from '../client/apiUtils';
+import { parseIdNumber } from '../lib/id';
 import { Stringified } from '../lib/utilityTypes';
 import {
   Block,
