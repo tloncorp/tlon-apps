@@ -11,6 +11,7 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
+    "@expensify/react-native-live-markdown": "^0.1.234",
     "@emoji-mart/data": "^1.1.2",
     "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",

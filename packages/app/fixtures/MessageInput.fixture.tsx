@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BigInput, MessageInput, View } from '../ui';
+import { LiveMarkdownMessageInput } from '../ui/components/MessageInput/LiveMarkdownMessageInput';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group } from './fakeData';
 
@@ -53,7 +54,32 @@ const NotebookInputFixture = () => {
   );
 };
 
+const LiveMarkdownInputFixture = () => {
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
+
+  return (
+    <FixtureWrapper fillWidth>
+      <View backgroundColor="$background">
+        <LiveMarkdownMessageInput
+          channelType="chat"
+          shouldBlur={inputShouldBlur}
+          setShouldBlur={setInputShouldBlur}
+          sendPostFromDraft={async () => {}}
+          channelId="channel-id"
+          groupMembers={group.members ?? []}
+          groupRoles={group.roles ?? []}
+          getDraft={async () => null}
+          storeDraft={async () => {}}
+          clearDraft={async () => {}}
+          placeholder="Try **bold**, *italic*, `code`..."
+        />
+      </View>
+    </FixtureWrapper>
+  );
+};
+
 export default {
   chat: ChatMessageInputFixture,
   notebook: NotebookInputFixture,
+  liveMarkdown: LiveMarkdownInputFixture,
 };
