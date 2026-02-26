@@ -190,6 +190,40 @@ function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+async function clickVisibleTestId(
+  page: Page,
+  testId: string,
+  timeout = 1000
+) {
+  const locator = page.locator(`[data-testid="${testId}"]:visible`);
+  try {
+    await locator.waitFor({ state: 'visible', timeout });
+  } catch {
+    return false;
+  }
+  const count = await locator.count();
+  if (count !== 1) {
+    throw new Error(
+      `Expected exactly one visible element for testID "${testId}", found ${count}`
+    );
+  }
+  await locator.click({ force: true });
+  return true;
+}
+
+async function clickFirstVisibleTestId(
+  page: Page,
+  testIds: string[],
+  timeout = 1000
+) {
+  for (const testId of testIds) {
+    if (await clickVisibleTestId(page, testId, timeout)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function leaveGroup(page: Page, groupName: string) {
   await page.getByTestId('HomeNavIcon').click();
   if (await page.getByText(groupName).first().isVisible()) {
@@ -210,16 +244,12 @@ export async function leaveGroup(page: Page, groupName: string) {
 }
 
 export async function openGroupOptionsSheet(page: Page) {
-  if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible()) {
-    await page
-      .getByTestId('GroupOptionsSheetTrigger')
-      .first()
-      .click({ force: true });
-  } else {
-    await page
-      .getByTestId('GroupOptionsSheetTrigger')
-      .nth(1)
-      .click({ force: true });
+  const clicked = await clickFirstVisibleTestId(page, [
+    'GroupOptionsSheetTrigger',
+    'GroupChannelsHeaderTrigger',
+  ]);
+  if (!clicked) {
+    throw new Error('Could not find a visible group options trigger');
   }
 }
 
@@ -228,7 +258,10 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await waitForSessionStability(page);
 
   await openGroupOptionsSheet(page);
-  await page.getByTestId('GroupQuickAction-Invite').first().click();
+  await expect(page.getByTestId('GroupQuickAction-Invite')).toBeVisible({
+    timeout: 5000,
+  });
+  await page.getByTestId('GroupQuickAction-Invite').click();
 
   for (const memberId of memberIds) {
     const filterInput = page.getByPlaceholder('Filter by nickname');
@@ -354,9 +387,80 @@ export async function deleteGroup(page: Page, groupName?: string) {
 }
 
 export async function openGroupSettings(page: Page) {
+  // If we're already in settings, no action needed.
+  if (
+    await page.getByText('Group info & settings').isVisible({ timeout: 1000 }).catch(
+      () => false
+    )
+  ) {
+    return;
+  }
+
   await openGroupOptionsSheet(page);
-  await expect(page.getByText('Group info & settings')).toBeVisible();
-  await page.getByText('Group info & settings').click();
+  const clicked = await clickFirstVisibleTestId(
+    page,
+    ['GroupOptionsGroupInfoButton', 'ActionSheetAction-Group info & settings'],
+    3000
+  );
+
+  if (clicked) {
+    return;
+  }
+
+  // Some layouts navigate directly to settings from the trigger.
+  if (
+    await page.getByText('Group info & settings').isVisible({ timeout: 3000 }).catch(
+      () => false
+    )
+  ) {
+    return;
+  }
+
+  const groupSettingsByText = page.getByText('Group info & settings', {
+    exact: true,
+  });
+  if (await groupSettingsByText.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await groupSettingsByText.click();
+    return;
+  }
+
+  throw new Error('Could not find the "Group info & settings" action');
+}
+
+/**
+ * Opens the invite people flow from a group screen.
+ * Uses stable testIDs across multiple UI entry points.
+ */
+export async function openInvitePeople(page: Page) {
+  // Some paths land on "Edit group info"; return to Group info first.
+  if (
+    await page.getByText('Edit group info').isVisible({ timeout: 1000 }).catch(
+      () => false
+    )
+  ) {
+    await navigateBack(page);
+  }
+
+  const inviteButtonIds = [
+    'GroupQuickAction-Invite',
+    'GroupMembersInvitePeopleButton',
+    'GroupOptionsInvitePeopleButton',
+    'ActionSheetAction-Invite people',
+    'EmptyChannelInviteButton',
+  ];
+
+  let clicked = await clickFirstVisibleTestId(page, inviteButtonIds, 1500);
+  if (!clicked) {
+    await openGroupSettings(page);
+    clicked = await clickFirstVisibleTestId(page, inviteButtonIds, 3000);
+  }
+  if (!clicked) {
+    throw new Error('Could not find any visible invite button');
+  }
+
+  await expect(page.getByText('Select people to invite')).toBeVisible({
+    timeout: 5000,
+  });
 }
 
 /**
@@ -983,7 +1087,25 @@ export async function verifyElementCount(
  * Opens the group customization screen
  */
 export async function openGroupCustomization(page: Page) {
-  await page.getByText('Customize').click();
+  const customizationButtonIds = [
+    'EmptyChannelEditGroupButton',
+    'GroupOptionsEditGroupInfoButton',
+    'ActionSheetAction-Edit group info',
+  ];
+  let clicked = await clickFirstVisibleTestId(page, customizationButtonIds, 3000);
+
+  if (!clicked) {
+    const headerEditButton = page.locator(
+      '[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]:visible'
+    );
+    if ((await headerEditButton.count()) === 1) {
+      await headerEditButton.click();
+      clicked = true;
+    }
+  }
+  if (!clicked) {
+    throw new Error('Could not find any visible group customization button');
+  }
   await expect(page.getByText('Edit group info')).toBeVisible();
 }
 

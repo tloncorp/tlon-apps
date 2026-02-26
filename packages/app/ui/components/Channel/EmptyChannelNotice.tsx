@@ -132,6 +132,7 @@ export function EmptyChannelNotice({
             centered={false}
             label="Invite people"
             leadingIcon="Add"
+            testID="EmptyChannelInviteButton"
             onPress={onPressInvite}
           />
           <Button
@@ -140,6 +141,11 @@ export function EmptyChannelNotice({
             centered={false}
             label={isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
             leadingIcon="Channel"
+            testID={
+              isSingleChannelGroup
+                ? 'EmptyChannelEditGroupButton'
+                : 'EmptyChannelEditChannelButton'
+            }
             onPress={
               isSingleChannelGroup
                 ? () => onPressGroupMeta()
