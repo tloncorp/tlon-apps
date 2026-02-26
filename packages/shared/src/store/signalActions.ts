@@ -24,6 +24,17 @@ import type { E2ESession } from '../signal/types';
 
 const logger = createDevLogger('signalActions', false);
 
+interface PeerIdentityPin {
+  identityPubHex?: string;
+  identityDHPubHex: string;
+}
+
+const PIN_STATE_PREFIX = '__pin__:';
+
+function pinStatePeerKey(peerShip: string): string {
+  return `${PIN_STATE_PREFIX}${peerShip}`;
+}
+
 // --- Auth ---
 
 export async function setupPasskeyAuth(): Promise<void> {
@@ -102,6 +113,69 @@ export function getSignalAuthType() {
   return signalStore.authType;
 }
 
+async function loadPeerIdentityPin(peerShip: string): Promise<PeerIdentityPin | null> {
+  if (!signalStore.isUnlocked()) return null;
+
+  const cached = signalStore.getPeerPin(peerShip);
+  if (cached) {
+    return cached;
+  }
+
+  const hex = await signalApi.loadEncryptedState(pinStatePeerKey(peerShip));
+  if (!hex) return null;
+
+  try {
+    const encrypted = toBytes(hex);
+    const plain = await decryptState(signalStore.getStorageKey(), encrypted);
+    const parsed = JSON.parse(new TextDecoder().decode(plain)) as PeerIdentityPin;
+    signalStore.setPeerPin(peerShip, parsed);
+    return parsed;
+  } catch (error) {
+    logger.log('loadPeerIdentityPin failed', { peerShip, error });
+    return null;
+  }
+}
+
+async function savePeerIdentityPin(
+  peerShip: string,
+  pin: PeerIdentityPin
+): Promise<void> {
+  if (!signalStore.isUnlocked()) return;
+
+  signalStore.setPeerPin(peerShip, pin);
+  const plain = new TextEncoder().encode(JSON.stringify(pin));
+  const encrypted = await encryptState(signalStore.getStorageKey(), plain);
+  await signalApi.saveEncryptedState(pinStatePeerKey(peerShip), toHex(encrypted));
+}
+
+async function assertOrPinPeerIdentity(
+  peerShip: string,
+  nextPin: PeerIdentityPin
+): Promise<boolean> {
+  const existing = await loadPeerIdentityPin(peerShip);
+  if (!existing) {
+    await savePeerIdentityPin(peerShip, nextPin);
+    return true;
+  }
+
+  const identityMismatch =
+    !!existing.identityPubHex &&
+    !!nextPin.identityPubHex &&
+    existing.identityPubHex !== nextPin.identityPubHex;
+  const identityDhMismatch = existing.identityDHPubHex !== nextPin.identityDHPubHex;
+
+  if (identityMismatch || identityDhMismatch) {
+    logger.log('peer identity continuity check failed', {
+      peerShip,
+      existing,
+      nextPin,
+    });
+    return false;
+  }
+
+  return true;
+}
+
 // --- E2E Lifecycle ---
 
 /**
@@ -137,6 +211,17 @@ export async function enableE2E(
   // Verify SPK signature using Ed25519 identity key
   if (!verifySignature(bundle.identityPub, bundle.spkKey, bundle.spkSig)) {
     logger.log('enableE2E: SPK signature verification failed');
+    return false;
+  }
+
+  const continuityOk = await assertOrPinPeerIdentity(peerShip, {
+    identityPubHex: toHex(bundle.identityPub),
+    identityDHPubHex: toHex(bundle.identityDHPub),
+  });
+  if (!continuityOk) {
+    logger.log('enableE2E: peer identity changed; refusing handshake', {
+      peerShip,
+    });
     return false;
   }
 
@@ -232,9 +317,19 @@ export function decryptPostBlob(
   if (signalMsg.type !== 'signal:message') return null;
 
   try {
+    const messageCount = Number(signalMsg.payload.count ?? '');
+    if (!Number.isFinite(messageCount) || messageCount < 1) {
+      logger.log('decryptPostBlob invalid message count', {
+        channelId,
+        count: signalMsg.payload.count,
+      });
+      return null;
+    }
+
     const { plaintext, newRatchet } = decryptMessage(
       session.ratchet,
       signalMsg.payload.public,
+      messageCount,
       toBytes(signalMsg.payload.contents)
     );
 
@@ -256,11 +351,17 @@ export function decryptPostBlob(
 
 // --- Signal blob processing (handshake) ---
 
+export type SignalProcessResult =
+  | 'handshake:initiation'
+  | 'handshake:init-ack'
+  | 'message'
+  | null;
+
 export function processSignalBlob(
   channelId: string,
   blob: string,
   authorId: string
-): 'handshake' | 'message' | null {
+): SignalProcessResult {
   if (!isSignalBlob(blob)) return null;
   if (!signalStore.isUnlocked()) {
     // Track pending initiations so we can process them after unlock
@@ -276,8 +377,11 @@ export function processSignalBlob(
 
   // Skip processing our own handshake blobs — we already handled them when sending
   if (authorId === currentUserId) {
-    if (signalMsg.type === 'signal:send-initiation' || signalMsg.type === 'signal:init-ack') {
-      return 'handshake';
+    if (signalMsg.type === 'signal:send-initiation') {
+      return 'handshake:initiation';
+    }
+    if (signalMsg.type === 'signal:init-ack') {
+      return 'handshake:init-ack';
     }
   }
 
@@ -300,18 +404,29 @@ function handleInitiation(
   channelId: string,
   payload: Record<string, string>,
   authorId: string
-): 'handshake' {
+): 'handshake:initiation' {
   // Don't overwrite an existing active session — this prevents the
   // double-initiation race where both ships send initiations and each
   // overwrites the other's session with mismatched key material.
   const existing = signalStore.getSession(channelId);
   if (existing?.status === 'active') {
     logger.log('handleInitiation: session already active, skipping');
-    return 'handshake';
+    return 'handshake:initiation';
   }
 
   const ephemeral = toBytes(payload.ephemeral);
   const theirIdentityDHPub = toBytes(payload.public);
+
+  const existingPin = signalStore.getPeerPin(authorId);
+  const nextDhHex = toHex(theirIdentityDHPub);
+  if (existingPin && existingPin.identityDHPubHex !== nextDhHex) {
+    logger.log('handleInitiation: peer DH identity continuity check failed', {
+      authorId,
+      expected: existingPin.identityDHPubHex,
+      got: nextDhHex,
+    });
+    return 'handshake:initiation';
+  }
 
   // X3DH responder (3-DH, no OTP)
   const session = responderX3DH(
@@ -335,6 +450,15 @@ function handleInitiation(
     peerShip: authorId,
   });
 
+  if (!existingPin) {
+    savePeerIdentityPin(authorId, { identityDHPubHex: nextDhHex }).catch((error) => {
+      logger.log('failed to persist peer identity pin from initiation', {
+        authorId,
+        error,
+      });
+    });
+  }
+
   // Send init-ack back to the initiator so they transition from pending → active
   const ackBlob = makeSignalBlob('signal:init-ack', {});
   const currentUserId = getCurrentUserId();
@@ -347,12 +471,17 @@ function handleInitiation(
   }).catch((e) => logger.log('failed to send init-ack', e));
 
   // Schedule state backup
-  backupRatchetState(authorId).catch(() => {});
+  backupRatchetState(authorId).catch((error) => {
+    logger.log('backupRatchetState failed after initiation', {
+      authorId,
+      error,
+    });
+  });
 
-  return 'handshake';
+  return 'handshake:initiation';
 }
 
-function handleInitAck(channelId: string): 'handshake' {
+function handleInitAck(channelId: string): 'handshake:init-ack' {
   const session = signalStore.getSession(channelId);
   if (session) {
     signalStore.setSession(channelId, {
@@ -360,9 +489,14 @@ function handleInitAck(channelId: string): 'handshake' {
       status: 'active',
     });
     // Schedule backup
-    backupRatchetState(session.peerShip).catch(() => {});
+    backupRatchetState(session.peerShip).catch((error) => {
+      logger.log('backupRatchetState failed after init-ack', {
+        peerShip: session.peerShip,
+        error,
+      });
+    });
   }
-  return 'handshake';
+  return 'handshake:init-ack';
 }
 
 // --- State backup ---
@@ -391,6 +525,12 @@ export async function restoreRatchetStates(): Promise<void> {
   try {
     const peers = await signalApi.getStatePeers();
     for (const peer of peers) {
+      if (peer.startsWith(PIN_STATE_PREFIX)) {
+        const ship = peer.slice(PIN_STATE_PREFIX.length);
+        await loadPeerIdentityPin(ship);
+        continue;
+      }
+
       if (signalStore.getSession(peer)) continue; // already loaded
 
       const hex = await signalApi.loadEncryptedState(peer);

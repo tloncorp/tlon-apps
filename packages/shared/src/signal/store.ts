@@ -33,6 +33,7 @@ class SignalStore {
   private credentialId: Uint8Array | null = null;
   private _authType: AuthType | null = null;
   private sessions: Map<string, E2ESession> = new Map();
+  private peerPins: Map<string, { identityPubHex?: string; identityDHPubHex: string }> = new Map();
   // Channels with unprocessed initiations (received while locked)
   private pendingInitiations: Set<string> = new Set();
 
@@ -64,6 +65,8 @@ class SignalStore {
     this.otpSeed = null;
     this.credentialId = null;
     this.sessions.clear();
+    this.peerPins.clear();
+    this.pendingInitiations.clear();
   }
 
   isUnlocked(): boolean {
@@ -137,6 +140,16 @@ class SignalStore {
     return this.sessions;
   }
 
+  // --- Peer identity continuity pins ---
+
+  getPeerPin(channelId: string): { identityPubHex?: string; identityDHPubHex: string } | null {
+    return this.peerPins.get(channelId) ?? null;
+  }
+
+  setPeerPin(channelId: string, pin: { identityPubHex?: string; identityDHPubHex: string }): void {
+    this.peerPins.set(channelId, pin);
+  }
+
   // --- Pending initiations (received while locked) ---
 
   addPendingInitiation(channelId: string): void {
@@ -167,6 +180,7 @@ class SignalStore {
         receiveChain: toHex(session.ratchet.receiveChain),
         sendCount: session.ratchet.sendCount,
         receiveCount: session.ratchet.receiveCount,
+        skippedMessageKeys: session.ratchet.skippedMessageKeys,
       },
       status: session.status,
       peerShip: session.peerShip,
@@ -183,6 +197,7 @@ class SignalStore {
         receiveChain: toBytes(serialized.ratchet.receiveChain),
         sendCount: serialized.ratchet.sendCount,
         receiveCount: serialized.ratchet.receiveCount,
+        skippedMessageKeys: serialized.ratchet.skippedMessageKeys ?? {},
       },
       status: serialized.status,
       peerShip: serialized.peerShip,

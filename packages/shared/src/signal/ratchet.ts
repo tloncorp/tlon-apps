@@ -36,6 +36,7 @@ export function initRatchetFromSession(
     receiveChain: initiator ? chain2 : chain1,
     sendCount: 0,
     receiveCount: 0,
+    skippedMessageKeys: {},
   };
 
   if (initiator) {
@@ -103,26 +104,10 @@ export function encryptMessage(
   return { ciphertext, newRatchet };
 }
 
-export function decryptMessage(
-  ratchet: Ratchet,
-  theirPublicHex: string,
-  ciphertext: Uint8Array
-): { plaintext: Uint8Array; newRatchet: Ratchet } {
-  let r = { ...ratchet };
-
-  // DH ratchet if sender's public key changed
-  const theirsHex = toHex(r.theirs);
-  if (theirPublicHex !== theirsHex) {
-    r = dhRatchet(r, toBytes(theirPublicHex));
-  }
-
-  const { msg: msgKey, chain } = symmetricRatchet(r.receiveChain);
-  r = {
-    ...r,
-    receiveChain: chain,
-    receiveCount: r.receiveCount + 1,
-  };
-
+function deriveMessageCipherParams(msgKey: Key): {
+  encryptionKey: Uint8Array;
+  iv: Uint8Array;
+} {
   const derived = hkdf(
     sha256,
     msgKey,
@@ -130,8 +115,70 @@ export function decryptMessage(
     'send-message',
     46
   );
-  const encryptionKey = derived.slice(0, 32);
-  const iv = derived.slice(32);
+  return {
+    encryptionKey: derived.slice(0, 32),
+    iv: derived.slice(32),
+  };
+}
+
+function skippedKeyId(theirPublicHex: string, count: number): string {
+  return `${theirPublicHex}:${count}`;
+}
+
+const MAX_SKIP = 200;
+
+export function decryptMessage(
+  ratchet: Ratchet,
+  theirPublicHex: string,
+  messageCount: number,
+  ciphertext: Uint8Array
+): { plaintext: Uint8Array; newRatchet: Ratchet } {
+  let r: Ratchet = {
+    ...ratchet,
+    skippedMessageKeys: { ...ratchet.skippedMessageKeys },
+  };
+
+  const cachedId = skippedKeyId(theirPublicHex, messageCount);
+  const cachedMsgKeyHex = r.skippedMessageKeys[cachedId];
+  if (cachedMsgKeyHex) {
+    const { encryptionKey, iv } = deriveMessageCipherParams(toBytes(cachedMsgKeyHex));
+    const plaintext = gcm(encryptionKey, iv).decrypt(ciphertext);
+    delete r.skippedMessageKeys[cachedId];
+    return { plaintext, newRatchet: r };
+  }
+
+  // DH ratchet if sender's public key changed
+  const theirsHex = toHex(r.theirs);
+  if (theirPublicHex !== theirsHex) {
+    r = dhRatchet(r, toBytes(theirPublicHex));
+  }
+
+  const expectedCount = r.receiveCount + 1;
+  if (messageCount < expectedCount) {
+    throw new Error('stale/replayed message without cached key');
+  }
+
+  const gap = messageCount - expectedCount;
+  if (gap > MAX_SKIP) {
+    throw new Error(`message gap too large: ${gap}`);
+  }
+
+  // Cache skipped keys for out-of-order messages.
+  for (let count = expectedCount; count < messageCount; count++) {
+    const { msg, chain } = symmetricRatchet(r.receiveChain);
+    r.receiveChain = chain;
+    r.receiveCount = count;
+    r.skippedMessageKeys[skippedKeyId(theirPublicHex, count)] = toHex(msg);
+  }
+
+  const { msg: msgKey, chain } = symmetricRatchet(r.receiveChain);
+  r = {
+    ...r,
+    receiveChain: chain,
+    receiveCount: messageCount,
+  };
+
+  const { encryptionKey, iv } = deriveMessageCipherParams(msgKey);
   const plaintext = gcm(encryptionKey, iv).decrypt(ciphertext);
 
   return { plaintext, newRatchet: r };

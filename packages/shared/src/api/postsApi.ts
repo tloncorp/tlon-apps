@@ -1191,9 +1191,22 @@ export function toPostsData(
 
     let didDecrypt = false;
     const ownEncryptedSentAts: number[] = [];
-    deferredSignalPosts.sort(
-      (a, b) => (a.data.receivedAt ?? 0) - (b.data.receivedAt ?? 0)
-    );
+    const signalCount = (blob: string | null | undefined): number => {
+      if (!blob || !isSignalBlob(blob)) return Number.POSITIVE_INFINITY;
+      try {
+        const parsed = parseSignalBlob(blob);
+        const count = Number(parsed.payload.count ?? '');
+        return Number.isFinite(count) ? count : Number.POSITIVE_INFINITY;
+      } catch {
+        return Number.POSITIVE_INFINITY;
+      }
+    };
+
+    deferredSignalPosts.sort((a, b) => {
+      const countDiff = signalCount(a.raw.essay.blob) - signalCount(b.raw.essay.blob);
+      if (Number.isFinite(countDiff) && countDiff !== 0) return countDiff;
+      return (a.data.receivedAt ?? 0) - (b.data.receivedAt ?? 0);
+    });
     for (const { raw, data } of deferredSignalPosts) {
       // Skip own encrypted messages — the optimistic plaintext post is
       // already in the local DB. But collect sentAt values so we can
@@ -1210,9 +1223,14 @@ export function toPostsData(
         if (session?.status === 'active') {
           try {
             const sig = parseSignalBlob(raw.essay.blob!);
+            const messageCount = Number(sig.payload.count ?? '');
+            if (!Number.isFinite(messageCount) || messageCount < 1) {
+              throw new Error('invalid signal message count');
+            }
             const { plaintext, newRatchet } = decryptMessage(
               session.ratchet,
               sig.payload.public,
+              messageCount,
               toBytes(sig.payload.contents)
             );
             signalStore.setSession(channelId, {
@@ -1250,7 +1268,9 @@ export function toPostsData(
               toHex(encrypted)
             )
           )
-          .catch(() => {});
+          .catch((error) => {
+            logger.log('bulk backupRatchetState failed', { channelId, error });
+          });
       }
     }
   }

@@ -284,7 +284,12 @@ async function _sendPost({
             blob: 'signal:decrypted',
           });
           // Schedule state backup after send
-          backupRatchetState(channel.id).catch(() => {});
+          backupRatchetState(channel.id).catch((error) => {
+            logger.log('backupRatchetState failed after send', {
+              channelId: channel.id,
+              error,
+            });
+          });
         }
       }
 

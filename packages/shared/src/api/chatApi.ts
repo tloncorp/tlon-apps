@@ -192,7 +192,9 @@ export function subscribeToChatUpdates(
               db.confirmPostDelivery({
                 channelId,
                 sentAts: [post.sentAt],
-              }).catch(() => {});
+              }).catch((error) => {
+                logger.log('confirmPostDelivery failed', { channelId, error });
+              });
             }
             return;
           }
@@ -203,8 +205,18 @@ export function subscribeToChatUpdates(
             post.authorId
           );
 
-          if (blobType === 'handshake') {
-            // Handshake message — render as a system notice
+          if (blobType === 'handshake:initiation') {
+            return eventHandler({
+              type: 'addPost',
+              post: {
+                ...post,
+                type: 'notice',
+                textContent: 'Peer initiated encrypted conversation',
+              },
+            });
+          }
+
+          if (blobType === 'handshake:init-ack') {
             return eventHandler({
               type: 'addPost',
               post: {
@@ -231,7 +243,9 @@ export function subscribeToChatUpdates(
                 textContent: undefined,
               };
               // Keep ratchet state backed up so it survives refresh
-              backupRatchetState(channelId).catch(() => {});
+              backupRatchetState(channelId).catch((error) => {
+                logger.log('backupRatchetState failed', { channelId, error });
+              });
             } else {
               // Decryption failed — show as notice
               post = {

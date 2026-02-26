@@ -49,6 +49,8 @@ export interface Ratchet {
   receiveChain: Key;
   sendCount: number;
   receiveCount: number;
+  // Out-of-order support: cached message keys by `${theirPublicHex}:${count}`
+  skippedMessageKeys: Record<string, string>;
 }
 
 export interface E2ESession {
@@ -107,6 +109,7 @@ export interface SerializedRatchet {
   receiveChain: string;
   sendCount: number;
   receiveCount: number;
+  skippedMessageKeys: Record<string, string>;
 }
 
 export interface SerializedSession {
