@@ -257,7 +257,7 @@ const ChatMessage = ({
           <View
             pointerEvents="none"
             position="absolute"
-            right={showAuthor ? 12 : 36}
+            right={12}
             top={8}
             zIndex={198}
           >

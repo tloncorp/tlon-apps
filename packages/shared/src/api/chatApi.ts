@@ -117,7 +117,7 @@ export function subscribeToChatUpdates(
       app: 'chat',
       path: '/v3',
     },
-    (event: ub.WritResponse | ub.ClubAction | string[]) => {
+    async (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
 
       if ('show' in event) {
@@ -185,9 +185,34 @@ export function subscribeToChatUpdates(
                 post: { ...post, type: 'notice' },
               });
             }
-            // Own encrypted messages: suppress the subscription echo.
-            // The sender already has the optimistic plaintext post locally.
-            // Confirm delivery so the "sending" indicator clears.
+            // Own encrypted messages: we need to emit the confirmed post
+            // so the in-memory list replaces the pending version (which
+            // sorts incorrectly).  Fetch the cached optimistic post to
+            // preserve the plaintext content the sender already wrote.
+            const cached = post.sentAt != null
+              ? await db.getPostByCacheId({
+                  channelId,
+                  sentAt: post.sentAt,
+                  authorId: currentUserId,
+                })
+              : null;
+
+            if (cached) {
+              // Merge: keep local plaintext but mark as confirmed
+              return eventHandler({
+                type: 'addPost',
+                post: {
+                  ...cached,
+                  id: post.id,
+                  receivedAt: post.receivedAt,
+                  sequenceNum: post.sequenceNum ?? cached.sequenceNum,
+                  deliveryStatus: null,
+                  blob: cached.blob ?? 'signal:decrypted',
+                },
+              });
+            }
+
+            // Fallback: no cached post found — just confirm delivery
             if (post.sentAt != null) {
               db.confirmPostDelivery({
                 channelId,

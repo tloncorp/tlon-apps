@@ -33,7 +33,6 @@
   },
   "scripts": {
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
-    "build:wasm": "bash src/signal/core/build-wasm.sh",
     "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly --noEmit false",

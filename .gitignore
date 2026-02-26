@@ -22,8 +22,3 @@ apps/tlon-web/.playwright-dev.pid
 
 dump.sqlite3
 .claude
-
-# Signal WASM
-packages/shared/src/signal/pkg/
-core/target/
-packages/shared/src/signal/core/target/
