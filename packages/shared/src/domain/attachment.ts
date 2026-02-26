@@ -381,7 +381,10 @@ export namespace Attachment {
           name: attachment.localUri.split('/').pop(), // use filename from URI
           size: attachment.size,
           mimeType: attachment.mimeType,
-          voiceMemo: { duration: attachment.duration },
+          voiceMemo: {
+            duration: attachment.duration,
+            transcription: attachment.transcription,
+          },
         };
       case 'text':
       // fallthrough
@@ -412,6 +415,7 @@ export namespace Attachment {
             localUri: uploadIntent.localUri,
             size: uploadIntent.size,
             duration: uploadIntent.voiceMemo.duration,
+            transcription: uploadIntent.voiceMemo.transcription,
           };
         } else {
           return {

@@ -186,12 +186,19 @@ export function AttachmentPreview({
     case 'voicememo': {
       return (
         <Container showSpinner={uploading}>
-          <Text
-            style={{ padding: 12, flex: 1 }}
-            backgroundColor="$secondaryBackground"
-          >
-            Voice Memo
-          </Text>
+          <View backgroundColor="$secondaryBackground" flex={1}>
+            <Text style={{ padding: 12 }}>Voice Memo</Text>
+            {attachment.transcription && (
+              <Text
+                flex={1}
+                style={{ padding: 12, flex: 1 }}
+                numberOfLines={3}
+                color="$secondaryText"
+              >
+                &quot;{attachment.transcription}&quot;
+              </Text>
+            )}
+          </View>
         </Container>
       );
     }

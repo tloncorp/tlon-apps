@@ -1,3 +1,4 @@
+import { Transcription } from '@tloncorp/shared';
 import {
   Attachment,
   FinalizedAttachment,
@@ -207,6 +208,33 @@ export const AttachmentProvider = ({
     },
     [uploadAsset]
   );
+
+  useEffect(() => {
+    // start voice memo transcriptions
+    for (const att of attachments) {
+      if (att.type === 'voicememo' && att.transcription == null) {
+        Transcription.requestTranscriptionPermissionsIfNeeded().then(
+          ({ authorized }) => {
+            if (authorized) {
+              Transcription.transcribeAudioFileWithGlobalCache(
+                att.localUri
+              ).then((text) => {
+                setState((prev) =>
+                  prev.map((a) => {
+                    if (a.type === 'voicememo' && a.localUri === att.localUri) {
+                      return { ...a, transcription: text };
+                    } else {
+                      return a;
+                    }
+                  })
+                );
+              });
+            }
+          }
+        );
+      }
+    }
+  }, [attachments]);
 
   return (
     <Context.Provider
