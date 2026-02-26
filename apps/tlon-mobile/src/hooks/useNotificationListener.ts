@@ -1,5 +1,8 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import * as api from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
+import { ActivityIncomingEvent } from '@tloncorp/api/urbit';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
@@ -15,11 +18,8 @@ import {
   syncDms,
   syncGroups,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/api/urbit';
-import { ActivityIncomingEvent } from '@tloncorp/api/urbit';
 import {
   Notification,
   clearLastNotificationResponseAsync,

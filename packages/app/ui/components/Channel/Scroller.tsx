@@ -98,6 +98,7 @@ const Scroller = forwardRef(
       setActiveMessage,
       isLoading,
       onPressScrollToBottom,
+      listHeaderComponent,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -127,6 +128,7 @@ const Scroller = forwardRef(
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
+      listHeaderComponent?: React.ReactElement;
     },
     ref
   ) => {
@@ -174,17 +176,21 @@ const Scroller = forwardRef(
         listRef.current?.scrollToIndex(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
+      scrollToEnd: (params: { animated?: boolean }) =>
+        listRef.current?.scrollToEnd(params),
     }));
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
-      // Only scroll if we're not loading and have a valid ref
       if (listRef.current && !isLoading) {
-        // Use a small timeout to ensure state updates have processed
         requestAnimationFrame(() => {
-          listRef.current?.scrollToStart({ animated: true });
+          if (inverted) {
+            listRef.current?.scrollToStart({ animated: true });
+          } else {
+            listRef.current?.scrollToEnd({ animated: true });
+          }
         });
       }
     };
@@ -233,10 +239,9 @@ const Scroller = forwardRef(
     }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({
-        item: { post, newer: nextItem, older: previousItem, ...rest },
-        index,
-      }) => {
+      ({ item: { post, newer, older, ...rest }, index }) => {
+        const previousItem = inverted ? older : newer;
+        const nextItem = inverted ? newer : older;
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
@@ -301,6 +306,7 @@ const Scroller = forwardRef(
         anchor?.type,
         anchor?.postId,
         firstUnreadId,
+        inverted,
         renderItem,
         unreadCount,
         showReplies,
@@ -507,6 +513,7 @@ const Scroller = forwardRef(
             // input while they're typing.
             scrollEnabled={!editingPost}
             style={style}
+            listHeaderComponent={listHeaderComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (
