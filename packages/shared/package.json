@@ -69,6 +69,7 @@
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": "*",
+    "expo-speech-transcriber": "*",
     "expo-file-system": "*",
     "expo-av": "*",
     "@tanstack/react-query": "^5.32.1",

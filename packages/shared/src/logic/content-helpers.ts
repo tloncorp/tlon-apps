@@ -714,7 +714,7 @@ export function toPostData({
             version: 1,
             fileUri: uploadStateUri(attachment.uploadState),
             size: attachment.size,
-            transcription: undefined,
+            transcription: attachment.transcription,
             waveformPreview: attachment.waveformPreview,
             duration: attachment.duration,
           });

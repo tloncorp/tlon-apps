@@ -245,12 +245,18 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
           <Icon type="Play" color="$primaryText" />
         </View>
         <YStack flex={1} gap="$s">
-          <Waveform
-            candleWidth={3}
-            candleSpacing={1}
-            values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-            style={{ width: '100%', height: 22 }}
-          />
+          {block.voiceMemo.transcription ? (
+            <Text size="$label/m" numberOfLines={1} ellipsizeMode="tail">
+              &quot;{block.voiceMemo.transcription}&quot;
+            </Text>
+          ) : (
+            <Waveform
+              candleWidth={3}
+              candleSpacing={1}
+              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+              style={{ width: '100%', height: 22 }}
+            />
+          )}
           {block.voiceMemo.duration != null && (
             <Text size="$label/s" color="$secondaryText">
               {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}

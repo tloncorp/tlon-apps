@@ -85,6 +85,7 @@ export type VoiceMemoAttachment = {
   size: number;
   /** waveform values to use as a preview */
   waveformPreview?: number[];
+  transcription?: string;
   /** in seconds */
   duration?: number;
   mimeType?: string;
@@ -109,6 +110,7 @@ export type UploadedVoiceMemoAttachment = {
   /** in seconds */
   duration?: number;
   waveformPreview?: number[];
+  transcription?: string;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -160,6 +162,7 @@ export namespace Attachment {
           | false
           | {
               duration?: number;
+              transcription?: string;
             };
       }
     | { type: 'file'; file: File };
@@ -267,6 +270,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              transcription: uploadIntent.voiceMemo.transcription,
               uploadState,
             };
           } else {
@@ -317,6 +321,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              transcription: uploadIntent.voiceMemo.transcription,
               uploadState: {
                 status: 'uploading',
                 localUri: uploadIntent.localUri,
@@ -455,6 +460,7 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              transcription: uploadIntent.voiceMemo.transcription,
               uploadState,
             };
           } else {
