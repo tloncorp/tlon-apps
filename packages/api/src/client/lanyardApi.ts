@@ -1,11 +1,11 @@
 import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { simpleHash } from '../lib/utils';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../types';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
-import { AnalyticsEvent } from '../types/analytics';
+import { simpleHash } from '../lib/utils';
 import * as ub from '../urbit';
 import { encodeString } from '../urbit';
 import * as NounParsers from './nounParsers';
@@ -205,7 +205,7 @@ function toPhoneIdentifierSet(phoneNumbers: string[]) {
   return dejs.set(phoneNumbers.map((num) => ['phone', num]));
 }
 
-function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
+function nounToClientRecords(noun: Noun, contactId: string): api.Attestation[] {
   return enjs.tree((n: Noun) => {
     if (!(n instanceof Cell)) {
       throw new Error('malformed map');
@@ -221,7 +221,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
       throw new Error('malformed record key identifier');
     }
 
-    const type = enjs.cord(n.head.tail.head) as db.AttestationType;
+    const type = enjs.cord(n.head.tail.head) as api.AttestationType;
     const value = getFrondValue([
       { tag: 'dummy', get: enjs.cord },
       { tag: 'phone', get: enjs.cord },
@@ -233,7 +233,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
       throw new Error('malformed record value');
     }
 
-    const config = enjs.cord(n.tail.head) as db.AttestationDiscoverability;
+    const config = enjs.cord(n.tail.head) as api.AttestationDiscoverability;
     const a = n.tail.tail;
     if (!(a instanceof Cell)) {
       throw new Error('malformed record why');
@@ -241,7 +241,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
     const statusMessage = enjs.cord(a.head);
 
     const { status, sign } = getFrondValue<{
-      status: db.AttestationStatus;
+      status: api.AttestationStatus;
       sign: NounParsers.Sign | null;
     }>([
       { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
@@ -259,7 +259,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
     const provingTweetId =
       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
 
-    const verif: db.Attestation = {
+    const verif: api.Attestation = {
       id,
       contactId,
       provider,
@@ -273,8 +273,8 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
       signature: sign?.signature,
     };
 
-    return verif as Json;
-  })(noun) as unknown as db.Attestation[];
+    return verif as unknown as Json;
+  })(noun) as unknown as api.Attestation[];
 }
 
 export function parseAttestationId(attest: {
@@ -321,7 +321,7 @@ export async function fetchTwitterConfirmPayload(handle: string) {
   }
 }
 
-export async function fetchUserAttestations(): Promise<db.Attestation[]> {
+export async function fetchUserAttestations(): Promise<api.Attestation[]> {
   const currentUserId = getCurrentUserId();
 
   try {
@@ -430,8 +430,8 @@ export async function updateAttestationDiscoverability({
   type,
 }: {
   value: string;
-  type: db.AttestationType;
-  visibility: db.AttestationDiscoverability;
+  type: api.AttestationType;
+  visibility: api.AttestationDiscoverability;
 }) {
   const identifier = [type, value.toLowerCase()];
   const config = [visibility];
@@ -462,7 +462,7 @@ export async function updateAttestationProfileDisplay({
   displaySetting,
 }: {
   value: string;
-  type: db.AttestationType;
+  type: api.AttestationType;
   displaySetting: 'full' | 'half' | 'none';
 }) {
   const identifier = [type, value.toLowerCase()];
@@ -618,7 +618,7 @@ export async function confirmPhoneAttestation(
 }
 
 export async function revokeAttestation(params: {
-  type: db.AttestationType;
+  type: api.AttestationType;
   value: string;
 }) {
   const identifier = [params.type, params.value];

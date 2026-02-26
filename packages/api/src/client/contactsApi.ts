@@ -1,6 +1,6 @@
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import { AnalyticsEvent } from '../types/analytics';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../types';
 import { normalizeUrbitColor } from '../lib/utils';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
@@ -236,7 +236,7 @@ export const setPinnedGroups = async (groupIds: string[]) => {
 };
 
 export type ContactsUpdate =
-  | { type: 'upsertContact'; contact: db.Contact }
+  | { type: 'upsertContact'; contact: api.Contact }
   | { type: 'removeContact'; contactId: string };
 
 export const subscribeToContactUpdates = (
@@ -282,7 +282,7 @@ export const v0PeersToClientProfiles = (
     userIdsToOmit?: Set<string>;
     contactSuggestions?: Set<string>;
   }
-): db.Contact[] => {
+): api.Contact[] => {
   return Object.entries(contacts)
     .filter(([ship]) =>
       config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
@@ -304,7 +304,7 @@ export const v0PeerToClientProfile = (
   config?: {
     isContactSuggestion?: boolean;
   }
-): db.Contact => {
+): api.Contact => {
   const currentUserId = getCurrentUserId();
   return {
     id,
@@ -329,12 +329,12 @@ export const v0PeerToClientProfile = (
 function parseContactAttestations(
   contactId: string,
   contact?: ub.Contact | ub.ContactBookProfile | null
-): db.ContactAttestation[] | null {
+): api.ContactAttestation[] | null {
   if (!contact) {
     return null;
   }
 
-  const attestations: db.Attestation[] = [];
+  const attestations: api.Attestation[] = [];
 
   if (
     contact['lanyard-twitter-0-sign'] &&
@@ -483,7 +483,7 @@ export const v1PeerToClientProfile = (
     isContact?: boolean;
     isContactSuggestion?: boolean;
   }
-): db.Contact => {
+): api.Contact => {
   const currentUserId = getCurrentUserId();
   return {
     id,
@@ -510,7 +510,7 @@ export const contactsToClientProfiles = (
   config?: {
     contactSuggestions?: Set<string>;
   }
-): db.Contact[] => {
+): api.Contact[] => {
   return Object.entries(contacts).flatMap(([userId, contact]) =>
     contact === null
       ? []
@@ -528,7 +528,7 @@ export const contactToClientProfile = (
   config?: {
     isContactSuggestion?: boolean;
   }
-): db.Contact => {
+): api.Contact => {
   const [base, overrides] = contact;
 
   return {

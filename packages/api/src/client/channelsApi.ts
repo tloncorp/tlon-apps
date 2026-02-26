@@ -1,8 +1,8 @@
 import { render, da } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
+import { Poke } from '../http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';
@@ -40,11 +40,11 @@ export function channelAction(
   };
 }
 
-export type AddPostUpdate = { type: 'addPost'; post: db.Post };
+export type AddPostUpdate = { type: 'addPost'; post: api.Post };
 export type PostReactionsUpdate = {
   type: 'updateReactions';
   postId: string;
-  reactions: db.Reaction[];
+  reactions: api.Reaction[];
 };
 export type UnknownUpdate = { type: 'unknown' };
 export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
@@ -81,7 +81,7 @@ export type JoinChannelSuccessUpdate = {
 export type InitialPostsOnChannelJoin = {
   type: 'initialPostsOnChannelJoin';
   channelId: string;
-  posts: db.Post[];
+  posts: api.Post[];
 };
 
 export type LeaveChannelSuccessUpdate = {
@@ -477,7 +477,7 @@ export const searchChannel = async (params: {
 
   // note: we avoid incurring the cost of sorting here since the main consumer (useChannelSearch)
   // aggregates results across multiple pages
-  const posts: db.Post[] = response.scan
+  const posts: api.Post[] = response.scan
     .map((scanItem) => {
       if ('post' in scanItem) {
         return toPostData(params.channelId, scanItem.post);
@@ -497,7 +497,7 @@ export const searchChannel = async (params: {
       }
       return false;
     })
-    .filter((post) => post !== false) as db.Post[];
+    .filter((post) => post !== false) as api.Post[];
 
   const cursor = response.last;
 

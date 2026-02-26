@@ -1,9 +1,8 @@
 import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
-import * as db from '@tloncorp/shared/db';
-import { BASE_UNREADS_SINGLETON_KEY } from '@tloncorp/shared/db/schema';
-import { createDevLogger, runIfDev } from '@tloncorp/shared/debug';
+import * as api from '../types';
+import { createDevLogger, runIfDev } from '../debug';
 import { normalizeUrbitColor } from '../lib/utils';
 import * as ub from '../urbit';
 import {
@@ -17,6 +16,7 @@ import {
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
+const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
 
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
@@ -27,7 +27,7 @@ export async function getGroupAndChannelUnreads() {
   return deserialized;
 }
 
-export async function getThreadUnreadsByChannel(channel: db.Channel) {
+export async function getThreadUnreadsByChannel(channel: api.Channel) {
   let scryPath = '';
   if (getChannelIdType(channel.id) === 'channel' && channel.groupId) {
     const groupParts = parseGroupId(channel.groupId);
@@ -94,11 +94,11 @@ export async function getPagedActivityByBucket({
   bucket,
 }: {
   cursor: number;
-  bucket: db.ActivityBucket;
+  bucket: api.ActivityBucket;
 }): Promise<{
-  events: db.ActivityEvent[];
+  events: api.ActivityEvent[];
   nextCursor: number | null;
-  relevantUnreads: db.ActivityInit;
+  relevantUnreads: api.ActivityInit;
 }> {
   logger.log(
     `fetching next activity page for bucket ${bucket} with cursor`,
@@ -120,8 +120,8 @@ export async function getPagedActivityByBucket({
 
 export function fromFeedToActivityEvents(
   feed: ub.ActivityBundle[],
-  bucket: db.ActivityBucket
-): db.ActivityEvent[] {
+  bucket: api.ActivityBucket
+): api.ActivityEvent[] {
   const stream: EnhancedStream = {};
   feed.forEach((feedItem) => {
     const sourceId = feedItem['source-key'];
@@ -149,13 +149,13 @@ export type EnhancedStream = Record<
 >;
 function toActivityEvents(
   stream: EnhancedStream,
-  bucketId: db.ActivityBucket
-): db.ActivityEvent[] {
+  bucketId: api.ActivityBucket
+): api.ActivityEvent[] {
   return Object.entries(stream)
     .map(([id, event]) =>
       toActivityEvent({ id, event, bucketId, sourceId: event.sourceId })
     )
-    .filter(Boolean) as db.ActivityEvent[];
+    .filter(Boolean) as api.ActivityEvent[];
 }
 
 function toActivityEvent({
@@ -167,8 +167,8 @@ function toActivityEvent({
   id: string | number;
   sourceId: string;
   event: ub.ActivityEvent;
-  bucketId: db.ActivityBucket;
-}): db.ActivityEvent | null {
+  bucketId: api.ActivityBucket;
+}): api.ActivityEvent | null {
   const timestamp = typeof id === 'number' ? id : udToDate(id);
   const shouldNotify = event.notified;
   const baseFields = {
@@ -306,7 +306,7 @@ function toActivityEvent({
 export function parseContactUpdateEvent(
   eventId: string,
   event: ub.ContactEvent
-): Partial<db.ActivityEvent> | null {
+): Partial<api.ActivityEvent> | null {
   const update = event.contact.update;
 
   if (!update) {
@@ -379,16 +379,16 @@ function getInfoFromMessageKey(
 }
 
 export type ActivityEvent =
-  | { type: 'updateBaseUnread'; unread: db.BaseUnread }
+  | { type: 'updateBaseUnread'; unread: api.BaseUnread }
   | {
       type: 'updateChannelUnread';
-      activity: db.ChannelUnread;
+      activity: api.ChannelUnread;
     }
-  | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
-  | { type: 'updateGroupUnread'; unread: db.GroupUnread }
+  | { type: 'updateThreadUnread'; activity: api.ThreadUnreadState }
+  | { type: 'updateGroupUnread'; unread: api.GroupUnread }
   | {
       type: 'updateItemVolume';
-      volumeUpdate: db.VolumeSettings;
+      volumeUpdate: api.VolumeSettings;
     }
   | {
       type: 'removeItemVolume';
@@ -399,7 +399,7 @@ export type ActivityEvent =
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
     }
-  | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
+  | { type: 'addActivityEvent'; events: api.ActivityEvent[] };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
@@ -569,13 +569,13 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           if (activityEvent?.isMention) {
             events.push({
               ...activityEvent,
-              bucketId: 'mentions' as db.ActivityBucket,
+              bucketId: 'mentions' as api.ActivityBucket,
             });
           }
           if (activityEvent?.type === 'reply') {
             events.push({
               ...activityEvent,
-              bucketId: 'replies' as db.ActivityBucket,
+              bucketId: 'replies' as api.ActivityBucket,
             });
           }
         }
@@ -612,7 +612,7 @@ export const readAll = async () => {
   });
 };
 
-export const readGroup = async (group: db.Group, deep: boolean = false) => {
+export const readGroup = async (group: api.Group, deep: boolean = false) => {
   const source: ub.Source = { group: group.id };
   const action = activityAction({
     read: { source, action: { all: { time: null, deep } } },
@@ -633,7 +633,7 @@ export const readChannel = async ({
   deep,
 }: {
   channelId: string;
-  channelType: db.ChannelType;
+  channelType: api.ChannelType;
   groupId?: string | null;
   deep?: boolean;
 }) => {
@@ -663,9 +663,9 @@ export const readThread = async ({
   parentPost,
   channel,
 }: {
-  post: db.Post;
-  parentPost: db.Post;
-  channel: db.Channel;
+  post: api.Post;
+  parentPost: api.Post;
+  channel: api.Channel;
 }) => {
   logger.log(
     'reading thread',
@@ -750,8 +750,8 @@ export function markInvitesRead() {
 // We need to pass a particular data structure to the backend when referencing
 // threads. It's subtly different depending on whether it's %chat or %channels based
 export function getMessageKey(
-  channel: db.Channel,
-  post: db.Post
+  channel: api.Channel,
+  post: api.Post
 ): { id: string; time: string } {
   if (channel.type === 'dm' || channel.type === 'groupDm') {
     if (!post.backendTime) {
@@ -796,7 +796,7 @@ interface ClientChannelSource {
 interface ClientThreadSource {
   type: 'thread';
   channelId: string;
-  channelType: db.ChannelUnread['type'];
+  channelType: api.ChannelUnread['type'];
   threadId: string;
 }
 
@@ -877,8 +877,8 @@ export function getThreadSource({
   channel,
   post,
 }: {
-  channel: db.Channel;
-  post: db.Post;
+  channel: api.Channel;
+  post: api.Post;
 }): {
   source: ub.Source;
   sourceId: string;
@@ -913,7 +913,11 @@ export function getThreadSource({
   return { source, sourceId };
 }
 
-export function getRootSourceFromChat(chat: db.Chat): {
+export type RootSourceChat =
+  | { type: 'group'; id: string }
+  | { type: 'channel'; channel: Pick<api.Channel, 'id' | 'type'> };
+
+export function getRootSourceFromChat(chat: RootSourceChat): {
   source: ub.Source;
   sourceId: string;
 } {
@@ -998,20 +1002,20 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
 }
 
 export type ActivityUpdateQueue = {
-  baseUnread?: db.BaseUnread;
-  groupUnreads: db.GroupUnread[];
-  channelUnreads: db.ChannelUnread[];
-  threadUnreads: db.ThreadUnreadState[];
-  volumeUpdates: db.VolumeSettings[];
+  baseUnread?: api.BaseUnread;
+  groupUnreads: api.GroupUnread[];
+  channelUnreads: api.ChannelUnread[];
+  threadUnreads: api.ThreadUnreadState[];
+  volumeUpdates: api.VolumeSettings[];
   volumeRemovals: string[];
-  activityEvents: db.ActivityEvent[];
+  activityEvents: api.ActivityEvent[];
 };
 
-export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
-  const groupUnreads: db.GroupUnread[] = [];
-  const channelUnreads: db.ChannelUnread[] = [];
-  const threadActivity: db.ThreadUnreadState[] = [];
-  let baseUnread: db.BaseUnread | undefined = undefined;
+export const toClientUnreads = (activity: ub.Activity): api.ActivityInit => {
+  const groupUnreads: api.GroupUnread[] = [];
+  const channelUnreads: api.ChannelUnread[] = [];
+  const threadActivity: api.ThreadUnreadState[] = [];
+  let baseUnread: api.BaseUnread | undefined = undefined;
 
   Object.entries(activity).forEach(([sourceId, summary]) => {
     if (sourceId === 'base') {
@@ -1060,7 +1064,7 @@ export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
 export const toGroupUnread = (
   groupId: string,
   summary: ub.ActivitySummary
-): db.GroupUnread => {
+): api.GroupUnread => {
   return {
     groupId,
     count: summary.count,
@@ -1073,8 +1077,8 @@ export const toGroupUnread = (
 export const toChannelUnread = (
   channelId: string,
   summary: ub.ActivitySummary,
-  type: db.ChannelUnread['type']
-): db.ChannelUnread => {
+  type: api.ChannelUnread['type']
+): api.ChannelUnread => {
   const summaryKey = type === 'dm' ? 'id' : 'time';
   const firstUnreadPostId =
     summary.unread && summary.unread[summaryKey]
@@ -1098,8 +1102,8 @@ export const toThreadUnread = (
   channelId: string,
   threadId: string,
   summary: ub.ActivitySummary,
-  type: db.ChannelUnread['type']
-): db.ThreadUnreadState => {
+  type: api.ChannelUnread['type']
+): api.ThreadUnreadState => {
   const summaryKey = type === 'dm' ? 'id' : 'time';
   const firstUnreadPostId =
     summary.unread && summary.unread[summaryKey]

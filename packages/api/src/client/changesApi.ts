@@ -1,6 +1,6 @@
 import { da, render } from '@urbit/aura';
 
-import * as db from '@tloncorp/shared/db';
+import * as api from '../types';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
@@ -9,7 +9,7 @@ import { toPostsData } from './postsApi';
 import { checkIsNodeBusyWithHints, scry } from './urbit';
 
 export async function fetchChangesSince(timestamp: number): Promise<
-  db.ChangesResult & {
+  api.ChangesResult & {
     nodeBusyStatus: 'available' | 'busy' | 'unknown';
     hints?: string;
   }
@@ -28,7 +28,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
   return { ...changes, ...nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
+export function parseChanges(input: ub.ChangesV7): api.ChangesResult {
   const groups = toClientGroupsV7(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(

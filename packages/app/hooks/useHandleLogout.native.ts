@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { queryClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
@@ -17,7 +17,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
   const clearTelemetry = useClearTelemetryConfig();
 
   const handleLogout = useCallback(async () => {
-    api.queryClient.clear();
+    queryClient.clear();
     store.removeClient();
     clearShip();
     clearLure();

@@ -9,7 +9,6 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
-//ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
   CodeBlockBridge,

@@ -1,21 +1,16 @@
-import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import {
-  makeMention,
-  makeParagraph,
-  makeText,
-} from '@tloncorp/shared/logic/tiptap';
 import { filenameFromPath } from '@tloncorp/shared/utils/files';
 import isURL from 'validator/lib/isURL';
 
+import type { ChannelType, PostMetadata } from '../types';
+import { createDevLogger } from '../debug';
 import {
-  FinalizedAttachment,
-  LinkAttachment,
-  ReferenceAttachment,
   UploadedFileAttachment,
-  UploadedImageAttachment,
   uploadStateUri,
-} from '../types';
+  type FinalizedAttachment,
+  type LinkAttachment,
+  type ReferenceAttachment,
+  type UploadedImageAttachment,
+} from '../types/attachment';
 import {
   Block,
   Inline,
@@ -24,6 +19,27 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+
+// Inlined from tiptap.ts to avoid @tiptap dependency
+const makeText = (t: string) => ({ type: 'text', text: t });
+const makeMention = (id: string) => ({
+  type: 'mention',
+  attrs: { id },
+});
+const makeParagraph = (content?: JSONContent[]): JSONContent => {
+  const p = { type: 'paragraph' };
+  if (!content) {
+    return p;
+  }
+  if (
+    content.length > 0 &&
+    content[0].type === 'text' &&
+    content[0].text === ''
+  ) {
+    return p;
+  }
+  return { ...p, content };
+};
 
 const logger = createDevLogger('content-helpers', false);
 

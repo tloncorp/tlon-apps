@@ -1,9 +1,7 @@
-import { ThemeName } from 'tamagui';
-
 import { Stringified } from '../lib/utilityTypes';
 import { DisplayMode, SortMode } from './channel';
 
-export type AppTheme = ThemeName | 'auto';
+export type AppTheme = string | 'auto';
 
 export type TalkSidebarFilter =
   | 'Direct Messages'

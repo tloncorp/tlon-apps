@@ -1,22 +1,14 @@
-import type * as db from '@tloncorp/shared/db/types';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
-import { useMemo } from 'react';
 
-import * as api from '../client';
-import {
-  isDmChannelId,
-  isGroupChannelId,
-  isGroupDmChannelId,
-} from '../client/apiUtils';
-import * as domain from '../types';
+import type * as api from '../types';
+import type { ContentReference } from '../types/references';
+import { PersonalGroupSlugs } from '../types/wayfinding';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
-
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -41,6 +33,24 @@ export const SIG_LIKES = [
   '\u2053', // ⁓ (swung dash)
   '\u2241', // ≁ (not tilde)
 ];
+
+type PostContent = (ub.Verse | ContentReference)[] | null;
+
+export function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
+}
+
+export function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
+}
+
+export function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
+}
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
@@ -424,7 +434,7 @@ export const createShortCodeFromTitle = (title: string): string => {
   return shortCode;
 };
 
-export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
+export function extractInlinesFromContent(story: PostContent): ub.Inline[] {
   const inlines =
     story !== null
       ? (story.filter((v) => 'inline' in v) as ub.VerseInline[]).flatMap(
@@ -436,19 +446,19 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 }
 
 export function extractReferencesFromContent(
-  story: api.PostContent
-): domain.ContentReference[] {
+  story: PostContent
+): ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as domain.ContentReference[])
+        ) as ContentReference[])
       : [];
 
   return references;
 }
 
-export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
+export function extractBlocksFromContent(story: PostContent): ub.Block[] {
   const blocks =
     story !== null
       ? (story.filter((v) => 'block' in v) as ub.VerseBlock[]).flatMap(
@@ -460,12 +470,12 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: Stringified<api.PostContent> | api.PostContent
+  content: Stringified<PostContent> | PostContent
 ): {
   inlines: ub.Inline[];
-  references: domain.ContentReference[];
+  references: ContentReference[];
   blocks: ub.Block[];
-  story: api.PostContent;
+  story: PostContent;
 } => {
   const story = typeof content === 'string' ? JSON.parse(content) : content;
   const inlines = extractInlinesFromContent(story);
@@ -476,36 +486,36 @@ export const extractContentTypes = (
 };
 
 export const extractContentTypesFromPost = (
-  post: db.Post | { content: api.PostContent }
+  post: api.Post | { content: PostContent }
 ): {
   inlines: ub.Inline[];
-  references: domain.ContentReference[];
+  references: ContentReference[];
   blocks: ub.Block[];
-  story: api.PostContent;
+  story: PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content as Stringified<api.PostContent>
+    post.content as Stringified<PostContent>
   );
 
   return { inlines, references, blocks, story };
 };
 
-export const isTextPost = (post: db.Post) => {
+export const isTextPost = (post: api.Post) => {
   const { inlines, references, blocks } = extractContentTypesFromPost(post);
   return blocks.length === 0 && inlines.length > 0 && references.length === 0;
 };
 
-export const isReferencePost = (post: db.Post) => {
+export const isReferencePost = (post: api.Post) => {
   const { inlines, references, blocks } = extractContentTypesFromPost(post);
   return blocks.length === 0 && inlines.length === 0 && references.length === 1;
 };
 
-export const isImagePost = (post: db.Post) => {
+export const isImagePost = (post: api.Post) => {
   const { blocks } = extractContentTypesFromPost(post);
   return blocks.length === 1 && blocks.some((b) => 'image' in b);
 };
 
-export const isRichLinkPost = (post: db.Post) => {
+export const isRichLinkPost = (post: api.Post) => {
   const { blocks } = extractContentTypesFromPost(post);
   return blocks.length === 1 && blocks.some((b) => 'link' in b);
 };
@@ -538,7 +548,7 @@ export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
   return blocks.find((b) => 'image' in b) as ub.Image;
 };
 
-export const textPostIsLinkedImage = (post: db.Post): boolean => {
+export const textPostIsLinkedImage = (post: api.Post): boolean => {
   const postIsJustText = isTextPost(post);
   if (!postIsJustText) {
     return false;
@@ -560,7 +570,7 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
   return false;
 };
 
-export const textPostIsLink = (post: db.Post): boolean => {
+export const textPostIsLink = (post: api.Post): boolean => {
   const postIsJustText = isTextPost(post);
   if (!postIsJustText) {
     return false;
@@ -587,7 +597,7 @@ export const textPostIsLink = (post: db.Post): boolean => {
   return false;
 };
 
-export const textPostIsReference = (post: db.Post): boolean => {
+export const textPostIsReference = (post: api.Post): boolean => {
   const { inlines, references } = extractContentTypesFromPost(post);
   if (references.length === 0) {
     return false;
@@ -620,7 +630,7 @@ export const getPostTypeFromChannelId = ({
 }: {
   channelId?: string | null;
   parentId?: string | null;
-}): db.PostType => {
+}): api.PostType => {
   if (!channelId) return 'chat';
   const isDm = isDmChannelId(channelId) || isGroupDmChannelId(channelId);
   if (parentId) {
@@ -639,45 +649,10 @@ export const getPostTypeFromChannelId = ({
   }
 };
 
-export const usePostMeta = (post: db.Post) => {
-  const { inlines, references, blocks } = useMemo(
-    () => extractContentTypesFromPost(post),
-    [post]
-  );
-  const isText = useMemo(() => isTextPost(post), [post]);
-  const isImage = useMemo(() => isImagePost(post), [post]);
-  const isLink = useMemo(() => textPostIsLink(post), [post]);
-  const isReference = useMemo(() => isReferencePost(post), [post]);
-  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
-  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
-  const image = useMemo(
-    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
-    [blocks, isImage]
-  );
-  const linkedImage = useMemo(
-    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
-    [inlines, isLinkedImage]
-  );
-
-  return {
-    isText,
-    isImage,
-    isLink,
-    isReference,
-    isLinkedImage,
-    isRefInText,
-    inlines,
-    references,
-    blocks,
-    image,
-    linkedImage,
-  };
-};
-
 export const getCompositeGroups = (
-  groups: db.Group[],
-  base: Partial<db.Group>[]
-): db.Group[] => {
+  groups: api.Group[],
+  base: Partial<api.Group>[]
+): api.Group[] => {
   const baseIndex = base.reduce(
     (acc, curr) => {
       if (curr.id) {
@@ -685,7 +660,7 @@ export const getCompositeGroups = (
       }
       return acc;
     },
-    {} as Record<string, Partial<db.Group>>
+    {} as Record<string, Partial<api.Group>>
   );
 
   return groups.map((group) => {
@@ -730,7 +705,7 @@ export function simpleHash(input: string) {
   return Math.abs(hash).toString(36);
 }
 
-const wayfindingGroup = domain.PersonalGroupSlugs;
+const wayfindingGroup = PersonalGroupSlugs;
 function isWayfindingChannel(id: string | null | undefined): boolean {
   if (!id) return false;
   if (isDmChannelId(id)) return false;
@@ -755,9 +730,9 @@ export function getModelAnalytics({
   group,
   channel,
 }: {
-  post?: Partial<db.Post> | null;
-  group?: Partial<db.Group> | null;
-  channel?: Partial<db.Channel> | null;
+  post?: Partial<api.Post> | null;
+  group?: Partial<api.Group> | null;
+  channel?: Partial<api.Channel> | null;
 }) {
   const details: Record<string, string | boolean | null> = {};
 

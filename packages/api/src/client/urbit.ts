@@ -1,8 +1,9 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
-import { getConstants } from '../types/constants';
+import { createDevLogger, escapeLog, isDev, runIfDev } from '../debug';
+import { AnalyticsEvent, getConstants } from '../types';
+import * as Hosting from '../types/hosting';
 import {
   AuthError,
   ChannelStatus,
@@ -11,10 +12,9 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
+import { getLandscapeAuthCookie } from '../lib/auth';
 import { preSig } from '../urbit';
-import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
-import { AnalyticsEvent } from '../types/analytics';
-import * as Hosting from '../types/hosting';
+import { AuthFailureError } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
@@ -31,6 +31,7 @@ interface Config
   pendingAuth: Promise<string | void> | null;
   loggingOut: boolean;
   lastStatus: string;
+  testOverrides: UrbitTestOverrides | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -100,6 +101,18 @@ export interface ClientParams {
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
 
+export interface UrbitTestOverrides {
+  getCurrentUserId?: () => string;
+  scry?: <T>(params: { app: string; path: string; timeout?: number }) => Promise<T>;
+  poke?: (params: PokeParams) => Promise<number | undefined>;
+  trackedPoke?: <T, R = T>(
+    params: PokeParams,
+    endpoint: UrbitEndpoint,
+    predicate: (event: R) => boolean,
+    requestConfig?: { tag?: string; timeout?: number }
+  ) => Promise<void>;
+}
+
 const config: Config = {
   client: null,
   lastStatus: '',
@@ -107,6 +120,7 @@ const config: Config = {
   subWatchers: {},
   pendingAuth: null,
   loggingOut: false,
+  testOverrides: null,
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
@@ -125,6 +139,9 @@ export const client = new Proxy(
 ) as Urbit;
 
 export const getCurrentUserId = () => {
+  if (config.testOverrides?.getCurrentUserId) {
+    return config.testOverrides.getCurrentUserId();
+  }
   if (!client.nodeId) {
     throw new Error('Client not initialized');
   }
@@ -147,11 +164,11 @@ export const getCurrentUserIsHosted = () => {
     set up to redirect there
   */
   const env = getConstants();
-  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
+  const implicitUrl = isDev() ? env.DEV_SHIP_URL : window.location.hostname;
   return Hosting.nodeUrlIsHosted(implicitUrl);
 };
 
-export function internalConfigureClient({
+export function configureClient({
   shipName,
   shipUrl,
   verbose,
@@ -208,10 +225,19 @@ export function internalConfigureClient({
   });
 }
 
+export const internalConfigureClient = configureClient;
+
+export function internalSetUrbitTestOverrides(
+  overrides: UrbitTestOverrides | null
+) {
+  config.testOverrides = overrides;
+}
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  config.testOverrides = null;
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -404,7 +430,14 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   }
 }
 
-export async function poke({ app, mark, json }: PokeParams) {
+export async function poke({
+  app,
+  mark,
+  json,
+}: PokeParams): Promise<number | undefined> {
+  if (config.testOverrides?.poke) {
+    return config.testOverrides.poke({ app, mark, json });
+  }
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
     app,
@@ -455,6 +488,14 @@ export async function trackedPoke<T, R = T>(
   predicate: (event: R) => boolean,
   requestConfig?: { tag?: string; timeout?: number }
 ) {
+  if (config.testOverrides?.trackedPoke) {
+    return config.testOverrides.trackedPoke(
+      params,
+      endpoint,
+      predicate,
+      requestConfig
+    );
+  }
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
@@ -591,6 +632,9 @@ export async function scry<T>({
   path: string;
   timeout?: number;
 }) {
+  if (config.testOverrides?.scry) {
+    return config.testOverrides.scry<T>({ app, path, timeout });
+  }
   if (!config.client) {
     throw new Error('Client not initialized');
   }
@@ -781,6 +825,11 @@ async function reauth() {
 
             reject(new Error("Couldn't authenticate with urbit"));
             return;
+          }
+
+          // Apply cookie to client for Node.js requests
+          if (config.client) {
+            config.client.cookie = authCookie;
           }
 
           config.pendingAuth = null;

@@ -1,7 +1,6 @@
 import { valid } from '@urbit/aura';
 
-import { getPostInfoFromWer } from '../client/harkApi';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../debug';
 import { getConstants } from '../types/constants';
 import { preSig } from '../urbit';
 import { normalizeUrbitColor } from './utils';
@@ -10,6 +9,28 @@ const logger = createDevLogger('branch', false);
 
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);
+
+function hasPostInfoInWer(wer: string): boolean {
+  const parts = wer.split('/');
+  if (parts.length < 2) {
+    return false;
+  }
+
+  const type = parts[1];
+  const isDm = type === 'dm';
+  const isChannelPost = type === 'groups';
+  const isGroupChannelReply = parts.length > 10;
+
+  if (isDm && parts[5]) {
+    return true;
+  }
+
+  if (isChannelPost && isGroupChannelReply && parts[9]) {
+    return true;
+  }
+
+  return false;
+}
 
 export const getDeepLink = async (
   alias: string,
@@ -182,7 +203,7 @@ export const createDeepLink = async ({
     const parts = path.split('/');
     const isDMLure =
       parts.length === 2 && parts[0] === 'dm' && valid('p', parts[1]);
-    if (!isDMLure && !getPostInfoFromWer(path)) {
+    if (!isDMLure && !hasPostInfoInWer(path)) {
       logger.crumb(`Invalid path: ${path}`);
       return undefined;
     }

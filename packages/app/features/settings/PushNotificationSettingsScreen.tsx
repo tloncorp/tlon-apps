@@ -45,7 +45,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
 
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
-      if (logic.isGroup(exception)) {
+      if ('hostUserId' in exception) {
         await store.setGroupVolumeLevel({ group: exception, level: null });
       } else {
         await store.setChannelVolumeLevel({ channel: exception, level: null });

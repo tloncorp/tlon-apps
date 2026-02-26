@@ -2,9 +2,9 @@ import { parse, render, da } from '@urbit/aura';
 import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import * as db from '@tloncorp/shared/db';
-import { simpleHash } from '../lib/utils';
+import * as api from '../types';
 import { getFrondValue, getPatp } from '../lib/noun';
+import { simpleHash } from '../lib/utils';
 import * as ub from '../urbit';
 
 interface HalfSign {
@@ -12,7 +12,7 @@ interface HalfSign {
   signature?: string;
   when: number;
   provider?: string;
-  type: db.AttestationType;
+  type: api.AttestationType;
   contactId?: string;
 }
 
@@ -21,7 +21,7 @@ interface FullSign {
   signature?: string;
   when: number;
   provider?: string;
-  type: db.AttestationType;
+  type: api.AttestationType;
 
   value: string;
   proofTweetId?: string;
@@ -119,7 +119,7 @@ export function parseSignedData(noun: Noun) {
   ==
 */
 function parseIdentifier(input: Noun): {
-  type: db.AttestationType;
+  type: api.AttestationType;
   value: string;
 } {
   if (!(input instanceof Cell)) {
@@ -178,7 +178,7 @@ function parseHalfSign(noun: Noun): HalfSign {
   }
 
   const contactId = render('p', b.head.number);
-  const type = enjs.cord(b.tail) as db.AttestationType;
+  const type = enjs.cord(b.tail) as api.AttestationType;
 
   return { signType: 'half', when, type, contactId };
 }
@@ -228,7 +228,7 @@ function parseFullSign(noun: Noun): FullSign {
 // function parseRecordEntry(
 //   noun: Noun,
 //   params: { currentUserId: string }
-// ): db.Attestation {
+// ): api.Attestation {
 //   // const axes = ex.mask(['id', 'config', 'why', 'status']);
 
 //   // const id = ex.grab(axes, noun, 'id');
@@ -245,9 +245,9 @@ function parseFullSign(noun: Noun): FullSign {
 
 //   const result = parser(noun) as unknown as {
 //     id: ub.RecordId;
-//     config: db.AttestationDiscoverability;
+//     config: api.AttestationDiscoverability;
 //     why: string;
-//     status: Partial<db.Attestation>;
+//     status: Partial<api.Attestation>;
 //   };
 
 //   return {
@@ -292,8 +292,8 @@ function parseFullSign(noun: Noun): FullSign {
 //   return simpleHash(attestKey);
 // }
 
-// function parseConfig(noun: Noun): db.AttestationDiscoverability {
-//   return enjs.cord(noun) as db.AttestationDiscoverability;
+// function parseConfig(noun: Noun): api.AttestationDiscoverability {
+//   return enjs.cord(noun) as api.AttestationDiscoverability;
 // }
 
 // function parseWhy(noun: Noun): string {
@@ -302,7 +302,7 @@ function parseFullSign(noun: Noun): FullSign {
 
 // function parseStatus(noun: Noun) {
 //   const { status, sign } = getFrondValue<{
-//     status: db.AttestationStatus;
+//     status: api.AttestationStatus;
 //     sign: Sign | null;
 //   }>([
 //     { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
@@ -324,7 +324,7 @@ function parseFullSign(noun: Noun): FullSign {
 //   };
 // }
 
-// function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
+// function nounToClientRecords(noun: Noun, contactId: string): api.Attestation[] {
 //   console.log(`noun to client records`, noun);
 //   return enjs.tree((n: Noun) => {
 //     if (!(n instanceof Cell)) {
@@ -341,7 +341,7 @@ function parseFullSign(noun: Noun): FullSign {
 //       throw new Error('malformed record key identifier');
 //     }
 
-//     const type = enjs.cord(n.head.tail.head) as db.AttestationType;
+//     const type = enjs.cord(n.head.tail.head) as api.AttestationType;
 //     const value = getFrondValue([
 //       { tag: 'dummy', get: enjs.cord },
 //       { tag: 'phone', get: enjs.cord },
@@ -353,7 +353,7 @@ function parseFullSign(noun: Noun): FullSign {
 //       throw new Error('malformed record value');
 //     }
 
-//     const config = enjs.cord(n.tail.head) as db.AttestationDiscoverability;
+//     const config = enjs.cord(n.tail.head) as api.AttestationDiscoverability;
 //     const currentUserId = '~latter-bolden'; // TODO: real curr user id
 //     const a = n.tail.tail;
 //     if (!(a instanceof Cell)) {
@@ -362,7 +362,7 @@ function parseFullSign(noun: Noun): FullSign {
 //     const statusMessage = enjs.cord(a.head); // TODO: should we store?
 
 //     const { status, sign } = getFrondValue<{
-//       status: db.AttestationStatus;
+//       status: api.AttestationStatus;
 //       sign: NounParsers.Sign | null;
 //     }>([
 //       { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
@@ -380,7 +380,7 @@ function parseFullSign(noun: Noun): FullSign {
 //     const provingTweetId =
 //       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
 
-//     const verif: db.Attestation = {
+//     const verif: api.Attestation = {
 //       id,
 //       contactId,
 //       provider,
@@ -395,7 +395,7 @@ function parseFullSign(noun: Noun): FullSign {
 //     };
 
 //     return verif;
-//   })(noun) as unknown as db.Attestation[];
+//   })(noun) as unknown as api.Attestation[];
 // }
 
 // export function parseAttestationId(attest: {

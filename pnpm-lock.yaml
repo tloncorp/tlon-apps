@@ -963,9 +963,55 @@ importers:
 
   packages/api:
     dependencies:
-      '@tloncorp/shared':
-        specifier: workspace:*
-        version: link:../shared
+      '@urbit/aura':
+        specifier: ^3.0.0
+        version: 3.0.0
+      '@urbit/nockjs':
+        specifier: ^1.6.0
+        version: 1.6.0
+      any-ascii:
+        specifier: ^0.3.2
+        version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
+      big-integer:
+        specifier: ^1.6.52
+        version: 1.6.52
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
+      date-fns:
+        specifier: ^3.6.0
+        version: 3.6.0
+      emoji-regex:
+        specifier: ^10.3.0
+        version: 10.4.0
+      exponential-backoff:
+        specifier: ^3.1.1
+        version: 3.1.2
+      libphonenumber-js:
+        specifier: ^1.10.51
+        version: 1.11.18
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
+      sorted-btree:
+        specifier: ^1.8.1
+        version: 1.8.1
+      validator:
+        specifier: ^13.7.0
+        version: 13.7.0
+    devDependencies:
+      '@types/lodash':
+        specifier: ^4.14.202
+        version: 4.17.23
+      '@types/validator':
+        specifier: ^13.7.0
+        version: 13.11.8
+      typescript:
+        specifier: 5.4.5
+        version: 5.4.5
+      vitest:
+        specifier: ^1.5.0
+        version: 1.5.0(@types/node@20.19.13)(jsdom@23.2.0)(lightningcss@1.27.0)(terser@5.44.0)
 
   packages/app:
     dependencies:
@@ -6107,6 +6153,9 @@ packages:
   '@types/lodash@4.14.183':
     resolution: {integrity: sha512-UXavyuxzXKMqJPEpFPri6Ku5F9af6ZJXUneHhvQJxavrEjuHkFp2YnDWHcxJiG7hk8ZkWqjcyNeW1s/smZv5cw==}
 
+  '@types/lodash@4.17.23':
+    resolution: {integrity: sha512-RDvF6wTulMPjrNdCoYRC8gNR880JNGT8uB+REUpC2Ns4pRqQJhGz90wh7rgdXDPpCczF3VGktDuFGVnz8zP7HA==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -7102,6 +7151,9 @@ packages:
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
 
+  buffer@6.0.3:
+    resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
+
   builder-util-runtime@9.2.10:
     resolution: {integrity: sha512-6p/gfG1RJSQeIbz8TK5aPNkoztgY1q5TgmGFMAXcY8itsGW6Y2ld1ALsZ5UJn8rog7hKF3zHx5iQbNQ8uLcRlw==}
     engines: {node: '>=12.0.0'}
@@ -7718,6 +7770,9 @@ packages:
   date-fns@2.30.0:
     resolution: {integrity: sha512-fnULvOpxnC5/Vg3NCiWelDsLiUc9bRwAPs/+LfTLNvetFCtCTN+yQz15C/fs4AwX1R9K5GLtLfn8QW+dWisaAw==}
     engines: {node: '>=0.11'}
+
+  date-fns@3.6.0:
+    resolution: {integrity: sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww==}
 
   dayjs@1.11.18:
     resolution: {integrity: sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA==}
@@ -22614,6 +22669,8 @@ snapshots:
 
   '@types/lodash@4.14.183': {}
 
+  '@types/lodash@4.17.23': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 2.0.6
@@ -23079,7 +23136,7 @@ snapshots:
 
   '@vitest/snapshot@1.5.0':
     dependencies:
-      magic-string: 0.30.7
+      magic-string: 0.30.8
       pathe: 1.1.2
       pretty-format: 29.7.0
 
@@ -24042,6 +24099,11 @@ snapshots:
       base64-js: 1.5.1
       ieee754: 1.2.1
 
+  buffer@6.0.3:
+    dependencies:
+      base64-js: 1.5.1
+      ieee754: 1.2.1
+
   builder-util-runtime@9.2.10:
     dependencies:
       debug: 4.4.1
@@ -24814,6 +24876,8 @@ snapshots:
   date-fns@2.30.0:
     dependencies:
       '@babel/runtime': 7.26.0
+
+  date-fns@3.6.0: {}
 
   dayjs@1.11.18: {}
 
@@ -28645,7 +28709,7 @@ snapshots:
 
   metro-cache@0.81.5:
     dependencies:
-      exponential-backoff: 3.1.1
+      exponential-backoff: 3.1.2
       flow-enums-runtime: 0.0.6
       metro-core: 0.81.5
 

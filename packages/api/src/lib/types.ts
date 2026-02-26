@@ -1,4 +1,4 @@
-import type * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/types';
 
 export function isChatChannel(channel: db.Channel): boolean {
   return (
@@ -15,10 +15,10 @@ export function getPinnedPostId(channel: db.Channel): string | null {
   return channel.order?.[0] ?? null;
 }
 
-export function isChannel(obj: db.Channel | db.Group): obj is db.Channel {
+export function isChannel(obj: any): obj is db.Channel {
   return !('hostUserId' in obj);
 }
 
-export function isGroup(obj: db.Channel | db.Group): obj is db.Group {
+export function isGroup(obj: any): obj is db.Group {
   return 'hostUserId' in obj;
 }

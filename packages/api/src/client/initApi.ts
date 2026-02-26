@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import * as api from '../types';
+import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
@@ -15,16 +15,16 @@ import { scry } from './urbit';
 const logger = createDevLogger('initApi', false);
 
 export interface InitData {
-  pins: db.Pin[];
-  groups: db.Group[];
-  unjoinedGroups: db.Group[];
-  channels: db.Channel[];
+  pins: api.Pin[];
+  groups: api.Group[];
+  unjoinedGroups: api.Group[];
+  channels: api.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
-  unreads: db.ActivityInit;
+  unreads: api.ActivityInit;
 }
 
 export const getInitData = async () => {

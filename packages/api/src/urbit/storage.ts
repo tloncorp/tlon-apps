@@ -1,4 +1,10 @@
-import { StorageCredentials, StorageService } from '../client/upload';
+export type StorageService = 'presigned-url' | 'credentials';
+
+export interface StorageCredentials {
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+}
 
 export interface StorageUpdateCredentials {
   credentials: StorageCredentials;
