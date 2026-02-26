@@ -10,8 +10,7 @@ import { useNag } from '../../hooks/useNag';
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
   const isE2eRun = useMemo(() => {
-    const constants = getConstants() as { TLON_IS_E2E?: boolean };
-    return !!constants.TLON_IS_E2E;
+    return getConstants().TLON_IS_E2E;
   }, []);
   const isWeb = Platform.OS === 'web';
 
