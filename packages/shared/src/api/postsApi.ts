@@ -9,6 +9,11 @@ import {
   PlaintextPreviewConfig,
   getTextContent,
 } from '../logic';
+import { signalStore } from '../signal/store';
+import { decryptMessage } from '../signal/ratchet';
+import { toBytes, toHex, encryptState } from '../signal/crypto';
+import { isSignalBlob, parseSignalBlob } from '../signal/types';
+import * as signalApi from './signalApi';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -43,7 +48,7 @@ import {
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
-import { poke, scry, subscribeOnce } from './urbit';
+import { getCurrentUserId, poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -1137,6 +1142,11 @@ export function toPostsData(
   const entries = Object.entries(posts);
   const deletedPosts: db.Post[] = [];
   const otherPosts: db.Post[] = [];
+  // Collect signal:message posts separately so we can decrypt them in order
+  const deferredSignalPosts: Array<{
+    raw: ub.Post | ub.Writ | ub.PostDataResponse;
+    data: db.Post;
+  }> = [];
 
   for (const [, post] of entries) {
     // post will only be null if it was deleted and we're interacting with an
@@ -1149,8 +1159,108 @@ export function toPostsData(
     const postData = toPostData(channelId, post);
     if (isPostTombstone(post)) {
       deletedPosts.push(postData);
+      otherPosts.push(postData);
+      continue;
+    }
+    // Defer signal:message posts for ordered decryption
+    if (
+      isDmChannelId(channelId) &&
+      post.essay.blob &&
+      isSignalBlob(post.essay.blob)
+    ) {
+      const sig = parseSignalBlob(post.essay.blob);
+      if (sig.type === 'signal:message') {
+        deferredSignalPosts.push({ raw: post, data: postData });
+        continue;
+      }
     }
     otherPosts.push(postData);
+  }
+
+  // Attempt decryption of signal:message posts in time order.
+  // Messages that arrived while the app was closed can be decrypted if the
+  // ratchet state was properly backed up. Already-decrypted messages (ratchet
+  // has advanced past them) will fail and remain as notices.
+  if (deferredSignalPosts.length > 0) {
+    let currentUserId: string | null = null;
+    try {
+      currentUserId = getCurrentUserId();
+    } catch {
+      // Not logged in yet
+    }
+
+    let didDecrypt = false;
+    const ownEncryptedSentAts: number[] = [];
+    deferredSignalPosts.sort(
+      (a, b) => (a.data.receivedAt ?? 0) - (b.data.receivedAt ?? 0)
+    );
+    for (const { raw, data } of deferredSignalPosts) {
+      // Skip own encrypted messages — the optimistic plaintext post is
+      // already in the local DB. But collect sentAt values so we can
+      // confirm delivery (clear the "sending" indicator).
+      if (currentUserId && data.authorId === currentUserId) {
+        if (data.sentAt != null) {
+          ownEncryptedSentAts.push(data.sentAt);
+        }
+        continue;
+      }
+
+      if (signalStore.isUnlocked()) {
+        const session = signalStore.getSession(channelId);
+        if (session?.status === 'active') {
+          try {
+            const sig = parseSignalBlob(raw.essay.blob!);
+            const { plaintext, newRatchet } = decryptMessage(
+              session.ratchet,
+              sig.payload.public,
+              toBytes(sig.payload.contents)
+            );
+            signalStore.setSession(channelId, {
+              ...session,
+              ratchet: newRatchet,
+            });
+            const decoded = JSON.parse(
+              new TextDecoder().decode(plaintext)
+            );
+            data.type = 'chat';
+            data.content = JSON.stringify(decoded.content);
+            data.blob = decoded.blob ?? 'signal:decrypted';
+            data.textContent = undefined;
+            didDecrypt = true;
+          } catch {
+            // Can't decrypt — keep as notice (set by toPostData)
+          }
+        }
+      }
+      otherPosts.push(data);
+    }
+
+    // Backup ratchet state after bulk decryption so we don't re-decrypt
+    // the same messages on next load (ratchet is forward-only).
+    if (didDecrypt && signalStore.isUnlocked()) {
+      const session = signalStore.getSession(channelId);
+      if (session) {
+        const serialized = signalStore.serializeSession(session);
+        const json = JSON.stringify(serialized);
+        const plainBytes = new TextEncoder().encode(json);
+        encryptState(signalStore.getStorageKey(), plainBytes)
+          .then((encrypted) =>
+            signalApi.saveEncryptedState(
+              session.peerShip,
+              toHex(encrypted)
+            )
+          )
+          .catch(() => {});
+      }
+    }
+  }
+
+  // Confirm delivery for own encrypted messages we skipped above.
+  // This clears the "sending" indicator without overwriting plaintext content.
+  if (ownEncryptedSentAts.length > 0) {
+    db.confirmPostDelivery({ channelId, sentAts: ownEncryptedSentAts }).catch(
+      () => {}
+    );
   }
 
   otherPosts.sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0));
@@ -1287,7 +1397,7 @@ export function toPostData(
     sequenceNum = Number(post.seal.seq);
   }
 
-  return {
+  const result: db.Post = {
     id,
     channelId,
     type,
@@ -1343,6 +1453,30 @@ export function toPostData(
     blob: post.essay.blob ?? null,
     ...flags,
   };
+
+  // Signal blob posts: strip the blob (prevents "Upgrade your app to see
+  // this post") and convert to notices for proper system-message styling.
+  // Real-time messages are decrypted in chatApi; this handles historical
+  // loads where the ratchet state may no longer allow decryption.
+  if (post.essay.blob && isSignalBlob(post.essay.blob)) {
+    result.blob = null;
+    try {
+      const sig = parseSignalBlob(post.essay.blob);
+      if (sig.type === 'signal:send-initiation' || sig.type === 'signal:init-ack') {
+        result.type = 'notice';
+      } else if (sig.type === 'signal:message') {
+        // Historical encrypted message that can't be decrypted inline.
+        // Mark as notice so it doesn't render the placeholder content.
+        result.type = 'notice';
+        result.textContent = 'Encrypted message';
+        result.content = JSON.stringify([{ inline: ['Encrypted message'] }]);
+      }
+    } catch {
+      // Malformed signal blob — just strip it
+    }
+  }
+
+  return result;
 }
 
 function getReceivedAtFromId(postId: string) {

@@ -1,10 +1,13 @@
+import { loadAuthType } from '@tloncorp/shared/api';
 import {
+  clearPendingInitiation,
   enableE2E,
+  hasPendingInitiation,
   isE2EActive,
   isE2EPending,
   isSignalUnlocked,
 } from '@tloncorp/shared/store';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useChannelContext } from '../contexts/channel';
 import { ScreenHeader } from './ScreenHeader';
@@ -19,11 +22,49 @@ export function E2EHeaderButton() {
   // Force re-render after state-changing operations (signalStore is not reactive)
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick((t) => t + 1), []);
+  const autoPrompted = useRef(false);
 
   const tryEnableE2E = useCallback(async () => {
     await enableE2E(channel.id);
     forceUpdate();
   }, [channel.id, forceUpdate]);
+
+  const unlocked = isSignalUnlocked();
+  const active = isE2EActive(channel.id);
+  const pending = isE2EPending(channel.id);
+  const hasPending = hasPendingInitiation(channel.id);
+
+  // Auto-prompt: if the peer initiated E2E and we haven't unlocked yet,
+  // open the auth sheet automatically so the user can unlock to accept.
+  useEffect(() => {
+    if (hasPending && !unlocked) {
+      setAuthOpen(true);
+    }
+  }, [hasPending, unlocked]);
+
+  // Auto-prompt on mount: if user has saved credentials but hasn't
+  // unlocked yet, prompt them to unlock so E2E works automatically.
+  useEffect(() => {
+    if (unlocked || autoPrompted.current) return;
+    autoPrompted.current = true;
+    loadAuthType().then((authType) => {
+      if (authType && !isSignalUnlocked()) {
+        setAuthOpen(true);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Icon color:
+  //   not authed  → secondary text (muted)
+  //   authed, no E2E → caution/warning color
+  //   E2E active  → positive/blue
+  const iconColor = !unlocked
+    ? '$tertiaryText'
+    : active
+      ? '$positiveActionText'
+      : pending
+        ? '$cautionText'
+        : '$cautionText';
 
   const handlePress = useCallback(() => {
     if (!isSignalUnlocked()) {
@@ -41,9 +82,10 @@ export function E2EHeaderButton() {
   }, [channel.id, tryEnableE2E]);
 
   const handleUnlocked = useCallback(() => {
+    clearPendingInitiation(channel.id);
     forceUpdate();
     tryEnableE2E();
-  }, [forceUpdate, tryEnableE2E]);
+  }, [channel.id, forceUpdate, tryEnableE2E]);
 
   const handleInfoDisable = useCallback(() => {
     forceUpdate();
@@ -55,10 +97,11 @@ export function E2EHeaderButton() {
         <ScreenHeader.IconButton
           key="e2e-lock"
           type="Lock"
+          color={iconColor}
           onPress={handlePress}
         />
       ),
-      [handlePress]
+      [handlePress, iconColor]
     )
   );
 

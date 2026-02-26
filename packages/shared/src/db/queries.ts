@@ -3252,27 +3252,50 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
-  await ctx.db
-    .insert($posts)
-    .values(
-      posts.map((p) => ({
-        ...p,
-        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
-      }))
-    )
-    .onConflictDoUpdate({
-      target: $posts.id,
-      set: conflictUpdateSetAll($posts, ['hidden']),
-    })
-    .onConflictDoUpdate({
-      target: [
-        $posts.authorId,
-        $posts.channelId,
-        $posts.sentAt,
-        $posts.sequenceNum,
-      ],
-      set: conflictUpdateSetAll($posts, ['hidden']),
-    });
+  // Split out signal-encrypted notice posts: these should NOT overwrite
+  // existing content (which may be locally-decrypted plaintext).
+  const isEncryptedNotice = (p: Post) =>
+    p.type === 'notice' && p.textContent === 'Encrypted message';
+  const regularPosts = posts.filter((p) => !isEncryptedNotice(p));
+  const encryptedNoticePosts = posts.filter(isEncryptedNotice);
+
+  if (regularPosts.length > 0) {
+    await ctx.db
+      .insert($posts)
+      .values(
+        regularPosts.map((p) => ({
+          ...p,
+          groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: $posts.id,
+        set: conflictUpdateSetAll($posts, ['hidden']),
+      })
+      .onConflictDoUpdate({
+        target: [
+          $posts.authorId,
+          $posts.channelId,
+          $posts.sentAt,
+          $posts.sequenceNum,
+        ],
+        set: conflictUpdateSetAll($posts, ['hidden']),
+      });
+  }
+
+  // Encrypted notice posts: insert if new, but don't overwrite existing rows
+  // (which may contain decrypted plaintext from a previous session).
+  if (encryptedNoticePosts.length > 0) {
+    await ctx.db
+      .insert($posts)
+      .values(
+        encryptedNoticePosts.map((p) => ({
+          ...p,
+          groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+        }))
+      )
+      .onConflictDoNothing();
+  }
 
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)
@@ -3495,6 +3518,36 @@ export const updatePost = createWriteQuery(
     return withTransactionCtx(ctx, async (txCtx) => {
       return txCtx.db.update($posts).set(post).where(eq($posts.id, post.id));
     });
+  },
+  ['posts']
+);
+
+/**
+ * Confirm delivery of optimistic posts matching given sentAt values.
+ * Clears deliveryStatus so the "sending" indicator disappears.
+ * Used when the server echo is an encrypted blob we don't want to insert
+ * (to avoid overwriting local plaintext).
+ */
+export const confirmPostDelivery = createWriteQuery(
+  'confirmPostDelivery',
+  async (
+    {
+      channelId,
+      sentAts,
+    }: { channelId: string; sentAts: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (!sentAts.length) return;
+    return ctx.db
+      .update($posts)
+      .set({ deliveryStatus: null })
+      .where(
+        and(
+          eq($posts.channelId, channelId),
+          isNotNull($posts.deliveryStatus),
+          inArray($posts.sentAt, sentAts)
+        )
+      );
   },
   ['posts']
 );

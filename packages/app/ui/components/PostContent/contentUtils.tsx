@@ -3,10 +3,16 @@ import { BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
+// Signal sentinel blob — not real content, just marks a decrypted message
+function filterSignalBlob(blob: string | null | undefined): string | undefined {
+  if (!blob || blob === 'signal:decrypted') return undefined;
+  return blob;
+}
+
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.content, post.blob ?? undefined);
+      return convertContent(post.content, filterSignalBlob(post.blob));
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
@@ -17,7 +23,7 @@ export function usePostContent(post: Post): BlockData[] {
 export function usePostLastEditContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.lastEditContent, post.blob ?? undefined);
+      return convertContent(post.lastEditContent, filterSignalBlob(post.blob));
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];

@@ -1,6 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -74,6 +74,7 @@ const ChatMessage = ({
     useBlockedAuthor(post);
 
   const isNotice = post.type === 'notice';
+  const isDecrypted = post.blob === 'signal:decrypted';
 
   if (isNotice) {
     showAuthor = false;
@@ -250,6 +251,22 @@ const ChatMessage = ({
               to retry send
             </Text>
           </Pressable>
+        ) : null}
+
+        {isDecrypted ? (
+          <View
+            pointerEvents="none"
+            position="absolute"
+            right={showAuthor ? 12 : 36}
+            top={8}
+            zIndex={198}
+          >
+            <Icon
+              type="Lock"
+              customSize={[14, 14]}
+              color="$tertiaryText"
+            />
+          </View>
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>

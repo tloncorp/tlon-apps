@@ -33,6 +33,8 @@ class SignalStore {
   private credentialId: Uint8Array | null = null;
   private _authType: AuthType | null = null;
   private sessions: Map<string, E2ESession> = new Map();
+  // Channels with unprocessed initiations (received while locked)
+  private pendingInitiations: Set<string> = new Set();
 
   // --- Lifecycle ---
 
@@ -133,6 +135,24 @@ class SignalStore {
 
   getAllSessions(): Map<string, E2ESession> {
     return this.sessions;
+  }
+
+  // --- Pending initiations (received while locked) ---
+
+  addPendingInitiation(channelId: string): void {
+    this.pendingInitiations.add(channelId);
+  }
+
+  hasPendingInitiation(channelId: string): boolean {
+    return this.pendingInitiations.has(channelId);
+  }
+
+  clearPendingInitiation(channelId: string): void {
+    this.pendingInitiations.delete(channelId);
+  }
+
+  getPendingInitiations(): string[] {
+    return [...this.pendingInitiations];
   }
 
   // --- Serialization for encrypted backup ---

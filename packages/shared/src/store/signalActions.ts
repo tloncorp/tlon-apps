@@ -117,6 +117,13 @@ export async function enableE2E(
     return false;
   }
 
+  // Don't double-initiate if we already have a session
+  const existing = signalStore.getSession(channelId);
+  if (existing) {
+    logger.log('enableE2E: session already exists', existing.status);
+    return existing.status === 'active';
+  }
+
   // channelId for DMs is the ship name
   const peerShip = channelId;
 
@@ -255,7 +262,14 @@ export function processSignalBlob(
   authorId: string
 ): 'handshake' | 'message' | null {
   if (!isSignalBlob(blob)) return null;
-  if (!signalStore.isUnlocked()) return null;
+  if (!signalStore.isUnlocked()) {
+    // Track pending initiations so we can process them after unlock
+    const sig = parseSignalBlob(blob);
+    if (sig.type === 'signal:send-initiation') {
+      signalStore.addPendingInitiation(channelId);
+    }
+    return null;
+  }
 
   const currentUserId = getCurrentUserId();
   const signalMsg = parseSignalBlob(blob);
@@ -287,6 +301,15 @@ function handleInitiation(
   payload: Record<string, string>,
   authorId: string
 ): 'handshake' {
+  // Don't overwrite an existing active session — this prevents the
+  // double-initiation race where both ships send initiations and each
+  // overwrites the other's session with mismatched key material.
+  const existing = signalStore.getSession(channelId);
+  if (existing?.status === 'active') {
+    logger.log('handleInitiation: session already active, skipping');
+    return 'handshake';
+  }
+
   const ephemeral = toBytes(payload.ephemeral);
   const theirIdentityDHPub = toBytes(payload.public);
 
@@ -397,4 +420,12 @@ export function isE2EActive(channelId: string): boolean {
 export function isE2EPending(channelId: string): boolean {
   const session = signalStore.getSession(channelId);
   return session?.status === 'pending';
+}
+
+export function hasPendingInitiation(channelId: string): boolean {
+  return signalStore.hasPendingInitiation(channelId);
+}
+
+export function clearPendingInitiation(channelId: string): void {
+  signalStore.clearPendingInitiation(channelId);
 }

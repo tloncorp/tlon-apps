@@ -1,9 +1,10 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { isSignalBlob } from '../signal/types';
+import { isSignalBlob, parseSignalBlob } from '../signal/types';
 import {
   processSignalBlob,
   decryptPostBlob,
+  backupRatchetState,
 } from '../store/signalActions';
 import * as ub from '../urbit';
 import {
@@ -166,36 +167,49 @@ export function subscribeToChatUpdates(
       if ('add' in delta) {
         logger.log('add dm', id, delta);
         const writ = deriveFullWrit(id, delta);
+        // Grab the raw blob before toPostData strips signal blobs
+        const rawBlob = writ.essay.blob ?? null;
         let post = toPostData(channelId, writ);
 
         // Signal Protocol intercept for DMs
-        if (isDmChannelId(channelId) && post.blob && isSignalBlob(post.blob)) {
+        if (isDmChannelId(channelId) && rawBlob && isSignalBlob(rawBlob)) {
           const currentUserId = getCurrentUserId();
           const isOwnPost = post.authorId === currentUserId;
 
           if (isOwnPost) {
-            // Own posts: strip the signal blob so it doesn't render as
-            // "Upgrade your app". The sender already has the optimistic
-            // plaintext post locally — we just need to suppress the blob.
-            return eventHandler({
-              type: 'addPost',
-              post: { ...post, blob: null },
-            });
+            // Own handshake blobs: emit as notice for display
+            const ownSig = parseSignalBlob(rawBlob);
+            if (ownSig.type === 'signal:send-initiation' || ownSig.type === 'signal:init-ack') {
+              return eventHandler({
+                type: 'addPost',
+                post: { ...post, type: 'notice' },
+              });
+            }
+            // Own encrypted messages: suppress the subscription echo.
+            // The sender already has the optimistic plaintext post locally.
+            // Confirm delivery so the "sending" indicator clears.
+            if (post.sentAt != null) {
+              db.confirmPostDelivery({
+                channelId,
+                sentAts: [post.sentAt],
+              }).catch(() => {});
+            }
+            return;
           }
 
           const blobType = processSignalBlob(
             channelId,
-            post.blob,
+            rawBlob,
             post.authorId
           );
 
           if (blobType === 'handshake') {
-            // Handshake message — show as system notice, strip signal blob
+            // Handshake message — render as a system notice
             return eventHandler({
               type: 'addPost',
               post: {
                 ...post,
-                blob: null,
+                type: 'notice',
                 textContent: 'Encrypted conversation established',
               },
             });
@@ -203,20 +217,27 @@ export function subscribeToChatUpdates(
 
           if (blobType === 'message') {
             // Encrypted message — decrypt and replace content
-            const decrypted = decryptPostBlob(channelId, post.blob!);
+            const decrypted = decryptPostBlob(channelId, rawBlob);
             if (decrypted) {
               post = {
                 ...post,
+                type: 'chat',
                 content: JSON.stringify(decrypted.content),
-                blob: decrypted.blob ?? null,
+                // Mark as decrypted so UI can show indicator.
+                // If the inner payload had a real blob, append the marker.
+                blob: decrypted.blob
+                  ? decrypted.blob
+                  : 'signal:decrypted',
                 textContent: undefined,
               };
+              // Keep ratchet state backed up so it survives refresh
+              backupRatchetState(channelId).catch(() => {});
             } else {
-              // Decryption failed — strip signal blob, show error
+              // Decryption failed — show as notice
               post = {
                 ...post,
-                blob: null,
-                textContent: 'Failed to decrypt message',
+                type: 'notice',
+                textContent: 'Could not decrypt message',
               };
             }
           }

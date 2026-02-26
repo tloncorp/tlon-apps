@@ -278,6 +278,11 @@ async function _sendPost({
         if (encrypted) {
           sendContent = encrypted.content as typeof sendContent;
           sendBlob = encrypted.blob;
+          // Mark the local post as encrypted so UI shows the lock indicator
+          await db.updatePost({
+            id: cachePost.id,
+            blob: 'signal:decrypted',
+          });
           // Schedule state backup after send
           backupRatchetState(channel.id).catch(() => {});
         }
