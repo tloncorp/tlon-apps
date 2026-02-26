@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --outfile=build/bundle.js",
+    "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --outfile=build/bundle.js --external:react-native --external:@react-native/* --external:@react-native-async-storage/* --external:expo-*",
     "test": "vitest --passWithNoTests"
   },
   "keywords": [],
