@@ -4,7 +4,7 @@
 // which isn't made for web.
 import { createDevLogger } from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';

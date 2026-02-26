@@ -16,10 +16,10 @@ import {
   Strikethrough,
   Task,
   Blockquote,
-} from '../urbit/content';
-import { Story, constructStory } from '../urbit/channel';
+} from '@tloncorp/api/urbit/content';
+import { Story, constructStory } from '@tloncorp/api/urbit/channel';
 import { JSONToInlines } from './tiptap';
-import { JSONContent } from '../urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 
 /**
  * Round-trip conversion tests for Markdown ↔ Story conversion.

@@ -31,8 +31,8 @@ import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
   getCurrentUserId,
-} from '../api';
-import { parseGroupId } from '../api/apiUtils';
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -40,9 +40,9 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '../logic/activity';
+} from '@tloncorp/api/lib/activity';
 import { Session } from '../store';
-import { Rank } from '../urbit';
+import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {

@@ -1,6 +1,6 @@
 import { configurationFromChannel, useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { TalkSidebarFilter } from '@tloncorp/shared/urbit';
+import { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';

@@ -15,11 +15,11 @@ import {
   syncDms,
   syncGroups,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/shared/urbit';
-import { ActivityIncomingEvent } from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
+import { ActivityIncomingEvent } from '@tloncorp/api/urbit';
 import {
   Notification,
   clearLastNotificationResponseAsync,

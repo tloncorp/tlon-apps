@@ -10,7 +10,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { Block, Inline, constructStory } from '@tloncorp/shared/urbit';
+import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
 import {
   Button,
   Icon,

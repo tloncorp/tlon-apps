@@ -1,11 +1,11 @@
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as api from '../api';
-import { poke, scry } from '../api/urbit';
+import * as api from '@tloncorp/api';
+import { poke, scry } from '@tloncorp/api';
 import * as db from '../db';
-import { Attachment, ImageAttachment } from '../domain/attachment';
-import { PostDataDraft } from '../domain/post';
+import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
+import { PostDataDraft } from '@tloncorp/api/types/post';
 import { toPostData } from '../logic';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import { finalizeAndSendPost } from './postActions';

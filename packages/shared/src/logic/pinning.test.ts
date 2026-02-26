@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { Channel, Group, Pin, whichPin } from './pinning';
+import { Channel, Group, Pin, whichPin } from '@tloncorp/api/lib/pinning';
 
 describe('whichPin', () => {
   test('should return pin-channel action when channel has no pin', () => {

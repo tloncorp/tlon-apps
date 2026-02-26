@@ -12,11 +12,11 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
+import { Story, citeToPath, pathToCite } from '@tloncorp/api/urbit';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
