@@ -12,8 +12,16 @@
         =prekey-bundle:s
         encrypted-states=(map ship encrypted-state:s)
     ==
+  +$  state-1
+    $:  %1
+        =credential-id:s
+        =auth-type:s
+        =prekey-bundle:s
+        encrypted-states=(map ship encrypted-state:s)
+        message-cache=(map ship encrypted-state:s)
+    ==
   --
-=|  state-0
+=|  state-1
 =*  state  -
 =<
   %^  verb  &  %info
@@ -32,9 +40,14 @@
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
+    =/  new=(unit state-1)
+      (mole |.(!<(state-1 vase)))
+    ?^  new  `this(state u.new)
     =/  old=(unit state-0)
       (mole |.(!<(state-0 vase)))
-    ?^  old  `this(state u.old)
+    ?^  old
+      %-  (slog leaf+"signal: migrating state-0 to state-1" ~)
+      `this(state [%1 credential-id.u.old auth-type.u.old prekey-bundle.u.old encrypted-states.u.old ~])
     ~&  >>>  "signal: incompatible state, resetting"
     on-init
   ::
@@ -88,6 +101,16 @@
         (~(put by encrypted-states) peer.action.action data.action.action)
       cor
     ::
+        %save-cache
+      =.  message-cache
+        (~(put by message-cache) peer.action.action data.action.action)
+      =/  upd=json
+        %-  pairs:enjs:format
+        :~  peer+s+(scot %p peer.action.action)
+            data+s+data.action.action
+        ==
+      (give %fact ~[/v0/cache-updates] json+!>(upd))
+    ::
         %save-credential
       =.  credential-id  cred.action.action
       cor
@@ -106,6 +129,10 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-watch-path/pole !!)
+      [%v0 %cache-updates ~]
+    ?>  from-self
+    cor
+  ::
       [%v0 %prekeys ~]
     =.  cor  (give %fact ~[/v0/prekeys] signal-prekeys+!>(prekey-bundle))
     (give %kick ~[/v0/prekeys] ~)
@@ -156,5 +183,12 @@
       [%x %v0 %state ship=@ ~]
     =/  her  (slav %p ship.pole)
     ``signal-state+!>((~(gut by encrypted-states) her ''))
+  ::
+      [%x %v0 %cache-peers ~]
+    ``signal-cache-peers+!>(~(key by message-cache))
+  ::
+      [%x %v0 %cache ship=@ ~]
+    =/  her  (slav %p ship.pole)
+    ``signal-cache+!>((~(gut by message-cache) her ''))
   ==
 --

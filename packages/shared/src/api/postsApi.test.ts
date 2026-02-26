@@ -63,12 +63,12 @@ test('toPostData extracts authorId from BotProfile on tombstone', () => {
   expect(result.isDeleted).toBe(true);
 });
 
-test('toPostsData handles mix of bot and normal authors', () => {
+test('toPostsData handles mix of bot and normal authors', async () => {
   const posts: ub.Posts = {
     '170.141.184.506.535.164.684.262.900.635.183.087.616': makeBotPost(botAuthor),
     '170.141.184.506.536.962.871.190.015.156.707.917.824': makeBotPost('~zod'),
   };
-  const result = toPostsData('chat/~zod/test', posts);
+  const result = await toPostsData('chat/~zod/test', posts);
   const botPost = result.posts.find((p) => p.authorId === '~bot-test');
   const normalPost = result.posts.find((p) => p.authorId === '~zod');
   expect(botPost).toBeDefined();
@@ -101,7 +101,7 @@ test('toPostReplyData extracts authorId from BotProfile memo author', () => {
 
 test('toPostData', async () => {
   const postsData = rawChannelPostsData as unknown as ub.PagedPosts;
-  const { posts } = toPostsData('testChannielId', postsData.posts);
+  const { posts } = await toPostsData('testChannielId', postsData.posts);
   const oldestPost = posts.reduce<Post>((acc, post) => {
     const time = post.receivedAt ?? 0;
     return time < (acc.receivedAt ?? 0) ? post : acc;
@@ -117,7 +117,7 @@ test('single post responses', async () => {
     '170.141.184.506.522.404.989.134.482.281.343.708.299':
       rawGroupDmPostWithRepliesData,
   };
-  const result = toPostsData('testChannelId', postsData as unknown as ub.Posts);
+  const result = await toPostsData('testChannelId', postsData as unknown as ub.Posts);
   result.posts.forEach((p) => {
     p.syncedAt = 0;
     p.replies?.forEach((r) => (r.syncedAt = 0));

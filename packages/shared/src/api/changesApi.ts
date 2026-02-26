@@ -23,17 +23,20 @@ export async function fetchChangesSince(timestamp: number): Promise<
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
 
-  const changes = parseChanges(response);
+  const changes = await parseChanges(response);
 
   return { ...changes, ...nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
+export async function parseChanges(input: ub.ChangesV7): Promise<db.ChangesResult> {
   const groups = toClientGroupsV7(input.groups, true);
 
-  const channelPosts = Object.entries(input.channels).flatMap(
-    ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
+  const channelPostResults = await Promise.all(
+    Object.entries(input.channels).map(async ([channelId, posts]) =>
+      posts ? (await toPostsData(channelId, posts)).posts : []
+    )
   );
+  const channelPosts = channelPostResults.flat();
 
   const deletedChannelIds = Object.entries(input.channels).reduce<string[]>(
     (accum, [channelId, data]) => {
@@ -45,9 +48,12 @@ export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
     []
   );
 
-  const chatPosts = Object.entries(input.chat).flatMap(([chatId, posts]) =>
-    posts ? toPostsData(chatId, posts).posts : []
+  const chatPostResults = await Promise.all(
+    Object.entries(input.chat).map(async ([chatId, posts]) =>
+      posts ? (await toPostsData(chatId, posts)).posts : []
+    )
   );
+  const chatPosts = chatPostResults.flat();
 
   const posts = [...channelPosts, ...chatPosts];
 

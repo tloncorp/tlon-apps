@@ -270,7 +270,7 @@ async function _sendPost({
         isE2EActive(channel.id) &&
         finalizedPostData.replyToPostId == null
       ) {
-        const encrypted = encryptPostContent(
+        const encrypted = await encryptPostContent(
           channel.id,
           finalizedPostData.content,
           finalizedPostData.blob

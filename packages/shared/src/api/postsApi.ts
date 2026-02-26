@@ -13,6 +13,11 @@ import { signalStore } from '../signal/store';
 import { decryptMessage } from '../signal/ratchet';
 import { toBytes, toHex, encryptState } from '../signal/crypto';
 import { isSignalBlob, parseSignalBlob } from '../signal/types';
+import {
+  cacheDecryptedMessage,
+  loadAndDecryptMessageCache,
+  type CacheEntry,
+} from '../store/signalActions';
 import * as signalApi from './signalApi';
 import * as ub from '../urbit';
 import {
@@ -381,7 +386,7 @@ export const getSequencedChannelPosts = async (
     path: endpoint,
   });
 
-  const clientPosts = toPagedPostsData(options.channelId, response).posts;
+  const clientPosts = (await toPagedPostsData(options.channelId, response)).posts;
   const withoutGaps = fillSequenceGaps(clientPosts, {
     lowerBound: options.start,
     upperBound: options.end,
@@ -428,14 +433,18 @@ export const getInitialPosts = async (config: {
     path: `/v5/init-posts/${config.channelCount}/${config.postCount}`,
   });
 
-  const channelPosts = Object.entries(response.channels).flatMap(
-    ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
+  const channelPostResults = await Promise.all(
+    Object.entries(response.channels).map(async ([channelId, posts]) =>
+      posts ? (await toPostsData(channelId, posts)).posts : []
+    )
   );
-  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
-    posts ? toPostsData(chatId, posts).posts : []
+  const chatPostResults = await Promise.all(
+    Object.entries(response.chat).map(async ([chatId, posts]) =>
+      posts ? (await toPostsData(chatId, posts)).posts : []
+    )
   );
 
-  return [...channelPosts, ...chatPosts];
+  return [...channelPostResults.flat(), ...chatPostResults.flat()];
 };
 
 export const getChannelPosts = async ({
@@ -472,7 +481,7 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  const postsResponse = toPagedPostsData(channelId, response);
+  const postsResponse = await toPagedPostsData(channelId, response);
   const { posts: finalPosts, numStubs } = fillSequenceGaps(
     postsResponse.posts,
     { upperBound: null, lowerBound: null }
@@ -626,7 +635,7 @@ export const getChangedPosts = async ({
       render('da', da.fromUnix(afterTime.valueOf()))
     ),
   });
-  return toPagedPostsData(channelId, response);
+  return await toPagedPostsData(channelId, response);
 };
 
 export async function addReaction({
@@ -1121,12 +1130,12 @@ export interface DeletedPost {
   channelId: string;
 }
 
-export function toPagedPostsData(
+export async function toPagedPostsData(
   channelId: string,
   data: ub.PagedPosts | ub.PagedWrits
-): GetChannelPostsResponse {
+): Promise<GetChannelPostsResponse> {
   const posts = 'writs' in data ? data.writs : data.posts;
-  const postsData = toPostsData(channelId, posts);
+  const postsData = await toPostsData(channelId, posts);
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
@@ -1135,10 +1144,10 @@ export function toPagedPostsData(
   };
 }
 
-export function toPostsData(
+export async function toPostsData(
   channelId: string,
   posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-): { posts: db.Post[]; deletedPosts: db.Post[] } {
+): Promise<{ posts: db.Post[]; deletedPosts: db.Post[] }> {
   const entries = Object.entries(posts);
   const deletedPosts: db.Post[] = [];
   const otherPosts: db.Post[] = [];
@@ -1179,9 +1188,17 @@ export function toPostsData(
 
   // Attempt decryption of signal:message posts in time order.
   // Messages that arrived while the app was closed can be decrypted if the
-  // ratchet state was properly backed up. Already-decrypted messages (ratchet
-  // has advanced past them) will fail and remain as notices.
+  // ratchet state was properly backed up. Posts already decrypted locally
+  // are skipped to avoid advancing the ratchet past its correct position.
+  // Posts available in the ship-side message cache (from prior decryption on
+  // any device) are used directly without touching the ratchet.
+  const ownEncryptedSentAts: number[] = [];
   if (deferredSignalPosts.length > 0) {
+    // Check which posts are already decrypted in the local DB.
+    // Re-decrypting them would corrupt the ratchet (forward secrecy).
+    const alreadyDecrypted = await db.getDecryptedPostIds(
+      deferredSignalPosts.map((d) => d.data.id)
+    );
     let currentUserId: string | null = null;
     try {
       currentUserId = getCurrentUserId();
@@ -1189,19 +1206,63 @@ export function toPostsData(
       // Not logged in yet
     }
 
+    // Load message cache from ship (encrypted with storage key).
+    // This lets us recover plaintext for messages decrypted on another
+    // device or in a previous session without touching the ratchet.
+    let messageCache: Record<string, CacheEntry> | null = null;
+    if (signalStore.isUnlocked() && isDmChannelId(channelId)) {
+      messageCache = await loadAndDecryptMessageCache(channelId);
+    }
+
     let didDecrypt = false;
-    const ownEncryptedSentAts: number[] = [];
     deferredSignalPosts.sort(
       (a, b) => (a.data.receivedAt ?? 0) - (b.data.receivedAt ?? 0)
     );
     for (const { raw, data } of deferredSignalPosts) {
-      // Skip own encrypted messages — the optimistic plaintext post is
-      // already in the local DB. But collect sentAt values so we can
-      // confirm delivery (clear the "sending" indicator).
+      // Own encrypted messages: on the sending device the optimistic
+      // plaintext post is in the local DB, but on another device it isn't.
+      // Check the ship-side message cache for cross-device visibility.
       if (currentUserId && data.authorId === currentUserId) {
+        if (alreadyDecrypted.has(data.id)) {
+          // Already in local DB with plaintext — just confirm delivery
+          if (data.sentAt != null) {
+            ownEncryptedSentAts.push(data.sentAt);
+          }
+          continue;
+        }
+        // Not in local DB — try the ship-side message cache
+        if (messageCache?.[data.id]) {
+          const cached = messageCache[data.id];
+          data.type = 'chat';
+          data.content = JSON.stringify(cached.content);
+          data.blob = cached.blob ?? 'signal:decrypted';
+          data.textContent = undefined;
+          otherPosts.push(data);
+          continue;
+        }
+        // No cache entry — collect for delivery confirmation, show as encrypted
         if (data.sentAt != null) {
           ownEncryptedSentAts.push(data.sentAt);
         }
+        otherPosts.push(data);
+        continue;
+      }
+
+      // Skip posts already decrypted locally — re-decrypting would
+      // advance the ratchet past its correct position, breaking all
+      // subsequent messages.
+      if (alreadyDecrypted.has(data.id)) {
+        continue;
+      }
+
+      // Try the ship-side message cache first (no ratchet advancement).
+      if (messageCache?.[data.id]) {
+        const cached = messageCache[data.id];
+        data.type = 'chat';
+        data.content = JSON.stringify(cached.content);
+        data.blob = cached.blob ?? 'signal:decrypted';
+        data.textContent = undefined;
+        otherPosts.push(data);
         continue;
       }
 
@@ -1227,6 +1288,15 @@ export function toPostsData(
             data.blob = decoded.blob ?? 'signal:decrypted';
             data.textContent = undefined;
             didDecrypt = true;
+            // Cache the newly decrypted message on ship immediately
+            // so other browsers/devices can read it
+            cacheDecryptedMessage(
+              channelId,
+              data.id,
+              decoded.content,
+              decoded.blob ?? null,
+              true // immediate flush for cross-device sync
+            );
           } catch {
             // Can't decrypt — keep as notice (set by toPostData)
           }

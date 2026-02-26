@@ -3552,6 +3552,28 @@ export const confirmPostDelivery = createWriteQuery(
   ['posts']
 );
 
+/**
+ * Return the set of post IDs (from the given list) that already exist
+ * locally with decrypted content (blob = 'signal:decrypted').
+ */
+export const getDecryptedPostIds = createReadQuery(
+  'getDecryptedPostIds',
+  async (postIds: string[], ctx: QueryCtx): Promise<Set<string>> => {
+    if (!postIds.length) return new Set();
+    const rows = await ctx.db
+      .select({ id: $posts.id })
+      .from($posts)
+      .where(
+        and(
+          inArray($posts.id, postIds),
+          eq($posts.blob, 'signal:decrypted')
+        )
+      );
+    return new Set(rows.map((r) => r.id));
+  },
+  ['posts']
+);
+
 export const deletePost = createWriteQuery(
   'deleteChannelPost',
   async (postId: string, ctx: QueryCtx) => {

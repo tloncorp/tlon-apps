@@ -1,6 +1,6 @@
 import { sendPost } from '../api/postsApi';
 import * as signalApi from '../api/signalApi';
-import { getCurrentUserId } from '../api/urbit';
+import { getCurrentUserId, subscribe as subscribeUrbit } from '../api/urbit';
 import { createDevLogger } from '../debug';
 import {
   signalStore,
@@ -218,13 +218,60 @@ export function disableE2E(channelId: string): void {
   signalStore.removeSession(channelId);
 }
 
+// --- Ratchet sync ---
+
+/**
+ * Reload the ratchet state for a peer from the ship's encrypted backup
+ * if the backup is more advanced than the in-memory session.
+ * This keeps multiple tabs/devices in sync so the recipient sees a
+ * linear ratchet progression regardless of which tab sends.
+ */
+async function syncRatchetState(channelId: string): Promise<void> {
+  if (!signalStore.isUnlocked()) return;
+
+  const current = signalStore.getSession(channelId);
+  if (!current || current.status !== 'active') return;
+
+  try {
+    const hex = await signalApi.loadEncryptedState(current.peerShip);
+    if (!hex) return;
+
+    const encrypted = toBytes(hex);
+    const plain = await decryptState(signalStore.getStorageKey(), encrypted);
+    const serialized = JSON.parse(new TextDecoder().decode(plain));
+    const remote = signalStore.deserializeSession(serialized);
+
+    // Only adopt the remote state if it's more advanced
+    // (higher combined send+receive count means more ratchet steps)
+    const localTotal =
+      current.ratchet.sendCount + current.ratchet.receiveCount;
+    const remoteTotal =
+      remote.ratchet.sendCount + remote.ratchet.receiveCount;
+    if (remoteTotal > localTotal) {
+      logger.log(
+        'syncRatchetState: adopting newer remote state',
+        channelId,
+        { local: localTotal, remote: remoteTotal }
+      );
+      signalStore.setSession(channelId, remote);
+    }
+  } catch (e) {
+    logger.log('syncRatchetState failed', channelId, e);
+  }
+}
+
 // --- Encrypt / Decrypt ---
 
-export function encryptPostContent(
+export async function encryptPostContent(
   channelId: string,
   content: unknown,
   blob?: string | null
-): { content: unknown; blob: string } | null {
+): Promise<{ content: unknown; blob: string } | null> {
+  // Sync ratchet state from ship before encrypting.
+  // This ensures that if another tab/device advanced the ratchet,
+  // we pick up the latest state so the recipient can decrypt.
+  await syncRatchetState(channelId);
+
   const session = signalStore.getSession(channelId);
   if (!session || session.status !== 'active') return null;
 
@@ -459,6 +506,223 @@ export async function restoreRatchetStates(): Promise<void> {
     }
   } catch (e) {
     logger.log('restoreRatchetStates failed', e);
+  }
+}
+
+// --- Decrypted message cache ---
+
+export interface CacheEntry {
+  content: unknown;
+  blob: string | null;
+}
+
+interface CacheBroadcast {
+  channelId: string;
+  postId: string;
+  entry: CacheEntry;
+}
+
+// BroadcastChannel for instant same-browser tab sync.
+let cacheBroadcast: BroadcastChannel | null = null;
+try {
+  if (typeof BroadcastChannel !== 'undefined') {
+    cacheBroadcast = new BroadcastChannel('signal-message-cache');
+    cacheBroadcast.addEventListener('message', (event: MessageEvent<CacheBroadcast>) => {
+      const { postId, entry } = event.data;
+      resolvePendingCache(postId, entry);
+    });
+  }
+} catch {
+  // BroadcastChannel not available (e.g. SSR)
+}
+
+// Pending resolvers: postId → callback.  Resolved by either
+// BroadcastChannel (same browser) or Urbit subscription (cross-device).
+const pendingCacheResolvers = new Map<string, (entry: CacheEntry) => void>();
+
+function resolvePendingCache(postId: string, entry: CacheEntry) {
+  const resolver = pendingCacheResolvers.get(postId);
+  if (resolver) {
+    pendingCacheResolvers.delete(postId);
+    resolver(entry);
+  }
+}
+
+/**
+ * Wait for a specific post's decrypted content to appear in the cache.
+ * Resolves instantly if another tab/device writes it via BroadcastChannel
+ * or the Urbit cache-updates subscription.
+ */
+export function waitForCachedMessage(
+  postId: string,
+  timeout: number = 10_000
+): Promise<CacheEntry | null> {
+  // Check in-memory pending writes first (same tab, not yet flushed)
+  for (const entries of pendingCacheWrites.values()) {
+    if (entries[postId]) {
+      return Promise.resolve(entries[postId]);
+    }
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingCacheResolvers.delete(postId);
+      resolve(null);
+    }, timeout);
+
+    pendingCacheResolvers.set(postId, (entry) => {
+      clearTimeout(timer);
+      resolve(entry);
+    });
+  });
+}
+
+let cacheSubStarted = false;
+
+/**
+ * Subscribe to /v0/cache-updates on the signal agent.
+ * When any client pokes %save-cache, the agent gives a fact with the
+ * full encrypted cache blob.  We decrypt it and resolve any pending
+ * waitForCachedMessage promises.
+ */
+export function startCacheUpdateSubscription(): void {
+  if (cacheSubStarted) return;
+  cacheSubStarted = true;
+
+  console.log('[signal] startCacheUpdateSubscription: subscribing to /v0/cache-updates');
+  subscribeUrbit<{ peer: string; data: string }>(
+    { app: 'signal', path: '/v0/cache-updates' },
+    async (event) => {
+      console.log('[signal] cache-updates: received fact', event?.peer, event?.data?.slice(0, 20));
+      if (!signalStore.isUnlocked()) {
+        console.log('[signal] cache-updates: store locked, ignoring');
+        return;
+      }
+      if (!event?.data) {
+        console.log('[signal] cache-updates: no data in event');
+        return;
+      }
+      try {
+        const encrypted = toBytes(event.data);
+        const plain = await decryptState(
+          signalStore.getStorageKey(),
+          encrypted
+        );
+        const entries = JSON.parse(
+          new TextDecoder().decode(plain)
+        ) as Record<string, CacheEntry>;
+        const postIds = Object.keys(entries);
+        console.log('[signal] cache-updates: decrypted', postIds.length, 'entries, ids:', postIds.slice(0, 3));
+        for (const [postId, entry] of Object.entries(entries)) {
+          resolvePendingCache(postId, entry);
+        }
+      } catch (e) {
+        console.log('[signal] cache-updates handler failed', e);
+      }
+    }
+  ).then(
+    (subId) => console.log('[signal] cache-updates: subscription established, id:', subId),
+    (err) => console.log('[signal] cache-updates: subscription FAILED', err)
+  );
+}
+
+// In-memory accumulator: channelId → { postId: CacheEntry }
+const pendingCacheWrites: Map<string, Record<string, CacheEntry>> = new Map();
+const flushTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+const CACHE_FLUSH_DELAY = 2000; // 2s debounce per channel
+
+export function cacheDecryptedMessage(
+  channelId: string,
+  postId: string,
+  content: unknown,
+  blob: string | null,
+  immediate?: boolean
+): void {
+  const entry: CacheEntry = { content, blob };
+
+  let entries = pendingCacheWrites.get(channelId);
+  if (!entries) {
+    entries = {};
+    pendingCacheWrites.set(channelId, entries);
+  }
+  entries[postId] = entry;
+
+  // Broadcast to other same-browser tabs immediately
+  try {
+    cacheBroadcast?.postMessage({ channelId, postId, entry } satisfies CacheBroadcast);
+  } catch {
+    // Broadcast failed — non-critical
+  }
+
+  if (immediate) {
+    // Flush to ship right away — the ship will give a fact on
+    // /v0/cache-updates which notifies all other connected clients.
+    console.log('[signal] cacheDecryptedMessage: immediate flush for', postId, 'in', channelId);
+    const existing = flushTimers.get(channelId);
+    if (existing) clearTimeout(existing);
+    flushTimers.delete(channelId);
+    flushMessageCache(channelId).catch((e) => logger.log('immediate flush failed', e));
+    return;
+  }
+
+  // Debounce flush to ship per channel
+  const existing = flushTimers.get(channelId);
+  if (existing) clearTimeout(existing);
+  flushTimers.set(
+    channelId,
+    setTimeout(() => flushMessageCache(channelId), CACHE_FLUSH_DELAY)
+  );
+}
+
+async function flushMessageCache(channelId: string): Promise<void> {
+  flushTimers.delete(channelId);
+  const newEntries = pendingCacheWrites.get(channelId);
+  if (!newEntries || Object.keys(newEntries).length === 0) return;
+  console.log('[signal] flushMessageCache:', Object.keys(newEntries).length, 'entries for', channelId);
+  pendingCacheWrites.delete(channelId);
+
+  if (!signalStore.isUnlocked()) return;
+
+  try {
+    // Load existing cache from ship, merge, re-encrypt, save
+    let merged: Record<string, CacheEntry> = {};
+
+    const hex = await signalApi.loadMessageCache(channelId);
+    if (hex) {
+      const encrypted = toBytes(hex);
+      const plain = await decryptState(signalStore.getStorageKey(), encrypted);
+      merged = JSON.parse(new TextDecoder().decode(plain));
+    }
+
+    // Merge new entries
+    Object.assign(merged, newEntries);
+
+    const plainBytes = new TextEncoder().encode(JSON.stringify(merged));
+    const encrypted = await encryptState(signalStore.getStorageKey(), plainBytes);
+    await signalApi.saveMessageCache(channelId, toHex(encrypted));
+  } catch (e) {
+    logger.log('flushMessageCache failed', channelId, e);
+    // Re-queue entries that failed to flush
+    const current = pendingCacheWrites.get(channelId) || {};
+    pendingCacheWrites.set(channelId, { ...newEntries, ...current });
+  }
+}
+
+export async function loadAndDecryptMessageCache(
+  channelId: string
+): Promise<Record<string, CacheEntry> | null> {
+  if (!signalStore.isUnlocked()) return null;
+
+  try {
+    const hex = await signalApi.loadMessageCache(channelId);
+    if (!hex) return null;
+    const encrypted = toBytes(hex);
+    const plain = await decryptState(signalStore.getStorageKey(), encrypted);
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch (e) {
+    logger.log('loadAndDecryptMessageCache failed', channelId, e);
+    return null;
   }
 }
 

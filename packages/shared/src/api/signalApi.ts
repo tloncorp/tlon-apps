@@ -178,3 +178,51 @@ export async function getStatePeers(): Promise<string[]> {
     return [];
   }
 }
+
+// --- Decrypted message cache ---
+
+export async function saveMessageCache(
+  peer: string,
+  data: string
+): Promise<void> {
+  await poke({
+    app: 'signal',
+    mark: 'signal-action',
+    json: {
+      ship: getCurrentUserId(),
+      action: {
+        'save-cache': {
+          peer,
+          data,
+        },
+      },
+    },
+  });
+}
+
+export async function loadMessageCache(
+  peer: string
+): Promise<string | null> {
+  try {
+    const hex = await scry<string>({
+      app: 'signal',
+      path: `/v0/cache/${peer}`,
+    });
+    if (!hex) return null;
+    return hex;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCachePeers(): Promise<string[]> {
+  try {
+    const peers = await scry<string[]>({
+      app: 'signal',
+      path: '/v0/cache-peers',
+    });
+    return peers || [];
+  } catch {
+    return [];
+  }
+}

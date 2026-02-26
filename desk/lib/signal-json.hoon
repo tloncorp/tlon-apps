@@ -19,6 +19,11 @@
         :~  peer+s+(scot %p peer.ai)
             data+s+data.ai
         ==
+      %save-cache
+        %-  pairs
+        :~  peer+s+(scot %p peer.ai)
+            data+s+data.ai
+        ==
       %save-credential  s+cred.ai
       %save-auth-type   s+auth-type.ai
       %publish-prekeys  (prekey-bundle bundle.ai)
@@ -49,6 +54,7 @@
     ^-  $-(json action-inner:s)
     %-  of
     :~  save-state/save-state
+        save-cache/save-state
         save-credential/so
         save-auth-type/auth-type
         publish-prekeys/prekey-bundle

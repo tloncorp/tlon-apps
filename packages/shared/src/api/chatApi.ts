@@ -5,6 +5,10 @@ import {
   processSignalBlob,
   decryptPostBlob,
   backupRatchetState,
+  cacheDecryptedMessage,
+  loadAndDecryptMessageCache,
+  waitForCachedMessage,
+  startCacheUpdateSubscription,
 } from '../store/signalActions';
 import * as ub from '../urbit';
 import {
@@ -23,6 +27,80 @@ import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
 const logger = createDevLogger('chatApi', false);
+
+/**
+ * Resolve an encrypted placeholder post from the message cache.
+ * Registers a pending resolver FIRST (so we never miss a BroadcastChannel
+ * or Urbit subscription event), then checks the ship-side cache. Emits the
+ * post exactly once — either as plaintext or as an encrypted placeholder.
+ */
+async function resolveFromCache(
+  channelId: string,
+  post: db.Post,
+  eventHandler: (event: ChatEvent) => void
+): Promise<void> {
+  console.log('[signal] resolveFromCache: waiting for', post.id, 'in', channelId);
+
+  // Register the pending resolver BEFORE the scry so we never miss
+  // a BroadcastChannel or subscription event that arrives during the scry.
+  const waitPromise = waitForCachedMessage(post.id);
+
+  // Try the ship-side cache immediately (might already be flushed)
+  try {
+    const cache = await loadAndDecryptMessageCache(channelId);
+    console.log('[signal] resolveFromCache: scry result for', post.id, cache ? Object.keys(cache).length + ' entries' : 'null');
+    if (cache?.[post.id]) {
+      console.log('[signal] resolveFromCache: found in scry cache', post.id, typeof cache[post.id].content);
+      const entry = cache[post.id];
+      // entry.content is already a parsed object; JSON.stringify for DB json mode
+      const contentStr = typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content);
+      eventHandler({
+        type: 'addPost',
+        post: {
+          ...post,
+          type: 'chat',
+          content: contentStr,
+          blob: entry.blob ?? 'signal:decrypted',
+          textContent: undefined,
+        },
+      });
+      return;
+    }
+  } catch (e) {
+    console.log('[signal] resolveFromCache: scry failed', post.id, e);
+  }
+
+  // Wait for BroadcastChannel (same browser) or Urbit sub (cross-device)
+  console.log('[signal] resolveFromCache: waiting for subscription/broadcast', post.id);
+  const entry = await waitPromise;
+  console.log('[signal] resolveFromCache: wait resolved', post.id, entry ? 'got entry' : 'timed out');
+  if (entry) {
+    const contentStr2 = typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content);
+    console.log('[signal] resolveFromCache: resolved via wait, content type:', typeof entry.content);
+    eventHandler({
+      type: 'addPost',
+      post: {
+        ...post,
+        type: 'chat',
+        content: contentStr2,
+        blob: entry.blob ?? 'signal:decrypted',
+        textContent: undefined,
+      },
+    });
+    return;
+  }
+
+  // Last resort — show as encrypted placeholder
+  console.log('[signal] resolveFromCache: gave up, showing placeholder', post.id);
+  eventHandler({
+    type: 'addPost',
+    post: {
+      ...post,
+      type: 'notice',
+      textContent: 'Encrypted message',
+    },
+  });
+}
 
 export const markChatRead = (whom: string) =>
   poke({
@@ -112,6 +190,10 @@ export type ChatEvent =
 export function subscribeToChatUpdates(
   eventHandler: (event: ChatEvent) => void
 ) {
+  // Start the Urbit subscription for cross-device cache updates.
+  // BroadcastChannel handles same-browser tabs; this handles other devices.
+  startCacheUpdateSubscription();
+
   subscribe(
     {
       app: 'chat',
@@ -198,6 +280,18 @@ export function subscribeToChatUpdates(
               : null;
 
             if (cached) {
+              // Cache own message on ship for cross-device visibility.
+              // Use immediate flush so other devices can resolve it ASAP.
+              if (cached.content != null) {
+                // content is already parsed JSON (drizzle json mode)
+                cacheDecryptedMessage(
+                  channelId,
+                  post.id,
+                  cached.content,
+                  cached.blob ?? null,
+                  true // immediate flush for cross-device sync
+                );
+              }
               // Merge: keep local plaintext but mark as confirmed
               return eventHandler({
                 type: 'addPost',
@@ -212,13 +306,16 @@ export function subscribeToChatUpdates(
               });
             }
 
-            // Fallback: no cached post found — just confirm delivery
-            if (post.sentAt != null) {
-              db.confirmPostDelivery({
-                channelId,
-                sentAts: [post.sentAt],
-              }).catch(() => {});
-            }
+            // No optimistic cached post — this is another tab or device.
+            // Wait for the sending device's immediate cache flush to
+            // complete, then emit a single addPost (either plaintext from
+            // cache, or encrypted placeholder as a last resort).
+            // We emit exactly once to avoid duplicate-insert issues.
+            resolveFromCache(
+              channelId,
+              { ...post },
+              eventHandler
+            );
             return;
           }
 
@@ -255,15 +352,22 @@ export function subscribeToChatUpdates(
                   : 'signal:decrypted',
                 textContent: undefined,
               };
+              // Cache decrypted plaintext on ship for cross-device sync
+              cacheDecryptedMessage(
+                channelId,
+                post.id,
+                decrypted.content,
+                decrypted.blob,
+                true // immediate flush for cross-device sync
+              );
               // Keep ratchet state backed up so it survives refresh
               backupRatchetState(channelId).catch(() => {});
             } else {
-              // Decryption failed — show as notice
-              post = {
-                ...post,
-                type: 'notice',
-                textContent: 'Could not decrypt message',
-              };
+              // Decrypt failed (ratchet diverged from another browser, etc.)
+              // Try the message cache — the device that successfully
+              // decrypted will have cached the plaintext.
+              resolveFromCache(channelId, { ...post }, eventHandler);
+              return;
             }
           }
         }

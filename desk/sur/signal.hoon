@@ -5,6 +5,7 @@
   ==
 +$  action-inner
   $%  [%save-state peer=ship data=encrypted-state]
+      [%save-cache peer=ship data=encrypted-state]
       [%save-credential cred=credential-id]
       [%save-auth-type =auth-type]
       [%publish-prekeys bundle=prekey-bundle]
