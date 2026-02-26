@@ -1,4 +1,4 @@
-import * as AV from 'expo-av';
+import { AudioPlayer } from 'expo-audio';
 import { File } from 'expo-file-system/next';
 
 import { FilesModule } from './shared';
@@ -14,19 +14,12 @@ const module: FilesModule = {
     return new File(uri).md5;
   },
   async getAudioFileDurationSeconds(uri: string): Promise<number | null> {
-    const soundPlayer = new AV.Audio.Sound();
+    const soundPlayer = new AudioPlayer(uri, 0);
     try {
-      const status = await soundPlayer.loadAsync(
-        { uri },
-        { shouldPlay: false }
-      );
-      const duration =
-        status.isLoaded && status.durationMillis != null
-          ? status.durationMillis / 1000
-          : 0;
-      return duration;
+      return soundPlayer.duration;
     } finally {
-      await soundPlayer.unloadAsync();
+      soundPlayer.remove();
+      soundPlayer.release();
     }
   },
 };
