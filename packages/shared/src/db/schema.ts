@@ -8,8 +8,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ChannelContentConfiguration } from '../api';
-import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
+import { ChannelContentConfiguration } from '@tloncorp/api';
+import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });

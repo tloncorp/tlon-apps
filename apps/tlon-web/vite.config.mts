@@ -222,6 +222,8 @@ export default ({ mode }: { mode: string }) => {
         },
         '^.*//.*': {
           target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replaceAll('//', '/@@@/'),
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {

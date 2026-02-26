@@ -1,11 +1,11 @@
-import * as api from '../api';
+import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { isGroupChannelId } from '../logic';
 import * as logic from '../logic';
-import * as ub from '../urbit';
-import { whomIsMultiDm } from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
+import { whomIsMultiDm } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('activityActions', false);
 

@@ -38,8 +38,8 @@ import {
   Ship,
   Strikethrough,
   Task,
-} from '../../urbit/content';
-import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
+} from '@tloncorp/api/urbit/content';
+import { Story, Verse, VerseBlock, VerseInline } from '@tloncorp/api/urbit/channel';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**

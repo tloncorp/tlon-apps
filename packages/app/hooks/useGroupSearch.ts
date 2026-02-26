@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { whomIsFlag } from '@tloncorp/shared/urbit';
+import { whomIsFlag } from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { GroupPreviewAction } from '../ui';

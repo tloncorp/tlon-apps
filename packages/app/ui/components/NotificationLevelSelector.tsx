@@ -1,4 +1,4 @@
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 

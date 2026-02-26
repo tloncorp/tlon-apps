@@ -3,8 +3,8 @@ import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
 import type { Root, RootContent, PhrasingContent, Node } from 'mdast';
 
-import { Story } from '../../urbit/channel';
-import { Block, Inline } from '../../urbit/content';
+import { Story } from '@tloncorp/api/urbit/channel';
+import { Block, Inline } from '@tloncorp/api/urbit/content';
 import { storyToMdast, inlinesToPhrasing } from './storyToMdast';
 import type { ShipMention } from './shipMentionPlugin';
 import { visit, visitAll } from './astUtils';
