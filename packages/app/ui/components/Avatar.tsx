@@ -121,8 +121,13 @@ const SMALL_AVATAR_SIZES = ['$xl', '$2xl', '$3xl', '$3.5xl'] as const;
 export const GroupAvatar = React.memo(function GroupAvatarComponent({
   model,
   memberCount,
+  membersLayout = 'default',
   ...props
-}: { model: db.Group | GroupImageShim; memberCount?: number } & AvatarProps) {
+}: {
+  model: db.Group | GroupImageShim;
+  memberCount?: number;
+  membersLayout?: 'default' | 'compact';
+} & AvatarProps) {
   const { disableNicknames } = useCalm();
   const fallbackTitle = useMemo(() => {
     return isGroupImageShim(model)
@@ -140,6 +145,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   const isSmallSize = SMALL_AVATAR_SIZES.includes(
     (props.size ?? '$4xl') as (typeof SMALL_AVATAR_SIZES)[number]
   );
+  const facePileGridDensity = membersLayout === 'compact' ? 'compact' : 'default';
 
   const textFallback = (
     <TextAvatar
@@ -169,6 +175,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
             maxVisible={4}
             totalCount={memberCount}
             grid
+            gridDensity={facePileGridDensity}
           />
         </AvatarFrame>
       )

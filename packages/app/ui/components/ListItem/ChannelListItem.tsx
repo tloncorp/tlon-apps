@@ -1,7 +1,8 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Icon, Pressable, RawText } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import React, {
+  ComponentProps,
   useCallback,
   useEffect,
   useMemo,
@@ -20,6 +21,7 @@ import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
   model,
+  StartIcon,
   useTypeIcon,
   customSubtitle,
   onPress,
@@ -27,6 +29,7 @@ export function ChannelListItem({
   EndContent,
   dimmed,
   disableOptions = false,
+  disableFocusedStyle = false,
   showGroupTitle = false,
   onLayout,
   ...props
@@ -35,7 +38,8 @@ export function ChannelListItem({
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
-  onLayout?: (e: any) => void;
+  disableFocusedStyle?: boolean;
+  onLayout?: ComponentProps<typeof ListItem>['onLayout'];
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
@@ -127,7 +131,9 @@ export function ChannelListItem({
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
-        backgroundColor={isFocused ? '$shadow' : undefined}
+        backgroundColor={
+          !disableFocusedStyle && isFocused ? '$shadow' : undefined
+        }
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
@@ -141,11 +147,15 @@ export function ChannelListItem({
               : `ChannelListItem-${model.title}`
           }
         >
-          <ListItem.ChannelIcon
-            model={model}
-            useTypeIcon={useTypeIcon}
-            dimmed={dimmed}
-          />
+          {StartIcon !== undefined ? (
+            StartIcon
+          ) : (
+            <ListItem.ChannelIcon
+              model={model}
+              useTypeIcon={useTypeIcon}
+              dimmed={dimmed}
+            />
+          )}
           <ListItem.MainContent>
             <ListItem.Title dimmed={dimmed}>
               {isDmType && dmMembers && dmMembers.length > 0 ? (
