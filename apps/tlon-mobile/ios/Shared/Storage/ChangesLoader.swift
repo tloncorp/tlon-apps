@@ -3,6 +3,8 @@ import Foundation
 class ChangesLoader {
     private static let sharedFileName = "changes_cache.json"
     private static let lastSyncKey = "changesSyncedAt"
+    private static let latestNotificationReceivedAtMsKey = "latestNotificationReceivedAtMs"
+    private static let latestNotificationSyncCompletedKey = "latestNotificationSyncCompleted"
     private static let coordinator = NSFileCoordinator()
     
     static func setLastSyncTimestamp(_ date: Date?) throws {
@@ -126,22 +128,45 @@ class ChangesLoader {
         }
     }
     
-    static func sync() async throws {
+    static func sync(notificationReceivedAt: Date? = nil) async throws {
         print("[ChangesLoader] Syncing...")
         let now = Date()
+
+        if let notificationReceivedAt {
+            markLatestNotificationSyncState(receivedAt: notificationReceivedAt, completed: false)
+        }
         
         if let cached = try readCachedChanges() {
             print("[ChangesLoader] Found cached changes, appending...")
             let newChanges = try await PocketAPI.shared.fetchChangesSince(cached.endTimestamp)
             let oldChanges = try cached.getChanges()
             let merged = oldChanges.merge(with: newChanges)
+            let mergedNotificationReceivedAt: Date? = {
+                switch (cached.notificationReceivedAt, notificationReceivedAt) {
+                case let (existing?, incoming?):
+                    return max(existing, incoming)
+                case let (existing?, nil):
+                    return existing
+                case let (nil, incoming?):
+                    return incoming
+                case (nil, nil):
+                    return nil
+                }
+            }()
             try writeCachedChanges(
                 CachedChanges(
                     begin: cached.beginTimestamp,
                     end: now,
-                    changes: merged
+                    changes: merged,
+                    notificationReceivedAt: mergedNotificationReceivedAt
                 )
             )
+            if let latestNotificationReceivedAt = mergedNotificationReceivedAt {
+                markLatestNotificationSyncState(
+                    receivedAt: latestNotificationReceivedAt,
+                    completed: true
+                )
+            }
             print("[ChangesLoader] Successfully updated cached changes.")
             return
         }
@@ -154,9 +179,13 @@ class ChangesLoader {
                 CachedChanges(
                     begin: lastSyncedAt,
                     end: now,
-                    changes: fetchedChanges
+                    changes: fetchedChanges,
+                    notificationReceivedAt: notificationReceivedAt
                 )
             )
+            if let notificationReceivedAt {
+                markLatestNotificationSyncState(receivedAt: notificationReceivedAt, completed: true)
+            }
             print("[ChangesLoader] Successfully wrote changes.")
         }
     }
@@ -166,8 +195,38 @@ class ChangesLoader {
             return nil
         }
         
-        let jsonData = try cached.toJSON()
+        var jsonObject = try JSONSerialization.jsonObject(with: cached.toJSON()) as? [String: Any] ?? [:]
+        let metadata = latestNotificationSyncMetadata()
+        if let receivedAtMs = metadata.receivedAtMs {
+            jsonObject["notificationReceivedAtMs"] = receivedAtMs
+        }
+        if let completed = metadata.completed {
+            jsonObject["notificationSyncCompleted"] = completed
+        }
+        let jsonData = try JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted)
         try deleteCachedChanges()
         return jsonData
+    }
+
+    private static func markLatestNotificationSyncState(
+        receivedAt: Date,
+        completed: Bool
+    ) {
+        let sharedDefaults = UserDefaults.forDefaultAppGroup
+        sharedDefaults.set(receivedAt.javascriptTimestampFloor, forKey: latestNotificationReceivedAtMsKey)
+        sharedDefaults.set(completed, forKey: latestNotificationSyncCompletedKey)
+    }
+
+    private static func latestNotificationSyncMetadata() -> (receivedAtMs: Int64?, completed: Bool?) {
+        let sharedDefaults = UserDefaults.forDefaultAppGroup
+        let hasReceivedAt = sharedDefaults.object(forKey: latestNotificationReceivedAtMsKey) != nil
+        let hasCompleted = sharedDefaults.object(forKey: latestNotificationSyncCompletedKey) != nil
+        let receivedAtMs = hasReceivedAt
+            ? Int64(sharedDefaults.integer(forKey: latestNotificationReceivedAtMsKey))
+            : nil
+        let completed = hasCompleted
+            ? sharedDefaults.bool(forKey: latestNotificationSyncCompletedKey)
+            : nil
+        return (receivedAtMs, completed)
     }
 }

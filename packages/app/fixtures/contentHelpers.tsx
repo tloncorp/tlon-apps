@@ -1,13 +1,13 @@
 import { faker } from '@faker-js/faker';
 import { useQuery } from '@tanstack/react-query';
-import type { PostContent } from '@tloncorp/shared/api';
+import type { PostContent } from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import type { ContentReference } from '@tloncorp/shared/domain';
 import {
   appendFileUploadToPostBlob,
   appendToPostBlob,
 } from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/shared/urbit';
 
 import {
   createFakePost,

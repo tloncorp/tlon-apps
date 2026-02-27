@@ -1,5 +1,12 @@
 import AddGalleryPost from '../../ui/components/AddGalleryPost';
+import { FixtureWrapper } from '../FixtureWrapper';
 
 export default (
-  <AddGalleryPost onSetImage={() => {}} route="add-post" setRoute={() => {}} />
+  <FixtureWrapper fillHeight fillWidth>
+    <AddGalleryPost
+      onSetImage={() => {}}
+      route="add-post"
+      setRoute={() => {}}
+    />
+  </FixtureWrapper>
 );

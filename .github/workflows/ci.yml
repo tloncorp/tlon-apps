@@ -5,35 +5,10 @@ on:
 
 jobs:
   test-build:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
-      - name: Clean workspace (Fedora container fix)
-        if: runner.os == 'Linux'
-        run: |
-          # Clean up any root-owned files from previous container runs
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora - cleaning up root-owned files from previous runs"
-            # The workspace path exists even before checkout
-            WORKSPACE_PATH="${{ github.workspace }}"
-            if [ -d "$WORKSPACE_PATH" ]; then
-              echo "Wiping entire workspace: $WORKSPACE_PATH"
-              # Use sudo podman to run as root and delete root-owned files
-              sudo podman run --rm \
-                -v "$WORKSPACE_PATH:/workspace:Z" \
-                --security-opt label=disable \
-                docker.io/alpine:latest \
-                sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null || true"
-              echo "Workspace wiped - checkout will recreate it"
-            else
-              echo "Workspace doesn't exist yet, skipping cleanup"
-            fi
-          fi
-        continue-on-error: true
-
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          clean: false # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -61,6 +36,8 @@ jobs:
 
       - name: Build packages
         run: pnpm build:all
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - name: Get Playwright version
         id: playwright-version
@@ -70,10 +47,6 @@ jobs:
         working-directory: ./apps/tlon-web
 
       - name: Cache Playwright browsers
-        # Skip cache on Fedora since we'll use container
-        if:
-          ${{ !contains(runner.os, 'Linux') || !contains(runner.name, 'fedora')
-          }}
         uses: actions/cache@v4
         id: playwright-cache
         with:
@@ -84,76 +57,12 @@ jobs:
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          # Only install on non-Fedora systems since Fedora will use container
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Skipping browser install on Fedora - will be installed in container"
-          else
-            pnpm exec playwright install chromium
-          fi
+        run: pnpm exec playwright install chromium
         working-directory: ./apps/tlon-web
-
-      # Note: Playwright browsers installed above for ubuntu-latest runner
-      # Fedora self-hosted runners install browsers inside containers (both smoke test and parallel E2E)
 
       - name: Run Production Build Smoke Test
         id: smoke-test
-        run: |
-          # Check if we're on Fedora and need container workaround
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora/RHEL - running smoke test in Ubuntu container"
-
-            # Read Node version from .nvmrc
-            NODE_VERSION=$(cat ../../.nvmrc)
-            echo "Using Node.js version: $NODE_VERSION"
-
-            # Function to run test in container
-            run_smoke_test() {
-              podman run --rm \
-                -v "$PWD/../..:/workspace:Z" \
-                -w /workspace \
-                --network host \
-                --security-opt label=disable \
-                -e CI=true \
-                docker.io/ubuntu:22.04 \
-                bash -c "
-                  # Exit on any error, undefined variable, or pipe failure
-                  set -euo pipefail
-
-                  # Install dependencies
-                  apt-get update && apt-get install -y curl git build-essential netcat-openbsd
-
-                  # Install specific Node.js version
-                  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                  apt-get install -y nodejs
-                  npm install -g n
-                  n ${NODE_VERSION}
-                  hash -r
-
-                  # Install pnpm
-                  npm install -g pnpm@9.0.5
-
-                  # Install dependencies
-                  cd /workspace
-                  pnpm install --frozen-lockfile
-
-                  # Install Playwright browsers and dependencies
-                  cd apps/tlon-web
-                  pnpm exec playwright install --with-deps chromium
-
-                  pnpm e2e:prod:smoke:force
-
-                  # Fix permissions on created files for host user
-                  chmod -R 777 /workspace/apps/tlon-web/rube/dist || true
-                "
-            }
-
-            # Try once, retry if failed
-            run_smoke_test || (echo "::warning::Production smoke test failed, retrying..." && run_smoke_test)
-          else
-            echo "Not on Fedora/RHEL - running smoke test directly"
-            pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
-          fi
+        run: pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
         working-directory: ./apps/tlon-web
         continue-on-error: false
 
@@ -166,66 +75,72 @@ jobs:
             ./apps/tlon-web/test-results/
             ./apps/tlon-web/playwright-report/
           retention-days: 7
+
   # Backend unit tests
   backend-test:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          clean: false # Our cleanup step handles root-owned files
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Backend Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
+
+      - name: Skip backend tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend tests."
   # Backend aqua tests
   backend-aqua-test:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Aqua Tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          clean: false # Our cleanup step handles root-owned files
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Backend Aqua Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-aqua-tests.sh
+
+      - name: Skip backend aqua tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend aqua tests."
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
-      - product
+    runs-on: blacksmith-16vcpu-ubuntu-2204
     name: E2E Tests (Parallel - 4 shards)
     steps:
-      - name: Clean workspace (Fedora container fix)
-        if: runner.os == 'Linux'
-        run: |
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Detected Fedora - cleaning up root-owned files from previous runs"
-            WORKSPACE_PATH="${{ github.workspace }}"
-            if [ -d "$WORKSPACE_PATH" ]; then
-              echo "Wiping entire workspace: $WORKSPACE_PATH"
-              # Use sudo podman to run as root and delete root-owned files
-              sudo podman run --rm \
-                -v "$WORKSPACE_PATH:/workspace:Z" \
-                --security-opt label=disable \
-                docker.io/alpine:latest \
-                sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null || true"
-              echo "Workspace wiped - checkout will recreate it"
-            fi
-          fi
-        continue-on-error: true
-
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          clean: false # Our cleanup step handles root-owned files
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4

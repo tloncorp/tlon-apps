@@ -1,7 +1,7 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -385,8 +385,8 @@ export function SettingsSection({
         (channel.writerRoles?.length ?? 0) > 0;
       return [
         {
-          title: 'Privacy',
-          endValue: isPrivate ? 'Private' : 'Public',
+          title: 'Permissions',
+          endValue: isPrivate ? 'Custom' : 'Public',
           testID: 'ChannelPrivacy',
           disabled: !actionsEnabled,
           onPress: handlePressEditChannelPrivacy,

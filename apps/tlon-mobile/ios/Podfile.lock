@@ -301,6 +301,8 @@ PODS:
     - Yoga
   - ExpoSecureStore (14.0.1):
     - ExpoModulesCore
+  - ExpoSensors (14.0.2):
+    - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
   - ExpoSpeechTranscriber (0.1.9):
@@ -2524,6 +2526,7 @@ DEPENDENCIES:
   - ExpoMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
+  - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
   - ExpoSpeechTranscriber (from `../../../node_modules/expo-speech-transcriber/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
@@ -2731,6 +2734,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-modules-core"
   ExpoSecureStore:
     :path: "../../../node_modules/expo-secure-store/ios"
+  ExpoSensors:
+    :path: "../../../node_modules/expo-sensors/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
   ExpoSpeechTranscriber:
@@ -2956,6 +2961,7 @@ SPEC CHECKSUMS:
   ExpoMediaLibrary: 2709fc2e4fcf87d28767714abcc603c4bec228c6
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
+  ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
   ExpoSpeechTranscriber: 429160b0766c7f2ec6122988e2d22e1c19b53e06
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d

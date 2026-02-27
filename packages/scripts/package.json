@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tloncorp/api": "workspace:*",
     "@tloncorp/shared": "workspace:*"
   },
   "devDependencies": {

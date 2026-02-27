@@ -8,8 +8,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ChannelContentConfiguration } from '../api';
-import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
+import { ChannelContentConfiguration } from '@tloncorp/api';
+import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -1105,6 +1105,7 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isBot: boolean('is_bot').default(false),
     isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),

@@ -1,12 +1,13 @@
-import * as api from '../api';
-import { toPostContent } from '../api';
+import * as api from '@tloncorp/api';
+import { toPostContent } from '@tloncorp/api';
+import * as urbit from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as Transcription from '../transcription';
-import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -272,6 +273,7 @@ async function _sendPost({
     await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
       const finalizedPostData = await finalizedPostDataPromise;
+
       logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,

@@ -12,11 +12,11 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
+import { Story, citeToPath, pathToCite } from '@tloncorp/api/urbit';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -515,7 +515,15 @@ export default function BareChatInput({
   // This effect watches for URL changes and updates link previews accordingly
   useEffect(() => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = debouncedText.match(urlRegex) || [];
+    // Strip backtick code spans/blocks (including unclosed ones) before
+    // scanning for URLs so that URLs inside code fences are not turned into
+    // link attachments. Triple-backtick alternation is listed first so that
+    // ``` is not accidentally consumed by the single-backtick branch.
+    const textOutsideCodeBlocks = debouncedText.replace(
+      /```[\s\S]*?(?:```|$)|`[^`]*(?:`|$)/g,
+      ''
+    );
+    const matches = textOutsideCodeBlocks.match(urlRegex) || [];
 
     // Normalize URLs (remove hash) and deduplicate
     const currentUrls = [

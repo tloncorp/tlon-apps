@@ -26,7 +26,7 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/api';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform } from 'react-native';
@@ -196,9 +196,8 @@ export const SignupScreen = ({ navigation }: Props) => {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         title="Accept invite"
-        showSessionStatus={false}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}
-        isLoading={isSubmitting}
       />
       <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">

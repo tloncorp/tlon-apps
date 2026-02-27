@@ -15,7 +15,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -93,10 +93,9 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title="Tlon Login"
-        showSessionStatus={false}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}
-        isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Submit

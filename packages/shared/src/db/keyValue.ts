@@ -4,10 +4,10 @@ import {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
-} from '../api';
+} from '@tloncorp/api';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -269,6 +269,11 @@ export const hostingUserId = createStorageItem<string>({
   key: 'hostingUserId',
   defaultValue: '',
   isSecure: true,
+});
+
+export const hostingBotEnabled = createStorageItem<boolean>({
+  key: 'hostingBotEnabled',
+  defaultValue: false,
 });
 
 export const nodeAccessCode = createStorageItem<string | null>({
