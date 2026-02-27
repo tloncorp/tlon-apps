@@ -62,9 +62,10 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
+    $:  %14
         =v-channels:v9:cv
         =hooks:h
+        pending-channel-effects=(map @uv a-channels:c)
         =pimp:imp
     ==
   --
@@ -160,12 +161,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -180,7 +183,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -218,6 +227,12 @@
     ~>  %spin.['state-12-to-13']
     ^-  state-13
     s(- %13, v-channels (~(run by v-channels.s) channel:drop-bad-links:utils))
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    s(- %14, pending-channel-effects *(map @uv a-channels:c))
   ::
   ++  state-11-to-12
     |=  s=state-11
@@ -1543,6 +1558,13 @@
   ~>  %spin.['wake-hook']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take+pole !!)
+      [%effect %channels id=@ ~]
+    =/  id=@uv  (slav %uv id.pole)
+    ?~  action=(~(get by pending-channel-effects) id)  cor
+    =.  pending-channel-effects  (~(del by pending-channel-effects) id)
+    =/  =cage  channel-action+!>(u.action)
+    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+  ::
       [%waiting id=@ ~]
     =/  id=id-hook:h  (slav %uv id.pole)
     ?~  wh=(~(get by waiting.hooks) id)  cor
@@ -1623,8 +1645,16 @@
     $(effects t.effects)
   ?-  -.effect
       %channels
-    =/  =cage  channel-action+!>(a-channels.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    ::  Run channel effects on the next tick so the originating post update
+    ::  has time to commit/propagate before reactions are applied.
+    =/  id=@uv
+      =+  i=(end 7 eny.bowl)
+      |-(?:((~(has by pending-channel-effects) i) $(i +(i)) i))
+    =.  pending-channel-effects
+      (~(put by pending-channel-effects) id a-channels.effect)
+    =/  when=@da  `@da`(add now.bowl (div ~s1 10))
+    =/  =wire  /hooks/effect/channels/(scot %uv id)
+    (emit [%pass wire %arvo %b %wait when])
   ::
       %groups
     =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)
