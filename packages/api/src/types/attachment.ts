@@ -78,6 +78,18 @@ export type FileAttachment = {
   mimeType?: string;
 };
 
+export type VoiceMemoAttachment = {
+  type: 'voicememo';
+  localUri: string;
+  /** in bytes */
+  size: number;
+  /** waveform values to use as a preview */
+  waveformPreview?: number[];
+  /** in seconds */
+  duration?: number;
+  mimeType?: string;
+};
+
 export type UploadedFileAttachment = {
   type: 'file';
   // File or local URI string
@@ -86,6 +98,17 @@ export type UploadedFileAttachment = {
   /** in bytes */
   size: number;
   mimeType?: string;
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
+};
+
+export type UploadedVoiceMemoAttachment = {
+  type: 'voicememo';
+  localUri: string;
+  /** in bytes */
+  size: number;
+  /** in seconds */
+  duration?: number;
+  waveformPreview?: number[];
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -104,6 +127,7 @@ export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
   | FileAttachment
+  | VoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
 
@@ -111,6 +135,7 @@ export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
   | UploadedFileAttachment
+  | UploadedVoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
 
@@ -131,6 +156,12 @@ export namespace Attachment {
         /** in bytes */
         size: number;
         mimeType?: string;
+        voiceMemo?:
+          | false
+          | {
+              duration?: number;
+              waveformPreview?: number[];
+            };
       }
     | { type: 'file'; file: File };
 
@@ -231,14 +262,25 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            name: uploadIntent.name,
-            size: uploadIntent.size,
-            mimeType: uploadIntent.type,
-            uploadState,
-          };
+          if (uploadIntent.voiceMemo) {
+            return {
+              type: 'voicememo',
+              localUri: uploadIntent.localUri,
+              size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState,
+            };
+          } else {
+            return {
+              type: 'file',
+              localFile: uploadIntent.localUri,
+              name: uploadIntent.name,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              uploadState,
+            };
+          }
       }
     }
 
@@ -271,17 +313,31 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            size: uploadIntent.size,
-            mimeType: uploadIntent.mimeType,
-            name: uploadIntent.name,
-            uploadState: {
-              status: 'uploading',
+          if (uploadIntent.voiceMemo) {
+            return {
+              type: 'voicememo',
               localUri: uploadIntent.localUri,
-            },
-          };
+              size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState: {
+                status: 'uploading',
+                localUri: uploadIntent.localUri,
+              },
+            };
+          } else {
+            return {
+              type: 'file',
+              localFile: uploadIntent.localUri,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              name: uploadIntent.name,
+              uploadState: {
+                status: 'uploading',
+                localUri: uploadIntent.localUri,
+              },
+            };
+          }
       }
     }
   }
@@ -315,6 +371,19 @@ export namespace Attachment {
             mimeType: attachment.mimeType,
           };
         }
+      case 'voicememo':
+        return {
+          needsUpload: true,
+          type: 'fileUri',
+          localUri: attachment.localUri,
+          name: attachment.localUri.split('/').pop(), // use filename from URI
+          size: attachment.size,
+          mimeType: attachment.mimeType,
+          voiceMemo: {
+            duration: attachment.duration,
+            waveformPreview: attachment.waveformPreview,
+          },
+        };
       case 'text':
       // fallthrough
       case 'link':
@@ -338,13 +407,23 @@ export namespace Attachment {
         };
       }
       case 'fileUri': {
-        return {
-          type: 'file',
-          localFile: uploadIntent.localUri,
-          name: uploadIntent.name,
-          size: uploadIntent.size,
-          mimeType: uploadIntent.mimeType,
-        };
+        if (uploadIntent.voiceMemo) {
+          return {
+            type: 'voicememo',
+            localUri: uploadIntent.localUri,
+            size: uploadIntent.size,
+            duration: uploadIntent.voiceMemo.duration,
+            waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+          };
+        } else {
+          return {
+            type: 'file',
+            localFile: uploadIntent.localUri,
+            name: uploadIntent.name,
+            size: uploadIntent.size,
+            mimeType: uploadIntent.mimeType,
+          };
+        }
       }
     }
   }
@@ -377,14 +456,25 @@ export namespace Attachment {
           };
 
         case 'fileUri':
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            size: uploadIntent.size,
-            name: uploadIntent.name,
-            mimeType: uploadIntent.mimeType,
-            uploadState,
-          };
+          if (uploadIntent.voiceMemo) {
+            return {
+              type: 'voicememo',
+              localUri: uploadIntent.localUri,
+              size: uploadIntent.size,
+              duration: uploadIntent.voiceMemo.duration,
+              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState,
+            };
+          } else {
+            return {
+              type: 'file',
+              localFile: uploadIntent.localUri,
+              size: uploadIntent.size,
+              name: uploadIntent.name,
+              mimeType: uploadIntent.mimeType,
+              uploadState,
+            };
+          }
       }
     } else {
       return uploadIntent.finalized;
@@ -414,7 +504,7 @@ export namespace Attachment {
   }
 }
 
-function uploadStateUri(
+export function uploadStateUri(
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>
 ): string {
   switch (uploadState.status) {
