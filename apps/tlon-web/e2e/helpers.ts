@@ -832,7 +832,7 @@ export async function setChannelPermissions(
     }
     await page.getByTestId('RoleSelectionSaveButton').click();
     // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel privacy')).toBeVisible();
+    await expect(page.getByText('Channel permissions')).toBeVisible();
   }
 
   if (writerRoles && writerRoles.length > 0) {

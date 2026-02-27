@@ -68,7 +68,7 @@ export default function ChannelSearchScreen(props: Props) {
         borderBottom
       />
       <View paddingTop="$2xl" flex={1}>
-        <XStack flexShrink={1} marginHorizontal="$m">
+        <XStack marginHorizontal="$m">
           <SearchBar
             onChangeQuery={setQuery}
             placeholder={`Search ${title ?? ''}`}

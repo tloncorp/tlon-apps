@@ -3,7 +3,7 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { getVariableValue, useTheme } from '@tamagui/core';
-import { getCurrentUserIsHosted } from '@tloncorp/shared/api';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';

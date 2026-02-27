@@ -17,8 +17,8 @@ import {
   Ship,
   Strikethrough,
   Task,
-} from '../urbit/content';
-import { Story } from '../urbit/channel';
+} from '@tloncorp/api/urbit/content';
+import { Story } from '@tloncorp/api/urbit/channel';
 import {
   blockToMarkdown,
   inlinesToMarkdown,

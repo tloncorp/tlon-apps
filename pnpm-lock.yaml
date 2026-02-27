@@ -241,6 +241,9 @@ importers:
       '@tanstack/react-query':
         specifier: ~5.32.1
         version: 5.32.1(react@18.3.1)
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@tloncorp/app':
         specifier: workspace:*
         version: link:../../packages/app
@@ -665,6 +668,9 @@ importers:
       '@tiptap/suggestion':
         specifier: 2.6.0
         version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@tloncorp/app':
         specifier: workspace:*
         version: link:../../packages/app
@@ -946,6 +952,12 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
 
+  packages/api:
+    dependencies:
+      '@tloncorp/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/app:
     dependencies:
       '@10play/tentap-editor':
@@ -963,6 +975,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.32.1
         version: 5.32.1(react@18.3.1)
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../api
       '@tloncorp/editor':
         specifier: workspace:*
         version: link:../editor
@@ -1082,6 +1097,9 @@ importers:
 
   packages/scripts:
     dependencies:
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../api
       '@tloncorp/shared':
         specifier: workspace:*
         version: link:../shared
@@ -1113,6 +1131,9 @@ importers:
       '@tiptap/suggestion':
         specifier: 2.6.0
         version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../api
       '@urbit/aura':
         specifier: ^3.0.0
         version: 3.0.0

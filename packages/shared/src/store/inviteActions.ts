@@ -3,8 +3,8 @@ import {
   enableGroup,
   getCurrentUserId,
   groupsDescribe,
-} from '../api';
-import * as api from '../api';
+} from '@tloncorp/api';
+import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, getConstants } from '../domain';
@@ -17,7 +17,7 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
-import { desig } from '../urbit';
+import { desig } from '@tloncorp/api/urbit';
 import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('inviteActions', false);

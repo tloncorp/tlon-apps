@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { convert, formatMemorySize } from '../formatMemorySize';
+import { convert, formatMemorySize } from '@tloncorp/api/lib/formatMemorySize';
 
 it('truncates trailing zeros', () => {
   expect(formatMemorySize(1126)).toBe('1.1kb');

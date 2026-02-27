@@ -1,6 +1,6 @@
 import { expect, test, describe } from 'vitest';
 
-import { Block, Inline, JSONContent } from '../urbit';
+import { Block, Inline, JSONContent } from '@tloncorp/api/urbit';
 import { JSONToInlines } from './tiptap';
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
