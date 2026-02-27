@@ -222,17 +222,17 @@
       =pimp:imp
     ==
   ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    [%14 v-channels.s hooks.s ~ pimp.s]
+  ::
   ++  state-12-to-13
     |=  s=state-12
     ~>  %spin.['state-12-to-13']
     ^-  state-13
     s(- %13, v-channels (~(run by v-channels.s) channel:drop-bad-links:utils))
-  ::
-  ++  state-13-to-14
-    |=  s=state-13
-    ~>  %spin.['state-13-to-14']
-    ^-  state-14
-    s(- %14, pending-channel-effects *(map @uv a-channels:c))
   ::
   ++  state-11-to-12
     |=  s=state-11
@@ -1562,7 +1562,7 @@
     =/  id=@uv  (slav %uv id.pole)
     ?~  action=(~(get by pending-channel-effects) id)  cor
     =.  pending-channel-effects  (~(del by pending-channel-effects) id)
-    =/  =cage  channel-action+!>(u.action)
+    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`u.action)
     (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       [%waiting id=@ ~]
