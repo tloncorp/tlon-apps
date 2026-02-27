@@ -1,12 +1,5 @@
-import { BadResponseError, poke, scry } from './urbit';
+import { poke, scry } from './urbit';
 import { formatUd, parseIdNumber } from './apiUtils';
-
-const START_PROFILE_COMMAND = '|start %groups %profile';
-const SUSPEND_PROFILE_COMMAND = '|suspend %groups %profile';
-const START_EXPOSE_COMMAND = '|start %groups %expose';
-let exposeKnownRunning = false;
-let exposeStartAttempted = false;
-let startExposePromise: Promise<void> | null = null;
 
 export interface PublicProfileWidget {
   desk: string;
@@ -52,35 +45,6 @@ async function scryProfileLayout(path: string) {
     app: 'profile',
     path,
   });
-}
-
-async function ensurePublicExposeRunning() {
-  if (exposeKnownRunning || exposeStartAttempted) {
-    return;
-  }
-
-  if (!startExposePromise) {
-    startExposePromise = (async () => {
-      exposeStartAttempted = true;
-      try {
-        await poke({
-          app: 'hood',
-          mark: 'helm-hi',
-          json: START_EXPOSE_COMMAND,
-        });
-      } catch (error) {
-        console.warn('Failed to start %expose app', error);
-      }
-    })().finally(() => {
-      startExposePromise = null;
-    });
-  }
-
-  await startExposePromise;
-}
-
-function isNotFoundError(error: unknown) {
-  return error instanceof BadResponseError && error.status === 404;
 }
 
 function getExposeCitesFromContact(contact: unknown) {
@@ -144,27 +108,35 @@ async function getPublicProfilePostShownFromContacts(
 }
 
 async function pokePublicExpose(json: { show?: string; hide?: string }) {
-  try {
-    await poke({
-      app: 'expose',
-      mark: 'json',
-      json,
-    });
-    exposeKnownRunning = true;
-    return;
-  } catch (error) {
-    if (!isNotFoundError(error)) {
-      throw error;
-    }
-  }
-
-  await ensurePublicExposeRunning();
   await poke({
     app: 'expose',
     mark: 'json',
     json,
   });
-  exposeKnownRunning = true;
+}
+
+async function clearPublicExposeCites() {
+  const selfContactResponse = await scry<unknown>({
+    app: 'contacts',
+    path: '/v1/self',
+  });
+  const selfContact = getContactFromSelfScry(selfContactResponse);
+  const rawCites = getExposeCitesFromContact(selfContact);
+
+  const citesToHide = new Set<string>();
+  for (const cite of rawCites) {
+    for (const variant of getReferencePathVariants(cite)) {
+      citesToHide.add(variant);
+    }
+  }
+
+  await Promise.all(
+    [...citesToHide].map((referencePath) =>
+      pokePublicExpose({
+        hide: referencePath,
+      })
+    )
+  );
 }
 
 export async function getPublicProfileRunning() {
@@ -205,17 +177,6 @@ export async function getPublicProfileEnabled() {
 
 export async function setPublicProfileEnabled(enabled: boolean) {
   if (enabled) {
-    try {
-      await poke({
-        app: 'hood',
-        mark: 'helm-hi',
-        json: START_PROFILE_COMMAND,
-      });
-    } catch (error) {
-      // Binding can still succeed if %profile is already running.
-      console.warn('Failed to start %profile app', error);
-    }
-
     return poke({
       app: 'profile',
       mark: 'json',
@@ -230,14 +191,10 @@ export async function setPublicProfileEnabled(enabled: boolean) {
   });
 
   try {
-    await poke({
-      app: 'hood',
-      mark: 'helm-hi',
-      json: SUSPEND_PROFILE_COMMAND,
-    });
+    await clearPublicExposeCites();
   } catch (error) {
     // Public profile has already been disabled by unbinding.
-    console.warn('Failed to suspend %profile app', error);
+    console.warn('Failed to clear %expose cites after unbinding %profile', error);
   }
 }
 

@@ -133,8 +133,15 @@ export const getCurrentShipUrl = () => {
     return config.shipUrl;
   }
   // On web, shipUrl is intentionally empty (requests are same-origin).
-  // Fall back to the window origin to construct absolute URLs.
+  // In development, prefer the configured ship URL to avoid localhost/proxy
+  // mismatches in generated links and hosting checks.
   if (typeof window !== 'undefined') {
+    if (__DEV__) {
+      const env = getConstants();
+      if (env?.DEV_SHIP_URL) {
+        return env.DEV_SHIP_URL;
+      }
+    }
     return window.location.origin;
   }
   return '';
@@ -145,19 +152,8 @@ export const getCurrentUserIsHosted = () => {
     throw new Error('Client not initialized');
   }
 
-  // prefer referencing client URL if available
-  if (client.url) {
-    return Hosting.nodeUrlIsHosted(client.url);
-  }
-
-  /*
-    On web, client URL is implicit based on location
-    Note: during development, the true URL is supplied via the environment. Localhost is
-    set up to redirect there
-  */
-  const env = getConstants();
-  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
-  return Hosting.nodeUrlIsHosted(implicitUrl);
+  // Prefer the explicit client URL, then shared fallback URL logic.
+  return Hosting.nodeUrlIsHosted(client.url || getCurrentShipUrl());
 };
 
 export function internalConfigureClient({

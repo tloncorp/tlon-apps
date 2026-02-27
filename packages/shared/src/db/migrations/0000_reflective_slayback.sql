@@ -378,6 +378,17 @@ CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-bre
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_author_id_index` ON `posts` (`author_id`);--> statement-breakpoint
 CREATE INDEX `posts_parent_id_index` ON `posts` (`parent_id`);--> statement-breakpoint
+CREATE TABLE `contact_exposed_posts` (
+	`contact_id` text NOT NULL,
+	`reference_path` text NOT NULL,
+	`post_id` text,
+	PRIMARY KEY(`contact_id`, `reference_path`),
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `contact_exposed_posts_contact_id_index` ON `contact_exposed_posts` (`contact_id`);--> statement-breakpoint
+CREATE INDEX `contact_exposed_posts_post_id_index` ON `contact_exposed_posts` (`post_id`);--> statement-breakpoint
 CREATE TABLE `settings` (
 	`id` text PRIMARY KEY DEFAULT 'settings' NOT NULL,
 	`theme` text,

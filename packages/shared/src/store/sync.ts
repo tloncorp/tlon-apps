@@ -621,6 +621,10 @@ export const syncContacts = async (
     } catch (e) {
       logger.error('error inserting contacts', e);
     }
+    // Sync expose cites for the self contact alongside contacts
+    await syncExposedCites().catch((e) =>
+      logger.error('error syncing exposed cites', e)
+    );
   };
 
   if (yieldWriter) {
@@ -629,6 +633,15 @@ export const syncContacts = async (
     await writer();
     return () => Promise.resolve();
   }
+};
+
+export const syncExposedCites = async () => {
+  const currentUserId = api.getCurrentUserId();
+  const cites = await api.getExposedPostCitesNormalized();
+  await db.setContactExposedCites({
+    contactId: currentUserId,
+    referencePaths: [...cites],
+  });
 };
 
 export const syncUserAttestations = async (ctx?: SyncCtx) => {

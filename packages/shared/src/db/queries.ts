@@ -32,7 +32,7 @@ import {
   ChannelInit,
   getCurrentUserId,
 } from '@tloncorp/api';
-import { parseGroupId } from '@tloncorp/api';
+import { parseGroupId, parseIdNumber } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -63,6 +63,7 @@ import {
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
   contactAttestations as $contactAttestations,
+  contactExposedPosts as $contactExposedPosts,
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
@@ -3957,6 +3958,122 @@ export const getContact = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['contacts', 'groups', 'contactAttestations']
+);
+
+export const getContactExposedCites = createReadQuery(
+  'getContactExposedCites',
+  async (contactId: string, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ referencePath: $contactExposedPosts.referencePath })
+      .from($contactExposedPosts)
+      .where(eq($contactExposedPosts.contactId, contactId));
+    return new Set(rows.map((row) => row.referencePath));
+  },
+  ['contactExposedPosts']
+);
+
+export const getContactExposedPostIds = createReadQuery(
+  'getContactExposedPostIds',
+  async (contactId: string, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ postId: $contactExposedPosts.postId })
+      .from($contactExposedPosts)
+      .where(
+        and(
+          eq($contactExposedPosts.contactId, contactId),
+          isNotNull($contactExposedPosts.postId)
+        )
+      );
+    return new Set(rows.map((row) => row.postId));
+  },
+  ['contactExposedPosts']
+);
+
+function parseExposeReferencePath(path: string) {
+  const match = path.match(
+    /^\/1\/chan\/([^/]+)\/([^/]+)\/([^/]+)\/(?:msg|note|curio)\/([^/]+)$/
+  );
+  if (!match) {
+    return null;
+  }
+  const [, kind, host, channelName, postIdTerminal] = match;
+  return {
+    channelId: `${kind}/${host}/${channelName}`,
+    postIdTerminal,
+  };
+}
+
+function getExposePostIdCandidates(postIdTerminal: string) {
+  const candidates = new Set<string>([postIdTerminal]);
+  try {
+    candidates.add(parseIdNumber(postIdTerminal).toString());
+  } catch {
+    // Non-numeric IDs should only use their raw terminal representation.
+  }
+  return [...candidates];
+}
+
+async function getExposedPostIdForReferencePath(
+  referencePath: string,
+  ctx: QueryCtx
+) {
+  const parsed = parseExposeReferencePath(referencePath);
+  if (!parsed) {
+    return null;
+  }
+
+  const candidates = getExposePostIdCandidates(parsed.postIdTerminal);
+  const normalizedPostId = sql<string>`replace(${$posts.id}, '.', '')`;
+  const candidateMatch = or(
+    ...candidates.flatMap((candidate) => [
+      eq($posts.id, candidate),
+      eq(normalizedPostId, candidate),
+    ])
+  );
+
+  const rows = await ctx.db
+    .select({ id: $posts.id })
+    .from($posts)
+    .where(and(eq($posts.channelId, parsed.channelId), candidateMatch))
+    .orderBy(desc($posts.receivedAt))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+export const setContactExposedCites = createWriteQuery(
+  'setContactExposedCites',
+  async (
+    {
+      contactId,
+      referencePaths,
+    }: { contactId: string; referencePaths: string[] },
+    ctx: QueryCtx
+  ) => {
+    const uniqueReferencePaths = [...new Set(referencePaths)];
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($contactExposedPosts)
+        .where(eq($contactExposedPosts.contactId, contactId));
+      if (uniqueReferencePaths.length === 0) {
+        return;
+      }
+
+      const rows = await Promise.all(
+        uniqueReferencePaths.map(async (referencePath) => ({
+          contactId,
+          referencePath,
+          postId: await getExposedPostIdForReferencePath(referencePath, txCtx),
+        }))
+      );
+
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        await txCtx.db.insert($contactExposedPosts).values(batch);
+      }
+    });
+  },
+  ['contactExposedPosts']
 );
 
 export const updateContact = createWriteQuery(
