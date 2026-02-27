@@ -39,6 +39,7 @@ export function EmptyChannelNotice({
   const displayTitle =
     !title || title === 'Untitled group' ? 'your group' : title;
   const headingTitle = useMemo(() => {
+    if (channel.type === 'dm') return 'your direct message';
     if (!title || title === 'Untitled group') return 'your group';
     if (
       !isSingleChannelGroup &&
@@ -48,7 +49,7 @@ export function EmptyChannelNotice({
       return `${group.title}'s ${title}`;
     }
     return title;
-  }, [title, isSingleChannelGroup, group?.title]);
+  }, [channel.type, title, isSingleChannelGroup, group?.title]);
   const memberCount = group?.members?.length ?? group?.memberCount ?? 0;
   const roleCount = group?.roles?.length ?? 0;
   const memberText = memberCount === 1 ? '1 Member' : `${memberCount} Members`;
@@ -57,7 +58,7 @@ export function EmptyChannelNotice({
   const subtitle = useMemo(() => {
     const name = displayTitle;
     if (channel.type === 'dm') {
-      return `This is the start of your conversation.`;
+      return `You're speaking directly with ${title ?? 'someone'}.`;
     }
     if (channel.type === 'groupDm') {
       return `This is the start of this group conversation.`;
@@ -70,7 +71,7 @@ export function EmptyChannelNotice({
       return `This is the start of the ${privacy} ${name} channel.`;
     }
     return `This is the start of the ${name} channel.`;
-  }, [channel.type, isSingleChannelGroup, group?.privacy, displayTitle]);
+  }, [channel.type, isSingleChannelGroup, group?.privacy, displayTitle, title]);
 
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
@@ -109,14 +110,12 @@ export function EmptyChannelNotice({
     );
   }
 
-  return (
-    <YStack
-      flex={1}
-      justifyContent="flex-end"
-      paddingHorizontal="$xl"
-      paddingVertical={'$2xl'}
-    >
-      <YStack gap="$xl" paddingBottom="$2xl" paddingLeft="$xl">
+  const isBoxedLayout =
+    channel.type === 'notebook' || channel.type === 'gallery';
+
+  const noticeContent = (
+    <>
+      <YStack gap="$xl">
         <Text size="$title/l" color="$primaryText">
           Welcome to {headingTitle}!
         </Text>
@@ -165,6 +164,36 @@ export function EmptyChannelNotice({
           />
         </YStack>
       )}
+    </>
+  );
+
+  if (isBoxedLayout) {
+    return (
+      <YStack flex={1} alignItems="center" justifyContent="center">
+        <YStack
+          width="50%"
+          borderRadius="$2xl"
+          borderWidth={1}
+          borderColor="$border"
+          padding="$2xl"
+          gap="$xl"
+        >
+          {noticeContent}
+        </YStack>
+      </YStack>
+    );
+  }
+
+  return (
+    <YStack
+      flex={1}
+      justifyContent="flex-end"
+      paddingHorizontal="$xl"
+      paddingVertical="$2xl"
+    >
+      <YStack gap="$xl" paddingBottom="$2xl" paddingLeft="$xl">
+        {noticeContent}
+      </YStack>
     </YStack>
   );
 }
