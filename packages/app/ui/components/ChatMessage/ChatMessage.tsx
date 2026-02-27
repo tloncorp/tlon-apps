@@ -1,7 +1,5 @@
 import { ChannelAction } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Pressable, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
@@ -9,7 +7,6 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { usePostExposeState } from '../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -44,6 +41,8 @@ const ChatMessage = ({
   hideOverflowMenu,
   displayDebugMode = false,
   searchQuery,
+  isExposed = false,
+  publicPostUrl = null,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -63,6 +62,8 @@ const ChatMessage = ({
   displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
+  isExposed?: boolean;
+  publicPostUrl?: string | null;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -154,10 +155,6 @@ const ChatMessage = ({
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
-
-  const isExposeEligible =
-    channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
-  const { isExposed, publicPostUrl } = usePostExposeState(post, isExposeEligible);
 
   if (!post) {
     return null;
@@ -389,7 +386,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.searchQuery === next.searchQuery &&
-    prev.displayDebugMode === next.displayDebugMode;
+    prev.displayDebugMode === next.displayDebugMode &&
+    prev.isExposed === next.isExposed;
 
   return isPostEqual && areOtherPropsEqual;
 });

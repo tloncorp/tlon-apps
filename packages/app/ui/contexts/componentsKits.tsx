@@ -56,6 +56,8 @@ type RenderItemProps = {
   isHighlighted?: boolean;
   displayDebugMode?: boolean;
   contentRendererConfiguration?: Record<string, unknown>;
+  isExposed?: boolean;
+  publicPostUrl?: string | null;
 };
 
 type RenderItemFunction = (props: RenderItemProps) => ReactElement | null;

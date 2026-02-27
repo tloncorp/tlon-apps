@@ -16,6 +16,7 @@ export function usePostExposeState(
   post: Post,
   eligible: boolean = true
 ): { isExposed: boolean; publicPostUrl: string | null } {
+  const { data: exposedPostIds } = store.useExposedPostIds();
   const { data: exposedCites } = store.useExposedPostCites();
 
   const exposeReferencePath = useMemo(() => {
@@ -26,9 +27,10 @@ export function usePostExposeState(
   }, [eligible, post.channelId, post.id]);
 
   const isExposed = useMemo(() => {
-    if (!exposeReferencePath || !exposedCites) return false;
-    return exposedCites.has(exposeReferencePath);
-  }, [exposeReferencePath, exposedCites]);
+    if (!exposeReferencePath) return false;
+    if (exposedPostIds?.has(post.id)) return true;
+    return exposedCites?.has(exposeReferencePath) ?? false;
+  }, [exposeReferencePath, exposedCites, exposedPostIds, post.id]);
 
   const publicPostUrl = useMemo(() => {
     if (!isExposed || !exposeReferencePath) return null;

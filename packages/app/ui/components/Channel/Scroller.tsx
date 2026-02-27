@@ -45,8 +45,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
+import { useChannelContext } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
+import { usePostExposeState } from '../../../hooks/usePostExposeState';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
@@ -662,6 +664,10 @@ const BaseScrollerItem = ({
   previousPost?: db.Post | null;
 }) => {
   const post = useLivePost(item);
+  const channel = useChannelContext();
+  const isExposeEligible =
+    channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
+  const { isExposed, publicPostUrl } = usePostExposeState(post, isExposeEligible);
 
   // Checking if the previous post exists
   const hasPreviousPost = Boolean(previousPost);
@@ -762,6 +768,8 @@ const BaseScrollerItem = ({
           onPressDelete={onPressDelete}
           onShowEmojiPicker={onShowEmojiPicker}
           onPressEdit={onPressEdit}
+          isExposed={isExposed}
+          publicPostUrl={publicPostUrl}
         />
       </PressableMessage>
       {isLastPostOfBlock && <PostBlockSeparator />}
