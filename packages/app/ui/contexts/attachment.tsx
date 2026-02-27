@@ -222,7 +222,7 @@ export const AttachmentProvider = ({
                 setState((prev) =>
                   prev.map((a) => {
                     if (a.type === 'voicememo' && a.localUri === att.localUri) {
-                      return { ...a, transcription: text };
+                      return { ...a, transcription: text ?? undefined };
                     } else {
                       return a;
                     }

@@ -4,20 +4,39 @@ import { Platform } from 'react-native';
 
 import { File } from './utils';
 
-async function transcribeAudioFile(audioFileUri: string): Promise<string> {
+async function transcribeAudioFile(
+  audioFileUri: string
+): Promise<string | null> {
   if (Platform.OS !== 'ios') {
     return Promise.reject(
       new Error('Audio transcription is only supported on iOS')
     );
   }
-  if (SpeechTranscriber.isAnalyzerAvailable()) {
-    // iOS 26+
-    return await SpeechTranscriber.transcribeAudioWithAnalyzer(audioFileUri);
-  } else {
-    return await SpeechTranscriber.transcribeAudioWithSFRecognizer(
-      audioFileUri
+  let out: string | null = null;
+  try {
+    // SpeechTranscriber is generally better, we want to use it if available
+    if (SpeechTranscriber.isAnalyzerAvailable()) {
+      // iOS 26+
+      out = await SpeechTranscriber.transcribeAudioWithAnalyzer(audioFileUri);
+    }
+  } catch (e) {
+    // this happens on simulator, but I haven't seen it happen on real devices
+    console.error(
+      'Error using SpeechTranscriber analyzer, falling back to SFRecognizer',
+      e
     );
   }
+  if (out == null) {
+    out = await SpeechTranscriber.transcribeAudioWithSFRecognizer(audioFileUri);
+  }
+  if (out.includes('No speech detected')) {
+    // seriously
+    // https://github.com/DaveyEke/expo-speech-transcriber/blob/23f1d4cb6bb8861dd6215a8186dcbe77f618fcc4/ios/ExpoSpeechTranscriberModule.swift#L254
+    // https://github.com/DaveyEke/expo-speech-transcriber/blob/23f1d4cb6bb8861dd6215a8186dcbe77f618fcc4/ios/ExpoSpeechTranscriberModule.swift#L302
+    return null;
+  }
+
+  return out;
 }
 
 export async function requestTranscriptionPermissionsIfNeeded(): Promise<{

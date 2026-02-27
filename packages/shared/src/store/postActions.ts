@@ -70,7 +70,7 @@ export async function finalizePostDraft(
       try {
         const transcriptionText =
           await Transcription.transcribeAudioFileWithGlobalCache(att.localUri);
-        att.transcription = transcriptionText;
+        att.transcription = transcriptionText ?? undefined;
       } catch (err) {
         console.warn(
           'Failed to transcribe audio file, proceeding without transcription',
