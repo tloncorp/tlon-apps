@@ -16,12 +16,15 @@ import { parseIdNumber } from '../lib/id';
 
 export type Patda = string;
 export type Ship = string;
+export type DmPatda = Patda;
+export type DmShipId = Ship;
 
 export interface Writ {
   seal: WritSeal;
   essay: WritEssay;
   type: 'writ';
 }
+export type DmWrit = Writ;
 
 export type WritTombstone = {
   author: Ship;
@@ -34,6 +37,7 @@ export type WritTombstone = {
 export type WritLike = Writ | WritTombstone;
 
 export type WritEssay = PostEssay;
+export type DmWritEssay = WritEssay;
 
 export type WritMemo = Memo;
 
@@ -57,6 +61,7 @@ export type WritReplyMap = BTree<BigInteger, WritReply>;
 export interface WritSeal extends PostSeal {
   time: string;
 }
+export type DmWritSeal = WritSeal;
 
 export interface WritDeltaAdd {
   add: {

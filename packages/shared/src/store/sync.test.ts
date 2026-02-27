@@ -37,8 +37,8 @@ import {
 import {
   ContactBookScryResult1,
   Contact as UrbitContact,
-} from '@tloncorp/api/urbit/contact';
-import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+} from '@tloncorp/api/urbit';
+import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit';
 import {
   syncContacts,
   syncDms,

@@ -1196,7 +1196,12 @@ function normalizeAuthor(author: ub.Author): ub.Author {
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  post:
+    | ub.Post
+    | ub.PostTombstone
+    | ub.ChannelWrit
+    | ub.DmWrit
+    | ub.PostDataResponse
 ): api.Post {
   // Normalize author to BotProfile if it's a pinser-botter ship
   if (!isPostTombstone(post)) {
@@ -1210,7 +1215,12 @@ export function toPostData(
   const isBot = isBotProfile(author);
   const channelType = channelId.split('/')[0];
   const getPostType = (
-    post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+    post:
+      | ub.Post
+      | ub.PostTombstone
+      | ub.ChannelWrit
+      | ub.DmWrit
+      | ub.PostDataResponse
   ): api.PostType => {
     if (isNotice(post)) {
       return 'notice';
@@ -1352,7 +1362,7 @@ function getReceivedAtFromId(postId: string) {
 }
 
 function isPostDataResponse(
-  post: ub.Post | ub.Writ | ub.PostDataResponse
+  post: ub.Post | ub.ChannelWrit | ub.DmWrit | ub.PostDataResponse
 ): post is ub.PostDataResponse {
   return !!(post.seal.replies && !Array.isArray(post.seal.replies));
 }
@@ -1361,7 +1371,8 @@ function isPostTombstone(
   post:
     | ub.Post
     | ub.PostTombstone
-    | ub.Writ
+    | ub.ChannelWrit
+    | ub.DmWrit
     | ub.PostDataResponse
     | ub.WritReply
     | ub.Reply
@@ -1525,7 +1536,13 @@ function parseKindData(kindData?: ub.KindData): api.PostMetadata | undefined {
 }
 
 function isNotice(
-  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse | null
+  post:
+    | ub.Post
+    | ub.PostTombstone
+    | ub.ChannelWrit
+    | ub.DmWrit
+    | ub.PostDataResponse
+    | null
 ) {
   if (!post || isPostTombstone(post)) {
     return false;

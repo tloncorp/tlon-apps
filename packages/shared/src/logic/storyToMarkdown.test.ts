@@ -14,11 +14,11 @@ import {
   Link,
   ListingBlock,
   Rule,
-  Ship,
+  ShipMention,
   Strikethrough,
   Task,
-} from '@tloncorp/api/urbit/content';
-import { Story } from '@tloncorp/api/urbit/channel';
+} from '@tloncorp/api/urbit';
+import { Story } from '@tloncorp/api/urbit';
 import {
   blockToMarkdown,
   inlinesToMarkdown,
@@ -58,8 +58,8 @@ describe('inlinesToMarkdown', () => {
     expect(inlinesToMarkdown(inlines)).toBe('[Example](https://example.com)');
   });
 
-  test('converts Ship to ~ship-name', () => {
-    const inlines: Inline[] = [{ ship: 'zod' } as Ship];
+  test('converts ShipMention to ~ship-name', () => {
+    const inlines: Inline[] = [{ ship: 'zod' } as ShipMention];
     expect(inlinesToMarkdown(inlines)).toBe('~zod');
   });
 
@@ -529,9 +529,9 @@ describe('storyToMarkdown', () => {
       {
         inline: [
           'Hello ',
-          { ship: 'zod' } as Ship,
+          { ship: 'zod' } as ShipMention,
           ' and ',
-          { ship: 'bus' } as Ship,
+          { ship: 'bus' } as ShipMention,
           '!',
         ],
       },

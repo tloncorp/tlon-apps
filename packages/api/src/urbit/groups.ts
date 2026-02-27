@@ -41,6 +41,7 @@ export interface GroupChannelV7 {
 export interface Channels {
   [nest: string]: GroupChannel;
 }
+export type GroupChannelMap = Channels;
 
 export interface GroupChannelsV7 {
   [nest: string]: GroupChannelV7;

@@ -35,17 +35,17 @@ import {
   Listing,
   ListingBlock,
   Rule,
-  Ship,
+  ShipMention,
   Strikethrough,
   Task,
-} from '@tloncorp/api/urbit/content';
-import { Story, Verse, VerseBlock, VerseInline } from '@tloncorp/api/urbit/channel';
-import type { ShipMention } from './shipMentionPlugin';
+} from '@tloncorp/api/urbit';
+import { Story, Verse, VerseBlock, VerseInline } from '@tloncorp/api/urbit';
+import type { ShipMention as ShipMentionNode } from './shipMentionPlugin';
 
 /**
  * Check if a node is a ship mention (custom node type from our plugin).
  */
-function isShipMention(node: unknown): node is ShipMention {
+function isShipMention(node: unknown): node is ShipMentionNode {
   return (
     typeof node === 'object' &&
     node !== null &&
@@ -71,7 +71,7 @@ export function phrasingToInlines(nodes: PhrasingContent[]): Inline[] {
   for (const node of nodes) {
     // Check for ship mention first (custom node type)
     if (isShipMention(node)) {
-      const ship: Ship = { ship: (node as ShipMention).value };
+      const ship: ShipMention = { ship: (node as ShipMentionNode).value };
       result.push(ship);
       continue;
     }

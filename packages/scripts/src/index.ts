@@ -6,7 +6,7 @@ import {
   getIdParts,
   getSourceForEvent,
   sourceToString,
-} from '@tloncorp/api/urbit/activity';
+} from '@tloncorp/api/urbit';
 import { render, da } from '@urbit/aura';
 
 type PreviewContentNode =

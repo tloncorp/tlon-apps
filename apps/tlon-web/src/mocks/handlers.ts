@@ -16,8 +16,8 @@ import {
   DMWhom,
   DmRsvp,
   WritDiff,
-} from '@tloncorp/api/urbit/dms';
-import { GroupActionV4 } from '@tloncorp/api/urbit/groups';
+} from '@tloncorp/api/urbit';
+import { GroupActionV4 } from '@tloncorp/api/urbit';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import _ from 'lodash';

@@ -1,11 +1,11 @@
 import { faker } from '@faker-js/faker';
-import { Activity } from '@tloncorp/api/urbit/activity';
+import { Activity } from '@tloncorp/api/urbit';
 import {
   Post,
   Posts,
   Story,
   storyFromChatStory,
-} from '@tloncorp/api/urbit/channel';
+} from '@tloncorp/api/urbit';
 import { decToUd, unixToDa } from '@urbit/api';
 import { subDays, subMinutes } from 'date-fns';
 import _ from 'lodash';

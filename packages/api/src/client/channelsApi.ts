@@ -189,7 +189,7 @@ export const subscribeToChannelsUpdates = async (
 };
 
 export function toClientChannelsInit(
-  channels: ub.Channels,
+  channels: ub.ChannelMap,
   readersMap: Record<string, string[]>
 ) {
   return Object.entries(channels).map(([id, channel]) => {

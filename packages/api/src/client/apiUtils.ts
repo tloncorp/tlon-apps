@@ -7,6 +7,7 @@ import bigInt from 'big-integer';
 import { getCanonicalPostId, parseIdNumber } from '../lib/id';
 import * as api from '../types';
 import type * as ub from '../urbit';
+import type * as dm from '../urbit/dms';
 import { BadResponseError } from './urbit';
 
 export { getCanonicalPostId, parseIdNumber };
@@ -181,15 +182,15 @@ export function toPostEssay({
 // so we need to recreate the implicit msising data before inserting them
 export function deriveFullWrit(
   id: string,
-  delta: ub.WritDeltaAdd | ub.WritResponseAdd
-): ub.Writ {
+  delta: dm.WritDeltaAdd | dm.WritResponseAdd
+): dm.DmWrit {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
     : da.fromUnix(delta.add.essay.sent).toString();
 
   const seq = delta.add.seq ?? undefined;
 
-  const seal: ub.WritSeal = {
+  const seal: dm.DmWritSeal = {
     id,
     time,
     replies: [],
@@ -212,13 +213,13 @@ export function deriveFullWritReply({
 }: {
   id: string;
   parentId: string;
-  delta: ub.ReplyDeltaAdd;
-}): ub.WritReply {
+  delta: dm.ReplyDeltaAdd;
+}): dm.WritReply {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
     : da.fromUnix(delta.add.memo.sent).toString();
 
-  const seal: ub.WritReplySeal = {
+  const seal: dm.WritReplySeal = {
     id,
     time,
     'parent-id': parentId,

@@ -19,6 +19,7 @@ export type JSONContent = {
 export interface Ship {
   ship: string;
 }
+export type ShipMention = Ship;
 
 export interface Sect {
   sect: string | null;

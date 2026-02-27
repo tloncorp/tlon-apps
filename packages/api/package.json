@@ -9,7 +9,6 @@
     "./lib/utilityTypes": "./src/lib/utilityTypes.d.ts",
     "./lib/*": "./src/lib/*.ts",
     "./urbit": "./src/urbit/index.ts",
-    "./urbit/*": "./src/urbit/*.ts",
     "./http-api": "./src/http-api/index.ts",
     "./http-api/*": "./src/http-api/*.ts",
     "./types": "./src/types/index.ts",

@@ -14,7 +14,7 @@ import {
 } from '../test/helpers';
 import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
-import type * as ub from '@tloncorp/api/urbit/groups';
+import type * as ub from '@tloncorp/api/urbit';
 import * as queries from './queries';
 import { Post } from './types';
 

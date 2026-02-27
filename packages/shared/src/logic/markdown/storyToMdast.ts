@@ -41,7 +41,7 @@ import {
   Strikethrough,
   InlineCode,
   Link,
-  Ship,
+  ShipMention,
   Break,
   Task,
   Blockquote,
@@ -53,9 +53,9 @@ import {
   ListItem,
   Listing,
   Rule,
-} from '@tloncorp/api/urbit/content';
-import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
-import type { ShipMention } from './shipMentionPlugin';
+} from '@tloncorp/api/urbit';
+import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit';
+import type { ShipMention as ShipMentionNode } from './shipMentionPlugin';
 
 /**
  * Check if a block is a Rule (horizontal rule).
@@ -188,9 +188,9 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
     }
 
     if (isShip(inline)) {
-      const ship = inline as Ship;
+      const ship = inline as ShipMention;
       // Use our custom ship mention node
-      const shipMention: ShipMention = {
+      const shipMention: ShipMentionNode = {
         type: 'shipMention',
         value: ship.ship,
       };

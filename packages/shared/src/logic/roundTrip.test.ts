@@ -12,12 +12,12 @@ import {
   Link,
   ListingBlock,
   Rule,
-  Ship,
+  ShipMention,
   Strikethrough,
   Task,
   Blockquote,
-} from '@tloncorp/api/urbit/content';
-import { Story, constructStory } from '@tloncorp/api/urbit/channel';
+} from '@tloncorp/api/urbit';
+import { Story, constructStory } from '@tloncorp/api/urbit';
 import { JSONToInlines } from './tiptap';
 import { JSONContent } from '@tloncorp/api/urbit';
 
@@ -400,20 +400,20 @@ describe('Round-trip: Story → Markdown → Story', () => {
   });
 
   describe('ship mentions (@mentions)', () => {
-    it('preserves Ship structure', () => {
-      const story: Story = [{ inline: ['Hello ', { ship: 'zod' } as Ship] }];
+    it('preserves ShipMention structure', () => {
+      const story: Story = [{ inline: ['Hello ', { ship: 'zod' } as ShipMention] }];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
-    it('preserves multiple Ship structures', () => {
+    it('preserves multiple ShipMention structures', () => {
       const story: Story = [
         {
           inline: [
-            { ship: 'zod' } as Ship,
+            { ship: 'zod' } as ShipMention,
             ' and ',
-            { ship: 'bus' } as Ship,
+            { ship: 'bus' } as ShipMention,
             ' are ships',
           ],
         },
@@ -423,9 +423,9 @@ describe('Round-trip: Story → Markdown → Story', () => {
       expect(result).toEqual(story);
     });
 
-    it('preserves planet name Ship', () => {
+    it('preserves planet name ShipMention', () => {
       const story: Story = [
-        { inline: ['Hello ', { ship: 'sampel-palnet' } as Ship, '!'] },
+        { inline: ['Hello ', { ship: 'sampel-palnet' } as ShipMention, '!'] },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
@@ -617,7 +617,7 @@ describe('Round-trip: Story → Markdown → Story', () => {
     it('preserves complex Story structure', () => {
       const story: Story = [
         { block: { header: { tag: 'h1', content: ['Welcome'] } } as Header },
-        { inline: ['Hello ', { ship: 'zod' } as Ship, '!'] },
+        { inline: ['Hello ', { ship: 'zod' } as ShipMention, '!'] },
         { block: { rule: null } as Rule },
         {
           block: {

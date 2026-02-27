@@ -3,15 +3,37 @@ import * as content from './content';
 import * as dms from './dms';
 import * as groups from './groups';
 
-// These re-exports are necessary in order to resolve overlaps between the below
-// types so that everything can fit in a single namespace.
+export { channel, content, dms, groups };
+
+// Explicit aliases for overlapping domain types.
+export type ShipId = channel.ChannelShipId;
+export type ShipMentionInline = content.ShipMention;
+export type PatpLike = channel.ChannelPatda;
+export type ChannelWrit = channel.Writ;
+export type DmWrit = dms.DmWrit;
+export type ChannelWritSeal = channel.WritSeal;
+export type DmWritSeal = dms.DmWritSeal;
+export type ChannelWritEssay = channel.WritEssay;
+export type DmWritEssay = dms.DmWritEssay;
+export type ChannelMap = channel.ChannelMap;
+export type GroupChannelMap = groups.GroupChannelMap;
+
+// Legacy compatibility exports for older callsites.
+/** @deprecated Use ShipId or ShipMentionInline. */
 export type Ship = channel.Ship;
+/** @deprecated Use PatpLike. */
 export type Patda = channel.Patda;
-export type InlineShip = content.Ship;
+/** @deprecated Use ShipMentionInline. */
+export type InlineShip = ShipMentionInline;
+/** @deprecated Use ChannelWritSeal or DmWritSeal. */
 export type WritSeal = channel.WritSeal | dms.WritSeal;
+/** @deprecated Use ChannelWritEssay or DmWritEssay. */
 export type WritEssay = channel.WritEssay | dms.WritEssay;
+/** @deprecated Use ChannelWrit or DmWrit. */
 export type Writ = channel.Writ | dms.Writ;
+/** @deprecated Use ChannelMap. */
 export type Channels = channel.Channels;
+/** @deprecated Use GroupChannelMap. */
 export type GroupChannels = groups.Channels;
 
 export * from './activity';

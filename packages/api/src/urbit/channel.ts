@@ -43,6 +43,8 @@ export type BotProfile = {
 
 export type Patda = string;
 export type Ship = string;
+export type ChannelPatda = Patda;
+export type ChannelShipId = Ship;
 export type Author = Ship | BotProfile;
 export type Nest = string;
 export type React = string | { any: string };
@@ -341,6 +343,7 @@ export interface ChannelFromServer {
 export interface Channels {
   [key: string]: Channel;
 }
+export type ChannelMap = Channels;
 
 export interface Create {
   kind: Kind;
