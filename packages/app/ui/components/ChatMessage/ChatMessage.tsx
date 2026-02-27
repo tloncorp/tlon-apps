@@ -9,6 +9,7 @@ import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
+import { usePostExposeState } from '../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -154,24 +155,9 @@ const ChatMessage = ({
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
-  const { data: exposedCites } = store.useExposedPostCites();
   const isExposeEligible =
     channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
-  const exposeReferencePath = useMemo(() => {
-    if (!isExposeEligible) return null;
-    const [kind, host, channelName] = post.channelId.split('/');
-    const postId = post.id.replaceAll('.', '');
-    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
-  }, [isExposeEligible, post.channelId, post.id]);
-  const isExposed = useMemo(() => {
-    if (!exposeReferencePath || !exposedCites) return false;
-    return exposedCites.has(exposeReferencePath);
-  }, [exposeReferencePath, exposedCites]);
-  const publicPostUrl = useMemo(() => {
-    if (!isExposed || !exposeReferencePath) return null;
-    const shipUrl = api.getCurrentShipUrl();
-    return `${shipUrl}/expose${exposeReferencePath}`;
-  }, [isExposed, exposeReferencePath]);
+  const { isExposed, publicPostUrl } = usePostExposeState(post, isExposeEligible);
 
   if (!post) {
     return null;

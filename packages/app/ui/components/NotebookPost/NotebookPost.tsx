@@ -1,7 +1,5 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -27,6 +25,7 @@ import {
 } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
+import { usePostExposeState } from '../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -75,21 +74,7 @@ export function NotebookPost({
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
 
-  const { data: exposedCites } = store.useExposedPostCites();
-  const exposeReferencePath = useMemo(() => {
-    const [kind, host, channelName] = post.channelId.split('/');
-    const postId = post.id.replaceAll('.', '');
-    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
-  }, [post.channelId, post.id]);
-  const isExposed = useMemo(() => {
-    if (!exposedCites) return false;
-    return exposedCites.has(exposeReferencePath);
-  }, [exposeReferencePath, exposedCites]);
-  const publicPostUrl = useMemo(() => {
-    if (!isExposed) return null;
-    const shipUrl = api.getCurrentShipUrl();
-    return `${shipUrl}/expose${exposeReferencePath}`;
-  }, [isExposed, exposeReferencePath]);
+  const { isExposed, publicPostUrl } = usePostExposeState(post);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -310,21 +295,7 @@ export function NotebookPostDetailView({
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
-  const { data: exposedCites } = store.useExposedPostCites();
-  const exposeReferencePath = useMemo(() => {
-    const [kind, host, channelName] = post.channelId.split('/');
-    const postId = post.id.replaceAll('.', '');
-    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
-  }, [post.channelId, post.id]);
-  const isExposed = useMemo(() => {
-    if (!exposedCites) return false;
-    return exposedCites.has(exposeReferencePath);
-  }, [exposeReferencePath, exposedCites]);
-  const publicPostUrl = useMemo(() => {
-    if (!isExposed) return null;
-    const shipUrl = api.getCurrentShipUrl();
-    return `${shipUrl}/expose${exposeReferencePath}`;
-  }, [isExposed, exposeReferencePath]);
+  const { isExposed, publicPostUrl } = usePostExposeState(post);
 
   const handlePressImage = useCallback(
     (src: string) => {
