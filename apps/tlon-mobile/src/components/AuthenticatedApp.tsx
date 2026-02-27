@@ -42,6 +42,7 @@ import useNotificationListener from '../hooks/useNotificationListener';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
+import { cancelBackgroundSync } from '../lib/backgroundSync';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
@@ -78,8 +79,10 @@ function AuthenticatedApp() {
         return;
       }
 
-      // app opened or returned from background
+      // app opened or returned from background — cancel any pending
+      // background sync operations so they don't contend with foreground sync
       if (status === 'opened' || status === 'active') {
+        cancelBackgroundSync();
         startChatListSettleMeasurement(status);
         NetInfo.fetch().then((state) => {
           setChatListNetworkContext({

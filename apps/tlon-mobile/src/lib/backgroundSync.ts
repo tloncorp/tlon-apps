@@ -1,6 +1,6 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
-import { createDevLogger, syncSince } from '@tloncorp/shared';
+import { SyncPriority, createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -10,6 +10,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
+
+let backgroundSyncAbortController: AbortController | null = null;
+
+export function cancelBackgroundSync() {
+  if (backgroundSyncAbortController) {
+    logger.trackEvent('Cancelling background sync (app foregrounded)');
+    backgroundSyncAbortController.abort();
+    backgroundSyncAbortController = null;
+  }
+}
 
 async function performSync() {
   await setupDb();
@@ -56,8 +66,20 @@ async function performSync() {
           error: err,
         })
       );
+    // Abort any previous background sync and create a fresh controller.
+    // If the app comes to foreground, cancelBackgroundSync() will abort
+    // this controller, removing queued operations from the sync queue so
+    // they don't contend with foreground sync.
+    backgroundSyncAbortController?.abort();
+    backgroundSyncAbortController = new AbortController();
     const changesStart = Date.now();
-    await syncSince({ callCtx: { cause: 'background-sync' } });
+    await syncSince({
+      callCtx: { cause: 'background-sync' },
+      syncCtx: {
+        priority: SyncPriority.High,
+        abortSignal: backgroundSyncAbortController.signal,
+      },
+    });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
     await authPromise;
