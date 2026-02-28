@@ -111,10 +111,10 @@ function captureTimingEvent(
   const aboveTheFoldTerminalPaintDurationMs = currentMeasurement.lastRenderAtMs
     ? currentMeasurement.lastRenderAtMs - currentMeasurement.startedAt
     : null;
-  const latestDataPaintDurationMs = currentMeasurement.latestDataPaintAtMs
+  const latestPaintDurationMs = currentMeasurement.latestDataPaintAtMs
     ? currentMeasurement.latestDataPaintAtMs - currentMeasurement.startedAt
     : null;
-  const latestDataConfirmedDurationMs =
+  const latestConfirmedDurationMs =
     outcome === 'settled' ? Date.now() - currentMeasurement.startedAt : null;
   const aboveTheFoldTerminalPaintMatchesData =
     currentMeasurement.lastRenderedSignature !== null &&
@@ -184,13 +184,19 @@ function captureTimingEvent(
     nativeCacheApplied: currentMeasurement.nativeCacheApplied,
     nativeCacheTotalMs: currentMeasurement.nativeCacheTotalMs,
     aboveTheFoldTerminalPaintDurationMs,
-    latestDataPaintDurationMs,
-    latestDataConfirmedDurationMs,
+    latestPaintDurationMs,
+    latestConfirmedDurationMs,
     aboveTheFoldTerminalPaintMatchesData,
-    aboveTheFoldCacheRenderDurationMs,
+    cacheRenderDurationMs: aboveTheFoldCacheRenderDurationMs,
     cacheVsGroundTruthDiverged,
     groundTruthPath,
     syncUnreadTopItemMatched,
+    syncToPaintMs:
+      currentMeasurement.latestDataPaintAtMs != null &&
+      currentMeasurement.syncCompletedAtMs != null
+        ? currentMeasurement.latestDataPaintAtMs -
+          currentMeasurement.syncCompletedAtMs
+        : null,
     networkType: currentMeasurement.networkType,
     networkConnected: currentMeasurement.networkConnected,
     networkInternetReachable: currentMeasurement.networkInternetReachable,

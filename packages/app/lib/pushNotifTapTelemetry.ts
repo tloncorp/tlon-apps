@@ -24,6 +24,7 @@ type PushNotifMeasurement = {
   cachedChannelLatestPostId: string | null;
   cacheRenderedAtMs: number | null;
   syncRequestCompleted: boolean;
+  syncCompletedAtMs: number | null;
   syncResult: SyncSinceResult | null;
   syncDurationMs: number | null;
   syncNodeBusyStatus: string | null;
@@ -107,16 +108,21 @@ function captureEvent(
     neededToSyncLatestPosts: current.neededToSyncLatestPosts,
     syncFoundNewerMessage: current.syncFoundNewerMessage,
     latestMessageCachedAtTap: current.latestMessageCachedAtTap,
-    latestMessagePaintDurationMs: current.latestMessagePaintAtMs
+    latestPaintDurationMs: current.latestMessagePaintAtMs
       ? current.latestMessagePaintAtMs - current.startedAt
       : null,
-    latestMessageConfirmedDurationMs: current.newestMessageShownAtMs
+    latestConfirmedDurationMs: current.newestMessageShownAtMs
       ? current.newestMessageShownAtMs - current.startedAt
       : null,
     newestMessageShown: current.newestMessageShown,
     newestMessageShownDurationMs: current.newestMessageShownAtMs
       ? current.newestMessageShownAtMs - current.startedAt
       : null,
+    syncToPaintMs:
+      current.latestMessagePaintAtMs != null &&
+      current.syncCompletedAtMs != null
+        ? current.latestMessagePaintAtMs - current.syncCompletedAtMs
+        : null,
     networkType: current.networkType,
     networkConnected: current.networkConnected,
     networkInternetReachable: current.networkInternetReachable,
@@ -208,6 +214,7 @@ export function startPushNotifTapMeasurement({
     cachedChannelLatestPostId: null,
     cacheRenderedAtMs: null,
     syncRequestCompleted: false,
+    syncCompletedAtMs: null,
     syncResult: null,
     syncDurationMs: null,
     syncNodeBusyStatus: null,
@@ -261,6 +268,7 @@ export async function markPushNotifTapSyncSinceComplete(
   }
 
   current.syncRequestCompleted = true;
+  current.syncCompletedAtMs = Date.now();
   current.syncResult = result;
   current.syncDurationMs = durationMs;
   current.syncNodeBusyStatus = nodeBusyStatus;
