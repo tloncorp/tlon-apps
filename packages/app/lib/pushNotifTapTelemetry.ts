@@ -1,3 +1,4 @@
+import { fetch as fetchNetInfo } from '@react-native-community/netinfo';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 
@@ -36,6 +37,10 @@ type PushNotifMeasurement = {
   newestMessageShownAtMs: number | null;
   lastRenderedPostIds: string[];
   firstRenderedAtByPostId: Record<string, number>;
+  networkType: string | null;
+  networkConnected: boolean | null;
+  networkInternetReachable: boolean | null;
+  cellularGeneration: string | null;
 };
 
 type NativeCacheContext = {
@@ -112,6 +117,10 @@ function captureEvent(
     newestMessageShownDurationMs: current.newestMessageShownAtMs
       ? current.newestMessageShownAtMs - current.startedAt
       : null,
+    networkType: current.networkType,
+    networkConnected: current.networkConnected,
+    networkInternetReachable: current.networkInternetReachable,
+    cellularGeneration: current.cellularGeneration,
   });
 }
 
@@ -212,8 +221,23 @@ export function startPushNotifTapMeasurement({
     newestMessageShownAtMs: null,
     lastRenderedPostIds: [],
     firstRenderedAtByPostId: {},
+    networkType: null,
+    networkConnected: null,
+    networkInternetReachable: null,
+    cellularGeneration: null,
   };
   applyNativeCacheContextToMeasurement(measurement, latestNativeCacheContext);
+  fetchNetInfo().then((state) => {
+    if (measurement && measurement.startedAt === startedAt) {
+      measurement.networkType = state.type;
+      measurement.networkConnected = state.isConnected ?? null;
+      measurement.networkInternetReachable = state.isInternetReachable ?? null;
+      measurement.cellularGeneration =
+        state.type === 'cellular'
+          ? state.details.cellularGeneration ?? null
+          : null;
+    }
+  });
 
   checkpointTimer = setTimeout(() => {
     const active = measurement;

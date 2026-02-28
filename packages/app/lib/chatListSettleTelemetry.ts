@@ -1,3 +1,4 @@
+import { fetch as fetchNetInfo } from '@react-native-community/netinfo';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 
@@ -317,6 +318,17 @@ export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
     networkInternetReachable: null,
     cellularGeneration: null,
   };
+  fetchNetInfo().then((state) => {
+    if (measurement && measurement.startedAt === startedAt) {
+      measurement.networkType = state.type;
+      measurement.networkConnected = state.isConnected ?? null;
+      measurement.networkInternetReachable = state.isInternetReachable ?? null;
+      measurement.cellularGeneration =
+        state.type === 'cellular'
+          ? state.details.cellularGeneration ?? null
+          : null;
+    }
+  });
   measurementStartObservers.forEach((observer) => observer());
 
   settleCheckpointTimer = setTimeout(() => {
@@ -480,28 +492,6 @@ export function reportChatListRendered(signature: string) {
     captureTimingEvent(activeMeasurement, 'settled', 'idle_window');
     stopSettleMeasurement();
   }
-}
-
-export function setChatListNetworkContext({
-  networkType,
-  networkConnected,
-  networkInternetReachable,
-  cellularGeneration,
-}: {
-  networkType?: string | null;
-  networkConnected?: boolean | null;
-  networkInternetReachable?: boolean | null;
-  cellularGeneration?: string | null;
-}) {
-  const activeMeasurement = measurement;
-  if (!activeMeasurement) {
-    return;
-  }
-
-  activeMeasurement.networkType = networkType ?? null;
-  activeMeasurement.networkConnected = networkConnected ?? null;
-  activeMeasurement.networkInternetReachable = networkInternetReachable ?? null;
-  activeMeasurement.cellularGeneration = cellularGeneration ?? null;
 }
 
 export function reportChatListNativeCacheResult({

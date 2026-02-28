@@ -10,7 +10,6 @@ import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
   markChatListMeasurementAbandoned,
   markChatListSyncSinceComplete,
-  setChatListNetworkContext,
   startChatListSettleMeasurement,
 } from '@tloncorp/app/lib/chatListSettleTelemetry';
 import {
@@ -84,17 +83,6 @@ function AuthenticatedApp() {
       if (status === 'opened' || status === 'active') {
         cancelBackgroundSync();
         startChatListSettleMeasurement(status);
-        NetInfo.fetch().then((state) => {
-          setChatListNetworkContext({
-            networkType: state.type,
-            networkConnected: state.isConnected ?? null,
-            networkInternetReachable: state.isInternetReachable ?? null,
-            cellularGeneration:
-              state.type === 'cellular'
-                ? state.details.cellularGeneration ?? null
-                : null,
-          });
-        });
         await checkForCachedChanges();
         telemetry.captureAppActive();
         checkNodeStopped();
