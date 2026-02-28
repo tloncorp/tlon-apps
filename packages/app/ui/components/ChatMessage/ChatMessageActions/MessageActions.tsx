@@ -268,7 +268,10 @@ function PublicProfileExposeAction({
 
     try {
       await api.setPublicProfilePostShown(referencePath, nextShownState);
-      await store.syncExposedCites();
+      await store.syncExposedCites().catch((error) => {
+        // Expose poke already succeeded; don't fail UX on follow-up sync issues.
+        console.warn('Failed to sync exposed cites after expose toggle', error);
+      });
       triggerHaptic('success');
       if (nextShownState) {
         const shipUrl = api.getCurrentShipUrl();

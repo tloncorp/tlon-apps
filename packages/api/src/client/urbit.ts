@@ -47,6 +47,7 @@ export type PokeParams = {
   app: string;
   mark: string;
   json: any;
+  suppressErrorTracking?: boolean;
 };
 
 export type NounPokeParams = {
@@ -409,7 +410,12 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   }
 }
 
-export async function poke({ app, mark, json }: PokeParams) {
+export async function poke({
+  app,
+  mark,
+  json,
+  suppressErrorTracking,
+}: PokeParams) {
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
     app,
@@ -430,10 +436,12 @@ export async function poke({ app, mark, json }: PokeParams) {
     });
   };
   const retry = async (err: any) => {
-    logger.trackError(`bad poke to ${app} with mark ${mark}`, {
-      stack: err,
-      body: json,
-    });
+    if (!suppressErrorTracking) {
+      logger.trackError(`bad poke to ${app} with mark ${mark}`, {
+        stack: err,
+        body: json,
+      });
+    }
     if (!(err instanceof AuthError)) {
       trackDuration('error');
       throw err;
