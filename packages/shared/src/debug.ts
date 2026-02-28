@@ -8,6 +8,7 @@ import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
 const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
+const jsContextId = Math.random().toString(36).slice(2, 10);
 const BREADCRUMB_LIMIT = 100;
 
 interface Breadcrumb {
@@ -283,6 +284,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
               errorMessage: errorObj?.message,
               errorStack: errorObj?.stack,
               logLevel: 'error',
+              jsContextId,
               ...customProps,
             });
           };
@@ -301,6 +303,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
               logger: tag,
+              jsContextId,
             });
           }
           resolvedProp = 'log';
