@@ -1,4 +1,4 @@
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import type { Post } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';

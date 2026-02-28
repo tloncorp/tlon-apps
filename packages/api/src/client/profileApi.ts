@@ -11,6 +11,24 @@ function normalizeReferencePath(path: string) {
   return withLeadingSlash.replaceAll("'", '');
 }
 
+function quoteTerminalReferencePathId(path: string) {
+  const normalized = normalizeReferencePath(path);
+  const match = normalized.match(/^(.*\/(?:msg|note|curio)\/)([^/]+)$/);
+  if (!match) {
+    return normalized;
+  }
+
+  const prefix = match[1];
+  const id = match[2];
+
+  try {
+    const canonical = parseIdNumber(id).toString();
+    return `${prefix}'${canonical}'`;
+  } catch {
+    return normalized;
+  }
+}
+
 function getReferencePathVariants(path: string) {
   const normalized = normalizeReferencePath(path);
   const variants = new Set<string>([normalized]);
@@ -26,6 +44,7 @@ function getReferencePathVariants(path: string) {
     const canonical = parseIdNumber(id).toString();
     variants.add(`${prefix}${canonical}`);
     variants.add(`${prefix}${formatUd(canonical)}`);
+    variants.add(`${prefix}'${canonical}'`);
   } catch {
     // Non-numeric terminal segments should only use the normalized path.
   }
@@ -107,12 +126,36 @@ async function getPublicProfilePostShownFromContacts(
   }
 }
 
-async function pokePublicExpose(json: { show?: string; hide?: string }) {
+async function pokePublicExpose(
+  json: { show?: string; hide?: string },
+  options?: { suppressErrorTracking?: boolean }
+) {
   await poke({
     app: 'expose',
     mark: 'json',
     json,
+    suppressErrorTracking: options?.suppressErrorTracking,
   });
+}
+
+async function pokePublicExposePath(path: string, mode: 'show' | 'hide') {
+  const quotedPath = quoteTerminalReferencePathId(path);
+  const unquotedPath = normalizeReferencePath(path);
+
+  const buildPayload = (value: string) =>
+    mode === 'show' ? { show: value } : { hide: value };
+
+  try {
+    await pokePublicExpose(buildPayload(quotedPath), {
+      suppressErrorTracking: true,
+    });
+  } catch (error) {
+    // Some %expose builds do not accept quoted terminal IDs.
+    if (quotedPath === unquotedPath) {
+      throw error;
+    }
+    await pokePublicExpose(buildPayload(unquotedPath));
+  }
 }
 
 async function clearPublicExposeCites() {
@@ -123,18 +166,10 @@ async function clearPublicExposeCites() {
   const selfContact = getContactFromSelfScry(selfContactResponse);
   const rawCites = getExposeCitesFromContact(selfContact);
 
-  const citesToHide = new Set<string>();
-  for (const cite of rawCites) {
-    for (const variant of getReferencePathVariants(cite)) {
-      citesToHide.add(variant);
-    }
-  }
-
+  const citesToHide = new Set<string>(rawCites);
   await Promise.all(
     [...citesToHide].map((referencePath) =>
-      pokePublicExpose({
-        hide: referencePath,
-      })
+      pokePublicExposePath(referencePath, 'hide')
     )
   );
 }
@@ -259,20 +294,10 @@ export async function getExposedPostCitesNormalized(): Promise<Set<string>> {
 }
 
 export async function setPublicProfilePostShown(path: string, shown: boolean) {
-  const referencePathVariants = getReferencePathVariants(path);
   if (!shown) {
-    await Promise.all(
-      referencePathVariants.map((referencePath) =>
-        pokePublicExpose({
-          hide: referencePath,
-        })
-      )
-    );
+    await pokePublicExposePath(path, 'hide');
     return;
   }
 
-  const referencePath = normalizeReferencePath(path);
-  await pokePublicExpose({
-    show: referencePath,
-  });
+  await pokePublicExposePath(path, 'show');
 }
