@@ -711,3 +711,54 @@ test('insertPosts: removes only matching cached posts', async () => {
   expect(realPosts.length).toBe(1);
   expect(realPosts[0].id).toBe('real-post-matching');
 });
+
+test('setJoinedGroupChannels: does not reset membership for channels not in the list', async () => {
+  // Setup: load init data which populates groups with channels
+  setScryOutputs([initResponse]);
+  await syncInitData();
+
+  const groupId = '~nibset-napwyn/tlon';
+
+  // Get all channels for the group (including unjoined) to see initial state
+  const groupBefore = await queries.getGroup({
+    id: groupId,
+    includeUnjoinedChannels: true,
+  });
+  expect(groupBefore).not.toBeNull();
+
+  // Find channels that are currently marked as joined
+  const joinedChannels = groupBefore!.channels.filter(
+    (c) => c.currentUserIsMember === true
+  );
+  expect(joinedChannels.length).toBeGreaterThan(1);
+
+  // Simulate syncUnreads: call setJoinedGroupChannels with only ONE of the
+  // joined channel IDs (as if only that channel had unreads)
+  const channelWithUnreads = joinedChannels[0].id;
+  const channelsWithoutUnreads = joinedChannels.slice(1).map((c) => c.id);
+
+  await queries.setJoinedGroupChannels({
+    channelIds: [channelWithUnreads],
+  });
+
+  // Verify: channels that were NOT in the unreads list should still be joined
+  const groupAfter = await queries.getGroup({
+    id: groupId,
+    includeUnjoinedChannels: true,
+  });
+
+  // The channel that was in the unreads list should also still be joined
+  const keptChannel = groupAfter!.channels.find(
+    (c) => c.id === channelWithUnreads
+  );
+  expect(keptChannel?.currentUserIsMember).toBe(true);
+
+  // Channels that were NOT in the unreads list should still be joined
+  for (const channelId of channelsWithoutUnreads) {
+    const channel = groupAfter!.channels.find((c) => c.id === channelId);
+    expect(
+      channel?.currentUserIsMember,
+      `channel ${channelId} should still be joined`
+    ).toBe(true);
+  }
+});
