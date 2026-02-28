@@ -24,6 +24,7 @@ import rawHeadsData from '../test/heads.json';
 import {
   getClient,
   setScryOutput,
+  setScryOutputsByPath,
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../test/helpers';
@@ -107,7 +108,12 @@ test('syncs pins', async () => {
 });
 
 test('syncs contacts', async () => {
-  setScryOutputs([contactsData, contactBookData, suggestionsData]);
+  setScryOutputsByPath({
+    'contacts:/all': contactsData,
+    'contacts:/v1/book': contactBookData,
+    'groups-ui:/suggested-contacts': suggestionsData,
+    'contacts:/v1/self': { self: {} },
+  });
   await syncContacts();
   const storedContacts = await db.getContacts();
   expect(storedContacts.length).toEqual(
@@ -118,7 +124,12 @@ test('syncs contacts', async () => {
     expect(original).toBeTruthy();
     expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
   });
-  setScryOutputs([contactsData, contactBookData, suggestionsData]);
+  setScryOutputsByPath({
+    'contacts:/all': contactsData,
+    'contacts:/v1/book': contactBookData,
+    'groups-ui:/suggested-contacts': suggestionsData,
+    'contacts:/v1/self': { self: {} },
+  });
   await syncContacts();
 });
 
