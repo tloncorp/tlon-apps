@@ -1,3 +1,4 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import {
@@ -11,6 +12,7 @@ import { View } from 'tamagui';
 type VideoEmbedProps = ComponentProps<typeof View> & {
   video: { width: number; height: number; src: string; alt?: string };
 };
+const logger = createDevLogger('VideoEmbedNative', false);
 
 export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
   const videoRef = useRef<ExpoVideo | null>(null);
@@ -18,10 +20,23 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
     video.width / video.height
   );
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback(async () => {
+    logger.trackEvent(AnalyticsEvent.VideoPlaybackOpened, {
+      src: video.src,
+    });
     videoRef.current?.presentFullscreenPlayer();
-    videoRef.current?.playAsync();
-  }, []);
+    try {
+      await videoRef.current?.playAsync();
+      logger.trackEvent(AnalyticsEvent.VideoPlaybackStarted, {
+        src: video.src,
+      });
+    } catch (error) {
+      logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+        src: video.src,
+        error,
+      });
+    }
+  }, [video.src]);
 
   const handleReadyForDisplay = useCallback((e: VideoReadyForDisplayEvent) => {
     setAspect(e.naturalSize.width / e.naturalSize.height);
@@ -42,6 +57,12 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
         ref={videoRef}
         source={source}
         onReadyForDisplay={handleReadyForDisplay}
+        onError={(error) => {
+          logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+            src: video.src,
+            error,
+          });
+        }}
         resizeMode={ResizeMode.COVER}
         style={{
           width: '100%',

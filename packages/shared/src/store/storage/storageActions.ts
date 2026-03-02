@@ -24,6 +24,29 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
+function uploadIntentIsVideo(uploadIntent: Attachment.UploadIntent): boolean {
+  switch (uploadIntent.type) {
+    case 'image':
+      return false;
+    case 'file':
+      return !!uploadIntent.video || uploadIntent.file.type.startsWith('video/');
+    case 'fileUri':
+      return (
+        !!uploadIntent.video ||
+        (!!uploadIntent.mimeType && uploadIntent.mimeType.startsWith('video/'))
+      );
+  }
+}
+
+function setTerminalUploadState(
+  key: Attachment.UploadIntent.Key,
+  next:
+    | { status: 'success'; remoteUri: string }
+    | { status: 'error'; errorMessage: string }
+) {
+  setUploadState(key, next);
+}
+
 function getSaveFormat(mimeType?: string): SaveFormat {
   if (!mimeType) {
     return SaveFormat.JPEG;
@@ -86,23 +109,27 @@ async function uploadAssetWithLifecycle(
   }
 ) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
+  const isVideo = uploadIntentIsVideo(uploadIntent);
   callbacks.willUpload?.();
 
   setUploadState(uploadKey, {
     status: 'uploading',
     localUri: Attachment.UploadIntent.createLocalUri(uploadIntent),
   });
+  if (isVideo) {
+    logger.trackEvent(AnalyticsEvent.VideoUploadStarted, {
+      uploadKey,
+      isWeb,
+    });
+  }
   try {
-    const remoteUri = await performUpload(
-      await callbacks.prepareAsset(),
-      isWeb
-    );
+    const remoteUri = await performUpload(await callbacks.prepareAsset(), isWeb);
     logger.crumb('upload succeeded');
     logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
       remoteUri,
       isWeb,
     });
-    setUploadState(uploadKey, { status: 'success', remoteUri });
+    setTerminalUploadState(uploadKey, { status: 'success', remoteUri });
   } catch (e) {
     logger.trackError('upload failed', {
       error: e,
@@ -111,7 +138,17 @@ async function uploadAssetWithLifecycle(
       isWeb,
     });
     console.error(e);
-    setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
+    setTerminalUploadState(uploadKey, {
+      status: 'error',
+      errorMessage: e.message,
+    });
+    if (isVideo) {
+      logger.trackEvent(AnalyticsEvent.VideoUploadFailed, {
+        uploadKey,
+        isWeb,
+        error: e.message,
+      });
+    }
   }
 }
 

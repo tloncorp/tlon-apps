@@ -12,36 +12,52 @@ import { ContentReferenceLoader } from '../ContentReference';
 const logger = createDevLogger('AttachmentPreviewList', false);
 
 export const AttachmentPreviewList = () => {
-  const { attachments } = useAttachmentContext();
-  return attachments.length ? (
-    <ScrollView
-      contentContainerStyle={{
-        padding: '$m',
-        paddingBottom: 0,
-        gap: '$2xs',
-        justifyContent: 'flex-start',
-        minWidth: '100%',
-      }}
-      overScrollMode="always"
-      horizontal={true}
-    >
-      {attachments
-        .filter((a) => a.type !== 'text')
-        .map((attachment, i) => {
-          const hasError =
-            attachment.type === 'image' &&
-            attachment.uploadState?.status === 'error';
-          return (
-            <AttachmentPreview
-              key={i}
-              attachment={attachment}
-              uploading={false}
-              error={hasError}
-            />
-          );
-        })}
-    </ScrollView>
-  ) : null;
+  const { attachments, attachmentErrorMessage } = useAttachmentContext();
+  const visibleAttachments = attachments.filter((a) => a.type !== 'text');
+  if (visibleAttachments.length === 0 && !attachmentErrorMessage) {
+    return null;
+  }
+  return (
+    <View>
+      {visibleAttachments.length > 0 ? (
+        <ScrollView
+          contentContainerStyle={{
+            padding: '$m',
+            paddingBottom: 0,
+            gap: '$2xs',
+            justifyContent: 'flex-start',
+            minWidth: '100%',
+          }}
+          overScrollMode="always"
+          horizontal={true}
+        >
+          {visibleAttachments.map((attachment, i) => {
+            const hasError =
+              (attachment.type === 'image' || attachment.type === 'video') &&
+              attachment.uploadState?.status === 'error';
+            return (
+              <AttachmentPreview
+                key={i}
+                attachment={attachment}
+                uploading={false}
+                error={hasError}
+              />
+            );
+          })}
+        </ScrollView>
+      ) : null}
+      {attachmentErrorMessage ? (
+        <Text
+          color="$negativeActionText"
+          fontSize="$s"
+          paddingHorizontal="$m"
+          paddingTop="$xs"
+        >
+          {attachmentErrorMessage}
+        </Text>
+      ) : null}
+    </View>
+  );
 };
 
 export function AttachmentPreview({
@@ -138,6 +154,30 @@ export function AttachmentPreview({
             source={{
               uri: attachment.file.uri,
             }}
+          />
+        </Container>
+      );
+    }
+
+    case 'video': {
+      const uri =
+        attachment.posterUri ??
+        (attachment.localFile instanceof File
+          ? URL.createObjectURL(attachment.localFile)
+          : attachment.localFile);
+      return (
+        <Container showSpinner={uploading || isLoading}>
+          <Image
+            backgroundColor={'$secondaryBackground'}
+            position="absolute"
+            top={0}
+            left={0}
+            width="100%"
+            height="100%"
+            onLoad={handleLoad}
+            onLoadStart={() => setIsLoading(true)}
+            source={{ uri }}
+            contentFit="cover"
           />
         </Container>
       );

@@ -1,10 +1,15 @@
+import { createDevLogger } from '@tloncorp/shared/debug';
+
 import * as api from '../client';
 import { formatUd } from '../client/apiUtils';
+import { AnalyticsEvent } from '../types/analytics';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { assertNever } from './assertNever';
 import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
+
+const logger = createDevLogger('postContent', false);
 
 // Inline types
 
@@ -355,6 +360,13 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
+          if (isLikelyLegacyVideoFileEntry(entry)) {
+            logger.trackEvent(AnalyticsEvent.LegacyVideoBlobViewed, {
+              mimeType: entry.mimeType,
+              name: entry.name,
+              fileUri: entry.fileUri,
+            });
+          }
           out.push({
             type: 'file',
             file: entry,
@@ -366,6 +378,17 @@ export function convertContent(
           out.push({
             type: 'voicememo',
             voiceMemo: entry,
+          });
+          break;
+        }
+
+        case 'video': {
+          out.push({
+            type: 'video',
+            src: entry.fileUri,
+            width: entry.width ?? 1,
+            height: entry.height ?? 1,
+            alt: entry.name ?? 'video',
           });
           break;
         }
@@ -394,8 +417,27 @@ export function convertContent(
     return out;
   }
 
-  out.push(...convertContentSafe(story));
+  const existingVideoSrcs = new Set(
+    out.flatMap((block) => (block.type === 'video' ? [block.src] : []))
+  );
+  out.push(
+    ...convertContentSafe(story).filter((block) => {
+      if (block.type !== 'video') {
+        return true;
+      }
+      return !existingVideoSrcs.has(block.src);
+    })
+  );
   return out;
+}
+
+function isLikelyLegacyVideoFileEntry(
+  entry: Extract<PostBlobDataEntry, { type: 'file' }>
+): boolean {
+  if (entry.mimeType?.toLowerCase().startsWith('video/')) {
+    return true;
+  }
+  return /\.(mp4|mov|webm|m4v)(?:\?.*)?$/i.test(entry.name ?? entry.fileUri);
 }
 
 /**

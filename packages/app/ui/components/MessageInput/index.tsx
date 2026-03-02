@@ -63,6 +63,8 @@ import {
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
+import { getHydratedVideoBlocks } from '../../utils/videoHydration';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import { processReferenceAndUpdateEditor } from './helpers';
@@ -181,6 +183,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const { attachments, addAttachment, clearAttachments, resetAttachments } =
       useAttachmentContext();
+    const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
 
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
@@ -269,8 +272,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 references: postReferences,
                 blocks,
               } = extractContentTypesFromPost(editingPost);
+              const videoBlocks = getHydratedVideoBlocks(
+                editingPost,
+                videoUploadPlayback
+              );
+              const hasVideoAttachment = videoBlocks.length > 0;
 
-              if (story === null && !postReferences && blocks.length === 0) {
+              if (
+                story === null &&
+                !postReferences &&
+                blocks.length === 0 &&
+                !hasVideoAttachment
+              ) {
+                setHasSetInitialContent(true);
                 return;
               }
 
@@ -296,6 +310,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   return;
                 }
                 // Handle other block types if needed in the future
+              });
+              videoBlocks.forEach((block) => {
+                attachments.push({
+                  type: 'video',
+                  localFile: block.src,
+                  size: -1,
+                  mimeType: undefined,
+                  name: block.alt,
+                  width: block.width,
+                  height: block.height,
+                });
               });
 
               resetAttachments(attachments);
@@ -343,6 +368,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       editingPost,
       resetAttachments,
       addAttachment,
+      videoUploadPlayback,
     ]);
 
     useEffect(() => {

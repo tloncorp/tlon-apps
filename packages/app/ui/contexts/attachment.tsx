@@ -19,8 +19,12 @@ import {
 } from 'react';
 import { isWeb } from 'tamagui';
 
+import { canAddAttachment } from './attachmentRules';
+
 export type AttachmentState = {
   attachments: Attachment[];
+  attachmentErrorMessage: string | null;
+  setAttachmentErrorMessage: (message: string | null) => void;
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (attachment: Attachment) => void;
   clearAttachments: () => void;
@@ -35,6 +39,8 @@ export type AttachmentState = {
 
 const defaultState: AttachmentState = {
   attachments: [],
+  attachmentErrorMessage: null,
+  setAttachmentErrorMessage: () => {},
   addAttachment: () => {},
   removeAttachment: () => {},
   clearAttachments: () => {},
@@ -73,6 +79,9 @@ export const AttachmentProvider = ({
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
+  const [attachmentErrorMessage, setAttachmentErrorMessage] = useState<
+    string | null
+  >(null);
 
   const assetUploadStates = useUploadStates(
     useMemo(
@@ -117,8 +126,24 @@ export const AttachmentProvider = ({
   }, [attachments, uploadAsset, assetUploadStates]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    setState((prev) => [...prev, attachment]);
-  }, []);
+    const precheck = canAddAttachment(state, attachment);
+    if (!precheck.ok) {
+      setAttachmentErrorMessage(precheck.reason);
+    } else {
+      setAttachmentErrorMessage(null);
+    }
+    setState((prev) => {
+      const validation = canAddAttachment(prev, attachment);
+      if (!validation.ok) {
+        return prev;
+      }
+      if (attachment.type === 'video') {
+        const withoutVideos = prev.filter((att) => att.type !== 'video');
+        return [...withoutVideos, attachment];
+      }
+      return [...prev, attachment];
+    });
+  }, [state]);
 
   const handleAttachAssets = useCallback(
     (uploadIntents: Attachment.UploadIntent[]) => {
@@ -155,14 +180,17 @@ export const AttachmentProvider = ({
         return true;
       })
     );
+    setAttachmentErrorMessage(null);
   }, []);
 
   const handleClearAttachments = useCallback(() => {
     setState([]);
+    setAttachmentErrorMessage(null);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
     setState(attachments);
+    setAttachmentErrorMessage(null);
   }, []);
 
   const handleWaitForUploads = useCallback(
@@ -212,6 +240,8 @@ export const AttachmentProvider = ({
     <Context.Provider
       value={{
         attachments,
+        attachmentErrorMessage,
+        setAttachmentErrorMessage,
         attachAssets: handleAttachAssets,
         addAttachment: handleAddAttachment,
         removeAttachment: handleRemoveAttachment,

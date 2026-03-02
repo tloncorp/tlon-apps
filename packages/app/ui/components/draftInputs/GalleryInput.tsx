@@ -5,6 +5,7 @@ import * as logic from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   ParentAgnosticKeyboardAvoidingView,
+  Text,
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -19,6 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useFeatureFlag } from '../../../lib/featureFlags';
+import { getHydratedVideoBlocks } from '../../utils/videoHydration';
 import AddGalleryPost from '../AddGalleryPost';
 import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
@@ -54,6 +57,7 @@ export function GalleryInput({
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
 
   // Determine if the editing post is an image gallery post or text gallery post
   // This effect runs when an editingPost is provided and sets up the appropriate editing UI
@@ -62,9 +66,28 @@ export function GalleryInput({
 
     try {
       const { blocks } = extractContentTypesFromPost(editingPost);
+      const videoBlock = getHydratedVideoBlocks(
+        editingPost,
+        videoUploadPlayback
+      )[0];
 
       // Check if the first block is an image or link - if so, handle it specially
-      if (blocks.length > 0 && 'image' in blocks[0]) {
+      if (videoBlock && videoBlock.type === 'video') {
+        setRoute('review-attachment');
+        attachAssets([
+          {
+            type: 'fileUri',
+            localUri: videoBlock.src,
+            name: videoBlock.alt,
+            size: -1,
+            video: {
+              width: videoBlock.width,
+              height: videoBlock.height,
+            },
+          },
+        ]);
+        setCanPost(true);
+      } else if (blocks.length > 0 && 'image' in blocks[0]) {
         // This is an image gallery post
         setRoute('review-attachment');
 
@@ -133,7 +156,7 @@ export function GalleryInput({
       // Default to text input if we can't determine the type
       setRoute('text');
     }
-  }, [editingPost, storeDraft, attachAssets, addAttachment]);
+  }, [editingPost, storeDraft, attachAssets, addAttachment, videoUploadPlayback]);
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
@@ -147,9 +170,9 @@ export function GalleryInput({
   }, [clearDraft, resetAttachments]);
 
   // Handle image selection
-  const handleGalleryImageSet = useCallback(
-    (assets?: ImagePickerAsset[] | null) => {
-      const hasAssets = assets != null && assets.length > 0;
+  const handleGalleryMediaSet = useCallback(
+    (assets: domain.Attachment.UploadIntent[]) => {
+      const hasAssets = assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
     },
@@ -376,7 +399,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetImage={handleGalleryImageSet}
+        onSetMedia={handleGalleryMediaSet}
       />
     </>
   );
@@ -410,7 +433,35 @@ function ReviewAttachment({
 
   const theme = useTheme();
   const [isPosting, setIsPosting] = useState(false);
-  const { attachments } = useAttachmentContext();
+  const {
+    attachments,
+    removeAttachment,
+    attachmentErrorMessage,
+    setAttachmentErrorMessage,
+  } = useAttachmentContext();
+  const mediaAttachment = attachments.find((att) => att.type !== 'text');
+  const hasVideoAttachment = mediaAttachment?.type === 'video';
+  const canSubmitPost =
+    canPost && (attachments.length > 0 || caption.trim().length > 0);
+  const canRemoveMedia =
+    !!mediaAttachment && (!hasVideoAttachment || caption.trim().length > 0);
+
+  const handleRemoveMedia = useCallback(() => {
+    if (!mediaAttachment) {
+      return;
+    }
+    if (mediaAttachment.type === 'video' && caption.trim().length === 0) {
+      setAttachmentErrorMessage('Add text before removing this video.');
+      return;
+    }
+    removeAttachment(mediaAttachment);
+    setAttachmentErrorMessage(null);
+  }, [
+    mediaAttachment,
+    caption,
+    removeAttachment,
+    setAttachmentErrorMessage,
+  ]);
 
   // Handle posting the gallery image
   const handlePost = useCallback(async () => {
@@ -483,16 +534,33 @@ function ReviewAttachment({
   useRegisterChannelHeaderItem(
     useMemo(
       () => (
-        <ScreenHeader.TextButton
-          key="gallery-preview-post"
-          onPress={handlePost}
-          disabled={!canPost || isPosting}
-          testID="GalleryPostButton"
-        >
-          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-        </ScreenHeader.TextButton>
+        <>
+          <ScreenHeader.TextButton
+            key="gallery-preview-remove"
+            onPress={handleRemoveMedia}
+            disabled={isPosting || !canRemoveMedia}
+            testID="GalleryRemoveMediaButton"
+          >
+            Remove
+          </ScreenHeader.TextButton>
+          <ScreenHeader.TextButton
+            key="gallery-preview-post"
+            onPress={handlePost}
+            disabled={!canSubmitPost || isPosting}
+            testID="GalleryPostButton"
+          >
+            {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
+          </ScreenHeader.TextButton>
+        </>
       ),
-      [handlePost, canPost, isPosting, isEditingPost]
+      [
+        handlePost,
+        handleRemoveMedia,
+        canRemoveMedia,
+        canSubmitPost,
+        isPosting,
+        isEditingPost,
+      ]
     )
   );
 
@@ -527,6 +595,16 @@ function ReviewAttachment({
               }}
             />
           </View>
+          {attachmentErrorMessage ? (
+            <Text
+              color="$negativeActionText"
+              fontSize="$s"
+              paddingTop="$xs"
+              paddingHorizontal="$xs"
+            >
+              {attachmentErrorMessage}
+            </Text>
+          ) : null}
         </View>
       </ParentAgnosticKeyboardAvoidingView>
     </YStack>
