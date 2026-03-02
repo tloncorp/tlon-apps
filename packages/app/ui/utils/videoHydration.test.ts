@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 
-import { getHydratedVideoBlocks } from './videoHydration';
+import { getHydratedVideoAttachments } from './videoHydration';
 
-test('returns no video blocks when feature flag is disabled', () => {
+test('returns no video attachments when feature flag is disabled', () => {
   const editingPost = {
     content: [{ inline: ['hello'] }],
     blob: JSON.stringify([
@@ -15,10 +15,10 @@ test('returns no video blocks when feature flag is disabled', () => {
     ]),
   };
 
-  expect(getHydratedVideoBlocks(editingPost, false)).toEqual([]);
+  expect(getHydratedVideoAttachments(editingPost, false)).toEqual([]);
 });
 
-test('hydrates video blocks from blob when feature flag is enabled', () => {
+test('hydrates video attachments from blob when feature flag is enabled', () => {
   const editingPost = {
     content: [{ inline: ['hello'] }],
     blob: JSON.stringify([
@@ -34,18 +34,20 @@ test('hydrates video blocks from blob when feature flag is enabled', () => {
     ]),
   };
 
-  expect(getHydratedVideoBlocks(editingPost, true)).toEqual([
+  expect(getHydratedVideoAttachments(editingPost, true)).toEqual([
     {
       type: 'video',
-      src: 'https://cdn.example.com/blob.mp4',
+      localFile: 'https://cdn.example.com/blob.mp4',
+      size: -1,
+      mimeType: undefined,
+      name: 'clip.mp4',
       width: 320,
       height: 240,
-      alt: 'clip.mp4',
     },
   ]);
 });
 
-test('returns no video blocks when editing post has no content', () => {
+test('returns no video attachments when editing post has no content', () => {
   const editingPost = {
     content: null,
     blob: JSON.stringify([
@@ -58,5 +60,5 @@ test('returns no video blocks when editing post has no content', () => {
     ]),
   };
 
-  expect(getHydratedVideoBlocks(editingPost, true)).toEqual([]);
+  expect(getHydratedVideoAttachments(editingPost, true)).toEqual([]);
 });

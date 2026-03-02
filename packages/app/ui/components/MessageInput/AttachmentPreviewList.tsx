@@ -160,11 +160,10 @@ export function AttachmentPreview({
     }
 
     case 'video': {
-      const uri =
-        attachment.posterUri ??
-        (attachment.localFile instanceof File
-          ? URL.createObjectURL(attachment.localFile)
-          : attachment.localFile);
+      const uri = domain.videoPreviewUri(attachment);
+      if (!uri) {
+        return <Container showSpinner />;
+      }
       return (
         <Container showSpinner={uploading || isLoading}>
           <Image
@@ -176,6 +175,7 @@ export function AttachmentPreview({
             height="100%"
             onLoad={handleLoad}
             onLoadStart={() => setIsLoading(true)}
+            onError={() => setIsLoading(false)}
             source={{ uri }}
             contentFit="cover"
           />
