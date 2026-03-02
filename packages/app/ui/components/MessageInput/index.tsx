@@ -19,7 +19,6 @@ import {
 } from '@tloncorp/editor/src/bridges';
 import {
   Attachment,
-  PostDataDraft,
   REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
@@ -63,8 +62,6 @@ import {
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { getHydratedVideoAttachments } from '../../utils/videoHydration';
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import { processReferenceAndUpdateEditor } from './helpers';
@@ -183,7 +180,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const { attachments, addAttachment, clearAttachments, resetAttachments } =
       useAttachmentContext();
-    const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
 
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
@@ -272,17 +268,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 references: postReferences,
                 blocks,
               } = extractContentTypesFromPost(editingPost);
-              const videoAttachments = getHydratedVideoAttachments(
-                editingPost,
-                videoUploadPlayback
-              );
-              const hasVideoAttachment = videoAttachments.length > 0;
 
               if (
                 story === null &&
                 !postReferences &&
-                blocks.length === 0 &&
-                !hasVideoAttachment
+                blocks.length === 0
               ) {
                 setHasSetInitialContent(true);
                 return;
@@ -299,19 +289,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                   path,
                 });
               });
-
-              // Note: We don't add inline images from blocks to attachments here
-              // because they're already in the Tiptap editor content (via diaryMixedToJSON).
-              // Adding them as attachments would cause duplicates when saving.
-              // Only non-image blocks need to be handled as attachments.
-              blocks.forEach((b) => {
-                // Skip image blocks - they're handled inline in the editor
-                if ('image' in b) {
-                  return;
-                }
-                // Handle other block types if needed in the future
-              });
-              attachments.push(...videoAttachments);
 
               resetAttachments(attachments);
 
@@ -358,7 +335,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       editingPost,
       resetAttachments,
       addAttachment,
-      videoUploadPlayback,
     ]);
 
     useEffect(() => {

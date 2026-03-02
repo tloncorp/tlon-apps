@@ -20,8 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useFeatureFlag } from '../../../lib/featureFlags';
-import { getHydratedVideoAttachments } from '../../utils/videoHydration';
 import AddGalleryPost from '../AddGalleryPost';
 import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
@@ -57,7 +55,6 @@ export function GalleryInput({
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
-  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
 
   // Determine if the editing post is an image gallery post or text gallery post
   // This effect runs when an editingPost is provided and sets up the appropriate editing UI
@@ -65,34 +62,15 @@ export function GalleryInput({
     if (!editingPost) return;
 
     try {
-      const { blocks } = extractContentTypesFromPost(editingPost);
-      const videoAttachment = getHydratedVideoAttachments(
-        editingPost,
-        videoUploadPlayback
-      )[0];
+      const { blocks, inlines } = extractContentTypesFromPost(editingPost);
+      const firstBlock = blocks[0];
 
       // Check if the first block is an image or link - if so, handle it specially
-      if (videoAttachment) {
-        setRoute('review-attachment');
-        attachAssets([
-          {
-            type: 'fileUri',
-            localUri: videoAttachment.localFile,
-            name: videoAttachment.name,
-            size: -1,
-            video: {
-              width: videoAttachment.width,
-              height: videoAttachment.height,
-            },
-          },
-        ]);
-        setCanPost(true);
-      } else if (blocks.length > 0 && 'image' in blocks[0]) {
+      if (firstBlock && 'image' in firstBlock) {
         // This is an image gallery post
         setRoute('review-attachment');
 
         // Extract caption from the post if it exists (should be in the inline content)
-        const { inlines } = extractContentTypesFromPost(editingPost);
         if (inlines.length > 0) {
           const captionText = typeof inlines[0] === 'string' ? inlines[0] : '';
           setCaption(captionText);
@@ -112,38 +90,25 @@ export function GalleryInput({
           }
         }
 
-        // Set up image for editing by creating a mock attachment from the existing image
-        const imageBlock = blocks[0].image;
-        // Create a mock attachment for the image
-        const mockAttachment = {
-          type: 'image' as const,
-          file: {
-            uri: imageBlock.src,
-            width: imageBlock.width,
-            height: imageBlock.height,
-          } as ImagePickerAsset,
-          uploadState: {
-            status: 'complete' as const,
-            remoteUri: imageBlock.src,
-          },
-        };
+        // Set up image for editing from the existing image block
+        const imageBlock = firstBlock.image;
 
-        // Set the attachment for editing
         attachAssets([
           domain.Attachment.UploadIntent.fromImagePickerAsset(
-            mockAttachment.file
+            {
+              uri: imageBlock.src,
+              width: imageBlock.width,
+              height: imageBlock.height,
+            } as ImagePickerAsset
           ),
         ]);
         setCanPost(true);
-      } else if (blocks.length > 0 && 'link' in blocks[0]) {
+      } else if (firstBlock && 'link' in firstBlock) {
         // This is a link gallery post
-        const linkBlock = blocks[0].link as { url: string };
-        console.log('linkBlock', linkBlock);
-        const mockAttachment: domain.LinkAttachment = {
+        addAttachment({
           type: 'link' as const,
-          url: linkBlock.url,
-        };
-        addAttachment(mockAttachment);
+          url: firstBlock.link.url,
+        });
         setRoute('link');
         setCanPost(true);
       } else {
@@ -156,7 +121,7 @@ export function GalleryInput({
       // Default to text input if we can't determine the type
       setRoute('text');
     }
-  }, [editingPost, storeDraft, attachAssets, addAttachment, videoUploadPlayback]);
+  }, [editingPost, storeDraft, attachAssets, addAttachment]);
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {

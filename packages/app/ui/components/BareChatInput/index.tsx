@@ -37,7 +37,6 @@ import {
 
 import { useAttachmentContext, useStore } from '../../contexts';
 import { useFeatureFlag } from '../../../lib/featureFlags';
-import { getHydratedVideoAttachments } from '../../utils/videoHydration';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -735,17 +734,11 @@ export default function BareChatInput({
               references: postReferences,
               blocks,
             } = extractContentTypesFromPost(editingPost);
-            const videoAttachments = getHydratedVideoAttachments(
-              editingPost,
-              videoUploadPlayback
-            );
-            const hasVideoAttachment = videoAttachments.length > 0;
 
             if (
               story === null &&
               !postReferences &&
-              blocks.length === 0 &&
-              !hasVideoAttachment
+              blocks.length === 0
             ) {
               setHasSetInitialContent(true);
               return;
@@ -783,7 +776,6 @@ export default function BareChatInput({
                 });
               }
             });
-            attachments.push(...videoAttachments);
 
             resetAttachments(attachments);
             const jsonContent = diaryMixedToJSON(
@@ -824,7 +816,6 @@ export default function BareChatInput({
     resetAttachments,
     addAttachment,
     setMentions,
-    videoUploadPlayback,
   ]);
 
   useEffect(() => {
