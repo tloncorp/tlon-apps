@@ -66,7 +66,12 @@ let measurement: ChatListSettleMeasurement | null = null;
 let lastChats: db.GroupedChats | null = null;
 let settleIdleTimer: ReturnType<typeof setTimeout> | null = null;
 let settleCheckpointTimer: ReturnType<typeof setTimeout> | null = null;
+let chatListIsFocused = false;
 const measurementStartObservers = new Set<() => void>();
+
+export function setChatListFocused(focused: boolean) {
+  chatListIsFocused = focused;
+}
 
 function clearSettleTimers() {
   if (settleIdleTimer) {
@@ -279,6 +284,9 @@ function queueSettleIfReady(startedAt: number) {
 }
 
 export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
+  if (!chatListIsFocused) {
+    return;
+  }
   clearSettleTimers();
   const startedAt = Date.now();
   measurement = {
