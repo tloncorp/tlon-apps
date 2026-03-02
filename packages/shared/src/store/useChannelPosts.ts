@@ -15,6 +15,7 @@ import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
+import { useDetectSequenceRegression } from './useDetectSequenceRegression';
 import { mergePendingPosts } from './useMergePendingPosts';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -226,6 +227,12 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
   useTrackReady(posts, query, options.channelId);
+  useDetectSequenceRegression(
+    posts,
+    options.channelId,
+    options.mode,
+    options.cursorPostId
+  );
 
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),
