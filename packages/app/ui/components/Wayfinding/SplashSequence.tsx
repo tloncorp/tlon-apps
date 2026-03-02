@@ -36,7 +36,6 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { RadioInput } from '../Form/inputs';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -141,6 +140,20 @@ const SplashTitle = styled(Text, {
 const SplashParagraph = styled(Text, {
   size: '$body',
   marginHorizontal: '$xl',
+});
+
+const BotPersonaButton = styled(YStack, {
+  marginHorizontal: '$xl',
+  padding: '$l',
+  borderWidth: 1,
+  borderRadius: '$l',
+  borderColor: '$border',
+  backgroundColor: '$background',
+  gap: '$s',
+  cursor: 'pointer',
+  pressStyle: {
+    backgroundColor: '$secondaryBackground',
+  },
 });
 
 export function WelcomePane(props: {
@@ -432,6 +445,13 @@ export function TlonBotPane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const [selectedPersona, setSelectedPersona] = useState<string | undefined>();
+  const handlePersonaPress = useCallback(
+    (persona: string) => {
+      setSelectedPersona(persona);
+      props.onActionPress();
+    },
+    [props]
+  );
 
   return (
     <View flex={1}>
@@ -448,20 +468,24 @@ export function TlonBotPane(props: {
             Your Tlon computer comes with a bot called tlonbot. Choose a persona
             to shape how it interacts with you.
           </SplashParagraph>
-          <RadioInput
-            options={botPersonaOptions}
-            value={selectedPersona}
-            onChange={setSelectedPersona}
-          />
-          <Button
-            onPress={props.onActionPress}
-            label="Next"
-            preset="hero"
-            shadow
-            disabled={!selectedPersona}
-            marginHorizontal="$xl"
-            marginTop="$xl"
-          />
+          <YStack gap="$m" marginTop="$l">
+            {botPersonaOptions.map((option) => {
+              const selected = selectedPersona === option.value;
+              return (
+                <BotPersonaButton
+                  key={option.value}
+                  onPress={() => handlePersonaPress(option.value)}
+                  borderColor={selected ? '$positiveActionText' : '$border'}
+                  backgroundColor={selected ? '$positiveBackground' : '$background'}
+                >
+                  <Text size="$label/xl">{option.title}</Text>
+                  <Text size="$label/m" color="$secondaryText">
+                    {option.description}
+                  </Text>
+                </BotPersonaButton>
+              );
+            })}
+          </YStack>
         </YStack>
       </ScrollView>
     </View>
