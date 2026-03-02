@@ -5,7 +5,7 @@ import { getChannelPosts } from '@tloncorp/shared/api';
 const logger = createDevLogger('PushNotifTapTelemetry', false);
 const PUSH_TAP_CHECK_EVENT = 'Push Tap Correctness Check';
 const DEADLINE_MS = 5000;
-const RENDERED_POST_ID_LIMIT = 120;
+
 
 type PushNotifMeasurement = {
   channelId: string;
@@ -185,10 +185,7 @@ export function reportPushNotifChannelRendered(
     return;
   }
 
-  current.lastRenderedPostIds = renderedPostIds.slice(
-    0,
-    RENDERED_POST_ID_LIMIT
-  );
+  current.lastRenderedPostIds = renderedPostIds;
   if (renderContext) {
     current.renderedNewestSequenceNum = renderContext.newestSequenceNum;
     current.renderedOldestSequenceNum = renderContext.oldestSequenceNum;
