@@ -302,8 +302,14 @@
     =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
     =*  supported  |(is-msg is-init is-flag is-group)
     ?.  supported  $(stream rest)
-    =?  notified  &(notify.volume notified.event)  &
-    =?  notify-count  &(notify.volume notified.event)  +(notify-count)
+    =/  was-notified=?
+      ?|  &(notify.volume notified.event)
+          ?&  notify.volume
+              ?=(?(%post-reaction %dm-post-reaction) -<.event)
+          ==
+      ==
+    =?  notified  was-notified  &
+    =?  notify-count  was-notified  +(notify-count)
     =.  newest  (max newest time)
     ?.  ?&  unreads.volume
             ?=(?(%dm-post %dm-post-reaction %dm-reply %post %post-reaction %reply %group-ask) -<.event)
@@ -311,7 +317,7 @@
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
-    =?  main-notified  &(notify:volume notified.event)  &
+    =?  main-notified  was-notified  &
     ?:  ?=(%group-ask -<.event)
       $(stream rest)
     =.  last

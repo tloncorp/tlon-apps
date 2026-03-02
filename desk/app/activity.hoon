@@ -637,7 +637,13 @@
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
-  ?.  ?&  ?|(notified.event ?=(%contact -<.event))
+  =/  is-notified=?
+    ?|  notified.event
+        ?&  notify:(get-volume:evt volume-settings -.event)
+            ?=(?(%post-reaction %dm-post-reaction) -<.event)
+        ==
+    ==
+  ?.  ?&  ?|(is-notified ?=(%contact -<.event))
           (lth latest.src-info start)
           ?=  $?  %post  %post-reaction
                   %reply
@@ -1021,7 +1027,7 @@
     (get-children:src indices source)
   =^  [nr=_reads nu=_updates]  cor
     ?:  =(~ children)  [[reads updates] cor]
-    :: REVIEW  are we concerned about doing sources twice?
+    :: review  are we concerned about doing sources twice?
     $(sources children, from-parent &)
   =.  reads  nr
   =.  updates  nu
