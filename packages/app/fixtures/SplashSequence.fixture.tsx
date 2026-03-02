@@ -8,6 +8,7 @@ import {
   GroupsPane,
   ChannelsPane,
   PrivacyPane,
+  TlonBotPane,
   InvitePane,
   InviteContactsContent,
 } from '../ui/components/Wayfinding/SplashSequence';

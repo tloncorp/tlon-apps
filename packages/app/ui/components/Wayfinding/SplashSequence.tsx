@@ -36,6 +36,7 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
+import { RadioInput } from '../Form/inputs';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -47,6 +48,7 @@ enum SplashPane {
   Group = 'Group',
   Channels = 'Channels',
   Privacy = 'Privacy',
+  TlonBot = 'TlonBot',
   Invite = 'Invite',
 }
 
@@ -65,6 +67,7 @@ function SplashSequenceComponent(props: {
   onCompleted: () => void;
   systemContacts?: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
+  hostingBotEnabled?: boolean;
 }) {
   const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
@@ -76,6 +79,12 @@ function SplashSequenceComponent(props: {
     store.completeWayfindingSplash();
     props.onCompleted();
   }, [props, store]);
+
+  const handlePrivacyNext = useCallback(() => {
+    setCurrentPane(
+      props.hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Invite
+    );
+  }, [props.hostingBotEnabled]);
 
   return (
     <View flex={1}>
@@ -99,6 +108,12 @@ function SplashSequenceComponent(props: {
       )}
       {currentPane === 'Privacy' && (
         <PrivacyPane
+          onActionPress={handlePrivacyNext}
+          deviceSize={deviceSize}
+        />
+      )}
+      {currentPane === 'TlonBot' && (
+        <TlonBotPane
           onActionPress={() => setCurrentPane(SplashPane.Invite)}
           deviceSize={deviceSize}
         />
@@ -381,6 +396,75 @@ export function PrivacyPane(props: {
         </ScrollView>
       </View>
     </ZStack>
+  );
+}
+
+const botPersonaOptions = [
+  {
+    title: 'Information assistant',
+    description:
+      'Monitors topics like weather, markets, and headlines. Sends concise updates via DM.',
+    value: 'assistant' as const,
+  },
+  {
+    title: 'Thinking companion',
+    description:
+      'A low-stakes conversational partner to talk through ideas, decisions, or just decompress.',
+    value: 'companion' as const,
+  },
+  {
+    title: 'Visual researcher',
+    description:
+      'Autonomously discovers and curates images, posting to a gallery channel based on your interests.',
+    value: 'researcher' as const,
+  },
+  {
+    title: 'Agent of chaos',
+    description:
+      'Interacts with other bots and humans in groups. Introduces prompts, games, and unexpected turns.',
+    value: 'chaos' as const,
+  },
+];
+
+export function TlonBotPane(props: {
+  onActionPress: () => void;
+  deviceSize: DeviceSize;
+}) {
+  const insets = useSafeAreaInsets();
+  const [selectedPersona, setSelectedPersona] = useState<string | undefined>();
+
+  return (
+    <View flex={1}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <YStack gap={'$2xl'} marginTop="$4xl">
+          <SplashTitle>
+            Meet your <Text color="$positiveActionText">bot.</Text>
+          </SplashTitle>
+          <SplashParagraph>
+            Your Tlon computer comes with a bot called tlonbot. Choose a persona
+            to shape how it interacts with you.
+          </SplashParagraph>
+          <RadioInput
+            options={botPersonaOptions}
+            value={selectedPersona}
+            onChange={setSelectedPersona}
+          />
+          <Button
+            onPress={props.onActionPress}
+            label="Next"
+            preset="hero"
+            shadow
+            disabled={!selectedPersona}
+            marginHorizontal="$xl"
+            marginTop="$xl"
+          />
+        </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
