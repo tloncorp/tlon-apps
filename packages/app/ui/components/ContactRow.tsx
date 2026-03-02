@@ -45,7 +45,8 @@ function ContactRowItemRaw({
       backgroundColor={backgroundColor}
       pressStyle={disabled ? undefined : pressStyle}
       borderRadius="$xl"
-      onPress={handlePress(contact.id)}
+      disabled={disabled}
+      onPress={disabled ? undefined : handlePress(contact.id)}
       testID="ContactRow"
       opacity={disabled ? 0.4 : 1}
     >
