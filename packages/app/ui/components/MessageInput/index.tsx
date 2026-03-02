@@ -63,7 +63,7 @@ import {
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
-import { getHydratedVideoBlocks } from '../../utils/videoHydration';
+import { getHydratedVideoAttachments } from '../../utils/videoHydration';
 import { useFeatureFlag } from '../../../lib/featureFlags';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
@@ -272,11 +272,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 references: postReferences,
                 blocks,
               } = extractContentTypesFromPost(editingPost);
-              const videoBlocks = getHydratedVideoBlocks(
+              const videoAttachments = getHydratedVideoAttachments(
                 editingPost,
                 videoUploadPlayback
               );
-              const hasVideoAttachment = videoBlocks.length > 0;
+              const hasVideoAttachment = videoAttachments.length > 0;
 
               if (
                 story === null &&
@@ -311,17 +311,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 }
                 // Handle other block types if needed in the future
               });
-              videoBlocks.forEach((block) => {
-                attachments.push({
-                  type: 'video',
-                  localFile: block.src,
-                  size: -1,
-                  mimeType: undefined,
-                  name: block.alt,
-                  width: block.width,
-                  height: block.height,
-                });
-              });
+              attachments.push(...videoAttachments);
 
               resetAttachments(attachments);
 

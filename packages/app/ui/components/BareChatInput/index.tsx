@@ -37,7 +37,7 @@ import {
 
 import { useAttachmentContext, useStore } from '../../contexts';
 import { useFeatureFlag } from '../../../lib/featureFlags';
-import { getHydratedVideoBlocks } from '../../utils/videoHydration';
+import { getHydratedVideoAttachments } from '../../utils/videoHydration';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -735,11 +735,11 @@ export default function BareChatInput({
               references: postReferences,
               blocks,
             } = extractContentTypesFromPost(editingPost);
-            const videoBlocks = getHydratedVideoBlocks(
+            const videoAttachments = getHydratedVideoAttachments(
               editingPost,
               videoUploadPlayback
             );
-            const hasVideoAttachment = videoBlocks.length > 0;
+            const hasVideoAttachment = videoAttachments.length > 0;
 
             if (
               story === null &&
@@ -783,17 +783,7 @@ export default function BareChatInput({
                 });
               }
             });
-            videoBlocks.forEach((block) => {
-              attachments.push({
-                type: 'video',
-                localFile: block.src,
-                size: -1,
-                mimeType: undefined,
-                name: block.alt,
-                width: block.width,
-                height: block.height,
-              });
-            });
+            attachments.push(...videoAttachments);
 
             resetAttachments(attachments);
             const jsonContent = diaryMixedToJSON(

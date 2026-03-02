@@ -1,4 +1,9 @@
-import { FileAttachment, ImageAttachment, VideoAttachment } from '@tloncorp/shared';
+import {
+  FileAttachment,
+  ImageAttachment,
+  VideoAttachment,
+  videoPreviewUri,
+} from '@tloncorp/shared';
 import { useMemo } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View } from 'tamagui';
@@ -82,11 +87,10 @@ function ContentVideo({
 }: {
   videoAttachment: VideoAttachment;
 }) {
-  const uri =
-    videoAttachment.posterUri ??
-    (videoAttachment.localFile instanceof File
-      ? URL.createObjectURL(videoAttachment.localFile)
-      : videoAttachment.localFile);
+  const uri = videoPreviewUri(videoAttachment);
+  if (!uri) {
+    return null;
+  }
   return (
     <ImageBackground
       source={{ uri }}

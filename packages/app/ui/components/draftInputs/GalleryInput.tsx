@@ -21,7 +21,7 @@ import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { useFeatureFlag } from '../../../lib/featureFlags';
-import { getHydratedVideoBlocks } from '../../utils/videoHydration';
+import { getHydratedVideoAttachments } from '../../utils/videoHydration';
 import AddGalleryPost from '../AddGalleryPost';
 import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
@@ -66,23 +66,23 @@ export function GalleryInput({
 
     try {
       const { blocks } = extractContentTypesFromPost(editingPost);
-      const videoBlock = getHydratedVideoBlocks(
+      const videoAttachment = getHydratedVideoAttachments(
         editingPost,
         videoUploadPlayback
       )[0];
 
       // Check if the first block is an image or link - if so, handle it specially
-      if (videoBlock && videoBlock.type === 'video') {
+      if (videoAttachment) {
         setRoute('review-attachment');
         attachAssets([
           {
             type: 'fileUri',
-            localUri: videoBlock.src,
-            name: videoBlock.alt,
+            localUri: videoAttachment.localFile,
+            name: videoAttachment.name,
             size: -1,
             video: {
-              width: videoBlock.width,
-              height: videoBlock.height,
+              width: videoAttachment.width,
+              height: videoAttachment.height,
             },
           },
         ]);

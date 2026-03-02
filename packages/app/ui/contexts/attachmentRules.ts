@@ -14,6 +14,75 @@ export type AttachmentValidationResult =
   | { ok: true }
   | { ok: false; reason: string; kind: 'composition' | 'validation' };
 
+type VideoCandidate = {
+  mimeType?: string;
+  name?: string;
+  uri?: string;
+  size?: number;
+};
+
+type VideoValidationResult = { ok: true } | { ok: false; reason: string };
+
+function isRemoteUri(uri: string | undefined): boolean {
+  return !!uri && (uri.startsWith('http://') || uri.startsWith('https://'));
+}
+
+export function isLikelyVideoSource({
+  mimeType,
+  name,
+  uri,
+}: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): boolean {
+  return (
+    (!!mimeType && mimeType.toLowerCase().startsWith('video/')) ||
+    (!!name && VIDEO_EXTENSION_REGEX.test(name)) ||
+    (!!uri && VIDEO_EXTENSION_REGEX.test(uri))
+  );
+}
+
+export function validateVideoSource(
+  {
+    mimeType,
+    size,
+    name,
+    uri,
+  }: VideoCandidate,
+  opts: { allowUnknownSizeRemote?: boolean } = {}
+): VideoValidationResult {
+  const allowUnknownSizeRemote = opts.allowUnknownSizeRemote ?? false;
+  if (size == null || size < 0) {
+    if (!(allowUnknownSizeRemote && isRemoteUri(uri))) {
+      return {
+        ok: false,
+        reason: 'Unable to determine video size',
+      };
+    }
+  }
+  if (size != null && size > MAX_VIDEO_SIZE_BYTES) {
+    return {
+      ok: false,
+      reason: 'Video exceeds the 100MB upload limit',
+    };
+  }
+  if (mimeType) {
+    const normalizedMimeType = mimeType.toLowerCase();
+    if (!VIDEO_MIME_ALLOWLIST.has(normalizedMimeType)) {
+      return {
+        ok: false,
+        reason: `Unsupported video format: ${normalizedMimeType}`,
+      };
+    }
+    return { ok: true };
+  }
+  const formatCandidate = name ?? uri;
+  if (!formatCandidate || !VIDEO_EXTENSION_REGEX.test(formatCandidate)) {
+    return {
+      ok: false,
+      reason: 'Unsupported video format',
+    };
+  }
+  return { ok: true };
+}
+
 function getVideoName(video: Extract<Attachment, { type: 'video' }>): string {
   if (video.name) {
     return video.name;
@@ -34,41 +103,23 @@ export function canAddAttachment(
   nextAttachment: Attachment
 ): AttachmentValidationResult {
   if (nextAttachment.type === 'video') {
-    const mimeType = nextAttachment.mimeType?.toLowerCase();
-    const localUri =
-      typeof nextAttachment.localFile === 'string'
-        ? nextAttachment.localFile
-        : null;
-    const isRemoteUri =
-      localUri != null &&
-      (localUri.startsWith('http://') || localUri.startsWith('https://'));
     const name = getVideoName(nextAttachment);
-
-    if (nextAttachment.size < 0 && !isRemoteUri) {
+    const validation = validateVideoSource(
+      {
+        mimeType: nextAttachment.mimeType,
+        size: nextAttachment.size,
+        name,
+        uri:
+          typeof nextAttachment.localFile === 'string'
+            ? nextAttachment.localFile
+            : undefined,
+      },
+      { allowUnknownSizeRemote: true }
+    );
+    if (!validation.ok) {
       return {
         ok: false,
-        reason: 'Unable to determine video size',
-        kind: 'validation',
-      };
-    }
-    if (nextAttachment.size > MAX_VIDEO_SIZE_BYTES) {
-      return {
-        ok: false,
-        reason: 'Video exceeds the 100MB upload limit',
-        kind: 'validation',
-      };
-    }
-    if (mimeType && !VIDEO_MIME_ALLOWLIST.has(mimeType)) {
-      return {
-        ok: false,
-        reason: `Unsupported video format: ${mimeType}`,
-        kind: 'validation',
-      };
-    }
-    if (!mimeType && !VIDEO_EXTENSION_REGEX.test(name)) {
-      return {
-        ok: false,
-        reason: 'Unsupported video format',
+        reason: validation.reason,
         kind: 'validation',
       };
     }
