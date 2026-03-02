@@ -149,7 +149,7 @@ const BotPersonaButton = styled(YStack, {
   borderRadius: '$l',
   borderColor: '$border',
   backgroundColor: '$background',
-  gap: '$s',
+  gap: '$xl',
   cursor: 'pointer',
   pressStyle: {
     backgroundColor: '$secondaryBackground',
@@ -460,13 +460,13 @@ export function TlonBotPane(props: {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack gap={'$2xl'} marginTop="$4xl">
+        <YStack gap={'$2xl'} marginTop="$6xl">
           <SplashTitle>
-            Meet your <Text color="$positiveActionText">bot.</Text>
+            Meet your <Text color="$positiveActionText">Tlonbot.</Text>
           </SplashTitle>
           <SplashParagraph>
-            Your Tlon computer comes with a bot called tlonbot. Choose a persona
-            to shape how it interacts with you.
+            Your Tlon Messenger node comes with an AI agent called Tlonbot.
+            Choose a persona to shape how it interacts with you.
           </SplashParagraph>
           <YStack gap="$m" marginTop="$l">
             {botPersonaOptions.map((option) => {
@@ -476,7 +476,9 @@ export function TlonBotPane(props: {
                   key={option.value}
                   onPress={() => handlePersonaPress(option.value)}
                   borderColor={selected ? '$positiveActionText' : '$border'}
-                  backgroundColor={selected ? '$positiveBackground' : '$background'}
+                  backgroundColor={
+                    selected ? '$positiveBackground' : '$background'
+                  }
                 >
                   <Text size="$label/xl">{option.title}</Text>
                   <Text size="$label/m" color="$secondaryText">
