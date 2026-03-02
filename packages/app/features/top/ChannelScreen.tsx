@@ -239,6 +239,8 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     posts: filteredPosts,
     isFocused,
+    cursorPostId: cursor || null,
+    channelMode: cursor && !clearedCursor ? 'around' : 'newest',
   });
 
   const handleDeletePost = useCallback(

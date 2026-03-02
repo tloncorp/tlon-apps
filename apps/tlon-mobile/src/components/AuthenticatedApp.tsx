@@ -117,7 +117,7 @@ function AuthenticatedApp() {
           event.neededToSyncLatestPosts,
           event.unreadTargets
         );
-        void markPushNotifTapSyncSinceComplete(
+        markPushNotifTapSyncSinceComplete(
           event.result,
           event.durationMs,
           event.nodeBusyStatus,
