@@ -1,11 +1,12 @@
 import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
+import * as urbit from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
-import * as urbit from '@tloncorp/api/urbit';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -921,4 +922,3 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
     }
   }
 }
-
