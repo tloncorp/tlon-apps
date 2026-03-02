@@ -87,6 +87,8 @@ export function ActivityScreenView({
       switch (event.type) {
         case 'flag-post':
         case 'post':
+        case 'post-reaction':
+        case 'dm-post-reaction':
           if (event.channel) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               ...logic.getModelAnalytics({ channel: event.channel }),

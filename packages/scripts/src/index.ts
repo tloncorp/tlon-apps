@@ -162,6 +162,9 @@ export function renderActivityEventPreview({
       },
     };
   }
+  function reactionToString(react: ub.React): string {
+    return typeof react === 'string' ? react : react.any;
+  }
 
   const is = ActivityIncomingEvent.is;
   switch (true) {
@@ -171,8 +174,33 @@ export function renderActivityEventPreview({
       return buildPostNotification(ev.reply);
     case is(ev, 'dm-post'):
       return buildDmNotification(ev['dm-post']);
+    case is(ev, 'dm-post-reaction'):
+      return {
+        notification: {
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(ev['dm-post-reaction'].reactor),
+            lit(' reacted with '),
+            lit(reactionToString(ev['dm-post-reaction'].react)),
+            lit(' to your post'),
+          ]),
+        },
+      };
     case is(ev, 'dm-reply'):
       return buildDmNotification(ev['dm-reply']);
+
+    case is(ev, 'post-reaction'):
+      return {
+        notification: {
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(ev['post-reaction'].reactor),
+            lit(' reacted with '),
+            lit(reactionToString(ev['post-reaction'].react)),
+            lit(' to your post'),
+          ]),
+        },
+      };
 
     case is(ev, 'dm-invite'):
       return {

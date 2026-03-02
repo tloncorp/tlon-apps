@@ -205,8 +205,15 @@
     |=  [vs=volume-settings:a event=incoming-event:a]
     ^-  volume:a
     =/  source  (source:evt event)
+    =/  type  (event-type event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
-    (~(gut by loudness) (event-type event) [unreads=& notify=|])
+    =/  vol=volume:a  (~(gut by loudness) type [unreads=& notify=|])
+    ?:  ?&  ?=(?(%post-reaction %dm-post-reaction) type)
+            unreads.vol
+            ?!(notify.vol)
+        ==
+      vol(notify &)
+    vol
   ::
   --
 ::

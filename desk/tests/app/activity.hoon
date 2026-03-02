@@ -75,8 +75,8 @@
   =/  source=source:a  [%dm whom]
   =/  summary=activity-summary:a  (~(got by activity.state-8) source)
   ;<  *  bind:m  (ex-equal !>(count.summary) !>(1))
-  ;<  *  bind:m  (ex-equal !>(notify-count.summary) !>(0))
-  (ex-equal !>(unread.summary) !>(`[key 1 |]))
+  ;<  *  bind:m  (ex-equal !>(notify-count.summary) !>(1))
+  (ex-equal !>(unread.summary) !>(`[key 1 &]))
 +$  state-8
   $:  %8
       allowed=notifications-allowed:a

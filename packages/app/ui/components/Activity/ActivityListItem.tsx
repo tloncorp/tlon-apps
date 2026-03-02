@@ -28,6 +28,8 @@ export const ActivityListItem = React.memo(function ActivityListItem({
 
   if (
     event.type === 'post' ||
+    event.type === 'post-reaction' ||
+    event.type === 'dm-post-reaction' ||
     event.type === 'reply' ||
     event.type === 'flag-post' ||
     event.type === 'flag-reply' ||
@@ -62,7 +64,9 @@ export function ActivityListItemContent({
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   const modelUnread =
-    summary.type === 'post'
+    summary.type === 'post' ||
+    summary.type === 'post-reaction' ||
+    summary.type === 'dm-post-reaction'
       ? newestPost.channel?.unread ?? null
       : summary.type === 'group-ask'
         ? newestPost.group?.unread ?? null
@@ -116,7 +120,9 @@ export function ActivityListItemContent({
 
         <YStack>
           <SummaryMessage summary={summary} />
-          {!['group-ask'].includes(summary.type) ? (
+          {!['group-ask', 'post-reaction', 'dm-post-reaction'].includes(
+            summary.type
+          ) ? (
             <ActivitySourceContent
               summary={summary}
               pressHandler={pressHandler}

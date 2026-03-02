@@ -264,14 +264,14 @@
   ^-  (map event-type volume)
   %-  my
   :~  [%post & &]
-      [%post-reaction & |]
+      [%post-reaction & &]
       [%reply & |]
       [%dm-reply & &]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
       [%dm-post & &]
-      [%dm-post-reaction & |]
+      [%dm-post-reaction & &]
       [%dm-post-mention & &]
       [%dm-reply-mention & &]
       [%group-invite & &]

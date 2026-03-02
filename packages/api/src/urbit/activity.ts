@@ -2,7 +2,7 @@ import { da } from '@urbit/aura';
 import _ from 'lodash';
 
 import type { UnionToIntersection } from '../lib/utilityTypes';
-import { Kind, Story } from './channel';
+import { Kind, React as ChannelReact, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
 import { parseIdNumber } from '../client/apiUtils';
@@ -11,11 +11,13 @@ export type Whom = { ship: string } | { club: string };
 
 export type ExtendedEventType =
   | 'post'
+  | 'post-reaction'
   | 'post-mention'
   | 'reply'
   | 'reply-mention'
   | 'dm-invite'
   | 'dm-post'
+  | 'dm-post-reaction'
   | 'dm-post-mention'
   | 'dm-reply'
   | 'dm-reply-mention'
@@ -127,6 +129,15 @@ export interface DmPostEvent {
   };
 }
 
+export interface DmPostReactionEvent {
+  'dm-post-reaction': {
+    key: MessageKey;
+    whom: Whom;
+    reactor: string;
+    react: ChannelReact;
+  };
+}
+
 export interface DmReplyEvent {
   'dm-reply': {
     parent: MessageKey;
@@ -144,6 +155,16 @@ export interface PostEvent {
     channel: string;
     content: Story;
     mention: boolean;
+  };
+}
+
+export interface PostReactionEvent {
+  'post-reaction': {
+    key: MessageKey;
+    group: string;
+    channel: string;
+    reactor: string;
+    react: ChannelReact;
   };
 }
 
@@ -175,8 +196,10 @@ export type ActivityIncomingEvent =
   | FlagReplyEvent
   | DmInviteEvent
   | DmPostEvent
+  | DmPostReactionEvent
   | DmReplyEvent
   | PostEvent
+  | PostReactionEvent
   | ReplyEvent
   | ContactEvent;
 
@@ -381,7 +404,9 @@ export function sourceToString(source: Source, stripPrefix = false): string {
 }
 
 const onEvents: ExtendedEventType[] = [
+  'post-reaction',
   'dm-reply',
+  'dm-post-reaction',
   'post-mention',
   'reply-mention',
   'dm-invite',
@@ -404,11 +429,13 @@ const notifyOffEvents: ExtendedEventType[] = [
 
 const allEvents: ExtendedEventType[] = [
   'post',
+  'post-reaction',
   'post-mention',
   'reply',
   'reply-mention',
   'dm-invite',
   'dm-post',
+  'dm-post-reaction',
   'dm-post-mention',
   'dm-reply',
   'dm-reply-mention',
@@ -596,8 +623,10 @@ export function getThreadKey(whom: string, id: string) {
 export const isMessage = (event: ActivityEvent) => {
   return (
     'post' in event ||
+    'post-reaction' in event ||
     'reply' in event ||
     'dm-post' in event ||
+    'dm-post-reaction' in event ||
     'dm-reply' in event
   );
 };
@@ -688,6 +717,15 @@ export function getSourceForEvent(event: ActivityEvent): Source {
     return { channel: { nest: event.post.channel, group: event.post.group } };
   }
 
+  if ('post-reaction' in event) {
+    return {
+      channel: {
+        nest: event['post-reaction'].channel,
+        group: event['post-reaction'].group,
+      },
+    };
+  }
+
   if ('reply' in event) {
     return {
       thread: {
@@ -704,6 +742,10 @@ export function getSourceForEvent(event: ActivityEvent): Source {
 
   if ('dm-post' in event) {
     return { dm: event['dm-post'].whom };
+  }
+
+  if ('dm-post-reaction' in event) {
+    return { dm: event['dm-post-reaction'].whom };
   }
 
   if ('dm-reply' in event) {
@@ -795,6 +837,14 @@ export function getAuthor(event: ActivityEvent) {
     return getIdParts(event['dm-reply'].key.id).author;
   }
 
+  if ('post-reaction' in event) {
+    return event['post-reaction'].reactor;
+  }
+
+  if ('dm-post-reaction' in event) {
+    return event['dm-post-reaction'].reactor;
+  }
+
   if ('flag-post' in event) {
     return getIdParts(event['flag-post'].key.id).author;
   }
@@ -821,6 +871,7 @@ export type ActivityRelevancy =
   | 'involvedThread'
   | 'replyToGalleryOrNote'
   | 'replyToChatPost'
+  | 'reactionToYourPost'
   | 'dm'
   | 'groupchat'
   | 'postInYourChannel'
@@ -844,6 +895,17 @@ export function getRelevancy(
 
   if ('dm-post' in event && 'club' in event['dm-post'].whom) {
     return 'groupchat';
+  }
+
+  if ('post-reaction' in event && event['post-reaction'].key.id.includes(us)) {
+    return 'reactionToYourPost';
+  }
+
+  if (
+    'dm-post-reaction' in event &&
+    event['dm-post-reaction'].key.id.includes(us)
+  ) {
+    return 'reactionToYourPost';
   }
 
   if ('reply' in event && event.reply.parent.id.includes(us)) {

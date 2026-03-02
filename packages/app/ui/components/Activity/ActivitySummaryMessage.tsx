@@ -25,7 +25,8 @@ function SummaryMessageRaw({
     relevancy !== 'groupJoinRequest' &&
     relevancy !== 'flaggedPost' &&
     relevancy !== 'flaggedReply' &&
-    relevancy !== 'contactUpdate'
+    relevancy !== 'contactUpdate' &&
+    relevancy !== 'reactionToYourPost'
   ) {
     return null;
   }
@@ -71,6 +72,16 @@ function SummaryMessageRaw({
 
   if (relevancy === 'replyToChatPost') {
     const message = `replied to you`;
+    return (
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {` ${message}`}
+      </SummaryText>
+    );
+  }
+
+  if (relevancy === 'reactionToYourPost') {
+    const message = `reacted to your post`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
@@ -179,6 +190,7 @@ type ActivityRelevancy =
   | 'involvedThread'
   | 'replyToGalleryOrNote'
   | 'replyToChatPost'
+  | 'reactionToYourPost'
   | 'dm'
   | 'groupchat'
   | 'postInYourChannel'
@@ -204,6 +216,10 @@ export function getRelevancy(
 
   if (newest.type === 'post' && newest.channel?.type === 'groupDm') {
     return 'groupchat';
+  }
+
+  if (newest.type === 'post-reaction' || newest.type === 'dm-post-reaction') {
+    return 'reactionToYourPost';
   }
 
   if (

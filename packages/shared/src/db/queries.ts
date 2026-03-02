@@ -4568,7 +4568,11 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                   gt($threadUnreads.count, 0)
                 ),
                 and(
-                  eq($activityEvents.type, 'post'),
+                  or(
+                    eq($activityEvents.type, 'post'),
+                    eq($activityEvents.type, 'post-reaction'),
+                    eq($activityEvents.type, 'dm-post-reaction')
+                  ),
                   gt($channelUnreads.count, 0)
                 ),
                 and(

@@ -227,6 +227,21 @@ function toActivityEvent({
     };
   }
 
+  if ('dm-post-reaction' in event) {
+    const reactionEvent = event['dm-post-reaction'];
+    const { postId } = getInfoFromMessageKey(reactionEvent.key, true);
+    return {
+      ...baseFields,
+      type: 'dm-post-reaction',
+      postId,
+      authorId: reactionEvent.reactor,
+      channelId:
+        'ship' in reactionEvent.whom
+          ? reactionEvent.whom.ship
+          : reactionEvent.whom.club,
+    };
+  }
+
   if ('dm-reply' in event) {
     const replyEvent = event['dm-reply'];
     const { authorId, postId } = getInfoFromMessageKey(replyEvent.key, true);
@@ -243,6 +258,19 @@ function toActivityEvent({
         'ship' in replyEvent.whom ? replyEvent.whom.ship : replyEvent.whom.club,
       content: replyEvent.content,
       isMention: replyEvent.mention,
+    };
+  }
+
+  if ('post-reaction' in event) {
+    const reactionEvent = event['post-reaction'];
+    const { postId } = getInfoFromMessageKey(reactionEvent.key);
+    return {
+      ...baseFields,
+      type: 'post-reaction',
+      postId,
+      authorId: reactionEvent.reactor,
+      channelId: reactionEvent.channel,
+      groupId: reactionEvent.group,
     };
   }
 

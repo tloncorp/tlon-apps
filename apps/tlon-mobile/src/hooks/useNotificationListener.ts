@@ -98,38 +98,52 @@ function payloadFromNotification(
     };
     const is = ActivityIncomingEvent.is;
 
-    const authorAndId = (id: string) => ({
-      id: api.getCanonicalPostId(id),
-      authorId: ub.getIdParts(id).author,
+    const postInfoFromMessageKey = (
+      key: { id: string; time: string },
+      isDm: boolean
+    ): PostInfo => ({
+      id: api.getCanonicalPostId(isDm ? key.id : key.time),
+      authorId: ub.getIdParts(key.id).author,
+      isDm,
     });
 
     const dmTarget = (
       info: Pick<ub.DmPostEvent['dm-post'], 'whom'>,
-      { parent }: { parent?: ub.DmReplyEvent['dm-reply']['parent'] } = {}
+      {
+        parent,
+        key,
+      }: {
+        parent?: ub.DmReplyEvent['dm-reply']['parent'];
+        key?: ub.DmPostReactionEvent['dm-post-reaction']['key'];
+      } = {}
     ) => ({
       ...baseNotificationData,
       channelId: 'ship' in info.whom ? info.whom.ship : 'unknown',
       postInfo:
         parent == null
-          ? null
-          : {
-              ...authorAndId(parent.id),
-              isDm: false,
-            },
+          ? key == null
+            ? null
+            : postInfoFromMessageKey(key, true)
+          : postInfoFromMessageKey(parent, true),
     });
     const channelPostTarget = (
       info: Pick<ub.PostEvent['post'], 'channel'>,
-      { parent }: { parent?: ub.ReplyEvent['reply']['parent'] } = {}
+      {
+        parent,
+        key,
+      }: {
+        parent?: ub.ReplyEvent['reply']['parent'];
+        key?: ub.PostReactionEvent['post-reaction']['key'];
+      } = {}
     ) => ({
       ...baseNotificationData,
       channelId: info.channel,
       postInfo:
         parent == null
-          ? null
-          : {
-              ...authorAndId(parent.id),
-              isDm: false,
-            },
+          ? key == null
+            ? null
+            : postInfoFromMessageKey(key, false)
+          : postInfoFromMessageKey(parent, false),
     });
 
     const groupAskTarget = (info: { group: string }): NotificationData => {
@@ -144,11 +158,21 @@ function payloadFromNotification(
       case is(ev, 'dm-post'):
         return dmTarget(ev['dm-post']);
 
+      case is(ev, 'dm-post-reaction'):
+        return dmTarget(ev['dm-post-reaction'], {
+          key: ev['dm-post-reaction'].key,
+        });
+
       case is(ev, 'dm-reply'):
         return dmTarget(ev['dm-reply']);
 
       case is(ev, 'post'):
         return channelPostTarget(ev.post);
+
+      case is(ev, 'post-reaction'):
+        return channelPostTarget(ev['post-reaction'], {
+          key: ev['post-reaction'].key,
+        });
 
       case is(ev, 'reply'):
         return channelPostTarget(ev.reply, { parent: ev.reply.parent });
