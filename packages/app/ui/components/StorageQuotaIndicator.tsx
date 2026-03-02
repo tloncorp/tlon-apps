@@ -129,8 +129,9 @@ export function StorageQuotaIndicator({
   return (
     <Pressable
       gap={10}
+      position="relative"
       onPress={() => storageInfoQuery.refetch()}
-      style={[{ position: 'relative' }, style]}
+      style={style}
       {...forwardedProps}
     >
       <StorageQuotaTextualProgress
@@ -159,7 +160,7 @@ export function StorageQuotaIndicator({
         >
           <View alignItems="center" gap="$xs">
             <Text>Could not fetch storage availability</Text>
-            {storageInfoQuery instanceof Error && (
+            {storageInfoQuery.error instanceof Error && (
               <Text opacity={0.5} numberOfLines={2}>
                 Error: {storageInfoQuery.error.message}
               </Text>
