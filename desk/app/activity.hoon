@@ -823,6 +823,11 @@
       =.  cor  (add-to-index source time-id event)
       (add-to-index parent-src time-id event(child &))
     ::
+        %post-reaction
+      =/  parent-src  [%group group.event]
+      =.  cor  (add-to-index source time-id event)
+      (add-to-index parent-src time-id event(child &))
+    ::
         %reply
       =/  chan-src  [%channel channel.event group.event]
       =/  group-src  [%group group.event]
@@ -975,50 +980,52 @@
   ::
   ?~  dex=(~(get by indices) source)  continue
   =*  index  u.dex
-  ?-  -.action
-      %event  ~&("read %event unsupported" !!)
-      %item   ~&("read %item unsupported" !!)
-  ::
-      %all
-    =/  new=index:a
-      ::  we can short circuit and just mark everything read, because
-      ::  we're going to also mark all children read
-      =-  index(reads [- ~])
-      ?^  time.action  u.time.action
-      =/  latest=(unit [=time event:a])
-        (ram:on-event:a stream.index)
-      ::  if we don't have an event, then this is read anyway so we can
-      ::  just reuse the floor. likely if a recursive read is happening
-      ::  from one of our parents
-      ?~(latest floor.reads.index time.u.latest)
-    ::  if we're marking deeply we need to recursively read all
-    ::  children
-    =/  children
-      ?.  deep.action  ~
-      (get-children:src indices source)
-    =^  [nr=_reads nu=_updates]  cor
-      ?:  =(~ children)  [[reads updates] cor]
-      ::REVIEW  are we concerned about doing sources twice?
-      $(sources children, from-parent &)
-    =.  reads  nr
-    =.  updates  nu
-    ::  we need to refresh our own index to reflect new reads
-    %-  (log |.("refeshing index: {<source>}"))
-    =.  indices  (~(put by indices) source new)
-    ?:  from-parent
-      =.  cor  (refresh-summary source)
-      continue
-    =/  old-summary  (~(gut by activity) source *activity-summary:a)
-    =.  cor  (refresh source)
-    =/  new-summary  (~(gut by activity) source *activity-summary:a)
-    ::  ignore newest since that will always change on read
-    ?.  !=(+.old-summary +.new-summary)  continue
-    =.  reads  [source reads]
-    =.  updates
-      %-  ~(gas in updates)
-      :(weld (get-parents:src source) ~[source] children)
+  =/  [when=(unit time) deep=?]
+    ?-  -.action
+        %event
+      =/  found=(unit time)
+        =|  events=(list [time event:a])
+        =.  events  (tap:on-event:a stream.index)
+        |-
+        ?~  events  ~
+        =/  [=time e=event:a]  i.events
+        ?:  =(-.e event.action)  `time
+        $(events t.events)
+      [found |]
+        %item
+      [`id.action |]
+    ::
+        %all
+      [time.action deep.action]
+    ==
+  =/  new=index:a
+    =-  index(reads [- ~])
+    ?^  when  u.when
+    =/  latest=(unit [=time event:a])
+      (ram:on-event:a stream.index)
+    ?~(latest floor.reads.index time.u.latest)
+  =/  children=(list source:a)
+    ?.  deep  ~
+    (get-children:src indices source)
+  =^  [nr=_reads nu=_updates]  cor
+    ?:  =(~ children)  [[reads updates] cor]
+    $(sources children, from-parent &)
+  =.  reads  nr
+  =.  updates  nu
+  %-  (log |.("refeshing index: {<source>}"))
+  =.  indices  (~(put by indices) source new)
+  ?:  from-parent
+    =.  cor  (refresh-summary source)
     continue
-  ==
+  =/  old-summary  (~(gut by activity) source *activity-summary:a)
+  =.  cor  (refresh source)
+  =/  new-summary  (~(gut by activity) source *activity-summary:a)
+  ?.  !=(+.old-summary +.new-summary)  continue
+  =.  reads  [source reads]
+  =.  updates
+    %-  ~(gas in updates)
+    :(weld (get-parents:src source) ~[source] children)
+  continue
 ::
 ++  give-reads
   |=  =source:a

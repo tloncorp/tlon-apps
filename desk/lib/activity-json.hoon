@@ -216,6 +216,14 @@
           mention/b+mention.e
       ==
     ::
+        %dm-post-reaction
+      %-  pairs
+      :~  key+(msg-key key.e)
+          whom+(whom whom.e)
+          reactor+(ship reactor.e)
+          react+(react:enjs:cj react.e)
+      ==
+    ::
         %dm-reply
       %-  pairs
       :~  parent+(msg-key parent.e)
@@ -232,6 +240,15 @@
           group/(flag:enjs:gj group.e)
           content+(story:enjs:sj content.e)
           mention/b+mention.e
+      ==
+    ::
+        %post-reaction
+      %-  pairs
+      :~  key+(msg-key key.e)
+          channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
+          reactor+(ship reactor.e)
+          react+(react:enjs:cj react.e)
       ==
     ::
         %reply
@@ -495,9 +512,11 @@
         %dm-post-mention
         %dm-reply-mention
         %post
+        %post-reaction
         %reply
         %dm-invite
         %dm-post
+        %dm-post-reaction
         %dm-reply
         %flag-post
         %flag-reply
@@ -587,10 +606,12 @@
     ^-  $-(json incoming-event:a)
     %-  of
     :~  post/post-event
+        post-reaction/post-reaction-event
         reply/reply-event
         chan-init/chan-init-event
         dm-invite/whom
         dm-post/dm-post-event
+        dm-post-reaction/dm-post-reaction-event
         dm-reply/dm-reply-event
         flag-post/flag-post-event
         flag-reply/flag-reply-event
@@ -615,6 +636,15 @@
         mention/bo
     ==
   ::
+  ++  post-reaction-event
+    %-  ot
+    :~  key/msg-key
+        channel/nest:dejs:cj
+        group/flag:dejs:gj
+        reactor/ship
+        react/react:dejs:cj
+    ==
+  ::
   ++  reply-event
     %-  ot
     :~  key/msg-key
@@ -631,6 +661,14 @@
         whom/whom
         content/story:dejs:sj
         mention/bo
+    ==
+  ::
+  ++  dm-post-reaction-event
+    %-  ot
+    :~  key/msg-key
+        whom/whom
+        reactor/ship
+        react/react:dejs:cj
     ==
   ::
   ++  dm-reply-event

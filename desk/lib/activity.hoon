@@ -139,7 +139,7 @@
       $(new-floor `time, stream rest)
     ::  treat all other events as read
     ?+  -<.event  &
-        ?(%dm-post %dm-reply %post %reply)
+        ?(%dm-post %dm-post-reaction %dm-reply %post %post-reaction %reply)
       ?=(^ (get:on-read-items:a items.reads time))
     ==
   ::
@@ -152,9 +152,11 @@
     ?-  -.event
       %chan-init      [%channel channel.event group.event]
       %post           [%channel channel.event group.event]
+      %post-reaction  [%channel channel.event group.event]
       %reply          [%thread parent.event channel.event group.event]
       %dm-invite      [%dm whom.event]
       %dm-post        [%dm whom.event]
+      %dm-post-reaction  [%dm whom.event]
       %dm-reply       [%dm-thread parent.event whom.event]
       %group-invite   [%group group.event]
       %group-kick     [%group group.event]
@@ -174,6 +176,8 @@
         %reply     ?:(mention.event %reply-mention %reply)
         %dm-post   ?:(mention.event %dm-post-mention %dm-post)
         %dm-reply  ?:(mention.event %dm-reply-mention %dm-reply)
+        %post-reaction  %post-reaction
+        %dm-post-reaction  %dm-post-reaction
     ==
   ::
   ++  is-allowed
@@ -183,9 +187,11 @@
     =/  type  (event-type incoming-event)
     ?+  type  |
       %post  &
+      %post-reaction  &
       %reply  &
       %contact  &
       %dm-post    &
+      %dm-post-reaction  &
       %dm-reply   &
       %dm-invite  &
       %group-invite  &
@@ -283,7 +289,7 @@
     =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
     =/  volume  (get-volume:evt volume-settings -.event)
     ::TODO  support other event types
-    =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
+    =*  is-msg  ?=(?(%dm-post %dm-post-reaction %dm-reply %post %post-reaction %reply) -<.event)
     =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
     =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
@@ -293,7 +299,7 @@
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
     ?.  ?&  unreads.volume
-            ?=(?(%dm-post %dm-reply %post %reply %group-ask) -<.event)
+            ?=(?(%dm-post %dm-post-reaction %dm-reply %post %post-reaction %reply %group-ask) -<.event)
         ==
       $(stream rest)
     =.  total  +(total)

@@ -1382,6 +1382,7 @@
           $=  concern
           $%  [%invite ~]
               [%post key=message-key]
+              [%post-reaction key=message-key reactor=@p react=react:d]
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
@@ -1408,6 +1409,10 @@
     :~  [%read source [%all `now.bowl |]]
         [%bump source]
     ==
+  ?:  ?&  ?=(%post-reaction -.concern)
+          =(reactor.concern our.bowl)
+      ==
+    ~
   ?:  ?=(%delete-reply -.concern)
     =/  =source:a  [%dm-thread top.concern whom]
     =/  =incoming-event:a
@@ -1421,6 +1426,8 @@
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
+    %post-reaction
+      [%dm-post-reaction key.concern whom reactor.concern react.concern]
     %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
   ==
@@ -1870,6 +1877,7 @@
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key]
+                [%post-reaction key=message-key reactor=@p react=react:d]
                 [%delete-post key=message-key]
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
@@ -2064,7 +2072,17 @@
         cor
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
-          ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+          %add-react
+        =/  author  (get-author-ship:utils author.q.diff.delta)
+        =?  cu-core  ?&  ?=(^ had)
+                        ?=(%& -.writ.u.had)
+                        !(~(has in blocked) author)
+                    ==
+          =/  concern
+            [%post-reaction [id.writ.u.had time.writ.u.had] author react.q.diff.delta]
+          (cu-activity concern content.writ.u.had |)
+        (cu-give-writs-diff diff.delta)
+          %del-react  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  essay   essay.q.diff.delta
@@ -2415,6 +2433,7 @@
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key:a]
+                [%post-reaction key=message-key:a reactor=@p react=react:d]
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
@@ -2530,7 +2549,17 @@
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
       give-invites
     ?-  -.q.diff
-        ?(%add-react %del-react)  (di-give-writs-diff diff)
+        %add-react
+      =/  author  (get-author-ship:utils author.q.diff)
+      =?  di-core  ?&  ?=(^ had)
+                      ?=(%& -.writ.u.had)
+                      !(~(has in blocked) author)
+                  ==
+        =/  concern
+          [%post-reaction [id.writ.u.had time.writ.u.had] author react.q.diff]
+        (di-activity concern content.writ.u.had |)
+      (di-give-writs-diff diff)
+        %del-react  (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)

@@ -56,6 +56,27 @@
   ;<  new=vase  bind:m  get-save
   =+  !<(=state-8 new)
   (ex-equal !>(activity.state-8) !>(post-fix))
+::
+++  test-dm-post-reaction-unread
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
+  =/  state=state-8  [%8 %all *indices:a *activity:a *volume-settings:a]
+  ;<  *  bind:m  (do-load activity-agent `!>(state))
+  =/  =whom:ch  [%ship ~nec]
+  =/  key=message-key:a  [[~nec d1] d1]
+  =/  action=action:a
+    [%add %dm-post-reaction key whom ~nec 'thumbs-up']
+  ;<  *  bind:m  (do-poke %activity-action !>(action))
+  ;<  new=vase  bind:m  get-save
+  =+  !<(=state-8 new)
+  =/  source=source:a  [%dm whom]
+  =/  summary=activity-summary:a  (~(got by activity.state-8) source)
+  ;<  *  bind:m  (ex-equal !>(count.summary) !>(1))
+  ;<  *  bind:m  (ex-equal !>(notify-count.summary) !>(0))
+  (ex-equal !>(unread.summary) !>(`[key 1 |]))
 +$  state-8
   $:  %8
       allowed=notifications-allowed:a

@@ -1728,6 +1728,35 @@
         [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
     ::
+    ++  on-post-react
+      |=  [=id-post:c =v-post:c old=v-reacts:c new=v-reacts:c]
+      ~>  %spin.['on-post-react']
+      ^+  ca-core
+      ?.  running
+        ca-core
+      =/  key=message-key
+        [[(get-author-ship:utils author.v-post) id-post] id-post]
+      =/  prev=reacts:c  (uv-reacts:utils old)
+      =/  next=reacts:c  (uv-reacts:utils new)
+      =/  actions=(list action)
+        %+  murn
+          ~(tap by next)
+        |=  [=author:c =react:c]
+        ^-  (unit action)
+        =/  reactor  (get-author-ship:utils author)
+        ?.  ?&  !=(reactor our.bowl)
+                !(blocked reactor)
+            ==
+          ~
+        =/  was=(unit react:c)  (~(get by prev) author)
+        ?:  ?&  ?=(^ was)
+                =(u.was react)
+            ==
+          ~
+        `[%add [%post-reaction key nest group.perm.channel reactor react]]
+      ?~  actions  ca-core
+      (send actions)
+    ::
     ++  on-post-delete
       |=  v-post:c
       ~>  %spin.['on-post-delete']
@@ -2391,6 +2420,8 @@
       =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.post reacts.u-post)
       ?:  =(merged reacts.u.post)  ca-core
+      =.  ca-core
+        (on-post-react:ca-activity id-post +.u.post reacts.u.post merged)
       =.  posts.channel
         (put:on-v-posts:c posts.channel id-post u.post(reacts merged))
       (ca-response %post id-post %reacts (uv-reacts:utils merged))

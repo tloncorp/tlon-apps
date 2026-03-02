@@ -100,9 +100,11 @@
   ==
 +$  incoming-event
   $%  [%post post-event]
+      [%post-reaction post-reaction-event]
       [%reply reply-event]
       [%dm-invite =whom]
       [%dm-post dm-post-event]
+      [%dm-post-reaction dm-post-reaction-event]
       [%dm-reply dm-reply-event]
       [%group-ask group=flag:g =ship]
       [%group-kick group=flag:g =ship]
@@ -123,6 +125,14 @@
       mention=?
   ==
 ::
++$  post-reaction-event
+  $:  key=message-key
+      channel=nest:c
+      group=flag:g
+      reactor=ship
+      react=react:c
+  ==
+::
 +$  reply-event
   $:  key=message-key
       parent=message-key
@@ -137,6 +147,13 @@
       =whom
       content=story:s
       mention=?
+  ==
+::
++$  dm-post-reaction-event
+  $:  key=message-key
+      =whom
+      reactor=ship
+      react=react:c
   ==
 ::
 +$  dm-reply-event
@@ -217,11 +234,13 @@
 +$  event-type
   $?  %chan-init
       %post
+      %post-reaction
       %post-mention
       %reply
       %reply-mention
       %dm-invite
       %dm-post
+      %dm-post-reaction
       %dm-post-mention
       %dm-reply
       %dm-reply-mention
@@ -245,12 +264,14 @@
   ^-  (map event-type volume)
   %-  my
   :~  [%post & &]
+      [%post-reaction & |]
       [%reply & |]
       [%dm-reply & &]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
       [%dm-post & &]
+      [%dm-post-reaction & |]
       [%dm-post-mention & &]
       [%dm-reply-mention & &]
       [%group-invite & &]
