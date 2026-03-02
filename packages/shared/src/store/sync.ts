@@ -1969,10 +1969,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  if (!alreadySubscribed) {
-    await db.headsSyncedAt.resetValue();
-  }
-
   try {
     let didLoadCachedContacts = false;
 
