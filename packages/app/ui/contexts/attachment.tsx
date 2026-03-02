@@ -27,6 +27,8 @@ import { canAddAttachment } from './attachmentRules';
 
 export type AttachmentState = {
   attachments: Attachment[];
+  attachmentErrorMessage: string | null;
+  setAttachmentErrorMessage: (message: string | null) => void;
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (attachment: Attachment) => void;
   clearAttachments: () => void;
@@ -41,6 +43,8 @@ export type AttachmentState = {
 
 const defaultState: AttachmentState = {
   attachments: [],
+  attachmentErrorMessage: null,
+  setAttachmentErrorMessage: () => {},
   addAttachment: () => {},
   removeAttachment: () => {},
   clearAttachments: () => {},
@@ -246,12 +250,14 @@ export const AttachmentProvider = ({
     revokeDetachedVideoPreviewUris(stateRef.current, []);
     stateRef.current = [];
     setState([]);
+    setAttachmentErrorMessage(null);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
     revokeDetachedVideoPreviewUris(stateRef.current, attachments);
     stateRef.current = attachments;
     setState(attachments);
+    setAttachmentErrorMessage(null);
   }, []);
 
   const handleWaitForUploads = useCallback(
@@ -322,6 +328,8 @@ export const AttachmentProvider = ({
     <Context.Provider
       value={{
         attachments,
+        attachmentErrorMessage,
+        setAttachmentErrorMessage,
         attachAssets: handleAttachAssets,
         addAttachment: handleAddAttachment,
         removeAttachment: handleRemoveAttachment,

@@ -29,6 +29,7 @@ type VideoLayout = {
   fillMedia: boolean;
   centerContainer: boolean;
 };
+const logger = createDevLogger('VideoEmbedWeb', false);
 
 const OverlayFrame = styled(View, {
   position: 'absolute',

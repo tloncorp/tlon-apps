@@ -12,6 +12,7 @@ export const FileDrop: FileDropComponent = ({
   children,
   ...props
 }) => {
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const handleDrop = useCallback(
     async (files: File[]) => {
       onAssetsDropped(
@@ -42,7 +43,7 @@ export const FileDrop: FileDropComponent = ({
         )
       );
     },
-    [onAssetsDropped]
+    [onAssetsDropped, videoUploadPlayback]
   );
 
   const { getInputProps, getRootProps } = useDropzone({
@@ -81,5 +82,28 @@ function getImageAsset(
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;
+  });
+}
+
+function getVideoAsset(
+  file: File
+): Promise<{ width?: number; height?: number; duration?: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      resolve({
+        width: video.videoWidth || undefined,
+        height: video.videoHeight || undefined,
+        duration: Number.isFinite(video.duration) ? video.duration : undefined,
+      });
+      URL.revokeObjectURL(objectUrl);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({});
+    };
+    video.src = objectUrl;
   });
 }

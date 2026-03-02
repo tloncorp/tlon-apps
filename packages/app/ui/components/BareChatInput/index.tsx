@@ -87,7 +87,10 @@ function useKeyboardHeight(maxInputHeightBasic: number) {
   return maxInputHeight;
 }
 
-function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
+function usePasteHandler(
+  addAttachment: (attachment: Attachment) => void,
+  allowVideo: boolean
+) {
   // For now, we only check to make sure we're on web,
   // we don't check if the input is focused. This allows users to paste
   // images before they select the input. We may want to change this behavior
@@ -146,7 +149,7 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [addAttachment]);
+  }, [addAttachment, allowVideo]);
 }
 
 interface TextWithMentionsProps {
@@ -256,6 +259,7 @@ export default function BareChatInput({
     resetAttachments,
     removeAttachment,
   } = useAttachmentContext();
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
@@ -283,7 +287,7 @@ export default function BareChatInput({
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
-  usePasteHandler(addAttachment);
+  usePasteHandler(addAttachment, videoUploadPlayback);
 
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews

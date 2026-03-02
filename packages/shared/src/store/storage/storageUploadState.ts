@@ -132,7 +132,14 @@ export const waitForUploads = async (
       const failed = keys.filter((k) => uploadStates[k]?.status === 'error');
       if (failed.length) {
         const message = failed
-          .map((k) => (uploadStates[k] as UploadStateError)?.errorMessage)
+          .map((k) => {
+            const state = uploadStates[k];
+            if (state?.status === 'error') {
+              return (state as UploadStateError).errorMessage;
+            }
+            return '';
+          })
+          .filter(Boolean)
           .join(', ');
         if (timeout) clearTimeout(timeout);
         unsubscribe();
@@ -140,7 +147,7 @@ export const waitForUploads = async (
         return;
       }
       // Only consider finished when ALL uploads have a definitive outcome
-      // (success or error). Don't treat undefined/initial/uploading as finished.
+      // (success or error). Don't treat undefined/uploading as finished.
       const isFinished = keys.every(
         (key) =>
           uploadStates[key]?.status === 'success' ||

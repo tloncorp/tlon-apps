@@ -44,7 +44,7 @@ import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
-const logger = createDevLogger('imageViewer', false);
+type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
 function MediaViewerModal({
   dismiss,
@@ -284,13 +284,8 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
   const zoomableRef = useRef<ElementRef<typeof Zoomable>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
   const [maxPanPointers, setMaxPanPointers] = useState(2);
-  const { top } = useSafeAreaInsets();
-
-  // We can't observe the zoom on `react-native-image-zoom`, so we have to
-  // track it manually.
-  // Call `setIsAtMinZoom` whenever you think user switches between zoomed all
-  // the way out / zoomed in by some amount.
   const [isAtMinZoom, setIsAtMinZoom] = useState(true);
+  const { top } = useSafeAreaInsets();
 
   function onSingleTap() {
     setShowOverlay(!showOverlay);
@@ -319,12 +314,12 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
 
   const handleDownloadImage = async () => {
     if (isWeb) {
-      if (!props.uri) {
+      if (!uri) {
         return;
       }
 
       try {
-        await downloadImageForWeb(props.uri);
+        await downloadImageForWeb(uri);
       } catch (error) {
         logger.trackError('Download error:', error);
         console.error('Download error:', error);
@@ -417,7 +412,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           }
         }
 
-        if (!props.uri) {
+        if (!uri) {
           logger.trackError('Attempted to save image with no URI', {
             hasUri: false,
           });
@@ -426,7 +421,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
         }
 
         const baseFilename =
-          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
+          uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
         const filename = ensureFileExtension(baseFilename);
         const localUri = `${FileSystem.documentDirectory}${filename}`;
 
@@ -439,7 +434,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           if (downloadResult.status !== 200) {
             logger.trackError('Failed to download image', {
               status: downloadResult.status,
-              uri: props.uri,
+              uri,
             });
             throw new Error(
               `Download failed with status ${downloadResult.status}`
@@ -449,7 +444,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           const fileInfo = await FileSystem.getInfoAsync(localUri);
           if (!fileInfo.exists) {
             logger.trackError('Downloaded file does not exist', {
-              uri: props.uri,
+              uri,
               localUri,
             });
             throw new Error('Downloaded file does not exist');
@@ -464,7 +459,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           } catch (saveError) {
             logger.trackError('Failed to save image to library', {
               error: saveError.message,
-              uri: props.uri,
+              uri,
               localUri,
             });
 
@@ -475,13 +470,11 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
             console.error('Save error:', saveError);
           } finally {
             try {
-              // Check if file still exists before attempting to delete
               const fileStillExists = await FileSystem.getInfoAsync(localUri);
               if (fileStillExists.exists) {
                 await FileSystem.deleteAsync(localUri);
               }
             } catch (deleteError) {
-              // Silently ignore deletion errors - file may have been moved by MediaLibrary
               logger.trackError('Failed to delete temporary image file', {
                 error: deleteError.message,
                 uri: localUri,
@@ -491,7 +484,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
         } catch (downloadError) {
           logger.trackError('Failed to download image', {
             error: downloadError.message,
-            uri: props.uri,
+            uri,
           });
           Alert.alert(
             'Error',
@@ -502,7 +495,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
       } catch (error) {
         logger.trackError('Unexpected error saving image', {
           error: error.message,
-          uri: props.uri,
+          uri,
         });
         Alert.alert(
           'Error',
@@ -514,16 +507,8 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
   };
 
   return (
-    <ImageViewerContainer
-      dismiss={props.goBack}
-      dismissGestureEnabled={isAtMinZoom}
-    >
-      <ZStack
-        flex={1}
-        backgroundColor="$black"
-        paddingTop={top}
-        data-testid="image-viewer"
-      >
+    <ImageViewerContainer dismiss={goBack} dismissGestureEnabled={isAtMinZoom}>
+      <ZStack flex={1} backgroundColor="$black" paddingTop={top} data-testid="image-viewer">
         <View flex={1}>
           {isWeb ? (
             <View
@@ -533,9 +518,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
               justifyContent="center"
             >
               <Image
-                source={{
-                  uri: props.uri,
-                }}
+                source={{ uri }}
                 data-testid="image"
                 style={{
                   width: '100%',
@@ -550,7 +533,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           ) : (
             <ImageZoom
               ref={zoomableRef}
-              uri={props.uri}
+              uri={uri}
               style={{ flex: 1 }}
               isDoubleTapEnabled
               isSingleTapEnabled
@@ -565,7 +548,6 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           )}
         </View>
 
-        {/* overlay */}
         {showOverlay ? (
           <YStack
             position="absolute"
@@ -573,14 +555,8 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
             padding="$xl"
             paddingTop={isWeb ? 16 : top}
           >
-            <XStack
-              justifyContent={isWeb ? 'flex-end' : 'space-between'}
-              gap="$m"
-            >
-              <TouchableOpacity
-                onPress={handleDownloadImage}
-                activeOpacity={0.8}
-              >
+            <XStack justifyContent={isWeb ? 'flex-end' : 'space-between'} gap="$m">
+              <TouchableOpacity onPress={handleDownloadImage} activeOpacity={0.8}>
                 <Stack
                   padding="$m"
                   backgroundColor="$darkOverlay"
@@ -590,10 +566,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
                 </Stack>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => props.goBack()}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity onPress={goBack} activeOpacity={0.8}>
                 <Stack
                   padding="$m"
                   backgroundColor="$darkOverlay"
@@ -631,13 +604,8 @@ function ImageViewerContainer({
     [dismiss, dismissGestureEnabled]
   );
 
-  // on web, we wrap in a modal to escape the drawer navigators
   if (isWeb) {
-    return (
-      <Modal animationType="none" onRequestClose={dismiss}>
-        {children}
-      </Modal>
-    );
+    return <MediaViewerModal dismiss={dismiss}>{children}</MediaViewerModal>;
   }
 
   if (!dismissGesture) {

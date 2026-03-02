@@ -684,7 +684,13 @@ export function appendVideoToPostBlob(
 export type ClientPostBlobData = Array<PostBlobDataEntry | { type: 'unknown' }>;
 
 export function parsePostBlob(blob: string): ClientPostBlobData {
-  const arr: PostBlobData = JSON.parse(blob);
+  let arr: PostBlobData;
+  try {
+    arr = JSON.parse(blob) as PostBlobData;
+  } catch {
+    logger.trackError('Failed to parse PostBlob data JSON', { blob });
+    return [{ type: 'unknown' }];
+  }
   if (!Array.isArray(arr)) {
     return [{ type: 'unknown' }];
   }
@@ -761,7 +767,7 @@ export function toPostData({
           blob = appendFileUploadToPostBlob(blob, {
             fileUri: UploadedFileAttachment.uri(attachment),
             name,
-            mimeType: attachment.type,
+            mimeType: attachment.mimeType,
             size: attachment.size,
           });
           break;

@@ -30,6 +30,10 @@ import {
 } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
+  isLikelyVideoSource,
+  validateVideoSource,
+} from '../contexts/attachmentRules';
+import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
@@ -42,6 +46,23 @@ import {
 } from './StorageQuotaIndicator';
 
 const logger = createDevLogger('AttachmentSheet', true);
+
+function resolveVideoSize(
+  size: number | undefined,
+  uri: string | undefined
+): number | undefined {
+  if (size != null && size >= 0) {
+    return size;
+  }
+  if (!uri) {
+    return undefined;
+  }
+  const statSize = fs.getFileSize(uri);
+  if (typeof statSize === 'number' && statSize >= 0) {
+    return statSize;
+  }
+  return undefined;
+}
 
 export default function AttachmentSheet({
   isOpen: showAttachmentSheet,
@@ -259,6 +280,125 @@ export default function AttachmentSheet({
     onOpenChange(false);
     audioRecorder.present();
   }, [onOpenChange, audioRecorder]);
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
+  const useVideoInMediaPicker = mediaType === 'all' && videoUploadPlayback;
+
+  const asUploadIntent = useCallback(
+    (
+      asset: ImagePicker.ImagePickerAsset
+    ): Attachment.UploadIntent | null => {
+      if (asset.type === 'video') {
+        const resolvedSize = resolveVideoSize(asset.fileSize ?? undefined, asset.uri);
+        const validation = validateVideoSource({
+          mimeType: asset.mimeType ?? undefined,
+          size: resolvedSize,
+          name: asset.fileName ?? undefined,
+          uri: asset.uri,
+        });
+        if (!validation.ok) {
+          logger.trackError('video validation failed', validation);
+          setAttachmentErrorMessage(
+            validation.reason ?? 'Unable to attach video'
+          );
+          return null;
+        }
+        return {
+          type: 'fileUri',
+          localUri: asset.uri,
+          name: asset.fileName ?? undefined,
+          size: resolvedSize ?? -1,
+          mimeType: asset.mimeType ?? undefined,
+          video: {
+            width: asset.width ?? undefined,
+            height: asset.height ?? undefined,
+            duration:
+              asset.duration != null ? asset.duration / 1000 : undefined,
+          },
+        };
+      }
+      return Attachment.UploadIntent.fromImagePickerAsset(asset);
+    },
+    []
+  );
+
+  const normalizeUploadIntents = useCallback(
+    (uploadIntents: Attachment.UploadIntent[]) => {
+      return uploadIntents.flatMap((uploadIntent) => {
+        if (!videoUploadPlayback) {
+          return [uploadIntent];
+        }
+        if (uploadIntent.type === 'image') {
+          return [uploadIntent];
+        }
+        if (uploadIntent.type === 'file') {
+          const isVideo = isLikelyVideoSource({
+            mimeType: uploadIntent.file.type,
+            name: uploadIntent.file.name,
+          });
+          if (!isVideo) {
+            return [uploadIntent];
+          }
+          const validation = validateVideoSource({
+            mimeType: uploadIntent.file.type || undefined,
+            size: uploadIntent.file.size,
+            name: uploadIntent.file.name,
+          });
+          if (!validation.ok) {
+            logger.trackError('video validation failed', validation);
+            setAttachmentErrorMessage(
+              validation.reason ?? 'Unable to attach video'
+            );
+            return [];
+          }
+          return [
+            {
+              ...uploadIntent,
+              video: {},
+            },
+          ];
+        }
+        if (uploadIntent.type === 'fileUri') {
+          if (uploadIntent.voiceMemo) {
+            return [uploadIntent];
+          }
+          const resolvedSize = resolveVideoSize(
+            uploadIntent.size,
+            uploadIntent.localUri
+          );
+          const isVideo = isLikelyVideoSource({
+            mimeType: uploadIntent.mimeType,
+            name: uploadIntent.name,
+            uri: uploadIntent.localUri,
+          });
+          if (!isVideo) {
+            return [uploadIntent];
+          }
+          const validation = validateVideoSource({
+            mimeType: uploadIntent.mimeType,
+            size: resolvedSize,
+            name: uploadIntent.name,
+            uri: uploadIntent.localUri,
+          });
+          if (!validation.ok) {
+            logger.trackError('video validation failed', validation);
+            setAttachmentErrorMessage(
+              validation.reason ?? 'Unable to attach video'
+            );
+            return [];
+          }
+          return [
+            {
+              ...uploadIntent,
+              size: resolvedSize ?? uploadIntent.size,
+              video: uploadIntent.video ?? {},
+            },
+          ];
+        }
+        return [];
+      });
+    },
+    [videoUploadPlayback]
+  );
 
   const pickImage = useCallback(() => {
     // Close the sheet immediately
@@ -294,6 +434,7 @@ export default function AttachmentSheet({
         if (!result.canceled) {
           // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
+          const uploadIntent = asUploadIntent(realAsset);
 
           removePlaceholderAttachment();
           await attachNormalizedUploadIntents([
@@ -325,6 +466,10 @@ export default function AttachmentSheet({
     placeholderUploadIntent,
     attachNormalizedUploadIntents,
     removePlaceholderAttachment,
+    useVideoInMediaPicker,
+    asUploadIntent,
+    normalizeUploadIntents,
+    setAttachmentErrorMessage,
   ]);
 
   const startFilePicker = useCallback(async () => {
