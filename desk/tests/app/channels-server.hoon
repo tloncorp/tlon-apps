@@ -6,12 +6,16 @@
 ++  dap  %channels-server
 ::
 +$  current-state
+<<<<<<< HEAD
   $:  %14
       =v-channels:v9:cv
       =hooks:h
       pending-channel-effects=(map @uv a-channels:c)
       =pimp:imp
   ==
+=======
+  [%13 =v-channels:v9:cv =hooks:h pending-effects=(map @uv a-channels:c) =pimp:imp]
+>>>>>>> 081d6a7de (channels-server: keep 13->14 migration, simplify pending effects naming)
 +$  state-8
   [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
