@@ -59,13 +59,11 @@ async function performSync() {
 
   try {
     // use the background task as an opportunity to refresh hosting auth
-    const authPromise = refreshHostingAuth()
-      .then(() => logger.trackEvent('Background task: refreshed hosting auth'))
-      .catch((err) =>
-        logger.trackError('Background task: failed to refresh hosting auth', {
-          error: err,
-        })
-      );
+    const authPromise = refreshHostingAuth().catch((err) =>
+      logger.trackError('Background task: failed to refresh hosting auth', {
+        error: err,
+      })
+    );
     // Abort any previous background sync and create a fresh controller.
     // If the app comes to foreground, cancelBackgroundSync() will abort
     // this controller, removing queued operations from the sync queue so
