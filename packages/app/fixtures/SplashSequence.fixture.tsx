@@ -26,6 +26,7 @@ function SplashSequenceFixture() {
       <SplashSequence
         onCompleted={handleCompleted}
         systemContacts={initialSystemContacts}
+        hostingBotEnabled={true}
       />
     </FixtureWrapper>
   );
@@ -115,6 +116,18 @@ function PrivacyPaneFixture() {
   );
 }
 
+function TlonBotPaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('TlonBot pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <TlonBotPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+    </FixtureWrapper>
+  );
+}
+
 function InvitePaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('Invite pane action pressed');
@@ -144,6 +157,7 @@ export default {
   'Groups Pane': <GroupsPaneFixture />,
   'Channels Pane': <ChannelsPaneFixture />,
   'Privacy Pane': <PrivacyPaneFixture />,
+  'TlonBot Pane': <TlonBotPaneFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };
