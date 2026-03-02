@@ -58,12 +58,14 @@ async function performSync() {
   });
 
   try {
-    // use the background task as an opportunity to refresh hosting auth
-    const authPromise = refreshHostingAuth().catch((err) =>
-      logger.trackError('Background task: failed to refresh hosting auth', {
-        error: err,
-      })
-    );
+    // TODO: re-enable when confirmed not causing hangs on Android
+    // // use the background task as an opportunity to refresh hosting auth
+    // const authPromise = refreshHostingAuth().catch((err) =>
+    //   logger.trackError('Background task: failed to refresh hosting auth', {
+    //     error: err,
+    //   })
+    // );
+
     // Abort any previous background sync and create a fresh controller.
     // If the app comes to foreground, cancelBackgroundSync() will abort
     // this controller, removing queued operations from the sync queue so
@@ -80,7 +82,8 @@ async function performSync() {
     });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
-    await authPromise;
+
+    // await authPromise;
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err instanceof Error ? err : undefined,
