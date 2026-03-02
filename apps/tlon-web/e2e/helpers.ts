@@ -31,7 +31,6 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create group').click();
 
-
   try {
     // Wait briefly to see if we're automatically navigated to the group
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -46,7 +45,7 @@ export async function createGroup(page: Page) {
 
     // Ensure we're actually on Home before proceeding
     await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({
-      timeout: 5000
+      timeout: 5000,
     });
 
     await expect(
@@ -285,7 +284,9 @@ export async function navigateToGroupByTestId(
   await page.waitForTimeout(500);
 
   // Ensure we're on the Home screen
-  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Navigate using stable testID
   await expect(page.getByTestId(testId)).toBeVisible({ timeout });
@@ -831,7 +832,7 @@ export async function setChannelPermissions(
     }
     await page.getByTestId('RoleSelectionSaveButton').click();
     // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel privacy')).toBeVisible();
+    await expect(page.getByText('Channel permissions')).toBeVisible();
   }
 
   if (writerRoles && writerRoles.length > 0) {
@@ -1468,6 +1469,7 @@ export async function waitForSessionStability(page: Page) {
   });
 
   const screenHeaderSubtitle = page.getByTestId('ScreenHeaderSubtitle');
+  const screenHeaderLoadingText = page.getByTestId('ScreenHeaderLoadingText');
 
   const loadingStates = [
     'Loading…',
@@ -1475,12 +1477,19 @@ export async function waitForSessionStability(page: Page) {
     'Reconnecting...',
     'Initializing...',
     'Disconnected',
+    'Syncing with node...',
+    'Loading messages…',
   ];
 
   for (const state of loadingStates) {
-    await expect(screenHeaderSubtitle.getByText(state))
-      .not.toBeVisible({ timeout: 1000 })
-      .catch(() => {}); // Element might not exist, that's okay
+    await Promise.all([
+      expect(screenHeaderSubtitle.getByText(state))
+        .not.toBeVisible({ timeout: 1000 })
+        .catch(() => {}), // Element might not exist, that's okay
+      expect(screenHeaderLoadingText.getByText(state))
+        .not.toBeVisible({ timeout: 1000 })
+        .catch(() => {}), // Element might not exist, that's okay
+    ]);
   }
 
   // Check for message delivery status
@@ -1572,7 +1581,9 @@ export async function verifyChatUnreadCount(
   // Wait for navigation to complete
   await page.waitForTimeout(500);
 
-  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('HomeSidebarHeader')).toBeVisible({
+    timeout: 5000,
+  });
 
   await page.waitForTimeout(1000);
   const itemType = isGroup ? 'GroupListItem' : 'ChatListItem';

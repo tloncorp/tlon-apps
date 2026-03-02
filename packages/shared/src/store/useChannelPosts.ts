@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelIdType } from '../api/apiUtils';
+import { getChannelIdType } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -33,7 +33,7 @@ type UseChannelPostsPageParams = db.GetSequencedPostsOptions & {
 };
 type PageParam = UseChannelPostsPageParams;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
-type SubscriptionPost = [db.Post, string | undefined];
+type SubscriptionPost = db.Post;
 
 type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
@@ -553,7 +553,7 @@ function useLoadActionsWithPendingHandlers(
 // Used to proxy events from post subscription to the hook,
 // allowing us to manually add new posts to the query data.
 
-type SubscriptionPostListener = (...args: SubscriptionPost) => void;
+type SubscriptionPostListener = (post: SubscriptionPost) => void;
 
 const newPostListeners: SubscriptionPostListener[] = [];
 
@@ -603,8 +603,8 @@ const useDeletedPosts = (channelId: string) => {
 /**
  * External interface for transmitting new post events to listener
  */
-export const addToChannelPosts = (...args: SubscriptionPost) => {
-  newPostListeners.forEach((listener) => listener(...args));
+export const addToChannelPosts = (post: SubscriptionPost) => {
+  newPostListeners.forEach((listener) => listener(post));
 };
 
 export const deleteFromChannelPosts = (post: db.Post) => {

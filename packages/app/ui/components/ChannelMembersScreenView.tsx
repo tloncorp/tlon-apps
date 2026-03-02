@@ -34,7 +34,8 @@ export function ChannelMembersScreenView({
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        title={channel ? 'Loading...' : 'Members'}
+        title="Members"
+        loadingSubtitle={channel ? null : 'Loading…'}
         backAction={goBack}
       />
       <FlatList

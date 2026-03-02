@@ -115,8 +115,7 @@ function ChatDetailsScreenView() {
   const actionsEnabled =
     currentUserIsAdmin && hostStatus.complete && hostStatus.status === 'yes';
   const canInviteToGroup =
-    ((group && currentUserIsAdmin) || group?.privacy === 'public') &&
-    actionsEnabled;
+    (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
   const groupTitle = useGroupTitle(group) ?? 'group';
   const title = useChatTitle(channel, group);

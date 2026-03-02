@@ -31,8 +31,8 @@ import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
   getCurrentUserId,
-} from '../api';
-import { parseGroupId } from '../api/apiUtils';
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -40,9 +40,9 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '../logic/activity';
+} from '@tloncorp/api/lib/activity';
 import { Session } from '../store';
-import { Rank } from '../urbit';
+import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -2190,18 +2190,26 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
     channels.map((c) => c.id)
   );
 
-  await ctx.db
-    .insert($channels)
-    .values(channels)
-    .onConflictDoUpdate({
-      target: $channels.id,
-      set: conflictUpdateSetAll($channels, [
-        'lastPostId',
-        'lastPostAt',
-        'lastPostSequenceNum',
-        'currentUserIsMember',
-      ]),
-    });
+  const batchSize = 200;
+  for (let i = 0; i < channels.length; i += batchSize) {
+    const batch = channels.slice(i, i + batchSize);
+    if (batch.length === 0) {
+      continue;
+    }
+
+    await ctx.db
+      .insert($channels)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: $channels.id,
+        set: conflictUpdateSetAll($channels, [
+          'lastPostId',
+          'lastPostAt',
+          'lastPostSequenceNum',
+          'currentUserIsMember',
+        ]),
+      });
+  }
 
   for (const channel of channels) {
     logger.log('insertChannels: members', channel.id, channel.members);
@@ -2541,9 +2549,14 @@ export const setJoinedGroupChannels = createWriteQuery(
       return await ctx.db
         .update($channels)
         .set({
-          currentUserIsMember: inArray($channels.id, channelsWhereMember),
+          currentUserIsMember: true,
         })
-        .where(isNotNull($channels.groupId));
+        .where(
+          and(
+            inArray($channels.id, channelsWhereMember),
+            isNotNull($channels.groupId)
+          )
+        );
     }
   },
   ['channels']
@@ -2720,6 +2733,36 @@ export const getLatestChannelSequenceNum = createReadQuery(
     });
 
     return channel?.lastPostSequenceNum ?? null;
+  },
+  ['channels']
+);
+
+export const getLatestChannelSequenceNums = createReadQuery(
+  'getLatestChannelSequenceNums',
+  async (
+    options: { channelIds: string[] },
+    ctx: QueryCtx
+  ): Promise<Map<string, number | null>> => {
+    const result = new Map<string, number | null>(
+      options.channelIds.map((channelId) => [channelId, null])
+    );
+    if (!options.channelIds.length) {
+      return result;
+    }
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: inArray($channels.id, options.channelIds),
+      columns: {
+        id: true,
+        lastPostSequenceNum: true,
+      },
+    });
+
+    channels.forEach((channel) => {
+      result.set(channel.id, channel.lastPostSequenceNum ?? null);
+    });
+
+    return result;
   },
   ['channels']
 );
@@ -3154,7 +3197,7 @@ export const insertChanges = createWriteQuery(
       throw e;
     }
   },
-  []
+  ['channels']
 );
 
 export const insertChannelPosts = createWriteQuery(
@@ -3196,7 +3239,7 @@ export const insertLatestPosts = createWriteQuery(
       await insertPosts(posts, txCtx);
     });
   },
-  ['posts']
+  ['posts', 'channels']
 );
 
 const insertPostsBatchSize = 300;
@@ -3326,6 +3369,8 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
 
   // Combine channel and group updates in a single transaction
   // Update channels
+  // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
+  // lastPostSequenceNum: always the newest post for syncing (even if deleted)
   await ctx.db
     .update($channels)
     .set({
@@ -3333,7 +3378,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ id: $posts.id })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
@@ -3341,7 +3390,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ receivedAt: $posts.receivedAt })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,

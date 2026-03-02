@@ -299,6 +299,8 @@ PODS:
     - Yoga
   - ExpoSecureStore (14.0.1):
     - ExpoModulesCore
+  - ExpoSensors (14.0.2):
+    - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
   - ExpoSplashScreen (0.29.24):
@@ -1721,6 +1723,27 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-audio-waveform (2.1.6):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.10.14.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-branch (5.9.2):
     - BranchSDK (= 2.2.1)
     - React-Core
@@ -2498,6 +2521,7 @@ DEPENDENCIES:
   - ExpoMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
+  - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
@@ -2540,6 +2564,7 @@ DEPENDENCIES:
   - React-logger (from `../../../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../../../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../../../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - "react-native-audio-waveform (from `../../../node_modules/@simform_solutions/react-native-audio-waveform`)"
   - react-native-branch (from `../../../node_modules/react-native-branch`)
   - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
   - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
@@ -2701,6 +2726,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-modules-core"
   ExpoSecureStore:
     :path: "../../../node_modules/expo-secure-store/ios"
+  ExpoSensors:
+    :path: "../../../node_modules/expo-sensors/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
   ExpoSplashScreen:
@@ -2780,6 +2807,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../../../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-audio-waveform:
+    :path: "../../../node_modules/@simform_solutions/react-native-audio-waveform"
   react-native-branch:
     :path: "../../../node_modules/react-native-branch"
   react-native-context-menu-view:
@@ -2921,6 +2950,7 @@ SPEC CHECKSUMS:
   ExpoMediaLibrary: 2709fc2e4fcf87d28767714abcc603c4bec228c6
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
+  ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
   EXTaskManager: 0dcaa9b4b058b435f4e5bff4919c863f4f46badc
@@ -2982,6 +3012,7 @@ SPEC CHECKSUMS:
   React-logger: c4052eb941cca9a097ef01b59543a656dc088559
   React-Mapbuffer: 9343a5c14536d4463c80f09a960653d754daae21
   React-microtasksnativemodule: c7cafd8f4470cf8a4578ee605daa4c74d3278bf8
+  react-native-audio-waveform: dd57d4b3129af1392d720c6b424e2a37293eb260
   react-native-branch: 5d4ecda7bae040542f6c9f651a05d3df23d8b35a
   react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411

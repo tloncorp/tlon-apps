@@ -2,7 +2,6 @@ import { Attachment } from '@tloncorp/shared/domain';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
@@ -16,10 +15,9 @@ export default function AddGalleryPost({
   setRoute: (route: GalleryRoute) => void;
   onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
   const actions: Action[] = [
     {
-      title: canUploadFiles ? 'Image or File' : 'Image',
+      title: 'Image or File',
       action: () => {
         setRoute('gallery');
         setTimeout(() => {

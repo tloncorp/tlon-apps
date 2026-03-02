@@ -1004,12 +1004,14 @@
     =/  base=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+      /v4/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
     ?.  .^(? %gu base)  ~
     :+  ~  nest
+    ::TODO  we don't want to pin this to an old version, but
+    ::      awkward that this can't be type-checked at compile time...
     .^  post:c  %gx
       %+  weld  base
-      /posts/post/(scot %ud p.plan)/channel-post-3
+      /posts/post/(scot %ud p.plan)/channel-post-4
     ==
   ::
   ++  from-post

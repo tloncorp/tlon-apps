@@ -1,5 +1,5 @@
-import { useIsFocused } from '@react-navigation/native';
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
   DraftInputId,
@@ -15,11 +15,11 @@ import {
   ChannelContentConfiguration,
   isDmChannelId,
   isGroupDmChannelId,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { JSONContent } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -70,6 +70,8 @@ import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
+const HEADER_LOADING_SHOW_DELAY_MS = 180;
+const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 
 interface ChannelProps {
   channel: db.Channel;
@@ -170,6 +172,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [editingConfiguration, setEditingConfiguration] = useState(false);
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+    const [showHeaderLoading, setShowHeaderLoading] = useState(false);
+    const headerLoadingShownAtRef = useRef<number | null>(null);
+    const headerLoadingShowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+    const headerLoadingHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
     const title = utils.useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
@@ -181,6 +191,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
+    const isNotebookOrGallery =
+      channel.type === 'notebook' || channel.type === 'gallery';
+    const pinnedPostId = logic.getPinnedPostId(channel);
     const isSingleChannelGroup = group?.channels?.length === 1;
 
     // For DMs, get the other participant's ID
@@ -229,10 +242,69 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
     const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
-    
-    // Only mark as read when user is actively using the app (not idle)
-    // This prevents auto-marking on desktop when user is AFK
+
     useEffect(() => {
+      const clearShowTimeout = () => {
+        if (headerLoadingShowTimeoutRef.current) {
+          clearTimeout(headerLoadingShowTimeoutRef.current);
+          headerLoadingShowTimeoutRef.current = null;
+        }
+      };
+      const clearHideTimeout = () => {
+        if (headerLoadingHideTimeoutRef.current) {
+          clearTimeout(headerLoadingHideTimeoutRef.current);
+          headerLoadingHideTimeoutRef.current = null;
+        }
+      };
+
+      if (isLoadingPosts) {
+        clearHideTimeout();
+        if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
+          return;
+        }
+
+        headerLoadingShowTimeoutRef.current = setTimeout(() => {
+          headerLoadingShownAtRef.current = Date.now();
+          setShowHeaderLoading(true);
+          headerLoadingShowTimeoutRef.current = null;
+        }, HEADER_LOADING_SHOW_DELAY_MS);
+        return;
+      }
+
+      clearShowTimeout();
+      clearHideTimeout();
+
+      if (!showHeaderLoading) {
+        headerLoadingShownAtRef.current = null;
+        return;
+      }
+
+      const elapsed = headerLoadingShownAtRef.current
+        ? Date.now() - headerLoadingShownAtRef.current
+        : 0;
+      const hideDelay = Math.max(HEADER_LOADING_MIN_VISIBLE_MS - elapsed, 0);
+
+      headerLoadingHideTimeoutRef.current = setTimeout(() => {
+        headerLoadingShownAtRef.current = null;
+        setShowHeaderLoading(false);
+        headerLoadingHideTimeoutRef.current = null;
+      }, hideDelay);
+    }, [isLoadingPosts, showHeaderLoading]);
+
+    useEffect(() => {
+      return () => {
+        if (headerLoadingShowTimeoutRef.current) {
+          clearTimeout(headerLoadingShowTimeoutRef.current);
+        }
+        if (headerLoadingHideTimeoutRef.current) {
+          clearTimeout(headerLoadingHideTimeoutRef.current);
+        }
+      };
+    }, []);
+
+    useEffect(() => {
+      // Only mark as read when user is actively using the app (not idle)
+      // This prevents auto-marking on desktop when user is AFK
       if (hasUnreads && hasLoaded && inView && isUserActive) {
         markRead();
       }
@@ -398,6 +470,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       return validGroup && validPlatform;
     }, [group]);
 
+    const shouldShowPinnedPostBanner = useMemo(() => {
+      if (!pinnedPostId) return false;
+      if (!isNotebookOrGallery) return true;
+      return (
+        editingPost == null && draftInputPresentationMode !== 'fullscreen'
+      );
+    }, [
+      pinnedPostId,
+      isNotebookOrGallery,
+      editingPost,
+      draftInputPresentationMode,
+    ]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
@@ -441,7 +526,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           goToChatDetails={goToChatDetails}
                           goToProfile={handleGoToProfile}
                           goToSearch={goToSearch}
-                          showSpinner={isLoadingPosts}
+                          showSpinner={showHeaderLoading}
                           showSearchButton={
                             channel.type === 'chat' ||
                             channel.type === 'dm' ||
@@ -458,7 +543,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                           goToEdit={handleGoToChannelDetails}
                         />
-                        {logic.getPinnedPostId(channel) && (
+                        {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner
                             channel={channel}
                             onPressPost={goToPost}
