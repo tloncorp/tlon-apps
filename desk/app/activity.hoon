@@ -984,6 +984,9 @@
   ::
   ?~  dex=(~(get by indices) source)  continue
   =*  index  u.dex
+  ::  normalize all read actions to [when deep]:
+  ::    when is read-through time, or latest if ~
+  ::    deep controls recursive child reads
   =/  [when=(unit time) deep=?]
     ?-  -.action
         %event
@@ -1003,19 +1006,26 @@
       [time.action deep.action]
     ==
   =/  new=index:a
+    ::  we can short-circuit and mark all read, since we'll also
+    ::  recurse into children when deep is set
     =-  index(reads [- ~])
     ?^  when  u.when
     =/  latest=(unit [=time event:a])
       (ram:on-event:a stream.index)
+    ::  if there's no latest event, this source is effectively read;
+    ::  reuse floor. common when a parent read recurses here.
     ?~(latest floor.reads.index time.u.latest)
+  ::  recurse into children only when deep
   =/  children=(list source:a)
     ?.  deep  ~
     (get-children:src indices source)
   =^  [nr=_reads nu=_updates]  cor
     ?:  =(~ children)  [[reads updates] cor]
+    :: REVIEW  are we concerned about doing sources twice?
     $(sources children, from-parent &)
   =.  reads  nr
   =.  updates  nu
+  ::  refresh this source index to reflect new reads
   %-  (log |.("refeshing index: {<source>}"))
   =.  indices  (~(put by indices) source new)
   ?:  from-parent
@@ -1024,6 +1034,7 @@
   =/  old-summary  (~(gut by activity) source *activity-summary:a)
   =.  cor  (refresh source)
   =/  new-summary  (~(gut by activity) source *activity-summary:a)
+  ::  ignore newest since that always changes on read
   ?.  !=(+.old-summary +.new-summary)  continue
   =.  reads  [source reads]
   =.  updates
