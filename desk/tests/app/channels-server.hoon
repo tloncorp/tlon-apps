@@ -6,16 +6,12 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-<<<<<<< HEAD
   $:  %14
       =v-channels:v9:cv
       =hooks:h
-      pending-channel-effects=(map @uv a-channels:c)
+      pending-effects=(list a-channels:c)
       =pimp:imp
   ==
-=======
-  [%13 =v-channels:v9:cv =hooks:h pending-effects=(map @uv a-channels:c) =pimp:imp]
->>>>>>> 081d6a7de (channels-server: keep 13->14 migration, simplify pending effects naming)
 +$  state-8
   [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
@@ -297,7 +293,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%14 chans *hooks:h *(map @uv a-channels:c) *pimp:imp]
+        [%14 chans *hooks:h ~ *pimp:imp]
       =/  chan=v-channel:c
         tombstone-rescue-test-channel-new
       (~(put by *v-channels:c) *nest:c chan)

@@ -65,7 +65,7 @@
     $:  %14
         =v-channels:v9:cv
         =hooks:h
-        pending-effects=(map @uv a-channels:c)
+        pending-effects=(list a-channels:c)
         =pimp:imp
     ==
   --
@@ -1558,12 +1558,15 @@
   ~>  %spin.['wake-hook']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take+pole !!)
-      [%effect %channels id=@ ~]
-    =/  id=@uv  (slav %uv id.pole)
-    ?~  action=(~(get by pending-effects) id)  cor
-    =.  pending-effects  (~(del by pending-effects) id)
-    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`u.action)
-    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+      [%effect %channels ~]
+    ?~  pending-effects  cor
+    =/  effects=(list a-channels:c)  (flop pending-effects)
+    =.  pending-effects  ~
+    |-
+    ?~  effects  cor
+    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`i.effects)
+    =.  cor  (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    $(effects t.effects)
   ::
       [%waiting id=@ ~]
     =/  id=id-hook:h  (slav %uv id.pole)
@@ -1647,13 +1650,9 @@
       %channels
     ::  Run channel effects on the next tick so the originating post update
     ::  has time to commit/propagate before reactions are applied.
-    =/  id=@uv
-      =+  i=(end 7 eny.bowl)
-      |-(?:((~(has by pending-effects) i) $(i +(i)) i))
-    =.  pending-effects
-      (~(put by pending-effects) id a-channels.effect)
+    =.  pending-effects  [a-channels.effect pending-effects]
     =/  when=@da  `@da`(add now.bowl (div ~s1 10))
-    =/  =wire  /hooks/effect/channels/(scot %uv id)
+    =/  =wire  /hooks/effect/channels
     (emit [%pass wire %arvo %b %wait when])
   ::
       %groups
