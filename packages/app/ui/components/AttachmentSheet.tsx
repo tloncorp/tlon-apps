@@ -22,6 +22,10 @@ import { pickFile } from '../../utils/filepicker';
 import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
+  isLikelyVideoSource,
+  validateVideoSource,
+} from '../contexts/attachmentRules';
+import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
@@ -34,70 +38,6 @@ import {
 } from './StorageQuotaIndicator';
 
 const logger = createDevLogger('AttachmentSheet', true);
-const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
-const VIDEO_MIME_ALLOWLIST = new Set([
-  'video/mp4',
-  'video/quicktime',
-  'video/webm',
-]);
-const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|webm)(?:\?.*)?$/i;
-
-function isLikelyVideo({
-  mimeType,
-  name,
-  uri,
-}: {
-  mimeType?: string;
-  name?: string;
-  uri?: string;
-}) {
-  return (
-    (!!mimeType && mimeType.toLowerCase().startsWith('video/')) ||
-    (!!name && VIDEO_EXTENSION_REGEX.test(name)) ||
-    (!!uri && VIDEO_EXTENSION_REGEX.test(uri))
-  );
-}
-
-function validateVideo({
-  mimeType,
-  size,
-  name,
-  uri,
-}: {
-  mimeType?: string;
-  size?: number;
-  name?: string;
-  uri?: string;
-}) {
-  if (size == null || size < 0) {
-    return {
-      valid: false,
-      reason: 'Unable to determine video size',
-    };
-  }
-  if (size > MAX_VIDEO_SIZE_BYTES) {
-    return {
-      valid: false,
-      reason: 'Video exceeds the 100MB upload limit',
-    };
-  }
-  if (mimeType) {
-    if (!VIDEO_MIME_ALLOWLIST.has(mimeType.toLowerCase())) {
-      return {
-        valid: false,
-        reason: `Unsupported video format: ${mimeType}`,
-      };
-    }
-    return { valid: true };
-  }
-  if (!isLikelyVideo({ name, uri })) {
-    return {
-      valid: false,
-      reason: 'Unsupported video format',
-    };
-  }
-  return { valid: true };
-}
 
 function resolveVideoSize(
   size: number | undefined,
@@ -318,13 +258,13 @@ export default function AttachmentSheet({
     ): Attachment.UploadIntent | null => {
       if (asset.type === 'video') {
         const resolvedSize = resolveVideoSize(asset.fileSize ?? undefined, asset.uri);
-        const validation = validateVideo({
+        const validation = validateVideoSource({
           mimeType: asset.mimeType ?? undefined,
           size: resolvedSize,
           name: asset.fileName ?? undefined,
           uri: asset.uri,
         });
-        if (!validation.valid) {
+        if (!validation.ok) {
           logger.trackError('video validation failed', validation);
           setAttachmentErrorMessage(
             validation.reason ?? 'Unable to attach video'
@@ -360,19 +300,19 @@ export default function AttachmentSheet({
           return [uploadIntent];
         }
         if (uploadIntent.type === 'file') {
-          const isVideo = isLikelyVideo({
+          const isVideo = isLikelyVideoSource({
             mimeType: uploadIntent.file.type,
             name: uploadIntent.file.name,
           });
           if (!isVideo) {
             return [uploadIntent];
           }
-          const validation = validateVideo({
+          const validation = validateVideoSource({
             mimeType: uploadIntent.file.type || undefined,
             size: uploadIntent.file.size,
             name: uploadIntent.file.name,
           });
-          if (!validation.valid) {
+          if (!validation.ok) {
             logger.trackError('video validation failed', validation);
             setAttachmentErrorMessage(
               validation.reason ?? 'Unable to attach video'
@@ -394,7 +334,7 @@ export default function AttachmentSheet({
             uploadIntent.size,
             uploadIntent.localUri
           );
-          const isVideo = isLikelyVideo({
+          const isVideo = isLikelyVideoSource({
             mimeType: uploadIntent.mimeType,
             name: uploadIntent.name,
             uri: uploadIntent.localUri,
@@ -402,13 +342,13 @@ export default function AttachmentSheet({
           if (!isVideo) {
             return [uploadIntent];
           }
-          const validation = validateVideo({
+          const validation = validateVideoSource({
             mimeType: uploadIntent.mimeType,
             size: resolvedSize,
             name: uploadIntent.name,
             uri: uploadIntent.localUri,
           });
-          if (!validation.valid) {
+          if (!validation.ok) {
             logger.trackError('video validation failed', validation);
             setAttachmentErrorMessage(
               validation.reason ?? 'Unable to attach video'

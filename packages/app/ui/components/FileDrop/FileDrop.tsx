@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
 import { useFeatureFlag } from '../../../lib/featureFlags';
+import { isLikelyVideoSource } from '../../contexts/attachmentRules';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
@@ -28,7 +29,13 @@ export const FileDrop: FileDropComponent = ({
                 },
               };
             }
-            if (videoUploadPlayback && isVideoFile(file)) {
+            if (
+              videoUploadPlayback &&
+              isLikelyVideoSource({
+                mimeType: file.type,
+                name: file.name,
+              })
+            ) {
               const asset = await getVideoAsset(file);
               return {
                 type: 'file',
@@ -65,13 +72,6 @@ export const FileDrop: FileDropComponent = ({
     </View>
   );
 };
-
-function isVideoFile(file: File) {
-  return (
-    file.type.startsWith('video/') ||
-    /\.(mp4|mov|webm)(?:\?.*)?$/i.test(file.name)
-  );
-}
 
 function getImageAsset(
   file: File
