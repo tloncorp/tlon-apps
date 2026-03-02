@@ -39,6 +39,12 @@ export function useUserActivity(): UserActivityState {
     lastActivityRef.current = Date.now();
   }, []);
 
+  // Update state to active immediately (used for visibility/focus changes)
+  const setActiveNow = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setState({ isActive: true, idleMs: 0 });
+  }, []);
+
   useEffect(() => {
     // Guard: only run on web where window/document exist
     if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -63,14 +69,14 @@ export function useUserActivity(): UserActivityState {
       window.addEventListener(event, recordActivity, { passive: true });
     });
 
-    // Also track visibility and focus
+    // Track visibility and focus - set active immediately on return
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        recordActivity();
+        setActiveNow();
       }
     };
     const handleFocus = () => {
-      recordActivity();
+      setActiveNow();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -99,7 +105,7 @@ export function useUserActivity(): UserActivityState {
       window.removeEventListener('focus', handleFocus);
       clearInterval(intervalId);
     };
-  }, [recordActivity]);
+  }, [recordActivity, setActiveNow]);
 
   return state;
 }
