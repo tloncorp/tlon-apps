@@ -1,5 +1,5 @@
-import { contentReferenceToCite, toContentReference } from '@tloncorp/api';
-import { Story, citeToPath, pathToCite } from '@tloncorp/api/urbit';
+import { toContentReference } from '@tloncorp/api';
+import { Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
@@ -8,7 +8,6 @@ import {
   TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
-  extractContentTypesFromPost,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -44,6 +43,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { hydrateEditPost } from '../MessageInput/helpers';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
@@ -729,53 +729,15 @@ export default function BareChatInput({
           }
 
           if (editingPost && editingPost.content) {
-            const {
-              story,
-              references: postReferences,
-              blocks,
-            } = extractContentTypesFromPost(editingPost);
+            const { story, attachments, isEmpty } = hydrateEditPost(
+              editingPost,
+              'references-media'
+            );
 
-            if (
-              story === null &&
-              !postReferences &&
-              blocks.length === 0
-            ) {
+            if (isEmpty) {
               setHasSetInitialContent(true);
               return;
             }
-
-            const attachments: Attachment[] = [];
-
-            postReferences.forEach((p) => {
-              const cite = contentReferenceToCite(p);
-              const path = citeToPath(cite);
-              attachments.push({
-                type: 'reference',
-                reference: p,
-                path,
-              });
-            });
-
-            blocks.forEach((b) => {
-              if ('image' in b) {
-                attachments.push({
-                  type: 'image',
-                  file: {
-                    uri: b.image.src,
-                    height: b.image.height,
-                    width: b.image.width,
-                  },
-                });
-              }
-              if ('link' in b) {
-                attachments.push({
-                  type: 'link',
-                  url: b.link.url,
-                  resourceType: 'page',
-                  ...b.link.meta,
-                });
-              }
-            });
 
             resetAttachments(attachments);
             const jsonContent = diaryMixedToJSON(
