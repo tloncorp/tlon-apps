@@ -1888,8 +1888,9 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async (config: {
   retainChannelStatus?: boolean;
+  context?: string;
 }) => {
-  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity, config);
   if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
@@ -1985,13 +1986,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError('sync start: changes sync failed', { error })
     );
 
+    // if running while already subscribed, execute the sync with lower priority. It's
+    // needed for correctness, but expensive and usually inconsequential
+    const syncStartPriority = {
+      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
+      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
+    };
+
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
         const highPrioritySyncCtx = {
-          priority: SyncPriority.High,
+          priority: syncStartPriority.high,
           retry: true,
         };
 
@@ -2009,7 +2017,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         const subsPromise = alreadySubscribed
           ? Promise.resolve()
           : setupHighPrioritySubscriptions({
-              priority: SyncPriority.High - 1,
+              priority: syncStartPriority.high - 1,
             }).then(() => logger.crumb('subscribed high priority'));
 
         didLoadCachedContacts = await LocalCache.loadCachedContacts();
@@ -2078,36 +2086,39 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       alreadySubscribed
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
-            priority: SyncPriority.Medium,
+            priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
-      resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(
+      resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
       // if we had cached contacts, we refresh them here with low priority
       didLoadCachedContacts
-        ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
-            () => logger.crumb(`finished syncing contacts`)
-          )
+        ? syncContacts({
+            priority: syncStartPriority.low + 1,
+            retry: true,
+          }).then(() => logger.crumb(`finished syncing contacts`))
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
-      syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+      syncVolumeSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing volume settings`)
       ),
-      syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+      syncStorageSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished initializing storage`)
       ),
-      syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+      syncPushNotificationsSetting({
+        priority: syncStartPriority.low + 1,
+      }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+      syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
-      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+      syncContactDiscovery({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing contact discovery`);
       }),
     ];
