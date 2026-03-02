@@ -43,7 +43,11 @@ function negotiationUpdater(
   invalidate.current();
 }
 
-export function useNegotiation(app: string, agent: string) {
+export function useNegotiation(
+  app: string,
+  agent: string,
+  { enabled = true }: { enabled?: boolean } = {}
+) {
   const queryKey = useMemo(() => ['negotiation', app], [app]);
 
   const invalidate = useRef(
@@ -60,6 +64,7 @@ export function useNegotiation(app: string, agent: string) {
   );
 
   useEffect(() => {
+    if (!enabled) return;
     api.subscribe(
       {
         app,
@@ -67,10 +72,11 @@ export function useNegotiation(app: string, agent: string) {
       },
       (event: MatchingEvent) => negotiationUpdater(event, queryKey, invalidate)
     );
-  }, [agent, app, queryKey]);
+  }, [agent, app, enabled, queryKey]);
 
   return useQuery<MatchingResponse>({
     queryKey,
+    enabled,
     staleTime: 5000,
     queryFn: () =>
       api.scry({
@@ -135,8 +141,10 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   };
 }
 
-export function useGroupsNegotiationClashes(): Set<string> {
-  const { data } = useNegotiation('groups', 'groups');
+export function useGroupsNegotiationClashes({
+  enabled = true,
+}: { enabled?: boolean } = {}): Set<string> {
+  const { data } = useNegotiation('groups', 'groups', { enabled });
   return useMemo(() => {
     if (!data) return new Set<string>();
     const clashes = new Set<string>();

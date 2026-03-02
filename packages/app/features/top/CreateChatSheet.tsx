@@ -223,7 +223,8 @@ const CreateChatFormContent = ({
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
   const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
-  const clashingShips = store.useGroupsNegotiationClashes();
+  const isGroup = chatType === 'group';
+  const clashingShips = store.useGroupsNegotiationClashes({ enabled: isGroup });
   const disabledIds = useMemo(() => Array.from(clashingShips), [clashingShips]);
 
   return (
@@ -241,7 +242,7 @@ const CreateChatFormContent = ({
             onScrollChange?.(scrolling);
           }}
           maxHeight={isWindowNarrow ? undefined : 500}
-          disabledIds={chatType === 'group' ? disabledIds : undefined}
+          disabledIds={isGroup ? disabledIds : undefined}
           disabledReason="App version mismatch"
         />
         {chatType === 'group' && (
