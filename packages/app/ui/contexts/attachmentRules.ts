@@ -23,10 +23,6 @@ type VideoCandidate = {
 
 type VideoValidationResult = { ok: true } | { ok: false; reason: string };
 
-function isRemoteUri(uri: string | undefined): boolean {
-  return !!uri && (uri.startsWith('http://') || uri.startsWith('https://'));
-}
-
 export function isLikelyVideoSource({
   mimeType,
   name,
@@ -40,22 +36,13 @@ export function isLikelyVideoSource({
 }
 
 export function validateVideoSource(
-  {
-    mimeType,
-    size,
-    name,
-    uri,
-  }: VideoCandidate,
-  opts: { allowUnknownSizeRemote?: boolean } = {}
+  { mimeType, size, name, uri }: VideoCandidate
 ): VideoValidationResult {
-  const allowUnknownSizeRemote = opts.allowUnknownSizeRemote ?? false;
   if (size == null || size < 0) {
-    if (!(allowUnknownSizeRemote && isRemoteUri(uri))) {
-      return {
-        ok: false,
-        reason: 'Unable to determine video size',
-      };
-    }
+    return {
+      ok: false,
+      reason: 'Unable to determine video size',
+    };
   }
   if (size != null && size > MAX_VIDEO_SIZE_BYTES) {
     return {
@@ -113,8 +100,7 @@ export function canAddAttachment(
           typeof nextAttachment.localFile === 'string'
             ? nextAttachment.localFile
             : undefined,
-      },
-      { allowUnknownSizeRemote: true }
+      }
     );
     if (!validation.ok) {
       return {

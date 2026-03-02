@@ -59,7 +59,7 @@ test('rejects unknown-size local video', () => {
   });
 });
 
-test('allows unknown-size remote video for edit hydration', () => {
+test('rejects unknown-size remote video', () => {
   expect(
     canAddAttachment(
       [],
@@ -69,7 +69,11 @@ test('allows unknown-size remote video for edit hydration', () => {
         mimeType: undefined,
       })
     )
-  ).toEqual({ ok: true });
+  ).toEqual({
+    ok: false,
+    reason: 'Unable to determine video size',
+    kind: 'validation',
+  });
 });
 
 test('rejects unsupported video MIME type', () => {
