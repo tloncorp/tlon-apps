@@ -27,6 +27,8 @@ export function ContactBook({
   onSelect,
   multiSelect = false,
   immutableIds = [],
+  disabledIds = [],
+  disabledReason,
   onSelectedChange,
   onScrollChange,
   explanationComponent,
@@ -38,6 +40,8 @@ export function ContactBook({
 }: {
   autoFocus?: boolean;
   immutableIds?: string[];
+  disabledIds?: string[];
+  disabledReason?: string;
   searchPlaceholder?: string;
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
@@ -61,6 +65,7 @@ export function ContactBook({
     return contacts;
   }, [contacts]);
   const immutableSet = useMemo(() => new Set(immutableIds), [immutableIds]);
+  const disabledSet = useMemo(() => new Set(disabledIds), [disabledIds]);
   const contactsIndex = useContactIndex();
   const segmentedContacts = useAlphabeticallySegmentedContacts(
     contactsForBook ?? [],
@@ -86,7 +91,7 @@ export function ContactBook({
   const [selected, setSelected] = useState<string[]>([]);
   const handleSelect = useCallback(
     (contactId: string) => {
-      if (immutableSet.has(contactId)) {
+      if (immutableSet.has(contactId) || disabledSet.has(contactId)) {
         return;
       }
 
@@ -104,18 +109,21 @@ export function ContactBook({
         onSelect?.(contactId);
       }
     },
-    [immutableSet, multiSelect, onSelect, onSelectedChange, selected]
+    [immutableSet, disabledSet, multiSelect, onSelect, onSelectedChange, selected]
   );
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Contact, { label: string }>) => {
       const isSelected = !!selected?.includes(item.id);
+      const isDisabled = disabledSet.has(item.id);
       return (
         <ContactRow
           backgroundColor={'$secondaryBackground'}
           key={item.id}
           contact={item}
           immutable={immutableSet.has(item.id)}
+          disabled={isDisabled}
+          disabledReason={isDisabled ? disabledReason : undefined}
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
@@ -123,7 +131,7 @@ export function ContactBook({
         />
       );
     },
-    [selected, immutableSet, multiSelect, handleSelect]
+    [selected, immutableSet, disabledSet, disabledReason, multiSelect, handleSelect]
   );
 
   const onTouchStart = useCallback(() => {

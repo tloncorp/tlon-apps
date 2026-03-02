@@ -1,6 +1,7 @@
+import * as store from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { useInviteGroupMembers } from '../../hooks/useInviteUsers';
 import { ActionSheet } from './ActionSheet';
@@ -18,6 +19,8 @@ const InviteUsersWidgetComponent = ({
 }) => {
   const { loading, invitees, setInvitees, handleInvite, buttonText } =
     useInviteGroupMembers(group.id, onInviteComplete);
+  const clashingShips = store.useGroupsNegotiationClashes();
+  const disabledIds = useMemo(() => Array.from(clashingShips), [clashingShips]);
 
   return (
     <>
@@ -31,6 +34,8 @@ const InviteUsersWidgetComponent = ({
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}
           onScrollChange={onScrollChange}
+          disabledIds={disabledIds}
+          disabledReason="App version mismatch"
         />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>

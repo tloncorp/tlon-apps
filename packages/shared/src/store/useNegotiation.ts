@@ -135,6 +135,20 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   };
 }
 
+export function useGroupsNegotiationClashes(): Set<string> {
+  const { data } = useNegotiation('groups', 'groups');
+  return useMemo(() => {
+    if (!data) return new Set<string>();
+    const clashes = new Set<string>();
+    for (const [key, status] of Object.entries(data)) {
+      if (status === 'clash' && key.endsWith('/groups')) {
+        clashes.add(key.replace('/groups', ''));
+      }
+    }
+    return clashes;
+  }, [data]);
+}
+
 export function useForceNegotiationUpdate(ships: string[], app: string) {
   const { data } = useNegotiation(app, app);
   const unknownShips = useMemo(
