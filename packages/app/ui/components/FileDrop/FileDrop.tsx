@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
@@ -10,6 +11,7 @@ export const FileDrop: FileDropComponent = ({
   children,
   ...props
 }) => {
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const handleDrop = useCallback(
     async (files: File[]) => {
       onAssetsDropped(
@@ -26,12 +28,20 @@ export const FileDrop: FileDropComponent = ({
                 },
               };
             }
+            if (videoUploadPlayback && isVideoFile(file)) {
+              const asset = await getVideoAsset(file);
+              return {
+                type: 'file',
+                file,
+                video: asset,
+              } as Attachment.UploadIntent;
+            }
             return Attachment.UploadIntent.fromFile(file);
           })
         )
       );
     },
-    [onAssetsDropped]
+    [onAssetsDropped, videoUploadPlayback]
   );
 
   const { getInputProps, getRootProps } = useDropzone({
@@ -56,6 +66,13 @@ export const FileDrop: FileDropComponent = ({
   );
 };
 
+function isVideoFile(file: File) {
+  return (
+    file.type.startsWith('video/') ||
+    /\.(mp4|mov|webm)(?:\?.*)?$/i.test(file.name)
+  );
+}
+
 function getImageAsset(
   file: File
 ): Promise<{ uri: string; width: number; height: number }> {
@@ -70,5 +87,28 @@ function getImageAsset(
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;
+  });
+}
+
+function getVideoAsset(
+  file: File
+): Promise<{ width?: number; height?: number; duration?: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const objectUrl = URL.createObjectURL(file);
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      resolve({
+        width: video.videoWidth || undefined,
+        height: video.videoHeight || undefined,
+        duration: Number.isFinite(video.duration) ? video.duration : undefined,
+      });
+      URL.revokeObjectURL(objectUrl);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({});
+    };
+    video.src = objectUrl;
   });
 }

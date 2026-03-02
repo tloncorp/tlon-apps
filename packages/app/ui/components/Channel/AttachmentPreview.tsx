@@ -1,4 +1,4 @@
-import { FileAttachment, ImageAttachment } from '@tloncorp/shared';
+import { FileAttachment, ImageAttachment, VideoAttachment } from '@tloncorp/shared';
 import { useMemo } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View } from 'tamagui';
@@ -22,6 +22,8 @@ function AttachmentPreview() {
   switch (focusedAttachment?.type) {
     case 'image':
       return <ContentImage imageAttachment={focusedAttachment} />;
+    case 'video':
+      return <ContentVideo videoAttachment={focusedAttachment} />;
 
     case 'file':
       return <ContentFile fileAttachment={focusedAttachment} />;
@@ -60,6 +62,44 @@ function ContentImage({
       resizeMode="contain"
     >
       {imageAttachment?.uploadState?.status === 'uploading' && (
+        <View
+          top={0}
+          justifyContent="center"
+          padding="$xl"
+          alignItems="center"
+          backgroundColor="$translucentBlack"
+          borderRadius="$m"
+        >
+          <Spinner size="large" color="$primaryText" />
+        </View>
+      )}
+    </ImageBackground>
+  );
+}
+
+function ContentVideo({
+  videoAttachment,
+}: {
+  videoAttachment: VideoAttachment;
+}) {
+  const uri =
+    videoAttachment.posterUri ??
+    (videoAttachment.localFile instanceof File
+      ? URL.createObjectURL(videoAttachment.localFile)
+      : videoAttachment.localFile);
+  return (
+    <ImageBackground
+      source={{ uri }}
+      style={{
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: videoAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
+      }}
+      resizeMode="contain"
+    >
+      {videoAttachment?.uploadState?.status === 'uploading' && (
         <View
           top={0}
           justifyContent="center"

@@ -36,6 +36,8 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
+import { useFeatureFlag } from '../../../lib/featureFlags';
+import { getHydratedVideoBlocks } from '../../utils/videoHydration';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -86,7 +88,10 @@ function useKeyboardHeight(maxInputHeightBasic: number) {
   return maxInputHeight;
 }
 
-function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
+function usePasteHandler(
+  addAttachment: (attachment: Attachment) => void,
+  allowVideo: boolean
+) {
   // For now, we only check to make sure we're on web,
   // we don't check if the input is focused. This allows users to paste
   // images before they select the input. We may want to change this behavior
@@ -99,33 +104,72 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
 
     const handlePaste = async (e: ClipboardEvent) => {
       const items = Array.from(e.clipboardData?.items || []);
-      const image = items.find((item) => item.type.includes('image'));
+      const media = items.find(
+        (item) =>
+          item.type.includes('image') ||
+          (allowVideo && item.type.includes('video'))
+      );
 
-      if (!image) return;
+      if (!media) return;
 
-      const file = image.getAsFile();
+      const file = media.getAsFile();
       if (!file) return;
 
-      const uri = URL.createObjectURL(file);
-      const img = new Image();
+      if (media.type.includes('image')) {
+        const uri = URL.createObjectURL(file);
+        const img = new Image();
 
-      img.onload = () => {
-        addAttachment({
-          type: 'image',
-          file: {
-            uri,
-            height: img.height,
-            width: img.width,
-          },
-        });
-      };
+        img.onload = () => {
+          addAttachment({
+            type: 'image',
+            file: {
+              uri,
+              height: img.height,
+              width: img.width,
+            },
+          });
+        };
 
-      img.src = uri;
+        img.src = uri;
+        return;
+      }
+
+      if (allowVideo && media.type.includes('video')) {
+        const uri = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          addAttachment({
+            type: 'video',
+            localFile: file,
+            size: file.size,
+            mimeType: file.type,
+            name: file.name,
+            width: video.videoWidth || undefined,
+            height: video.videoHeight || undefined,
+            duration: Number.isFinite(video.duration)
+              ? video.duration
+              : undefined,
+          });
+          URL.revokeObjectURL(uri);
+        };
+        video.onerror = () => {
+          addAttachment({
+            type: 'video',
+            localFile: file,
+            size: file.size,
+            mimeType: file.type,
+            name: file.name,
+          });
+          URL.revokeObjectURL(uri);
+        };
+        video.src = uri;
+      }
     };
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [addAttachment]);
+  }, [addAttachment, allowVideo]);
 }
 
 interface TextWithMentionsProps {
@@ -235,6 +279,7 @@ export default function BareChatInput({
     resetAttachments,
     removeAttachment,
   } = useAttachmentContext();
+  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
@@ -262,7 +307,7 @@ export default function BareChatInput({
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
-  usePasteHandler(addAttachment);
+  usePasteHandler(addAttachment, videoUploadPlayback);
 
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews
@@ -690,8 +735,19 @@ export default function BareChatInput({
               references: postReferences,
               blocks,
             } = extractContentTypesFromPost(editingPost);
+            const videoBlocks = getHydratedVideoBlocks(
+              editingPost,
+              videoUploadPlayback
+            );
+            const hasVideoAttachment = videoBlocks.length > 0;
 
-            if (story === null && !postReferences && blocks.length === 0) {
+            if (
+              story === null &&
+              !postReferences &&
+              blocks.length === 0 &&
+              !hasVideoAttachment
+            ) {
+              setHasSetInitialContent(true);
               return;
             }
 
@@ -726,6 +782,17 @@ export default function BareChatInput({
                   ...b.link.meta,
                 });
               }
+            });
+            videoBlocks.forEach((block) => {
+              attachments.push({
+                type: 'video',
+                localFile: block.src,
+                size: -1,
+                mimeType: undefined,
+                name: block.alt,
+                width: block.width,
+                height: block.height,
+              });
             });
 
             resetAttachments(attachments);
@@ -767,6 +834,7 @@ export default function BareChatInput({
     resetAttachments,
     addAttachment,
     setMentions,
+    videoUploadPlayback,
   ]);
 
   useEffect(() => {
