@@ -78,6 +78,28 @@ export type FileAttachment = {
   mimeType?: string;
 };
 
+type VideoAttachmentMetadata = {
+  /** in pixels */
+  width?: number;
+  /** in pixels */
+  height?: number;
+  /** in seconds */
+  duration?: number;
+  /** local-only preview URI in v1 */
+  posterUri?: string;
+};
+
+export type VideoAttachment = {
+  type: 'video';
+  // File or local URI string
+  localFile: File | string;
+  name?: string;
+  /** in bytes */
+  size: number;
+  mimeType?: string;
+  uploadState?: UploadState;
+} & VideoAttachmentMetadata;
+
 export type VoiceMemoAttachment = {
   type: 'voicememo';
   localUri: string;
@@ -114,8 +136,18 @@ export type UploadedVoiceMemoAttachment = {
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
+export type UploadedVideoAttachment = Omit<VideoAttachment, 'uploadState'> & {
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
+};
+
 export namespace UploadedFileAttachment {
   export function uri(attachment: UploadedFileAttachment): string {
+    return uploadStateUri(attachment.uploadState);
+  }
+}
+
+export namespace UploadedVideoAttachment {
+  export function uri(attachment: UploadedVideoAttachment): string {
     return uploadStateUri(attachment.uploadState);
   }
 }
@@ -129,6 +161,7 @@ export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
   | FileAttachment
+  | VideoAttachment
   | VoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
@@ -137,6 +170,7 @@ export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
   | UploadedFileAttachment
+  | UploadedVideoAttachment
   | UploadedVoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
@@ -165,8 +199,9 @@ export namespace Attachment {
               transcription?: string;
               waveformPreview?: number[];
             };
+        video?: false | VideoAttachmentMetadata;
       }
-    | { type: 'file'; file: File };
+    | { type: 'file'; file: File; video?: false | VideoAttachmentMetadata };
 
   export namespace UploadIntent {
     /** Branded type to avoid using wrong keys downstream */
@@ -181,8 +216,11 @@ export namespace Attachment {
       };
     }
 
-    export function fromFile(file: File): UploadIntent {
-      return { type: 'file', file };
+    export function fromFile(
+      file: File,
+      opts?: { video?: false | VideoAttachmentMetadata }
+    ): UploadIntent {
+      return { type: 'file', file, video: opts?.video };
     }
 
     export function createLocalUri(uploadIntent: UploadIntent): string {
@@ -255,6 +293,20 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.file,
+              size: uploadIntent.file.size,
+              mimeType: uploadIntent.file.type,
+              name: uploadIntent.file.name,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
+              uploadState,
+            };
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -273,6 +325,19 @@ export namespace Attachment {
               duration: uploadIntent.voiceMemo.duration,
               transcription: uploadIntent.voiceMemo.transcription,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState,
+            };
+          } else if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.localUri,
+              name: uploadIntent.name,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
               uploadState,
             };
           } else {
@@ -304,6 +369,23 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.file,
+              size: uploadIntent.file.size,
+              mimeType: uploadIntent.file.type,
+              name: uploadIntent.file.name,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
+              uploadState: {
+                status: 'uploading',
+                localUri: createLocalUri(uploadIntent),
+              },
+            };
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -325,6 +407,22 @@ export namespace Attachment {
               duration: uploadIntent.voiceMemo.duration,
               transcription: uploadIntent.voiceMemo.transcription,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState: {
+                status: 'uploading',
+                localUri: uploadIntent.localUri,
+              },
+            };
+          } else if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.localUri,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              name: uploadIntent.name,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
               uploadState: {
                 status: 'uploading',
                 localUri: uploadIntent.localUri,
@@ -376,6 +474,35 @@ export namespace Attachment {
             mimeType: attachment.mimeType,
           };
         }
+      case 'video':
+        if (attachment.localFile instanceof File) {
+          return {
+            needsUpload: true,
+            type: 'file',
+            file: attachment.localFile,
+            video: {
+              width: attachment.width,
+              height: attachment.height,
+              duration: attachment.duration,
+              posterUri: attachment.posterUri,
+            },
+          };
+        } else {
+          return {
+            needsUpload: true,
+            type: 'fileUri',
+            localUri: attachment.localFile,
+            name: attachment.name,
+            size: attachment.size,
+            mimeType: attachment.mimeType,
+            video: {
+              width: attachment.width,
+              height: attachment.height,
+              duration: attachment.duration,
+              posterUri: attachment.posterUri,
+            },
+          };
+        }
       case 'voicememo':
         return {
           needsUpload: true,
@@ -405,6 +532,19 @@ export namespace Attachment {
         return { type: 'image', file: uploadIntent.asset };
       }
       case 'file': {
+        if (uploadIntent.video) {
+          return {
+            type: 'video',
+            localFile: uploadIntent.file,
+            size: uploadIntent.file.size,
+            mimeType: uploadIntent.file.type,
+            name: uploadIntent.file.name,
+            width: uploadIntent.video.width,
+            height: uploadIntent.video.height,
+            duration: uploadIntent.video.duration,
+            posterUri: uploadIntent.video.posterUri,
+          };
+        }
         return {
           type: 'file',
           localFile: uploadIntent.file,
@@ -421,6 +561,18 @@ export namespace Attachment {
             duration: uploadIntent.voiceMemo.duration,
             transcription: uploadIntent.voiceMemo.transcription,
             waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+          };
+        } else if (uploadIntent.video) {
+          return {
+            type: 'video',
+            localFile: uploadIntent.localUri,
+            name: uploadIntent.name,
+            size: uploadIntent.size,
+            mimeType: uploadIntent.mimeType,
+            width: uploadIntent.video.width,
+            height: uploadIntent.video.height,
+            duration: uploadIntent.video.duration,
+            posterUri: uploadIntent.video.posterUri,
           };
         } else {
           return {
@@ -453,6 +605,20 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.file,
+              size: uploadIntent.file.size,
+              name: uploadIntent.file.name,
+              mimeType: uploadIntent.file.type,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
+              uploadState,
+            };
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -471,6 +637,19 @@ export namespace Attachment {
               duration: uploadIntent.voiceMemo.duration,
               transcription: uploadIntent.voiceMemo.transcription,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              uploadState,
+            };
+          } else if (uploadIntent.video) {
+            return {
+              type: 'video',
+              localFile: uploadIntent.localUri,
+              size: uploadIntent.size,
+              name: uploadIntent.name,
+              mimeType: uploadIntent.mimeType,
+              width: uploadIntent.video.width,
+              height: uploadIntent.video.height,
+              duration: uploadIntent.video.duration,
+              posterUri: uploadIntent.video.posterUri,
               uploadState,
             };
           } else {
@@ -496,7 +675,7 @@ export namespace Attachment {
    */
   export function makeSerializable(att: Attachment): Attachment {
     if (
-      att.type === 'file' &&
+      (att.type === 'file' || att.type === 'video') &&
       att.localFile instanceof File &&
       typeof URL.createObjectURL === 'function'
     ) {
