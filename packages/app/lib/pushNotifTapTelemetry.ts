@@ -3,7 +3,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { getChannelPosts } from '@tloncorp/shared/api';
 
 const logger = createDevLogger('PushNotifTapTelemetry', false);
-const PUSH_NOTIF_TIMING_EVENT = 'Push Notif Open Timing';
+const PUSH_TAP_CHECK_EVENT = 'Push Tap Correctness Check';
 const DEADLINE_MS = 5000;
 const RENDERED_POST_ID_LIMIT = 120;
 
@@ -53,7 +53,7 @@ function captureEvent(
       ? current.lastRenderedPostIds.includes(current.serverNewestPostId)
       : null;
 
-  logger.trackEvent(PUSH_NOTIF_TIMING_EVENT, {
+  logger.trackEvent(PUSH_TAP_CHECK_EVENT, {
     outcome,
     failureReason,
     channelId: current.channelId,
@@ -185,7 +185,10 @@ export function reportPushNotifChannelRendered(
     return;
   }
 
-  current.lastRenderedPostIds = renderedPostIds.slice(0, RENDERED_POST_ID_LIMIT);
+  current.lastRenderedPostIds = renderedPostIds.slice(
+    0,
+    RENDERED_POST_ID_LIMIT
+  );
   if (renderContext) {
     current.renderedNewestSequenceNum = renderContext.newestSequenceNum;
     current.renderedOldestSequenceNum = renderContext.oldestSequenceNum;
