@@ -102,13 +102,22 @@ function VideoViewer({
   if (isWeb) {
     return (
       <MediaViewerModal dismiss={goBack}>
-        <Pressable onPress={goBack} flex={1} backgroundColor="$black">
+        <ZStack flex={1} backgroundColor="$black">
+          <Pressable
+            onPress={goBack}
+            position="absolute"
+            top={0}
+            right={0}
+            bottom={0}
+            left={0}
+          />
           <View
             flex={1}
             width="100%"
             alignItems="center"
             justifyContent="center"
             padding="$l"
+            pointerEvents="box-none"
           >
             {!uri ? (
               <Text color="$white">Unable to load video.</Text>
@@ -134,10 +143,7 @@ function VideoViewer({
           </View>
 
           <Pressable
-            onPress={(event) => {
-              event.stopPropagation();
-              goBack();
-            }}
+            onPress={goBack}
             position="absolute"
             top={16}
             right="$xl"
@@ -146,7 +152,7 @@ function VideoViewer({
               <Icon type="Close" size="$l" color="$white" />
             </Stack>
           </Pressable>
-        </Pressable>
+        </ZStack>
       </MediaViewerModal>
     );
   }
