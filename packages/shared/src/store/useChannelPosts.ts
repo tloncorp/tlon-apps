@@ -193,6 +193,21 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const pendingPosts = usePendingPostsInChannel(options.channelId);
   const deletedPosts = useDeletedPosts(options.channelId);
 
+  // Track whether we've ever been at the newest position for this channel.
+  // Prevents hasNewest from regressing to false due to sequence gaps from
+  // race conditions, which would cause mergePendingPosts to clip newPosts.
+  const wasAtNewestRef = useRef(false);
+  if (!query.hasPreviousPage) {
+    wasAtNewestRef.current = true;
+  }
+  useEffect(() => {
+    wasAtNewestRef.current = false;
+  }, [options.channelId]);
+
+  const hasNewest =
+    !query.hasPreviousPage ||
+    (wasAtNewestRef.current && newPosts.length > 0);
+
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
     return mergePendingPosts({
@@ -201,11 +216,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       existingPosts: queryPosts,
       deletedPosts,
       filterDeleted: options.filterDeleted,
-      hasNewest: !query.hasPreviousPage,
+      hasNewest,
     });
   }, [
     query.data?.pages,
-    query.hasPreviousPage,
+    hasNewest,
     newPosts,
     pendingPosts,
     deletedPosts,
