@@ -103,15 +103,22 @@ then
 fi
 
 http_port=9090
+
+function wait_for_http()
+{
+  local url="$1"
+  while ! curl -sSf --max-time 2 "$url" > /dev/null
+  do
+    sleep 3
+  done
+}
+
 echo "Booting ship"
 ($vere --loom 33 --http-port $http_port -t $pier) &
 vere_pid=$!
 
 sleep 3
-while ! curl -s "http://localhost:$http_port"
-do
-  sleep 3
-done
+wait_for_http "http://localhost:$http_port"
 
 run_click="$click -b $vere -i - -kp"
 
@@ -176,10 +183,7 @@ EOF
 
 echo "Awaiting desk update..."
 sleep 3
-while ! curl -s "http://localhost:$http_port"
-do
-  sleep 3
-done
+wait_for_http "http://localhost:$http_port"
 
 echo "Starting %aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF
@@ -233,4 +237,3 @@ else
   echo "Tests failed ❌"
   exit 1
 fi
-
