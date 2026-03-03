@@ -24,27 +24,78 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
-function uploadIntentIsVideo(uploadIntent: Attachment.UploadIntent): boolean {
+function getVideoUploadMetadata(
+  uploadIntent: Attachment.UploadIntent
+): { isVideo: boolean; posterUri?: string } {
   switch (uploadIntent.type) {
     case 'image':
-      return false;
-    case 'file':
-      return !!uploadIntent.video || uploadIntent.file.type.startsWith('video/');
-    case 'fileUri':
-      return (
-        !!uploadIntent.video ||
-        (!!uploadIntent.mimeType && uploadIntent.mimeType.startsWith('video/'))
-      );
+      return { isVideo: false };
+    case 'file': {
+      const videoMetadata = uploadIntent.video;
+      const posterUri =
+        videoMetadata && typeof videoMetadata === 'object'
+          ? videoMetadata.posterUri
+          : undefined;
+      return {
+        isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
+        posterUri,
+      };
+    }
+    case 'fileUri': {
+      const videoMetadata = uploadIntent.video;
+      const posterUri =
+        videoMetadata && typeof videoMetadata === 'object'
+          ? videoMetadata.posterUri
+          : undefined;
+      return {
+        isVideo:
+          !!videoMetadata ||
+          (!!uploadIntent.mimeType && uploadIntent.mimeType.startsWith('video/')),
+        posterUri,
+      };
+    }
   }
 }
 
 function setTerminalUploadState(
   key: Attachment.UploadIntent.Key,
   next:
-    | { status: 'success'; remoteUri: string }
+    | { status: 'success'; remoteUri: string; posterUri?: string }
     | { status: 'error'; errorMessage: string }
 ) {
   setUploadState(key, next);
+}
+
+function isRemoteUri(uri: string): boolean {
+  return uri.startsWith('http://') || uri.startsWith('https://');
+}
+
+async function uploadVideoPoster(
+  posterUri: string | undefined,
+  isWeb: boolean
+): Promise<string | undefined> {
+  if (!posterUri) {
+    return undefined;
+  }
+  if (isRemoteUri(posterUri)) {
+    return posterUri;
+  }
+  try {
+    return await performUpload(
+      {
+        uri: posterUri,
+        mimeType: 'image/jpeg',
+      },
+      isWeb
+    );
+  } catch (error) {
+    logger.trackError('video poster upload failed', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      isWeb,
+    });
+    return undefined;
+  }
 }
 
 function getSaveFormat(mimeType?: string): SaveFormat {
@@ -109,7 +160,8 @@ async function uploadAssetWithLifecycle(
   }
 ) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
-  const isVideo = uploadIntentIsVideo(uploadIntent);
+  const { isVideo, posterUri: localPosterUri } =
+    getVideoUploadMetadata(uploadIntent);
   callbacks.willUpload?.();
 
   setUploadState(uploadKey, {
@@ -124,12 +176,19 @@ async function uploadAssetWithLifecycle(
   }
   try {
     const remoteUri = await performUpload(await callbacks.prepareAsset(), isWeb);
+    const posterUri = isVideo
+      ? await uploadVideoPoster(localPosterUri, isWeb)
+      : undefined;
     logger.crumb('upload succeeded');
     logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
       remoteUri,
       isWeb,
     });
-    setTerminalUploadState(uploadKey, { status: 'success', remoteUri });
+    setTerminalUploadState(uploadKey, {
+      status: 'success',
+      remoteUri,
+      posterUri,
+    });
   } catch (e) {
     logger.trackError('upload failed', {
       error: e,

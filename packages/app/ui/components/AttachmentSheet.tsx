@@ -29,6 +29,7 @@ import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
+import { getVideoPreviewData } from '../utils/videoPreviewData';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
@@ -54,6 +55,40 @@ function resolveVideoSize(
     return statSize;
   }
   return undefined;
+}
+
+type UploadIntentVideoMetadata = Exclude<
+  Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
+  false | undefined
+>;
+
+function asVideoMetadata(
+  metadata: Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video']
+): UploadIntentVideoMetadata | undefined {
+  return metadata && typeof metadata === 'object' ? metadata : undefined;
+}
+
+function shouldHydrateVideoMetadata(
+  metadata: UploadIntentVideoMetadata | undefined
+) {
+  return (
+    metadata?.width == null ||
+    metadata?.height == null ||
+    metadata?.duration == null ||
+    !metadata?.posterUri
+  );
+}
+
+function mergeVideoMetadata(
+  metadata: UploadIntentVideoMetadata | undefined,
+  previewData: Awaited<ReturnType<typeof getVideoPreviewData>>
+) {
+  return {
+    width: metadata?.width ?? previewData.width,
+    height: metadata?.height ?? previewData.height,
+    duration: metadata?.duration ?? previewData.duration,
+    posterUri: metadata?.posterUri ?? previewData.posterUri,
+  };
 }
 
 export default function AttachmentSheet({
@@ -253,35 +288,18 @@ export default function AttachmentSheet({
   const useVideoInMediaPicker = mediaType === 'all' && videoUploadPlayback;
 
   const asUploadIntent = useCallback(
-    (
-      asset: ImagePicker.ImagePickerAsset
-    ): Attachment.UploadIntent | null => {
+    (asset: ImagePicker.ImagePickerAsset): Attachment.UploadIntent => {
       if (asset.type === 'video') {
-        const resolvedSize = resolveVideoSize(asset.fileSize ?? undefined, asset.uri);
-        const validation = validateVideoSource({
-          mimeType: asset.mimeType ?? undefined,
-          size: resolvedSize,
-          name: asset.fileName ?? undefined,
-          uri: asset.uri,
-        });
-        if (!validation.ok) {
-          logger.trackError('video validation failed', validation);
-          setAttachmentErrorMessage(
-            validation.reason ?? 'Unable to attach video'
-          );
-          return null;
-        }
         return {
           type: 'fileUri',
           localUri: asset.uri,
           name: asset.fileName ?? undefined,
-          size: resolvedSize ?? -1,
+          size: resolveVideoSize(asset.fileSize ?? undefined, asset.uri) ?? -1,
           mimeType: asset.mimeType ?? undefined,
           video: {
             width: asset.width ?? undefined,
             height: asset.height ?? undefined,
-            duration:
-              asset.duration != null ? asset.duration / 1000 : undefined,
+            duration: asset.duration != null ? asset.duration / 1000 : undefined,
           },
         };
       }
@@ -290,83 +308,90 @@ export default function AttachmentSheet({
     []
   );
 
-  const normalizeUploadIntents = useCallback(
-    (uploadIntents: Attachment.UploadIntent[]) => {
-      return uploadIntents.flatMap((uploadIntent) => {
-        if (!videoUploadPlayback) {
-          return [uploadIntent];
+  const normalizeUploadIntent = useCallback(
+    async (
+      uploadIntent: Attachment.UploadIntent
+    ): Promise<Attachment.UploadIntent | null> => {
+      if (!videoUploadPlayback) {
+        return uploadIntent;
+      }
+
+      if (uploadIntent.type === 'image') {
+        return uploadIntent;
+      }
+
+      if (uploadIntent.type === 'fileUri') {
+        if (uploadIntent.voiceMemo) {
+          return uploadIntent;
         }
-        if (uploadIntent.type === 'image') {
-          return [uploadIntent];
-        }
-        if (uploadIntent.type === 'file') {
-          const isVideo = isLikelyVideoSource({
-            mimeType: uploadIntent.file.type,
-            name: uploadIntent.file.name,
-          });
-          if (!isVideo) {
-            return [uploadIntent];
-          }
-          const validation = validateVideoSource({
-            mimeType: uploadIntent.file.type || undefined,
-            size: uploadIntent.file.size,
-            name: uploadIntent.file.name,
-          });
-          if (!validation.ok) {
-            logger.trackError('video validation failed', validation);
-            setAttachmentErrorMessage(
-              validation.reason ?? 'Unable to attach video'
-            );
-            return [];
-          }
-          return [
-            {
-              ...uploadIntent,
-              video: {},
-            },
-          ];
-        }
-        if (uploadIntent.type === 'fileUri') {
-          if (uploadIntent.voiceMemo) {
-            return [uploadIntent];
-          }
-          const resolvedSize = resolveVideoSize(
-            uploadIntent.size,
-            uploadIntent.localUri
-          );
-          const isVideo = isLikelyVideoSource({
-            mimeType: uploadIntent.mimeType,
-            name: uploadIntent.name,
-            uri: uploadIntent.localUri,
-          });
-          if (!isVideo) {
-            return [uploadIntent];
-          }
-          const validation = validateVideoSource({
-            mimeType: uploadIntent.mimeType,
-            size: resolvedSize,
-            name: uploadIntent.name,
-            uri: uploadIntent.localUri,
-          });
-          if (!validation.ok) {
-            logger.trackError('video validation failed', validation);
-            setAttachmentErrorMessage(
-              validation.reason ?? 'Unable to attach video'
-            );
-            return [];
-          }
-          return [
-            {
-              ...uploadIntent,
-              size: resolvedSize ?? uploadIntent.size,
-              video: uploadIntent.video ?? {},
-            },
-          ];
-        }
-        return [];
+      }
+
+      if (uploadIntent.type !== 'file' && uploadIntent.type !== 'fileUri') {
+        return null;
+      }
+
+      const isFileIntent = uploadIntent.type === 'file';
+      const mimeType = isFileIntent
+        ? uploadIntent.file.type || undefined
+        : uploadIntent.mimeType;
+      const name = isFileIntent ? uploadIntent.file.name : uploadIntent.name;
+      const uri = isFileIntent ? undefined : uploadIntent.localUri;
+      const size = isFileIntent
+        ? uploadIntent.file.size
+        : resolveVideoSize(uploadIntent.size, uploadIntent.localUri);
+      const previewSource = isFileIntent
+        ? { file: uploadIntent.file }
+        : { uri: uploadIntent.localUri };
+
+      if (!isLikelyVideoSource({ mimeType, name, uri })) {
+        return uploadIntent;
+      }
+
+      const validation = validateVideoSource({
+        mimeType,
+        size,
+        name,
+        uri,
       });
+      if (!validation.ok) {
+        logger.trackError('video validation failed', validation);
+        setAttachmentErrorMessage(validation.reason ?? 'Unable to attach video');
+        return null;
+      }
+
+      const existingMetadata = asVideoMetadata(uploadIntent.video);
+      const previewData = shouldHydrateVideoMetadata(existingMetadata)
+        ? await getVideoPreviewData(previewSource)
+        : {};
+
+      if (isFileIntent) {
+        return {
+          ...uploadIntent,
+          video: mergeVideoMetadata(existingMetadata, previewData),
+        };
+      }
+
+      return {
+        ...uploadIntent,
+        size: size ?? uploadIntent.size,
+        video: mergeVideoMetadata(existingMetadata, previewData),
+      };
     },
-    [videoUploadPlayback]
+    [setAttachmentErrorMessage, videoUploadPlayback]
+  );
+
+  const normalizeUploadIntents = useCallback(
+    async (
+      uploadIntents: Attachment.UploadIntent[]
+    ): Promise<Attachment.UploadIntent[]> => {
+      const normalized = await Promise.all(
+        uploadIntents.map((uploadIntent) => normalizeUploadIntent(uploadIntent))
+      );
+      return normalized.flatMap((uploadIntent) =>
+        uploadIntent ? [uploadIntent] : []
+      );
+    },
+    [normalizeUploadIntent]
   );
 
   const pickImage = useCallback(() => {
@@ -406,13 +431,11 @@ export default function AttachmentSheet({
           const uploadIntent = asUploadIntent(realAsset);
 
           removePlaceholderAttachment();
-          if (uploadIntent) {
-            const atts = normalizeUploadIntents([uploadIntent]);
-            if (atts.length > 0) {
-              setAttachmentErrorMessage(null);
-              attachAssets(atts);
-              onAttach?.(atts);
-            }
+          const atts = await normalizeUploadIntents([uploadIntent]);
+          if (atts.length > 0) {
+            setAttachmentErrorMessage(null);
+            attachAssets(atts);
+            onAttach?.(atts);
           }
         } else {
           // If user canceled, remove the placeholder
@@ -449,7 +472,7 @@ export default function AttachmentSheet({
     onOpenChange(false);
 
     const uploadIntents = await pickFile();
-    const normalized = normalizeUploadIntents(uploadIntents);
+    const normalized = await normalizeUploadIntents(uploadIntents);
     if (normalized.length > 0) {
       setAttachmentErrorMessage(null);
       attachAssets(normalized);
