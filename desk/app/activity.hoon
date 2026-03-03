@@ -174,7 +174,13 @@
         state-2
         state-1
     ==
-  +$  state-9  _%*(. *state-8 - %9)
+  +$  state-9
+    $:  %9
+        allowed=notifications-allowed:a
+        =indices:a
+        =activity:a
+        =volume-settings:a
+    ==
   +$  state-8  current-state
   +$  state-7
     $:  %7
