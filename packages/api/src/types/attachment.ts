@@ -677,6 +677,10 @@ export namespace Attachment {
     } else {
       return uploadIntent.finalized;
     }
+    if (uploadState == null || uploadState.status !== 'success') {
+      return null;
+    }
+    return UploadIntent.toFinalizedAttachment(uploadIntent, uploadState);
   }
 
   /**

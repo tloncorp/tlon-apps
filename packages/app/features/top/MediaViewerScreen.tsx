@@ -288,7 +288,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
   const { top } = useSafeAreaInsets();
 
   function onSingleTap() {
-    setShowOverlay(!showOverlay);
+    setShowOverlay((previous) => !previous);
   }
 
   function handlePinchEnd(event: { scale: number }) {
@@ -557,23 +557,11 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
           >
             <XStack justifyContent={isWeb ? 'flex-end' : 'space-between'} gap="$m">
               <TouchableOpacity onPress={handleDownloadImage} activeOpacity={0.8}>
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
-                >
-                  <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
+                <OverlayIconButton icon="ArrowDown" />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={goBack} activeOpacity={0.8}>
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
-                >
-                  <Icon type="Close" size="$l" color="$white" />
-                </Stack>
+                <OverlayIconButton icon="Close" />
               </TouchableOpacity>
             </XStack>
           </YStack>
@@ -606,11 +594,6 @@ function ImageViewerContainer({
 
   if (isWeb) {
     return <MediaViewerModal dismiss={dismiss}>{children}</MediaViewerModal>;
-  }
-
-  if (!dismissGesture) {
-    console.error('ImageViewerContainer requires a dismissGesture on mobile');
-    return null;
   }
 
   return <GestureDetector gesture={dismissGesture}>{children}</GestureDetector>;

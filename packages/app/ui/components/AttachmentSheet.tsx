@@ -71,7 +71,10 @@ type UploadIntentVideoMetadata = Exclude<
 >;
 
 function asVideoMetadata(
-  metadata: Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video']
+  metadata: Extract<
+    Attachment.UploadIntent,
+    { type: 'file' | 'fileUri' }
+  >['video']
 ): UploadIntentVideoMetadata | undefined {
   return metadata && typeof metadata === 'object' ? metadata : undefined;
 }
@@ -155,33 +158,6 @@ export default function AttachmentSheet({
 
     checkClipboard();
   }, [showAttachmentSheet, getClipboardImageData]);
-
-  const createAssetFromClipboard = useCallback(async () => {
-    onOpenChange(false);
-    // Wait for sheet close animation to complete before pasting
-    setTimeout(async () => {
-      try {
-        const clipboardData = await getClipboardImageData();
-
-        if (!clipboardData) {
-          throw new Error('No image data available in clipboard');
-        }
-
-        // TODO: we're doing two layers of conversion here:
-        //   clipboardData -> ImagePickerAsset -> UploadIntent
-        // `createImageAssetFromClipboardData` in particular lies about the
-        // image's dimensions - we should probably remove one layer
-        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
-        const atts = [
-          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
-        ];
-        attachAssets(atts);
-        onAttach?.(atts);
-      } catch (error) {
-        logger.trackError('Error pasting from clipboard', error);
-      }
-    }, 50);
-  }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
 
   const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
     () =>
@@ -315,8 +291,13 @@ export default function AttachmentSheet({
     onOpenChange(false);
     audioRecorder.present();
   }, [onOpenChange, audioRecorder]);
+
   const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const useVideoInMediaPicker = mediaType === 'all' && videoUploadPlayback;
+  const pickerMediaTypes = useMemo<ImagePicker.MediaType[]>(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
 
   const asUploadIntent = useCallback(
     (asset: ImagePicker.ImagePickerAsset): Attachment.UploadIntent => {
@@ -330,7 +311,8 @@ export default function AttachmentSheet({
           video: {
             width: asset.width ?? undefined,
             height: asset.height ?? undefined,
-            duration: asset.duration != null ? asset.duration / 1000 : undefined,
+            duration:
+              asset.duration != null ? asset.duration / 1000 : undefined,
           },
         };
       }
@@ -351,10 +333,8 @@ export default function AttachmentSheet({
         return uploadIntent;
       }
 
-      if (uploadIntent.type === 'fileUri') {
-        if (uploadIntent.voiceMemo) {
-          return uploadIntent;
-        }
+      if (uploadIntent.type === 'fileUri' && uploadIntent.voiceMemo) {
+        return uploadIntent;
       }
 
       if (uploadIntent.type !== 'file' && uploadIntent.type !== 'fileUri') {
@@ -386,7 +366,9 @@ export default function AttachmentSheet({
       });
       if (!validation.ok) {
         logger.trackError('video validation failed', validation);
-        setAttachmentErrorMessage(validation.reason ?? 'Unable to attach video');
+        setAttachmentErrorMessage(
+          validation.reason ?? 'Unable to attach video'
+        );
         return null;
       }
 
@@ -425,31 +407,152 @@ export default function AttachmentSheet({
     [normalizeUploadIntent]
   );
 
-  const pickImage = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
+  const processPickedAsset = useCallback(
+    async (asset: ImagePicker.ImagePickerAsset) => {
+      const uploadIntent = asUploadIntent(asset);
+      removePlaceholderAttachment();
+      const atts = await normalizeUploadIntents([uploadIntent]);
+      if (atts.length > 0) {
+        setAttachmentErrorMessage(null);
+        attachAssets(atts);
+        onAttach?.(atts);
+      }
+    },
+    [
+      asUploadIntent,
+      attachAssets,
+      normalizeUploadIntents,
+      onAttach,
+      removePlaceholderAttachment,
+      setAttachmentErrorMessage,
+    ]
+  );
 
-    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
-    setTimeout(async () => {
-      let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
+  const runAfterSheetClose = useCallback(
+    (action: () => Promise<void> | void) => {
+      onOpenChange(false);
+      setTimeout(() => {
+        void action();
+      }, 50);
+    },
+    [onOpenChange]
+  );
 
-      try {
-        if (mediaLibraryPermissionStatus?.granted === false) {
-          const permissionResult = await requestMediaLibraryPermission();
-          if (!permissionResult.granted) {
+  const attachPlaceholder = useCallback(() => {
+    // skip on web, the browser doesn't like trying to load a file that doesn't exist
+    if (Platform.OS !== 'web') {
+      attachAssets([placeholderUploadIntent]);
+    }
+  }, [attachAssets, placeholderUploadIntent]);
+
+  const runPickerFlow = useCallback(
+    ({
+      permissionStatus,
+      requestPermission,
+      launchPicker,
+      attachPlaceholderDelayMs,
+      errorMessage,
+    }: {
+      permissionStatus: ImagePicker.PermissionResponse | null;
+      requestPermission: () => Promise<ImagePicker.PermissionResponse>;
+      launchPicker: () => Promise<ImagePicker.ImagePickerResult>;
+      attachPlaceholderDelayMs: number;
+      errorMessage: string;
+    }) => {
+      runAfterSheetClose(async () => {
+        let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
+        try {
+          if (permissionStatus?.granted === false) {
+            const permissionResult = await requestPermission();
+            if (!permissionResult.granted) {
+              return;
+            }
+          }
+          if (attachPlaceholderDelayMs === 0) {
+            attachPlaceholder();
+          } else if (attachPlaceholderDelayMs > 0) {
+            placeholderTimeout = setTimeout(
+              attachPlaceholder,
+              attachPlaceholderDelayMs
+            );
+          }
+          const result = await launchPicker();
+          if (result.canceled) {
+            clearAttachments();
             return;
           }
+          await processPickedAsset(result.assets[0]);
+        } catch (error) {
+          console.error(errorMessage, error);
+          logger.trackError(errorMessage, error);
+          clearAttachments();
+        } finally {
+          if (placeholderTimeout) {
+            clearTimeout(placeholderTimeout);
+          }
+        }
+      });
+    },
+    [
+      attachPlaceholder,
+      clearAttachments,
+      processPickedAsset,
+      runAfterSheetClose,
+    ]
+  );
+
+  const createAssetFromClipboard = useCallback(() => {
+    runAfterSheetClose(async () => {
+      try {
+        const clipboardData = await getClipboardImageData();
+
+        if (!clipboardData) {
+          throw new Error('No image data available in clipboard');
         }
 
-        // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        placeholderTimeout = setTimeout(() => {
-          if (Platform.OS !== 'web') {
-            attachAssets([placeholderUploadIntent]);
-          }
-        }, 200);
+        // TODO: we're doing two layers of conversion here:
+        //   clipboardData -> ImagePickerAsset -> UploadIntent
+        // `createImageAssetFromClipboardData` in particular lies about the
+        // image's dimensions - we should probably remove one layer
+        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        const atts = [
+          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
+        ];
+        attachAssets(atts);
+        onAttach?.(atts);
+      } catch (error) {
+        logger.trackError('Error pasting from clipboard', error);
+      }
+    });
+  }, [attachAssets, getClipboardImageData, onAttach, runAfterSheetClose]);
 
-        const result = await ImagePicker.launchImageLibraryAsync({
+  const takePicture = useCallback(() => {
+    runPickerFlow({
+      permissionStatus: cameraPermissionStatus ?? null,
+      requestPermission: requestCameraPermission,
+      launchPicker: () =>
+        ImagePicker.launchCameraAsync({
+          mediaTypes: pickerMediaTypes,
+          allowsEditing: false,
+          quality: 0.5,
+          exif: false,
+        }),
+      attachPlaceholderDelayMs: 0,
+      errorMessage: 'Error taking picture',
+    });
+  }, [
+    cameraPermissionStatus,
+    pickerMediaTypes,
+    requestCameraPermission,
+    runPickerFlow,
+  ]);
+
+  const pickImage = useCallback(() => {
+    runPickerFlow({
+      permissionStatus: mediaLibraryPermissionStatus ?? null,
+      requestPermission: requestMediaLibraryPermission,
+      launchPicker: () =>
+        ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
@@ -480,11 +583,8 @@ export default function AttachmentSheet({
           clearTimeout(placeholderTimeout);
         }
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    });
   }, [
-    attachAssets,
-    clearAttachments,
-    onOpenChange,
     mediaLibraryPermissionStatus,
     pickerMediaTypes,
     requestMediaLibraryPermission,

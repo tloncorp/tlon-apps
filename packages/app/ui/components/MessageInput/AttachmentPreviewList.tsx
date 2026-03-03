@@ -18,7 +18,6 @@ import {
   XStack,
   YStack,
   ZStack,
-  isWeb,
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
@@ -90,6 +89,25 @@ export function AttachmentPreview({
     setAspect(e.source.width / e.source.height);
     setIsLoading(false);
   }, []);
+
+  const renderPosterImage = useCallback(
+    (uri: string) => (
+      <Image
+        backgroundColor={'$secondaryBackground'}
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        onLoad={handleLoad}
+        onLoadStart={() => setIsLoading(true)}
+        onError={() => setIsLoading(false)}
+        source={{ uri }}
+        contentFit="cover"
+      />
+    ),
+    [handleLoad]
+  );
 
   const Container = useCallback(
     ({
@@ -196,22 +214,15 @@ export function AttachmentPreview({
         );
       }
       if (isWeb) {
+        const previewUri = posterUri ?? videoUri;
         if (!videoUri) {
+          if (!previewUri) {
+            return <Container showSpinner />;
+          }
           return (
             <Container showSpinner={uploading || isLoading}>
-              <Image
-                backgroundColor={'$secondaryBackground'}
-                position="absolute"
-                top={0}
-                left={0}
-                width="100%"
-                height="100%"
-                onLoad={handleLoad}
-                onLoadStart={() => setIsLoading(true)}
-                onError={() => setIsLoading(false)}
-                source={{ uri: previewUri }}
-                contentFit="cover"
-              />
+              {renderPosterImage(previewUri)}
+              <VideoPreviewOverlay durationLabel={durationLabel} />
             </Container>
           );
         }
@@ -248,6 +259,15 @@ export function AttachmentPreview({
                 background: 'transparent',
               }}
             />
+            <VideoPreviewOverlay durationLabel={durationLabel} />
+          </Container>
+        );
+      }
+      if (!posterUri) {
+        return (
+          <Container showSpinner={uploading}>
+            <VideoPosterFallback />
+            <VideoPreviewOverlay durationLabel={durationLabel} />
           </Container>
         );
       }
@@ -342,6 +362,47 @@ export function AttachmentPreview({
       );
     }
   }
+}
+
+function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
+  return (
+    <XStack
+      position="absolute"
+      left={8}
+      right={8}
+      bottom={8}
+      alignItems="center"
+      justifyContent="space-between"
+      pointerEvents="none"
+    >
+      <Icon type="Play" color="$white" size="$s" />
+      {durationLabel ? (
+        <Text color="$white" fontSize="$s" fontWeight="$xl">
+          {durationLabel}
+        </Text>
+      ) : (
+        <View />
+      )}
+    </XStack>
+  );
+}
+
+function formatVideoDurationLabel(durationSeconds?: number): string | undefined {
+  if (durationSeconds == null || !Number.isFinite(durationSeconds)) {
+    return undefined;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(durationSeconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
+      seconds
+    ).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
