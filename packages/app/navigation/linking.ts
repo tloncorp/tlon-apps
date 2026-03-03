@@ -29,7 +29,10 @@ export const getMobileLinkingConfig = (
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
-          ImageViewer: 'image-viewer/:postId',
+          MediaViewer: {
+            path: 'media-viewer/:mediaType',
+            parse: parsePathParams('mediaType'),
+          },
           ChatDetails: {
             path: 'chat-details/:chatType/:chatId',
             parse: parsePathParams('chatType', 'chatId'),
@@ -147,7 +150,7 @@ export const getDesktopLinkingConfig = (
                   GroupSettings: {},
                   ChannelSearch: {},
                   Post: postScreenConfig(mode),
-                  ImageViewer: {},
+                  MediaViewer: {},
                 },
               },
             },

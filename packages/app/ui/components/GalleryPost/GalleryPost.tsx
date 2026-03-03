@@ -376,7 +376,10 @@ export function GalleryPostDetailView({
     (src: string) => {
       logger.log('Detail view: Image pressed, navigating to', src);
       try {
-        navigation.navigate('ImageViewer', { uri: src });
+        navigation.navigate('MediaViewer', {
+          mediaType: 'image',
+          uri: src,
+        });
       } catch (error) {
         logger.log('Navigation error:', error);
         // Try the fallback if direct navigation fails

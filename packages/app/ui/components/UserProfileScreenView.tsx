@@ -382,7 +382,10 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
   const handleAvatarPress = useCallback(() => {
     if (contact?.avatarImage) {
-      navigation.navigate('ImageViewer', { uri: contact.avatarImage });
+      navigation.navigate('MediaViewer', {
+        mediaType: 'image',
+        uri: contact.avatarImage,
+      });
       triggerHaptic('baseButtonClick');
     }
   }, [navigation, contact?.avatarImage]);
