@@ -333,7 +333,7 @@ export const syncLatestChanges = async ({
   // app open. Use time since method began as a heuristic
   const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
   const runningForMs = Date.now() - start;
-  if (runningForMs < FRESHNESS_THRESHOLD) {
+  if (runningForMs > FRESHNESS_THRESHOLD) {
     throw new Error(
       `discarded fetched data, had been running for${runningForMs}ms`
     );
