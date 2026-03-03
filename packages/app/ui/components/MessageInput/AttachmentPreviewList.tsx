@@ -106,6 +106,25 @@ export function AttachmentPreview({
     setIsLoading(false);
   }, []);
 
+  const renderPosterImage = useCallback(
+    (uri: string) => (
+      <Image
+        backgroundColor={'$secondaryBackground'}
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        onLoad={handleLoad}
+        onLoadStart={() => setIsLoading(true)}
+        onError={() => setIsLoading(false)}
+        source={{ uri }}
+        contentFit="cover"
+      />
+    ),
+    [handleLoad]
+  );
+
   const Container = useCallback(
     ({
       children,
@@ -191,27 +210,18 @@ export function AttachmentPreview({
     case 'video': {
       const posterUri = domain.videoPosterUri(attachment);
       const videoUri = domain.videoFileUri(attachment);
-      const previewUri = posterUri ?? videoUri;
-      if (!previewUri) {
+      if (!posterUri && !videoUri) {
         return <Container showSpinner />;
       }
       if (isWeb) {
+        const previewUri = posterUri ?? videoUri;
         if (!videoUri) {
+          if (!previewUri) {
+            return <Container showSpinner />;
+          }
           return (
             <Container showSpinner={uploading || isLoading}>
-              <Image
-                backgroundColor={'$secondaryBackground'}
-                position="absolute"
-                top={0}
-                left={0}
-                width="100%"
-                height="100%"
-                onLoad={handleLoad}
-                onLoadStart={() => setIsLoading(true)}
-                onError={() => setIsLoading(false)}
-                source={{ uri: previewUri }}
-                contentFit="cover"
-              />
+              {renderPosterImage(previewUri)}
             </Container>
           );
         }
@@ -251,21 +261,16 @@ export function AttachmentPreview({
           </Container>
         );
       }
+      if (!posterUri) {
+        return (
+          <Container showSpinner={uploading}>
+            <VideoPosterFallback />
+          </Container>
+        );
+      }
       return (
         <Container showSpinner={uploading || isLoading}>
-          <Image
-            backgroundColor={'$secondaryBackground'}
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            onLoad={handleLoad}
-            onLoadStart={() => setIsLoading(true)}
-            onError={() => setIsLoading(false)}
-            source={{ uri: previewUri }}
-            contentFit="cover"
-          />
+          {renderPosterImage(posterUri)}
         </Container>
       );
     }
@@ -341,6 +346,23 @@ export function AttachmentPreview({
       );
     }
   }
+}
+
+function VideoPosterFallback() {
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      position="absolute"
+      top={0}
+      left={0}
+      width="100%"
+      height="100%"
+      justifyContent="center"
+      alignItems="center"
+    >
+      <Icon type="Play" color="$tertiaryText" size="$xl" />
+    </View>
+  );
 }
 
 const RemoveAttachmentButton = ({
