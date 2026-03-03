@@ -270,23 +270,36 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
         </XStack>
 
         {block.voiceMemo.transcription && (
-          <XStack gap="$s">
-            <Text size="$label/m" numberOfLines={1} ellipsizeMode="tail">
-              {block.voiceMemo.transcription}
-            </Text>
-            <Pressable
-              onPress={() => {
-                /* todo */
-              }}
-            >
-              <Text size="$label/m" color="$tertiaryText">
-                See more
-              </Text>
-            </Pressable>
-          </XStack>
+          <VoiceMemoTranscription
+            transcription={block.voiceMemo.transcription}
+          />
         )}
       </Reference.Body>
     </Reference.Frame>
+  );
+}
+
+function VoiceMemoTranscription({ transcription }: { transcription: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <XStack gap="$s">
+      <Text
+        size="$label/m"
+        numberOfLines={expanded ? 0 : 1}
+        ellipsizeMode="tail"
+        selectable
+      >
+        {transcription}
+      </Text>
+      {!expanded && (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text size="$label/m" color="$tertiaryText">
+            See more
+          </Text>
+        </Pressable>
+      )}
+    </XStack>
   );
 }
 
