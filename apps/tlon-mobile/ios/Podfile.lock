@@ -305,6 +305,8 @@ PODS:
     - ExpoModulesCore
   - ExpoSplashScreen (0.29.24):
     - ExpoModulesCore
+  - ExpoVideo (2.0.6):
+    - ExpoModulesCore
   - EXTaskManager (12.0.6):
     - ExpoModulesCore
     - UMAppLoader
@@ -2524,6 +2526,7 @@ DEPENDENCIES:
   - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
+  - ExpoVideo (from `../../../node_modules/expo-video/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
   - EXUpdatesInterface (from `../../../node_modules/expo-updates-interface/ios`)
   - fast_float (from `../../../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
@@ -2732,6 +2735,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-sms/ios"
   ExpoSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
+  ExpoVideo:
+    :path: "../../../node_modules/expo-video/ios"
   EXTaskManager:
     :path: "../../../node_modules/expo-task-manager/ios"
   EXUpdatesInterface:
@@ -2953,6 +2958,7 @@ SPEC CHECKSUMS:
   ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
+  ExpoVideo: 10e69b9c0652aba5c2edee2c572090e0412bd7ce
   EXTaskManager: 0dcaa9b4b058b435f4e5bff4919c863f4f46badc
   EXUpdatesInterface: 7c977640bdd8b85833c19e3959ba46145c5719db
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
