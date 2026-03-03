@@ -50,7 +50,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %9
+    $:  %8
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -159,19 +159,8 @@
       (~(uni by *volume-map:a) base-volume)
     =.  allowed.old  %all
     [%8 +.old]
-  =?  old  ?=(%8 -.old)
-    ::  add reaction volume defaults to base
-    ::
-    =/  base-volume
-      (~(gut by volume-settings.old) [%base ~] *volume-map:a)
-    =/  new-defaults
-      ^-  volume-map:a
-      (my [%post-reaction & &] [%dm-post-reaction & &] ~)
-    =.  volume-settings.old
-      %+  ~(put by volume-settings.old)  [%base ~]
-      (~(uni by base-volume) new-defaults)
-    [%9 +.old]
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)  [%8 +.old]
+  ?>  ?=(%8 -.old)
   =.  state  old
   refresh-all-summaries
   +$  versioned-state
@@ -185,8 +174,8 @@
         state-2
         state-1
     ==
-  +$  state-9  current-state
-  +$  state-8  _%*(. *state-9 - %8)
+  +$  state-9  _%*(. *state-8 - %9)
+  +$  state-8  current-state
   +$  state-7
     $:  %7
         allowed=notifications-allowed:v7:old:a
