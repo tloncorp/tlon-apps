@@ -200,65 +200,6 @@ export default function AttachmentSheet({
     removeAttachment(placeholderToRemove);
   }, [removeAttachment]);
 
-  const takePicture = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    // Then initiate the camera after a small delay to ensure sheet is closed
-    setTimeout(async () => {
-      try {
-        if (cameraPermissionStatus?.granted === false) {
-          const permissionResult = await requestCameraPermission();
-          if (!permissionResult.granted) {
-            return;
-          }
-        }
-
-        // Immediately set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (Platform.OS !== 'web') {
-          attachAssets([placeholderUploadIntent]);
-        }
-
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
-          allowsEditing: false,
-          quality: 0.5,
-          exif: false,
-        });
-
-        if (!result.canceled) {
-          // Replace the placeholder with the real image data
-          const realAsset = result.assets[0];
-
-          removePlaceholderAttachment();
-          const atts = [
-            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
-          ];
-          attachAssets(atts);
-          onAttach?.(atts);
-        } else {
-          // If user canceled, remove the placeholder
-          clearAttachments();
-        }
-      } catch (e) {
-        console.error('Error taking picture', e);
-        logger.trackError('Error taking picture', e);
-        // In case of error, remove the placeholder
-        clearAttachments();
-      }
-    }, 50); // Small delay to ensure the sheet closes first
-  }, [
-    attachAssets,
-    clearAttachments,
-    onAttach,
-    onOpenChange,
-    cameraPermissionStatus,
-    requestCameraPermission,
-    placeholderUploadIntent,
-    removePlaceholderAttachment,
-  ]);
-
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
@@ -284,8 +225,13 @@ export default function AttachmentSheet({
     onOpenChange(false);
     audioRecorder.present();
   }, [onOpenChange, audioRecorder]);
+
   const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const useVideoInMediaPicker = mediaType === 'all' && videoUploadPlayback;
+  const pickerMediaTypes = useMemo<ImagePicker.MediaType[]>(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
 
   const asUploadIntent = useCallback(
     (asset: ImagePicker.ImagePickerAsset): Attachment.UploadIntent => {
@@ -320,10 +266,8 @@ export default function AttachmentSheet({
         return uploadIntent;
       }
 
-      if (uploadIntent.type === 'fileUri') {
-        if (uploadIntent.voiceMemo) {
-          return uploadIntent;
-        }
+      if (uploadIntent.type === 'fileUri' && uploadIntent.voiceMemo) {
+        return uploadIntent;
       }
 
       if (uploadIntent.type !== 'file' && uploadIntent.type !== 'fileUri') {
@@ -394,6 +338,78 @@ export default function AttachmentSheet({
     [normalizeUploadIntent]
   );
 
+  const processPickedAsset = useCallback(
+    async (asset: ImagePicker.ImagePickerAsset) => {
+      const uploadIntent = asUploadIntent(asset);
+      removePlaceholderAttachment();
+      const atts = await normalizeUploadIntents([uploadIntent]);
+      if (atts.length > 0) {
+        setAttachmentErrorMessage(null);
+        attachAssets(atts);
+        onAttach?.(atts);
+      }
+    },
+    [
+      asUploadIntent,
+      attachAssets,
+      normalizeUploadIntents,
+      onAttach,
+      removePlaceholderAttachment,
+      setAttachmentErrorMessage,
+    ]
+  );
+
+  const takePicture = useCallback(() => {
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    // Then initiate the camera after a small delay to ensure sheet is closed
+    setTimeout(async () => {
+      try {
+        if (cameraPermissionStatus?.granted === false) {
+          const permissionResult = await requestCameraPermission();
+          if (!permissionResult.granted) {
+            return;
+          }
+        }
+
+        // Immediately set the placeholder attachment to show in the UI
+        // skip on web, the browser doesn't like trying to load a file that doesn't exist
+        if (Platform.OS !== 'web') {
+          attachAssets([placeholderUploadIntent]);
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: pickerMediaTypes,
+          allowsEditing: false,
+          quality: 0.5,
+          exif: false,
+        });
+
+        if (!result.canceled) {
+          await processPickedAsset(result.assets[0]);
+        } else {
+          // If user canceled, remove the placeholder
+          clearAttachments();
+        }
+      } catch (e) {
+        console.error('Error taking picture', e);
+        logger.trackError('Error taking picture', e);
+        // In case of error, remove the placeholder
+        clearAttachments();
+      }
+    }, 50); // Small delay to ensure the sheet closes first
+  }, [
+    attachAssets,
+    cameraPermissionStatus,
+    clearAttachments,
+    onOpenChange,
+    placeholderUploadIntent,
+    pickerMediaTypes,
+    processPickedAsset,
+    requestCameraPermission,
+  ]);
+
   const pickImage = useCallback(() => {
     // Close the sheet immediately
     onOpenChange(false);
@@ -419,24 +435,14 @@ export default function AttachmentSheet({
         }, 200);
 
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: useVideoInMediaPicker ? ['images', 'videos'] : ['images'],
+          mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
         });
 
         if (!result.canceled) {
-          // Replace the placeholder with the real image data
-          const realAsset = result.assets[0];
-          const uploadIntent = asUploadIntent(realAsset);
-
-          removePlaceholderAttachment();
-          const atts = await normalizeUploadIntents([uploadIntent]);
-          if (atts.length > 0) {
-            setAttachmentErrorMessage(null);
-            attachAssets(atts);
-            onAttach?.(atts);
-          }
+          await processPickedAsset(result.assets[0]);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -456,16 +462,12 @@ export default function AttachmentSheet({
   }, [
     attachAssets,
     clearAttachments,
-    onAttach,
     onOpenChange,
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
-    removePlaceholderAttachment,
-    useVideoInMediaPicker,
-    asUploadIntent,
-    normalizeUploadIntents,
-    setAttachmentErrorMessage,
+    pickerMediaTypes,
+    processPickedAsset,
   ]);
 
   const startFilePicker = useCallback(async () => {
@@ -511,8 +513,12 @@ export default function AttachmentSheet({
             action: pickImage,
           },
           !isWeb && {
-            title: 'Take a Photo',
-            description: 'Use your camera to take a photo',
+            title: useVideoInMediaPicker
+              ? 'Capture Photo or Video'
+              : 'Take a Photo',
+            description: useVideoInMediaPicker
+              ? 'Use your camera to capture a photo or video'
+              : 'Use your camera to take a photo',
             action: takePicture,
           },
           !isWeb &&
