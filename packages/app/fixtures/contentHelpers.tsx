@@ -579,6 +579,21 @@ export const postWithVoiceMemo = makePost(
       fileUri: 'https://picsum.photos/200',
       size: 123456,
       duration: 125,
+      transcription: faker.lorem.paragraph(),
+    }),
+  }
+);
+export const postWithVoiceMemoWithoutTranscription = makePost(
+  exampleContacts.ed,
+  [verse.inline("Don't try playing this")],
+  {
+    isEdited: false,
+    blob: appendToPostBlob('', {
+      type: 'voicememo',
+      version: 1,
+      fileUri: 'https://picsum.photos/200',
+      size: 123456,
+      duration: 125,
     }),
   }
 );
