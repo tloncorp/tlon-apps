@@ -165,6 +165,7 @@
     =/  base-volume
       (~(gut by volume-settings.old) [%base ~] *volume-map:a)
     =/  new-defaults
+      ^-  volume-map:a
       (my [%post-reaction & &] [%dm-post-reaction & &] ~)
     =.  volume-settings.old
       %+  ~(put by volume-settings.old)  [%base ~]
