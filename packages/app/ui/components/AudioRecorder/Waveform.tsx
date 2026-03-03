@@ -1,12 +1,12 @@
 import { ForwardingProps } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   LayoutChangeEvent,
   LayoutRectangle,
   View,
 } from 'react-native';
-import { styled, useTheme } from 'tamagui';
+import { styled } from 'tamagui';
 
 export const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
@@ -17,6 +17,10 @@ export function Waveform({
   visualRange,
   candleWidth = 6,
   candleSpacing = 2,
+  candleActiveColor = '$primaryText',
+  candleUnplayedColor = '$gray100',
+  candleInactiveColor = '$gray100',
+  candlePlaybackPosition = 0,
   style,
   onLayout: onLayoutProp,
   ...passedProps
@@ -27,6 +31,12 @@ export function Waveform({
     visualRange?: [min: number, max: number];
     candleWidth?: number;
     candleSpacing?: number;
+    candleActiveColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    /** color for candles whose index >= candlePlaybackPosition, i.e. the "unplayed" portion of the waveform */
+    candleUnplayedColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    /** used to fill out container for short sounds */
+    candleInactiveColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    candlePlaybackPosition?: number;
   },
   'ref'
 >) {
@@ -78,14 +88,20 @@ export function Waveform({
       horizontal
       initialNumToRender={maxVisibleCandleCount ?? undefined}
       showsHorizontalScrollIndicator={false}
-      renderItem={({ item }) => {
+      renderItem={({ item, index }) => {
         const [min, max] = effectiveVisualRange;
         const range = max - min;
         const heightRatio =
           item == null ? null : range === 0 ? 1 : (item - min) / range;
         return (
           <Candle
-            active={heightRatio != null}
+            backgroundColor={
+              heightRatio == null
+                ? candleInactiveColor
+                : index < candlePlaybackPosition
+                  ? candleActiveColor
+                  : candleUnplayedColor
+            }
             style={[
               {
                 width: candleWidth,
@@ -108,15 +124,4 @@ export function Waveform({
 const Candle = styled(View, {
   borderRadius: 40,
   minHeight: 5,
-
-  variants: {
-    active: {
-      true: {
-        backgroundColor: '$primaryText',
-      },
-      false: {
-        backgroundColor: '$border',
-      },
-    },
-  },
 });

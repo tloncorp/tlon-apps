@@ -258,6 +258,7 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
             <Waveform
               candleWidth={3}
               candleSpacing={1}
+              candlePlaybackPosition={0}
               values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
               style={{ width: '100%', height: 22 }}
             />
