@@ -57,6 +57,8 @@ async function performSync() {
     authType: shipInfo.authType,
   });
 
+  let didSucceed = false;
+
   try {
     // TODO: re-enable when confirmed not causing hangs on Android
     // // use the background task as an opportunity to refresh hosting auth
@@ -82,6 +84,7 @@ async function performSync() {
     });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
+    didSucceed = true;
 
     // await authPromise;
   } catch (err) {
@@ -94,6 +97,7 @@ async function performSync() {
       duration: Date.now() - timings.start,
       changesDuration: timings.changesDuration,
       taskExecutionId,
+      didSucceed,
     });
   }
 }
