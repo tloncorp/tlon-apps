@@ -2433,7 +2433,7 @@
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key:a]
-                [%post-reaction key=message-key:a =ship react=react:d]
+                [%post-reaction key=message-key:a ship=@p react=react:d]
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
