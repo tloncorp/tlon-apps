@@ -335,7 +335,7 @@ export const syncLatestChanges = async ({
   const runningForMs = Date.now() - start;
   if (runningForMs > FRESHNESS_THRESHOLD) {
     throw new Error(
-      `discarded fetched data, had been running for${runningForMs}ms`
+      `discarded fetched data, had been running for ${runningForMs}ms`
     );
   }
 
