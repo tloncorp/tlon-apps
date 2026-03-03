@@ -5,6 +5,7 @@ import { View } from 'tamagui';
 
 import { useFeatureFlag } from '../../../lib/featureFlags';
 import { isLikelyVideoSource } from '../../contexts/attachmentRules';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
@@ -36,12 +37,8 @@ export const FileDrop: FileDropComponent = ({
                 name: file.name,
               })
             ) {
-              const asset = await getVideoAsset(file);
-              return {
-                type: 'file',
-                file,
-                video: asset,
-              } as Attachment.UploadIntent;
+              const video = await getVideoPreviewData({ file });
+              return Attachment.UploadIntent.fromFile(file, { video });
             }
             return Attachment.UploadIntent.fromFile(file);
           })
@@ -87,28 +84,5 @@ function getImageAsset(
       resolve({ uri: objectUrl, width: img.width, height: img.height });
     };
     img.src = objectUrl;
-  });
-}
-
-function getVideoAsset(
-  file: File
-): Promise<{ width?: number; height?: number; duration?: number }> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    const objectUrl = URL.createObjectURL(file);
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      resolve({
-        width: video.videoWidth || undefined,
-        height: video.videoHeight || undefined,
-        duration: Number.isFinite(video.duration) ? video.duration : undefined,
-      });
-      URL.revokeObjectURL(objectUrl);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({});
-    };
-    video.src = objectUrl;
   });
 }

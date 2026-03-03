@@ -20,6 +20,7 @@ test('convertContent prefers blob video when blob/story contain same src', () =>
       width: 100,
       height: 200,
       name: 'blob-clip',
+      posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
     },
   ]);
   const story = [
@@ -44,6 +45,7 @@ test('convertContent prefers blob video when blob/story contain same src', () =>
     width: 100,
     height: 200,
     alt: 'blob-clip',
+    posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
   });
 });
 

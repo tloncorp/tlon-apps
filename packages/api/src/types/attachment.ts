@@ -659,18 +659,55 @@ function withUploadState(
   attachment: Omit<VideoAttachment, 'uploadState'>,
   uploadState: NonErrorUploadState
 ): UploadedVideoAttachment {
+  if (uploadState.status === 'uploading') {
+    return {
+      ...attachment,
+      uploadState,
+    };
+  }
+
+  const posterUri =
+    uploadState.posterUri ??
+    (attachment.posterUri && isRemoteUri(attachment.posterUri)
+      ? attachment.posterUri
+      : undefined);
+  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } = attachment;
+
   return {
-    ...attachment,
+    ...attachmentWithoutPoster,
+    ...(posterUri ? { posterUri } : {}),
     uploadState,
   };
+}
+
+function isRemoteUri(uri: string): boolean {
+  return uri.startsWith('http://') || uri.startsWith('https://');
 }
 
 export function videoPreviewUri(
   videoAttachment: VideoAttachment
 ): string | undefined {
+  return videoPosterUri(videoAttachment) ?? videoFileUri(videoAttachment);
+}
+
+export function videoPosterUri(
+  videoAttachment: VideoAttachment
+): string | undefined {
   if (videoAttachment.posterUri) {
     return videoAttachment.posterUri;
   }
+  if (
+    videoAttachment.uploadState?.status === 'success' &&
+    videoAttachment.uploadState.posterUri
+  ) {
+    return videoAttachment.uploadState.posterUri;
+  }
+  return undefined;
+}
+
+export function videoFileUri(
+  videoAttachment: VideoAttachment
+): string | undefined {
   if (
     videoAttachment.uploadState?.status === 'success' ||
     videoAttachment.uploadState?.status === 'uploading'

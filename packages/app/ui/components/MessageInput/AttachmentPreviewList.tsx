@@ -3,8 +3,22 @@ import * as domain from '@tloncorp/shared/domain';
 import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
-import { ScrollView, Spinner, View, XStack, YStack, ZStack } from 'tamagui';
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  ScrollView,
+  Spinner,
+  View,
+  XStack,
+  YStack,
+  ZStack,
+  isWeb,
+} from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
@@ -69,8 +83,23 @@ export function AttachmentPreview({
   uploading?: boolean;
   error?: boolean;
 }) {
-  const [aspect, setAspect] = useState(1);
+  const initialAspect = useMemo(() => {
+    if (
+      attachment.type === 'video' &&
+      attachment.width != null &&
+      attachment.height != null &&
+      attachment.height > 0
+    ) {
+      return attachment.width / attachment.height;
+    }
+    return 1;
+  }, [attachment]);
+  const [aspect, setAspect] = useState(initialAspect);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setAspect(initialAspect);
+  }, [initialAspect]);
 
   const handleLoad = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
@@ -160,9 +189,67 @@ export function AttachmentPreview({
     }
 
     case 'video': {
-      const uri = domain.videoPreviewUri(attachment);
-      if (!uri) {
+      const posterUri = domain.videoPosterUri(attachment);
+      const videoUri = domain.videoFileUri(attachment);
+      const previewUri = posterUri ?? videoUri;
+      if (!previewUri) {
         return <Container showSpinner />;
+      }
+      if (isWeb) {
+        if (!videoUri) {
+          return (
+            <Container showSpinner={uploading || isLoading}>
+              <Image
+                backgroundColor={'$secondaryBackground'}
+                position="absolute"
+                top={0}
+                left={0}
+                width="100%"
+                height="100%"
+                onLoad={handleLoad}
+                onLoadStart={() => setIsLoading(true)}
+                onError={() => setIsLoading(false)}
+                source={{ uri: previewUri }}
+                contentFit="cover"
+              />
+            </Container>
+          );
+        }
+        return (
+          <Container showSpinner={uploading || isLoading}>
+            <video
+              src={videoUri}
+              poster={posterUri}
+              preload="metadata"
+              muted
+              playsInline
+              onLoadStart={() => setIsLoading(true)}
+              onLoadedMetadata={(event) => {
+                if (
+                  event.currentTarget.videoWidth &&
+                  event.currentTarget.videoHeight
+                ) {
+                  setAspect(
+                    event.currentTarget.videoWidth /
+                      event.currentTarget.videoHeight
+                  );
+                }
+                setIsLoading(false);
+              }}
+              onError={() => setIsLoading(false)}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                objectFit: 'cover',
+                background: 'transparent',
+              }}
+            />
+          </Container>
+        );
       }
       return (
         <Container showSpinner={uploading || isLoading}>
@@ -176,7 +263,7 @@ export function AttachmentPreview({
             onLoad={handleLoad}
             onLoadStart={() => setIsLoading(true)}
             onError={() => setIsLoading(false)}
-            source={{ uri }}
+            source={{ uri: previewUri }}
             contentFit="cover"
           />
         </Container>
