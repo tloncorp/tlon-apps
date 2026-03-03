@@ -220,7 +220,7 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   const { openExternalLink } = useNavigation();
 
   return (
-    <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
+    <Reference.Frame>
       <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
@@ -234,18 +234,26 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
         alignItems="stretch"
         gap="$l"
         padding="$l"
+        // Reference.Body definition sets `pointerEvents: none`
+        pointerEvents="auto"
       >
         <XStack gap="$xl" alignItems="center">
-          <View
+          <Pressable
             backgroundColor="$background"
             width="$4xl"
             aspectRatio={1}
             alignItems="center"
             justifyContent="center"
             borderRadius={8}
+            cursor="pointer"
+            hoverStyle={{ backgroundColor: '$positiveBackground' }}
+            pressStyle={{ opacity: 0.5 }}
+            onPress={() => {
+              openExternalLink(block.voiceMemo.fileUri);
+            }}
           >
             <Icon type="Play" color="$primaryText" />
-          </View>
+          </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
             <Waveform
               candleWidth={3}
