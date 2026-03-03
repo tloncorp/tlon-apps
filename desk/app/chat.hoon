@@ -1382,7 +1382,7 @@
           $=  concern
           $%  [%invite ~]
               [%post key=message-key]
-              [%post-reaction key=message-key reactor=@p react=react:d]
+              [%post-reaction key=message-key =ship react=react:d]
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
@@ -1410,7 +1410,7 @@
         [%bump source]
     ==
   ?:  ?&  ?=(%post-reaction -.concern)
-          =(reactor.concern our.bowl)
+          =(ship.concern our.bowl)
       ==
     ~
   ?:  ?=(%delete-reply -.concern)
@@ -1427,7 +1427,7 @@
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
     %post-reaction
-      [%dm-post-reaction key.concern whom reactor.concern react.concern]
+      [%dm-post-reaction key.concern whom ship.concern react.concern]
     %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
   ==
@@ -1877,7 +1877,7 @@
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key]
-                [%post-reaction key=message-key reactor=@p react=react:d]
+                [%post-reaction key=message-key =ship react=react:d]
                 [%delete-post key=message-key]
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
@@ -2433,7 +2433,7 @@
     |=  $:  $=  concern
             $%  [%invite ~]
                 [%post key=message-key:a]
-                [%post-reaction key=message-key:a reactor=@p react=react:d]
+                [%post-reaction key=message-key:a =ship react=react:d]
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]

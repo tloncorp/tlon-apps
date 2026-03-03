@@ -220,7 +220,7 @@
       %-  pairs
       :~  key+(msg-key key.e)
           whom+(whom whom.e)
-          reactor+(ship reactor.e)
+          ship+(^ship ship.e)
           react+(react:enjs:cj react.e)
       ==
     ::
@@ -247,7 +247,7 @@
       :~  key+(msg-key key.e)
           channel/(nest:enjs:gj channel.e)
           group/(flag:enjs:gj group.e)
-          reactor+(ship reactor.e)
+          ship+(^ship ship.e)
           react+(react:enjs:cj react.e)
       ==
     ::
@@ -641,7 +641,7 @@
     :~  key/msg-key
         channel/nest:dejs:cj
         group/flag:dejs:gj
-        reactor/ship
+        ship/ship
         react/react:dejs:cj
     ==
   ::
@@ -667,7 +667,7 @@
     %-  ot
     :~  key/msg-key
         whom/whom
-        reactor/ship
+        ship/ship
         react/react:dejs:cj
     ==
   ::

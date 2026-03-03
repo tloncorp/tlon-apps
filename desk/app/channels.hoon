@@ -1743,9 +1743,9 @@
           ~(tap by next)
         |=  [=author:c =react:c]
         ^-  (unit action)
-        =/  reactor  (get-author-ship:utils author)
-        ?.  ?&  !=(reactor our.bowl)
-                !(blocked reactor)
+        =/  =ship  (get-author-ship:utils author)
+        ?.  ?&  !=(ship our.bowl)
+                !(blocked ship)
             ==
           ~
         =/  was=(unit react:c)  (~(get by prev) author)
@@ -1753,7 +1753,7 @@
                 =(u.was react)
             ==
           ~
-        `[%add [%post-reaction key nest group.perm.channel reactor react]]
+        `[%add [%post-reaction key nest group.perm.channel ship react]]
       ?~  actions  ca-core
       (send actions)
     ::

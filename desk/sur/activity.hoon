@@ -129,7 +129,7 @@
   $:  key=message-key
       channel=nest:c
       group=flag:g
-      reactor=ship
+      =ship
       react=react:c
   ==
 ::
@@ -152,7 +152,7 @@
 +$  dm-post-reaction-event
   $:  key=message-key
       =whom
-      reactor=ship
+      =ship
       react=react:c
   ==
 ::
