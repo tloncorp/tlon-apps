@@ -1995,7 +1995,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     // brief delay to let syncSince queue first (it requires a storage item read before
     // it hits the sync queue)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((resolve) => setTimeout(resolve, 1000)); // confirm CI passes without
 
     // if running while already subscribed, execute the sync with lower priority. It's
     // needed for correctness, but expensive and usually inconsequential
