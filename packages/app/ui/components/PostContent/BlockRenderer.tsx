@@ -218,51 +218,65 @@ export function ReferenceBlock({
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   const { openExternalLink } = useNavigation();
+
   return (
     <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
-      <Reference.Header>
+      <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
         </Reference.Title>
 
-        <Reference.TitleIcon type="Play" color="$primaryText" />
+        <Reference.TitleIcon type="Wave" color="$primaryText" />
       </Reference.Header>
 
       <Reference.Body
-        flexDirection="row"
-        alignItems="center"
+        flexDirection="column"
+        alignItems="stretch"
         gap="$l"
         padding="$l"
       >
-        <View
-          backgroundColor="$background"
-          width="$4xl"
-          aspectRatio={1}
-          alignItems="center"
-          justifyContent="center"
-          borderRadius={8}
-        >
-          <Icon type="Play" color="$primaryText" />
-        </View>
-        <YStack flex={1} gap="$s">
-          {block.voiceMemo.transcription ? (
-            <Text size="$label/m" numberOfLines={1} ellipsizeMode="tail">
-              &quot;{block.voiceMemo.transcription}&quot;
-            </Text>
-          ) : (
+        <XStack gap="$xl" alignItems="center">
+          <View
+            backgroundColor="$background"
+            width="$4xl"
+            aspectRatio={1}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius={8}
+          >
+            <Icon type="Play" color="$primaryText" />
+          </View>
+          <XStack flex={1} gap={9} alignItems="center">
             <Waveform
               candleWidth={3}
               candleSpacing={1}
               values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
               style={{ width: '100%', height: 22 }}
             />
-          )}
-          {block.voiceMemo.duration != null && (
-            <Text size="$label/s" color="$secondaryText">
-              {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+            {block.voiceMemo.duration != null && (
+              <Text size="$label/s" color="$secondaryText">
+                {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+              </Text>
+            )}
+          </XStack>
+        </XStack>
+
+        {block.voiceMemo.transcription && (
+          <XStack gap="$s">
+            <Text size="$label/m" numberOfLines={1} ellipsizeMode="tail">
+              {block.voiceMemo.transcription}
             </Text>
-          )}
-        </YStack>
+            <Pressable
+              onPress={() => {
+                /* todo */
+              }}
+            >
+              <Text size="$label/m" color="$tertiaryText">
+                See more
+              </Text>
+            </Pressable>
+          </XStack>
+        )}
       </Reference.Body>
     </Reference.Frame>
   );
