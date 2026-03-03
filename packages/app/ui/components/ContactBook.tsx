@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { BlockSectionList } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Insets,
   Keyboard,
@@ -89,6 +89,9 @@ export function ContactBook({
   }, [showSearchResults, query, queryContacts, segmentedContacts]);
 
   const [selected, setSelected] = useState<string[]>([]);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
   const handleSelect = useCallback(
     (contactId: string) => {
       if (immutableSet.has(contactId) || disabledSet.has(contactId)) {
@@ -113,12 +116,12 @@ export function ContactBook({
   );
 
   useEffect(() => {
-    const next = selected.filter((id) => !disabledSet.has(id));
-    if (next.length !== selected.length) {
+    const next = selectedRef.current.filter((id) => !disabledSet.has(id));
+    if (next.length !== selectedRef.current.length) {
       setSelected(next);
       onSelectedChange?.(next);
     }
-  }, [disabledSet]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [disabledSet, onSelectedChange]);
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Contact, { label: string }>) => {
