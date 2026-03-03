@@ -43,7 +43,11 @@ function negotiationUpdater(
   invalidate.current();
 }
 
-export function useNegotiation(app: string, agent: string) {
+export function useNegotiation(
+  app: string,
+  agent: string,
+  { enabled = true }: { enabled?: boolean } = {}
+) {
   const queryKey = useMemo(() => ['negotiation', app], [app]);
 
   const invalidate = useRef(
@@ -60,6 +64,7 @@ export function useNegotiation(app: string, agent: string) {
   );
 
   useEffect(() => {
+    if (!enabled) return;
     api.subscribe(
       {
         app,
@@ -67,10 +72,11 @@ export function useNegotiation(app: string, agent: string) {
       },
       (event: MatchingEvent) => negotiationUpdater(event, queryKey, invalidate)
     );
-  }, [agent, app, queryKey]);
+  }, [agent, app, enabled, queryKey]);
 
   return useQuery<MatchingResponse>({
     queryKey,
+    enabled,
     staleTime: 5000,
     queryFn: () =>
       api.scry({
@@ -133,6 +139,18 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     ...rest,
     matchedOrPending: allShipsMatchOrPending && haveAllNegotiations,
   };
+}
+
+export function useGroupsNegotiationClashes({
+  enabled = true,
+}: { enabled?: boolean } = {}): string[] {
+  const { data } = useNegotiation('groups', 'groups', { enabled });
+  return useMemo(() => {
+    if (!data) return [];
+    return Object.entries(data)
+      .filter(([key, status]) => status === 'clash' && key.endsWith('/groups'))
+      .map(([key]) => key.replace('/groups', ''));
+  }, [data]);
 }
 
 export function useForceNegotiationUpdate(ships: string[], app: string) {
