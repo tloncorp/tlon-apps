@@ -123,7 +123,15 @@ export const HomeSidebar = memo(
     const isFocused = useIsFocused();
     useEffect(() => {
       if (isFocused) {
-        markInvitesRead();
+        setTimeout(() => {
+          store.syncQueue.add(
+            'markInvitesRead',
+            { priority: store.SyncPriority.Medium },
+            async () => {
+              markInvitesRead();
+            }
+          );
+        }, 1000);
       }
     }, [isFocused]);
 
