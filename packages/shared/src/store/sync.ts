@@ -328,6 +328,17 @@ export const syncLatestChanges = async ({
     queryCtx
   );
 
+  // before we insert the changes, confirm they're not stale from a delayed bg sync
+  // or previous app open. Use time since method began as delayed bg sync or previous
+  // app open. Use time since method began as a heuristic
+  const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+  const runningForMs = Date.now() - start;
+  if (runningForMs < FRESHNESS_THRESHOLD) {
+    throw new Error(
+      `discarded fetched data, had been running for${runningForMs}ms`
+    );
+  }
+
   await db.insertChanges(result, queryCtx);
   notifyChannelPostListenersFromLatestChanges(
     topLevelPosts,
