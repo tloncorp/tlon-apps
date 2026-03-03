@@ -32,7 +32,7 @@ export function useDetectSequenceRegression(
     // pending/sending posts at the top may not have one yet
     let newestSeq: number | null = null;
     for (let idx = 0; idx < Math.min(posts.length, 10); idx++) {
-      if (posts[idx].sequenceNum != null) {
+      if (posts[idx].sequenceNum) {
         newestSeq = posts[idx].sequenceNum!;
         break;
       }
