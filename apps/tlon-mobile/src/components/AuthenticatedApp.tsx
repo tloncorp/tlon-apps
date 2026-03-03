@@ -12,11 +12,11 @@ import {
   markChatListSyncSinceComplete,
   startChatListSettleMeasurement,
 } from '@tloncorp/app/lib/chatListSettleTelemetry';
+import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import {
   markPushNotifTapMeasurementAbandoned,
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
-import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -38,10 +38,10 @@ import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
-import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
-import { inviteSystemContacts } from '../lib/contactsHelpers';
+import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { cancelBackgroundSync } from '../lib/backgroundSync';
+import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
@@ -63,7 +63,8 @@ function AuthenticatedApp() {
     async (status: AppStatus) => {
       if (status === 'inactive' || status === 'background') {
         const didAbandonChatList = markChatListMeasurementAbandoned(status);
-        const didAbandonPushNotif = markPushNotifTapMeasurementAbandoned(status);
+        const didAbandonPushNotif =
+          markPushNotifTapMeasurementAbandoned(status);
         const didAbandon = didAbandonChatList || didAbandonPushNotif;
         if (didAbandon) {
           // we want to make sure the flush call gets time to execute, but
