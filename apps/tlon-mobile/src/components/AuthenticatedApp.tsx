@@ -94,10 +94,11 @@ function AuthenticatedApp() {
       // app returned from background
       if (status === 'active') {
         updateSession({ isSyncing: true });
-        syncSince({ callCtx: { cause: 'app-foregrounded' } }).catch(() => {});
-        setTimeout(() => {
-          sync.syncPinnedItems({ priority: sync.SyncPriority.High });
-        }, 100);
+        syncSince({ callCtx: { cause: 'app-foregrounded' } })
+          .catch(() => {})
+          .then(() => {
+            sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+          });
       }
     },
     [checkForCachedChanges, checkNodeStopped, telemetry]

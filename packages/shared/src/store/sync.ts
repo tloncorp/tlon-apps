@@ -1993,6 +1993,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError('sync start: changes sync failed', { error })
     );
 
+    // brief delay to let syncSince queue first (it requires a storage item read before
+    // it hits the sync queue)
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
     // if running while already subscribed, execute the sync with lower priority. It's
     // needed for correctness, but expensive and usually inconsequential
     const syncStartPriority = {
