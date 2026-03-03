@@ -44,6 +44,7 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
@@ -134,35 +135,18 @@ function usePasteHandler(
       }
 
       if (allowVideo && media.type.includes('video')) {
-        const uri = URL.createObjectURL(file);
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => {
-          addAttachment({
-            type: 'video',
-            localFile: file,
-            size: file.size,
-            mimeType: file.type,
-            name: file.name,
-            width: video.videoWidth || undefined,
-            height: video.videoHeight || undefined,
-            duration: Number.isFinite(video.duration)
-              ? video.duration
-              : undefined,
-          });
-          URL.revokeObjectURL(uri);
-        };
-        video.onerror = () => {
-          addAttachment({
-            type: 'video',
-            localFile: file,
-            size: file.size,
-            mimeType: file.type,
-            name: file.name,
-          });
-          URL.revokeObjectURL(uri);
-        };
-        video.src = uri;
+        const previewData = await getVideoPreviewData({ file });
+        addAttachment({
+          type: 'video',
+          localFile: file,
+          size: file.size,
+          mimeType: file.type,
+          name: file.name,
+          width: previewData.width,
+          height: previewData.height,
+          duration: previewData.duration,
+          posterUri: previewData.posterUri,
+        });
       }
     };
 

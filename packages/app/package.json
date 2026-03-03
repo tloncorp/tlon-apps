@@ -27,6 +27,7 @@
   "peerDependencies": {
     "expo-document-picker": "*",
     "expo-file-system": "*",
+    "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "expo-blur": "*",
