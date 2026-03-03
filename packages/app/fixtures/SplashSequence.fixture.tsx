@@ -87,7 +87,11 @@ function GroupsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <GroupsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <GroupsPane
+        onActionPress={handleAction}
+        deviceSize={mockDeviceSize}
+        hostingBotEnabled
+      />
     </FixtureWrapper>
   );
 }
@@ -99,7 +103,11 @@ function ChannelsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <ChannelsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <ChannelsPane
+        onActionPress={handleAction}
+        deviceSize={mockDeviceSize}
+        hostingBotEnabled
+      />
     </FixtureWrapper>
   );
 }

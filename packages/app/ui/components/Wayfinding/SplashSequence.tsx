@@ -97,12 +97,14 @@ function SplashSequenceComponent(props: {
         <GroupsPane
           onActionPress={() => setCurrentPane(SplashPane.Channels)}
           deviceSize={deviceSize}
+          hostingBotEnabled={props.hostingBotEnabled}
         />
       )}
       {currentPane === 'Channels' && (
         <ChannelsPane
           onActionPress={() => setCurrentPane(SplashPane.Privacy)}
           deviceSize={deviceSize}
+          hostingBotEnabled={props.hostingBotEnabled}
         />
       )}
       {currentPane === 'Privacy' && (
@@ -140,20 +142,6 @@ const SplashTitle = styled(Text, {
 const SplashParagraph = styled(Text, {
   size: '$body',
   marginHorizontal: '$xl',
-});
-
-const BotPersonaButton = styled(YStack, {
-  marginHorizontal: '$xl',
-  padding: '$l',
-  borderWidth: 1,
-  borderRadius: '$l',
-  borderColor: '$border',
-  backgroundColor: '$background',
-  gap: '$xl',
-  cursor: 'pointer',
-  pressStyle: {
-    backgroundColor: '$secondaryBackground',
-  },
 });
 
 export function WelcomePane(props: {
@@ -224,6 +212,7 @@ export function WelcomePane(props: {
 export function GroupsPane(props: {
   onActionPress: () => void;
   deviceSize: DeviceSize;
+  hostingBotEnabled?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -273,6 +262,12 @@ export function GroupsPane(props: {
             A group lives on your Tlon computer. A group can serve a lot of
             purposes: family chats, work collaboration, newsletters, etc.
           </SplashParagraph>
+          {props.hostingBotEnabled && (
+            <SplashParagraph>
+              You can also add your Tlonbot to group channels so it can
+              participate in conversations and help out.
+            </SplashParagraph>
+          )}
           <Button
             data-testid="got-it"
             onPress={props.onActionPress}
@@ -291,6 +286,7 @@ export function GroupsPane(props: {
 export function ChannelsPane(props: {
   onActionPress: () => void;
   deviceSize: DeviceSize;
+  hostingBotEnabled?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { isTiny = false, isSmall = false } = props.deviceSize || {};
@@ -337,6 +333,9 @@ export function ChannelsPane(props: {
           <SplashParagraph>
             Send messages in chats, post longer thoughts in notebooks, collect
             images and links in galleries.
+            {props.hostingBotEnabled
+              ? ' Mention your Tlonbot in any channel and it can search the web, summarize threads, or draft messages for you.'
+              : ''}
           </SplashParagraph>
           <Button
             data-testid="one-quick-thing"
@@ -412,46 +411,19 @@ export function PrivacyPane(props: {
   );
 }
 
-const botPersonaOptions = [
-  {
-    title: 'Information assistant',
-    description:
-      'Monitors topics like weather, markets, and headlines. Sends concise updates via DM.',
-    value: 'assistant' as const,
-  },
-  {
-    title: 'Thinking companion',
-    description:
-      'A low-stakes conversational partner to talk through ideas, decisions, or just decompress.',
-    value: 'companion' as const,
-  },
-  {
-    title: 'Visual researcher',
-    description:
-      'Autonomously discovers and curates images, posting to a gallery channel based on your interests.',
-    value: 'researcher' as const,
-  },
-  {
-    title: 'Agent of chaos',
-    description:
-      'Interacts with other bots and humans in groups. Introduces prompts, games, and unexpected turns.',
-    value: 'chaos' as const,
-  },
-];
-
 export function TlonBotPane(props: {
   onActionPress: () => void;
   deviceSize: DeviceSize;
 }) {
   const insets = useSafeAreaInsets();
-  const [selectedPersona, setSelectedPersona] = useState<string | undefined>();
-  const handlePersonaPress = useCallback(
-    (persona: string) => {
-      setSelectedPersona(persona);
-      props.onActionPress();
-    },
-    [props]
-  );
+  const { isTiny = false, isSmall = false } = props.deviceSize || {};
+
+  const topMargin = useMemo(() => {
+    if (isWeb) return '$4xl';
+    if (isTiny) return '$2xl';
+    if (isSmall) return '$3xl';
+    return '$4xl';
+  }, [isTiny, isSmall]);
 
   return (
     <View flex={1}>
@@ -460,34 +432,35 @@ export function TlonBotPane(props: {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <YStack gap={'$2xl'} marginTop="$6xl">
+        <YStack gap={'$2xl'} marginTop={topMargin}>
           <SplashTitle>
             Meet your <Text color="$positiveActionText">Tlonbot.</Text>
           </SplashTitle>
           <SplashParagraph>
-            Your Tlon Messenger node comes with an AI agent called Tlonbot.
-            Choose a persona to shape how it interacts with you.
+            Your account comes with an AI agent called Tlonbot. It has its own
+            identity on the network, so it can act as an independent participant
+            — not just a chatbot.
           </SplashParagraph>
-          <YStack gap="$m" marginTop="$l">
-            {botPersonaOptions.map((option) => {
-              const selected = selectedPersona === option.value;
-              return (
-                <BotPersonaButton
-                  key={option.value}
-                  onPress={() => handlePersonaPress(option.value)}
-                  borderColor={selected ? '$positiveActionText' : '$border'}
-                  backgroundColor={
-                    selected ? '$positiveBackground' : '$background'
-                  }
-                >
-                  <Text size="$label/xl">{option.title}</Text>
-                  <Text size="$label/m" color="$secondaryText">
-                    {option.description}
-                  </Text>
-                </BotPersonaButton>
-              );
-            })}
-          </YStack>
+          <SplashParagraph>
+            You can DM your Tlonbot to search the web, draft messages, summarize
+            threads, or set up scheduled tasks like daily weather briefings.
+          </SplashParagraph>
+          <SplashParagraph>
+            Add your Tlonbot to group channels and it can participate in
+            conversations, respond to mentions, and help keep things organized.
+          </SplashParagraph>
+          <SplashParagraph>
+            Your API keys, your agent's memory, and everything it learns stays
+            on your personal node. You own it all.
+          </SplashParagraph>
+          <Button
+            onPress={props.onActionPress}
+            label="Next"
+            preset="hero"
+            shadow
+            marginHorizontal="$xl"
+            marginTop="$xl"
+          />
         </YStack>
       </ScrollView>
     </View>
