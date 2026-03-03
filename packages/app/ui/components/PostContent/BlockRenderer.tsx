@@ -284,8 +284,9 @@ function VoiceMemoTranscription({ transcription }: { transcription: string }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <XStack gap="$s">
+    <XStack gap="$s" alignItems="baseline">
       <Text
+        flex={1}
         size="$label/m"
         numberOfLines={expanded ? 0 : 1}
         ellipsizeMode="tail"
