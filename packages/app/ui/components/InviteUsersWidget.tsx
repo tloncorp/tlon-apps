@@ -1,7 +1,7 @@
 import * as store from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
-import React, { useMemo } from 'react';
+import React from 'react';
 
 import { useInviteGroupMembers } from '../../hooks/useInviteUsers';
 import { ActionSheet } from './ActionSheet';
@@ -19,8 +19,7 @@ const InviteUsersWidgetComponent = ({
 }) => {
   const { loading, invitees, setInvitees, handleInvite, buttonText } =
     useInviteGroupMembers(group.id, onInviteComplete);
-  const clashingShips = store.useGroupsNegotiationClashes();
-  const disabledIds = useMemo(() => Array.from(clashingShips), [clashingShips]);
+  const disabledIds = store.useGroupsNegotiationClashes();
 
   return (
     <>

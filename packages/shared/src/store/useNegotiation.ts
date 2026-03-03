@@ -143,17 +143,13 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
 
 export function useGroupsNegotiationClashes({
   enabled = true,
-}: { enabled?: boolean } = {}): Set<string> {
+}: { enabled?: boolean } = {}): string[] {
   const { data } = useNegotiation('groups', 'groups', { enabled });
   return useMemo(() => {
-    if (!data) return new Set<string>();
-    const clashes = new Set<string>();
-    for (const [key, status] of Object.entries(data)) {
-      if (status === 'clash' && key.endsWith('/groups')) {
-        clashes.add(key.replace('/groups', ''));
-      }
-    }
-    return clashes;
+    if (!data) return [];
+    return Object.entries(data)
+      .filter(([key, status]) => status === 'clash' && key.endsWith('/groups'))
+      .map(([key]) => key.replace('/groups', ''));
   }, [data]);
 }
 

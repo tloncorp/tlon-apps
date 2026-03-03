@@ -1,7 +1,7 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import * as store from '@tloncorp/shared';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
@@ -25,8 +25,7 @@ export function InviteUsersScreen() {
   const { bottom } = useSafeAreaInsets();
   const appStore = useStore();
   const { data: group } = appStore.useGroup({ id: groupId ?? '' });
-  const clashingShips = store.useGroupsNegotiationClashes();
-  const disabledIds = useMemo(() => Array.from(clashingShips), [clashingShips]);
+  const disabledIds = store.useGroupsNegotiationClashes();
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();

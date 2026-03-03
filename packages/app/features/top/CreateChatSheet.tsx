@@ -224,8 +224,7 @@ const CreateChatFormContent = ({
   const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
-  const clashingShips = store.useGroupsNegotiationClashes({ enabled: isGroup });
-  const disabledIds = useMemo(() => Array.from(clashingShips), [clashingShips]);
+  const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
