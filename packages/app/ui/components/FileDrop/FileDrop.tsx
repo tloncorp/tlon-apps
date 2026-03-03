@@ -84,26 +84,3 @@ function getImageAsset(
     img.src = objectUrl;
   });
 }
-
-function getVideoAsset(
-  file: File
-): Promise<{ width?: number; height?: number; duration?: number }> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    const objectUrl = URL.createObjectURL(file);
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      resolve({
-        width: video.videoWidth || undefined,
-        height: video.videoHeight || undefined,
-        duration: Number.isFinite(video.duration) ? video.duration : undefined,
-      });
-      URL.revokeObjectURL(objectUrl);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({});
-    };
-    video.src = objectUrl;
-  });
-}
