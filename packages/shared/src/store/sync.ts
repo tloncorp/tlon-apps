@@ -321,13 +321,6 @@ export const syncLatestChanges = async ({
     (post) =>
       !post.parentId && post.type !== 'reply' && post.sequenceNum != null
   );
-  const latestSeqByChannelBeforeSync = await db.getLatestChannelSequenceNums(
-    {
-      channelIds: [...new Set(topLevelPosts.map((post) => post.channelId))],
-    },
-    queryCtx
-  );
-
   // before we insert the changes, confirm they're not stale from a delayed bg sync
   // or previous app open. Use time since method began as delayed bg sync or previous
   // app open. Use time since method began as a heuristic
@@ -340,10 +333,7 @@ export const syncLatestChanges = async ({
   }
 
   await db.insertChanges(result, queryCtx);
-  notifyChannelPostListenersFromLatestChanges(
-    topLevelPosts,
-    latestSeqByChannelBeforeSync
-  );
+  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -395,10 +385,7 @@ export const syncLatestChanges = async ({
   };
 };
 
-function notifyChannelPostListenersFromLatestChanges(
-  posts: db.Post[],
-  latestSeqByChannelBeforeSync: Map<string, number | null>
-) {
+function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
   if (!posts.length) {
     return;
   }
@@ -409,18 +396,6 @@ function notifyChannelPostListenersFromLatestChanges(
       continue;
     }
     seenIds.add(post.id);
-
-    const postSeq = post.sequenceNum;
-    if (postSeq == null) {
-      continue;
-    }
-
-    const previousLatestSeq =
-      latestSeqByChannelBeforeSync.get(post.channelId) ?? null;
-    if (previousLatestSeq != null && postSeq <= previousLatestSeq) {
-      continue;
-    }
-
     addToChannelPosts(post);
   }
 }
