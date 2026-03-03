@@ -62,7 +62,8 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  (do-init dap activity-agent)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
+  ::  ensure add-event time is above floor.reads so first event is unread
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now d2)))
   =/  state=state-8  [%8 %all *indices:a *activity:a *volume-settings:a]
   ;<  *  bind:m  (do-load activity-agent `!>(state))
   =/  =whom:ch  [%ship ~nec]
