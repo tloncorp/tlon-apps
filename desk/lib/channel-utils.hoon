@@ -958,6 +958,10 @@
       =>  [path=path nest=nest:gv ..zuse]  ~+
       .^($-([ship nest] ?) %gx path)
     (test her nest)
+  ::  +can-write: check write permissions
+  ::
+  ::  nb: when changing the logic here remember to also adjust
+  ::  the permission /writers scry in groups.
   ::
   ++  can-write
     |=  [her=ship writers=(set role-id:v7:gv)]
