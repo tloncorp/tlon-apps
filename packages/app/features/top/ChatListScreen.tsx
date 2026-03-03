@@ -14,13 +14,14 @@ import { Keyboard } from 'react-native';
 import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -39,9 +40,6 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
-import {
-  reportChatListFirstPaint,
-} from '../../lib/chatListSettleTelemetry';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -210,7 +208,15 @@ export function ChatListScreenView({
 
   useEffect(() => {
     if (isFocused) {
-      markInvitesRead();
+      setTimeout(() => {
+        store.syncQueue.add(
+          'markInvitesRead',
+          { priority: store.SyncPriority.Medium },
+          async () => {
+            markInvitesRead();
+          }
+        );
+      }, 1000);
     }
   }, [isFocused]);
 

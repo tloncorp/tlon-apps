@@ -40,7 +40,6 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
-import { cancelBackgroundSync } from '../lib/backgroundSync';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
@@ -82,7 +81,6 @@ function AuthenticatedApp() {
       // app opened or returned from background — cancel any pending
       // background sync operations so they don't contend with foreground sync
       if (status === 'opened' || status === 'active') {
-        cancelBackgroundSync();
         startChatListSettleMeasurement(status);
         await checkForCachedChanges();
         telemetry.captureAppActive();
