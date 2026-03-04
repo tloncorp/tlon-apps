@@ -2,7 +2,7 @@ import {
   FileAttachment,
   ImageAttachment,
   VideoAttachment,
-  videoPreviewUri,
+  videoPosterUri,
 } from '@tloncorp/shared';
 import { useMemo } from 'react';
 import { ImageBackground } from 'react-native';
@@ -87,9 +87,24 @@ function ContentVideo({
 }: {
   videoAttachment: VideoAttachment;
 }) {
-  const uri = videoPreviewUri(videoAttachment);
+  const uri = videoPosterUri(videoAttachment);
   if (!uri) {
-    return null;
+    return (
+      <View flex={1} alignItems="center" justifyContent="center">
+        {videoAttachment?.uploadState?.status === 'uploading' ? (
+          <View
+            top={0}
+            justifyContent="center"
+            padding="$xl"
+            alignItems="center"
+            backgroundColor="$translucentBlack"
+            borderRadius="$m"
+          >
+            <Spinner size="large" color="$primaryText" />
+          </View>
+        ) : null}
+      </View>
+    );
   }
   return (
     <ImageBackground

@@ -151,33 +151,6 @@ export default function AttachmentSheet({
     checkClipboard();
   }, [showAttachmentSheet, getClipboardImageData]);
 
-  const createAssetFromClipboard = useCallback(async () => {
-    onOpenChange(false);
-    // Wait for sheet close animation to complete before pasting
-    setTimeout(async () => {
-      try {
-        const clipboardData = await getClipboardImageData();
-
-        if (!clipboardData) {
-          throw new Error('No image data available in clipboard');
-        }
-
-        // TODO: we're doing two layers of conversion here:
-        //   clipboardData -> ImagePickerAsset -> UploadIntent
-        // `createImageAssetFromClipboardData` in particular lies about the
-        // image's dimensions - we should probably remove one layer
-        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
-        const atts = [
-          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
-        ];
-        attachAssets(atts);
-        onAttach?.(atts);
-      } catch (error) {
-        logger.trackError('Error pasting from clipboard', error);
-      }
-    }, 50);
-  }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
-
   const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
     () =>
       Attachment.UploadIntent.fromImagePickerAsset({
@@ -363,12 +336,50 @@ export default function AttachmentSheet({
     ]
   );
 
-  const takePicture = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
+  const runAfterSheetClose = useCallback(
+    (action: () => Promise<void> | void) => {
+      onOpenChange(false);
+      setTimeout(() => {
+        void action();
+      }, 50);
+    },
+    [onOpenChange]
+  );
 
-    // Then initiate the camera after a small delay to ensure sheet is closed
-    setTimeout(async () => {
+  const attachPlaceholder = useCallback(() => {
+    // skip on web, the browser doesn't like trying to load a file that doesn't exist
+    if (Platform.OS !== 'web') {
+      attachAssets([placeholderUploadIntent]);
+    }
+  }, [attachAssets, placeholderUploadIntent]);
+
+  const createAssetFromClipboard = useCallback(() => {
+    runAfterSheetClose(async () => {
+      try {
+        const clipboardData = await getClipboardImageData();
+
+        if (!clipboardData) {
+          throw new Error('No image data available in clipboard');
+        }
+
+        // TODO: we're doing two layers of conversion here:
+        //   clipboardData -> ImagePickerAsset -> UploadIntent
+        // `createImageAssetFromClipboardData` in particular lies about the
+        // image's dimensions - we should probably remove one layer
+        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        const atts = [
+          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
+        ];
+        attachAssets(atts);
+        onAttach?.(atts);
+      } catch (error) {
+        logger.trackError('Error pasting from clipboard', error);
+      }
+    });
+  }, [attachAssets, getClipboardImageData, onAttach, runAfterSheetClose]);
+
+  const takePicture = useCallback(() => {
+    runAfterSheetClose(async () => {
       try {
         if (cameraPermissionStatus?.granted === false) {
           const permissionResult = await requestCameraPermission();
@@ -377,11 +388,8 @@ export default function AttachmentSheet({
           }
         }
 
-        // Immediately set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (Platform.OS !== 'web') {
-          attachAssets([placeholderUploadIntent]);
-        }
+        // Immediately set a placeholder attachment while camera capture is in progress.
+        attachPlaceholder();
 
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: pickerMediaTypes,
@@ -402,24 +410,19 @@ export default function AttachmentSheet({
         // In case of error, remove the placeholder
         clearAttachments();
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    });
   }, [
-    attachAssets,
+    attachPlaceholder,
     cameraPermissionStatus,
     clearAttachments,
-    onOpenChange,
-    placeholderUploadIntent,
     pickerMediaTypes,
     processPickedAsset,
     requestCameraPermission,
+    runAfterSheetClose,
   ]);
 
   const pickImage = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
-    setTimeout(async () => {
+    runAfterSheetClose(async () => {
       let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
 
       try {
@@ -431,12 +434,7 @@ export default function AttachmentSheet({
         }
 
         // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        placeholderTimeout = setTimeout(() => {
-          if (Platform.OS !== 'web') {
-            attachAssets([placeholderUploadIntent]);
-          }
-        }, 200);
+        placeholderTimeout = setTimeout(attachPlaceholder, 200);
 
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
@@ -462,16 +460,15 @@ export default function AttachmentSheet({
           clearTimeout(placeholderTimeout);
         }
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    });
   }, [
-    attachAssets,
+    attachPlaceholder,
     clearAttachments,
-    onOpenChange,
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
-    placeholderUploadIntent,
     pickerMediaTypes,
     processPickedAsset,
+    runAfterSheetClose,
   ]);
 
   const startFilePicker = useCallback(async () => {
