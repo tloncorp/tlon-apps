@@ -11,6 +11,11 @@ const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
 const jsContextId = Math.random().toString(36).slice(2, 10);
 const BREADCRUMB_LIMIT = 100;
 
+let _buildInfo: string | null = null;
+export function setDebugBuildInfo(info: string) {
+  _buildInfo = info;
+}
+
 interface Breadcrumb {
   tag: string;
   message?: string | null;
@@ -290,6 +295,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
               errorStack: errorObj?.stack,
               logLevel: 'error',
               jsContextId,
+              buildInfo: _buildInfo,
               ...customProps,
             });
           };
@@ -309,6 +315,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
               message: `[${tag}] ${args[0]}`,
               logger: tag,
               jsContextId,
+              buildInfo: _buildInfo,
             });
           }
           resolvedProp = 'log';
