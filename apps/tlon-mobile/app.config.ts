@@ -100,7 +100,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-speech-transcriber',
       {
         speechRecognitionPermission:
-          'We need speech recognition to transcribe your recordings',
+          'We need permission to transcribe voice memos in your messages',
       },
     ],
   ],
