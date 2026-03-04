@@ -644,7 +644,16 @@ const LargeContentRenderer = createContentRenderer({
     },
     video: {
       borderRadius: 0,
-      ...noWrapperPadding,
+      maxHeight: 300,
+      alignSelf: 'center',
+      wrapperProps: {
+        padding: 0,
+        width: '100%',
+        minHeight: 300,
+        backgroundColor: '$secondaryBackground',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
     },
     code: {
       borderRadius: 0,
@@ -694,6 +703,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     video: {
       height: '100%',
+      borderRadius: 0,
       ...noWrapperPadding,
     },
     reference: {
