@@ -27,6 +27,7 @@ import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import {
   isLikelyVideoSource,
+  VIDEO_VALIDATION_ERROR,
   validateVideoSource,
 } from '../contexts/attachmentRules';
 import {
@@ -272,17 +273,21 @@ export default function AttachmentSheet({
         return uploadIntent;
       }
 
-      const validation = validateVideoSource({
-        mimeType,
-        size,
-        name,
-        uri,
-      });
-      if (!validation.ok) {
-        logger.trackError('video validation failed', validation);
-        setAttachmentErrorMessage(
-          validation.reason ?? 'Unable to attach video'
-        );
+      if (
+        !validateVideoSource({
+          mimeType,
+          size,
+          name,
+          uri,
+        })
+      ) {
+        logger.trackError('video validation failed', {
+          mimeType,
+          size,
+          name,
+          uri,
+        });
+        setAttachmentErrorMessage(VIDEO_VALIDATION_ERROR);
         return null;
       }
 

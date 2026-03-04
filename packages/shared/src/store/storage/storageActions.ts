@@ -27,43 +27,31 @@ export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 function getVideoUploadMetadata(
   uploadIntent: Attachment.UploadIntent
 ): { isVideo: boolean; posterUri?: string } {
+  const videoMetadata =
+    uploadIntent.type === 'file' || uploadIntent.type === 'fileUri'
+      ? uploadIntent.video
+      : undefined;
+  const posterUri =
+    videoMetadata && typeof videoMetadata === 'object'
+      ? videoMetadata.posterUri
+      : undefined;
+
   switch (uploadIntent.type) {
     case 'image':
       return { isVideo: false };
-    case 'file': {
-      const videoMetadata = uploadIntent.video;
-      const posterUri =
-        videoMetadata && typeof videoMetadata === 'object'
-          ? videoMetadata.posterUri
-          : undefined;
+    case 'file':
       return {
         isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
         posterUri,
       };
-    }
-    case 'fileUri': {
-      const videoMetadata = uploadIntent.video;
-      const posterUri =
-        videoMetadata && typeof videoMetadata === 'object'
-          ? videoMetadata.posterUri
-          : undefined;
+    case 'fileUri':
       return {
         isVideo:
           !!videoMetadata ||
           (!!uploadIntent.mimeType && uploadIntent.mimeType.startsWith('video/')),
         posterUri,
       };
-    }
   }
-}
-
-function setTerminalUploadState(
-  key: Attachment.UploadIntent.Key,
-  next:
-    | { status: 'success'; remoteUri: string; posterUri?: string }
-    | { status: 'error'; errorMessage: string }
-) {
-  setUploadState(key, next);
 }
 
 function isRemoteUri(uri: string): boolean {
@@ -184,7 +172,7 @@ async function uploadAssetWithLifecycle(
       remoteUri,
       isWeb,
     });
-    setTerminalUploadState(uploadKey, {
+    setUploadState(uploadKey, {
       status: 'success',
       remoteUri,
       posterUri,
@@ -197,7 +185,7 @@ async function uploadAssetWithLifecycle(
       isWeb,
     });
     console.error(e);
-    setTerminalUploadState(uploadKey, {
+    setUploadState(uploadKey, {
       status: 'error',
       errorMessage: e.message,
     });

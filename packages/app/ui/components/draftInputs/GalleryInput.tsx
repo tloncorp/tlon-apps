@@ -5,7 +5,6 @@ import * as logic from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   ParentAgnosticKeyboardAvoidingView,
-  Text,
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -398,35 +397,18 @@ function ReviewAttachment({
 
   const theme = useTheme();
   const [isPosting, setIsPosting] = useState(false);
-  const {
-    attachments,
-    removeAttachment,
-    attachmentErrorMessage,
-    setAttachmentErrorMessage,
-  } = useAttachmentContext();
+  const { attachments, removeAttachment } = useAttachmentContext();
   const mediaAttachment = attachments.find((att) => att.type !== 'text');
-  const hasVideoAttachment = mediaAttachment?.type === 'video';
   const canSubmitPost =
     canPost && (attachments.length > 0 || caption.trim().length > 0);
-  const canRemoveMedia =
-    !!mediaAttachment && (!hasVideoAttachment || caption.trim().length > 0);
+  const canRemoveMedia = !!mediaAttachment;
 
   const handleRemoveMedia = useCallback(() => {
     if (!mediaAttachment) {
       return;
     }
-    if (mediaAttachment.type === 'video' && caption.trim().length === 0) {
-      setAttachmentErrorMessage('Add text before removing this video.');
-      return;
-    }
     removeAttachment(mediaAttachment);
-    setAttachmentErrorMessage(null);
-  }, [
-    mediaAttachment,
-    caption,
-    removeAttachment,
-    setAttachmentErrorMessage,
-  ]);
+  }, [mediaAttachment, removeAttachment]);
 
   // Handle posting the gallery image
   const handlePost = useCallback(async () => {
@@ -560,16 +542,6 @@ function ReviewAttachment({
               }}
             />
           </View>
-          {attachmentErrorMessage ? (
-            <Text
-              color="$negativeActionText"
-              fontSize="$s"
-              paddingTop="$xs"
-              paddingHorizontal="$xs"
-            >
-              {attachmentErrorMessage}
-            </Text>
-          ) : null}
         </View>
       </ParentAgnosticKeyboardAvoidingView>
     </YStack>
