@@ -63,7 +63,10 @@ type UploadIntentVideoMetadata = Exclude<
 >;
 
 function asVideoMetadata(
-  metadata: Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video']
+  metadata: Extract<
+    Attachment.UploadIntent,
+    { type: 'file' | 'fileUri' }
+  >['video']
 ): UploadIntentVideoMetadata | undefined {
   return metadata && typeof metadata === 'object' ? metadata : undefined;
 }
@@ -218,7 +221,8 @@ export default function AttachmentSheet({
           video: {
             width: asset.width ?? undefined,
             height: asset.height ?? undefined,
-            duration: asset.duration != null ? asset.duration / 1000 : undefined,
+            duration:
+              asset.duration != null ? asset.duration / 1000 : undefined,
           },
         };
       }
@@ -272,7 +276,9 @@ export default function AttachmentSheet({
       });
       if (!validation.ok) {
         logger.trackError('video validation failed', validation);
-        setAttachmentErrorMessage(validation.reason ?? 'Unable to attach video');
+        setAttachmentErrorMessage(
+          validation.reason ?? 'Unable to attach video'
+        );
         return null;
       }
 
@@ -349,6 +355,62 @@ export default function AttachmentSheet({
     }
   }, [attachAssets, placeholderUploadIntent]);
 
+  const runPickerFlow = useCallback(
+    ({
+      permissionStatus,
+      requestPermission,
+      launchPicker,
+      attachPlaceholderDelayMs,
+      errorMessage,
+    }: {
+      permissionStatus: ImagePicker.PermissionResponse | null;
+      requestPermission: () => Promise<ImagePicker.PermissionResponse>;
+      launchPicker: () => Promise<ImagePicker.ImagePickerResult>;
+      attachPlaceholderDelayMs: number;
+      errorMessage: string;
+    }) => {
+      runAfterSheetClose(async () => {
+        let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
+        try {
+          if (permissionStatus?.granted === false) {
+            const permissionResult = await requestPermission();
+            if (!permissionResult.granted) {
+              return;
+            }
+          }
+          if (attachPlaceholderDelayMs === 0) {
+            attachPlaceholder();
+          } else if (attachPlaceholderDelayMs > 0) {
+            placeholderTimeout = setTimeout(
+              attachPlaceholder,
+              attachPlaceholderDelayMs
+            );
+          }
+          const result = await launchPicker();
+          if (result.canceled) {
+            clearAttachments();
+            return;
+          }
+          await processPickedAsset(result.assets[0]);
+        } catch (error) {
+          console.error(errorMessage, error);
+          logger.trackError(errorMessage, error);
+          clearAttachments();
+        } finally {
+          if (placeholderTimeout) {
+            clearTimeout(placeholderTimeout);
+          }
+        }
+      });
+    },
+    [
+      attachPlaceholder,
+      clearAttachments,
+      processPickedAsset,
+      runAfterSheetClose,
+    ]
+  );
+
   const createAssetFromClipboard = useCallback(() => {
     runAfterSheetClose(async () => {
       try {
@@ -375,96 +437,45 @@ export default function AttachmentSheet({
   }, [attachAssets, getClipboardImageData, onAttach, runAfterSheetClose]);
 
   const takePicture = useCallback(() => {
-    runAfterSheetClose(async () => {
-      try {
-        if (cameraPermissionStatus?.granted === false) {
-          const permissionResult = await requestCameraPermission();
-          if (!permissionResult.granted) {
-            return;
-          }
-        }
-
-        // Immediately set a placeholder attachment while camera capture is in progress.
-        attachPlaceholder();
-
-        const result = await ImagePicker.launchCameraAsync({
+    runPickerFlow({
+      permissionStatus: cameraPermissionStatus ?? null,
+      requestPermission: requestCameraPermission,
+      launchPicker: () =>
+        ImagePicker.launchCameraAsync({
           mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
-        });
-
-        if (!result.canceled) {
-          await processPickedAsset(result.assets[0]);
-        } else {
-          // If user canceled, remove the placeholder
-          clearAttachments();
-        }
-      } catch (e) {
-        console.error('Error taking picture', e);
-        logger.trackError('Error taking picture', e);
-        // In case of error, remove the placeholder
-        clearAttachments();
-      }
+        }),
+      attachPlaceholderDelayMs: 0,
+      errorMessage: 'Error taking picture',
     });
   }, [
-    attachPlaceholder,
     cameraPermissionStatus,
-    clearAttachments,
     pickerMediaTypes,
-    processPickedAsset,
     requestCameraPermission,
-    runAfterSheetClose,
+    runPickerFlow,
   ]);
 
   const pickImage = useCallback(() => {
-    runAfterSheetClose(async () => {
-      let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
-
-      try {
-        if (mediaLibraryPermissionStatus?.granted === false) {
-          const permissionResult = await requestMediaLibraryPermission();
-          if (!permissionResult.granted) {
-            return;
-          }
-        }
-
-        // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
-        placeholderTimeout = setTimeout(attachPlaceholder, 200);
-
-        const result = await ImagePicker.launchImageLibraryAsync({
+    runPickerFlow({
+      permissionStatus: mediaLibraryPermissionStatus ?? null,
+      requestPermission: requestMediaLibraryPermission,
+      launchPicker: () =>
+        ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
-        });
-
-        if (!result.canceled) {
-          await processPickedAsset(result.assets[0]);
-        } else {
-          // If user canceled, remove the placeholder
-          clearAttachments();
-        }
-      } catch (e) {
-        console.error('Error picking image', e);
-        logger.trackError('Error picking image', e);
-
-        // In case of error, remove the placeholder
-        clearAttachments();
-      } finally {
-        if (placeholderTimeout) {
-          clearTimeout(placeholderTimeout);
-        }
-      }
+        }),
+      attachPlaceholderDelayMs: 200,
+      errorMessage: 'Error picking image',
     });
   }, [
-    attachPlaceholder,
-    clearAttachments,
     mediaLibraryPermissionStatus,
-    requestMediaLibraryPermission,
     pickerMediaTypes,
-    processPickedAsset,
-    runAfterSheetClose,
+    requestMediaLibraryPermission,
+    runPickerFlow,
   ]);
 
   const startFilePicker = useCallback(async () => {
@@ -492,14 +503,13 @@ export default function AttachmentSheet({
         [
           'neutral',
           {
-            title:
-              useVideoInMediaPicker
-                ? isWeb
-                  ? 'Upload Media'
-                  : 'Media Library'
-                : isWeb
-                  ? 'Upload an Image'
-                  : 'Photo Library',
+            title: useVideoInMediaPicker
+              ? isWeb
+                ? 'Upload Media'
+                : 'Media Library'
+              : isWeb
+                ? 'Upload an Image'
+                : 'Photo Library',
             description: isWeb
               ? useVideoInMediaPicker
                 ? 'Upload an image or video from your computer'
