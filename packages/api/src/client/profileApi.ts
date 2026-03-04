@@ -174,40 +174,43 @@ async function clearPublicExposeCites() {
   );
 }
 
-export async function getPublicProfileRunning() {
-  try {
-    await scryProfileBoolean('/bound/json');
-    return true;
-  } catch {
+async function tryScryPaths<T>(
+  scryFn: (path: string) => Promise<T>,
+  paths: string[],
+  fallback: T
+): Promise<T> {
+  for (const path of paths) {
     try {
-      await scryProfileBoolean('/x/bound/json');
-      return true;
+      return await scryFn(path);
     } catch {
-      try {
-        await scryProfileLayout('/layout/json');
-        return true;
-      } catch {
-        try {
-          await scryProfileLayout('/x/layout/json');
-          return true;
-        } catch {
-          return false;
-        }
-      }
+      // try next path
     }
   }
+  return fallback;
+}
+
+export async function getPublicProfileRunning() {
+  const boundResult = await tryScryPaths(
+    scryProfileBoolean,
+    ['/bound/json', '/x/bound/json'],
+    null
+  );
+  if (boundResult !== null) return true;
+
+  const layoutResult = await tryScryPaths(
+    scryProfileLayout,
+    ['/layout/json', '/x/layout/json'],
+    null
+  );
+  return layoutResult !== null;
 }
 
 export async function getPublicProfileEnabled() {
-  try {
-    return await scryProfileBoolean('/bound/json');
-  } catch {
-    try {
-      return await scryProfileBoolean('/x/bound/json');
-    } catch {
-      return false;
-    }
-  }
+  return tryScryPaths(
+    scryProfileBoolean,
+    ['/bound/json', '/x/bound/json'],
+    false
+  );
 }
 
 export async function setPublicProfileEnabled(enabled: boolean) {
@@ -234,15 +237,11 @@ export async function setPublicProfileEnabled(enabled: boolean) {
 }
 
 export async function getPublicProfileLayout() {
-  try {
-    return await scryProfileLayout('/layout/json');
-  } catch {
-    try {
-      return await scryProfileLayout('/x/layout/json');
-    } catch {
-      return [];
-    }
-  }
+  return tryScryPaths(
+    scryProfileLayout,
+    ['/layout/json', '/x/layout/json'],
+    [] as PublicProfileWidget[]
+  );
 }
 
 export async function setPublicProfileWidgetEnabled(

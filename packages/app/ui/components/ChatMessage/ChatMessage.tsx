@@ -1,7 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import Clipboard from '@react-native-clipboard/clipboard';
-import { Pressable, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
+import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -9,6 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
+import { useHandleExposeSuccess } from '../../utils/postUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
@@ -130,16 +130,7 @@ const ChatMessage = ({
     onShowEmojiPicker?.(post);
   }, [post, onShowEmojiPicker]);
 
-  const showToast = useToast();
-  const handleExposeSuccess = useCallback(
-    (message: string, url?: string) => {
-      if (url) {
-        Clipboard.setString(url);
-      }
-      showToast({ message, duration: 2000 });
-    },
-    [showToast]
-  );
+  const handleExposeSuccess = useHandleExposeSuccess();
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
