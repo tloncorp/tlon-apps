@@ -5,7 +5,7 @@ import {
   makeParagraph,
   makeText,
 } from '@tloncorp/shared/logic/tiptap';
-import { filenameFromPath } from '@tloncorp/shared/utils';
+import { filenameFromPath } from '@tloncorp/shared/utils/files';
 import isURL from 'validator/lib/isURL';
 
 import {
