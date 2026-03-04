@@ -2,6 +2,8 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
 import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
 import { filenameFromPath } from '@tloncorp/shared/utils';
+import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import {
@@ -385,24 +387,6 @@ function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
       )}
     </XStack>
   );
-}
-
-function formatVideoDurationLabel(durationSeconds?: number): string | undefined {
-  if (durationSeconds == null || !Number.isFinite(durationSeconds)) {
-    return undefined;
-  }
-
-  const totalSeconds = Math.max(0, Math.floor(durationSeconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
-      seconds
-    ).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {

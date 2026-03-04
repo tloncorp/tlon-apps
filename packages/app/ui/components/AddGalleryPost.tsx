@@ -1,5 +1,4 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import { useCallback } from 'react';
 
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
@@ -41,21 +40,11 @@ export default function AddGalleryPost({
     },
   ];
 
-  const handleAttachmentSet = useCallback(
-    (assets: Attachment.UploadIntent[]) => {
-      onSetMedia(assets);
-    },
-    [onSetMedia]
-  );
-
-  const onClose = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setRoute('gallery');
-      }
-    },
-    [setRoute]
-  );
+  const onClose = (open: boolean) => {
+    if (!open) {
+      setRoute('gallery');
+    }
+  };
 
   return (
     <>
