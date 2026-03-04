@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { convertContent } from '../lib/postContent';
 
-test('convertContent prefers blob video when blob/story contain same src', () => {
+test('convertContent keeps both blob and story videos when src matches', () => {
   const src = 'https://cdn.example.com/clip.mp4';
   const blob = JSON.stringify([
     {
@@ -31,7 +31,7 @@ test('convertContent prefers blob video when blob/story contain same src', () =>
 
   const content = convertContent(story, blob);
   const videos = content.filter((block) => block.type === 'video');
-  expect(videos).toHaveLength(1);
+  expect(videos).toHaveLength(2);
   expect(videos[0]).toMatchObject({
     type: 'video',
     src,
@@ -39,6 +39,13 @@ test('convertContent prefers blob video when blob/story contain same src', () =>
     height: 200,
     alt: 'blob-clip',
     posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
+  });
+  expect(videos[1]).toMatchObject({
+    type: 'video',
+    src,
+    width: 1,
+    height: 1,
+    alt: 'story-clip',
   });
 });
 

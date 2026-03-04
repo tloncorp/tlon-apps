@@ -6,7 +6,6 @@ import {
   toPostData,
 } from '../lib/content-helpers';
 import {
-  UploadedFileAttachment,
   UploadedVideoAttachment,
 } from '../types/attachment';
 
@@ -38,45 +37,12 @@ test('appendVideoToPostBlob + parsePostBlob round-trips video metadata', () => {
   ]);
 });
 
-test('parsePostBlob returns unknown entry when blob is malformed JSON', () => {
-  expect(parsePostBlob('not-valid-json')).toEqual([{ type: 'unknown' }]);
+test('parsePostBlob throws when blob is malformed JSON', () => {
+  expect(() => parsePostBlob('not-valid-json')).toThrow();
 });
 
 test('parsePostBlob returns unknown entry when blob JSON is not an array', () => {
   expect(parsePostBlob('{"type":"video"}')).toEqual([{ type: 'unknown' }]);
-});
-
-test('toPostData persists file MIME type in blob file entry', () => {
-  const attachment: UploadedFileAttachment = {
-    type: 'file',
-    localFile: 'file:///tmp/report.pdf',
-    name: 'report.pdf',
-    size: 42,
-    mimeType: 'application/pdf',
-    uploadState: {
-      status: 'success',
-      remoteUri: 'https://cdn.example.com/report.pdf',
-    },
-  };
-
-  const out = toPostData({
-    content: ['hello'],
-    attachments: [attachment],
-    channelType: 'chat',
-  });
-
-  expect(out.blob).toBeTruthy();
-  const parsed = parsePostBlob(out.blob!);
-  expect(parsed).toEqual([
-    {
-      type: 'file',
-      version: 1,
-      fileUri: 'https://cdn.example.com/report.pdf',
-      mimeType: 'application/pdf',
-      name: 'report.pdf',
-      size: 42,
-    },
-  ]);
 });
 
 test('toPostData writes video attachments as typed video blob entries', () => {

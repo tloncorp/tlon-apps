@@ -407,17 +407,7 @@ export function convertContent(
     return out;
   }
 
-  const existingVideoSrcs = new Set(
-    out.flatMap((block) => (block.type === 'video' ? [block.src] : []))
-  );
-  out.push(
-    ...convertContentSafe(story).filter((block) => {
-      if (block.type !== 'video') {
-        return true;
-      }
-      return !existingVideoSrcs.has(block.src);
-    })
-  );
+  out.push(...convertContentSafe(story));
   return out;
 }
 
