@@ -1,6 +1,7 @@
 import {
   Attachment,
   PLACEHOLDER_ASSET_URI,
+  VoiceMemoAttachment,
   createDevLogger,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
@@ -32,6 +33,7 @@ import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
+import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -55,8 +57,13 @@ export default function AttachmentSheet({
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const { attachAssets, addAttachment, clearAttachments, removeAttachment } =
-    useAttachmentContext();
+  const {
+    attachAssets,
+    addAttachment,
+    clearAttachments,
+    removeAttachment,
+    uploadAssets,
+  } = useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
 
@@ -198,6 +205,7 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
@@ -207,15 +215,47 @@ export default function AttachmentSheet({
           return undefined;
         }
       })();
-      addAttachment({
+      const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
         localUri: audioFilePath,
         size: fs.getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
         mimeType: fs.getMimeType(audioFilePath) ?? undefined,
-      });
+      };
+
       audioRecorder.dismiss();
+
+      // If possible, try sending post immediately.
+      if (draftInputContext != null) {
+        const ui = Attachment.toUploadIntent(attachment);
+        if (ui.needsUpload) {
+          uploadAssets([ui], {
+            // without this flag, attachment context tries to add the uploaded
+            // attachment to the context's attachment list, which ends up
+            // showing in the draft box. we want to skip the preview entirely.
+            skipAddToAttachmentList: true,
+          });
+        }
+        await draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          channelType: draftInputContext.channel.type,
+          content: [],
+          attachments: [attachment],
+          ...(draftInputContext.editingPost == null
+            ? {
+                isEdit: false,
+              }
+            : {
+                isEdit: true,
+                editTargetPostId: draftInputContext.editingPost.id,
+              }),
+          replyToPostId: null,
+        });
+      } else {
+        // otherwise, add attachment to draft
+        addAttachment(attachment);
+      }
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {

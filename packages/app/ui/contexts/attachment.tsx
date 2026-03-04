@@ -28,7 +28,8 @@ export type AttachmentState = {
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
   attachAssets: (assets: Attachment.UploadIntent[]) => void;
   uploadAssets: (
-    assets: Attachment.UploadIntent[]
+    assets: Attachment.UploadIntent[],
+    options?: { skipAddToAttachmentList?: boolean }
   ) => Promise<FinalizedAttachment[]>;
   canUpload: boolean;
 };
@@ -172,7 +173,10 @@ export const AttachmentProvider = ({
 
   const handleUploadAssets = useCallback(
     async (
-      uploadIntents: Attachment.UploadIntent[]
+      uploadIntents: Attachment.UploadIntent[],
+      {
+        skipAddToAttachmentList = false,
+      }: { skipAddToAttachmentList?: boolean } = {}
     ): Promise<FinalizedAttachment[]> => {
       const assetUris: Attachment.UploadIntent.Key[] = [];
 
@@ -184,10 +188,12 @@ export const AttachmentProvider = ({
 
       const uploadedAssets = await Promise.all(uploadPromises);
 
-      setState((prev) => [
-        ...prev,
-        ...uploadedAssets.map((asset) => Attachment.fromUploadIntent(asset)),
-      ]);
+      if (!skipAddToAttachmentList) {
+        setState((prev) => [
+          ...prev,
+          ...uploadedAssets.map((asset) => Attachment.fromUploadIntent(asset)),
+        ]);
+      }
 
       const uploadStates = await waitForUploads(assetUris);
 
