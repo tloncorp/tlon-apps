@@ -149,6 +149,27 @@ function GroupRolesScreenView({
               </ListItem>
             </Pressable>
           ))}
+          <ListItem
+            paddingHorizontal="$2xl"
+            backgroundColor={'$background'}
+            borderRadius="$2xl"
+            testID="GroupRole-Members"
+          >
+            <ActionSheet.ActionContent>
+              <ActionSheet.ActionTitle>Members</ActionSheet.ActionTitle>
+              <ListItem.Subtitle>All group members</ListItem.Subtitle>
+            </ActionSheet.ActionContent>
+            <ListItem.EndContent
+              flexDirection="row"
+              gap="$xl"
+              alignItems="center"
+            >
+              <ListItem.Count
+                notified={false}
+                count={groupMembers.length}
+              />
+            </ListItem.EndContent>
+          </ListItem>
         </ActionSheet.ActionGroup>
       </ScrollView>
     </View>

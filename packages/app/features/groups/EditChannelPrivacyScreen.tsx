@@ -13,7 +13,10 @@ import {
   PermissionActionButtons,
   processFinalPermissions,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
-import { getChannelPrivacyDefaults } from '../../ui/components/ManageChannels/channelFormUtils';
+import {
+  MEMBERS_MARKER,
+  getChannelPrivacyDefaults,
+} from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 type Props = NativeStackScreenProps<
@@ -79,6 +82,11 @@ export function EditChannelPrivacyScreen(props: Props) {
   useEffect(() => {
     if (!selectedRoleIds) return;
     form.setValue('readers', selectedRoleIds);
+    const currentWriters = form.getValues('writers');
+    form.setValue(
+      'writers',
+      currentWriters.filter((w) => selectedRoleIds.includes(w))
+    );
     form.setValue('isPrivate', true);
   }, [selectedRoleIds, form]);
 
@@ -86,8 +94,8 @@ export function EditChannelPrivacyScreen(props: Props) {
     (value: boolean) => {
       form.setValue('isPrivate', value);
       if (value) {
-        form.setValue('readers', ['admin']);
-        form.setValue('writers', ['admin']);
+        form.setValue('readers', ['admin', MEMBERS_MARKER]);
+        form.setValue('writers', ['admin', MEMBERS_MARKER]);
       } else {
         form.setValue('readers', []);
         form.setValue('writers', []);
