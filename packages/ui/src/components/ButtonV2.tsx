@@ -388,25 +388,32 @@ type IconOnlyButtonProps = ButtonBaseProps & {
 };
 
 export type ButtonProps = TextButtonProps | IconOnlyButtonProps;
+type ButtonPressEvent = Parameters<NonNullable<ButtonBaseProps['onPress']>>[0];
 
-function ButtonImpl({
-  label,
-  icon,
-  leadingIcon,
-  trailingIcon,
-  loading = false,
-  disabled = false,
-  size: sizeProp,
-  fill: fillProp,
-  intent: intentProp,
-  type: typeProp,
-  preset,
-  centered: centeredProp,
-  shadow = false,
-  disableHaptic,
-  onPress,
-  ...props
-}: ButtonProps) {
+const ButtonImpl = React.forwardRef<
+  React.ElementRef<typeof ButtonFrame>,
+  ButtonProps
+>(function ButtonImpl(
+  {
+    label,
+    icon,
+    leadingIcon,
+    trailingIcon,
+    loading = false,
+    disabled = false,
+    size: sizeProp,
+    fill: fillProp,
+    intent: intentProp,
+    type: typeProp,
+    preset,
+    centered: centeredProp,
+    shadow = false,
+    disableHaptic,
+    onPress,
+    ...props
+  },
+  ref
+) {
   // Apply preset values, allowing individual props to override
   const presetConfig = preset ? presetConfigs[preset] : undefined;
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
@@ -418,7 +425,7 @@ function ButtonImpl({
   const isIconOnly = !!icon;
 
   const handlePress = React.useCallback(
-    (e: any) => {
+    (e: ButtonPressEvent) => {
       if (disabled) return;
       if (!disableHaptic) {
         triggerHaptic('baseButtonClick');
@@ -452,6 +459,7 @@ function ButtonImpl({
       disabled={disabled}
     >
       <ButtonFrame
+        ref={ref}
         size={size}
         fill={fill}
         intent={intent}
@@ -488,7 +496,7 @@ function ButtonImpl({
       </ButtonFrame>
     </ButtonContext.Provider>
   );
-}
+});
 
 const ButtonIconFrame = styled(Icon, {
   name: 'ButtonIcon',
