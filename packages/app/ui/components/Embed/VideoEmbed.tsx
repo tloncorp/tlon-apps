@@ -1,9 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { Icon, Image, Pressable } from '@tloncorp/ui';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  makePrettyDurationFromSeconds,
+} from '@tloncorp/shared';
+import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
-import { View } from 'tamagui';
+import { XStack, View } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
 
@@ -13,6 +17,7 @@ type VideoEmbedProps = ComponentProps<typeof View> & {
     height: number;
     src: string;
     alt?: string;
+    duration?: number;
     posterUri?: string;
   };
 };
@@ -22,6 +27,7 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
   const { maxWidth, maxHeight, ...rest } = props;
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const durationLabel = makePrettyDurationFromSeconds(video.duration);
   const aspectRatio = video.height > 0 ? video.width / video.height : 1;
   const boundedFrame = useMemo(() => {
     if (
@@ -87,24 +93,33 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
           backgroundColor="$secondaryBackground"
         />
       )}
-      <View
+      <XStack
         position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
+        left={8}
+        right={8}
+        bottom={8}
         alignItems="center"
-        justifyContent="center"
+        justifyContent="space-between"
+        pointerEvents="none"
       >
-        <Icon
-          type="Play"
+        <View
           backgroundColor="$mediaScrim"
-          color="$white"
           borderRadius={100}
-          customSize={['$4xl', '$4xl']}
-          $group-button-press={{ opacity: 0.8 }}
-        />
-      </View>
+          width="$2xl"
+          height="$2xl"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Icon type="Play" color="$white" size="$s" />
+        </View>
+        {durationLabel ? (
+          <Text color="$white" fontSize="$s" fontWeight="$xl">
+            {durationLabel}
+          </Text>
+        ) : (
+          <View />
+        )}
+      </XStack>
     </Pressable>
   );
 }
