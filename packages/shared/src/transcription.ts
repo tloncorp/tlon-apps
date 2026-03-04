@@ -2,7 +2,7 @@ import * as SpeechTranscriber from 'expo-speech-transcriber';
 import { memoize } from 'lodash';
 import { Platform } from 'react-native';
 
-import { File } from './utils';
+import { getMd5 } from './md5';
 
 async function transcribeAudioFile(
   audioFileUri: string
@@ -56,5 +56,5 @@ export async function requestTranscriptionPermissionsIfNeeded(): Promise<{
 
 export const transcribeAudioFileWithGlobalCache = memoize(
   transcribeAudioFile,
-  (uri) => File.getMd5(uri) ?? uri
+  (uri) => getMd5(uri) ?? uri
 );

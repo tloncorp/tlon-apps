@@ -5,7 +5,7 @@ import {
   makeParagraph,
   makeText,
 } from '@tloncorp/shared/logic/tiptap';
-import { File as fs } from '@tloncorp/shared/utils';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import isURL from 'validator/lib/isURL';
 
 import {
@@ -699,7 +699,7 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fs.filenameFromPath(attachment.localFile, {
+              : filenameFromPath(attachment.localFile, {
                   decodeURI: true,
                 })) ??
             undefined;

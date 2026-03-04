@@ -9,7 +9,7 @@ export type * from '@tloncorp/api/lib/utilityTypes';
 export * from '@tloncorp/api/lib/timeoutSignal';
 export * from '@tloncorp/api/lib/EventEmitter';
 export * from './deferred';
-export { default as File } from './files';
+export * from './files';
 export * from './useEventEmitter';
 export * from './useMockedQuery';
 export * from '@tloncorp/api/lib/ProgressManager';

@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
-import { File as fs } from '@tloncorp/shared/utils';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -174,7 +174,7 @@ export function AttachmentPreview({
             {attachment.name ??
               (attachment.localFile instanceof File
                 ? attachment.localFile.name
-                : fs.filenameFromPath(attachment.localFile, {
+                : filenameFromPath(attachment.localFile, {
                     decodeURI: true,
                   })) ??
               'Attachment'}
