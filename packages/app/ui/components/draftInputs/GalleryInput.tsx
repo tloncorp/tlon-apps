@@ -397,18 +397,7 @@ function ReviewAttachment({
 
   const theme = useTheme();
   const [isPosting, setIsPosting] = useState(false);
-  const { attachments, removeAttachment } = useAttachmentContext();
-  const mediaAttachment = attachments.find((att) => att.type !== 'text');
-  const canSubmitPost =
-    canPost && (attachments.length > 0 || caption.trim().length > 0);
-  const canRemoveMedia = !!mediaAttachment;
-
-  const handleRemoveMedia = useCallback(() => {
-    if (!mediaAttachment) {
-      return;
-    }
-    removeAttachment(mediaAttachment);
-  }, [mediaAttachment, removeAttachment]);
+  const { attachments } = useAttachmentContext();
 
   // Handle posting the gallery image
   const handlePost = useCallback(async () => {
@@ -481,33 +470,16 @@ function ReviewAttachment({
   useRegisterChannelHeaderItem(
     useMemo(
       () => (
-        <>
-          <ScreenHeader.TextButton
-            key="gallery-preview-remove"
-            onPress={handleRemoveMedia}
-            disabled={isPosting || !canRemoveMedia}
-            testID="GalleryRemoveMediaButton"
-          >
-            Remove
-          </ScreenHeader.TextButton>
-          <ScreenHeader.TextButton
-            key="gallery-preview-post"
-            onPress={handlePost}
-            disabled={!canSubmitPost || isPosting}
-            testID="GalleryPostButton"
-          >
-            {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-          </ScreenHeader.TextButton>
-        </>
+        <ScreenHeader.TextButton
+          key="gallery-preview-post"
+          onPress={handlePost}
+          disabled={!canPost || isPosting}
+          testID="GalleryPostButton"
+        >
+          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
+        </ScreenHeader.TextButton>
       ),
-      [
-        handlePost,
-        handleRemoveMedia,
-        canRemoveMedia,
-        canSubmitPost,
-        isPosting,
-        isEditingPost,
-      ]
+      [handlePost, canPost, isPosting, isEditingPost]
     )
   );
 
