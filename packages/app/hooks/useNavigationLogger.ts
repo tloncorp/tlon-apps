@@ -4,27 +4,6 @@ import { useRef } from 'react';
 
 const logger = createDevLogger('navigation', false);
 
-/**
- * Recursively formats navigation state as a readable string showing all
- * routes in each navigator. Active routes are marked with *.
- * Example: Root[Home*,Activity] > Home[Channel*,ChatDetails] > Channel[ChannelRoot,GroupSettings*] > GroupSettings[GroupRoles*]
- */
-function formatNavState(state: any, depth = 0): string {
-  if (!state || !state.routes) return '';
-
-  const routeNames = state.routes.map((r: any, i: number) => {
-    const active = i === (state.index ?? 0);
-    return `${r.name}${active ? '*' : ''}`;
-  });
-
-  const activeRoute = state.routes[state.index ?? 0];
-  const nested = activeRoute?.state
-    ? ' > ' + formatNavState(activeRoute.state, depth + 1)
-    : '';
-
-  return `[${routeNames.join(',')}]${nested}`;
-}
-
 export function useNavigationLogging() {
   const routeNameRef = useRef<string | undefined>(undefined);
 
@@ -43,12 +22,11 @@ export function useNavigationLogging() {
     ) {
       logger.crumb(`to: ${currentRouteName}, from: ${previousRouteName}`);
     }
-    if (state) {
-      logger.log(
-        `to: ${currentRouteName}, from: ${previousRouteName}`,
-        formatNavState(state)
-      );
-    }
+    logger.log(
+      `to: ${currentRouteName}, from: ${previousRouteName}`,
+      'current state:',
+      state
+    );
 
     // Update the route name ref
     routeNameRef.current = currentRouteName;
