@@ -288,7 +288,7 @@ function VoiceMemoTranscription({ transcription }: { transcription: string }) {
       <Text
         flex={1}
         size="$label/m"
-        numberOfLines={expanded ? 0 : 1}
+        numberOfLines={expanded ? undefined : 1}
         ellipsizeMode="tail"
         selectable
       >
