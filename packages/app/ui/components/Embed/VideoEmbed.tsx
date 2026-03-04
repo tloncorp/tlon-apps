@@ -113,9 +113,16 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
           <Icon type="Play" color="$white" size="$s" />
         </View>
         {durationLabel ? (
-          <Text color="$white" fontSize="$s" fontWeight="$xl">
-            {durationLabel}
-          </Text>
+          <View
+            backgroundColor="$mediaScrim"
+            borderRadius="$s"
+            paddingHorizontal="$s"
+            paddingVertical="$2xs"
+          >
+            <Text color="$white" fontSize="$s" fontWeight="$xl">
+              {durationLabel}
+            </Text>
+          </View>
         ) : (
           <View />
         )}
