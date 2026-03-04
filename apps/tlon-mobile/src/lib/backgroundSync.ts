@@ -1,6 +1,11 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
-import { SyncPriority, createDevLogger, flushErrorLogger, syncSince } from '@tloncorp/shared';
+import {
+  SyncPriority,
+  createDevLogger,
+  flushErrorLogger,
+  syncSince,
+} from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -13,13 +18,13 @@ const logger = createDevLogger('backgroundSync', true);
 
 let backgroundSyncAbortController: AbortController | null = null;
 
-export function cancelBackgroundSync() {
-  if (backgroundSyncAbortController) {
-    logger.trackEvent('Cancelling background sync (app foregrounded)');
-    backgroundSyncAbortController.abort();
-    backgroundSyncAbortController = null;
-  }
-}
+// export function cancelBackgroundSync() {
+//   if (backgroundSyncAbortController) {
+//     logger.trackEvent('Cancelling background sync (app foregrounded)');
+//     backgroundSyncAbortController.abort();
+//     backgroundSyncAbortController = null;
+//   }
+// }
 
 async function performSync() {
   await setupDb();
@@ -79,7 +84,7 @@ async function performSync() {
       callCtx: { cause: 'background-sync' },
       syncCtx: {
         priority: SyncPriority.High,
-        abortSignal: backgroundSyncAbortController.signal,
+        // abortSignal: backgroundSyncAbortController.signal,
       },
     });
     timings.changesDuration = Date.now() - changesStart;
