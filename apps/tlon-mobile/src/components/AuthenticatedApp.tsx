@@ -78,8 +78,7 @@ function AuthenticatedApp() {
         return;
       }
 
-      // app opened or returned from background — cancel any pending
-      // background sync operations so they don't contend with foreground sync
+      // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         startChatListSettleMeasurement(status);
         await checkForCachedChanges();
