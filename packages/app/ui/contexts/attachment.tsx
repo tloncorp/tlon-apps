@@ -27,8 +27,6 @@ import { canAddAttachment } from './attachmentRules';
 
 export type AttachmentState = {
   attachments: Attachment[];
-  attachmentErrorMessage: string | null;
-  setAttachmentErrorMessage: (message: string | null) => void;
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (attachment: Attachment) => void;
   clearAttachments: () => void;
@@ -43,8 +41,6 @@ export type AttachmentState = {
 
 const defaultState: AttachmentState = {
   attachments: [],
-  attachmentErrorMessage: null,
-  setAttachmentErrorMessage: () => {},
   addAttachment: () => {},
   removeAttachment: () => {},
   clearAttachments: () => {},
@@ -212,31 +208,11 @@ export const AttachmentProvider = ({
 
   const handleAttachAssets = useCallback(
     (uploadIntents: Attachment.UploadIntent[]) => {
-      let nextAttachments = stateRef.current;
-      let nextError: string | null = null;
-      let removedForReplacement: Attachment[] = [];
-
-      uploadIntents.forEach((uploadIntent) => {
-        const result = addAttachmentToState(
-          nextAttachments,
-          Attachment.fromUploadIntent(uploadIntent)
-        );
-        nextAttachments = result.attachments;
-        nextError = result.errorMessage;
-        removedForReplacement = [
-          ...removedForReplacement,
-          ...result.removedForReplacement,
-        ];
-      });
-
-      setAttachmentErrorMessage(nextError);
-      stateRef.current = nextAttachments;
-      setState(nextAttachments);
-      if (removedForReplacement.length > 0) {
-        revokeDetachedVideoPreviewUris(removedForReplacement, nextAttachments);
-      }
+      uploadIntents.forEach((uploadIntent) =>
+        handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
+      );
     },
-    []
+    [handleAddAttachment]
   );
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {
@@ -270,14 +246,12 @@ export const AttachmentProvider = ({
     revokeDetachedVideoPreviewUris(stateRef.current, []);
     stateRef.current = [];
     setState([]);
-    setAttachmentErrorMessage(null);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
     revokeDetachedVideoPreviewUris(stateRef.current, attachments);
     stateRef.current = attachments;
     setState(attachments);
-    setAttachmentErrorMessage(null);
   }, []);
 
   const handleWaitForUploads = useCallback(
@@ -348,8 +322,6 @@ export const AttachmentProvider = ({
     <Context.Provider
       value={{
         attachments,
-        attachmentErrorMessage,
-        setAttachmentErrorMessage,
         attachAssets: handleAttachAssets,
         addAttachment: handleAddAttachment,
         removeAttachment: handleRemoveAttachment,

@@ -61,15 +61,15 @@ export function GalleryInput({
     if (!editingPost) return;
 
     try {
-      const { blocks, inlines } = extractContentTypesFromPost(editingPost);
-      const firstBlock = blocks[0];
+      const { blocks } = extractContentTypesFromPost(editingPost);
 
       // Check if the first block is an image or link - if so, handle it specially
-      if (firstBlock && 'image' in firstBlock) {
+      if (blocks.length > 0 && 'image' in blocks[0]) {
         // This is an image gallery post
         setRoute('review-attachment');
 
         // Extract caption from the post if it exists (should be in the inline content)
+        const { inlines } = extractContentTypesFromPost(editingPost);
         if (inlines.length > 0) {
           const captionText = typeof inlines[0] === 'string' ? inlines[0] : '';
           setCaption(captionText);
@@ -89,25 +89,38 @@ export function GalleryInput({
           }
         }
 
-        // Set up image for editing from the existing image block
-        const imageBlock = firstBlock.image;
+        // Set up image for editing by creating a mock attachment from the existing image
+        const imageBlock = blocks[0].image;
+        // Create a mock attachment for the image
+        const mockAttachment = {
+          type: 'image' as const,
+          file: {
+            uri: imageBlock.src,
+            width: imageBlock.width,
+            height: imageBlock.height,
+          } as ImagePickerAsset,
+          uploadState: {
+            status: 'complete' as const,
+            remoteUri: imageBlock.src,
+          },
+        };
 
+        // Set the attachment for editing
         attachAssets([
           domain.Attachment.UploadIntent.fromImagePickerAsset(
-            {
-              uri: imageBlock.src,
-              width: imageBlock.width,
-              height: imageBlock.height,
-            } as ImagePickerAsset
+            mockAttachment.file
           ),
         ]);
         setCanPost(true);
-      } else if (firstBlock && 'link' in firstBlock) {
+      } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
-        addAttachment({
+        const linkBlock = blocks[0].link as { url: string };
+        console.log('linkBlock', linkBlock);
+        const mockAttachment: domain.LinkAttachment = {
           type: 'link' as const,
-          url: firstBlock.link.url,
-        });
+          url: linkBlock.url,
+        };
+        addAttachment(mockAttachment);
         setRoute('link');
         setCanPost(true);
       } else {
@@ -397,18 +410,7 @@ function ReviewAttachment({
 
   const theme = useTheme();
   const [isPosting, setIsPosting] = useState(false);
-  const { attachments, removeAttachment } = useAttachmentContext();
-  const mediaAttachment = attachments.find((att) => att.type !== 'text');
-  const canSubmitPost =
-    canPost && (attachments.length > 0 || caption.trim().length > 0);
-  const canRemoveMedia = !!mediaAttachment;
-
-  const handleRemoveMedia = useCallback(() => {
-    if (!mediaAttachment) {
-      return;
-    }
-    removeAttachment(mediaAttachment);
-  }, [mediaAttachment, removeAttachment]);
+  const { attachments } = useAttachmentContext();
 
   // Handle posting the gallery image
   const handlePost = useCallback(async () => {
@@ -481,33 +483,16 @@ function ReviewAttachment({
   useRegisterChannelHeaderItem(
     useMemo(
       () => (
-        <>
-          <ScreenHeader.TextButton
-            key="gallery-preview-remove"
-            onPress={handleRemoveMedia}
-            disabled={isPosting || !canRemoveMedia}
-            testID="GalleryRemoveMediaButton"
-          >
-            Remove
-          </ScreenHeader.TextButton>
-          <ScreenHeader.TextButton
-            key="gallery-preview-post"
-            onPress={handlePost}
-            disabled={!canSubmitPost || isPosting}
-            testID="GalleryPostButton"
-          >
-            {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-          </ScreenHeader.TextButton>
-        </>
+        <ScreenHeader.TextButton
+          key="gallery-preview-post"
+          onPress={handlePost}
+          disabled={!canPost || isPosting}
+          testID="GalleryPostButton"
+        >
+          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
+        </ScreenHeader.TextButton>
       ),
-      [
-        handlePost,
-        handleRemoveMedia,
-        canRemoveMedia,
-        canSubmitPost,
-        isPosting,
-        isEditingPost,
-      ]
+      [handlePost, canPost, isPosting, isEditingPost]
     )
   );
 

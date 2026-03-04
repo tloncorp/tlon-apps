@@ -44,7 +44,6 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
-import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,

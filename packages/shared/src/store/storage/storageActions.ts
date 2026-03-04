@@ -63,7 +63,7 @@ async function uploadVideoPoster(
   if (!posterUri) {
     return undefined;
   }
-  if (isRemoteUri(posterUri)) {
+  if (Attachment.isRemoteUri(posterUri)) {
     return posterUri;
   }
   try {

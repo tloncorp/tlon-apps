@@ -370,15 +370,16 @@ export namespace Attachment {
               videoAttachmentFromFileUriUploadIntent(uploadIntent),
               uploadState
             );
+          } else {
+            return {
+              type: 'file',
+              localFile: uploadIntent.localUri,
+              name: uploadIntent.name,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              uploadState,
+            };
           }
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            name: uploadIntent.name,
-            size: uploadIntent.size,
-            mimeType: uploadIntent.mimeType,
-            uploadState,
-          };
       }
     }
 
@@ -462,18 +463,19 @@ export namespace Attachment {
                 localUri: uploadIntent.localUri,
               }
             );
+          } else {
+            return {
+              type: 'file',
+              localFile: uploadIntent.localUri,
+              size: uploadIntent.size,
+              mimeType: uploadIntent.mimeType,
+              name: uploadIntent.name,
+              uploadState: {
+                status: 'uploading',
+                localUri: uploadIntent.localUri,
+              },
+            };
           }
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            size: uploadIntent.size,
-            mimeType: uploadIntent.mimeType,
-            name: uploadIntent.name,
-            uploadState: {
-              status: 'uploading',
-              localUri: uploadIntent.localUri,
-            },
-          };
       }
     }
   }
@@ -588,14 +590,15 @@ export namespace Attachment {
         }
         if (uploadIntent.video) {
           return videoAttachmentFromFileUriUploadIntent(uploadIntent);
+        } else {
+          return {
+            type: 'file',
+            localFile: uploadIntent.localUri,
+            name: uploadIntent.name,
+            size: uploadIntent.size,
+            mimeType: uploadIntent.mimeType,
+          };
         }
-        return {
-          type: 'file',
-          localFile: uploadIntent.localUri,
-          name: uploadIntent.name,
-          size: uploadIntent.size,
-          mimeType: uploadIntent.mimeType,
-        };
       }
     }
   }
@@ -677,10 +680,6 @@ export namespace Attachment {
     } else {
       return uploadIntent.finalized;
     }
-    if (uploadState == null || uploadState.status !== 'success') {
-      return null;
-    }
-    return UploadIntent.toFinalizedAttachment(uploadIntent, uploadState);
   }
 
   /**
@@ -867,7 +866,7 @@ function withUploadState(
 
   const posterUri =
     uploadState.posterUri ??
-    (attachment.posterUri && isRemoteUri(attachment.posterUri)
+    (attachment.posterUri && Attachment.isRemoteUri(attachment.posterUri)
       ? attachment.posterUri
       : undefined);
   const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } = attachment;
@@ -877,10 +876,6 @@ function withUploadState(
     ...(posterUri ? { posterUri } : {}),
     uploadState,
   };
-}
-
-function isRemoteUri(uri: string): boolean {
-  return uri.startsWith('http://') || uri.startsWith('https://');
 }
 
 export function videoPreviewUri(
