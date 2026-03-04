@@ -98,7 +98,7 @@ export function CreateChannelPermissionsScreen() {
 
     // Navigate back to channel list
     navigation.navigate('ManageChannels', { groupId }, { pop: true });
-  }, [navigation, groupId, form, channelTitle, channelType, readers, writers]);
+  }, [navigation, groupId, form, channelTitle, channelType]);
 
   if (!group) {
     return null;
