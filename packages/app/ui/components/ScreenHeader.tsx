@@ -201,7 +201,6 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
       testID={testID}
-      position="relative"
     >
       <View style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}>
         {/* Only show subtitle on desktop/large screens */}
