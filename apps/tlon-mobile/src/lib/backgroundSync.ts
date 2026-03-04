@@ -1,6 +1,6 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
-import { SyncPriority, createDevLogger, syncSince } from '@tloncorp/shared';
+import { SyncPriority, createDevLogger, flushErrorLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -99,6 +99,11 @@ async function performSync() {
       taskExecutionId,
       didSucceed,
     });
+    // flush telemetry so events are sent now, not deferred until next foreground
+    await Promise.race([
+      flushErrorLogger(),
+      new Promise<void>((resolve) => setTimeout(resolve, 500)),
+    ]).catch(() => {});
   }
 }
 

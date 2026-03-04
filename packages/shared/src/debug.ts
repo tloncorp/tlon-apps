@@ -47,6 +47,7 @@ export type Logger = Console & {
 
 interface ErrorLoggerStub {
   capture: (event: string, data: Record<string, unknown>) => void;
+  flush?: () => Promise<void>;
 }
 
 interface DebugStore {
@@ -194,6 +195,10 @@ export const useDebugStore = create<DebugStore>(
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+export function flushErrorLogger() {
+  return useDebugStore.getState().errorLogger?.flush?.() ?? Promise.resolve();
 }
 
 async function getDebugInfo() {
