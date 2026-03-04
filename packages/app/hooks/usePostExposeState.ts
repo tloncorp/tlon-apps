@@ -3,7 +3,7 @@ import type { Post } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
-import { getExposeReferencePath } from '../ui/utils/postUtils';
+import { getExposeReferencePath } from '../ui/utils/exposeUtils';
 
 /**
  * Returns expose state for a post: whether it's currently exposed on the

@@ -17,7 +17,7 @@ import { usePostExposeState } from '../../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
-import { getExposeReferencePath } from '../../../utils/postUtils';
+import { getExposeReferencePath } from '../../../utils/exposeUtils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 

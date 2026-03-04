@@ -47,7 +47,7 @@ import { useChannelContext } from '../../contexts';
 import { useLivePost } from '../../contexts/requests';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { usePostExposeState } from '../../../hooks/usePostExposeState';
-import { useHandleExposeSuccess } from '../../utils/postUtils';
+import { useHandleExposeSuccess } from '../../utils/exposeUtils';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';

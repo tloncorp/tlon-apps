@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
 
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { useHandleExposeSuccess } from '../../utils/postUtils';
+import { useHandleExposeSuccess } from '../../utils/exposeUtils';
 
 interface PostContextMenuPresentation {
   anchorRef: RefObject<ElementRef<typeof RNView>>;

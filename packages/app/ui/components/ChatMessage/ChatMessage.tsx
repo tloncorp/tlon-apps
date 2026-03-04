@@ -8,7 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
-import { useHandleExposeSuccess } from '../../utils/postUtils';
+import { useHandleExposeSuccess } from '../../utils/exposeUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
