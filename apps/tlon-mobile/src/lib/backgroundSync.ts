@@ -16,8 +16,6 @@ import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
-let backgroundSyncAbortController: AbortController | null = null;
-
 async function performSync() {
   await setupDb();
   await runMigrations();
