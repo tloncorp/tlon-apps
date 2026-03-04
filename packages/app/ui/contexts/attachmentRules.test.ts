@@ -2,7 +2,11 @@ import { expect, test } from 'vitest';
 
 import { Attachment } from '@tloncorp/shared';
 
-import { VIDEO_COMPOSITION_ERROR, canAddAttachment } from './attachmentRules';
+import {
+  VIDEO_COMPOSITION_ERROR,
+  VIDEO_VALIDATION_ERROR,
+  canAddAttachment,
+} from './attachmentRules';
 
 function makeVideo(
   overrides: Partial<Extract<Attachment, { type: 'video' }>> = {}
@@ -54,7 +58,7 @@ test('rejects video mixed with non-text media', () => {
 test('rejects unknown-size local video', () => {
   expect(canAddAttachment([], makeVideo({ size: -1 }))).toEqual({
     ok: false,
-    reason: 'Unable to determine video size',
+    reason: VIDEO_VALIDATION_ERROR,
     kind: 'validation',
   });
 });
@@ -71,7 +75,7 @@ test('rejects unknown-size remote video', () => {
     )
   ).toEqual({
     ok: false,
-    reason: 'Unable to determine video size',
+    reason: VIDEO_VALIDATION_ERROR,
     kind: 'validation',
   });
 });
@@ -79,7 +83,7 @@ test('rejects unknown-size remote video', () => {
 test('rejects unsupported video MIME type', () => {
   expect(canAddAttachment([], makeVideo({ mimeType: 'video/avi' }))).toEqual({
     ok: false,
-    reason: 'Unsupported video format: video/avi',
+    reason: VIDEO_VALIDATION_ERROR,
     kind: 'validation',
   });
 });
@@ -89,7 +93,7 @@ test('rejects unsupported extension when MIME is missing', () => {
     canAddAttachment([], makeVideo({ mimeType: undefined, name: 'clip.bin' }))
   ).toEqual({
     ok: false,
-    reason: 'Unsupported video format',
+    reason: VIDEO_VALIDATION_ERROR,
     kind: 'validation',
   });
 });

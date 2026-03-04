@@ -65,7 +65,6 @@ export enum AnalyticsEvent {
   VideoPlaybackOpened = 'Video Playback Opened',
   VideoPlaybackStarted = 'Video Playback Started',
   VideoPlaybackError = 'Video Playback Error',
-  LegacyVideoBlobViewed = 'Legacy Video Blob Viewed',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',

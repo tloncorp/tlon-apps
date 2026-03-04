@@ -3,6 +3,7 @@ import { Attachment } from '@tloncorp/shared';
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 export const VIDEO_COMPOSITION_ERROR =
   'Video posts support one video and optional text only.';
+export const VIDEO_VALIDATION_ERROR = 'Unsupported video attachment';
 const VIDEO_MIME_ALLOWLIST = new Set([
   'video/mp4',
   'video/quicktime',
@@ -21,8 +22,6 @@ type VideoCandidate = {
   size?: number;
 };
 
-type VideoValidationResult = { ok: true } | { ok: false; reason: string };
-
 export function isLikelyVideoSource({
   mimeType,
   name,
@@ -37,37 +36,19 @@ export function isLikelyVideoSource({
 
 export function validateVideoSource(
   { mimeType, size, name, uri }: VideoCandidate
-): VideoValidationResult {
+): boolean {
   if (size == null || size < 0) {
-    return {
-      ok: false,
-      reason: 'Unable to determine video size',
-    };
+    return false;
   }
-  if (size != null && size > MAX_VIDEO_SIZE_BYTES) {
-    return {
-      ok: false,
-      reason: 'Video exceeds the 100MB upload limit',
-    };
+  if (size > MAX_VIDEO_SIZE_BYTES) {
+    return false;
   }
   if (mimeType) {
     const normalizedMimeType = mimeType.toLowerCase();
-    if (!VIDEO_MIME_ALLOWLIST.has(normalizedMimeType)) {
-      return {
-        ok: false,
-        reason: `Unsupported video format: ${normalizedMimeType}`,
-      };
-    }
-    return { ok: true };
+    return VIDEO_MIME_ALLOWLIST.has(normalizedMimeType);
   }
   const formatCandidate = name ?? uri;
-  if (!formatCandidate || !VIDEO_EXTENSION_REGEX.test(formatCandidate)) {
-    return {
-      ok: false,
-      reason: 'Unsupported video format',
-    };
-  }
-  return { ok: true };
+  return !!formatCandidate && VIDEO_EXTENSION_REGEX.test(formatCandidate);
 }
 
 function getVideoName(video: Extract<Attachment, { type: 'video' }>): string {
@@ -91,8 +72,8 @@ export function canAddAttachment(
 ): AttachmentValidationResult {
   if (nextAttachment.type === 'video') {
     const name = getVideoName(nextAttachment);
-    const validation = validateVideoSource(
-      {
+    if (
+      !validateVideoSource({
         mimeType: nextAttachment.mimeType,
         size: nextAttachment.size,
         name,
@@ -100,12 +81,11 @@ export function canAddAttachment(
           typeof nextAttachment.localFile === 'string'
             ? nextAttachment.localFile
             : undefined,
-      }
-    );
-    if (!validation.ok) {
+      })
+    ) {
       return {
         ok: false,
-        reason: validation.reason,
+        reason: VIDEO_VALIDATION_ERROR,
         kind: 'validation',
       };
     }
