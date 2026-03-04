@@ -35,7 +35,6 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -88,10 +87,7 @@ function useKeyboardHeight(maxInputHeightBasic: number) {
   return maxInputHeight;
 }
 
-function usePasteHandler(
-  addAttachment: (attachment: Attachment) => void,
-  allowVideo: boolean
-) {
+function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
   // For now, we only check to make sure we're on web,
   // we don't check if the input is focused. This allows users to paste
   // images before they select the input. We may want to change this behavior
@@ -105,9 +101,7 @@ function usePasteHandler(
     const handlePaste = async (e: ClipboardEvent) => {
       const items = Array.from(e.clipboardData?.items || []);
       const media = items.find(
-        (item) =>
-          item.type.includes('image') ||
-          (allowVideo && item.type.includes('video'))
+        (item) => item.type.includes('image') || item.type.includes('video')
       );
 
       if (!media) return;
@@ -134,7 +128,7 @@ function usePasteHandler(
         return;
       }
 
-      if (allowVideo && media.type.includes('video')) {
+      if (media.type.includes('video')) {
         const previewData = await getVideoPreviewData({ file });
         addAttachment({
           type: 'video',
@@ -152,7 +146,7 @@ function usePasteHandler(
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [addAttachment, allowVideo]);
+  }, [addAttachment]);
 }
 
 interface TextWithMentionsProps {
@@ -262,7 +256,6 @@ export default function BareChatInput({
     resetAttachments,
     removeAttachment,
   } = useAttachmentContext();
-  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
@@ -290,7 +283,7 @@ export default function BareChatInput({
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
-  usePasteHandler(addAttachment, videoUploadPlayback);
+  usePasteHandler(addAttachment);
 
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews

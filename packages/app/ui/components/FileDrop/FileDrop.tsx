@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { isLikelyVideoSource } from '../../contexts/attachmentRules';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { FileDropComponent } from './types';
@@ -13,7 +12,6 @@ export const FileDrop: FileDropComponent = ({
   children,
   ...props
 }) => {
-  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const handleDrop = useCallback(
     async (files: File[]) => {
       onAssetsDropped(
@@ -31,7 +29,6 @@ export const FileDrop: FileDropComponent = ({
               };
             }
             if (
-              videoUploadPlayback &&
               isLikelyVideoSource({
                 mimeType: file.type,
                 name: file.name,
@@ -45,7 +42,7 @@ export const FileDrop: FileDropComponent = ({
         )
       );
     },
-    [onAssetsDropped, videoUploadPlayback]
+    [onAssetsDropped]
   );
 
   const { getInputProps, getRootProps } = useDropzone({

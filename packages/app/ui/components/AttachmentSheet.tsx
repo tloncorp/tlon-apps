@@ -207,8 +207,7 @@ export default function AttachmentSheet({
     audioRecorder.present();
   }, [onOpenChange, audioRecorder]);
 
-  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
-  const useVideoInMediaPicker = mediaType === 'all' && videoUploadPlayback;
+  const useVideoInMediaPicker = mediaType === 'all';
   const pickerMediaTypes = useMemo<ImagePicker.MediaType[]>(
     () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
     [useVideoInMediaPicker]
@@ -240,10 +239,6 @@ export default function AttachmentSheet({
     async (
       uploadIntent: Attachment.UploadIntent
     ): Promise<Attachment.UploadIntent | null> => {
-      if (!videoUploadPlayback) {
-        return uploadIntent;
-      }
-
       if (uploadIntent.type === 'image') {
         return uploadIntent;
       }
@@ -309,7 +304,7 @@ export default function AttachmentSheet({
         video: mergeVideoMetadata(existingMetadata, previewData),
       };
     },
-    [setAttachmentErrorMessage, videoUploadPlayback]
+    [setAttachmentErrorMessage]
   );
 
   const normalizeUploadIntents = useCallback(

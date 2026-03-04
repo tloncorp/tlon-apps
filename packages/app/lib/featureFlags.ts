@@ -31,11 +31,6 @@ export const featureMeta = {
     label: 'Enable recording and sending voice memos in chats',
     onlyTlon: true,
   },
-  videoUploadPlayback: {
-    default: false,
-    label: 'Enable uploading and playback of videos in chats and galleries',
-    onlyTlon: true,
-  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }
