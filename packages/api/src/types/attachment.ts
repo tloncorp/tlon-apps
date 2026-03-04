@@ -530,64 +530,13 @@ export namespace Attachment {
     uploadState: UploadState | null
   ): FinalizedAttachment | null {
     const uploadIntent = toUploadIntent(attachment);
-    if (uploadIntent.needsUpload) {
-      if (uploadState == null || uploadState.status !== 'success') {
-        return null;
-      }
-      switch (uploadIntent.type) {
-        case 'image':
-          return {
-            type: 'image',
-            file: uploadIntent.asset,
-            uploadState,
-          };
-
-        case 'file':
-          if (uploadIntent.video) {
-            return withUploadState(
-              videoAttachmentFromFileUploadIntent(uploadIntent),
-              uploadState
-            );
-          }
-          return {
-            type: 'file',
-            localFile: uploadIntent.file,
-            size: uploadIntent.file.size,
-            name: uploadIntent.file.name,
-            mimeType: uploadIntent.file.type,
-            uploadState,
-          };
-
-        case 'fileUri':
-          if (uploadIntent.voiceMemo) {
-            return {
-              type: 'voicememo',
-              localUri: uploadIntent.localUri,
-              size: uploadIntent.size,
-              duration: uploadIntent.voiceMemo.duration,
-              transcription: uploadIntent.voiceMemo.transcription,
-              waveformPreview: uploadIntent.voiceMemo.waveformPreview,
-              uploadState,
-            };
-          }
-          if (uploadIntent.video) {
-            return withUploadState(
-              videoAttachmentFromFileUriUploadIntent(uploadIntent),
-              uploadState
-            );
-          }
-          return {
-            type: 'file',
-            localFile: uploadIntent.localUri,
-            size: uploadIntent.size,
-            name: uploadIntent.name,
-            mimeType: uploadIntent.mimeType,
-            uploadState,
-          };
-      }
-    } else {
+    if (!uploadIntent.needsUpload) {
       return uploadIntent.finalized;
     }
+    if (uploadState == null || uploadState.status !== 'success') {
+      return null;
+    }
+    return UploadIntent.toFinalizedAttachment(uploadIntent, uploadState);
   }
 
   /**
