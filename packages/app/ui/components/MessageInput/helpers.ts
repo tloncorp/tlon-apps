@@ -73,7 +73,8 @@ export function hydrateEditPost(
   return {
     story,
     attachments,
-    isEmpty: story === null && !postReferences && blocks.length === 0,
+    isEmpty:
+      story === null && postReferences.length === 0 && blocks.length === 0,
   };
 }
 

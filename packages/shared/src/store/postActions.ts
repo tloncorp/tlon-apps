@@ -579,8 +579,6 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
-    // Blob attachments are immutable in edit flow and are preserved from the
-    // original post (same behavior as the API edit payload below).
     blob: postBeforeEdit.blob,
     ...flags,
   });
