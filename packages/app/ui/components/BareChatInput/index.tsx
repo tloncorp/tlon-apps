@@ -35,6 +35,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -43,7 +44,6 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
-import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
