@@ -210,6 +210,7 @@ export function AttachmentPreview({
     case 'video': {
       const posterUri = domain.videoPosterUri(attachment);
       const videoUri = domain.videoFileUri(attachment);
+      const durationLabel = formatVideoDurationLabel(attachment.duration);
       if (!posterUri && !videoUri) {
         return <Container showSpinner />;
       }
@@ -222,6 +223,7 @@ export function AttachmentPreview({
           return (
             <Container showSpinner={uploading || isLoading}>
               {renderPosterImage(previewUri)}
+              <VideoPreviewOverlay durationLabel={durationLabel} />
             </Container>
           );
         }
@@ -258,6 +260,7 @@ export function AttachmentPreview({
                 background: 'transparent',
               }}
             />
+            <VideoPreviewOverlay durationLabel={durationLabel} />
           </Container>
         );
       }
@@ -265,12 +268,14 @@ export function AttachmentPreview({
         return (
           <Container showSpinner={uploading}>
             <VideoPosterFallback />
+            <VideoPreviewOverlay durationLabel={durationLabel} />
           </Container>
         );
       }
       return (
         <Container showSpinner={uploading || isLoading}>
           {renderPosterImage(posterUri)}
+          <VideoPreviewOverlay durationLabel={durationLabel} />
         </Container>
       );
     }
@@ -362,6 +367,47 @@ function VideoPosterFallback() {
     >
       <Icon type="Play" color="$tertiaryText" size="$xl" />
     </View>
+  );
+}
+
+function formatVideoDurationLabel(durationSeconds?: number): string | undefined {
+  if (durationSeconds == null || !Number.isFinite(durationSeconds)) {
+    return undefined;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(durationSeconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
+      seconds
+    ).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
+  return (
+    <XStack
+      position="absolute"
+      left={8}
+      right={8}
+      bottom={8}
+      alignItems="center"
+      justifyContent="space-between"
+      pointerEvents="none"
+    >
+      <Icon type="Play" color="$white" size="$s" />
+      {durationLabel ? (
+        <Text color="$white" fontSize="$s" fontWeight="$xl">
+          {durationLabel}
+        </Text>
+      ) : (
+        <View />
+      )}
+    </XStack>
   );
 }
 
