@@ -60,7 +60,11 @@ export async function finalizePostDraft(
   let permissionStatus: 'granted' | 'not-granted' | 'unavailable' | 'unknown' =
     'unknown';
   transcribeAll: for (const att of attachments) {
-    if (att.type === 'voicememo' && att.localUri != null) {
+    if (
+      att.type === 'voicememo' &&
+      att.localUri != null &&
+      att.transcription == null
+    ) {
       // we only want to request permissions when there's a voicememo
       // attachment, and if the user declines, we want to bail out of the outer
       // loop.
