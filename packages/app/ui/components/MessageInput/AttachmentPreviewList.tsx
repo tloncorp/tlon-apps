@@ -17,7 +17,6 @@ import {
   XStack,
   YStack,
   ZStack,
-  isWeb,
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
@@ -209,61 +208,7 @@ export function AttachmentPreview({
 
     case 'video': {
       const posterUri = domain.videoPosterUri(attachment);
-      const videoUri = domain.videoFileUri(attachment);
       const durationLabel = formatVideoDurationLabel(attachment.duration);
-      if (!posterUri && !videoUri) {
-        return <Container showSpinner />;
-      }
-      if (isWeb) {
-        const previewUri = posterUri ?? videoUri;
-        if (!videoUri) {
-          if (!previewUri) {
-            return <Container showSpinner />;
-          }
-          return (
-            <Container showSpinner={uploading || isLoading}>
-              {renderPosterImage(previewUri)}
-              <VideoPreviewOverlay durationLabel={durationLabel} />
-            </Container>
-          );
-        }
-        return (
-          <Container showSpinner={uploading || isLoading}>
-            <video
-              src={videoUri}
-              poster={posterUri}
-              preload="metadata"
-              muted
-              playsInline
-              onLoadStart={() => setIsLoading(true)}
-              onLoadedMetadata={(event) => {
-                if (
-                  event.currentTarget.videoWidth &&
-                  event.currentTarget.videoHeight
-                ) {
-                  setAspect(
-                    event.currentTarget.videoWidth /
-                      event.currentTarget.videoHeight
-                  );
-                }
-                setIsLoading(false);
-              }}
-              onError={() => setIsLoading(false)}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                objectFit: 'cover',
-                background: 'transparent',
-              }}
-            />
-            <VideoPreviewOverlay durationLabel={durationLabel} />
-          </Container>
-        );
-      }
       if (!posterUri) {
         return (
           <Container showSpinner={uploading}>
