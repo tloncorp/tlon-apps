@@ -130,8 +130,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
-        versionCode 108
-        versionName "8.1.8"
+        versionCode 111
+        versionName "8.1.11"
     }
     signingConfigs {
         debug {
