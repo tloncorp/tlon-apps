@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isWeb } from 'tamagui';
@@ -65,6 +66,79 @@ export const useAttachmentContext = () => {
   return context;
 };
 
+type AddAttachmentResult = {
+  attachments: Attachment[];
+  errorMessage: string | null;
+  removedForReplacement: Attachment[];
+};
+
+function addAttachmentToState(
+  prev: Attachment[],
+  attachment: Attachment
+): AddAttachmentResult {
+  const validation = canAddAttachment(prev, attachment);
+  if (!validation.ok) {
+    return {
+      attachments: prev,
+      errorMessage: validation.reason,
+      removedForReplacement: [],
+    };
+  }
+  if (attachment.type === 'video') {
+    const removedForReplacement = prev.filter((att) => att.type === 'video');
+    return {
+      attachments: [...prev.filter((att) => att.type !== 'video'), attachment],
+      errorMessage: null,
+      removedForReplacement,
+    };
+  }
+  return {
+    attachments: [...prev, attachment],
+    errorMessage: null,
+    removedForReplacement: [],
+  };
+}
+
+function isBlobUri(uri: string | undefined): uri is string {
+  return !!uri && uri.startsWith('blob:');
+}
+
+function getVideoBlobPreviewUris(attachment: Attachment): string[] {
+  if (attachment.type !== 'video') {
+    return [];
+  }
+  const uris = [
+    attachment.posterUri,
+    attachment.uploadState?.status === 'success'
+      ? attachment.uploadState.posterUri
+      : undefined,
+  ];
+  return uris.filter(isBlobUri);
+}
+
+function revokeBlobUri(uri: string) {
+  if (!isWeb || typeof URL.revokeObjectURL !== 'function') {
+    return;
+  }
+  try {
+    URL.revokeObjectURL(uri);
+  } catch {
+    // Ignore failures when URLs are already revoked.
+  }
+}
+
+function revokeDetachedVideoPreviewUris(
+  previous: Attachment[],
+  next: Attachment[]
+) {
+  const retainedUris = new Set(next.flatMap(getVideoBlobPreviewUris));
+  previous.flatMap(getVideoBlobPreviewUris).forEach((uri) => {
+    if (!retainedUris.has(uri)) {
+      revokeBlobUri(uri);
+    }
+  });
+}
+
 export const AttachmentProvider = ({
   initialAttachments,
   uploadAsset,
@@ -82,6 +156,11 @@ export const AttachmentProvider = ({
   const [attachmentErrorMessage, setAttachmentErrorMessage] = useState<
     string | null
   >(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const assetUploadStates = useUploadStates(
     useMemo(
@@ -126,69 +205,82 @@ export const AttachmentProvider = ({
   }, [attachments, uploadAsset, assetUploadStates]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    const precheck = canAddAttachment(state, attachment);
-    if (!precheck.ok) {
-      setAttachmentErrorMessage(precheck.reason);
-    } else {
-      setAttachmentErrorMessage(null);
+    const next = addAttachmentToState(stateRef.current, attachment);
+    setAttachmentErrorMessage(next.errorMessage);
+    stateRef.current = next.attachments;
+    setState(next.attachments);
+    if (next.removedForReplacement.length > 0) {
+      revokeDetachedVideoPreviewUris(next.removedForReplacement, next.attachments);
     }
-    setState((prev) => {
-      const validation = canAddAttachment(prev, attachment);
-      if (!validation.ok) {
-        return prev;
-      }
-      if (attachment.type === 'video') {
-        const withoutVideos = prev.filter((att) => att.type !== 'video');
-        return [...withoutVideos, attachment];
-      }
-      return [...prev, attachment];
-    });
-  }, [state]);
+  }, []);
 
   const handleAttachAssets = useCallback(
     (uploadIntents: Attachment.UploadIntent[]) => {
-      uploadIntents.forEach((uploadIntent) =>
-        handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
-      );
+      let nextAttachments = stateRef.current;
+      let nextError: string | null = null;
+      let removedForReplacement: Attachment[] = [];
+
+      uploadIntents.forEach((uploadIntent) => {
+        const result = addAttachmentToState(
+          nextAttachments,
+          Attachment.fromUploadIntent(uploadIntent)
+        );
+        nextAttachments = result.attachments;
+        nextError = result.errorMessage;
+        removedForReplacement = [
+          ...removedForReplacement,
+          ...result.removedForReplacement,
+        ];
+      });
+
+      setAttachmentErrorMessage(nextError);
+      stateRef.current = nextAttachments;
+      setState(nextAttachments);
+      if (removedForReplacement.length > 0) {
+        revokeDetachedVideoPreviewUris(removedForReplacement, nextAttachments);
+      }
     },
-    [handleAddAttachment]
+    []
   );
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {
     const removedUploadInfo = Attachment.toUploadIntent(attachment);
-    setState((prev) =>
-      prev.filter((a) => {
-        // remove identical attachments
-        if (a === attachment) {
+    const previousState = stateRef.current;
+    const nextState = previousState.filter((a) => {
+      // remove identical attachments
+      if (a === attachment) {
+        return false;
+      }
+
+      if (removedUploadInfo.needsUpload) {
+        const itemUploadInfo = Attachment.toUploadIntent(a);
+
+        // remove attachments pointing to the same data
+        if (
+          itemUploadInfo.needsUpload &&
+          Attachment.UploadIntent.equivalent(itemUploadInfo, removedUploadInfo)
+        ) {
           return false;
         }
-
-        if (removedUploadInfo.needsUpload) {
-          const itemUploadInfo = Attachment.toUploadIntent(a);
-
-          // remove attachments pointing to the same data
-          if (
-            itemUploadInfo.needsUpload &&
-            Attachment.UploadIntent.equivalent(
-              itemUploadInfo,
-              removedUploadInfo
-            )
-          ) {
-            return false;
-          }
-        }
-        return true;
-      })
-    );
+      }
+      return true;
+    });
+    revokeDetachedVideoPreviewUris(previousState, nextState);
+    stateRef.current = nextState;
+    setState(nextState);
     setAttachmentErrorMessage(null);
   }, []);
 
   const handleClearAttachments = useCallback(() => {
+    revokeDetachedVideoPreviewUris(stateRef.current, []);
+    stateRef.current = [];
     setState([]);
     setAttachmentErrorMessage(null);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
+    revokeDetachedVideoPreviewUris(stateRef.current, attachments);
+    stateRef.current = attachments;
     setState(attachments);
     setAttachmentErrorMessage(null);
   }, []);
