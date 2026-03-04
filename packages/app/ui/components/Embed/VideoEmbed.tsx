@@ -6,8 +6,8 @@ import {
   makePrettyDurationFromSeconds,
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo } from 'react';
-import { XStack, View } from 'tamagui';
+import { ComponentProps, useCallback } from 'react';
+import { View, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
 
@@ -22,27 +22,133 @@ type VideoEmbedProps = ComponentProps<typeof View> & {
   };
 };
 const logger = createDevLogger('VideoEmbed', false);
+type VideoLayout = {
+  width: number | '100%';
+  height?: number;
+  alignSelf: ComponentProps<typeof View>['alignSelf'];
+  fillMedia: boolean;
+  centerContainer: boolean;
+};
+
+const OverlayFrame = styled(View, {
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  alignItems: 'center',
+  justifyContent: 'center',
+  pointerEvents: 'none',
+});
+
+const OverlayPlayBadge = styled(View, {
+  backgroundColor: '$mediaScrim',
+  borderRadius: 100,
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '$4xl',
+  height: '$4xl',
+});
+
+const OverlayDurationBadge = styled(View, {
+  position: 'absolute',
+  right: 8,
+  bottom: 8,
+  backgroundColor: '$mediaScrim',
+  borderRadius: '$s',
+  paddingHorizontal: '$s',
+  paddingVertical: '$2xs',
+  pointerEvents: 'none',
+});
+
+function VideoOverlay({ durationLabel }: { durationLabel?: string }) {
+  return (
+    <>
+      <OverlayFrame>
+        <OverlayPlayBadge>
+          <Icon type="Play" color="$white" customSize={['$2xl', '$2xl']} />
+        </OverlayPlayBadge>
+      </OverlayFrame>
+      {durationLabel ? (
+        <OverlayDurationBadge>
+          <Text color="$white" fontSize="$s" fontWeight="$xl">
+            {durationLabel}
+          </Text>
+        </OverlayDurationBadge>
+      ) : null}
+    </>
+  );
+}
+
+function resolveVideoLayout({
+  maxWidth,
+  maxHeight,
+  alignSelf,
+  aspectRatio,
+}: {
+  maxWidth: ComponentProps<typeof View>['maxWidth'];
+  maxHeight: ComponentProps<typeof View>['maxHeight'];
+  alignSelf: ComponentProps<typeof View>['alignSelf'];
+  aspectRatio: number;
+}): VideoLayout {
+  const numericMaxWidth =
+    typeof maxWidth === 'number' ? maxWidth : undefined;
+  const numericMaxHeight =
+    typeof maxHeight === 'number' ? maxHeight : undefined;
+
+  if (numericMaxHeight == null) {
+    return {
+      width: numericMaxWidth ?? '100%',
+      height: undefined,
+      alignSelf: alignSelf ?? 'flex-start',
+      fillMedia: false,
+      centerContainer: false,
+    };
+  }
+
+  if (numericMaxWidth == null) {
+    return {
+      width: '100%',
+      height: numericMaxHeight,
+      alignSelf: alignSelf ?? 'center',
+      fillMedia: true,
+      centerContainer: true,
+    };
+  }
+
+  const width =
+    aspectRatio > 0
+      ? Math.min(numericMaxWidth, numericMaxHeight * aspectRatio)
+      : numericMaxWidth;
+  return {
+    width,
+    height: aspectRatio > 0 ? width / aspectRatio : undefined,
+    alignSelf: alignSelf ?? 'flex-start',
+    fillMedia: true,
+    centerContainer: false,
+  };
+}
 
 export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
-  const { maxWidth, maxHeight, ...rest } = props;
+  const {
+    maxWidth,
+    maxHeight,
+    alignSelf: alignSelfProp,
+    ...rest
+  } = props;
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const durationLabel = makePrettyDurationFromSeconds(video.duration);
   const aspectRatio = video.height > 0 ? video.width / video.height : 1;
-  const boundedFrame = useMemo(() => {
-    if (
-      typeof maxWidth !== 'number' ||
-      typeof maxHeight !== 'number' ||
-      aspectRatio <= 0
-    ) {
-      return null;
-    }
-    const width = Math.min(maxWidth, maxHeight * aspectRatio);
-    return {
-      width,
-      height: width / aspectRatio,
-    };
-  }, [aspectRatio, maxHeight, maxWidth]);
+  const layout = resolveVideoLayout({
+    maxWidth,
+    maxHeight,
+    alignSelf: alignSelfProp,
+    aspectRatio,
+  });
+  const mediaSizeProps = layout.fillMedia
+    ? { height: '100%' as const }
+    : { maxWidth, maxHeight, aspectRatio };
 
   const handlePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.VideoPlaybackOpened, {
@@ -66,19 +172,23 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
       borderRadius="$m"
       overflow="hidden"
       backgroundColor="$secondaryBackground"
-      alignSelf={boundedFrame ? 'flex-start' : undefined}
-      width={boundedFrame?.width}
-      height={boundedFrame?.height}
+      alignSelf={layout.alignSelf}
+      maxWidth={maxWidth}
+      width={layout.width}
+      height={layout.height}
+      {...(layout.centerContainer
+        ? {
+            alignItems: 'center',
+            justifyContent: 'center',
+          }
+        : {})}
       {...rest}
     >
       {video.posterUri ? (
         <Image
           source={{ uri: video.posterUri }}
           width="100%"
-          {...(boundedFrame ? { height: '100%' } : {})}
-          {...(!boundedFrame
-            ? { maxWidth, maxHeight, aspectRatio }
-            : {})}
+          {...mediaSizeProps}
           backgroundColor="$secondaryBackground"
           contentFit="contain"
           alt={video.alt}
@@ -86,47 +196,11 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
       ) : (
         <View
           width="100%"
-          {...(boundedFrame ? { height: '100%' } : {})}
-          {...(!boundedFrame
-            ? { maxWidth, maxHeight, aspectRatio }
-            : {})}
+          {...mediaSizeProps}
           backgroundColor="$secondaryBackground"
         />
       )}
-      <XStack
-        position="absolute"
-        left={8}
-        right={8}
-        bottom={8}
-        alignItems="center"
-        justifyContent="space-between"
-        pointerEvents="none"
-      >
-        <View
-          backgroundColor="$mediaScrim"
-          borderRadius={100}
-          width="$2xl"
-          height="$2xl"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <Icon type="Play" color="$white" size="$s" />
-        </View>
-        {durationLabel ? (
-          <View
-            backgroundColor="$mediaScrim"
-            borderRadius="$s"
-            paddingHorizontal="$s"
-            paddingVertical="$2xs"
-          >
-            <Text color="$white" fontSize="$s" fontWeight="$xl">
-              {durationLabel}
-            </Text>
-          </View>
-        ) : (
-          <View />
-        )}
-      </XStack>
+      <VideoOverlay durationLabel={durationLabel} />
     </Pressable>
   );
 }
