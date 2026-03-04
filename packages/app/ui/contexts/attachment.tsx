@@ -1,4 +1,4 @@
-import { Transcription } from '@tloncorp/shared';
+import { Transcription, VoiceMemoAttachment } from '@tloncorp/shared';
 import {
   Attachment,
   FinalizedAttachment,
@@ -211,29 +211,50 @@ export const AttachmentProvider = ({
 
   useEffect(() => {
     // start voice memo transcriptions
-    for (const att of attachments) {
-      if (att.type === 'voicememo' && att.transcription == null) {
-        Transcription.requestTranscriptionPermissionsIfNeeded().then(
-          ({ status }) => {
-            if (status === 'granted') {
-              Transcription.transcribeAudioFileWithGlobalCache(
-                att.localUri
-              ).then((text) => {
-                setState((prev) =>
-                  prev.map((a) => {
-                    if (a.type === 'voicememo' && a.localUri === att.localUri) {
-                      return { ...a, transcription: text ?? undefined };
-                    } else {
-                      return a;
-                    }
-                  })
-                );
-              });
-            }
-          }
-        );
-      }
+    const untranscribedVoiceMemos = attachments.filter(
+      (a): a is VoiceMemoAttachment =>
+        a.type === 'voicememo' && a.transcription == null
+    );
+    if (untranscribedVoiceMemos.length === 0) {
+      return;
     }
+
+    // we're catching errors internally, no need to catch outer promise
+    void (async () => {
+      try {
+        const { status } =
+          await Transcription.requestTranscriptionPermissionsIfNeeded();
+        if (status !== 'granted') {
+          return;
+        }
+
+        void Promise.all(
+          untranscribedVoiceMemos.map(async (att) => {
+            try {
+              const text =
+                await Transcription.transcribeAudioFileWithGlobalCache(
+                  att.localUri
+                );
+              setState((prev) =>
+                prev.map((a) => {
+                  if (a.type === 'voicememo' && a.localUri === att.localUri) {
+                    return { ...a, transcription: text ?? undefined };
+                  } else {
+                    return a;
+                  }
+                })
+              );
+            } catch (e) {
+              // in case of failure, we want to just continue with an empty
+              // transcription field - log and move on
+              console.warn('Failed to transcribe voice memo', e);
+            }
+          })
+        );
+      } catch (e) {
+        console.warn('Failed to get transcription permissions', e);
+      }
+    })();
   }, [attachments]);
 
   return (

@@ -57,17 +57,22 @@ export async function finalizePostDraft(
     }
   }
 
+  let permissionStatus: 'granted' | 'not-granted' | 'unavailable' | 'unknown' =
+    'unknown';
   transcribeAll: for (const att of attachments) {
     if (att.type === 'voicememo' && att.localUri != null) {
       // we only want to request permissions when there's a voicememo
       // attachment, and if the user declines, we want to bail out of the outer
       // loop.
-      if (
-        (await Transcription.requestTranscriptionPermissionsIfNeeded())
-          .status !== 'granted'
-      ) {
-        break transcribeAll;
+      if (permissionStatus === 'unknown') {
+        permissionStatus = (
+          await Transcription.requestTranscriptionPermissionsIfNeeded()
+        ).status;
+        if (permissionStatus !== 'granted') {
+          break transcribeAll;
+        }
       }
+
       try {
         const transcriptionText =
           await Transcription.transcribeAudioFileWithGlobalCache(att.localUri);
