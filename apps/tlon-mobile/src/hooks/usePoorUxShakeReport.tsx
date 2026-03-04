@@ -164,7 +164,7 @@ export function usePoorUxShakeReport() {
                 multiline
                 textAlignVertical="top"
                 placeholder="What went wrong?"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="$gray400"
                 value={details}
                 onChangeText={setDetails}
               />
