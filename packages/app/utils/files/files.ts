@@ -1,5 +1,5 @@
 import * as AV from 'expo-av';
-import { File } from 'expo-file-system/next';
+import { File } from 'expo-file-system';
 
 import { FilesModule } from './shared';
 

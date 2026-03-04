@@ -18,7 +18,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ChatListItem } from './ChatListItem';
@@ -265,7 +265,7 @@ function Action({
   handleAction,
   color,
   iconType,
-}: ComponentProps<typeof Stack> & {
+}: ComponentProps<typeof View> & {
   backgroundColor: string;
   color: string;
   iconType: IconType;

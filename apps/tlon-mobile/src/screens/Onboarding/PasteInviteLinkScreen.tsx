@@ -1,4 +1,4 @@
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DEFAULT_INVITE_LINK_URL } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
@@ -123,7 +123,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
 
   // handle paste button click
   const onHandlePasteClick = useCallback(async () => {
-    const clipboardContents = await Clipboard.getString();
+    const clipboardContents = await Clipboard.getStringAsync();
     setValue('inviteLink', clipboardContents);
   }, [setValue]);
 

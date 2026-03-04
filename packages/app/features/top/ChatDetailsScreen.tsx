@@ -1,4 +1,4 @@
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
@@ -327,8 +327,8 @@ function GroupQuickActions({
     forwardGroupSheet.open(group);
   }, [forwardGroupSheet, group]);
 
-  const handleCopyShortcode = useCallback(() => {
-    Clipboard.setString(group.id);
+  const handleCopyShortcode = useCallback(async () => {
+    await Clipboard.setStringAsync(group.id);
     toast({ message: 'Copied!', duration: 1500 });
   }, [group.id, toast]);
 

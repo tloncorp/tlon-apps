@@ -1,9 +1,9 @@
 import { getSize } from '@tamagui/get-token';
-import { cloneElement, useContext } from 'react';
+import { cloneElement } from 'react';
 import {
   SizeTokens,
-  Stack,
   Text,
+  View,
   createStyledContext,
   styled,
   useTheme,
@@ -32,7 +32,7 @@ export function FloatingActionButton({
 const ButtonContext = createStyledContext<{ size: SizeTokens }>({
   size: '$m',
 });
-const ButtonFrame = styled(Stack, {
+const ButtonFrame = styled(View, {
   name: 'Button',
   context: ButtonContext,
   backgroundColor: '$background',
@@ -64,7 +64,7 @@ const ButtonText = styled(Text, {
 });
 
 const ButtonIcon = (props: { children: any }) => {
-  const { size } = useContext(ButtonContext.context);
+  const { size } = ButtonContext.useStyledContext();
   const smaller = getSize(size, {
     shift: -2,
   });

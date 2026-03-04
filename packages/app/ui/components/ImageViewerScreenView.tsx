@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import {
   ElementRef,
@@ -30,7 +30,7 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import { View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 
@@ -340,26 +340,26 @@ export function ImageViewerScreenView(props: {
                 onPress={handleDownloadImage}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => props.goBack()}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="Close" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
             </XStack>
           </YStack>

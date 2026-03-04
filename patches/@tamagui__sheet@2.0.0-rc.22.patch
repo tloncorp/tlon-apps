@@ -1,0 +1,12 @@
+diff --git a/dist/esm/SheetContext.mjs b/dist/esm/SheetContext.mjs
+index 7ca46e1585e215de4e279b32de7c5b9b6915c99d..222ff165307b6ec2b043294a38165c2160e981e8 100644
+--- a/dist/esm/SheetContext.mjs
++++ b/dist/esm/SheetContext.mjs
+@@ -1,6 +1,6 @@
+ import { createContextScope } from "@tamagui/create-context";
+ import { SHEET_NAME } from "./constants.mjs";
+ const [createSheetContext, createSheetScope] = createContextScope(SHEET_NAME),
+-  [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, {});
++  [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, {setHasScrollView: () => {}, scrollBridge: {onParentDragging: () => () => {}}});
+ export { SheetProvider, createSheetContext, createSheetScope, useSheetContext };
+ //# sourceMappingURL=SheetContext.mjs.map

@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import React from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SizableText, Stack, View, XStack, YStack } from 'tamagui';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { ChatMessage } from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
@@ -78,11 +78,11 @@ export function SearchResults({
       onTouchStart={Keyboard.dismiss}
     >
       {isInitial && (
-        <Stack flex={1} justifyContent="center" alignItems="center">
+        <View flex={1} justifyContent="center" alignItems="center">
           <SizableText color="$secondaryText">
             Enter a search term to get started
           </SizableText>
-        </Stack>
+        </View>
       )}
 
       {!isInitial && (
