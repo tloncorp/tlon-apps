@@ -1,4 +1,4 @@
-import type { Attachment } from '@tloncorp/shared/domain';
+import { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
