@@ -12,7 +12,6 @@ export const FileDrop: FileDropComponent = ({
   children,
   ...props
 }) => {
-  const [videoUploadPlayback] = useFeatureFlag('videoUploadPlayback');
   const handleDrop = useCallback(
     async (files: File[]) => {
       onAssetsDropped(
@@ -43,7 +42,7 @@ export const FileDrop: FileDropComponent = ({
         )
       );
     },
-    [onAssetsDropped, videoUploadPlayback]
+    [onAssetsDropped]
   );
 
   const { getInputProps, getRootProps } = useDropzone({
