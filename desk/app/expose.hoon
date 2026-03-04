@@ -369,6 +369,11 @@
     ::
     [~ this]
   ::
+      [%contacts %set ~]
+    ::  we tried our best to update our contacts profile. if it worked, great!
+    ::  if it didn't, there's not much we can do about it.
+    [~ this]
+  ::
       [%contacts %news ~]
     ?-  -.sign
       %poke-ack  !!
@@ -414,7 +419,7 @@
             ::  if we already have a cache entry, don't do an eager
             ::  over-the-network lookup, assume it hasn't gone stale
             ::
-            =+  .^  cache=(unit (unit said:d))
+            =+  .^  cache=(unit (unit *))
                   %gx  (scot %p our.bowl)  %channels  (scot %da now.bowl)
                   %v3  %said  (snoc path %noun)
                 ==

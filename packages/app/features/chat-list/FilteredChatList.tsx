@@ -55,9 +55,7 @@ export const FilteredChatList = React.memo(
         searchQuery,
         activeTab: listType ?? 'all',
       }),
-      // We need to include selectedIndex to trigger re-render when it changes
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [resolvedChats, searchQuery, selectedIndex]
+      [resolvedChats, searchQuery, listType]
     );
     const displayData = useFilteredChats(filteredChatsConfig);
 

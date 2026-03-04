@@ -53,8 +53,8 @@ import {
   ListItem,
   Listing,
   Rule,
-} from '../../urbit/content';
-import { Story, Verse, isBlockVerse } from '../../urbit/channel';
+} from '@tloncorp/api/urbit/content';
+import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**

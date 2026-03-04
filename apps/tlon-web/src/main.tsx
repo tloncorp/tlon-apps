@@ -17,7 +17,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
 import { addCustomEnabledLoggers, createDevLogger } from '@tloncorp/shared';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/api';
 import { PostHogProvider } from 'posthog-js/react';
 import { createRoot } from 'react-dom/client';
 

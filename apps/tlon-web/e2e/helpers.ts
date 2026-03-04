@@ -864,7 +864,7 @@ export async function setChannelPermissions(
     }
     await page.getByTestId('RoleSelectionSaveButton').click();
     // Wait for navigation back to Channel privacy screen
-    await expect(page.getByText('Channel privacy')).toBeVisible();
+    await expect(page.getByText('Channel permissions')).toBeVisible();
   }
 
   if (writerRoles && writerRoles.length > 0) {
@@ -1501,6 +1501,7 @@ export async function waitForSessionStability(page: Page) {
   });
 
   const screenHeaderSubtitle = page.getByTestId('ScreenHeaderSubtitle');
+  const screenHeaderLoadingText = page.getByTestId('ScreenHeaderLoadingText');
 
   const loadingStates = [
     'Loading…',
@@ -1508,12 +1509,19 @@ export async function waitForSessionStability(page: Page) {
     'Reconnecting...',
     'Initializing...',
     'Disconnected',
+    'Syncing with node...',
+    'Loading messages…',
   ];
 
   for (const state of loadingStates) {
-    await expect(screenHeaderSubtitle.getByText(state))
-      .not.toBeVisible({ timeout: 1000 })
-      .catch(() => {}); // Element might not exist, that's okay
+    await Promise.all([
+      expect(screenHeaderSubtitle.getByText(state))
+        .not.toBeVisible({ timeout: 1000 })
+        .catch(() => {}), // Element might not exist, that's okay
+      expect(screenHeaderLoadingText.getByText(state))
+        .not.toBeVisible({ timeout: 1000 })
+        .catch(() => {}), // Element might not exist, that's okay
+    ]);
   }
 
   // Check for message delivery status

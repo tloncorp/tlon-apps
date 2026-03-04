@@ -18,7 +18,7 @@ import {
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { getLandscapeAuthCookie } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -136,9 +136,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         title="Connect Ship"
-        showSessionStatus={false}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={() => navigation.goBack()}
-        isLoading={isSubmitting}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
             Connect

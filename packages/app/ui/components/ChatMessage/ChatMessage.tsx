@@ -19,6 +19,7 @@ import {
 import { PostErrorMessage } from '../PostErrorMessage';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
+import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -196,10 +197,8 @@ const ChatMessage = ({
       cursor="default"
       testID="Post"
     >
-      <YStack
-        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
-        key={post.id}
-      >
+      <YStack key={post.id}>
+        {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
         {showAuthor ? (
           <AuthorRow
             padding="$l"
@@ -208,6 +207,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            isBot={post.isBot ?? undefined}
             disabled={hideProfilePreview}
             deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
@@ -359,6 +359,7 @@ export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);
 
   const areOtherPropsEqual =
+    prev.isHighlighted === next.isHighlighted &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

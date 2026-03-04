@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';

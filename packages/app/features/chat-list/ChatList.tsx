@@ -21,9 +21,11 @@ export type ChatListItemData = db.Chat | SectionHeaderData;
 export const ChatList = React.memo(function ChatListComponent({
   data,
   onPressItem,
+  onLoad,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
+  onLoad?: () => void;
 }) {
   const listItems: ChatListItemData[] = useMemo(
     () =>
@@ -150,6 +152,7 @@ export const ChatList = React.memo(function ChatListComponent({
       renderItem={renderItem}
       getItemType={getItemType}
       overrideItemLayout={handleOverrideLayout}
+      onLoad={onLoad ? () => onLoad() : undefined}
     />
   );
 }, isEqual);

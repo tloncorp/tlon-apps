@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import fileAttachmentPng from '../assets/file_attachment.png';
 import { ForwardingProps } from '../utils';
 import { Image } from './Image';
 import { Text } from './TextV2';
@@ -39,7 +40,7 @@ export function FilePreview({
     <View {...passedProps}>
       <View position="relative">
         <Image
-          source={require('../assets/file_attachment.png')}
+          source={fileAttachmentPng}
           width={ICON_CONTAINER_BASE_WIDTH * scale}
           aspectRatio={1}
           style={{

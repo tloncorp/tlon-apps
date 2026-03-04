@@ -1,5 +1,6 @@
 import { isValidUrl } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
+import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   Icon,
@@ -23,6 +24,8 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
+import { DUMMY_WAVEFORM_VALUES, Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -212,6 +215,52 @@ export function ReferenceBlock({
   }
 
   return <ContentReferenceLoader reference={block} {...props} />;
+}
+
+export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
+  const { openExternalLink } = useNavigation();
+  return (
+    <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
+      <Reference.Header>
+        <Reference.Title>
+          <Reference.TitleText>Voice Memo</Reference.TitleText>
+        </Reference.Title>
+
+        <Reference.TitleIcon type="Play" color="$primaryText" />
+      </Reference.Header>
+
+      <Reference.Body
+        flexDirection="row"
+        alignItems="center"
+        gap="$l"
+        padding="$l"
+      >
+        <View
+          backgroundColor="$background"
+          width="$4xl"
+          aspectRatio={1}
+          alignItems="center"
+          justifyContent="center"
+          borderRadius={8}
+        >
+          <Icon type="Play" color="$primaryText" />
+        </View>
+        <YStack flex={1} gap="$s">
+          <Waveform
+            candleWidth={3}
+            candleSpacing={1}
+            values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+            style={{ width: '100%', height: 22 }}
+          />
+          {block.voiceMemo.duration != null && (
+            <Text size="$label/s" color="$secondaryText">
+              {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+            </Text>
+          )}
+        </YStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
 }
 
 export function FileUploadBlock({
@@ -524,6 +573,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
+  voicememo: VoiceMemoBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -545,6 +595,7 @@ export type DefaultRendererProps = {
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
+  voicememo: BlockSettings<typeof VoiceMemoBlock>;
 };
 
 interface BlockRendererContextValue {

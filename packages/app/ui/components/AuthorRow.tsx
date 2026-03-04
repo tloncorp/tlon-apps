@@ -6,6 +6,7 @@ import { ColorTokens, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
 import { ContactAvatar } from './Avatar';
+import { Badge } from './Badge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
@@ -41,6 +42,7 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   deleteStatus?: db.PostDeliveryStatus | null;
   editStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
+  isBot?: boolean;
   detailView?: boolean;
   showEditedIndicator?: boolean;
   showSentAt?: boolean;
@@ -68,6 +70,7 @@ export function DetailViewAuthorRow({
   editStatus,
   showSentAt,
   sent,
+  isBot,
   ...props
 }: {
   authorId: string;
@@ -78,6 +81,8 @@ export function DetailViewAuthorRow({
   color?: ColorTokens;
   showSentAt?: boolean;
   sent?: number;
+  type?: db.PostType;
+  isBot?: boolean;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
@@ -127,6 +132,7 @@ export function DetailViewAuthorRow({
           {timeDisplay}
         </Text>
       )}
+      {isBot && <Badge type="neutral" size="micro" text="Bot" />}
     </XStack>
   );
 }
@@ -140,6 +146,7 @@ export function ChatAuthorRow({
   editStatus,
   deleteStatus,
   showSentAt = true,
+  isBot,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -175,7 +182,7 @@ export function ChatAuthorRow({
         size="$2xl"
         contactId={authorId}
       />
-      <XStack gap="$l" alignItems="flex-end" flex={1}>
+      <XStack gap="$l" alignItems="center" flex={1}>
         <Text
           size="$label/2xl"
           numberOfLines={1}
@@ -190,6 +197,7 @@ export function ChatAuthorRow({
             {timeDisplay}
           </Text>
         )}
+        {isBot && <Badge type="neutral" size="micro" text="Bot" />}
         {showEditedIndicator && (
           <Text size="$label/m" color="$secondaryText">
             Edited

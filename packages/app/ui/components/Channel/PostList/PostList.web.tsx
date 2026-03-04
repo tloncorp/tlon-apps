@@ -44,6 +44,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       renderItem,
       scrollEnabled = true,
       style,
+      listHeaderComponent,
     },
     forwardedRef
   ) => {
@@ -209,6 +210,14 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
           });
         }
       },
+      scrollToEnd: ({ animated = true }) => {
+        if (scrollerRef.current) {
+          scrollerRef.current.scrollTo({
+            top: inverted ? 0 : scrollerRef.current.scrollHeight,
+            behavior: animated ? 'smooth' : 'instant',
+          });
+        }
+      },
       scrollToIndex: ({ index, animated = true }) => {
         const item = orderedData[index];
         if (item) {
@@ -246,6 +255,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
             }}
           >
             <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
+              {listHeaderComponent}
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}

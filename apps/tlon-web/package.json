@@ -94,6 +94,7 @@
     "@tiptap/pm": "^2.6.6",
     "@tiptap/react": "^2.6.6",
     "@tiptap/suggestion": "^2.6.6",
+    "@tloncorp/api": "workspace:*",
     "@tloncorp/app": "workspace:*",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@tloncorp/shared": "workspace:*",

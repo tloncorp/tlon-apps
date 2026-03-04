@@ -1,9 +1,7 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import { View, ViewProps, isWeb } from 'tamagui';
-
-import { ActionSheetContext } from '../contexts/ActionSheetContext';
 
 type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
@@ -91,6 +89,9 @@ const Pressable = forwardRef<any, PressableProps>(
       to,
       action,
       children,
+      style: propStyle,
+      disabled: propDisabled,
+      disabledStyle,
       ...stackProps
     },
     ref
@@ -110,6 +111,22 @@ const Pressable = forwardRef<any, PressableProps>(
         onPressOut ||
         onLongPress;
 
+    // Pressable always blocks touches from bubbling to ancestors, even if
+    // no handlers are attached.
+    // To allow bubbling, disable the Pressable (mixin) when no handlers
+    // are attached.
+    const disabled = propDisabled || !hasInteractionHandler;
+
+    const style = useMemo<ViewProps['style']>(
+      () => [
+        propStyle,
+        // @ts-expect-error - we're trying to fit the Pressable
+        // `disabledStyle` into a Stack style
+        disabled && disabledStyle,
+      ],
+      [propStyle, disabledStyle, disabled]
+    );
+
     if (action && !to) {
       throw new Error(
         'The `to` prop is required when `action` is specified in `Pressable`'
@@ -128,11 +145,8 @@ const Pressable = forwardRef<any, PressableProps>(
           onPressOut={onPressOut}
           onLongPress={longPressHandler}
           cursor={stackProps.cursor || 'pointer'}
-          // Pressable always blocks touches from bubbling to ancestors, even if
-          // no handlers are attached.
-          // To allow bubbling, disable the Pressable (mixin) when no handlers
-          // are attached.
-          disabled={!hasInteractionHandler}
+          disabled={disabled}
+          style={style}
         >
           {children}
         </StackComponent>
@@ -147,8 +161,9 @@ const Pressable = forwardRef<any, PressableProps>(
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onLongPress={longPressHandler}
-        disabled={!hasInteractionHandler}
         cursor={stackProps.cursor || 'pointer'}
+        disabled={disabled}
+        style={style}
       >
         {children}
       </StackComponent>

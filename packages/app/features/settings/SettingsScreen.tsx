@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
@@ -20,6 +21,9 @@ export default function SettingsScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
   const navigationRef = useMutableRef(props.navigation);
 
   const onAppInfoPressed = useCallback(() => {
@@ -36,6 +40,10 @@ export default function SettingsScreen(props: Props) {
 
   const onManageAccountPressed = useCallback(() => {
     navigationRef.current.navigate('ManageAccount');
+  }, [navigationRef]);
+
+  const onBotSettingsPressed = useCallback(() => {
+    navigationRef.current.navigate('BotSettings');
   }, [navigationRef]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
@@ -70,11 +78,13 @@ export default function SettingsScreen(props: Props) {
         onNotificationSettingsPressed={onPushNotifPressed}
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
+        onBotSettingsPressed={onBotSettingsPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
         dmLink={dmLink}
         onBackPressed={onBack}
+        botEnabled={botEnabled}
       />
     </View>
   );

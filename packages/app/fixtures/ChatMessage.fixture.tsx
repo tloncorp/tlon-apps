@@ -43,6 +43,7 @@ import {
   postWithSingleEmoji,
   postWithText,
   postWithVideo,
+  postWithVoiceMemo,
   useChannel,
   useGroup,
   usePostReference,
@@ -448,5 +449,6 @@ export default {
   Emoji: <SinglePostFixture post={postWithEmoji} />,
   SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
   Deleted: <SinglePostFixture post={postWithDeleted} />,
+  VoiceMemo: <SinglePostFixture post={postWithVoiceMemo} />,
   Hidden: <SinglePostFixture post={postWithHidden} />,
 };

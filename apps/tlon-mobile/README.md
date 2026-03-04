@@ -90,16 +90,17 @@ pnpm bundler --dev-client --scheme io.tlon.groups.preview
 
 #### Troubleshooting
 
-If you see this while trying to run on an Android device
-
-```
-INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package io.tlon.groups signatures do not match the previously installed version; ignoring!
-```
-
-you first need to uninstall the existing app from the device using `adb`:
-
+##### `run android`: `INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package io.tlon.groups signatures do not match the previously installed version; ignoring!`
+Uninstall the existing app from the device using `adb`:
 ```sh
 adb uninstall io.tlon.groups
+```
+
+##### `run android`: `Resolved '<dependency>' which is not part of the dependency lock state`
+You are trying to upgrade an Android native dependency, and you need to regenerate the `gradle.lockfile`:
+```sh
+cd tlon-mobile
+pnpm run android:update-lockfile
 ```
 
 ## Debugging

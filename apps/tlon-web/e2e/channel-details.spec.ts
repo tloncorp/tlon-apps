@@ -34,7 +34,7 @@ test('should display channel details screen with all expected elements', async (
   });
 
   // Settings section - verify settings are visible by text
-  await expect(page.getByText('Privacy')).toBeVisible({
+  await expect(page.getByText('Permissions')).toBeVisible({
     timeout: 5000,
   });
   await expect(page.getByText('Notifications')).toBeVisible({
@@ -137,7 +137,7 @@ test('should navigate to channel privacy settings from channel details', async (
   await page.getByTestId('ChannelPrivacy').click();
 
   // Verify we're on the channel privacy screen (now a separate screen)
-  await expect(page.getByText('Channel privacy')).toBeVisible({
+  await expect(page.getByText('Channel permissions')).toBeVisible({
     timeout: 5000,
   });
   // The privacy toggle should be visible
@@ -176,7 +176,7 @@ test('channel privacy back button returns to channel details', async ({
   await page.getByTestId('ChannelPrivacy').click();
 
   // Verify we're on the channel privacy screen
-  await expect(page.getByText('Channel privacy')).toBeVisible({
+  await expect(page.getByText('Channel permissions')).toBeVisible({
     timeout: 5000,
   });
 

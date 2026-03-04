@@ -98,6 +98,7 @@ const Scroller = forwardRef(
       setActiveMessage,
       isLoading,
       onPressScrollToBottom,
+      listHeaderComponent,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -127,6 +128,7 @@ const Scroller = forwardRef(
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
+      listHeaderComponent?: React.ReactElement;
     },
     ref
   ) => {
@@ -174,17 +176,21 @@ const Scroller = forwardRef(
         listRef.current?.scrollToIndex(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
+      scrollToEnd: (params: { animated?: boolean }) =>
+        listRef.current?.scrollToEnd(params),
     }));
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
-      // Only scroll if we're not loading and have a valid ref
       if (listRef.current && !isLoading) {
-        // Use a small timeout to ensure state updates have processed
         requestAnimationFrame(() => {
-          listRef.current?.scrollToStart({ animated: true });
+          if (inverted) {
+            listRef.current?.scrollToStart({ animated: true });
+          } else {
+            listRef.current?.scrollToEnd({ animated: true });
+          }
         });
       }
     };
@@ -233,10 +239,9 @@ const Scroller = forwardRef(
     }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({
-        item: { post, newer: nextItem, older: previousItem, ...rest },
-        index,
-      }) => {
+      ({ item: { post, newer, older, ...rest }, index }) => {
+        const previousItem = inverted ? older : newer;
+        const nextItem = inverted ? newer : older;
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
@@ -253,10 +258,9 @@ const Scroller = forwardRef(
           previousItem?.type === 'notice' ||
           previousItem?.isDeleted === true ||
           isFirstPostOfDay;
+        const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
-
-        const isFirstUnread = post.id === firstUnreadId;
 
         return (
           <ScrollerItem
@@ -302,6 +306,7 @@ const Scroller = forwardRef(
         anchor?.type,
         anchor?.postId,
         firstUnreadId,
+        inverted,
         renderItem,
         unreadCount,
         showReplies,
@@ -324,10 +329,21 @@ const Scroller = forwardRef(
     );
 
     const insets = useSafeAreaInsets();
+    const rootVerticalPadding = getTokens().space.l.val;
 
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
+          if (
+            collectionLayoutType === 'comfy-list-top-to-bottom' ||
+            collectionLayoutType === 'grid'
+          ) {
+            return {
+              flex: 1,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
+            };
+          }
           return { flex: 1 };
         }
 
@@ -342,7 +358,8 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
 
@@ -350,11 +367,12 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
         }
-      }, [insets, posts?.length, collectionLayoutType])
+      }, [insets.bottom, posts?.length, collectionLayoutType, rootVerticalPadding])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
@@ -495,6 +513,7 @@ const Scroller = forwardRef(
             // input while they're typing.
             scrollEnabled={!editingPost}
             style={style}
+            listHeaderComponent={listHeaderComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (
@@ -747,6 +766,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isIndexEqual = prev.index === next.index;
 
   const areOtherPropsEqual =
+    prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

@@ -230,16 +230,16 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button.Frame
-                  // with padding, this Button is larger than the row displayed
-                  // for file uploads, causing unsightly overlaps
-                  padding={0}
-                  borderWidth="unset"
-                  onPress={handleOverflowPress}
+                <Button
+                  icon="Overflow"
+                  fill="ghost"
+                  type="secondary"
+                  size="small"
+                  width={32}
+                  height={32}
+                  borderRadius="$m"
                   testID="MessageActionsTrigger"
-                >
-                  <Icon type="Overflow" />
-                </Button.Frame>
+                />
               }
             />
           </Pressable>
@@ -428,6 +428,7 @@ export function GalleryPostDetailView({
       <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow
           authorId={post.authorId}
+          isBot={post.isBot ?? undefined}
           sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}

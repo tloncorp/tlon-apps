@@ -1,5 +1,5 @@
 import { syncSince } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import Constants from 'expo-constants';
 import { registerDevMenuItems } from 'expo-dev-menu';
 import { Alert, DevSettings } from 'react-native';
