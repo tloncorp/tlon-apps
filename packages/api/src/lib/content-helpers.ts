@@ -5,6 +5,7 @@ import {
   makeParagraph,
   makeText,
 } from '@tloncorp/shared/logic/tiptap';
+import { File as fs } from '@tloncorp/shared/utils';
 import isURL from 'validator/lib/isURL';
 
 import {
@@ -698,7 +699,7 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : filenameFromPath(attachment.localFile, {
+              : fs.filenameFromPath(attachment.localFile, {
                   decodeURI: true,
                 })) ??
             undefined;
@@ -814,19 +815,4 @@ function createReferenceBlock(
 ): Block | undefined {
   const cite = pathToCite(attachment.path);
   return cite ? { cite } : undefined;
-}
-
-// this is duplicated from shared/utils, which is now inaccessible from this file
-function filenameFromPath(
-  path: string,
-  opts: { decodeURI?: boolean } = {}
-): string | null {
-  if (path.endsWith('/')) {
-    return null;
-  }
-  let out = path.split('/').pop() ?? null;
-  if (opts.decodeURI && out) {
-    out = decodeURIComponent(out);
-  }
-  return out;
 }
