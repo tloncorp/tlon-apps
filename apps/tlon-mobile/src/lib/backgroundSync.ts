@@ -18,14 +18,6 @@ const logger = createDevLogger('backgroundSync', true);
 
 let backgroundSyncAbortController: AbortController | null = null;
 
-// export function cancelBackgroundSync() {
-//   if (backgroundSyncAbortController) {
-//     logger.trackEvent('Cancelling background sync (app foregrounded)');
-//     backgroundSyncAbortController.abort();
-//     backgroundSyncAbortController = null;
-//   }
-// }
-
 async function performSync() {
   await setupDb();
   await runMigrations();
@@ -73,18 +65,11 @@ async function performSync() {
     //   })
     // );
 
-    // Abort any previous background sync and create a fresh controller.
-    // If the app comes to foreground, cancelBackgroundSync() will abort
-    // this controller, removing queued operations from the sync queue so
-    // they don't contend with foreground sync.
-    backgroundSyncAbortController?.abort();
-    backgroundSyncAbortController = new AbortController();
     const changesStart = Date.now();
     await syncSince({
       callCtx: { cause: 'background-sync' },
       syncCtx: {
         priority: SyncPriority.High,
-        // abortSignal: backgroundSyncAbortController.signal,
       },
     });
     timings.changesDuration = Date.now() - changesStart;
