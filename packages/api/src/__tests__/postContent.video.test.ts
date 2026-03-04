@@ -12,6 +12,7 @@ test('convertContent keeps both blob and story videos when src matches', () => {
       size: 55,
       width: 100,
       height: 200,
+      duration: 12.25,
       name: 'blob-clip',
       posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
     },
@@ -37,6 +38,7 @@ test('convertContent keeps both blob and story videos when src matches', () => {
     src,
     width: 100,
     height: 200,
+    duration: 12.25,
     alt: 'blob-clip',
     posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
   });

@@ -92,6 +92,7 @@ export type VideoBlockData = {
   height: number;
   width: number;
   alt: string;
+  duration?: number;
   posterUri?: string;
 };
 
@@ -378,6 +379,7 @@ export function convertContent(
             width: entry.width ?? 1,
             height: entry.height ?? 1,
             alt: entry.name ?? 'video',
+            duration: entry.duration,
             posterUri: entry.posterUri,
           });
           break;
