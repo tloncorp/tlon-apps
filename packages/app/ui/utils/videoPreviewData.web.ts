@@ -2,6 +2,7 @@ import { VideoPreviewData, VideoPreviewSource } from './videoPreviewTypes';
 
 const POSTER_CAPTURE_TIME_SECONDS = 0.1;
 const SEEK_TIMEOUT_MS = 1000;
+const MEDIA_EVENT_TIMEOUT_MS = 1500;
 
 export async function getVideoPreviewData(
   source: VideoPreviewSource
@@ -41,24 +42,9 @@ export async function getVideoPreviewData(
 }
 
 function loadMetadata(video: HTMLVideoElement, uri: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const onLoadedMetadata = () => {
-      cleanup();
-      resolve(true);
-    };
-    const onError = () => {
-      cleanup();
-      resolve(false);
-    };
-    const cleanup = () => {
-      video.removeEventListener('loadedmetadata', onLoadedMetadata);
-      video.removeEventListener('error', onError);
-    };
-
-    video.addEventListener('loadedmetadata', onLoadedMetadata);
-    video.addEventListener('error', onError);
-    video.src = uri;
-  });
+  const didLoadMetadata = waitForVideoEvent(video, 'loadedmetadata');
+  video.src = uri;
+  return didLoadMetadata;
 }
 
 async function capturePosterUri(
@@ -112,23 +98,7 @@ async function capturePosterUri(
 }
 
 function waitForFrame(video: HTMLVideoElement): Promise<boolean> {
-  return new Promise((resolve) => {
-    const onLoadedData = () => {
-      cleanup();
-      resolve(true);
-    };
-    const onError = () => {
-      cleanup();
-      resolve(false);
-    };
-    const cleanup = () => {
-      video.removeEventListener('loadeddata', onLoadedData);
-      video.removeEventListener('error', onError);
-    };
-
-    video.addEventListener('loadeddata', onLoadedData);
-    video.addEventListener('error', onError);
-  });
+  return waitForVideoEvent(video, 'loadeddata');
 }
 
 function seekTo(video: HTMLVideoElement, time: number): Promise<boolean> {
@@ -159,5 +129,34 @@ function seekTo(video: HTMLVideoElement, time: number): Promise<boolean> {
       cleanup();
       resolve(false);
     }
+  });
+}
+
+function waitForVideoEvent(
+  video: HTMLVideoElement,
+  eventName: 'loadedmetadata' | 'loadeddata',
+  timeoutMs: number = MEDIA_EVENT_TIMEOUT_MS
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      resolve(false);
+    }, timeoutMs);
+    const onEvent = () => {
+      cleanup();
+      resolve(true);
+    };
+    const onError = () => {
+      cleanup();
+      resolve(false);
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video.removeEventListener(eventName, onEvent);
+      video.removeEventListener('error', onError);
+    };
+
+    video.addEventListener(eventName, onEvent);
+    video.addEventListener('error', onError);
   });
 }
