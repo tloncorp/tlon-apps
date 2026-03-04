@@ -43,3 +43,4 @@ export * from '@urbit/aura';
 export * from './store/dbHooks';
 export * from './utils';
 export * as Transcription from './transcription';
+export * from './md5';
