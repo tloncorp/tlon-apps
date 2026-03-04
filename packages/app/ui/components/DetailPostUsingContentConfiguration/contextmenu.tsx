@@ -1,12 +1,12 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Modal, useToast } from '@tloncorp/ui';
-import Clipboard from '@react-native-clipboard/clipboard';
+import { Modal } from '@tloncorp/ui';
 import { ElementRef, RefObject, useCallback, useRef, useState } from 'react';
 import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
 
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { useHandleExposeSuccess } from '../../utils/postUtils';
 
 interface PostContextMenuPresentation {
   anchorRef: RefObject<ElementRef<typeof RNView>>;
@@ -32,16 +32,7 @@ export function usePostContextMenu(opts: {
   const [presentation, setPresentation] =
     useState<PostContextMenuPresentation | null>(null);
 
-  const showToast = useToast();
-  const handleExposeSuccess = useCallback(
-    (message: string, url?: string) => {
-      if (url) {
-        Clipboard.setString(url);
-      }
-      showToast({ message, duration: 2000 });
-    },
-    [showToast]
-  );
+  const handleExposeSuccess = useHandleExposeSuccess();
 
   const performActionAndDismissCallback = useCallback(
     (actionType: PostContextMenuActions) => {

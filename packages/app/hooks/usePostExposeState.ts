@@ -3,6 +3,8 @@ import type { Post } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
+import { getExposeReferencePath } from '../ui/utils/postUtils';
+
 /**
  * Returns expose state for a post: whether it's currently exposed on the
  * public profile, and the absolute public URL if so.
@@ -21,9 +23,7 @@ export function usePostExposeState(
 
   const exposeReferencePath = useMemo(() => {
     if (!eligible) return null;
-    const [kind, host, channelName] = post.channelId.split('/');
-    const postId = post.id.replaceAll('.', '');
-    return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
+    return getExposeReferencePath(post);
   }, [eligible, post.channelId, post.id]);
 
   const isExposed = useMemo(() => {

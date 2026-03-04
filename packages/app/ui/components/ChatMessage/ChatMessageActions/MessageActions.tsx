@@ -7,24 +7,21 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
+import { usePostExposeState } from '../../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
+import { getExposeReferencePath } from '../../../utils/postUtils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 
 const ENABLE_COPY_JSON = __DEV__;
-
-function getExposeReferencePath(post: db.Post) {
-  const [kind, host, channelName] = post.channelId.split('/');
-  const postId = post.id.replaceAll('.', '');
-  return `/1/chan/${kind}/${host}/${channelName}/msg/${postId}`;
-}
 
 export default function MessageActions({
   dismiss,
@@ -206,64 +203,26 @@ function PublicProfileExposeAction({
   last?: boolean;
 }) {
   const channel = useChannelContext();
-  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
-  const [isShownOnProfile, setIsShownOnProfile] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const referencePath = getExposeReferencePath(post);
   const isEligible =
     channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
 
-  useEffect(() => {
-    if (!isEligible) {
-      setPublicProfileEnabled(false);
-      setIsShownOnProfile(false);
-      setIsLoading(false);
-      return;
-    }
+  const { isExposed, publicPostUrl } = usePostExposeState(post, isEligible);
 
-    let active = true;
-    const load = async () => {
-      try {
-        const enabled = await api.getPublicProfileEnabled();
-        if (!active) {
-          return;
-        }
-
-        setPublicProfileEnabled(enabled);
-        if (!enabled) {
-          setIsShownOnProfile(false);
-          return;
-        }
-
-        const shown = await api.getPublicProfilePostShown(referencePath);
-        if (active) {
-          setIsShownOnProfile(shown);
-        }
-      } catch (error) {
-        console.warn('Failed to load public profile message action state', error);
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    setIsLoading(true);
-    void load();
-
-    return () => {
-      active = false;
-    };
-  }, [isEligible, referencePath]);
+  const { data: publicProfileEnabled, isLoading } = useQuery({
+    queryKey: ['publicProfileEnabled'],
+    queryFn: () => api.getPublicProfileEnabled(),
+    staleTime: 30_000,
+    enabled: isEligible,
+  });
 
   const onPress = useCallback(async () => {
     if (isUpdating) {
       return;
     }
 
-    const nextShownState = !isShownOnProfile;
-    setIsShownOnProfile(nextShownState);
+    const nextShownState = !isExposed;
     setIsUpdating(true);
 
     try {
@@ -283,7 +242,6 @@ function PublicProfileExposeAction({
       dismiss();
       return;
     } catch {
-      setIsShownOnProfile(!nextShownState);
       triggerHaptic('error');
       onExposeSuccess?.(
         nextShownState
@@ -293,7 +251,7 @@ function PublicProfileExposeAction({
     } finally {
       setIsUpdating(false);
     }
-  }, [dismiss, isShownOnProfile, isUpdating, onExposeSuccess, referencePath]);
+  }, [dismiss, isExposed, isUpdating, onExposeSuccess, referencePath]);
 
   if (isLoading || !publicProfileEnabled) {
     return null;
@@ -308,7 +266,7 @@ function PublicProfileExposeAction({
       disabled={isUpdating}
       last={last}
     >
-      {isShownOnProfile ? 'Hide from public profile' : 'Show on public profile'}
+      {isExposed ? 'Hide from public profile' : 'Show on public profile'}
     </ActionList.Action>
   );
 }
