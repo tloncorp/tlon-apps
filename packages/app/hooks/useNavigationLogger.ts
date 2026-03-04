@@ -43,15 +43,11 @@ export function useNavigationLogging() {
     ) {
       logger.crumb(`to: ${currentRouteName}, from: ${previousRouteName}`);
     }
-    logger.log(
-      `to: ${currentRouteName}, from: ${previousRouteName}`,
-      'current state:',
-      state
-    );
-
-    // Log the full navigation tree for debugging
     if (state) {
-      console.log('[NAV]', formatNavState(state));
+      logger.log(
+        `to: ${currentRouteName}, from: ${previousRouteName}`,
+        formatNavState(state)
+      );
     }
 
     // Update the route name ref

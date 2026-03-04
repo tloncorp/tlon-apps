@@ -52,7 +52,7 @@ export function ConfirmDialog({
   // Web: use Tamagui Dialog
   if (Platform.OS === 'web') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange} disableRemoveScroll>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay
             key="overlay"
@@ -60,7 +60,6 @@ export function ConfirmDialog({
             opacity={0.5}
             enterStyle={{ opacity: 0 }}
             exitStyle={{ opacity: 0 }}
-            pointerEvents="none"
           />
           <Dialog.Content
             bordered
