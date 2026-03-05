@@ -334,7 +334,7 @@ const Scroller = forwardRef(
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
-          return { flex: 1 };
+          return { flexGrow: 1 };
         }
 
         switch (collectionLayoutType) {
