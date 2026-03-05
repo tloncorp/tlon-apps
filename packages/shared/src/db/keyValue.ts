@@ -370,9 +370,10 @@ const defaultNagState: NagState = {
   firstEligibleTime: 0,
 };
 
-export const createNagStorageItem = (key: string) => {
+export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
   return createStorageItem<NagState>({
     key: `nag:${key}`,
+    persistAfterLogout,
     defaultValue: defaultNagState,
   });
 };
