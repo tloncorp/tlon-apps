@@ -2,6 +2,19 @@
 /-  cv=channels-ver, m=meta
 /+  em=emojimart
 |%
+++  v10
+  |%
+  ++  v-channels
+    |%
+    ++  v8
+      |=  =v-channels:v10:cv
+      ^-  v-channels:v8:cv
+      %-  v8:v-channels:v9
+      %-  ~(run by v-channels)
+      |=  vc=v-channel:v10:cv
+      vc(net [p load]:net.vc)
+    --
+  --
 ++  v9
   |%
   ++  v-channels
@@ -18,6 +31,17 @@
         (v8:log:v9 log.v)
       ::NOTE  .future unused at the time of migration
       v(posts nu-posts, log nu-log, future *future:v-channel:v8:cv)
+    --
+  ++  v-channel
+    |%
+    ++  v10
+      |=  vc=v-channel:v9:cv
+      ^-  v-channel:v10:cv
+      =/  cons=(map wire conn:v10:cv)
+        (my `[wire conn:v10:cv]`[/updates &+%done] ~)
+      %=  vc  net
+        [p.net.vc load.net.vc cons]
+      ==
     --
   ++  v-posts
     |%
