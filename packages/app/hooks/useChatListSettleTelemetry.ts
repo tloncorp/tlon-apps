@@ -6,6 +6,7 @@ import {
   observeChatListMeasurementStart,
   reportChatListRendered,
   reportChatListSnapshot,
+  setChatListFocused,
 } from '../lib/chatListSettleTelemetry';
 
 export function useChatListSettleTelemetry({
@@ -15,6 +16,10 @@ export function useChatListSettleTelemetry({
   chats: db.GroupedChats | null | undefined;
   isFocused: boolean;
 }) {
+  useEffect(() => {
+    setChatListFocused(isFocused);
+  }, [isFocused]);
+
   useEffect(() => {
     if (isFocused && chats) {
       reportChatListSnapshot(chats);
