@@ -96,7 +96,12 @@ export type VideoBlockData = {
 
 export type FileUploadBlockData = {
   type: 'file';
-  file: PostBlobDataEntry;
+  file: Extract<PostBlobDataEntry, { type: 'file' }>;
+};
+
+export type VoiceMemoBlockData = {
+  type: 'voicememo';
+  voiceMemo: Extract<PostBlobDataEntry, { type: 'voicememo' }>;
 };
 
 export type LinkBlockData = {
@@ -146,6 +151,7 @@ export type BlockData =
   | ImageBlockData
   | VideoBlockData
   | FileUploadBlockData
+  | VoiceMemoBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -352,6 +358,14 @@ export function convertContent(
           out.push({
             type: 'file',
             file: entry,
+          });
+          break;
+        }
+
+        case 'voicememo': {
+          out.push({
+            type: 'voicememo',
+            voiceMemo: entry,
           });
           break;
         }

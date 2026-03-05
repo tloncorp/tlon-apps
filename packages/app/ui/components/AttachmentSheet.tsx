@@ -5,17 +5,28 @@ import {
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ComponentRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
+import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
+import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
 import {
   StorageQuotaIndicator,
@@ -44,7 +55,7 @@ export default function AttachmentSheet({
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const { attachAssets, clearAttachments, removeAttachment } =
+  const { attachAssets, addAttachment, clearAttachments, removeAttachment } =
     useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
@@ -187,6 +198,32 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const audioRecorder = useAudioRecorderController({
+    async onSubmit({ audioFilePath, waveformPreview }) {
+      const duration = await (async () => {
+        try {
+          return await fs.getAudioFileDurationSeconds(audioFilePath);
+        } catch {
+          return undefined;
+        }
+      })();
+      addAttachment({
+        type: 'voicememo',
+        localUri: audioFilePath,
+        size: fs.getFileSize(audioFilePath) ?? -1,
+        waveformPreview,
+        duration: duration ?? undefined,
+        mimeType: fs.getMimeType(audioFilePath) ?? undefined,
+      });
+      audioRecorder.dismiss();
+    },
+  });
+  const startRecordingVoiceMemo = useCallback(() => {
+    // Close the sheet immediately
+    onOpenChange(false);
+    audioRecorder.present();
+  }, [onOpenChange, audioRecorder]);
+
   const pickImage = useCallback(() => {
     // Close the sheet immediately
     onOpenChange(false);
@@ -264,6 +301,8 @@ export default function AttachmentSheet({
       onAttach?.(uploadIntents);
     }
   }, [attachAssets, onOpenChange, onAttach]);
+  const [canRecordVoiceMemos] = useFeatureFlag('recordVoiceMemos');
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -292,6 +331,13 @@ export default function AttachmentSheet({
             description: 'Upload files from your device',
             action: startFilePicker,
           },
+          mediaType === 'all' &&
+            canRecordVoiceMemos &&
+            !isWeb && {
+              title: 'Voice Memo',
+              description: 'Record an audio message',
+              action: startRecordingVoiceMemo,
+            },
         ],
         showClearOption && [
           'negative',
@@ -303,6 +349,8 @@ export default function AttachmentSheet({
         ]
       ),
     [
+      startRecordingVoiceMemo,
+      canRecordVoiceMemos,
       onClearAttachments,
       pickImage,
       startFilePicker,
@@ -319,40 +367,79 @@ export default function AttachmentSheet({
   const storageInfoQuery = useStorageInfoQuery();
 
   return (
-    <ActionSheet
-      open={showAttachmentSheet}
-      onOpenChange={(open: boolean) => onOpenChange(open)}
-      modal
-    >
-      <ActionSheet.Header>
-        {storageInfoQuery.isSuccess && storageInfoQuery.data == null ? (
-          // If we definitively do not have storage info, fall back to info box
-          <>
-            <ListItem.MainContent>
-              <ListItem.Title>{title}</ListItem.Title>
-              <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
-            </ListItem.MainContent>
-            <ListItem.EndContent
-              onPress={() => onOpenChange(false)}
-              testID="AttachmentSheetCloseButton"
-            >
-              <Button
-                preset="minimal"
+    <>
+      <ActionSheet
+        open={showAttachmentSheet}
+        onOpenChange={(open: boolean) => onOpenChange(open)}
+        modal
+      >
+        <ActionSheet.Header>
+          {storageInfoQuery.isSuccess && storageInfoQuery.data == null ? (
+            // If we definitively do not have storage info, fall back to info box
+            <>
+              <ListItem.MainContent>
+                <ListItem.Title>{title}</ListItem.Title>
+                <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+              </ListItem.MainContent>
+              <ListItem.EndContent
                 onPress={() => onOpenChange(false)}
                 testID="AttachmentSheetCloseButton"
-                label="Cancel"
-              />
-            </ListItem.EndContent>
-          </>
-        ) : (
-          <ListItem.MainContent height={undefined}>
-            <StorageQuotaIndicator storageInfoQuery={storageInfoQuery} />
-          </ListItem.MainContent>
-        )}
-      </ActionSheet.Header>
-      <ActionSheet.Content>
-        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.Content>
-    </ActionSheet>
+              >
+                <Button
+                  preset="minimal"
+                  onPress={() => onOpenChange(false)}
+                  testID="AttachmentSheetCloseButton"
+                  label="Cancel"
+                />
+              </ListItem.EndContent>
+            </>
+          ) : (
+            <ListItem.MainContent height={undefined}>
+              <StorageQuotaIndicator storageInfoQuery={storageInfoQuery} />
+            </ListItem.MainContent>
+          )}
+        </ActionSheet.Header>
+        <ActionSheet.Content>
+          <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+        </ActionSheet.Content>
+      </ActionSheet>
+      {audioRecorder.mount()}
+    </>
   );
+}
+
+function useAudioRecorderController({
+  onSubmit,
+}: {
+  onSubmit?: (opts: {
+    audioFilePath: string;
+    waveformPreview?: number[];
+  }) => void;
+}) {
+  const safeAreaInsets = useSafeAreaInsets();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
+    null
+  );
+
+  return {
+    mount: () => (
+      <AudioRecorderSheet
+        open={isSheetOpen}
+        disableDrag
+        snapPointsMode="fit"
+        audioRecorderProps={{
+          startInRecordingMode: true,
+          paddingBottom: safeAreaInsets.bottom,
+          onSubmit,
+          onCancel() {
+            setIsSheetOpen(false);
+          },
+          ref: audioRecorderRef,
+        }}
+      />
+    ),
+    present: () => setIsSheetOpen(true),
+    dismiss: () => setIsSheetOpen(false),
+  };
 }

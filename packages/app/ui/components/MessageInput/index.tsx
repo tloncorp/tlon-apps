@@ -542,13 +542,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : { isEdit: false }),
         };
 
-        await sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft);
+        await clearDraft(draftType);
+        await sendOperation;
 
         setEditingPost?.(undefined);
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [
