@@ -111,26 +111,6 @@ function GroupRolesScreenView({
             borderWidth: 0,
           }}
         >
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor={'$background'}
-            borderRadius="$2xl"
-            testID="GroupRole-Members"
-          >
-            <ActionSheet.ActionContent>
-              <ActionSheet.ActionTitle>Members</ActionSheet.ActionTitle>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent
-              flexDirection="row"
-              gap="$xl"
-              alignItems="center"
-            >
-              <ListItem.Count
-                notified={false}
-                count={groupMembers.length}
-              />
-            </ListItem.EndContent>
-          </ListItem>
           {groupRoles.map((role) => (
             <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
               <ListItem
