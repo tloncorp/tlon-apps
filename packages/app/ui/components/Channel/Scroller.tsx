@@ -334,7 +334,7 @@ const Scroller = forwardRef(
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
-          return { flex: 1 };
+          return { flexGrow: 1 };
         }
 
         switch (collectionLayoutType) {
@@ -425,10 +425,12 @@ const Scroller = forwardRef(
 
       const shouldShowForUnreads =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
+        inverted &&
         unreadCount &&
         !isAtBottom;
       const shouldShowForScroll =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
+        inverted &&
         !isAtBottom &&
         (!hasPressedGoToBottom || isLoading || hasNewerPosts);
 
@@ -437,6 +439,7 @@ const Scroller = forwardRef(
       isAtBottom,
       hasPressedGoToBottom,
       collectionLayoutType,
+      inverted,
       unreadCount,
       isLoading,
       hasNewerPosts,
