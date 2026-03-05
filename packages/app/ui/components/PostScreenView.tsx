@@ -47,6 +47,7 @@ import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { DraftInputContext } from './draftInputs';
+import { DraftInputContextProvider } from './draftInputs/shared';
 
 const noop = async () => {};
 
@@ -562,14 +563,6 @@ function SinglePostView({
           maxWidth: 600,
         };
   }, [isChatChannel]);
-  const bareInputDraftProps = useMemo(() => {
-    return {
-      getDraft,
-      storeDraft,
-      clearDraft,
-    };
-  }, [getDraft, storeDraft, clearDraft]);
-
   const scrollToNewReply = useCallback(() => {
     requestAnimationFrame(() => {
       if (isChatChannel) {
@@ -611,6 +604,32 @@ function SinglePostView({
     [channel.type]
   );
 
+  const replyDraftInputContext = useMemo(
+    (): DraftInputContext => ({
+      channel,
+      clearDraft,
+      editingPost,
+      getDraft,
+      group,
+      sendPostFromDraft: sendReplyFromDraft,
+      setEditingPost,
+      setShouldBlur: setInputShouldBlur,
+      shouldBlur: inputShouldBlur,
+      storeDraft,
+    }),
+    [
+      channel,
+      clearDraft,
+      editingPost,
+      getDraft,
+      group,
+      sendReplyFromDraft,
+      setEditingPost,
+      inputShouldBlur,
+      storeDraft,
+    ]
+  );
+
   return (
     <YStack flex={1}>
       {parentPost ? (
@@ -639,25 +658,22 @@ function SinglePostView({
           (channel.type === 'notebook' || channel.type === 'gallery')
         ) && (
           <View id="reply-container" {...containingProperties}>
-            <BareChatInput
-              placeholder="Reply"
-              groupId={channel.groupId}
-              shouldBlur={inputShouldBlur}
-              setShouldBlur={setInputShouldBlur}
-              sendPostFromDraft={sendReplyFromDraft}
-              channelId={channel.id}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-              {...bareInputDraftProps}
-              editingPost={editingPost}
-              setEditingPost={setEditingPost}
-              channelType="chat"
-              showAttachmentButton={isChatLike}
-              showInlineAttachments
-              shouldAutoFocus={
-                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-              }
-            />
+            <DraftInputContextProvider value={replyDraftInputContext}>
+              <BareChatInput
+                {...replyDraftInputContext}
+                placeholder="Reply"
+                channelId={replyDraftInputContext.channel.id}
+                groupId={replyDraftInputContext.channel.groupId}
+                groupMembers={groupMembers}
+                groupRoles={groupRoles}
+                channelType="chat"
+                showAttachmentButton={isChatLike}
+                showInlineAttachments
+                shouldAutoFocus={
+                  (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+                }
+              />
+            </DraftInputContextProvider>
           </View>
         )}
       {!negotiationMatch && channel && canWrite && (
