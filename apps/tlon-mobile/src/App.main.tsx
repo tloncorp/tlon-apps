@@ -97,6 +97,7 @@ const App = () => {
   const haveHostedLogin = db.haveHostedLogin.useValue();
   const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
   const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -155,6 +156,7 @@ const App = () => {
           <SplashSequence
             onCompleted={clearNeedsSplashSequence}
             inviteSystemContacts={inviteSystemContacts}
+            hostingBotEnabled={hostingBotEnabled ?? false}
           />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
