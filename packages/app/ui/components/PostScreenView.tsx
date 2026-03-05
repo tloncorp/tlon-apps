@@ -600,7 +600,7 @@ function SinglePostView({
       await store.finalizeAndSendPost(draft);
       scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply]
+    [parentPost, store, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
