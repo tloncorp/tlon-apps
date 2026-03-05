@@ -428,7 +428,7 @@ function GroupSettings({
         },
         {
           title: 'Roles',
-          description: `${groupRoles?.length ?? 0}`,
+          description: `${(groupRoles?.length ?? 0) + 1}`,
           testID: 'GroupRoles',
           disabled: !actionsEnabled,
           onPress: handlePressRoles,
