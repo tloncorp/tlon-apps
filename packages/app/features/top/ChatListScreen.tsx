@@ -116,9 +116,10 @@ export function ChatListScreenView({
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
   const loadingSubtitle = useMemo(() => {
+    const haveChats = !!chats?.pinned.length || !!chats?.unpinned.length;
     if (
       syncLoadingSubtitle &&
-      loadingSubtitle?.toLocaleLowerCase().includes('sync')
+      (!haveChats || syncLoadingSubtitle?.toLowerCase().includes('sync'))
     ) {
       return syncLoadingSubtitle;
     }
