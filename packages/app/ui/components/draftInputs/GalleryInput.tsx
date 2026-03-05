@@ -61,15 +61,15 @@ export function GalleryInput({
     if (!editingPost) return;
 
     try {
-      const { blocks, inlines } = extractContentTypesFromPost(editingPost);
-      const firstBlock = blocks[0];
+      const { blocks } = extractContentTypesFromPost(editingPost);
 
       // Check if the first block is an image or link - if so, handle it specially
-      if (firstBlock && 'image' in firstBlock) {
+      if (blocks.length > 0 && 'image' in blocks[0]) {
         // This is an image gallery post
         setRoute('review-attachment');
 
         // Extract caption from the post if it exists (should be in the inline content)
+        const { inlines } = extractContentTypesFromPost(editingPost);
         if (inlines.length > 0) {
           const captionText = typeof inlines[0] === 'string' ? inlines[0] : '';
           setCaption(captionText);
@@ -89,25 +89,38 @@ export function GalleryInput({
           }
         }
 
-        // Set up image for editing from the existing image block
-        const imageBlock = firstBlock.image;
+        // Set up image for editing by creating a mock attachment from the existing image
+        const imageBlock = blocks[0].image;
+        // Create a mock attachment for the image
+        const mockAttachment = {
+          type: 'image' as const,
+          file: {
+            uri: imageBlock.src,
+            width: imageBlock.width,
+            height: imageBlock.height,
+          } as ImagePickerAsset,
+          uploadState: {
+            status: 'complete' as const,
+            remoteUri: imageBlock.src,
+          },
+        };
 
+        // Set the attachment for editing
         attachAssets([
           domain.Attachment.UploadIntent.fromImagePickerAsset(
-            {
-              uri: imageBlock.src,
-              width: imageBlock.width,
-              height: imageBlock.height,
-            } as ImagePickerAsset
+            mockAttachment.file
           ),
         ]);
         setCanPost(true);
-      } else if (firstBlock && 'link' in firstBlock) {
+      } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
-        addAttachment({
+        const linkBlock = blocks[0].link as { url: string };
+        console.log('linkBlock', linkBlock);
+        const mockAttachment: domain.LinkAttachment = {
           type: 'link' as const,
-          url: firstBlock.link.url,
-        });
+          url: linkBlock.url,
+        };
+        addAttachment(mockAttachment);
         setRoute('link');
         setCanPost(true);
       } else {
@@ -134,9 +147,9 @@ export function GalleryInput({
   }, [clearDraft, resetAttachments]);
 
   // Handle image selection
-  const handleGalleryMediaSet = useCallback(
-    (assets: domain.Attachment.UploadIntent[]) => {
-      const hasAssets = assets.length > 0;
+  const handleGalleryImageSet = useCallback(
+    (assets?: domain.Attachment.UploadIntent[] | null) => {
+      const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
     },
@@ -363,7 +376,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetMedia={handleGalleryMediaSet}
+        onSetMedia={handleGalleryImageSet}
       />
     </>
   );

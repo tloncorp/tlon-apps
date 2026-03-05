@@ -138,19 +138,14 @@ export async function normalizeUploadIntent(
 export async function normalizeUploadIntents(
   uploadIntents: Attachment.UploadIntent[]
 ): Promise<{ uploadIntents: Attachment.UploadIntent[]; errorMessage: string | null }> {
-  let errorMessage: string | null = null;
   const normalized = await Promise.all(
-    uploadIntents.map(async (uploadIntent) => {
-      const result = await normalizeUploadIntent(uploadIntent);
-      if (!errorMessage && result.errorMessage) {
-        errorMessage = result.errorMessage;
-      }
-      return result.uploadIntent;
-    })
+    uploadIntents.map((uploadIntent) => normalizeUploadIntent(uploadIntent))
   );
+  const errorMessage =
+    normalized.find((result) => result.errorMessage)?.errorMessage ?? null;
   return {
-    uploadIntents: normalized.flatMap((uploadIntent) =>
-      uploadIntent ? [uploadIntent] : []
+    uploadIntents: normalized.flatMap((result) =>
+      result.uploadIntent ? [result.uploadIntent] : []
     ),
     errorMessage,
   };
@@ -167,7 +162,7 @@ export async function pickFile(): Promise<Attachment.UploadIntent[]> {
     return [];
   }
 
-  return results.assets?.map(
+  return results.assets.map(
     (res): Attachment.UploadIntent =>
       res.file == null
         ? {

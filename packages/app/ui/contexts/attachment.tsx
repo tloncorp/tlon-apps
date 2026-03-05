@@ -71,7 +71,6 @@ export const useAttachmentContext = () => {
 type AddAttachmentResult = {
   attachments: Attachment[];
   errorMessage: string | null;
-  removedForReplacement: Attachment[];
 };
 
 function addAttachmentToState(
@@ -83,21 +82,17 @@ function addAttachmentToState(
     return {
       attachments: prev,
       errorMessage: validation.reason,
-      removedForReplacement: [],
     };
   }
   if (attachment.type === 'video') {
-    const removedForReplacement = prev.filter((att) => att.type === 'video');
     return {
       attachments: [...prev.filter((att) => att.type !== 'video'), attachment],
       errorMessage: null,
-      removedForReplacement,
     };
   }
   return {
     attachments: [...prev, attachment],
     errorMessage: null,
-    removedForReplacement: [],
   };
 }
 
@@ -207,42 +202,21 @@ export const AttachmentProvider = ({
   }, [attachments, uploadAsset, assetUploadStates]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    const next = addAttachmentToState(stateRef.current, attachment);
+    const previous = stateRef.current;
+    const next = addAttachmentToState(previous, attachment);
     setAttachmentErrorMessage(next.errorMessage);
     stateRef.current = next.attachments;
     setState(next.attachments);
-    if (next.removedForReplacement.length > 0) {
-      revokeDetachedVideoPreviewUris(next.removedForReplacement, next.attachments);
-    }
+    revokeDetachedVideoPreviewUris(previous, next.attachments);
   }, []);
 
   const handleAttachAssets = useCallback(
     (uploadIntents: Attachment.UploadIntent[]) => {
-      let nextAttachments = stateRef.current;
-      let nextError: string | null = null;
-      let removedForReplacement: Attachment[] = [];
-
-      uploadIntents.forEach((uploadIntent) => {
-        const result = addAttachmentToState(
-          nextAttachments,
-          Attachment.fromUploadIntent(uploadIntent)
-        );
-        nextAttachments = result.attachments;
-        nextError = result.errorMessage;
-        removedForReplacement = [
-          ...removedForReplacement,
-          ...result.removedForReplacement,
-        ];
-      });
-
-      setAttachmentErrorMessage(nextError);
-      stateRef.current = nextAttachments;
-      setState(nextAttachments);
-      if (removedForReplacement.length > 0) {
-        revokeDetachedVideoPreviewUris(removedForReplacement, nextAttachments);
-      }
+      uploadIntents.forEach((uploadIntent) =>
+        handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
+      );
     },
-    []
+    [handleAddAttachment]
   );
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {

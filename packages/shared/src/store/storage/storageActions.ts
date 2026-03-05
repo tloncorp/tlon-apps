@@ -24,40 +24,6 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
-function getVideoUploadMetadata(
-  uploadIntent: Attachment.UploadIntent
-): { isVideo: boolean; posterUri?: string } {
-  const videoMetadata =
-    uploadIntent.type === 'file' || uploadIntent.type === 'fileUri'
-      ? uploadIntent.video
-      : undefined;
-  const posterUri =
-    videoMetadata && typeof videoMetadata === 'object'
-      ? videoMetadata.posterUri
-      : undefined;
-
-  switch (uploadIntent.type) {
-    case 'image':
-      return { isVideo: false };
-    case 'file':
-      return {
-        isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
-        posterUri,
-      };
-    case 'fileUri':
-      return {
-        isVideo:
-          !!videoMetadata ||
-          (!!uploadIntent.mimeType && uploadIntent.mimeType.startsWith('video/')),
-        posterUri,
-      };
-  }
-}
-
-function isRemoteUri(uri: string): boolean {
-  return uri.startsWith('http://') || uri.startsWith('https://');
-}
-
 async function uploadVideoPoster(
   posterUri: string | undefined,
   isWeb: boolean
@@ -65,7 +31,7 @@ async function uploadVideoPoster(
   if (!posterUri) {
     return undefined;
   }
-  if (isRemoteUri(posterUri)) {
+  if (Attachment.isRemoteUri(posterUri)) {
     return posterUri;
   }
   try {
@@ -149,7 +115,7 @@ async function uploadAssetWithLifecycle(
 ) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
   const { isVideo, posterUri: localPosterUri } =
-    getVideoUploadMetadata(uploadIntent);
+    Attachment.UploadIntent.getVideoUploadMetadata(uploadIntent);
   callbacks.willUpload?.();
 
   setUploadState(uploadKey, {

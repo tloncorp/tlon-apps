@@ -5,21 +5,8 @@ import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
 import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  ScrollView,
-  Spinner,
-  View,
-  XStack,
-  YStack,
-  ZStack,
-} from 'tamagui';
+import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
+import { ScrollView, Spinner, View, XStack, YStack, ZStack } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
@@ -29,48 +16,49 @@ const logger = createDevLogger('AttachmentPreviewList', false);
 export const AttachmentPreviewList = () => {
   const { attachments, attachmentErrorMessage } = useAttachmentContext();
   const visibleAttachments = attachments.filter((a) => a.type !== 'text');
-  if (visibleAttachments.length === 0 && !attachmentErrorMessage) {
-    return null;
+  const previewList = visibleAttachments.length ? (
+    <ScrollView
+      contentContainerStyle={{
+        padding: '$m',
+        paddingBottom: 0,
+        gap: '$2xs',
+        justifyContent: 'flex-start',
+        minWidth: '100%',
+      }}
+      overScrollMode="always"
+      horizontal={true}
+    >
+      {visibleAttachments.map((attachment, i) => {
+        const hasError =
+          (attachment.type === 'image' || attachment.type === 'video') &&
+          attachment.uploadState?.status === 'error';
+        return (
+          <AttachmentPreview
+            key={i}
+            attachment={attachment}
+            uploading={false}
+            error={hasError}
+          />
+        );
+      })}
+    </ScrollView>
+  ) : null;
+
+  if (!attachmentErrorMessage) {
+    return previewList;
   }
+
   return (
     <View>
-      {visibleAttachments.length > 0 ? (
-        <ScrollView
-          contentContainerStyle={{
-            padding: '$m',
-            paddingBottom: 0,
-            gap: '$2xs',
-            justifyContent: 'flex-start',
-            minWidth: '100%',
-          }}
-          overScrollMode="always"
-          horizontal={true}
-        >
-          {visibleAttachments.map((attachment, i) => {
-            const hasError =
-              (attachment.type === 'image' || attachment.type === 'video') &&
-              attachment.uploadState?.status === 'error';
-            return (
-              <AttachmentPreview
-                key={i}
-                attachment={attachment}
-                uploading={false}
-                error={hasError}
-              />
-            );
-          })}
-        </ScrollView>
-      ) : null}
-      {attachmentErrorMessage ? (
-        <Text
-          color="$negativeActionText"
-          fontSize="$s"
-          paddingHorizontal="$m"
-          paddingTop="$xs"
-        >
-          {attachmentErrorMessage}
-        </Text>
-      ) : null}
+      {previewList}
+      <Text
+        color="$negativeActionText"
+        fontSize="$s"
+        paddingHorizontal="$m"
+        paddingTop="$xs"
+      >
+        {attachmentErrorMessage}
+      </Text>
     </View>
   );
 };
@@ -84,47 +72,13 @@ export function AttachmentPreview({
   uploading?: boolean;
   error?: boolean;
 }) {
-  const initialAspect = useMemo(() => {
-    if (
-      attachment.type === 'video' &&
-      attachment.width != null &&
-      attachment.height != null &&
-      attachment.height > 0
-    ) {
-      return attachment.width / attachment.height;
-    }
-    return 1;
-  }, [attachment]);
-  const [aspect, setAspect] = useState(initialAspect);
+  const [aspect, setAspect] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setAspect(initialAspect);
-  }, [initialAspect]);
 
   const handleLoad = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
     setIsLoading(false);
   }, []);
-
-  const renderPosterImage = useCallback(
-    (uri: string) => (
-      <Image
-        backgroundColor={'$secondaryBackground'}
-        position="absolute"
-        top={0}
-        left={0}
-        width="100%"
-        height="100%"
-        onLoad={handleLoad}
-        onLoadStart={() => setIsLoading(true)}
-        onError={() => setIsLoading(false)}
-        source={{ uri }}
-        contentFit="cover"
-      />
-    ),
-    [handleLoad]
-  );
 
   const Container = useCallback(
     ({
@@ -214,14 +168,37 @@ export function AttachmentPreview({
       if (!posterUri) {
         return (
           <Container showSpinner={uploading}>
-            <VideoPosterFallback />
+            <View
+              backgroundColor="$secondaryBackground"
+              position="absolute"
+              top={0}
+              left={0}
+              width="100%"
+              height="100%"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Icon type="Play" color="$tertiaryText" size="$xl" />
+            </View>
             <VideoPreviewOverlay durationLabel={durationLabel} />
           </Container>
         );
       }
       return (
         <Container showSpinner={uploading || isLoading}>
-          {renderPosterImage(posterUri)}
+          <Image
+            backgroundColor={'$secondaryBackground'}
+            position="absolute"
+            top={0}
+            left={0}
+            width="100%"
+            height="100%"
+            onLoad={handleLoad}
+            onLoadStart={() => setIsLoading(true)}
+            onError={() => setIsLoading(false)}
+            source={{ uri: posterUri }}
+            contentFit="cover"
+          />
           <VideoPreviewOverlay durationLabel={durationLabel} />
         </Container>
       );
@@ -298,23 +275,6 @@ export function AttachmentPreview({
       );
     }
   }
-}
-
-function VideoPosterFallback() {
-  return (
-    <View
-      backgroundColor="$secondaryBackground"
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
-    >
-      <Icon type="Play" color="$tertiaryText" size="$xl" />
-    </View>
-  );
 }
 
 function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
