@@ -104,14 +104,14 @@ export function useSyncStatus() {
   const showSyncing = (session?.isSyncing ?? false) || deferredSyncing;
 
   const loadingSubtitle = useMemo(() => {
-    // if (connectionStatus !== 'Connected') {
-    //   return `${connectionStatus}...`;
-    // }
+    if (connectionStatus !== 'Connected') {
+      return `${connectionStatus}...`;
+    }
     if (showSyncing) {
       return 'Syncing with node...';
     }
     return null;
-  }, [showSyncing]);
+  }, [showSyncing, connectionStatus]);
 
   return {
     connectionStatus,

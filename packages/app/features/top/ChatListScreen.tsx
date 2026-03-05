@@ -116,7 +116,10 @@ export function ChatListScreenView({
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
   const loadingSubtitle = useMemo(() => {
-    if (syncLoadingSubtitle) {
+    if (
+      syncLoadingSubtitle &&
+      loadingSubtitle?.toLocaleLowerCase().includes('sync')
+    ) {
       return syncLoadingSubtitle;
     }
     return chats ? null : 'Loading...';
