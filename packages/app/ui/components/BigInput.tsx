@@ -322,8 +322,31 @@ export function BigInput({
     try {
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
+      const isGalleryText = currentChannelType === 'gallery';
 
-      await sendPostFromDraft(draft);
+      const sendOperation = sendPostFromDraft(draft);
+
+      // Clear the draft immediately so it doesn't persist if the user
+      // navigates away while the send is in flight
+      if (!editingPost && clearDraft) {
+        try {
+          logger.log(
+            `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
+          );
+
+          if (isGalleryText) {
+            await clearDraft('text');
+            await clearDraft(undefined);
+          } else {
+            await clearDraft(undefined);
+          }
+          logger.log('Draft cleared successfully');
+        } catch (e) {
+          logger.error('Error clearing draft:', e);
+        }
+      }
+
+      await sendOperation;
 
       logger.log(
         `Post/save successful for channel type: ${currentChannelType}`
@@ -346,39 +369,8 @@ export function BigInput({
         logger.log('Clearing editor content after save');
         editorRef.current.editor.setContent('');
       }
-
-      const isGalleryText = currentChannelType === 'gallery';
-
-      // Clear the draft after successful save for all channel types
-      if (!editingPost && clearDraft) {
-        try {
-          logger.log(
-            `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
-          );
-
-          if (isGalleryText) {
-            // For Gallery text posts, explicitly clear 'text' drafts
-            await clearDraft('text');
-
-            // If the gallery text draft persists, try calling with undefined as well
-            setTimeout(async () => {
-              if (clearDraft) {
-                logger.log('Additional gallery draft clearing attempt');
-                await clearDraft(undefined);
-              }
-            }, 100);
-          } else {
-            // For other channel types, don't specify to clear all drafts
-            await clearDraft(undefined);
-          }
-          logger.log('Draft cleared successfully');
-        } catch (e) {
-          logger.error('Error clearing draft:', e);
-        }
-      }
     } catch (error) {
       logger.error('Failed to save post:', error);
-      // Don't clear draft if save failed
     } finally {
       setIsSending(false);
     }

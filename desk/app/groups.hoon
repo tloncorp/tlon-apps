@@ -10,7 +10,7 @@
     activity
 /-  meta
 /+  default-agent, verb, dbug
-/+  gc=groups-conv, v=volume, s=subscriber, imp=import-aid, logs,
+/+  gc=groups-conv, cu=channel-utils, v=volume, s=subscriber, imp=import-aid, logs,
     t=contacts
 /+  of
 /+  neg=negotiate, discipline
@@ -139,6 +139,8 @@
     ::
       [/x/v2/groups/$/$/channels/can-read %noun]
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
+      [/x/v2/groups/$/$/channels/$/$/$/readers %ships]
+      [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
     ::
       [/x/groups/light %groups]
@@ -4660,7 +4662,7 @@
           ``loob+!>(|)
         =+  ship=(slav %p ship.rest.pole)
         ``loob+!>((go-can-read ship u.channel))
-        ::
+      ::
           [%can-write ship=@ ~]
         =+  ship=(slav %p ship.rest.pole)
         ^-  (unit (unit cage))
@@ -4670,6 +4672,39 @@
         %-  some
         :-  admin=(go-is-admin ship)
         roles=roles.u.seat
+      ::
+          [%readers ~]
+        ?~  channel=(~(get by channels.group) nest)
+          [~ ~]
+        =;  ships=(set ship)
+          ``ships+!>(ships)
+        %-  silt
+        ^-  (list ship)
+        %+  skim  ~(tap in ~(key by seats.group))
+        |=(=ship (go-can-read ship u.channel))
+      ::
+          ::  important: keep the logic here in sync with +can-write in /lib/channels-utils.hoon
+          ::
+          [%writers ~]
+        ?~  channel=(~(get by channels.group) nest)
+          [~ ~]
+        =/  channels-scry=path
+          /(scot %p our.bowl)/channels/(scot %da now.bowl)/[app.pole]/[ship.pole]/[name.pole]
+        =+  .^(=perm:d %gx (weld channels-scry /perm/noun))
+        =;  ships=(set ship)
+          ``ships+!>(ships)
+        %-  ~(rep by seats.group)
+        |=  [[=ship =seat:g] writers=(set ship)]
+        ::  if we can't read the channel, we will not receive
+        ::  any updates about channel permissions. To avoid false
+        ::  positives we must assume lack of write permissions.
+        ::
+        ?.  (go-can-read ship u.channel)  writers
+        ?:  |((go-is-admin ship) =(~ writers.perm))
+          (~(put in writers) ship)
+        ?:  =(~ (~(int in writers.perm) roles.seat))
+          writers
+        (~(put in writers) ship)
       ==
     ::
         [%channels %can-read ~]

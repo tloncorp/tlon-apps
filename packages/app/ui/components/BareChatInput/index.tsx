@@ -1,3 +1,5 @@
+import { contentReferenceToCite, toContentReference } from '@tloncorp/api';
+import { Story, citeToPath, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
@@ -9,14 +11,9 @@ import {
   extractContentTypesFromPost,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import {
-  contentReferenceToCite,
-  toContentReference,
-} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Story, citeToPath, pathToCite } from '@tloncorp/api/urbit';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -425,7 +422,11 @@ export default function BareChatInput({
       setEditingPost?.(undefined);
 
       try {
-        await sendPostFromDraft(draft);
+        bareChatInputLogger.log('sending message');
+        const sendOperation = sendPostFromDraft(draft);
+        bareChatInputLogger.log('clearing draft');
+        await clearDraft();
+        await sendOperation;
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
@@ -433,8 +434,6 @@ export default function BareChatInput({
         onSend?.();
         bareChatInputLogger.log('sent message');
         setMentions([]);
-        bareChatInputLogger.log('clearing draft');
-        await clearDraft();
         bareChatInputLogger.log('setting initial content');
         setHasSetInitialContent(false);
       }

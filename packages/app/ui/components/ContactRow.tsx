@@ -14,6 +14,8 @@ function ContactRowItemRaw({
   selected = false,
   selectable = false,
   immutable = false,
+  disabled = false,
+  disabledReason,
   onPress,
   pressStyle,
   backgroundColor,
@@ -24,24 +26,29 @@ function ContactRowItemRaw({
   selectable?: boolean;
   selected?: boolean;
   immutable?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 } & Omit<ListItemProps, 'onPress'>) {
   const handlePress = useCallback(
     (id: string) => () => {
+      if (disabled) return;
       onPress(id);
       if (!selectable || !selected) {
         triggerHaptic('baseButtonClick');
       }
     },
-    [onPress, selectable, selected]
+    [onPress, selectable, selected, disabled]
   );
 
   return (
     <Pressable
       backgroundColor={backgroundColor}
-      pressStyle={pressStyle}
+      pressStyle={disabled ? undefined : pressStyle}
       borderRadius="$xl"
-      onPress={handlePress(contact.id)}
+      disabled={disabled}
+      onPress={disabled ? undefined : handlePress(contact.id)}
       testID="ContactRow"
+      opacity={disabled ? 0.4 : 1}
     >
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
@@ -49,10 +56,16 @@ function ContactRowItemRaw({
           <ListItem.Title>
             <ContactName contactId={contact.id} mode="auto" />
           </ListItem.Title>
-          {contact?.nickname && (
-            <ListItem.Subtitle>
-              <ContactName contactId={contact.id} mode="contactId" expandLongIds />
+          {disabled && disabledReason ? (
+            <ListItem.Subtitle color="$negativeActionText">
+              {disabledReason}
             </ListItem.Subtitle>
+          ) : (
+            contact?.nickname && (
+              <ListItem.Subtitle>
+                <ContactName contactId={contact.id} mode="contactId" expandLongIds />
+              </ListItem.Subtitle>
+            )
           )}
         </ListItem.MainContent>
         {selectable && (
