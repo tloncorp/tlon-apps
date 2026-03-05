@@ -1,6 +1,6 @@
 import { fetch as fetchNetInfo } from '@react-native-community/netinfo';
 import { createDevLogger } from '@tloncorp/shared';
-import { getChannelPosts } from '@tloncorp/shared/api';
+import { getChannelPosts } from '@tloncorp/api';
 
 const logger = createDevLogger('PushNotifTapTelemetry', false);
 const PUSH_TAP_CHECK_EVENT = 'Push Tap Correctness Check';
