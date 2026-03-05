@@ -3,7 +3,7 @@ import { defaultTemplateChannelTitles } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
-import { YStack } from 'tamagui';
+import { YStack, styled } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
 import { useChatTitle, useIsAdmin } from '../../utils';
@@ -15,12 +15,14 @@ export function EmptyChannelNotice({
   isLoading,
   loadPostsError,
   onPressRetryLoad,
+  isAdmin: isAdminOverride,
 }: {
   channel: db.Channel;
   userId: string;
   isLoading: boolean;
   loadPostsError?: Error | null;
   onPressRetryLoad?: () => void;
+  isAdmin?: boolean;
 }) {
   const {
     onPressInvite,
@@ -29,7 +31,8 @@ export function EmptyChannelNotice({
     onPressChatDetails,
   } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
-  const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
+  const isGroupAdminFromHook = useIsAdmin(channel.groupId ?? '', userId);
+  const isGroupAdmin = isAdminOverride ?? isGroupAdminFromHook;
   const isDefaultPersonalChannel = useMemo(() => {
     return logic.isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
@@ -73,6 +76,12 @@ export function EmptyChannelNotice({
     return `This is the start of the ${name} channel.`;
   }, [channel.type, isSingleChannelGroup, group?.privacy, displayTitle, title]);
 
+  const TitleText = styled(Text, {
+    fontSize: '$xl',
+    fontWeight: '600',
+    color: '$primaryText',
+  });
+
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
   }
@@ -115,31 +124,27 @@ export function EmptyChannelNotice({
 
   const noticeContent = (
     <>
-      <YStack gap="$xl">
-        <Text size="$title/l" color="$primaryText">
-          Welcome to {headingTitle}!
-        </Text>
+      <YStack gap="$m">
+        <TitleText>🌱 Welcome to {headingTitle}!</TitleText>
         <Text size="$body" color="$secondaryText">
           {subtitle}
         </Text>
       </YStack>
       {isGroupAdmin && (
-        <YStack>
+        <YStack gap="$xl">
           <Button
-            fill="ghost"
+            fill="text"
             intent="positive"
             centered={false}
             label="Invite people"
-            leadingIcon="Add"
             testID="EmptyChannelInviteButton"
             onPress={onPressInvite}
           />
           <Button
-            fill="ghost"
+            fill="text"
             intent="positive"
             centered={false}
             label={isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
-            leadingIcon="Channel"
             testID={
               isSingleChannelGroup
                 ? 'EmptyChannelEditGroupButton'
@@ -176,7 +181,7 @@ export function EmptyChannelNotice({
           borderWidth={1}
           borderColor="$border"
           padding="$2xl"
-          gap="$xl"
+          gap="$2xl"
         >
           {noticeContent}
         </YStack>
@@ -191,7 +196,7 @@ export function EmptyChannelNotice({
       paddingHorizontal="$xl"
       paddingVertical="$2xl"
     >
-      <YStack gap="$xl" paddingBottom="$2xl" paddingLeft="$xl">
+      <YStack gap="$2xl" paddingBottom="$2xl" paddingLeft="$xl">
         {noticeContent}
       </YStack>
     </YStack>
