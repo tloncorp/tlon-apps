@@ -7,6 +7,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import { useCurrentSession } from '@tloncorp/shared/store';
 import { Accelerometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -26,6 +27,7 @@ const SHAKE_COOLDOWN_MS = 1500;
 const FOREGROUND_SHAKE_GRACE_MS = 1500;
 
 export function usePoorUxShakeReport() {
+  const session = useCurrentSession();
   const [visible, setVisible] = useState(false);
   const [details, setDetails] = useState('');
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -110,10 +112,12 @@ export function usePoorUxShakeReport() {
     logger.trackEvent('Poor UX Reported', {
       details: details.trim(),
       hasDetails: details.trim().length > 0,
+      syncPhase: session?.phase ?? null,
+      isSyncing: session?.isSyncing ?? null,
     });
     setVisible(false);
     setDetails('');
-  }, [details]);
+  }, [details, session]);
 
   const modal = (
     <Modal
@@ -168,6 +172,9 @@ export function usePoorUxShakeReport() {
                 value={details}
                 onChangeText={setDetails}
               />
+              <Text fontSize="$xs" color="$tertiaryText">
+                sync: {session?.phase ?? 'n/a'} | changes: {session?.isSyncing ? 'syncing' : 'idle'}
+              </Text>
               <XStack justifyContent="flex-end" gap="$s" paddingVertical="$m">
                 <Button
                   preset="secondaryOutline"

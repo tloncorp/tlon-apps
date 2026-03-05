@@ -10,14 +10,13 @@ import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
   markChatListMeasurementAbandoned,
   markChatListSyncSinceComplete,
-  setChatListNetworkContext,
   startChatListSettleMeasurement,
 } from '@tloncorp/app/lib/chatListSettleTelemetry';
+import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import {
   markPushNotifTapMeasurementAbandoned,
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
-import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -39,8 +38,8 @@ import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
-import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
+import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
@@ -63,7 +62,8 @@ function AuthenticatedApp() {
     async (status: AppStatus) => {
       if (status === 'inactive' || status === 'background') {
         const didAbandonChatList = markChatListMeasurementAbandoned(status);
-        const didAbandonPushNotif = markPushNotifTapMeasurementAbandoned(status);
+        const didAbandonPushNotif =
+          markPushNotifTapMeasurementAbandoned(status);
         const didAbandon = didAbandonChatList || didAbandonPushNotif;
         if (didAbandon) {
           // we want to make sure the flush call gets time to execute, but
@@ -81,17 +81,6 @@ function AuthenticatedApp() {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         startChatListSettleMeasurement(status);
-        NetInfo.fetch().then((state) => {
-          setChatListNetworkContext({
-            networkType: state.type,
-            networkConnected: state.isConnected ?? null,
-            networkInternetReachable: state.isInternetReachable ?? null,
-            cellularGeneration:
-              state.type === 'cellular'
-                ? state.details.cellularGeneration ?? null
-                : null,
-          });
-        });
         await checkForCachedChanges();
         telemetry.captureAppActive();
         checkNodeStopped();
@@ -102,10 +91,11 @@ function AuthenticatedApp() {
       // app returned from background
       if (status === 'active') {
         updateSession({ isSyncing: true });
-        syncSince({ callCtx: { cause: 'app-foregrounded' } }).catch(() => {});
-        setTimeout(() => {
-          sync.syncPinnedItems({ priority: sync.SyncPriority.High });
-        }, 100);
+        syncSince({ callCtx: { cause: 'app-foregrounded' } })
+          .catch(() => {})
+          .then(() => {
+            sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+          });
       }
     },
     [checkForCachedChanges, checkNodeStopped, telemetry]
@@ -126,7 +116,7 @@ function AuthenticatedApp() {
           event.neededToSyncLatestPosts,
           event.unreadTargets
         );
-        void markPushNotifTapSyncSinceComplete(
+        markPushNotifTapSyncSinceComplete(
           event.result,
           event.durationMs,
           event.nodeBusyStatus,

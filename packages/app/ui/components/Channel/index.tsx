@@ -174,12 +174,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
     const [showHeaderLoading, setShowHeaderLoading] = useState(false);
     const headerLoadingShownAtRef = useRef<number | null>(null);
-    const headerLoadingShowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
-    const headerLoadingHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    const headerLoadingShowTimeoutRef = useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
+    const headerLoadingHideTimeoutRef = useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
     const title = utils.useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
@@ -306,7 +306,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       // Only mark as read when user is actively using the app (not idle)
       // This prevents auto-marking on desktop when user is AFK
       if (hasUnreads && hasLoaded && inView && isUserActive) {
-        markRead();
+        // add slight delay to allow high priority tasks to hit the sync queue first
+        setTimeout(() => {
+          markRead();
+        }, 150);
       }
     }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
 

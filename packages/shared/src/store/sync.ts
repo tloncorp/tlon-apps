@@ -321,18 +321,19 @@ export const syncLatestChanges = async ({
     (post) =>
       !post.parentId && post.type !== 'reply' && post.sequenceNum != null
   );
-  const latestSeqByChannelBeforeSync = await db.getLatestChannelSequenceNums(
-    {
-      channelIds: [...new Set(topLevelPosts.map((post) => post.channelId))],
-    },
-    queryCtx
-  );
+  // before we insert the changes, confirm they're not stale from a delayed bg sync
+  // or previous app open. Use time since method began as delayed bg sync or previous
+  // app open. Use time since method began as a heuristic
+  const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+  const runningForMs = Date.now() - start;
+  if (runningForMs > FRESHNESS_THRESHOLD) {
+    throw new Error(
+      `discarded fetched data, had been running for ${runningForMs}ms`
+    );
+  }
 
   await db.insertChanges(result, queryCtx);
-  notifyChannelPostListenersFromLatestChanges(
-    topLevelPosts,
-    latestSeqByChannelBeforeSync
-  );
+  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -384,10 +385,7 @@ export const syncLatestChanges = async ({
   };
 };
 
-function notifyChannelPostListenersFromLatestChanges(
-  posts: db.Post[],
-  latestSeqByChannelBeforeSync: Map<string, number | null>
-) {
+function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
   if (!posts.length) {
     return;
   }
@@ -398,18 +396,6 @@ function notifyChannelPostListenersFromLatestChanges(
       continue;
     }
     seenIds.add(post.id);
-
-    const postSeq = post.sequenceNum;
-    if (postSeq == null) {
-      continue;
-    }
-
-    const previousLatestSeq =
-      latestSeqByChannelBeforeSync.get(post.channelId) ?? null;
-    if (previousLatestSeq != null && postSeq <= previousLatestSeq) {
-      continue;
-    }
-
     addToChannelPosts(post);
   }
 }
@@ -1902,8 +1888,9 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async (config: {
   retainChannelStatus?: boolean;
+  context?: string;
 }) => {
-  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity, config);
   if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
@@ -1982,19 +1969,32 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  if (!alreadySubscribed) {
-    await db.headsSyncedAt.resetValue();
-  }
-
   try {
     let didLoadCachedContacts = false;
 
     // it's important that this isn't within the main batchEffects block. If we're
     // returning from a cold open, we don't want to wait for all of High Priority sync
     // to complete before showing changes
-    syncSince({ callCtx: { cause: 'sync-start' } }).catch((error) =>
+    syncSince({
+      syncCtx: { priority: SyncPriority.High },
+      callCtx: { cause: 'sync-start' },
+    }).catch((error) =>
       logger.trackError('sync start: changes sync failed', { error })
     );
+
+    // brief delay to let syncSince queue first (it requires a storage item read before
+    // it hits the sync queue)
+    const isE2eRun = (globalThis as any).TLON_IS_E2E === true;
+    if (!isE2eRun) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // if running while already subscribed, execute the sync with lower priority. It's
+    // needed for correctness, but expensive and usually inconsequential
+    const syncStartPriority = {
+      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
+      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
+    };
 
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
@@ -2002,7 +2002,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         // writing the data in a specific order
         const yieldWriter = true;
         const highPrioritySyncCtx = {
-          priority: SyncPriority.High,
+          priority: syncStartPriority.high,
           retry: true,
         };
 
@@ -2020,7 +2020,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         const subsPromise = alreadySubscribed
           ? Promise.resolve()
           : setupHighPrioritySubscriptions({
-              priority: SyncPriority.High - 1,
+              priority: syncStartPriority.high - 1,
             }).then(() => logger.crumb('subscribed high priority'));
 
         didLoadCachedContacts = await LocalCache.loadCachedContacts();
@@ -2089,36 +2089,39 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       alreadySubscribed
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
-            priority: SyncPriority.Medium,
+            priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
-      resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(
+      resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
       // if we had cached contacts, we refresh them here with low priority
       didLoadCachedContacts
-        ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
-            () => logger.crumb(`finished syncing contacts`)
-          )
+        ? syncContacts({
+            priority: syncStartPriority.low + 1,
+            retry: true,
+          }).then(() => logger.crumb(`finished syncing contacts`))
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
-      syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+      syncVolumeSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing volume settings`)
       ),
-      syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+      syncStorageSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished initializing storage`)
       ),
-      syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+      syncPushNotificationsSetting({
+        priority: syncStartPriority.low + 1,
+      }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+      syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
-      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+      syncContactDiscovery({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing contact discovery`);
       }),
     ];

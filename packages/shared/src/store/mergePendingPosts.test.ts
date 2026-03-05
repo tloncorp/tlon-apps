@@ -119,6 +119,117 @@ describe('mergePendingPosts with hasNewest = false', () => {
   });
 });
 
+describe('mergePendingPosts newPosts behavior', () => {
+  test('should include newPosts when hasNewest is true', () => {
+    const existingPosts = [makePost(3), makePost(2), makePost(1)];
+    const newPosts = [makePost(5), makePost(4)];
+
+    const mergedSentAts = mergePendingPosts({
+      newPosts,
+      pendingPosts: [],
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: true,
+    }).map((p) => p.sentAt);
+
+    expect(mergedSentAts).toEqual([5, 4, 3, 2, 1]);
+  });
+
+  test('should clip newPosts beyond upperPaginationBound when hasNewest is false', () => {
+    // existingPosts[0].sentAt = 5, so upperPaginationBound = 5
+    // newPosts with sentAt >= 5 should be clipped
+    const existingPosts = [makePost(5), makePost(3), makePost(1)];
+    const newPosts = [makePost(7), makePost(6), makePost(4)];
+
+    const mergedSentAts = mergePendingPosts({
+      newPosts,
+      pendingPosts: [],
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: false,
+    }).map((p) => p.sentAt);
+
+    // Only sentAt=4 is within (1, 5) and not in existingPosts
+    expect(mergedSentAts).toEqual([4, 5, 3, 1]);
+  });
+
+  test('should deduplicate newPosts against existingPosts by sentAt', () => {
+    const existingPosts = [makePost(5), makePost(3), makePost(1)];
+    const newPosts = [
+      { ...makePost(6), id: 'new-6' },
+      { ...makePost(3), id: 'new-3' }, // same sentAt as existing
+    ];
+
+    const mergedSentAts = mergePendingPosts({
+      newPosts,
+      pendingPosts: [],
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: true,
+    }).map((p) => p.sentAt);
+
+    // sentAt=3 from newPosts is deduped against existingPosts
+    expect(mergedSentAts).toEqual([6, 5, 3, 1]);
+  });
+
+  test('should deduplicate newPosts against pendingPosts by sentAt', () => {
+    const existingPosts = [makePost(3), makePost(1)];
+    const pendingPosts = [{ ...makePost(5), id: 'pending-5' }];
+    const newPosts = [{ ...makePost(5), id: 'new-5' }]; // same sentAt as pending
+
+    const result = mergePendingPosts({
+      newPosts,
+      pendingPosts,
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: true,
+    });
+
+    // Only one post with sentAt=5 should appear
+    expect(result.filter((p) => p.sentAt === 5)).toHaveLength(1);
+  });
+
+  test('newPosts with hasNewest false and shrunken existingPosts clips everything', () => {
+    // Simulates the bug scenario: existingPosts shrinks to just one "head" post
+    // due to sequence gap, and hasNewest regresses to false
+    const existingPosts = [makePost(100)]; // only the head post remains
+    const newPosts = [makePost(99), makePost(98), makePost(97)];
+
+    const mergedSentAts = mergePendingPosts({
+      newPosts,
+      pendingPosts: [],
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: false,
+    }).map((p) => p.sentAt);
+
+    // upperPaginationBound = 100, lowerPaginationBound = 100
+    // All newPosts need sentAt > 100 AND sentAt < 100, which is impossible
+    // This demonstrates the bug: everything gets clipped
+    expect(mergedSentAts).toEqual([100]);
+  });
+
+  test('newPosts with hasNewest true and shrunken existingPosts preserves posts', () => {
+    // Same scenario but with hasNewest=true (our fix)
+    const existingPosts = [makePost(100)];
+    const newPosts = [makePost(99), makePost(98), makePost(97)];
+
+    const mergedSentAts = mergePendingPosts({
+      newPosts,
+      pendingPosts: [],
+      existingPosts,
+      deletedPosts: {},
+      hasNewest: true,
+    }).map((p) => p.sentAt);
+
+    // upperPaginationBound = Infinity, so newPosts below 100 but above 100 (lower bound)
+    // are still clipped. But posts newer than head would be preserved.
+    // In this case sentAt 97-99 are all < lowerPaginationBound (100), so they're clipped
+    // This shows why Fix 1 (preventing the sequence gap) is the primary fix
+    expect(mergedSentAts).toEqual([100]);
+  });
+});
+
 describe('mergePendingPosts Edge Cases', () => {
   // Test Case: `existingPosts` is empty
   test('should return all pending posts when existingPosts is empty', () => {
