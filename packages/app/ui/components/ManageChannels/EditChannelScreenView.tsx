@@ -305,7 +305,7 @@ export function ChannelPermissionsSelector({
 }: {
   groupRoles: db.GroupRole[];
 }) {
-  const { watch, setValue } = useFormContext<ChannelFormSchema>();
+  const { watch, setValue, getValues } = useFormContext<ChannelFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
@@ -316,7 +316,7 @@ export function ChannelPermissionsSelector({
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
       setValue('isPrivate', value, { shouldDirty: true });
-      const newRoles = value ? ['admin'] : [];
+      const newRoles = value ? ['admin', MEMBERS_MARKER] : [];
       setValue('readers', newRoles, { shouldDirty: true });
       setValue('writers', newRoles, { shouldDirty: true });
     },
@@ -358,8 +358,14 @@ export function ChannelPermissionsSelector({
         ? roleIds
         : ['admin', ...roleIds];
       setValue('readers', readersWithAdmin, { shouldDirty: true });
+      const currentWriters = getValues('writers');
+      setValue(
+        'writers',
+        currentWriters.filter((w) => readersWithAdmin.includes(w)),
+        { shouldDirty: true }
+      );
     },
-    [setValue]
+    [setValue, getValues]
   );
 
   return (

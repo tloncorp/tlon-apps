@@ -783,6 +783,15 @@ export async function setChannelPermissions(
     await page.getByText('Add roles').click();
     await expect(page.getByText('Search and add roles')).toBeVisible();
 
+    // Deselect Members if pre-selected and not in the requested roles
+    if (!readerRoles.some((r) => r.toLowerCase() === 'members')) {
+      const sheet = page.getByRole('dialog');
+      const membersOption = sheet.getByText('Members', { exact: true });
+      if (await membersOption.isVisible({ timeout: 1000 })) {
+        await membersOption.click();
+      }
+    }
+
     for (const role of readerRoles) {
       if (role.toLowerCase() === 'admin') continue;
       await page.getByTestId('RoleSearchInput').fill(role);
