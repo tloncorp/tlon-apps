@@ -329,6 +329,33 @@ export async function inviteGroupMembers({
   }
 }
 
+export async function revokeGroupMemberInvites({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  logger.log('revoking group member invites', groupId, contactIds);
+
+  // optimistic update - remove from invites table and chat members
+  await db.deleteGroupInvites({ groupId, contactIds });
+  await db.removeChatMembers({ chatId: groupId, contactIds });
+
+  try {
+    await api.revokeGroupMemberInvites({ groupId, contactIds });
+  } catch (e) {
+    logger.trackError('Failed to revoke group member invites', e);
+    // rollback optimistic update
+    await db.addChatMembers({
+      chatId: groupId,
+      type: 'group',
+      contactIds,
+      joinStatus: 'invited',
+    });
+  }
+}
+
 export async function cancelGroupJoin(group: db.Group) {
   logger.log('canceling group join', group.id);
   logger.trackEvent(
