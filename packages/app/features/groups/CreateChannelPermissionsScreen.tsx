@@ -13,6 +13,7 @@ import {
   PermissionActionButtons,
   processFinalPermissions,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
+import { MEMBERS_MARKER } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
@@ -39,8 +40,8 @@ export function CreateChannelPermissionsScreen() {
       title: channelTitle,
       description: '',
       isPrivate: true,
-      readers: selectedRoleIds ?? ['admin'],
-      writers: ['admin'],
+      readers: selectedRoleIds ?? ['admin', MEMBERS_MARKER],
+      writers: ['admin', MEMBERS_MARKER],
     },
   });
 
@@ -60,6 +61,11 @@ export function CreateChannelPermissionsScreen() {
   useEffect(() => {
     if (!selectedRoleIds) return;
     form.setValue('readers', selectedRoleIds);
+    const currentWriters = form.getValues('writers');
+    form.setValue(
+      'writers',
+      currentWriters.filter((w) => selectedRoleIds.includes(w))
+    );
   }, [selectedRoleIds, form]);
 
   const handleSelectRoles = useCallback(() => {

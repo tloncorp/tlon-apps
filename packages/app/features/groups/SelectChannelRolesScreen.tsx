@@ -9,7 +9,10 @@ import { ScrollView, View, YStack } from 'tamagui';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { TextInput } from '../../ui/components/Form';
 import { ListItem } from '../../ui/components/ListItem';
-import { groupRolesToOptions } from '../../ui/components/ManageChannels/channelFormUtils';
+import {
+  MEMBER_ROLE_OPTION,
+  groupRolesToOptions,
+} from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function SelectChannelRolesScreen() {
@@ -44,10 +47,12 @@ export function SelectChannelRolesScreen() {
   const { data: group } = useGroup({ id: groupId });
 
   const allRoles = useMemo(
-    () =>
-      groupRolesToOptions(group?.roles ?? []).filter(
+    () => [
+      ...groupRolesToOptions(group?.roles ?? []).filter(
         (role) => role.value !== 'admin'
       ),
+      MEMBER_ROLE_OPTION,
+    ],
     [group?.roles]
   );
 
@@ -147,6 +152,7 @@ export function SelectChannelRolesScreen() {
                   key={role.value}
                   onPress={() => handleToggleRole(role.value)}
                   borderRadius="$xl"
+                  testID={`RoleOption-${role.label}`}
                 >
                   <ListItem
                     backgroundColor={

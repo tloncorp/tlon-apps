@@ -273,6 +273,6 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   await helpers.navigateBack(page);
 
-  // Verify role count is back to 1
-  await helpers.verifyElementCount(page, 'GroupRoles', 1);
+  // Verify role count is back to 2 (Admin + virtual Members role)
+  await helpers.verifyElementCount(page, 'GroupRoles', 2);
 });
