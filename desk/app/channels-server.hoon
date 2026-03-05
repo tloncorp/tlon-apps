@@ -62,10 +62,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %14
+    $:  %13
         =v-channels:v9:cv
         =hooks:h
-        pending-effects=(list a-channels:c)
         =pimp:imp
     ==
   --
@@ -76,7 +75,7 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       log   ~(. logs [our.bowl /logs])
-      cor   ~(. +> [bowl ~])
+      cor   ~(. +> [bowl ~ ~])
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
@@ -129,11 +128,13 @@
     [cards this]
   --
 ::
-|_  [=bowl:gall cards=(list card)]
-++  abet  [(flop cards) state]
+|_  [=bowl:gall cards=(list card) cards-late=(list card)]
+++  abet  [(weld (flop cards) (flop cards-late)) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
+++  emit-late  |=(=card cor(cards-late [card cards-late]))
+++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
@@ -161,14 +162,12 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
-  ?>  ?=(%14 -.old)
+  ?>  ?=(%13 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-14
-        state-13
+    $%  state-13
         state-12
         state-11
         state-10
@@ -183,13 +182,7 @@
         state-1
         state-0
     ==
-  +$  state-14  current-state
-  +$  state-13
-    $:  %13
-        =v-channels:v9:cv
-        =hooks:h
-        =pimp:imp
-    ==
+  +$  state-13  current-state
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -221,12 +214,6 @@
       =v-channels:v7:cv
       =pimp:imp
     ==
-  ::
-  ++  state-13-to-14
-    |=  s=state-13
-    ~>  %spin.['state-13-to-14']
-    ^-  state-14
-    [%14 v-channels.s hooks.s ~ pimp.s]
   ::
   ++  state-12-to-13
     |=  s=state-12
@@ -1558,16 +1545,6 @@
   ~>  %spin.['wake-hook']
   ^+  cor
   ?+  pole  ~|(bad-arvo-take+pole !!)
-      [%effect %channels ~]
-    ?~  pending-effects  cor
-    =/  effects=(list a-channels:c)  (flop pending-effects)
-    =.  pending-effects  ~
-    |-
-    ?~  effects  cor
-    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`i.effects)
-    =.  cor  (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
-    $(effects t.effects)
-  ::
       [%waiting id=@ ~]
     =/  id=id-hook:h  (slav %uv id.pole)
     ?~  wh=(~(get by waiting.hooks) id)  cor
@@ -1648,12 +1625,10 @@
     $(effects t.effects)
   ?-  -.effect
       %channels
-    ::  Run channel effects on the next tick so the originating post update
-    ::  has time to commit/propagate before reactions are applied.
-    =.  pending-effects  [a-channels.effect pending-effects]
-    =/  when=@da  `@da`(add now.bowl (div ~s1 10))
-    =/  =wire  /hooks/effect/channels
-    (emit [%pass wire %arvo %b %wait when])
+    ::  Run channel effects after normal cards in the same event so the
+    ::  originating post update has time to commit/propagate first.
+    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`a-channels.effect)
+    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
     =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)
