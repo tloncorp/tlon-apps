@@ -199,8 +199,8 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
         source={
           isWeb
             ? isDark
-              ? `./garden-party-invite-dark.png`
-              : `./garden-party-invite.png`
+              ? `./bot-dark.png`
+              : `./bot.png`
             : isDark
               ? require(`../../assets/raster/bot-dark.png`)
               : require(`../../assets/raster/bot.png`)
@@ -236,6 +236,7 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
       </YStack>
       <Button
         onPress={props.onActionPress}
+        testID="bot-next"
         label="Next"
         preset="hero"
         shadow
