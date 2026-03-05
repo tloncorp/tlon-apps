@@ -223,6 +223,8 @@ const CreateChatFormContent = ({
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
   const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
+  const isGroup = chatType === 'group';
+  const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -239,6 +241,8 @@ const CreateChatFormContent = ({
             onScrollChange?.(scrolling);
           }}
           maxHeight={isWindowNarrow ? undefined : 500}
+          disabledIds={isGroup ? disabledIds : undefined}
+          disabledReason="App version mismatch"
         />
         {chatType === 'group' && (
           <Button

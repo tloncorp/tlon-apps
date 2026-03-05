@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
+import { expect, test, describe } from 'vitest';
 
-import { Block, Inline, JSONContent } from '../urbit';
+import { Block, Inline, JSONContent } from '@tloncorp/api/urbit';
 import { JSONToInlines } from './tiptap';
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
@@ -124,4 +124,105 @@ test('tiptap: test mixed text, inline code and code block without langs', () => 
     { break: null },
   ];
   expect(verses).toEqual(exampleVerses);
+});
+
+describe('JSONToInlines - links with marks', () => {
+  test('preserves italic mark on links', () => {
+    const json: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'link text',
+              marks: [
+                { type: 'italic' },
+                { type: 'link', attrs: { href: 'https://example.com' } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = JSONToInlines(json);
+    expect(result).toEqual([
+      {
+        italics: [
+          { link: { href: 'https://example.com', content: 'link text' } },
+        ],
+      },
+      { break: null },
+    ]);
+  });
+
+  test('preserves bold mark on links', () => {
+    const json: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'bold link',
+              marks: [
+                { type: 'bold' },
+                { type: 'link', attrs: { href: 'https://example.com' } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = JSONToInlines(json);
+    expect(result).toEqual([
+      {
+        bold: [
+          { link: { href: 'https://example.com', content: 'bold link' } },
+        ],
+      },
+      { break: null },
+    ]);
+  });
+
+  test('preserves multiple marks on links', () => {
+    const json: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'styled link',
+              marks: [
+                { type: 'bold' },
+                { type: 'italic' },
+                { type: 'link', attrs: { href: 'https://example.com' } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = JSONToInlines(json);
+    // Should be wrapped in both bold and italic
+    expect(result).toEqual([
+      {
+        italics: [
+          {
+            bold: [
+              { link: { href: 'https://example.com', content: 'styled link' } },
+            ],
+          },
+        ],
+      },
+      { break: null },
+    ]);
+  });
 });

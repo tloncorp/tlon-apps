@@ -4,12 +4,12 @@ import {
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import { ChannelContentConfiguration } from '@tloncorp/shared/api';
+import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/shared/urbit';
-import { JSONContent } from '@tloncorp/shared/urbit';
+import * as urbit from '@tloncorp/api/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useIsUserActive } from '../../hooks/useUserActivity';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -503,6 +504,7 @@ function SinglePostView({
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+  const isUserActive = useIsUserActive();
 
   const scrollerRef = useRef<{
     scrollToStart: (opts: { animated?: boolean }) => void;
@@ -579,6 +581,7 @@ function SinglePostView({
   }, [isChatChannel]);
 
   const hasLoadedReplies = !!(posts && channel && parentPost);
+  // Only mark thread as read when user is actively using the app (not idle)
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
       ? null
@@ -586,7 +589,7 @@ function SinglePostView({
           channel,
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
-          shouldMarkRead: isFocusedPost && hasLoadedReplies,
+          shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
         }
   );
 

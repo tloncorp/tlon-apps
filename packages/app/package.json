@@ -12,12 +12,13 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
+    "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
-    "sqlocal": "^0.11.1"
+    "sqlocal": "^0.14.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",
@@ -25,6 +26,7 @@
   },
   "peerDependencies": {
     "expo-document-picker": "*",
+    "expo-file-system": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "expo-blur": "*",
@@ -32,12 +34,14 @@
     "expo-notifications": "*",
     "expo-splash-screen": "*",
     "lodash": "^4.17.21",
+    "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
     "react-native-fetch-api": "*",
     "react-native-polyfill-globals": "*",
     "react-native-safe-area-context": "*",
     "tamagui": "~1.126.12",
+    "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"
   }
 }

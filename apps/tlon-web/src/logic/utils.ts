@@ -5,7 +5,7 @@ import {
   Verse,
   VerseBlock,
   VerseInline,
-} from '@tloncorp/shared/urbit/channel';
+} from '@tloncorp/api/urbit/channel';
 import {
   Bold,
   Cite,
@@ -13,7 +13,7 @@ import {
   Italics,
   Listing,
   Strikethrough,
-} from '@tloncorp/shared/urbit/content';
+} from '@tloncorp/api/urbit/content';
 import {
   Cabals,
   ChannelPrivacyType,
@@ -25,7 +25,7 @@ import {
   PrivacyType,
   Rank,
   Saga,
-} from '@tloncorp/shared/urbit/groups';
+} from '@tloncorp/api/urbit/groups';
 import {
   BigIntOrderedMap,
   Docket,

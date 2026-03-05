@@ -1,7 +1,7 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import { JSONContent } from '@tloncorp/shared/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';
@@ -11,7 +11,7 @@ export type GalleryRoute =
   | 'add-post'
   | 'add-attachment'
   | 'link'
-  | 'image'
+  | 'review-attachment'
   | 'text';
 
 export interface DraftInputHandle {

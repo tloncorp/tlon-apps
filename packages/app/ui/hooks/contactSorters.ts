@@ -1,6 +1,6 @@
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { preSig } from '@tloncorp/shared/urbit';
+import { preSig } from '@tloncorp/api/urbit';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 import { valid } from '@urbit/aura';

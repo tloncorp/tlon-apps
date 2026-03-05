@@ -1,3 +1,4 @@
+import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useIsFocused } from '@react-navigation/native';
 import {
   Attachment,
@@ -14,10 +15,11 @@ import {
   ChannelContentConfiguration,
   isDmChannelId,
   isGroupDmChannelId,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { JSONContent } from '@tloncorp/shared/urbit';
+import * as logic from '@tloncorp/shared/logic';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -54,6 +56,7 @@ import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
+import { PinnedPostBanner } from './PinnedPostBanner';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
   ConnectedPostView,
@@ -86,7 +89,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  goToEditChannel?: (groupId: string, channelId: string) => void;
+  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -137,7 +140,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
-      goToEditChannel,
+      goToChannelDetails,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -188,6 +191,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
+    const isNotebookOrGallery =
+      channel.type === 'notebook' || channel.type === 'gallery';
+    const pinnedPostId = logic.getPinnedPostId(channel);
     const isSingleChannelGroup = group?.channels?.length === 1;
 
     // For DMs, get the other participant's ID
@@ -219,20 +225,21 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onGroupAction]
     );
 
-    const handleGoToEditChannel = useCallback(() => {
+    const handleGoToChannelDetails = useCallback(() => {
       if (!channel.groupId) return;
 
       if (isSingleChannelGroup) {
         return;
       } else {
-        if (goToEditChannel) {
-          goToEditChannel(channel.groupId, channel.id);
+        if (goToChannelDetails) {
+          goToChannelDetails(channel.groupId, channel.id);
         }
       }
-    }, [goToEditChannel, channel.groupId, channel.id, group?.channels?.length]);
+    }, [goToChannelDetails, channel.groupId, channel.id, group?.channels?.length]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
+    const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
     const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
 
@@ -296,13 +303,15 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     }, []);
 
     useEffect(() => {
-      if (hasUnreads && hasLoaded && inView) {
+      // Only mark as read when user is actively using the app (not idle)
+      // This prevents auto-marking on desktop when user is AFK
+      if (hasUnreads && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
         setTimeout(() => {
           markRead();
         }, 150);
       }
-    }, [hasUnreads, hasLoaded, inView, markRead]);
+    }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -464,6 +473,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       return validGroup && validPlatform;
     }, [group]);
 
+    const shouldShowPinnedPostBanner = useMemo(() => {
+      if (!pinnedPostId) return false;
+      if (!isNotebookOrGallery) return true;
+      return (
+        editingPost == null && draftInputPresentationMode !== 'fullscreen'
+      );
+    }, [
+      pinnedPostId,
+      isNotebookOrGallery,
+      editingPost,
+      draftInputPresentationMode,
+    ]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
@@ -522,8 +544,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               channel.type === 'gallery') &&
                             draftInputPresentationMode !== 'fullscreen'
                           }
-                          goToEdit={handleGoToEditChannel}
+                          goToEdit={handleGoToChannelDetails}
                         />
+                        {shouldShowPinnedPostBanner && (
+                          <PinnedPostBanner
+                            channel={channel}
+                            onPressPost={goToPost}
+                          />
+                        )}
                         <YStack alignItems="stretch" flex={1}>
                           {includeJoinRequestNotice && (
                             <SystemNotices.ConnectedJoinRequestNotice

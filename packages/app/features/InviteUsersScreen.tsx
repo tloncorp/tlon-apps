@@ -1,4 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import * as store from '@tloncorp/shared';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,8 +23,9 @@ export function InviteUsersScreen() {
   const route = useRoute<InviteUsersScreenRouteProp>();
   const { groupId } = route.params ?? {};
   const { bottom } = useSafeAreaInsets();
-  const store = useStore();
-  const { data: group } = store.useGroup({ id: groupId ?? '' });
+  const appStore = useStore();
+  const { data: group } = appStore.useGroup({ id: groupId ?? '' });
+  const disabledIds = store.useGroupsNegotiationClashes();
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
@@ -58,6 +60,8 @@ export function InviteUsersScreen() {
               searchable
               searchPlaceholder="Filter by nickname, @p"
               onSelectedChange={setInvitees}
+              disabledIds={disabledIds}
+              disabledReason="App version mismatch"
             />
           </YStack>
 

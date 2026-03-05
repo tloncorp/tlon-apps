@@ -2,16 +2,16 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { render, da } from '@urbit/aura';
 //REVIEW  why doesn't this work here?
-// import { desig } from '@tloncorp/shared/urbit';
-import { desig } from '../../urbit';
+// import { desig } from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
-import { RNFile, getCurrentUserId } from '../../api';
+import { RNFile, getCurrentUserId } from '@tloncorp/api';
+import { Attachment } from '@tloncorp/api/types/attachment';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
-import { Attachment } from '../../domain/attachment';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -234,13 +234,9 @@ export const performUpload = async (
     );
     return hostedUrl;
   } else if (hasCustomS3Creds(config, credentials)) {
-    const endpoint = new URL(prefixEndpoint(credentials.endpoint));
+    const endpointUrl = prefixEndpoint(credentials.endpoint);
     const client = new S3Client({
-      endpoint: {
-        protocol: endpoint.protocol.slice(0, -1),
-        hostname: endpoint.host,
-        path: endpoint.pathname || '/',
-      },
+      endpoint: endpointUrl,
       // us-east-1 is necessary for compatibility with other S3 providers (i.e., filebase)
       region: config.region || 'us-east-1',
       credentials,

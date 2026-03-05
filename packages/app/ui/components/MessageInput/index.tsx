@@ -13,6 +13,7 @@ import {
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
   CodeBlockBridge,
+  HorizontalRuleBridge,
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
@@ -27,18 +28,18 @@ import {
 import {
   contentReferenceToCite,
   toContentReference,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import {
   Inline,
   JSONContent,
   citeToPath,
   isInline,
   pathToCite,
-} from '@tloncorp/shared/urbit';
+} from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -184,12 +185,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
     );
+    // Ref mirror of editorIsEmpty: the effect below checks emptiness inside an
+    // async .then() callback.  Reading state there would capture the stale value
+    // from the closure; the ref always reflects the latest value without needing
+    // to be in the dependency array (which would cause the effect to re-run).
+    const editorIsEmptyRef = useRef(editorIsEmpty);
 
     const bridgeExtensions = [
       ...TenTapStartKit,
       MentionsBridge,
       ShortcutsBridge,
       CodeBlockBridge,
+      HorizontalRuleBridge,
     ];
 
     if (placeholder) {
@@ -279,17 +286,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 });
               });
 
+              // Note: We don't add inline images from blocks to attachments here
+              // because they're already in the Tiptap editor content (via diaryMixedToJSON).
+              // Adding them as attachments would cause duplicates when saving.
+              // Only non-image blocks need to be handled as attachments.
               blocks.forEach((b) => {
+                // Skip image blocks - they're handled inline in the editor
                 if ('image' in b) {
-                  attachments.push({
-                    type: 'image',
-                    file: {
-                      uri: b.image.src,
-                      height: b.image.height,
-                      width: b.image.width,
-                    },
-                  });
+                  return;
                 }
+                // Handle other block types if needed in the future
               });
 
               resetAttachments(attachments);
@@ -372,6 +378,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
+      editorIsEmptyRef.current = editorIsEmpty;
+    }, [editorIsEmpty]);
+
+    useEffect(() => {
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -396,13 +406,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        if (isEmpty !== editorIsEmpty) {
+        if (isEmpty !== editorIsEmptyRef.current) {
           messageInputLogger.log('Editor is empty?', isEmpty);
           setEditorIsEmpty(isEmpty);
+          editorIsEmptyRef.current = isEmpty;
           setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty, initialHeight]);
+    }, [editor, attachments, initialHeight]);
 
     useEffect(() => {
       if (!editor) return;
@@ -531,13 +542,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : { isEdit: false }),
         };
 
-        await sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft);
+        await clearDraft(draftType);
+        await sendOperation;
 
         setEditingPost?.(undefined);
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [

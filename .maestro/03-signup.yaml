@@ -15,7 +15,9 @@ onFlowComplete:
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
-- tapOn: .*sign up with an email address.*
+- tapOn:
+    text: .*sign up with an email address.*
+    retryTapIfNoChange: true
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
@@ -83,7 +85,9 @@ onFlowComplete:
 
 # allow notifications screen
 - assertVisible: On the next screen, make sure you tap
-- tapOn: Next
+- tapOn:
+    text: Next
+    retryTapIfNoChange: true
 
 # wait until setup is complete
 - extendedWaitUntil:

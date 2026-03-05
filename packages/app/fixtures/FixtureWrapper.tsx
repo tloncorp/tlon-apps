@@ -2,7 +2,7 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { internalConfigureClient } from '@tloncorp/shared/api';
+import { internalConfigureClient } from '@tloncorp/api';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

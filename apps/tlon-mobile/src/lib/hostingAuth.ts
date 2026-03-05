@@ -1,8 +1,7 @@
 import NetInfo from '@react-native-community/netinfo';
 import CookieManager from '@react-native-cookies/cookies';
 import { createDevLogger } from '@tloncorp/shared';
-import { getHostingHeartBeat } from '@tloncorp/shared/api';
-import * as api from '@tloncorp/shared/api';
+import { getHostingHeartBeat } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { getConstants } from '@tloncorp/shared/domain';
 import { Platform } from 'react-native';
@@ -17,12 +16,6 @@ export async function refreshHostingAuth() {
 
   if (__DEV__) {
     logger.log('development mode, skipping');
-  }
-
-  const isHosted = api.getCurrentUserIsHosted();
-  if (!isHosted) {
-    logger.log('Self hosted, skipping hosting auth refresh');
-    return;
   }
 
   const expired = await db.hostingAuthExpired.getValue();

@@ -43,6 +43,8 @@ jobs:
               args: [--frozen-lockfile]
       - name: Build packages
         run: pnpm build:all
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       - name: Push update for selected platforms
         working-directory: ./apps/tlon-mobile
         run:
