@@ -39,16 +39,14 @@ type PresetConfig = {
   intent: ButtonIntent;
   fill: ButtonStyle;
   size?: ButtonSize;
-  centered?: boolean;
 };
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
-  hero: { intent: 'primary', fill: 'solid', size: 'large', centered: true },
+  hero: { intent: 'primary', fill: 'solid', size: 'large' },
   heroDestructive: {
     intent: 'negative',
     fill: 'solid',
     size: 'large',
-    centered: true,
   },
   positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
@@ -424,7 +422,7 @@ const ButtonImpl = React.forwardRef<
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
   const fill = fillProp ?? presetConfig?.fill ?? 'solid';
   const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
-  const centered = centeredProp ?? presetConfig?.centered ?? true;
+  const centered = centeredProp ?? true;
 
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;
