@@ -563,7 +563,6 @@ export async function editPost({
     editTargetPostId: post.id,
     content,
     metadata,
-    blob: post.blob ?? undefined,
   };
   await _editPost({
     postBeforeEdit: post,
@@ -579,23 +578,12 @@ export async function editPostUsingDraft(draft: domain.PostDataDraftEdit) {
   if (postBeforeEdit == null) {
     throw new Error('Editing post not found');
   }
-  // Edit drafts are intentionally partial (editable content/metadata + hydrated UI
-  // attachments). Blob-backed media is not reconstructed into the draft today, so
-  // preserve the pre-edit blob unchanged.
-  const blob = postBeforeEdit.blob ?? undefined;
 
   await _editPost({
     postBeforeEdit,
-    // Inject the preserved blob into both optimistic and finalized payloads so
-    // preview and network send stay consistent through the edit lifecycle.
-    buildOptimisticPostData: () => ({
-      ...finalizePostDraftUsingLocalAttachments(draft),
-      blob,
-    }),
-    buildFinalizedPostData: async () => ({
-      ...(await finalizePostDraft(draft)),
-      blob,
-    }),
+    buildOptimisticPostData: () =>
+      finalizePostDraftUsingLocalAttachments(draft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
   });
 }
 
@@ -625,7 +613,6 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
-    // Use builder-provided blob so optimistic DB state matches the payload contract.
     blob: optimisticPostData.blob,
     ...flags,
   });
@@ -644,8 +631,7 @@ async function _editPost({
         postId: finalized.editTargetPostId,
         authorId: postBeforeEdit.authorId,
         sentAt: postBeforeEdit.sentAt,
-        // Preserve blob on edit payload; edit updates story/meta, not existing blob media.
-        blob: finalized.blob,
+        blob: postBeforeEdit.blob ?? undefined, // NB: blob is not editable - so you can't e.g. change or remove a file attachment
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,
