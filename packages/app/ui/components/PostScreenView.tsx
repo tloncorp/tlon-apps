@@ -616,6 +616,7 @@ function SinglePostView({
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
       storeDraft,
+      replyToPost: { id: parentPost.id },
     }),
     [
       channel,
@@ -627,6 +628,7 @@ function SinglePostView({
       setEditingPost,
       inputShouldBlur,
       storeDraft,
+      parentPost.id,
     ]
   );
 

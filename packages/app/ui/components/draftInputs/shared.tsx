@@ -68,6 +68,7 @@ export interface DraftInputContext {
     content: JSONContent,
     draftType?: GalleryDraftType
   ) => Promise<void>;
+  replyToPost?: { id: string };
 }
 
 const context = createContext<DraftInputContext | null>(null);
