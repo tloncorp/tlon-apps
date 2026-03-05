@@ -44,6 +44,7 @@ import {
   postWithText,
   postWithVideo,
   postWithVoiceMemo,
+  postWithVoiceMemoWithoutTranscription,
   useChannel,
   useGroup,
   usePostReference,
@@ -449,6 +450,16 @@ export default {
   Emoji: <SinglePostFixture post={postWithEmoji} />,
   SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
   Deleted: <SinglePostFixture post={postWithDeleted} />,
-  VoiceMemo: <SinglePostFixture post={postWithVoiceMemo} />,
+  VoiceMemo() {
+    const [hasTranscription] = useValue('Has transcription', {
+      defaultValue: true,
+    });
+    const post = useMemo(() => {
+      return hasTranscription
+        ? postWithVoiceMemo
+        : postWithVoiceMemoWithoutTranscription;
+    }, [hasTranscription]);
+    return <SinglePostFixture post={post} />;
+  },
   Hidden: <SinglePostFixture post={postWithHidden} />,
 };

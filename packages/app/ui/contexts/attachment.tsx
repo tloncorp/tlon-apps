@@ -1,7 +1,9 @@
+import { Transcription, VoiceMemoAttachment } from '@tloncorp/shared';
 import {
   Attachment,
   FinalizedAttachment,
   ImageAttachment,
+  getMd5,
 } from '@tloncorp/shared';
 import {
   finalizeAttachments,
@@ -15,6 +17,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isWeb } from 'tamagui';
@@ -208,6 +211,27 @@ export const AttachmentProvider = ({
     [uploadAsset]
   );
 
+  useKickOffVoiceMemoTranscriptions({
+    attachments: useMemo(
+      () =>
+        attachments.filter(
+          (x): x is VoiceMemoAttachment => x.type === 'voicememo'
+        ),
+      [attachments]
+    ),
+    setTranscription: useCallback(({ attachment, transcription }) => {
+      setState((prev) =>
+        prev.map((a) => {
+          if (a.type === 'voicememo' && a.localUri === attachment.localUri) {
+            return { ...a, transcription: transcription ?? undefined };
+          } else {
+            return a;
+          }
+        })
+      );
+    }, []),
+  });
+
   return (
     <Context.Provider
       value={{
@@ -226,6 +250,71 @@ export const AttachmentProvider = ({
     </Context.Provider>
   );
 };
+
+function useKickOffVoiceMemoTranscriptions({
+  attachments,
+  setTranscription,
+}: {
+  attachments: VoiceMemoAttachment[];
+  setTranscription: (opts: {
+    attachment: VoiceMemoAttachment;
+    transcription: string | null;
+  }) => void;
+}) {
+  // set of md5s already kicked off
+  const transcriptionTasksRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    // kick off transcription of any new voice memo
+    const unstartedVoiceMemos = attachments.filter((x) => {
+      const md5 = getMd5(x.localUri);
+      if (md5 == null) {
+        // if we can't get an md5, we have to assume it's new and start a
+        // transcription task for it
+        return true;
+      }
+      return !transcriptionTasksRef.current.has(md5);
+    });
+    if (unstartedVoiceMemos.length === 0) {
+      return;
+    }
+
+    // we're catching errors internally, no need to catch outer promise
+    void (async () => {
+      try {
+        const { status } =
+          await Transcription.requestTranscriptionPermissionsIfNeeded();
+        if (status !== 'granted') {
+          return;
+        }
+
+        await Promise.allSettled(
+          unstartedVoiceMemos.map(async (att) => {
+            // mark task as in-progress (and do last-minute duplicate check)
+            const md5 = getMd5(att.localUri);
+            if (md5 != null) {
+              if (transcriptionTasksRef.current.has(md5)) {
+                // already started a task for this attachment, skip it
+                return;
+              }
+              transcriptionTasksRef.current.add(md5);
+            }
+
+            const text = await Transcription.transcribeAudioFileWithGlobalCache(
+              att.localUri
+            );
+            setTranscription({
+              attachment: att,
+              transcription: text,
+            });
+          })
+        );
+      } catch (e) {
+        console.warn('Failed to get transcription permissions', e);
+      }
+    })();
+  }, [attachments, setTranscription]);
+}
 
 export function useMappedImageAttachments<T extends Record<string, string>>(
   map: T

@@ -1,3 +1,4 @@
+import type * as db from '@tloncorp/shared/db/types';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
@@ -11,7 +12,6 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
 } from '../client/apiUtils';
-import type * as db from '@tloncorp/shared/db/types';
 import * as domain from '../types';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';

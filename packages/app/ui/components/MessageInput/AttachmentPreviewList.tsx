@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
-import { fileFromPath } from '@tloncorp/shared/utils';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -174,7 +174,9 @@ export function AttachmentPreview({
             {attachment.name ??
               (attachment.localFile instanceof File
                 ? attachment.localFile.name
-                : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+                : filenameFromPath(attachment.localFile, {
+                    decodeURI: true,
+                  })) ??
               'Attachment'}
           </Text>
         </Container>
@@ -184,12 +186,19 @@ export function AttachmentPreview({
     case 'voicememo': {
       return (
         <Container showSpinner={uploading}>
-          <Text
-            style={{ padding: 12, flex: 1 }}
-            backgroundColor="$secondaryBackground"
-          >
-            Voice Memo
-          </Text>
+          <View backgroundColor="$secondaryBackground" flex={1}>
+            <Text style={{ padding: 12 }}>Voice Memo</Text>
+            {attachment.transcription && (
+              <Text
+                flex={1}
+                style={{ padding: 12, flex: 1 }}
+                numberOfLines={3}
+                color="$secondaryText"
+              >
+                &quot;{attachment.transcription}&quot;
+              </Text>
+            )}
+          </View>
         </Container>
       );
     }

@@ -5,6 +5,7 @@ import {
   makeParagraph,
   makeText,
 } from '@tloncorp/shared/logic/tiptap';
+import { filenameFromPath } from '@tloncorp/shared/utils/files';
 import isURL from 'validator/lib/isURL';
 
 import {
@@ -23,7 +24,6 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
-import { fileFromPath } from './file';
 
 const logger = createDevLogger('content-helpers', false);
 
@@ -699,7 +699,9 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+              : filenameFromPath(attachment.localFile, {
+                  decodeURI: true,
+                })) ??
             undefined;
           blob = appendFileUploadToPostBlob(blob, {
             fileUri: UploadedFileAttachment.uri(attachment),
@@ -716,7 +718,7 @@ export function toPostData({
             version: 1,
             fileUri: uploadStateUri(attachment.uploadState),
             size: attachment.size,
-            transcription: undefined,
+            transcription: attachment.transcription,
             waveformPreview: attachment.waveformPreview,
             duration: attachment.duration,
           });

@@ -25,6 +25,7 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "expo-audio": "*",
     "expo-document-picker": "*",
     "expo-file-system": "*",
     "@10play/tentap-editor": "*",

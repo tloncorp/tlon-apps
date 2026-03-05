@@ -3,6 +3,11 @@ import {
   PLACEHOLDER_ASSET_URI,
   createDevLogger,
 } from '@tloncorp/shared';
+import {
+  getAudioFileDurationSeconds,
+  getFileSize,
+  getMimeType,
+} from '../../utils/files';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -19,7 +24,6 @@ import { isWeb } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { pickFile } from '../../utils/filepicker';
-import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -202,7 +206,7 @@ export default function AttachmentSheet({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
         try {
-          return await fs.getAudioFileDurationSeconds(audioFilePath);
+          return await getAudioFileDurationSeconds(audioFilePath);
         } catch {
           return undefined;
         }
@@ -210,10 +214,10 @@ export default function AttachmentSheet({
       addAttachment({
         type: 'voicememo',
         localUri: audioFilePath,
-        size: fs.getFileSize(audioFilePath) ?? -1,
+        size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
-        mimeType: fs.getMimeType(audioFilePath) ?? undefined,
+        mimeType: getMimeType(audioFilePath) ?? undefined,
       });
       audioRecorder.dismiss();
     },
