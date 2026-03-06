@@ -24,7 +24,7 @@
       },
       "ios": {
         "scheme": "Landscape-preview",
-        "image": "macos-sonoma-14.6-xcode-16.0"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "production": {
@@ -41,7 +41,7 @@
       },
       "ios": {
         "scheme": "Landscape",
-        "image": "macos-sonoma-14.6-xcode-16.0"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "demo": {
@@ -61,7 +61,7 @@
       },
       "ios": {
         "scheme": "Landscape-preview",
-        "image": "macos-sonoma-14.6-xcode-16.0"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "local-testing": {
@@ -99,7 +99,7 @@
       "ios": {
         "simulator": true,
         "scheme": "Landscape",
-        "image": "macos-sonoma-14.6-xcode-16.0"
+        "image": "macos-sequoia-15.6-xcode-26.0"
       },
       "android": {
         "gradleCommand": ":app:bundleProductionRelease",
