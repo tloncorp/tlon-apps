@@ -1,12 +1,9 @@
 import { render, valid, da } from '@urbit/aura';
 
-import { PostContent } from '../client';
-import type {
-  ChannelType,
-  GroupJoinStatus,
-  GroupPrivacy,
-} from '../types/models';
-import { createDevLogger } from '../client/logger';
+import type { PostContent } from '../client/postsApi';
+import { ChannelType } from '@tloncorp/shared/db';
+import { GroupJoinStatus, GroupPrivacy } from '@tloncorp/shared/db/schema';
+import { createDevLogger } from '@tloncorp/shared/debug';
 import { ContentReference } from '../types/references';
 import * as ub from './channel';
 import * as ubc from './content';
