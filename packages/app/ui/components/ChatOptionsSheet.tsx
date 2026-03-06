@@ -346,7 +346,6 @@ export function GroupOptionsSheetContent({
                 title: 'Invite people',
                 action: wrappedInviteAction,
                 endIcon: 'ChevronRight',
-                testID: 'GroupOptionsInvitePeopleButton',
               }
             : {
                 accent: 'disabled',
@@ -357,7 +356,6 @@ export function GroupOptionsSheetContent({
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
-            testID: 'GroupOptionsGroupInfoButton',
           },
         ],
         // this is CYA in case the group somehow looks joined but isn't
@@ -471,7 +469,6 @@ function EditGroupSheetContent({
           description: 'Change name, description, and image',
           action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
-          testID: 'GroupOptionsEditGroupInfoButton',
         },
         {
           title: 'Manage channels',
@@ -744,7 +741,6 @@ export function ChannelOptionsSheetContent({
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
-            testID: 'GroupOptionsGroupInfoButton',
           },
           currentUserIsAdmin &&
             enableCustomChannels && {

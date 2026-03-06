@@ -23,7 +23,7 @@ test.skip('should invite ~bus to a group and test protocol mismatch', async ({
   await helpers.openGroupSettings(zodPage);
 
   // Invite ~ten to the group
-  await helpers.openInvitePeople(zodPage);
+  await zodPage.getByText('Invite people').click();
   await expect(zodPage.getByText('Select people to invite')).toBeVisible();
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~bus');
   await zodPage.waitForTimeout(2000);

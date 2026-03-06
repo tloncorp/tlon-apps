@@ -163,14 +163,7 @@ export function MembersList({
         </TlonText.Text>
         <YStack>
           {canInvite ? (
-            <Pressable
-              onPress={onPressInvite}
-              testID={
-                entityType === 'group'
-                  ? 'GroupMembersInvitePeopleButton'
-                  : 'ChannelMembersInvitePeopleButton'
-              }
-            >
+            <Pressable onPress={onPressInvite}>
               <XStack gap="$l" alignItems="center" height="$4xl">
                 <View
                   width="$3xl"

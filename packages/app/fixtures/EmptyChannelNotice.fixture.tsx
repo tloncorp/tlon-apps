@@ -1,117 +1,33 @@
-import * as db from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import { useSelect } from 'react-cosmos/client';
+import { YStack } from 'tamagui';
 
 import { EmptyChannelNotice } from '../ui/components/Channel/EmptyChannelNotice';
-import { GroupsProvider } from '../ui/contexts';
 import { FixtureWrapper } from './FixtureWrapper';
-import {
-  group,
-  tlonLocalBulletinBoard,
-  tlonLocalGettingStarted,
-  tlonLocalIntros,
-} from './fakeData';
-
-const dmChannel: db.Channel = {
-  id: 'dm/~ravmel-ropdyl',
-  type: 'dm',
-  groupId: null,
-  title: '~ravmel-ropdyl',
-  description: null,
-  iconImage: null,
-  iconImageColor: null,
-  coverImage: null,
-  coverImageColor: null,
-  currentUserIsMember: true,
-  addedToGroupAt: null,
-  lastPostAt: null,
-  lastPostId: null,
-  postCount: null,
-  unreadCount: null,
-  firstUnreadPostId: null,
-  syncedAt: null,
-  remoteUpdatedAt: null,
-};
-
-const groupDmChannel: db.Channel = {
-  ...dmChannel,
-  id: 'groupDm/~ravmel-ropdyl/~solfer-magfed',
-  type: 'groupDm',
-  title: 'Group DM',
-};
-
-const singleChannelGroup: db.Group = {
-  ...group,
-  id: '~zod/single-channel-group',
-  title: 'Single Channel Group',
-  channels: [{ ...tlonLocalIntros, groupId: '~zod/single-channel-group' }],
-};
-
-const singleChannelIntros: db.Channel = {
-  ...tlonLocalIntros,
-  groupId: '~zod/single-channel-group',
-};
-
-const channelsByType: Record<string, db.Channel> = {
-  chat: tlonLocalIntros,
-  gallery: tlonLocalBulletinBoard,
-  notebook: tlonLocalGettingStarted,
-  dm: dmChannel,
-  groupDm: groupDmChannel,
-  'chat (single-channel group)': singleChannelIntros,
-};
+import { tlonLocalIntros } from './fakeData';
 
 function EmptyChannelNoticeFixture() {
-  const [channelType] = useSelect('Channel type', {
-    defaultValue: 'chat',
-    options: [
-      'chat',
-      'gallery',
-      'notebook',
-      'dm',
-      'groupDm',
-      'chat (single-channel group)',
-    ],
-  });
-
   const [state] = useSelect<'empty' | 'loading' | 'error'>('State', {
     defaultValue: 'empty',
     options: ['empty', 'loading', 'error'],
   });
 
-  const [privacy] = useSelect('Group privacy', {
-    defaultValue: 'public' as const,
-    options: ['public', 'private', 'secret'] as const,
-  });
-
-  const [isAdmin] = useSelect('Is admin', {
-    defaultValue: 'no',
-    options: ['no', 'yes'],
-  });
-
-  const channel = channelsByType[channelType];
-  const isSingleChannelType = channelType === 'chat (single-channel group)';
-
-  const activeGroup: db.Group = isSingleChannelType
-    ? { ...singleChannelGroup, privacy }
-    : { ...group, privacy };
-
-  const groups =
-    channel.type === 'dm' || channel.type === 'groupDm' ? [] : [activeGroup];
-
   return (
     <FixtureWrapper fillWidth fillHeight safeArea>
-      <GroupsProvider groups={groups}>
+      <YStack flex={1} padding="$l">
+        <Text size="$label/m" color="$tertiaryText" marginBottom="$m">
+          State: {state}
+        </Text>
         <EmptyChannelNotice
-          channel={channel}
+          channel={tlonLocalIntros}
           userId="~zod"
           isLoading={state === 'loading'}
           loadPostsError={
             state === 'error' ? new Error('Network request failed') : null
           }
           onPressRetryLoad={() => console.log('Retry load')}
-          isAdmin={isAdmin === 'yes'}
         />
-      </GroupsProvider>
+      </YStack>
     </FixtureWrapper>
   );
 }
