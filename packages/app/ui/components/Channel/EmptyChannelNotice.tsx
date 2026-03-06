@@ -174,15 +174,13 @@ export function EmptyChannelNotice({
 
   if (isBoxedLayout) {
     return (
-      <YStack flex={1} alignItems="center" justifyContent="center">
-        <YStack
-          width="50%"
-          borderRadius="$2xl"
-          borderWidth={1}
-          borderColor="$border"
-          padding="$2xl"
-          gap="$2xl"
-        >
+      <YStack
+        flex={1}
+        alignItems="center"
+        justifyContent="center"
+        marginHorizontal={'$xl'}
+      >
+        <YStack width="100%" maxWidth={400} padding="$2xl" gap="$2xl">
           {noticeContent}
         </YStack>
       </YStack>
