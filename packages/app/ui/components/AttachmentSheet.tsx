@@ -18,7 +18,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
@@ -68,7 +68,6 @@ export default function AttachmentSheet({
     addAttachment,
     clearAttachments,
     removeAttachment,
-    setAttachmentErrorMessage,
   } = useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
@@ -162,14 +161,16 @@ export default function AttachmentSheet({
       const { uploadIntents: normalizedUploadIntents, errorMessage } =
         await normalizeUploadIntents(uploadIntents);
 
-      setAttachmentErrorMessage(errorMessage);
+      if (errorMessage) {
+        Alert.alert('Unable to attach', errorMessage);
+      }
 
       if (normalizedUploadIntents.length > 0) {
         attachAssets(normalizedUploadIntents);
         onAttach?.(normalizedUploadIntents);
       }
     },
-    [attachAssets, onAttach, setAttachmentErrorMessage]
+    [attachAssets, onAttach]
   );
 
   const takePicture = useCallback(() => {

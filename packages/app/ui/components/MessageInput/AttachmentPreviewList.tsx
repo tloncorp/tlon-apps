@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
-import { filenameFromPath } from '@tloncorp/shared/utils';
 import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -13,9 +13,8 @@ import { ContentReferenceLoader } from '../ContentReference';
 const logger = createDevLogger('AttachmentPreviewList', false);
 
 export const AttachmentPreviewList = () => {
-  const { attachments, attachmentErrorMessage } = useAttachmentContext();
-  const visibleAttachments = attachments.filter((a) => a.type !== 'text');
-  const previewList = visibleAttachments.length ? (
+  const { attachments } = useAttachmentContext();
+  return attachments.length ? (
     <ScrollView
       contentContainerStyle={{
         padding: '$m',
@@ -27,39 +26,23 @@ export const AttachmentPreviewList = () => {
       overScrollMode="always"
       horizontal={true}
     >
-      {visibleAttachments.map((attachment, i) => {
-        const hasError =
-          (attachment.type === 'image' || attachment.type === 'video') &&
-          attachment.uploadState?.status === 'error';
-        return (
-          <AttachmentPreview
-            key={i}
-            attachment={attachment}
-            uploading={false}
-            error={hasError}
-          />
-        );
-      })}
+      {attachments
+        .filter((a) => a.type !== 'text')
+        .map((attachment, i) => {
+          const hasError =
+            (attachment.type === 'image' || attachment.type === 'video') &&
+            attachment.uploadState?.status === 'error';
+          return (
+            <AttachmentPreview
+              key={i}
+              attachment={attachment}
+              uploading={false}
+              error={hasError}
+            />
+          );
+        })}
     </ScrollView>
   ) : null;
-
-  if (!attachmentErrorMessage) {
-    return previewList;
-  }
-
-  return (
-    <View>
-      {previewList}
-      <Text
-        color="$negativeActionText"
-        fontSize="$s"
-        paddingHorizontal="$m"
-        paddingTop="$xs"
-      >
-        {attachmentErrorMessage}
-      </Text>
-    </View>
-  );
 };
 
 export function AttachmentPreview({

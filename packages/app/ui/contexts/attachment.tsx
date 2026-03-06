@@ -20,14 +20,13 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { canAddAttachment } from './attachmentRules';
 
 export type AttachmentState = {
   attachments: Attachment[];
-  attachmentErrorMessage: string | null;
-  setAttachmentErrorMessage: (message: string | null) => void;
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (attachment: Attachment) => void;
   clearAttachments: () => void;
@@ -42,8 +41,6 @@ export type AttachmentState = {
 
 const defaultState: AttachmentState = {
   attachments: [],
-  attachmentErrorMessage: null,
-  setAttachmentErrorMessage: () => {},
   addAttachment: () => {},
   removeAttachment: () => {},
   clearAttachments: () => {},
@@ -150,9 +147,6 @@ export const AttachmentProvider = ({
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
-  const [attachmentErrorMessage, setAttachmentErrorMessage] = useState<
-    string | null
-  >(null);
   const stateRef = useRef(state);
 
   useEffect(() => {
@@ -204,7 +198,9 @@ export const AttachmentProvider = ({
   const handleAddAttachment = useCallback((attachment: Attachment) => {
     const previous = stateRef.current;
     const next = addAttachmentToState(previous, attachment);
-    setAttachmentErrorMessage(next.errorMessage);
+    if (next.errorMessage) {
+      Alert.alert('Unable to attach', next.errorMessage);
+    }
     stateRef.current = next.attachments;
     setState(next.attachments);
     revokeDetachedVideoPreviewUris(previous, next.attachments);
@@ -244,21 +240,18 @@ export const AttachmentProvider = ({
     revokeDetachedVideoPreviewUris(previousState, nextState);
     stateRef.current = nextState;
     setState(nextState);
-    setAttachmentErrorMessage(null);
   }, []);
 
   const handleClearAttachments = useCallback(() => {
     revokeDetachedVideoPreviewUris(stateRef.current, []);
     stateRef.current = [];
     setState([]);
-    setAttachmentErrorMessage(null);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
     revokeDetachedVideoPreviewUris(stateRef.current, attachments);
     stateRef.current = attachments;
     setState(attachments);
-    setAttachmentErrorMessage(null);
   }, []);
 
   const handleWaitForUploads = useCallback(
@@ -329,8 +322,6 @@ export const AttachmentProvider = ({
     <Context.Provider
       value={{
         attachments,
-        attachmentErrorMessage,
-        setAttachmentErrorMessage,
         attachAssets: handleAttachAssets,
         addAttachment: handleAddAttachment,
         removeAttachment: handleRemoveAttachment,

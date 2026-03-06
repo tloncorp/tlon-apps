@@ -1,4 +1,4 @@
-import { Attachment } from '@tloncorp/shared/domain';
+import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
@@ -58,7 +58,10 @@ export function imagePickerAssetToUploadIntent(
       },
     };
   }
-  return Attachment.UploadIntent.fromImagePickerAsset(asset);
+  return {
+    type: 'image',
+    asset,
+  };
 }
 
 export async function normalizeUploadIntent(
@@ -77,14 +80,19 @@ export async function normalizeUploadIntent(
   }
 
   const isFileIntent = uploadIntent.type === 'file';
-  const mimeType = isFileIntent
-    ? uploadIntent.file.type || undefined
-    : uploadIntent.mimeType;
-  const name = isFileIntent ? uploadIntent.file.name : uploadIntent.name;
-  const uri = isFileIntent ? undefined : uploadIntent.localUri;
-  const size = isFileIntent
-    ? uploadIntent.file.size
-    : resolveVideoSize(uploadIntent.size, uploadIntent.localUri);
+  const { mimeType, name, uri, size } = isFileIntent
+    ? {
+        mimeType: uploadIntent.file.type || undefined,
+        name: uploadIntent.file.name,
+        uri: undefined,
+        size: uploadIntent.file.size,
+      }
+    : {
+        mimeType: uploadIntent.mimeType,
+        name: uploadIntent.name,
+        uri: uploadIntent.localUri,
+        size: resolveVideoSize(uploadIntent.size, uploadIntent.localUri),
+      };
 
   if (!isLikelyVideoSource({ mimeType, name, uri })) {
     return { uploadIntent, errorMessage: null };
@@ -162,7 +170,7 @@ export async function pickFile(): Promise<Attachment.UploadIntent[]> {
     return [];
   }
 
-  return results.assets.map(
+  return results.assets?.map(
     (res): Attachment.UploadIntent =>
       res.file == null
         ? {
