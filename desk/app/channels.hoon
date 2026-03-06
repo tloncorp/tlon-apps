@@ -216,8 +216,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %16
-        =v-channels:v9:cv
+    $:  %17
+        =v-channels:v10:cv
         voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
         hidden-posts=(set id-post:v9:cv)
         debounce=(jug nest:v9:cv @da)  ::  temporary bandaid
@@ -365,7 +365,8 @@
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
-  ?>  ?=(%16 -.old)
+  =?  old  ?=(%16 -.old)  (state-16-to-17 old)
+  ?>  ?=(%17 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -373,7 +374,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-16
+    $%  state-17
+        state-16
         state-15
         state-14
         state-13
@@ -391,7 +393,18 @@
         state-1
         state-0
     ==
-  +$  state-16  current-state
+  +$  state-17  current-state
+  +$  state-16
+    $:  %16
+        =v-channels:v9:cv
+        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
+        hidden-posts=(set id-post:v9:cv)
+        debounce=(jug nest:v9:cv @da)
+        last-updated=(list [=nest:v9:cv =time])
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-15
     $:  %15
         =v-channels:v9:cv
@@ -472,6 +485,13 @@
         =pimp:imp
     ==
   ::
+  ++  state-16-to-17
+    |=  s=state-16
+    ~>  %spin.['state-16-to-17']
+    ^-  state-17
+    *state-17
+  ::
+
   ++  state-15-to-16
     |=  state-15
     ~>  %spin.['state-15-to-16']
@@ -978,13 +998,15 @@
           [%post %reply * %add *]
         %=    old-a-channels
             memo.c-reply.c-post.a-channel
-          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+          :: reply-seal
+          [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
         ==
         ::
           [%post %reply * %edit *]
         %=    old-a-channels
             memo.c-reply.c-post.a-channel
-          (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+          ::  reply-seal
+          [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
         ==
         ::
           [%post %reply * %add-react *]
@@ -1955,15 +1977,15 @@
             %reply
           ?+  -.c-reply.rest  [pending ca-core]
               %add
-            =/  memo  memo.c-reply.rest
-            ?>  (lte (met 3 (jam memo)) size-limit)
+            =/  reply-essay  reply-essay.c-reply.rest
+            ?>  (lte (met 3 (jam reply-essay)) size-limit)
             =/  post  (get:on-v-posts:c posts.channel id.rest)
             ?~  post  [pending ca-core]
             ?:  ?=(%| -.u.post)  [pending ca-core]
             =/  client-id
-              [(get-author-ship:utils author.memo) sent.memo]
+              [(get-author-ship:utils author.reply-essay) sent.reply-essay]
             =/  new-replies
-              (~(put by replies.pending) [id.rest client-id] memo)
+              (~(put by replies.pending) [id.rest client-id] reply-essay)
             =/  old  (get-reply-meta:utils +.u.post)
             =/  meta
               %=  old
@@ -1978,7 +2000,7 @@
                 :*  %reply
                     id.rest
                     meta
-                    memo.c-reply.rest
+                    reply-essay.c-reply.rest
                 ==
             ==
           ==
@@ -2426,8 +2448,8 @@
         =?  ca-core  ?=(%& -.reply.u-reply)
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
-          =/  memo  +>+.reply.u-reply
-          =/  client-id  [author sent]:memo
+          =/  reply-essay  +>+.reply.u-reply
+          =/  client-id  [author sent]:reply-essay
           =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
@@ -2598,8 +2620,8 @@
           reply-meta.r-pending
         (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
         ::
-          memo.r-pending
-        (v7:memo:v9:ccv memo.r-pending.r-channel)
+          reply-essay.r-pending
+        (v7:reply-essay:v10:ccv reply-essay.r-pending.r-channel)
       ==
     ==
   ::

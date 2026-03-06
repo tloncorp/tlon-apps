@@ -2,6 +2,18 @@
 /-  cv=channels-ver, m=meta
 /+  em=emojimart
 |%
+::  v10 carries reply-essay for replies; downconvert it to legacy memo for v7/v1 facts.
+++  v10
+  |%
+  ++  reply-essay
+    |%
+    ++  v7
+      |=  re=reply-essay:v10:cv
+      ^-  memo:v7:cv
+      (v7:memo:v9 memo.re)
+    --
+  --
++
 ++  v9
   |%
   ++  v-channels

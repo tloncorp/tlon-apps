@@ -29,6 +29,7 @@
   |$  [data]
   [rev=@ud data]
 ::
+++  v10  c
 ++  v9
   =,  v8
   |%

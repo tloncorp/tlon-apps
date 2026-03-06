@@ -62,8 +62,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
-        =v-channels:v9:cv
+    $:  %14
+        =v-channels:v10:cv
         =hooks:h
         =pimp:imp
     ==
@@ -160,12 +160,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -180,7 +182,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -213,6 +221,13 @@
       =pimp:imp
     ==
   ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    *state-14
+  ::
+
   ++  state-12-to-13
     |=  s=state-12
     ~>  %spin.['state-12-to-13']
@@ -1152,15 +1167,15 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.memo.c-reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  =(src.bowl author.reply-essay.c-reply)
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
-      =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      =/  new=v-reply:c  [reply-seal 0 reply-essay.c-reply]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %add parent new]
         (run-hooks event nest 'reply blocked')
@@ -1177,17 +1192,17 @@
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
       ?>  =(src.bowl author.u.reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
+        =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
-      =/  =memo:c
+      =/  =reply-essay:c
         ?>  ?=([%on-reply %edit *] p.result)
-        memo.p.result
+        reply-essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) memo]
+      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) reply-essay]
       :-  `[%reply id.c-reply %set &+new]
       (put:on-v-replies:c replies id.c-reply &+new)
     ::
