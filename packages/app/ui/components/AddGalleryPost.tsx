@@ -16,7 +16,7 @@ export default function AddGalleryPost({
 }) {
   const actions: Action[] = [
     {
-      title: 'Upload Media',
+      title: 'Image or File',
       action: () => {
         setRoute('gallery');
         setTimeout(() => {
@@ -68,6 +68,7 @@ export default function AddGalleryPost({
         isOpen={route === 'add-attachment'}
         onOpenChange={onClose}
         onAttach={handleAttachmentSet}
+        allowVideoInMediaPicker={false}
         mediaType="all"
       />
     </>

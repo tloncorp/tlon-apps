@@ -50,6 +50,7 @@ export default function AttachmentSheet({
   onClearAttachments,
   onAttach,
   mediaType,
+  allowVideoInMediaPicker,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
@@ -57,6 +58,7 @@ export default function AttachmentSheet({
   onOpenChange: (open: boolean) => void;
   onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
+  allowVideoInMediaPicker?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -151,7 +153,8 @@ export default function AttachmentSheet({
     removeAttachment(placeholderToRemove);
   }, [removeAttachment]);
 
-  const useVideoInMediaPicker = mediaType === 'all';
+  const useVideoInMediaPicker =
+    allowVideoInMediaPicker ?? mediaType === 'all';
   const pickerMediaTypes: ImagePicker.MediaType[] = useVideoInMediaPicker
     ? ['images', 'videos']
     : ['images'];
