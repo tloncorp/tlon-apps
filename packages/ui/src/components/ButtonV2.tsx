@@ -39,16 +39,14 @@ type PresetConfig = {
   intent: ButtonIntent;
   fill: ButtonStyle;
   size?: ButtonSize;
-  centered?: boolean;
 };
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
-  hero: { intent: 'primary', fill: 'solid', size: 'large', centered: true },
+  hero: { intent: 'primary', fill: 'solid', size: 'large' },
   heroDestructive: {
     intent: 'negative',
     fill: 'solid',
     size: 'large',
-    centered: true,
   },
   positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
@@ -278,6 +276,10 @@ const ButtonFrame = styled(Pressable, {
     symmetricPadding: {
       small: { paddingHorizontal: '$xl' },
     },
+    centered: {
+      true: { justifyContent: 'center' },
+      false: { justifyContent: 'flex-start' },
+    },
     shadow: {
       true: {
         shadowColor: '$shadow',
@@ -294,6 +296,7 @@ const ButtonFrame = styled(Pressable, {
     fill: 'solid',
     intent: 'primary',
     disabled: false,
+    centered: true,
   },
 });
 
@@ -419,7 +422,7 @@ const ButtonImpl = React.forwardRef<
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
   const fill = fillProp ?? presetConfig?.fill ?? 'solid';
   const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
-  const centered = centeredProp ?? presetConfig?.centered ?? false;
+  const centered = centeredProp ?? true;
 
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;
@@ -463,6 +466,7 @@ const ButtonImpl = React.forwardRef<
         size={size}
         fill={fill}
         intent={intent}
+        centered={centered}
         iconOnly={isIconOnly}
         hasLeadingIcon={leadingIcon && size === 'small' ? 'small' : undefined}
         symmetricPadding={
