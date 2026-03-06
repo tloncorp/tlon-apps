@@ -1,4 +1,4 @@
-import { queryClient } from '@tloncorp/api';
+import { queryClient } from '../store/reactQuery';
 import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('db:changeListener', false);

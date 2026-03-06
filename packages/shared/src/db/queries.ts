@@ -27,12 +27,10 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import {
-  ACTIVITY_SOURCE_PAGESIZE,
-  ChannelInit,
-  getCurrentUserId,
-} from '@tloncorp/api';
-import { parseGroupId } from '@tloncorp/api';
+import { ACTIVITY_SOURCE_PAGESIZE } from '@tloncorp/api/client/activityApi';
+import { ChannelInit } from '@tloncorp/api/client/channelsApi';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
+import { parseGroupId } from '@tloncorp/api/client/apiUtils';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
