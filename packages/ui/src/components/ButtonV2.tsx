@@ -337,13 +337,13 @@ const ButtonText = styled(Text, {
     },
     centered: {
       true: { textAlign: 'center' },
-      false: { textAlign: 'left' },
+      false: { textAlign: 'left', flex: 1 },
     },
   } as const,
   defaultVariants: {
     size: 'medium',
     intent: 'primary',
-    centered: false,
+    centered: true,
   },
 });
 
