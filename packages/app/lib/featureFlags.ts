@@ -27,9 +27,9 @@ export const featureMeta = {
     onlyTlon: true,
   },
   recordVoiceMemos: {
-    default: false,
+    default: true,
     label: 'Enable recording and sending voice memos in chats',
-    onlyTlon: true,
+    onlyTlon: false,
   },
 } satisfies Record<
   string,
