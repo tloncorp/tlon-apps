@@ -15,6 +15,7 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import { configureAppHostingSessionPersistence } from '@tloncorp/app/lib/hostingSessionPersistence';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -43,6 +44,7 @@ import { SignupProvider, useSignupContext } from './lib/signupContext';
 const splashscreenLogger = createDevLogger('splashscreen', false);
 
 configureMobileSystemContactsProvider();
+configureAppHostingSessionPersistence();
 
 if (Platform.OS === 'ios') {
   SplashScreen.preventAutoHideAsync().catch((err) => {

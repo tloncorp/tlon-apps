@@ -1,4 +1,3 @@
-import { filenameFromPath } from '@tloncorp/shared/utils/files';
 import isURL from 'validator/lib/isURL';
 
 import type { ChannelType, PostMetadata } from '../types';
@@ -19,6 +18,7 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { filenameFromPath } from './file';
 
 // Inlined from tiptap.ts to avoid @tiptap dependency
 const makeText = (t: string) => ({ type: 'text', text: t });

@@ -12,6 +12,7 @@ import { EditorView } from '@tiptap/pm/view';
 import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
+import { configureAppHostingSessionPersistence } from '@tloncorp/app/lib/hostingSessionPersistence';
 import { addCustomEnabledLoggers, createDevLogger } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PostHogProvider } from 'posthog-js/react';
@@ -34,6 +35,7 @@ const { setupDb } = isElectron()
 
 loadConstants();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
+configureAppHostingSessionPersistence();
 
 window.regeneratorRuntime = regeneratorRuntime;
 

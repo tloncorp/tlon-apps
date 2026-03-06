@@ -3,6 +3,8 @@ import type { SystemContact } from '@tloncorp/api/types';
 import { createDevLogger } from '@tloncorp/shared';
 import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import type { CountryCode } from 'libphonenumber-js';
 
 const logger = createDevLogger('mobileSystemContactsProvider', true);
 
@@ -11,9 +13,38 @@ function normalizePhoneNumber(
   digits: string | undefined,
   defaultCountryCode: string
 ) {
+  const countryCode = defaultCountryCode as CountryCode;
+  const tryParse = (value: string | undefined): string | null => {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      const parsed = parsePhoneNumberFromString(value, countryCode);
+      return parsed?.isValid() ? parsed.number : null;
+    } catch (_err) {
+      return null;
+    }
+  };
+
+  const normalizedFromDigits = tryParse(digits);
+  if (normalizedFromDigits) {
+    return normalizedFromDigits;
+  }
+
+  const normalizedFromNumber = tryParse(number);
+  if (normalizedFromNumber) {
+    return normalizedFromNumber;
+  }
+
   const raw = digits || number;
   if (!raw) {
     return null;
+  }
+
+  if (raw.startsWith('00')) {
+    const normalized = `+${raw.slice(2).replace(/\D/g, '')}`;
+    return normalized.length > 1 ? normalized : null;
   }
 
   if (raw.startsWith('+')) {

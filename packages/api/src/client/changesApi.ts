@@ -51,7 +51,7 @@ export function parseChanges(input: ub.ChangesV7): api.ChangesResult {
 
   const posts = [...channelPosts, ...chatPosts].flatMap((post) => [
     post,
-    ...((post.replies || []) as db.Post[]),
+    ...((post.replies || []) as api.Post[]),
   ]);
 
   const contacts = Object.entries(input.contacts)
