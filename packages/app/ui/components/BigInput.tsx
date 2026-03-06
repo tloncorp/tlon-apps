@@ -30,11 +30,15 @@ import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MarkdownEditor } from './MarkdownEditor';
+import { EnrichedNoteInput, EnrichedNoteInputRef, PastedImage } from './MessageInput/EnrichedNoteInput';
+import { FormattingToolbar } from './MessageInput/FormattingToolbar';
+import { LiveMarkdownInput } from './MessageInput/LiveMarkdownInput';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 import {
   DEFAULT_TOOLBAR_ITEMS,
+  TlonBridgeState,
   TlonEditorBridge,
   ToolbarItem,
 } from './MessageInput/toolbarActions';
@@ -50,17 +54,20 @@ const logger = createDevLogger('BigInput', false);
 function useMarkdownMode({
   editingPost,
   markdownNotebooksEnabled,
+  liveMarkdownInputEnabled,
   editorRef,
   showToast,
 }: {
   editingPost?: db.Post;
   markdownNotebooksEnabled: boolean;
+  liveMarkdownInputEnabled: boolean;
   editorRef: RefObject<{ editor: TlonEditorBridge | null } | null>;
   showToast: (opts: { message: string; duration: number }) => void;
 }) {
-  // Default to markdown mode if feature flag is enabled and this is a new post
+  // Default to markdown mode if feature flag is enabled and this is a new post,
+  // or if liveMarkdownInput is enabled (replaces the webview editor entirely)
   const [isMarkdownMode, setIsMarkdownMode] = useState(
-    markdownNotebooksEnabled && !editingPost
+    liveMarkdownInputEnabled || (markdownNotebooksEnabled && !editingPost)
   );
   const [markdownContent, setMarkdownContent] = useState('');
   // When switching back from Markdown mode the TipTap editor may not be
@@ -183,12 +190,17 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
+  const enrichedEditorRef = useRef<EnrichedNoteInputRef>(null);
+  const [enrichedEditorState, setEnrichedEditorState] =
+    useState<TlonBridgeState | null>(null);
   const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
+  const [liveMarkdownInputEnabled] = useFeatureFlag('liveMarkdownInput');
+  const [enrichedInputEnabled] = useFeatureFlag('enrichedInput');
   const {
     isMarkdownMode,
     markdownContent,
@@ -199,6 +211,7 @@ export function BigInput({
   } = useMarkdownMode({
     editingPost,
     markdownNotebooksEnabled,
+    liveMarkdownInputEnabled,
     editorRef,
     showToast,
   });
@@ -233,9 +246,13 @@ export function BigInput({
     setHasImageChanges(imageUri !== editingPost?.image);
   }, [title, imageUri, editingPost]);
 
-  // Update isEmpty state when in Markdown mode
+  // True when the send path should convert markdownContent→Story
+  // (either actual markdown mode or enriched editor which also stores plain text)
+  const useMarkdownSendPath = isMarkdownMode || enrichedInputEnabled;
+
+  // Update isEmpty state when using markdown content (markdown mode or enriched)
   useEffect(() => {
-    if (isMarkdownMode) {
+    if (useMarkdownSendPath) {
       const markdownIsEmpty = !markdownContent || markdownContent.trim() === '';
       setIsEmpty(markdownIsEmpty);
       // Also update hasContentChanges for editing mode
@@ -248,7 +265,7 @@ export function BigInput({
         setHasContentChanges(!markdownIsEmpty);
       }
     }
-  }, [isMarkdownMode, markdownContent, editingPost?.content]);
+  }, [useMarkdownSendPath, markdownContent, editingPost?.content]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
@@ -279,15 +296,15 @@ export function BigInput({
 
     let content: (Inline | Block)[];
 
-    if (isMarkdownMode) {
-      // Convert Markdown content to Story, then extract inlines and blocks
+    if (useMarkdownSendPath) {
+      // Convert Markdown/plain text content to Story, then extract inlines and blocks
       try {
         const story = markdownToStory(markdownContent);
         content = storyToContent(story);
       } catch (error) {
         logger.error('Failed to convert Markdown for send:', error);
         showToast({
-          message: 'Failed to process Markdown content',
+          message: 'Failed to process content',
           duration: 2000,
         });
         setIsSending(false);
@@ -386,7 +403,7 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
-    isMarkdownMode,
+    useMarkdownSendPath,
     markdownContent,
     showToast,
   ]);
@@ -433,7 +450,10 @@ export function BigInput({
       // We only allow image uploads, so we can simplify and only handle images
       // here.
       const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
-      if (assets.length > 0 && editorRef.current?.editor) {
+      const activeEditor = enrichedInputEnabled
+        ? enrichedEditorRef.current?.editor
+        : editorRef.current?.editor;
+      if (assets.length > 0 && activeEditor) {
         const asset = assets[0];
 
         // For inline images in notebooks, we need to upload the image first
@@ -458,10 +478,13 @@ export function BigInput({
 
           const uploadState = uploadStates[asset.uri];
 
-          if (uploadState?.status === 'success' && editorRef.current?.editor) {
+          const currentEditor = enrichedInputEnabled
+            ? enrichedEditorRef.current?.editor
+            : editorRef.current?.editor;
+          if (uploadState?.status === 'success' && currentEditor) {
             // Insert the S3 URL into the editor
             const s3Url = uploadState.remoteUri;
-            (editorRef.current.editor as any).setImage(s3Url);
+            (currentEditor as any).setImage(s3Url, asset.width, asset.height);
           } else if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-failure', {
               uploadState,
@@ -486,6 +509,64 @@ export function BigInput({
       // Only update state if component is still mounted
       if (isMountedRef.current) {
         setShowInlineImageSheet(false);
+      }
+    },
+    [showToast, enrichedInputEnabled]
+  );
+
+  // Handle images pasted into the enriched editor
+  const handlePasteImages = useCallback(
+    async (images: PastedImage[]) => {
+      if (images.length === 0) return;
+
+      const image = images[0];
+      const editor = enrichedEditorRef.current?.editor;
+      if (!editor) return;
+
+      try {
+        // Build an ImagePickerAsset-compatible object from the pasted image
+        const uploadIntent = Attachment.UploadIntent.fromImagePickerAsset({
+          uri: image.uri,
+          width: image.width,
+          height: image.height,
+          mimeType: image.type,
+        } as any);
+        await uploadAssetToStorage(uploadIntent, true);
+
+        if (!isMountedRef.current) return;
+
+        const uploadStates = await waitForUploads([
+          Attachment.UploadIntent.extractKey(uploadIntent),
+        ]);
+
+        if (!isMountedRef.current) return;
+
+        const uploadState = uploadStates[image.uri];
+        const currentEditor = enrichedEditorRef.current?.editor;
+
+        if (uploadState?.status === 'success' && currentEditor) {
+          (currentEditor as any).setImage(
+            uploadState.remoteUri,
+            image.width,
+            image.height
+          );
+        } else if (isMountedRef.current) {
+          logger.trackError('notebook:paste-image:upload-failure', {
+            uploadState,
+          });
+          showToast({
+            message: 'Failed to upload pasted image. Please try again.',
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          logger.trackError('notebook:paste-image:upload-error', error);
+          showToast({
+            message: 'Error uploading pasted image.',
+            duration: 3000,
+          });
+        }
       }
     },
     [showToast]
@@ -531,6 +612,30 @@ export function BigInput({
     }
     return items;
   }, [isMarkdownMode, handleMarkdownToggle, markdownNotebooksEnabled]);
+
+  // Toolbar items for enriched editor — exclude items that rely on tentap-only
+  // capabilities (Link, Undo, Redo, Indent/Outdent), add inline image button
+  const enrichedToolbarItems = useMemo((): ToolbarItem[] => {
+    const unsupported = new Set([
+      'Undo',
+      'Redo',
+      'IndentIncrease',
+      'IndentDecrease',
+    ]);
+    const items = DEFAULT_TOOLBAR_ITEMS.filter((i) => !unsupported.has(i.icon));
+
+    const imageButton: ToolbarItem = {
+      onPress: () => () => setShowInlineImageSheet(true),
+      active: () => false,
+      disabled: () => false,
+      icon: 'Camera',
+    };
+    // Insert after Heading button (index 3 after filtering)
+    const headingIdx = items.findIndex((i) => i.icon === 'Heading');
+    items.splice(headingIdx + 1, 0, imageButton);
+
+    return items;
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -624,6 +729,22 @@ export function BigInput({
                     </XStack>
                   </TouchableOpacity>
                 </XStack>
+              ) : enrichedInputEnabled ? (
+                enrichedEditorRef.current?.editor && enrichedEditorState && (
+                  <FormattingToolbar
+                    editor={enrichedEditorRef.current.editor}
+                    editorState={enrichedEditorState}
+                    hidden={false}
+                    items={enrichedToolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 1,
+                      borderRadius: 0,
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
               ) : (
                 editorRef.current?.editor && (
                   <InputToolbar
@@ -642,12 +763,60 @@ export function BigInput({
               )}
             </>
           )}
+          <Text
+            size="$label/s"
+            color="$secondaryText"
+            paddingHorizontal="$l"
+            paddingTop="$s"
+          >
+            {isMarkdownMode
+              ? liveMarkdownInputEnabled
+                ? '[LiveMarkdownInput]'
+                : '[MarkdownEditor (plain)]'
+              : enrichedInputEnabled
+                ? '[EnrichedTextInput (native rich text)]'
+                : '[MessageInput (webview)]'}
+          </Text>
           {isMarkdownMode ? (
-            <MarkdownEditor
+            liveMarkdownInputEnabled ? (
+              <LiveMarkdownInput
+                value={markdownContent}
+                onChangeText={setMarkdownContent}
+                placeholder="Write your content in Markdown..."
+                testID="BigInputMarkdownEditor"
+                multiline
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  color: theme.primaryText.val,
+                  backgroundColor: theme.background.val,
+                  fontSize: 16,
+                  padding: 16,
+                }}
+              />
+            ) : (
+              <MarkdownEditor
+                value={markdownContent}
+                onChange={setMarkdownContent}
+                placeholder="Write your content in Markdown..."
+                testID="BigInputMarkdownEditor"
+              />
+            )
+          ) : enrichedInputEnabled ? (
+            <EnrichedNoteInput
+              ref={enrichedEditorRef}
               value={markdownContent}
-              onChange={setMarkdownContent}
-              placeholder="Write your content in Markdown..."
-              testID="BigInputMarkdownEditor"
+              onChangeText={setMarkdownContent}
+              onEditorStateChange={setEnrichedEditorState}
+              onPasteImages={handlePasteImages}
+              placeholder="Write your note..."
+              testID="BigInputEnrichedEditor"
+              style={{
+                flex: 1,
+                width: '100%',
+                backgroundColor: theme.background.val,
+                padding: 16,
+              }}
             />
           ) : (
             <MessageInput
@@ -710,6 +879,22 @@ export function BigInput({
                     </Text>
                   </XStack>
                 </TouchableOpacity>
+              ) : enrichedInputEnabled ? (
+                enrichedEditorRef.current?.editor && enrichedEditorState && (
+                  <FormattingToolbar
+                    editor={enrichedEditorRef.current.editor}
+                    editorState={enrichedEditorState}
+                    hidden={false}
+                    items={enrichedToolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 0,
+                      borderRadius: getTokenValue('$l', 'radius'),
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
               ) : (
                 editorRef.current?.editor && (
                   <InputToolbar
@@ -728,7 +913,7 @@ export function BigInput({
               )}
             </View>
           )}
-          {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode) && (
+          {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode || enrichedInputEnabled) && (
             <Button.Frame
               position="absolute"
               bottom={insets.bottom + 16}

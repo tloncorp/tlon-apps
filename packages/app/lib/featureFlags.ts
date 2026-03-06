@@ -31,6 +31,16 @@ export const featureMeta = {
     label: 'Enable recording and sending voice memos in chats',
     onlyTlon: true,
   },
+  liveMarkdownInput: {
+    default: true,
+    label: 'Use LiveMarkdownInput (live-markdown) instead of plain TextArea',
+    onlyTlon: true,
+  },
+  enrichedInput: {
+    default: false,
+    label: 'Use EnrichedTextInput (native rich text) instead of TipTap webview',
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }

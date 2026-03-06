@@ -1,7 +1,13 @@
-# Live Markdown Feasibility (Tlon)
+# Native Input Feasibility (Tlon)
 
 ## TL;DR
-Replacing the current WebView/Tiptap editor with `@expensify/react-native-live-markdown` is **feasible only for a markdown‑first, reduced feature set**. The library is New‑Architecture‑only (which matches this app), but it supports a **smaller markdown surface** than the current editor (no lists, task lists, multi‑level headings, tables, inline images), and it outputs **plain text** rather than the TipTap JSON used throughout drafts/sending. A full replacement would require a **syntax/feature parity plan**, draft migration, mention handling, and reference/paste logic rewrites. I implemented a **minimal spike** on a new branch to prove integration, but it is **not drop‑in**.
+This spike evaluates two approaches to replacing the current WebView/TipTap editor with a native input on mobile:
+
+1. **`@expensify/react-native-live-markdown`** — markdown‑first input with live syntax highlighting. Feasible for a reduced feature set but supports a **smaller markdown surface** than the current editor (no lists, task lists, multi‑level headings, inline images). Outputs plain text.
+
+2. **`react-native-enriched`** (Software Mansion) — native rich‑text input with programmatic formatting commands. Supports **full feature parity** (bold, italic, strike, headings 1‑6, ordered/unordered/checkbox lists, code blocks, blockquotes, links, inline images). Outputs plain text but formatting is applied via imperative API, not markdown syntax.
+
+Both approaches require a **draft format migration** (from TipTap JSON to plain text/markdown), mention handling, and reference/paste logic rewrites. Neither is drop‑in, but `react-native-enriched` is the **stronger candidate** due to feature parity and toolbar compatibility.
 
 ## 1) Current WebView‑Based Input (Location + Usage)
 
@@ -74,42 +80,90 @@ Replacing the current WebView/Tiptap editor with `@expensify/react-native-live-m
 6. **Replace toolbar actions** with markdown token insertion (wrap selection with `**`, `_`, backticks, etc.).
 7. **Remove WebView / TipTap** dependencies once feature parity + QA is complete.
 
-## 5) Minimal Spike (Implemented)
+## 5) Spike Implementation
 
 **Branch**: `spike-live-markdown-input`
 
-**What I added**
-- `packages/app/ui/components/MessageInput/LiveMarkdownInput.native.tsx`  
-  Thin wrapper around `MarkdownTextInput` with `parseExpensiMark`.
-- `packages/app/ui/components/MessageInput/LiveMarkdownInput.web.tsx`  
-  Web fallback using `TextArea` (explicit web implementation path).
-- `packages/app/ui/components/MessageInput/LiveMarkdownMessageInput.tsx`  
-  Minimal message input that uses live‑markdown, converts markdown → Story → content on send, and stores drafts by converting to TipTap JSON.
-- `packages/app/fixtures/MessageInput.fixture.tsx`  
-  Added a `liveMarkdown` fixture to preview the spike.
-- Dependency added: `@expensify/react-native-live-markdown` in `packages/app/package.json` and `apps/tlon-mobile/package.json`.
+### 5a) LiveMarkdownInput (Expensify)
 
-**Spike limitations**
+**Files**
+- `packages/app/ui/components/MessageInput/LiveMarkdownInput.native.tsx` — thin wrapper around `MarkdownTextInput` with `parseExpensiMark`.
+- `packages/app/ui/components/MessageInput/LiveMarkdownInput.web.tsx` — web fallback using `TextArea`.
+- `packages/app/ui/components/MessageInput/LiveMarkdownMessageInput.tsx` — minimal message input converting markdown → Story → content on send.
+
+**Feature flag**: `liveMarkdownInput` (default: on for Tlon employees). When enabled, BigInput's markdown mode uses `LiveMarkdownInput` instead of the plain `MarkdownEditor` TextArea.
+
+**Limitations**
+- No lists, task lists, multi‑level headings, or inline images.
 - No mention popup integration.
-- No reference/attachment extraction on paste.
-- Draft conversion is lossy for advanced TipTap blocks.
-- Required dependencies (`react-native-worklets`, `expensify-common`, `html-entities`, and `react-native-reanimated >= 3.17`) are **not yet added/upgraded**.
+- Required peers (`react-native-worklets`, `expensify-common`, `html-entities`, reanimated ≥3.17) not yet added.
 
-## 6) Tests (Manual)
+### 5b) EnrichedNoteInput (Software Mansion)
 
-Since this is a spike, I did not run tests. Suggested manual checks:
+**Files**
+- `packages/app/ui/components/MessageInput/EnrichedNoteInput.tsx` — wrapper around `react-native-enriched`'s `EnrichedTextInput` that exposes a `TlonEditorBridge`-compatible adapter. Supports bold, italic, strike, inline code, code blocks, blockquotes, ordered/unordered/checkbox lists, headings 1‑6, links, and inline images via imperative API.
+- `packages/app/ui/components/MessageInput/EnrichedNoteInput.web.tsx` — web fallback using `TextArea`.
+- `packages/app/ui/components/MessageInput/FormattingToolbar.tsx` — standalone formatting toolbar that takes explicit `editor` + `editorState` props (no tentap hooks). Works with both the enriched adapter and potentially any future editor that conforms to `TlonEditorBridge`.
 
-1. Install deps (including required peers):
-   - `pnpm install`
-   - Add `react-native-worklets`, `expensify-common`, `html-entities`, and upgrade `react-native-reanimated` to `>=3.17.0`.
-2. Open Cosmos fixture:
-   - `pnpm run cosmos:native`
-   - In the `MessageInput` fixture, choose `liveMarkdown`.
-3. Validate:
-   - Typing/formatting of `**bold**`, `*italic*`, `` `code` ``, `# heading`.
-   - Send button enable/disable on empty content.
-   - Cursor stability in long text.
+**Feature flag**: `enrichedInput` (default: off). When enabled, BigInput renders `EnrichedNoteInput` + `FormattingToolbar` instead of the WebView/TipTap editor.
+
+**Integration with BigInput**
+- Uses the same markdown → Story send path as markdown mode (`markdownToStory` → `storyToContent`).
+- `EnrichedNoteInput` emits plain text via `onChangeText`; BigInput stores it in `markdownContent`.
+- `onEditorStateChange` provides reactive `TlonBridgeState` for toolbar active/disabled states.
+- `onPasteImages` handles clipboard image uploads (same S3 upload flow as the TipTap editor).
+- Inline image insertion via `editor.setImage(url, width, height)`.
+
+**What works**
+- All formatting toggles via the toolbar (bold, italic, strike, code, code block, blockquote, lists, headings, links).
+- Inline image upload from image picker and clipboard paste.
+- Theme‑aware styling (code blocks, blockquotes, lists match the app theme).
+- Link insertion bar with URL input.
+
+**Limitations**
+- No mention popup integration.
+- Draft content is plain text; existing TipTap JSON drafts won't migrate automatically.
+- `onChangeText` returns plain text (not HTML/markdown with formatting) — the send path uses `markdownToStory` which won't preserve toolbar‑applied formatting. Full HTML → Story conversion is needed for production use.
+
+### 5c) BigInput Integration
+
+`BigInput.tsx` now supports three editor modes behind feature flags:
+
+| Flag | Editor | Toolbar |
+|------|--------|---------|
+| (default) | TipTap WebView (`MessageInput`) | `InputToolbar` (tentap) |
+| `liveMarkdownInput` | `LiveMarkdownInput` (markdown mode) | Markdown toggle only |
+| `enrichedInput` | `EnrichedNoteInput` | `FormattingToolbar` |
+
+A debug label is shown above the editor to indicate which mode is active.
+
+### 5d) Other Changes
+
+- Import path cleanups in `packages/api` and `packages/shared` (barrel → direct imports to help with tree‑shaking / Metro resolution).
+- Added `react-native-enriched` dependency in `packages/app/package.json` and `apps/tlon-mobile/package.json`.
+
+## 6) Recommendation
+
+**`react-native-enriched` is the stronger candidate** for replacing the WebView editor:
+
+| Criteria | live‑markdown | react-native-enriched |
+|----------|--------------|----------------------|
+| Formatting surface | Limited (bold, italic, strike, code, blockquote, h1) | Full (all of the above + lists, task lists, headings 1‑6, links, images) |
+| Toolbar integration | Needs custom markdown token insertion | Imperative API maps directly to `TlonEditorBridge` |
+| Output | Plain text (markdown) | Plain text (need HTML → Story for production) |
+| Inline images | Not supported | Supported via `setImage()` |
+| Paste handling | No reliable paste events | `onPasteImages` callback |
+| Maturity | Maintained by Expensify, production‑used | Software Mansion, newer |
+
+### Next steps (if proceeding with react-native-enriched)
+1. Implement HTML/attributed‑text → Story conversion for the send path (so toolbar formatting is preserved).
+2. Add mention support (ship‑mention parsing, popup, insertion).
+3. Draft format migration (TipTap JSON → plain text or HTML).
+4. Paste reference extraction.
+5. Performance testing with long documents.
+6. Remove WebView/TipTap dependencies once feature‑complete.
 
 ## Open Questions
-- Are lists/task lists/headings beyond H1 required for chat inputs on mobile? If yes, live‑markdown will need substantial parser extensions.
-- Is it acceptable to migrate draft storage to markdown strings? That would simplify but needs data migration.
+- Is `react-native-enriched` stable enough for production? Need to evaluate crash reports and edge cases.
+- Should we keep live‑markdown as an option for simpler markdown‑only inputs (e.g. chat messages vs notebooks)?
+- Is it acceptable to migrate draft storage away from TipTap JSON? That simplifies the architecture but needs data migration.

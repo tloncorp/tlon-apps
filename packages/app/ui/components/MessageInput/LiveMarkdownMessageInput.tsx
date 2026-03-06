@@ -178,7 +178,7 @@ export const LiveMarkdownMessageInput = ({
     clearDraft(draftType);
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments, draftType]);
-
+  console.log('rendering LiveMarkdownMessageInput');
   return (
     <MessageInputContainer
       setShouldBlur={setShouldBlur}
