@@ -144,10 +144,15 @@ A debug label is shown above the editor to indicate which mode is active.
 
 ## 6) Recommendation
 
-**`react-native-enriched` is the stronger candidate** for replacing the WebView editor:
+Both libraries can coexist — they serve different purposes:
 
-| Criteria | live‑markdown | react-native-enriched |
-|----------|--------------|----------------------|
+- **`react-native-enriched`** → **rich text mode** (toolbar‑driven formatting, notebooks). This is the priority to ship first since it replaces the WebView/TipTap editor with full feature parity.
+- **Markdown mode** → keep as an alternative for users who prefer writing raw markdown. The current `LiveMarkdownInput` (Expensify) works here, but **[`react-native-enriched-markdown`](https://github.com/software-mansion-labs/react-native-enriched-markdown)** (also from Software Mansion) is a better future candidate — it's built on the same native text engine as `react-native-enriched` and would give consistent behavior across both modes.
+
+### react-native-enriched vs live-markdown comparison
+
+| Criteria | live‑markdown (Expensify) | react-native-enriched (SWM) |
+|----------|--------------------------|----------------------------|
 | Formatting surface | Limited (bold, italic, strike, code, blockquote, h1) | Full (all of the above + lists, task lists, headings 1‑6, links, images) |
 | Toolbar integration | Needs custom markdown token insertion | Imperative API maps directly to `TlonEditorBridge` |
 | Output | Plain text (markdown) | Plain text (need HTML → Story for production) |
@@ -155,15 +160,22 @@ A debug label is shown above the editor to indicate which mode is active.
 | Paste handling | No reliable paste events | `onPasteImages` callback |
 | Maturity | Maintained by Expensify, production‑used | Software Mansion, newer |
 
-### Next steps (if proceeding with react-native-enriched)
-1. Implement HTML/attributed‑text → Story conversion for the send path (so toolbar formatting is preserved).
+### Potential for markdown rendering
+
+The app currently uses a **custom block/inline renderer** for displaying content (`packages/app/ui/components/PostContent/BlockRenderer.tsx` + `InlineRenderer.tsx`). Content arrives as structured `Story` data from the backend and is rendered via pluggable React components — there's no third‑party markdown rendering library.
+
+`react-native-enriched-markdown` could potentially be used as a **read‑only markdown renderer** in the future, replacing parts of the custom renderer for markdown‑formatted content. This would give native‑quality text rendering with the same engine used for input, ensuring visual consistency between editing and reading.
+
+### Next steps
+1. **Ship rich text mode first** — implement HTML/attributed‑text → Story conversion for `react-native-enriched` so toolbar formatting is preserved on send.
 2. Add mention support (ship‑mention parsing, popup, insertion).
 3. Draft format migration (TipTap JSON → plain text or HTML).
 4. Paste reference extraction.
 5. Performance testing with long documents.
-6. Remove WebView/TipTap dependencies once feature‑complete.
+6. Evaluate `react-native-enriched-markdown` for markdown mode input (replace Expensify live‑markdown) and potentially for read‑only rendering.
+7. Remove WebView/TipTap dependencies once feature‑complete.
 
 ## Open Questions
 - Is `react-native-enriched` stable enough for production? Need to evaluate crash reports and edge cases.
-- Should we keep live‑markdown as an option for simpler markdown‑only inputs (e.g. chat messages vs notebooks)?
+- Should `react-native-enriched-markdown` replace parts of the custom `PostContent` renderer for markdown content, or is the current custom renderer sufficient?
 - Is it acceptable to migrate draft storage away from TipTap JSON? That simplifies the architecture but needs data migration.
