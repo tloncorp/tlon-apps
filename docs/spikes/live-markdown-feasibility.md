@@ -117,6 +117,7 @@ Both approaches require a **draft format migration** (from TipTap JSON to plain 
 **What works**
 - All formatting toggles via the toolbar (bold, italic, strike, code, code block, blockquote, lists, headings, links).
 - Inline image upload from image picker and clipboard paste.
+- **Native paste support** — `onPasteImages` fires when images are pasted from the clipboard, which is a significant improvement over the current WebView‑based editor where paste events from the native side don't reliably reach the TipTap editor inside the WebView.
 - Theme‑aware styling (code blocks, blockquotes, lists match the app theme).
 - Link insertion bar with URL input.
 
@@ -151,14 +152,14 @@ Both libraries can coexist — they serve different purposes:
 
 ### react-native-enriched vs live-markdown comparison
 
-| Criteria | live‑markdown (Expensify) | react-native-enriched (SWM) |
-|----------|--------------------------|----------------------------|
-| Formatting surface | Limited (bold, italic, strike, code, blockquote, h1) | Full (all of the above + lists, task lists, headings 1‑6, links, images) |
-| Toolbar integration | Needs custom markdown token insertion | Imperative API maps directly to `TlonEditorBridge` |
-| Output | Plain text (markdown) | Plain text (need HTML → Story for production) |
-| Inline images | Not supported | Supported via `setImage()` |
-| Paste handling | No reliable paste events | `onPasteImages` callback |
-| Maturity | Maintained by Expensify, production‑used | Software Mansion, newer |
+| Criteria | WebView/TipTap (current) | live‑markdown (Expensify) | react-native-enriched (SWM) |
+|----------|--------------------------|--------------------------|----------------------------|
+| Formatting surface | Full | Limited (bold, italic, strike, code, blockquote, h1) | Full (all of the above + lists, task lists, headings 1‑6, links, images) |
+| Toolbar integration | TipTap bridge extensions | Needs custom markdown token insertion | Imperative API maps directly to `TlonEditorBridge` |
+| Output | TipTap JSON | Plain text (markdown) | Plain text (need HTML → Story for production) |
+| Inline images | Supported | Not supported | Supported via `setImage()` |
+| Paste handling | **Broken** — native paste events don't reliably cross the WebView bridge | No reliable paste events | **Works** — native `onPasteImages` callback |
+| Maturity | Mature but WebView overhead | Maintained by Expensify, production‑used | Software Mansion, newer |
 
 ### Potential for markdown rendering
 

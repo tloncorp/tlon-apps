@@ -30,7 +30,7 @@ Sentry.init({
 });
 
 loadConstants();
-console.log(IGNORE_COSMOS);
+
 export default __DEV__ && !IGNORE_COSMOS
   ? require('./App.cosmos').default
   : require('./App.main').default;
