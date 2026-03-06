@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 
-import { queryClient } from '@tloncorp/api';
+import { queryClient } from '../store/reactQuery';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { startTrace } from '../perf';

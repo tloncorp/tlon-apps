@@ -1,10 +1,10 @@
 import { ThemeName } from 'tamagui';
 
-import {
+import type {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
-} from '@tloncorp/api';
+} from '@tloncorp/api/client/upload';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
 import * as ub from '@tloncorp/api/urbit';
