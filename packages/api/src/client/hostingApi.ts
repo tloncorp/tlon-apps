@@ -180,6 +180,15 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await getHostingUserId();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  try {
+    const body = (await response.json()) as User;
+    if (body.botEnabled !== null && body.botEnabled !== undefined) {
+      setHostingSession({ botEnabled: body.botEnabled });
+    }
+  } catch (_err) {
+    // Ignore JSON parse failures and continue with status-only heartbeat result.
+  }
+
   // 401 indicates that the authentication token is expired.
   if (response.status === 401) {
     return 'expired';
@@ -264,10 +273,17 @@ export const signUpHostingUser = async (params: {
 
   const setCookie = response.headers.get('Set-Cookie');
   const userId = 'id' in result && (result as User).id;
-  if (setCookie || userId) {
+  const botEnabled =
+    'botEnabled' in result &&
+    result.botEnabled !== null &&
+    result.botEnabled !== undefined
+      ? result.botEnabled
+      : undefined;
+  if (setCookie || userId || botEnabled !== undefined) {
     setHostingSession({
       ...(setCookie ? { cookie: setCookie } : {}),
       ...(userId ? { userId } : {}),
+      ...(botEnabled !== undefined ? { botEnabled } : {}),
     });
   }
 
@@ -298,10 +314,17 @@ export const logInHostingUser = async (params: {
 
   const setCookie = response.headers.get('Set-Cookie');
   const userId = 'id' in result && (result as User).id;
-  if (setCookie || userId) {
+  const botEnabled =
+    'botEnabled' in result &&
+    result.botEnabled !== null &&
+    result.botEnabled !== undefined
+      ? result.botEnabled
+      : undefined;
+  if (setCookie || userId || botEnabled !== undefined) {
     setHostingSession({
       ...(setCookie ? { cookie: setCookie } : {}),
       ...(userId ? { userId } : {}),
+      ...(botEnabled !== undefined ? { botEnabled } : {}),
     });
   }
 

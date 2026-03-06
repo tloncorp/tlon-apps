@@ -13,8 +13,8 @@ export function configureAppHostingSessionPersistence() {
     getUserId: () => db.hostingUserId.getValue(),
     setCookie: (cookie: string) => db.hostingAuthToken.setValue(cookie),
     setUserId: (userId: string) => db.hostingUserId.setValue(userId),
+    setBotEnabled: (enabled: boolean) => db.hostingBotEnabled.setValue(enabled),
   });
 
   isConfigured = true;
 }
-

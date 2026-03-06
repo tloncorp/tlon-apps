@@ -3,6 +3,7 @@ export type HostingSessionPersistence = {
   getUserId: () => Promise<string | null | undefined>;
   setCookie: (cookie: string) => Promise<void>;
   setUserId: (userId: string) => Promise<void>;
+  setBotEnabled?: (enabled: boolean) => Promise<void>;
 };
 
 let hostingSessionPersistence: HostingSessionPersistence | null = null;
@@ -38,6 +39,7 @@ export async function getHostingUserId(): Promise<string | null> {
 type HostingSessionUpdate = {
   cookie?: string;
   userId?: string;
+  botEnabled?: boolean;
 };
 
 function persistHostingSessionUpdate(operation: Promise<void>): void {
@@ -49,6 +51,7 @@ function persistHostingSessionUpdate(operation: Promise<void>): void {
 export function setHostingSession({
   cookie,
   userId,
+  botEnabled,
 }: HostingSessionUpdate): void {
   const persistence = requireHostingSessionPersistence();
   if (cookie) {
@@ -56,5 +59,8 @@ export function setHostingSession({
   }
   if (userId) {
     persistHostingSessionUpdate(persistence.setUserId(userId));
+  }
+  if (botEnabled !== undefined && persistence.setBotEnabled) {
+    persistHostingSessionUpdate(persistence.setBotEnabled(botEnabled));
   }
 }
