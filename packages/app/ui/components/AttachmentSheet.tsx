@@ -28,7 +28,6 @@ import {
   normalizeUploadIntents,
   pickFile,
 } from '../../utils/filepicker';
-import fs from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,

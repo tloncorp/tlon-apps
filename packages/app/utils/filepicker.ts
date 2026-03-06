@@ -8,7 +8,7 @@ import {
   validateVideoSource,
 } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
-import fs from './files';
+import { getFileSize } from './files';
 
 type UploadIntentVideoMetadata = Exclude<
   Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
@@ -25,7 +25,7 @@ function resolveVideoSize(
   if (!uri) {
     return undefined;
   }
-  const statSize = fs.getFileSize(uri);
+  const statSize = getFileSize(uri);
   if (typeof statSize === 'number' && statSize >= 0) {
     return statSize;
   }

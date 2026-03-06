@@ -2,7 +2,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
 import { filenameFromPath } from '@tloncorp/shared/utils';
 import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
-import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';

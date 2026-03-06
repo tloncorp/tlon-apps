@@ -785,7 +785,7 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+              : filenameFromPath(attachment.localFile, { decodeURI: true })) ??
             undefined;
           blob = appendVideoToPostBlob(blob, {
             fileUri: UploadedVideoAttachment.uri(attachment),
