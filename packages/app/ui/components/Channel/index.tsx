@@ -67,6 +67,7 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import { useConsumePendingShareIntent } from './useConsumePendingShareIntent';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
@@ -450,6 +451,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         draftInputRef.current?.startDraft?.();
       }
     }, [startDraft]);
+
+    const handleOpenDraft = useCallback(() => {
+      draftInputRef.current?.startDraft?.();
+    }, []);
+
+    useConsumePendingShareIntent({
+      attachAssets,
+      canWrite,
+      channelType: channel.type,
+      isFocused: inView,
+      openDraft: handleOpenDraft,
+      storeDraft,
+    });
 
     const isNarrow = useIsWindowNarrow();
 
