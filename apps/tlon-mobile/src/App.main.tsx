@@ -35,6 +35,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { useShareIntentCapture } from './hooks/useShareIntentCapture';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
@@ -83,6 +84,7 @@ const useSplashHider = () => {
 
 // Android notification tap handler passes initial params here
 const App = () => {
+  useShareIntentCapture();
   const isDarkMode = useIsDarkMode();
   const {
     isLoading,
