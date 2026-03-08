@@ -1007,7 +1007,7 @@
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
+      ?>  |(=(src.bowl our.bowl) =(src.bowl (get-author-ship:utils author.essay.c-post)))
       ?>  =(kind.nest -.kind.essay.c-post)
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
