@@ -51,7 +51,7 @@ test('parsePostBlob parses voicememo blob entries', () => {
   ]);
 });
 
-test('parsePostBlob parses action-button blob entries', () => {
+test('appendActionButtonToPostBlob round-trips through parsePostBlob', () => {
   const blob = appendActionButtonToPostBlob(undefined, {
     label: 'Approve',
     pokeApp: 'permissions',
@@ -71,7 +71,39 @@ test('parsePostBlob parses action-button blob entries', () => {
   ]);
 });
 
-test('appendActionButtonToPostBlob creates and appends action-button entries', () => {
+test('parsePostBlob degrades action-button payloads missing label to unknown', () => {
+  expect(
+    parsePostBlob(
+      JSON.stringify([
+        {
+          type: 'action-button',
+          version: 1,
+          pokeApp: 'permissions',
+          pokeMark: 'json',
+          pokeJson: { allow: true, requestId: 'req-123' },
+        },
+      ])
+    )
+  ).toEqual([{ type: 'unknown' }]);
+});
+
+test('parsePostBlob degrades action-button payloads missing pokeApp to unknown', () => {
+  expect(
+    parsePostBlob(
+      JSON.stringify([
+        {
+          type: 'action-button',
+          version: 1,
+          label: 'Approve',
+          pokeMark: 'json',
+          pokeJson: { allow: true, requestId: 'req-123' },
+        },
+      ])
+    )
+  ).toEqual([{ type: 'unknown' }]);
+});
+
+test('appendActionButtonToPostBlob appends multiple action-button entries', () => {
   const blob = appendActionButtonToPostBlob(
     appendActionButtonToPostBlob(undefined, {
       label: 'Approve',
@@ -103,6 +135,60 @@ test('appendActionButtonToPostBlob creates and appends action-button entries', (
       pokeApp: 'permissions',
       pokeMark: 'json',
       pokeJson: { allow: false, requestId: 'req-123' },
+    },
+  ]);
+});
+
+test('parsePostBlob parses action-button entries alongside file and voicememo entries', () => {
+  const blob = appendActionButtonToPostBlob(
+    appendToPostBlob(
+      appendFileUploadToPostBlob(undefined, {
+        fileUri: 'https://files.example/report.pdf',
+        mimeType: 'application/pdf',
+        name: 'report.pdf',
+        size: 2048,
+      }),
+      {
+        type: 'voicememo',
+        version: 1,
+        fileUri: 'https://files.example/memo.m4a',
+        size: 1024,
+        duration: 12,
+        waveformPreview: [0, 0.25, 1],
+      }
+    ),
+    {
+      label: 'Approve',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true, requestId: 'req-123' },
+    }
+  );
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'file',
+      version: 1,
+      fileUri: 'https://files.example/report.pdf',
+      mimeType: 'application/pdf',
+      name: 'report.pdf',
+      size: 2048,
+    },
+    {
+      type: 'voicememo',
+      version: 1,
+      fileUri: 'https://files.example/memo.m4a',
+      size: 1024,
+      duration: 12,
+      waveformPreview: [0, 0.25, 1],
+    },
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true, requestId: 'req-123' },
     },
   ]);
 });
