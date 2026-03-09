@@ -1,7 +1,7 @@
 import type { PostBlobDataEntryActionButton } from '@tloncorp/api/lib/content-helpers';
 import { Button, useToast } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { XStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import {
   actionButtonErrorMessage,
@@ -34,13 +34,13 @@ export function ActionButtonBlock({
 
   return (
     <Button
-      alignSelf="flex-start"
       disabled={isSubmitting}
       label={actionButton.label}
       loading={isSubmitting}
       onPress={handlePress}
       opacity={hasPressed && !isSubmitting ? 0.72 : 1}
-      preset="secondary"
+      preset="secondaryOutline"
+      size="small"
       trailingIcon={hasPressed && !isSubmitting ? 'Checkmark' : undefined}
     />
   );
@@ -52,19 +52,13 @@ export function ActionButtonRow({
   actionButtons: PostBlobDataEntryActionButton[];
 }) {
   return (
-    <XStack
-      alignItems="flex-start"
-      flexWrap="wrap"
-      gap="$s"
-      padding="$l"
-      width="100%"
-    >
+    <YStack gap="$s" paddingVertical="$l" width="100%">
       {actionButtons.map((actionButton, index) => (
         <ActionButtonBlock
           key={`${actionButton.label}-${index}`}
           actionButton={actionButton}
         />
       ))}
-    </XStack>
+    </YStack>
   );
 }
