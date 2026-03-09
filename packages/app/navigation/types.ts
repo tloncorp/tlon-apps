@@ -3,6 +3,13 @@ import type {
   NavigatorScreenParams,
   RouteProp,
 } from '@react-navigation/native';
+import type * as db from '@tloncorp/shared/db';
+
+export type ChannelShareIntentParams = {
+  createdAt: number;
+  text?: string | null;
+  file?: db.PendingShareIntentFile | null;
+};
 
 export type RootStackParamList = {
   VerifierStub: undefined;
@@ -15,17 +22,20 @@ export type RootStackParamList = {
     channelId: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
+    shareIntent?: ChannelShareIntentParams;
   };
   GroupDM: {
     channelId: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
+    shareIntent?: ChannelShareIntentParams;
   };
   Channel: {
     channelId: string;
     groupId?: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
+    shareIntent?: ChannelShareIntentParams;
   };
   GroupChannels: {
     groupId: string;
