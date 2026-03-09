@@ -1,5 +1,9 @@
 import { formatUd } from '../client/apiUtils';
-import { PostBlobDataEntry, parsePostBlob } from '../client/content-helpers';
+import {
+  PostBlobDataEntryFile,
+  PostBlobDataEntryVoiceMemo,
+  parsePostBlob,
+} from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
@@ -98,12 +102,12 @@ export type VideoBlockData = {
 
 export type FileUploadBlockData = {
   type: 'file';
-  file: Extract<PostBlobDataEntry, { type: 'file' }>;
+  file: PostBlobDataEntryFile;
 };
 
 export type VoiceMemoBlockData = {
   type: 'voicememo';
-  voiceMemo: Extract<PostBlobDataEntry, { type: 'voicememo' }>;
+  voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
 export type LinkBlockData = {

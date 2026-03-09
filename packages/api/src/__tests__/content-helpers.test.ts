@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 
-import type { FinalizedAttachment } from '../types';
 import {
   appendFileUploadToPostBlob,
   appendToPostBlob,
@@ -9,6 +8,7 @@ import {
   textAndMentionsToContent,
   toPostData,
 } from '../client/content-helpers';
+import type { FinalizedAttachment } from '../types';
 
 describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () => {
   test('mention + link text survives round-trip without corruption', () => {
@@ -33,7 +33,10 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
     expect(firstPass.text).not.toContain('~~');
     expect(firstPass.text.slice(0, 14)).toBe('~malmur-halmex');
 
-    const content2 = textAndMentionsToContent(firstPass.text, firstPass.mentions);
+    const content2 = textAndMentionsToContent(
+      firstPass.text,
+      firstPass.mentions
+    );
     const secondPass = contentToTextAndMentions(content2);
 
     expect(secondPass.text).toBe(firstPass.text);
