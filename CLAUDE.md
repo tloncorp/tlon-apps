@@ -424,11 +424,15 @@ No backend (Hoon) changes are needed. The agents store and relay `blob` as `(uni
 
 ### 1. Define the entry type
 
-Add a new schema definition to `postBlobDataEntryDefinitions` in
-`packages/api/src/lib/content-helpers.ts`:
+Add a new named schema and inferred type in
+`packages/api/src/lib/content-helpers.ts`, then include that schema in
+`postBlobDataEntryDefinitions`:
 
 ```ts
-definePostBlobDataEntrySchema('etherscan-tx', 1, {
+const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema(
+  'etherscan-tx',
+  1,
+  {
   txHash: z.string().min(1),
   chainId: z.number().int().nonnegative(),
   from: z.string().min(1),
@@ -436,11 +440,22 @@ definePostBlobDataEntrySchema('etherscan-tx', 1, {
   /** in wei */
   value: z.string().min(1),
   status: z.enum(['success', 'failed', 'pending']),
-});
+  }
+);
+
+type PostBlobDataEntryEtherscanTx = z.infer<
+  typeof PostBlobDataEntryEtherscanTxSchema
+>;
+
+const postBlobDataEntryDefinitions = [
+  PostBlobDataEntryFileSchema,
+  PostBlobDataEntryVoiceMemoSchema,
+  PostBlobDataEntryEtherscanTxSchema,
+] as const;
 ```
 
-`PostBlobDataEntry` is inferred from this registry automatically. You do not
-add a manual union branch elsewhere.
+`PostBlobDataEntry` is inferred from `PostBlobDataEntrySchema` automatically.
+You do not add a manual union branch elsewhere.
 
 ### 2. Add a convenience append function
 
@@ -513,7 +528,8 @@ Create a renderer component for the new block type in `packages/ui` (or `package
 
 ### Checklist
 
--   [ ] New schema added to `postBlobDataEntryDefinitions` with `type` + `version: 1`
+-   [ ] New named schema and inferred type added for the blob entry
+-   [ ] Schema added to `postBlobDataEntryDefinitions`
 -   [ ] `appendXToPostBlob` convenience function added
 -   [ ] `toPostData` case added for the new attachment type
 -   [ ] No manual `parsePostBlob` branch added; the registry handles it

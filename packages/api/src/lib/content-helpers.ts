@@ -543,16 +543,6 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
 }
 
 /** helper to build similarly-shaped entry types */
-type PostBlobDataEntrySchemaDefinition<
-  Type extends string,
-  Version extends number,
-  Schema extends z.ZodTypeAny,
-> = Readonly<{
-  type: Type;
-  version: Version;
-  schema: Schema;
-}>;
-
 function definePostBlobDataEntrySchema<
   Type extends string,
   Version extends number,
@@ -561,36 +551,49 @@ function definePostBlobDataEntrySchema<
   type: Type,
   version: Version,
   payload: Payload
-): PostBlobDataEntrySchemaDefinition<
-  Type,
-  Version,
-  z.ZodObject<
-    {
-      type: z.ZodLiteral<Type>;
-      version: z.ZodLiteral<Version>;
-    } & Payload
-  >
-> {
-  return {
-    type,
-    version,
-    schema: z.object({
-      type: z.literal(type),
-      version: z.literal(version),
-      ...payload,
-    }),
-  };
+) {
+  return z.object({
+    type: z.literal(type),
+    version: z.literal(version),
+    ...payload,
+  });
 }
 
-const postBlobDataEntryDefinitions = [
-  definePostBlobDataEntrySchema('file', 1, {
+function safeParseArrayWithFallback<
+  ItemSchema extends z.ZodTypeAny,
+  InputElement,
+  Fallback,
+>(
+  itemSchema: ItemSchema,
+  fallback: (failed: InputElement) => Fallback,
+  data: InputElement[]
+): Array<z.infer<ItemSchema> | Fallback> {
+  return data.map((entry) => {
+    const parsed = itemSchema.safeParse(entry);
+    return parsed.success ? parsed.data : fallback(entry);
+  });
+}
+
+export const PostBlobDataEntryFileSchema = definePostBlobDataEntrySchema(
+  'file',
+  1,
+  {
     fileUri: z.string().min(1),
     mimeType: z.string().optional(),
     name: z.string().optional(),
     /** in bytes */
     size: z.number().finite().nonnegative(),
-  }),
-  definePostBlobDataEntrySchema('voicememo', 1, {
+  }
+);
+
+export type PostBlobDataEntryFile = z.infer<
+  typeof PostBlobDataEntryFileSchema
+>;
+
+export const PostBlobDataEntryVoiceMemoSchema = definePostBlobDataEntrySchema(
+  'voicememo',
+  1,
+  {
     fileUri: z.string().min(1),
     /** in bytes */
     size: z.number().finite().nonnegative(),
@@ -601,58 +604,26 @@ const postBlobDataEntryDefinitions = [
       .optional(),
     /** in seconds */
     duration: z.number().finite().nonnegative().optional(),
-  }),
+  }
+);
+
+export type PostBlobDataEntryVoiceMemo = z.infer<
+  typeof PostBlobDataEntryVoiceMemoSchema
+>;
+
+const postBlobDataEntryDefinitions = [
+  PostBlobDataEntryFileSchema,
+  PostBlobDataEntryVoiceMemoSchema,
 ] as const;
+
+export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
 
 /**
  * An element of the `blob` array on an API resource for a post, used to hold
  * arbitrary off-schema data.
  */
-export type PostBlobDataEntry = z.infer<
-  (typeof postBlobDataEntryDefinitions)[number]['schema']
->;
+export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
-
-type PostBlobDataEntrySchema =
-  (typeof postBlobDataEntryDefinitions)[number]['schema'];
-
-const postBlobDataEntrySchemasByKey = new Map<string, PostBlobDataEntrySchema>(
-  postBlobDataEntryDefinitions.map(({ type, version, schema }) => [
-    getPostBlobDataEntrySchemaKey(type, version),
-    schema,
-  ])
-);
-
-function getPostBlobDataEntrySchemaKey(type: string, version: number): string {
-  return `${type}:${version}`;
-}
-
-function isPostBlobDataEntryDiscriminant(
-  value: unknown
-): value is { type: string; version: number } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof value.type === 'string' &&
-    'version' in value &&
-    typeof value.version === 'number'
-  );
-}
-
-function validatePostBlobDataEntry(entry: unknown): PostBlobDataEntry | null {
-  if (!isPostBlobDataEntryDiscriminant(entry)) {
-    return null;
-  }
-  const schema = postBlobDataEntrySchemasByKey.get(
-    getPostBlobDataEntrySchemaKey(entry.type, entry.version)
-  );
-  if (!schema) {
-    return null;
-  }
-  const parsed = schema.safeParse(entry);
-  return parsed.success ? parsed.data : null;
-}
 
 function parseRawPostBlobData(blob: string): unknown[] | null {
   try {
@@ -674,10 +645,11 @@ export function appendToPostBlob(
   blob: string | undefined,
   entry: PostBlobDataEntry
 ): string {
-  const validatedEntry = validatePostBlobDataEntry(entry);
-  if (!validatedEntry) {
+  const parsedEntry = PostBlobDataEntrySchema.safeParse(entry);
+  if (!parsedEntry.success) {
     logger.trackError('Failed to validate PostBlobDataEntry before append', {
       entry,
+      error: parsedEntry.error,
     });
     throw new Error('Invalid PostBlobDataEntry');
   }
@@ -694,7 +666,7 @@ export function appendToPostBlob(
     // respect the user's intent to add the file
     return [];
   })();
-  data.push(validatedEntry);
+  data.push(parsedEntry.data);
   return JSON.stringify(data);
 }
 
@@ -729,14 +701,14 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     return [{ type: 'unknown' }];
   }
 
-  return arr.map((entry) => {
-    const parsedEntry = validatePostBlobDataEntry(entry);
-    if (parsedEntry) {
-      return parsedEntry;
-    }
-    logger.trackError('Failed to parse PostBlobDataEntry', { entry });
-    return { type: 'unknown' };
-  });
+  return safeParseArrayWithFallback(
+    PostBlobDataEntrySchema,
+    (entry) => {
+      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+      return { type: 'unknown' } as const;
+    },
+    arr
+  );
 }
 
 export function toPostData({

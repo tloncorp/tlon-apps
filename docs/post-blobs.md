@@ -29,22 +29,19 @@ function definePostBlobDataEntrySchema<
   Version extends number,
   Payload extends z.ZodRawShape,
 >(type: Type, version: Version, payload: Payload) {
-  return {
-    type,
-    version,
-    schema: z.object({
-      type: z.literal(type),
-      version: z.literal(version),
-      ...payload,
-    }),
-  };
+  return z.object({
+    type: z.literal(type),
+    version: z.literal(version),
+    ...payload,
+  });
 }
 ```
 
-The registry lives in
-`packages/api/src/lib/content-helpers.ts` as
-`postBlobDataEntryDefinitions`, and `PostBlobDataEntry` is inferred from it.
-The current entry types, all at **version 1**, are:
+Each concrete blob entry should have its own named schema and inferred type
+(for example `PostBlobDataEntryFileSchema` and `PostBlobDataEntryFile`), then
+be added to the `postBlobDataEntryDefinitions` tuple. `PostBlobDataEntry` is
+the union inferred from `PostBlobDataEntrySchema`. The current entry types, all
+at **version 1**, are:
 
 ### `file` v1
 
@@ -77,10 +74,13 @@ Metadata for a voice recording.
 
 | artifact | location |
 |----------|----------|
-| `definePostBlobDataEntrySchema` helper | `packages/api/src/lib/content-helpers.ts:556` |
-| `postBlobDataEntryDefinitions` registry | `packages/api/src/lib/content-helpers.ts:585` |
-| `PostBlobDataEntry` inferred union type | `packages/api/src/lib/content-helpers.ts:611` |
-| `ClientPostBlobData` (parsed, includes `{type:'unknown'}`) | `packages/api/src/lib/content-helpers.ts:721` |
+| `definePostBlobDataEntrySchema` helper | `packages/api/src/lib/content-helpers.ts:546` |
+| `safeParseArrayWithFallback` helper | `packages/api/src/lib/content-helpers.ts:562` |
+| `PostBlobDataEntryFileSchema` / `PostBlobDataEntryFile` | `packages/api/src/lib/content-helpers.ts:577` |
+| `PostBlobDataEntryVoiceMemoSchema` / `PostBlobDataEntryVoiceMemo` | `packages/api/src/lib/content-helpers.ts:592` |
+| `postBlobDataEntryDefinitions` registry | `packages/api/src/lib/content-helpers.ts:611` |
+| `PostBlobDataEntrySchema` / `PostBlobDataEntry` | `packages/api/src/lib/content-helpers.ts:616` |
+| `ClientPostBlobData` (parsed, includes `{type:'unknown'}`) | `packages/api/src/lib/content-helpers.ts:673` |
 
 ## Callsites
 
@@ -109,9 +109,9 @@ These functions build the blob string from attachment data.
 
 | function | file | line | purpose |
 |----------|------|------|---------|
-| `appendToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 673 | Validates a new entry against the registry, parses any existing blob array, appends, and re-serializes. Base function used by all writers. |
-| `appendFileUploadToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 701 | Convenience wrapper: creates a `file` v1 entry and appends. |
-| `toPostData` | `packages/api/src/lib/content-helpers.ts` | 742 | Iterates finalized attachments; calls the blob helpers to produce the blob. Also builds `story` and `metadata`. Returns `{ story, metadata, blob? }`. |
+| `appendToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 624 | Validates a new entry against the union schema, parses any existing blob array, appends, and re-serializes. Base function used by all writers. |
+| `appendFileUploadToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 653 | Convenience wrapper: creates a `file` v1 entry and appends. |
+| `toPostData` | `packages/api/src/lib/content-helpers.ts` | 694 | Iterates finalized attachments; calls the blob helpers to produce the blob. Also builds `story` and `metadata`. Returns `{ story, metadata, blob? }`. |
 
 `toPostData` routes each attachment type as follows
 (`packages/api/src/lib/content-helpers.ts`):
@@ -128,7 +128,7 @@ These functions build the blob string from attachment data.
 
 | function | file | line | purpose |
 |----------|------|------|---------|
-| `parsePostBlob` | `packages/api/src/lib/content-helpers.ts` | 726 | Safely parses the blob JSON, validates each entry against the registry, and returns `ClientPostBlobData`. Malformed or unrecognized entries become `{type:'unknown'}`. |
+| `parsePostBlob` | `packages/api/src/lib/content-helpers.ts` | 678 | Safely parses the blob JSON, then validates each element with `safeParseArrayWithFallback` and returns `ClientPostBlobData`. Malformed or unrecognized entries become `{type:'unknown'}`. |
 | `convertContent` | `packages/api/src/lib/postContent.ts` | 347 | Calls `parsePostBlob`, then converts each entry to a `PostContent` block for rendering: `file` → `FileUploadBlockData`, `voicememo` → `VoiceMemoBlockData`, `unknown` → blockquote ("Upgrade your app to see this post"). |
 
 ### API transport
@@ -208,16 +208,18 @@ during finalization from the draft's attachments.
 
 ## Adding a new entry type
 
-1. Add a new schema definition to `postBlobDataEntryDefinitions` in
-   `packages/api/src/lib/content-helpers.ts` using
-   `definePostBlobDataEntrySchema('yourtype', 1, { ... })`. Choose a unique
+1. Add a new named schema and named inferred type in
+   `packages/api/src/lib/content-helpers.ts`, for example:
+   `const PostBlobDataEntryYourTypeSchema = definePostBlobDataEntrySchema(...)`
+   and `type PostBlobDataEntryYourType = z.infer<typeof ...>`. Choose a unique
    `type` string and start at `version: 1`.
 
-2. `PostBlobDataEntry` will update automatically from that registry. Add an
-   `appendXToPostBlob` convenience function if the new entry type will be
-   written from more than one place.
+2. Add that schema to `postBlobDataEntryDefinitions`. `PostBlobDataEntry` will
+   update automatically from the union schema. Add an `appendXToPostBlob`
+   convenience function if the new entry type will be written from more than
+   one place.
 
-3. In `toPostData` (`content-helpers.ts:742`), add a `case` for the new
+3. In `toPostData` (`content-helpers.ts:694`), add a `case` for the new
    attachment type that calls your append function.
 
 4. You do **not** add a manual `parsePostBlob` branch. Once the schema is in
