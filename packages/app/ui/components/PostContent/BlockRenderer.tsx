@@ -34,6 +34,7 @@ import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
 import { ActionButtonBlock } from './ActionButtonBlock';
+import type { PokeTemplateContext } from './actionButtonPoke';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -283,10 +284,17 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
 
 export function ActionButtonBlockRenderer({
   block,
+  templateContext,
 }: {
   block: cn.ActionButtonBlockData;
+  templateContext?: PokeTemplateContext;
 }) {
-  return <ActionButtonBlock actionButton={block.actionButton} />;
+  return (
+    <ActionButtonBlock
+      actionButton={block.actionButton}
+      templateContext={templateContext}
+    />
+  );
 }
 
 function VoiceMemoTranscription({ transcription }: { transcription: string }) {
@@ -596,6 +604,7 @@ HeaderText.displayName = 'HeaderText';
 
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
+  templateContext?: PokeTemplateContext;
 }) => React.ReactNode;
 
 export type BlockRendererConfig = {
@@ -669,7 +678,13 @@ export const BlockRendererProvider = React.memo(function BlockRendererProvider({
   );
 });
 
-export function BlockRenderer({ block }: { block: cn.BlockData }) {
+export function BlockRenderer({
+  block,
+  templateContext,
+}: {
+  block: cn.BlockData;
+  templateContext?: PokeTemplateContext;
+}) {
   const { renderers, settings: defaultProps } =
     useContext(BlockRendererContext);
   const Wrapper = renderers?.blockWrapper ?? BlockWrapper;
@@ -681,7 +696,11 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
 
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
-      <Renderer {...defaultPropsForBlock} block={block} />
+      <Renderer
+        {...defaultPropsForBlock}
+        block={block}
+        templateContext={templateContext}
+      />
     </Wrapper>
   );
 }

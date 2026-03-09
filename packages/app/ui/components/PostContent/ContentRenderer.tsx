@@ -100,7 +100,13 @@ function ContentRenderer({
             );
           }
 
-          return <BlockRenderer key={k} block={item.block} />;
+          return (
+            <BlockRenderer
+              key={k}
+              block={item.block}
+              templateContext={templateContext}
+            />
+          );
         })}
       </ContentRendererFrame>
     </ContentContext.Provider>
