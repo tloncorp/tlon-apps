@@ -597,6 +597,7 @@ export namespace Attachment {
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              transcription: uploadIntent.voiceMemo.transcription,
               uploadState,
             };
           } else if (uploadIntent.video) {
