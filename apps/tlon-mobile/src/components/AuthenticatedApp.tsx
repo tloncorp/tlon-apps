@@ -43,6 +43,7 @@ import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
+import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
@@ -190,7 +191,9 @@ export default function ConnectedAuthenticatedApp() {
       */}
       <PortalProvider>
         <ForwardPostSheetProvider>
-          {clientReady && <AuthenticatedApp />}
+          <ShareIntentForwardSheetProvider enabled={clientReady}>
+            {clientReady && <AuthenticatedApp />}
+          </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </PortalProvider>
     </AppDataProvider>
