@@ -703,6 +703,25 @@ export function appendFileUploadToPostBlob(
   });
 }
 
+export function appendActionButtonToPostBlob(
+  blob: string | undefined,
+  opts: {
+    label: string;
+    pokeApp: string;
+    pokeMark: string;
+    pokeJson: unknown;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'action-button',
+    version: 1,
+    label: opts.label,
+    pokeApp: opts.pokeApp,
+    pokeMark: opts.pokeMark,
+    pokeJson: opts.pokeJson,
+  });
+}
+
 /** Client-side parsed representation of PostBlob data */
 export type ClientPostBlobData = Array<
   PostBlobDataEntry | UnknownPostBlobDataEntry

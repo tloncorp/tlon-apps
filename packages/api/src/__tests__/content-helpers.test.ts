@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import type { FinalizedAttachment } from '../types';
 import {
+  appendActionButtonToPostBlob,
   appendFileUploadToPostBlob,
   appendToPostBlob,
   parsePostBlob,
@@ -51,9 +52,7 @@ test('parsePostBlob parses voicememo blob entries', () => {
 });
 
 test('parsePostBlob parses action-button blob entries', () => {
-  const blob = appendToPostBlob(undefined, {
-    type: 'action-button',
-    version: 1,
+  const blob = appendActionButtonToPostBlob(undefined, {
     label: 'Approve',
     pokeApp: 'permissions',
     pokeMark: 'json',
@@ -70,6 +69,53 @@ test('parsePostBlob parses action-button blob entries', () => {
       pokeJson: { allow: true, requestId: 'req-123' },
     },
   ]);
+});
+
+test('appendActionButtonToPostBlob creates and appends action-button entries', () => {
+  const blob = appendActionButtonToPostBlob(
+    appendActionButtonToPostBlob(undefined, {
+      label: 'Approve',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true, requestId: 'req-123' },
+    }),
+    {
+      label: 'Deny',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: false, requestId: 'req-123' },
+    }
+  );
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true, requestId: 'req-123' },
+    },
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Deny',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: false, requestId: 'req-123' },
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob validates action-button entries', () => {
+  expect(() =>
+    appendActionButtonToPostBlob(undefined, {
+      label: '',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true },
+    })
+  ).toThrow('Invalid PostBlobDataEntry');
 });
 
 test('parsePostBlob degrades gracefully for malformed or invalid payloads', () => {
