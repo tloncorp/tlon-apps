@@ -54,6 +54,7 @@
     "libphonenumber-js": "^1.11.18",
     "lodash": "^4.17.21",
     "sorted-btree": "^1.8.1",
-    "validator": "^13.7.0"
+    "validator": "^13.7.0",
+    "zod": "^3.25.76"
   }
 }

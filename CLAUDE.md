@@ -424,52 +424,51 @@ No backend (Hoon) changes are needed. The agents store and relay `blob` as `(uni
 
 ### 1. Define the entry type
 
-Add a new branch to `PostBlobDataEntry` in `packages/api/src/lib/content-helpers.ts`:
+Add a new schema definition to `postBlobDataEntryDefinitions` in
+`packages/api/src/lib/content-helpers.ts`:
 
 ```ts
-// in the PostBlobDataEntry union (after the existing branches)
-| BuildPostBlobDataEntry<
-    'etherscan-tx',
-    { version: 1 },
-    {
-      txHash: string;
-      chainId: number;
-      from: string;
-      to: string;
-      /** in wei */
-      value: string;
-      status: 'success' | 'failed' | 'pending';
-    }
-  >
+definePostBlobDataEntrySchema('etherscan-tx', 1, {
+  txHash: z.string().min(1),
+  chainId: z.number().int().nonnegative(),
+  from: z.string().min(1),
+  to: z.string().min(1),
+  /** in wei */
+  value: z.string().min(1),
+  status: z.enum(['success', 'failed', 'pending']),
+});
 ```
+
+`PostBlobDataEntry` is inferred from this registry automatically. You do not
+add a manual union branch elsewhere.
 
 ### 2. Add a convenience append function
 
-In the same file, below the existing `appendVideoToPostBlob`:
+In the same file, below the existing append helpers:
 
 ```ts
 export function appendEtherscanTxToPostBlob(
-    blob: string | undefined,
-    opts: {
-        txHash: string;
-        chainId: number;
-        from: string;
-        to: string;
-        value: string;
-        status: 'success' | 'failed' | 'pending';
-    }
+  blob: string | undefined,
+  opts: {
+    txHash: string;
+    chainId: number;
+    from: string;
+    to: string;
+    value: string;
+    status: 'success' | 'failed' | 'pending';
+  }
 ) {
-    return appendToPostBlob(blob, {
-        type: 'etherscan-tx',
-        version: 1,
-        ...opts,
-    });
+  return appendToPostBlob(blob, {
+    type: 'etherscan-tx',
+    version: 1,
+    ...opts,
+  });
 }
 ```
 
 ### 3. Wire up the attachment → blob conversion
 
-In `toPostData` in the same file (~line 732), add a case for your new attachment type:
+In `toPostData` in the same file, add a case for your new attachment type:
 
 ```ts
 case 'etherscan-tx': {
@@ -485,19 +484,16 @@ case 'etherscan-tx': {
 }
 ```
 
-### 4. Register the parser
+### 4. Let the registry handle parsing
 
-In `parsePostBlob` in the same file (~line 692), add a validation branch:
-
-```ts
-if (entry.type === 'etherscan-tx' && entry.version === 1) {
-  return entry;
-}
-```
+No extra `parsePostBlob` branch is needed. Once the schema is in
+`postBlobDataEntryDefinitions`, both `appendToPostBlob` and `parsePostBlob`
+will validate against it automatically.
 
 ### 5. Map to a renderable block
 
-In `convertContent` in `packages/api/src/lib/postContent.ts` (~line 358), add a case that maps the parsed entry to a `PostContent` block:
+In `convertContent` in `packages/api/src/lib/postContent.ts`, add a case that
+maps the parsed entry to a `PostContent` block:
 
 ```ts
 case 'etherscan-tx': {
@@ -517,10 +513,11 @@ Create a renderer component for the new block type in `packages/ui` (or `package
 
 ### Checklist
 
--   [ ] New branch added to `PostBlobDataEntry` with `type` + `version: 1`
+-   [ ] New schema added to `postBlobDataEntryDefinitions` with `type` + `version: 1`
 -   [ ] `appendXToPostBlob` convenience function added
 -   [ ] `toPostData` case added for the new attachment type
--   [ ] `parsePostBlob` validation branch added
+-   [ ] No manual `parsePostBlob` branch added; the registry handles it
 -   [ ] `convertContent` case added, mapping to a new `PostContent` block type
+-   [ ] Tests added for valid and malformed blob payloads
 -   [ ] Renderer component created
 -   [ ] Older clients gracefully degrade (they will show "Upgrade your app" for unrecognized types — no extra work needed)
