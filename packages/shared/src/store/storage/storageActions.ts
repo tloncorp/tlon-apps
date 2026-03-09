@@ -52,38 +52,6 @@ async function uploadVideoPoster(
   }
 }
 
-function isRemoteUri(uri: string): boolean {
-  return uri.startsWith('http://') || uri.startsWith('https://');
-}
-
-async function uploadVideoPoster(
-  posterUri: string | undefined,
-  isWeb: boolean
-): Promise<string | undefined> {
-  if (!posterUri) {
-    return undefined;
-  }
-  if (Attachment.isRemoteUri(posterUri)) {
-    return posterUri;
-  }
-  try {
-    return await performUpload(
-      {
-        uri: posterUri,
-        mimeType: 'image/jpeg',
-      },
-      isWeb
-    );
-  } catch (error) {
-    logger.trackError('video poster upload failed', {
-      error,
-      message: error instanceof Error ? error.message : String(error),
-      isWeb,
-    });
-    return undefined;
-  }
-}
-
 function getSaveFormat(mimeType?: string): SaveFormat {
   if (!mimeType) {
     return SaveFormat.JPEG;

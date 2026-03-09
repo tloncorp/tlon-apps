@@ -44,7 +44,7 @@ import type { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
-type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
+const logger = createDevLogger('imageViewer', false);
 
 function MediaViewerModal({
   dismiss,

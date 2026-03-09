@@ -1,6 +1,6 @@
 import { Attachment } from '@tloncorp/shared';
 
-const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
 export const VIDEO_COMPOSITION_ERROR =
   'Video posts support one video and optional text only.';
 export const VIDEO_VALIDATION_ERROR = 'Unsupported video attachment';

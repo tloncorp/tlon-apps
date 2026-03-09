@@ -43,7 +43,6 @@ export async function getVideoPreviewData(
       }
     }
     const imageRef = await manipulator.renderAsync();
-
     const saved = await imageRef.saveAsync({
       compress: 0.75,
       format: SaveFormat.JPEG,

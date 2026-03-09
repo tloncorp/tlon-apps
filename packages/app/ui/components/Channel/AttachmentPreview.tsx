@@ -70,12 +70,12 @@ function ContentImage({
         <View
           top={0}
           justifyContent="center"
-          padding="$xl"
+          padding="$s"
           alignItems="center"
-          backgroundColor="$translucentBlack"
+          backgroundColor="$secondaryBackground"
           borderRadius="$m"
         >
-          <Spinner size="large" color="$primaryText" />
+          <Spinner size="small" color="$primaryText" />
         </View>
       )}
     </ImageBackground>
@@ -95,12 +95,12 @@ function ContentVideo({
           <View
             top={0}
             justifyContent="center"
-            padding="$xl"
+            padding="$s"
             alignItems="center"
-            backgroundColor="$translucentBlack"
+            backgroundColor="$secondaryBackground"
             borderRadius="$m"
           >
-            <Spinner size="large" color="$primaryText" />
+            <Spinner size="small" color="$primaryText" />
           </View>
         ) : null}
       </View>
@@ -122,12 +122,12 @@ function ContentVideo({
         <View
           top={0}
           justifyContent="center"
-          padding="$xl"
+          padding="$s"
           alignItems="center"
-          backgroundColor="$translucentBlack"
+          backgroundColor="$secondaryBackground"
           borderRadius="$m"
         >
-          <Spinner size="large" color="$primaryText" />
+          <Spinner size="small" color="$primaryText" />
         </View>
       )}
     </ImageBackground>

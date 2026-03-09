@@ -2,8 +2,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
 import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
 import { filenameFromPath } from '@tloncorp/shared/utils';
-import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
-import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -86,9 +84,9 @@ export function AttachmentPreview({
             width="100%"
             height="100%"
             alignItems="center"
-            backgroundColor="$translucentBlack"
+            backgroundColor="$secondaryBackground"
           >
-            <Spinner size="large" color="$primaryText" />
+            <Spinner size="small" color="$primaryText" />
           </View>
         )}
       </View>
@@ -164,64 +162,6 @@ export function AttachmentPreview({
             >
               <Icon type="Play" color="$tertiaryText" size="$xl" />
             </View>
-            <VideoPreviewOverlay durationLabel={durationLabel} />
-          </Container>
-        );
-      }
-      if (isWeb) {
-        const previewUri = posterUri ?? videoUri;
-        if (!videoUri) {
-          if (!previewUri) {
-            return <Container showSpinner />;
-          }
-          return (
-            <Container showSpinner={uploading || isLoading}>
-              {renderPosterImage(previewUri)}
-              <VideoPreviewOverlay durationLabel={durationLabel} />
-            </Container>
-          );
-        }
-        return (
-          <Container showSpinner={uploading || isLoading}>
-            <video
-              src={videoUri}
-              poster={posterUri}
-              preload="metadata"
-              muted
-              playsInline
-              onLoadStart={() => setIsLoading(true)}
-              onLoadedMetadata={(event) => {
-                if (
-                  event.currentTarget.videoWidth &&
-                  event.currentTarget.videoHeight
-                ) {
-                  setAspect(
-                    event.currentTarget.videoWidth /
-                      event.currentTarget.videoHeight
-                  );
-                }
-                setIsLoading(false);
-              }}
-              onError={() => setIsLoading(false)}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                objectFit: 'cover',
-                background: 'transparent',
-              }}
-            />
-            <VideoPreviewOverlay durationLabel={durationLabel} />
-          </Container>
-        );
-      }
-      if (!posterUri) {
-        return (
-          <Container showSpinner={uploading}>
-            <VideoPosterFallback />
             <VideoPreviewOverlay durationLabel={durationLabel} />
           </Container>
         );
@@ -317,29 +257,6 @@ export function AttachmentPreview({
       );
     }
   }
-}
-
-function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
-  return (
-    <XStack
-      position="absolute"
-      left={8}
-      right={8}
-      bottom={8}
-      alignItems="center"
-      justifyContent="space-between"
-      pointerEvents="none"
-    >
-      <Icon type="Play" color="$white" size="$s" />
-      {durationLabel ? (
-        <Text color="$white" fontSize="$s" fontWeight="$xl">
-          {durationLabel}
-        </Text>
-      ) : (
-        <View />
-      )}
-    </XStack>
-  );
 }
 
 function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
