@@ -611,9 +611,22 @@ export type PostBlobDataEntryVoiceMemo = z.infer<
   typeof PostBlobDataEntryVoiceMemoSchema
 >;
 
+export const PostBlobDataEntryActionButtonSchema =
+  definePostBlobDataEntrySchema('action-button', 1, {
+    label: z.string().min(1),
+    pokeApp: z.string().min(1),
+    pokeMark: z.string().min(1),
+    pokeJson: z.unknown(),
+  });
+
+export type PostBlobDataEntryActionButton = z.infer<
+  typeof PostBlobDataEntryActionButtonSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
+  PostBlobDataEntryActionButtonSchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);

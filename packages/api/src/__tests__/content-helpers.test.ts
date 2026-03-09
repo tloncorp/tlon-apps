@@ -8,23 +8,13 @@ import {
   toPostData,
 } from '../lib/content-helpers';
 
-test('parsePostBlob parses registered blob entry types', () => {
-  const blob = appendToPostBlob(
-    appendFileUploadToPostBlob(undefined, {
-      fileUri: 'https://files.example/report.pdf',
-      mimeType: 'application/pdf',
-      name: 'report.pdf',
-      size: 2048,
-    }),
-    {
-      type: 'voicememo',
-      version: 1,
-      fileUri: 'https://files.example/memo.m4a',
-      size: 1024,
-      duration: 12,
-      waveformPreview: [0, 0.25, 1],
-    }
-  );
+test('parsePostBlob parses file blob entries', () => {
+  const blob = appendFileUploadToPostBlob(undefined, {
+    fileUri: 'https://files.example/report.pdf',
+    mimeType: 'application/pdf',
+    name: 'report.pdf',
+    size: 2048,
+  });
 
   expect(parsePostBlob(blob)).toEqual([
     {
@@ -35,6 +25,20 @@ test('parsePostBlob parses registered blob entry types', () => {
       name: 'report.pdf',
       size: 2048,
     },
+  ]);
+});
+
+test('parsePostBlob parses voicememo blob entries', () => {
+  const blob = appendToPostBlob(undefined, {
+    type: 'voicememo',
+    version: 1,
+    fileUri: 'https://files.example/memo.m4a',
+    size: 1024,
+    duration: 12,
+    waveformPreview: [0, 0.25, 1],
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
     {
       type: 'voicememo',
       version: 1,
@@ -42,6 +46,28 @@ test('parsePostBlob parses registered blob entry types', () => {
       size: 1024,
       duration: 12,
       waveformPreview: [0, 0.25, 1],
+    },
+  ]);
+});
+
+test('parsePostBlob parses action-button blob entries', () => {
+  const blob = appendToPostBlob(undefined, {
+    type: 'action-button',
+    version: 1,
+    label: 'Approve',
+    pokeApp: 'permissions',
+    pokeMark: 'json',
+    pokeJson: { allow: true, requestId: 'req-123' },
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      pokeApp: 'permissions',
+      pokeMark: 'json',
+      pokeJson: { allow: true, requestId: 'req-123' },
     },
   ]);
 });
