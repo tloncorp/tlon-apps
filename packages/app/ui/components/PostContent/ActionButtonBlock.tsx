@@ -14,12 +14,14 @@ export function ActionButtonBlock({
   actionButton: PostBlobDataEntryActionButton;
 }) {
   const showToast = useToast();
+  const [hasPressed, setHasPressed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePress = useCallback(async () => {
     try {
       setIsSubmitting(true);
       await fireActionButtonPoke(actionButton);
+      setHasPressed(true);
     } catch (error) {
       showToast({
         message: actionButtonErrorMessage(error),
@@ -37,7 +39,9 @@ export function ActionButtonBlock({
       label={actionButton.label}
       loading={isSubmitting}
       onPress={handlePress}
+      opacity={hasPressed && !isSubmitting ? 0.72 : 1}
       preset="secondary"
+      trailingIcon={hasPressed && !isSubmitting ? 'Checkmark' : undefined}
     />
   );
 }
