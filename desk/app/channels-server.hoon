@@ -1029,12 +1029,12 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
-      ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.essay.c-post)) (is-admin:ca-perms src.bowl))
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
@@ -1052,7 +1052,7 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
@@ -1152,7 +1152,7 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.memo.c-reply)
+      ?>  =(src.bowl (get-author-ship:utils author.memo.c-reply))
       ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
@@ -1176,7 +1176,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl author.u.reply)
+      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
       ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
@@ -1195,7 +1195,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.reply)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
