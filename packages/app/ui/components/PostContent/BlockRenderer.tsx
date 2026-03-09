@@ -280,6 +280,26 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   );
 }
 
+export function ActionButtonBlock({
+  block,
+  ...props
+}: { block: cn.ActionButtonBlockData } & Omit<
+  ComponentProps<typeof LineRenderer>,
+  'inlines'
+>) {
+  return (
+    <LineRenderer
+      inlines={[
+        {
+          type: 'text',
+          text: `[Button: ${block.actionButton.label}]`,
+        },
+      ]}
+      {...props}
+    />
+  );
+}
+
 function VoiceMemoTranscription({ transcription }: { transcription: string }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -616,6 +636,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  'action-button': ActionButtonBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -638,6 +659,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  'action-button': BlockSettings<typeof ActionButtonBlock>;
 };
 
 interface BlockRendererContextValue {

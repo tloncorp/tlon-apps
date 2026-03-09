@@ -5,6 +5,7 @@ import * as ub from '../urbit';
 import { assertNever } from './assertNever';
 import {
   parsePostBlob,
+  PostBlobDataEntryActionButton,
   PostBlobDataEntryFile,
   PostBlobDataEntryVoiceMemo,
 } from './content-helpers';
@@ -108,6 +109,11 @@ export type VoiceMemoBlockData = {
   voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
+export type ActionButtonBlockData = {
+  type: 'action-button';
+  actionButton: PostBlobDataEntryActionButton;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -156,6 +162,7 @@ export type BlockData =
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
+  | ActionButtonBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -243,6 +250,8 @@ export function plaintextPreviewOf(
           return '(Image)';
         case 'video':
           return '(Video)';
+        case 'action-button':
+          return `[Button: ${block.actionButton.label}]`;
         case 'reference':
           return config.includeRefTag ? '(Ref)' : '';
         case 'code':
@@ -370,6 +379,14 @@ export function convertContent(
           out.push({
             type: 'voicememo',
             voiceMemo: entry,
+          });
+          break;
+        }
+
+        case 'action-button': {
+          out.push({
+            type: 'action-button',
+            actionButton: entry,
           });
           break;
         }
