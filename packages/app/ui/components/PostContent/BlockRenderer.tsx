@@ -33,6 +33,7 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { ActionButtonBlock } from './ActionButtonBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -280,24 +281,12 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   );
 }
 
-export function ActionButtonBlock({
+export function ActionButtonBlockRenderer({
   block,
-  ...props
-}: { block: cn.ActionButtonBlockData } & Omit<
-  ComponentProps<typeof LineRenderer>,
-  'inlines'
->) {
-  return (
-    <LineRenderer
-      inlines={[
-        {
-          type: 'text',
-          text: `[Button: ${block.actionButton.label}]`,
-        },
-      ]}
-      {...props}
-    />
-  );
+}: {
+  block: cn.ActionButtonBlockData;
+}) {
+  return <ActionButtonBlock actionButton={block.actionButton} />;
 }
 
 function VoiceMemoTranscription({ transcription }: { transcription: string }) {
@@ -636,7 +625,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
-  'action-button': ActionButtonBlock,
+  'action-button': ActionButtonBlockRenderer,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -659,7 +648,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
-  'action-button': BlockSettings<typeof ActionButtonBlock>;
+  'action-button': BlockSettings<typeof ActionButtonBlockRenderer>;
 };
 
 interface BlockRendererContextValue {

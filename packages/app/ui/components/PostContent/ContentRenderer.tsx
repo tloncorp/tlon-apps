@@ -4,6 +4,8 @@ import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
 
+import { ActionButtonRow } from './ActionButtonBlock';
+import { groupActionButtonBlocks } from './actionButtonUtils';
 import {
   BlockRenderer,
   BlockRendererConfig,
@@ -61,6 +63,8 @@ function ContentRenderer({
 }: ContentRendererProps & {
   content: PostContent;
 }) {
+  const renderItems = useMemo(() => groupActionButtonBlocks(content), [content]);
+
   return (
     <ContentContext.Provider
       onPressImage={onPressImage}
@@ -69,8 +73,17 @@ function ContentRenderer({
       searchQuery={searchQuery}
     >
       <ContentRendererFrame {...rest}>
-        {content.map((block, k) => {
-          return <BlockRenderer key={k} block={block} />;
+        {renderItems.map((item, k) => {
+          if (item.type === 'action-button-row') {
+            return (
+              <ActionButtonRow
+                key={`action-buttons-${k}`}
+                actionButtons={item.actionButtons}
+              />
+            );
+          }
+
+          return <BlockRenderer key={k} block={item.block} />;
         })}
       </ContentRendererFrame>
     </ContentContext.Provider>
