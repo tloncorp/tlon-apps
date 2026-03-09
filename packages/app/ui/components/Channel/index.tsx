@@ -1,4 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
+import type { ChannelShareIntentParams } from '../../../navigation/types';
 import {
   ChannelContentConfiguration,
   isDmChannelId,
@@ -8,6 +9,7 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   Attachment,
   DraftInputId,
+  createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   uploadAsset,
@@ -67,12 +69,52 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
-import { useConsumePendingShareIntent } from './useConsumePendingShareIntent';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
+const IMAGE_FILE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
+const shareIntentLogger = createDevLogger('shareIntent', true);
+
+const isLikelyImageFile = (file: NonNullable<ChannelShareIntentParams['file']>) => {
+  if (file.mimeType?.startsWith('image/')) {
+    return true;
+  }
+  const sourceName = file.fileName || file.path;
+  return IMAGE_FILE_EXTENSION_REGEX.test(sourceName);
+};
+
+const uploadIntentFromShareIntentFile = (
+  file: NonNullable<ChannelShareIntentParams['file']>
+): Attachment.UploadIntent | null => {
+  const localUri = file.path?.trim();
+  if (!localUri) {
+    return null;
+  }
+
+  if (isLikelyImageFile(file)) {
+    return {
+      type: 'image',
+      asset: {
+        uri: localUri,
+        width: file.width ?? 0,
+        height: file.height ?? 0,
+        fileSize: file.size ?? undefined,
+        mimeType: file.mimeType ?? undefined,
+      },
+    };
+  }
+
+  return {
+    type: 'fileUri',
+    localUri,
+    name: file.fileName || localUri.split('/').pop(),
+    size: file.size ?? 0,
+    mimeType: file.mimeType ?? undefined,
+    voiceMemo: false,
+  };
+};
 
 interface ChannelProps {
   channel: db.Channel;
@@ -118,6 +160,8 @@ interface ChannelProps {
   hasOlderPosts?: boolean;
   startDraft?: boolean;
   onPressScrollToBottom?: () => void;
+  onShareIntentConsumed?: (createdAt: number) => void;
+  shareIntent?: ChannelShareIntentParams;
 }
 
 interface ChannelMethods {
@@ -167,6 +211,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       hasOlderPosts,
       startDraft,
       onPressScrollToBottom,
+      onShareIntentConsumed,
+      shareIntent,
     },
     ref
   ) {
@@ -438,14 +484,97 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       draftInputRef.current?.startDraft?.();
     }, []);
 
-    useConsumePendingShareIntent({
+    const shareIntentInFlightRef = useRef<number | null>(null);
+    const consumedShareIntentRef = useRef<number | null>(null);
+
+    useEffect(() => {
+      let cancelled = false;
+
+      void (async () => {
+        if (!canWrite || !inView || !shareIntent) {
+          return;
+        }
+
+        const createdAt = shareIntent.createdAt;
+        if (
+          shareIntentInFlightRef.current === createdAt ||
+          consumedShareIntentRef.current === createdAt
+        ) {
+          return;
+        }
+
+        const uploadIntent = shareIntent.file
+          ? uploadIntentFromShareIntentFile(shareIntent.file)
+          : null;
+        const sharedText = shareIntent.text?.trim() ?? null;
+        const hasSharedText = Boolean(sharedText && sharedText.length > 0);
+        const hasShareFile = Boolean(uploadIntent);
+
+        if (channel.type === 'gallery' && uploadIntent?.type === 'fileUri') {
+          consumedShareIntentRef.current = createdAt;
+          onShareIntentConsumed?.(createdAt);
+          return;
+        }
+
+        if (!hasShareFile && !hasSharedText) {
+          consumedShareIntentRef.current = createdAt;
+          onShareIntentConsumed?.(createdAt);
+          return;
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        shareIntentInFlightRef.current = createdAt;
+
+        try {
+          if (hasSharedText && sharedText) {
+            if (cancelled) {
+              return;
+            }
+            await storeDraft(
+              logic.textAndMentionsToContent(sharedText, []),
+              channel.type === 'gallery' ? 'caption' : undefined
+            );
+          }
+
+          if (uploadIntent) {
+            if (cancelled) {
+              return;
+            }
+            attachAssets([uploadIntent]);
+          }
+
+          if (cancelled) {
+            return;
+          }
+
+          handleOpenDraft();
+          consumedShareIntentRef.current = createdAt;
+          onShareIntentConsumed?.(createdAt);
+        } catch (err) {
+          shareIntentLogger.error('Failed to prefill shared content in channel', err);
+        } finally {
+          if (shareIntentInFlightRef.current === createdAt) {
+            shareIntentInFlightRef.current = null;
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [
       attachAssets,
       canWrite,
-      channelType: channel.type,
-      isFocused: inView,
-      openDraft: handleOpenDraft,
+      channel.type,
+      handleOpenDraft,
+      inView,
+      onShareIntentConsumed,
+      shareIntent,
       storeDraft,
-    });
+    ]);
 
     const isNarrow = useIsWindowNarrow();
 

@@ -183,35 +183,6 @@ export type PendingShareIntentFile = {
   duration?: number | null;
 };
 
-export type PendingShareIntent = {
-  createdAt: number;
-  text?: string | null;
-  file?: PendingShareIntentFile | null;
-  files?: PendingShareIntentFile[] | null;
-};
-
-export const pendingShareIntent = createStorageItem<PendingShareIntent | null>({
-  key: 'pendingShareIntent',
-  defaultValue: null,
-});
-
-export const getPrimaryPendingShareIntentFile = (
-  pendingShare: PendingShareIntent | null | undefined
-): PendingShareIntentFile | null => {
-  if (!pendingShare) {
-    return null;
-  }
-
-  return pendingShare.file ?? pendingShare.files?.[0] ?? null;
-};
-
-export const getPendingShareIntentText = (
-  pendingShare: PendingShareIntent | null | undefined
-): string | null => {
-  const text = pendingShare?.text?.trim();
-  return text && text.length > 0 ? text : null;
-};
-
 export const lastVisitedChannelId = (groupId: string) => {
   return createStorageItem<string | null>({
     key: `lastVisitedChannelId-${groupId}`,
