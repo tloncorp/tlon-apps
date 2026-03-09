@@ -5,6 +5,7 @@ import React from 'react';
 import { YStack, styled } from 'tamagui';
 
 import { ActionButtonRow } from './ActionButtonBlock';
+import { PokeTemplateContext } from './actionButtonPoke';
 import { groupActionButtonBlocks } from './actionButtonUtils';
 import {
   BlockRenderer,
@@ -44,10 +45,23 @@ export function PostContentRenderer({
     return content;
   }, [post.content, post.blob]);
 
+  const templateContext = useMemo<PokeTemplateContext>(
+    () => ({
+      targetUser: post.authorId ?? undefined,
+      currentChannel: post.channelId ?? undefined,
+      targetChannel: post.channelId ?? undefined,
+    }),
+    [post.authorId, post.channelId]
+  );
+
   return (
     <BlockRendererProvider>
       <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
+        <ContentRenderer
+          content={content}
+          templateContext={templateContext}
+          {...props}
+        />
       </InlineRendererProvider>
     </BlockRendererProvider>
   );
@@ -55,6 +69,7 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  templateContext,
   onPressImage,
   onLongPress,
   isNotice,
@@ -62,6 +77,7 @@ function ContentRenderer({
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
+  templateContext?: PokeTemplateContext;
 }) {
   const renderItems = useMemo(() => groupActionButtonBlocks(content), [content]);
 
@@ -79,6 +95,7 @@ function ContentRenderer({
               <ActionButtonRow
                 key={`action-buttons-${k}`}
                 actionButtons={item.actionButtons}
+                templateContext={templateContext}
               />
             );
           }

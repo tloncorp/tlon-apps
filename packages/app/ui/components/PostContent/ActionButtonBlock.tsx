@@ -4,14 +4,17 @@ import { useCallback, useState } from 'react';
 import { YStack } from 'tamagui';
 
 import {
+  PokeTemplateContext,
   actionButtonErrorMessage,
   fireActionButtonPoke,
 } from './actionButtonPoke';
 
 export function ActionButtonBlock({
   actionButton,
+  templateContext,
 }: {
   actionButton: PostBlobDataEntryActionButton;
+  templateContext?: PokeTemplateContext;
 }) {
   const showToast = useToast();
   const [hasPressed, setHasPressed] = useState(false);
@@ -20,7 +23,7 @@ export function ActionButtonBlock({
   const handlePress = useCallback(async () => {
     try {
       setIsSubmitting(true);
-      await fireActionButtonPoke(actionButton);
+      await fireActionButtonPoke(actionButton, templateContext);
       setHasPressed(true);
     } catch (error) {
       showToast({
@@ -30,7 +33,7 @@ export function ActionButtonBlock({
     } finally {
       setIsSubmitting(false);
     }
-  }, [actionButton, showToast]);
+  }, [actionButton, templateContext, showToast]);
 
   return (
     <Button
@@ -48,8 +51,10 @@ export function ActionButtonBlock({
 
 export function ActionButtonRow({
   actionButtons,
+  templateContext,
 }: {
   actionButtons: PostBlobDataEntryActionButton[];
+  templateContext?: PokeTemplateContext;
 }) {
   return (
     <YStack gap="$s" paddingVertical="$l" width="100%">
@@ -57,6 +62,7 @@ export function ActionButtonRow({
         <ActionButtonBlock
           key={`${actionButton.label}-${index}`}
           actionButton={actionButton}
+          templateContext={templateContext}
         />
       ))}
     </YStack>
