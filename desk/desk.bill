@@ -18,5 +18,4 @@
     %dumb-proxy
     %expose
     %metagrab
-    %cron
 ==
