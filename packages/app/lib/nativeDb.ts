@@ -260,8 +260,8 @@ export class NativeDb extends BaseDb {
       throw error;
     }
 
-    const MIGRATION_TIMEOUT = 2000; // 2 seconds
-    const runMigrationAttempt = async (timeoutErrorMessage: string) => {
+    const MIGRATION_TIMEOUT = 5000; // 5 seconds
+    const runMigrationAttempt = async (timeoutMessage: string) => {
       if (!this.client || !this.connection) {
         throw new Error(
           'runMigrations: connection/client missing before migration attempt'
@@ -271,10 +271,7 @@ export class NativeDb extends BaseDb {
       await Promise.race([
         this.connection.migrateClient(this.client),
         new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error(timeoutErrorMessage)),
-            MIGRATION_TIMEOUT
-          )
+          setTimeout(() => reject(new Error(timeoutMessage)), MIGRATION_TIMEOUT)
         ),
       ]);
 
