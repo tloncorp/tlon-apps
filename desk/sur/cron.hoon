@@ -1,9 +1,16 @@
-::  /sur/cron: types for the %cron timer agent
+::  /sur/cron: types for the %cron scheduled poke agent
 |%
-::  +$  timer: a scheduled LLM prompt with a cron interval
+::  +$  poke-spec: target for a scheduled poke
++$  poke-spec
+  $:  ship=@p
+      agent=term
+      mark=term
+      body=@t
+  ==
+::  +$  timer: a scheduled poke on a repeating interval
 +$  timer
   $:  id=@ud
-      prompt=cord
+      poke=poke-spec
       cron=cord
       period=@ud
       active=?
