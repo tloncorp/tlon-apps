@@ -200,7 +200,11 @@ export class NativeDb extends BaseDb {
     }
   }
 
-  private async verifyRequiredTables() {
+  private async verifyRequiredTables(opts?: {
+    attemptId?: string;
+    elapsedMs?: () => number;
+    migrationPhase?: 'initial' | 'retry';
+  }) {
     if (!this.connection) {
       throw new Error(
         'runMigrations: schema check attempted without connection'
@@ -228,6 +232,9 @@ export class NativeDb extends BaseDb {
         errorMessage: error.message,
         errorStack: error.stack,
         missingTables,
+        attemptId: opts?.attemptId,
+        elapsedMs: opts?.elapsedMs?.(),
+        migrationPhase: opts?.migrationPhase,
         severity: AnalyticsSeverity.Critical,
       });
       throw error;
@@ -235,6 +242,9 @@ export class NativeDb extends BaseDb {
 
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'runMigrations: schema health check passed',
+      attemptId: opts?.attemptId,
+      elapsedMs: opts?.elapsedMs?.(),
+      migrationPhase: opts?.migrationPhase,
     });
   }
 
@@ -243,8 +253,16 @@ export class NativeDb extends BaseDb {
       return;
     }
 
+    const attemptId = `native-db-migrate-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    const migrationStartTimeMs = Date.now();
+    const getElapsedMs = () => Date.now() - migrationStartTimeMs;
+
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'runMigrations: starting migrations',
+      attemptId,
+      elapsedMs: getElapsedMs(),
     });
 
     if (!this.client || !this.connection) {
@@ -261,12 +279,22 @@ export class NativeDb extends BaseDb {
     }
 
     const MIGRATION_TIMEOUT = 5000; // 5 seconds
-    const runMigrationAttempt = async (timeoutMessage: string) => {
+    const runMigrationAttempt = async (
+      timeoutMessage: string,
+      migrationPhase: 'initial' | 'retry'
+    ) => {
       if (!this.client || !this.connection) {
         throw new Error(
           'runMigrations: connection/client missing before migration attempt'
         );
       }
+
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'runMigrations: migrate attempt start',
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase,
+      });
 
       await Promise.race([
         this.connection.migrateClient(this.client),
@@ -275,16 +303,23 @@ export class NativeDb extends BaseDb {
         ),
       ]);
 
-      await this.verifyRequiredTables();
+      await this.verifyRequiredTables({
+        attemptId,
+        elapsedMs: getElapsedMs,
+        migrationPhase,
+      });
       await this.connection.execute(TRIGGER_SETUP);
       this.didMigrate = true;
     };
 
     try {
-      await runMigrationAttempt('Migration timeout exceeded');
+      await runMigrationAttempt('Migration timeout exceeded', 'initial');
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context:
           'runMigrations: successfully migrated DB and passed schema health check',
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase: 'initial',
       });
       return;
     } catch (e) {
@@ -293,31 +328,72 @@ export class NativeDb extends BaseDb {
           'runMigrations: migration/schema verification failed. Attempting to purge and retry',
         errorMessage: e.message,
         errorStack: e.stack,
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase: 'initial',
         severity: AnalyticsSeverity.Critical,
       });
     }
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'runMigrations: retry start',
+      attemptId,
+      elapsedMs: getElapsedMs(),
+    });
+
     try {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'runMigrations: retry purge start',
+        attemptId,
+        elapsedMs: getElapsedMs(),
+      });
       await this.purgeDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        context: 'runMigrations: migration retry: purged db',
-      });
-
-      if (!this.client || !this.connection) {
-        throw new Error(
-          'runMigrations: connection/client missing after purge retry setup'
-        );
-      }
-
-      await runMigrationAttempt('Migration timeout exceeded on retry');
-      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        context:
-          'runMigrations: migration retry: successfully migrated and passed schema health check',
+        context: 'runMigrations: retry purge success',
+        attemptId,
+        elapsedMs: getElapsedMs(),
       });
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        context: 'runMigrations: migration retry failed. Giving up',
+        context: 'runMigrations: retry purge failed',
         errorMessage: e.message,
         errorStack: e.stack,
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        severity: AnalyticsSeverity.Critical,
+      });
+      throw e;
+    }
+
+    if (!this.client || !this.connection) {
+      throw new Error(
+        'runMigrations: connection/client missing after purge retry setup'
+      );
+    }
+
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'runMigrations: retry migrate start',
+      attemptId,
+      elapsedMs: getElapsedMs(),
+      migrationPhase: 'retry',
+    });
+
+    try {
+      await runMigrationAttempt('Migration timeout exceeded on retry', 'retry');
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context:
+          'runMigrations: retry migrate success (schema health check passed)',
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase: 'retry',
+      });
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        context: 'runMigrations: retry migrate failed',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase: 'retry',
         severity: AnalyticsSeverity.Critical,
       });
       throw e;
