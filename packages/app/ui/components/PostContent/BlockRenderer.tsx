@@ -618,6 +618,11 @@ export type BlockRendererConfig = {
   lineText: (props: ComponentProps<typeof LineText>) => React.ReactNode;
 };
 
+/** action-response blob entries are metadata-only; nothing to render */
+function ActionResponseBlockRenderer() {
+  return null;
+}
+
 export const defaultBlockRenderers: BlockRendererConfig = {
   blockWrapper: BlockWrapper,
   lineText: LineText,
@@ -635,6 +640,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
   'action-button': ActionButtonBlockRenderer,
+  'action-response': ActionResponseBlockRenderer,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -658,6 +664,7 @@ export type DefaultRendererProps = {
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
   'action-button': BlockSettings<typeof ActionButtonBlockRenderer>;
+  'action-response': BlockSettings<typeof ActionResponseBlockRenderer>;
 };
 
 interface BlockRendererContextValue {

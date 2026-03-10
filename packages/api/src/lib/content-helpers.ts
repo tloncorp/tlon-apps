@@ -614,19 +614,41 @@ export type PostBlobDataEntryVoiceMemo = z.infer<
 export const PostBlobDataEntryActionButtonSchema =
   definePostBlobDataEntrySchema('action-button', 1, {
     label: z.string().min(1),
-    pokeApp: z.string().min(1),
-    pokeMark: z.string().min(1),
-    pokeJson: z.unknown(),
+    /** App to poke when pressed. Optional if only responseText is needed. */
+    pokeApp: z.string().min(1).optional(),
+    /** Mark for the poke. Optional if only responseText is needed. */
+    pokeMark: z.string().min(1).optional(),
+    /** JSON payload for the poke. Optional if only responseText is needed. */
+    pokeJson: z.unknown().optional(),
+    /** Optional text to send as a chat message when the button is pressed */
+    responseText: z.string().min(1).optional(),
+    /** Whether the response message is hidden from the sender (default true) */
+    responseSenderHidden: z.boolean().optional(),
   });
 
 export type PostBlobDataEntryActionButton = z.infer<
   typeof PostBlobDataEntryActionButtonSchema
 >;
 
+export const PostBlobDataEntryActionResponseSchema =
+  definePostBlobDataEntrySchema('action-response', 1, {
+    /** ID of the post containing the action button that was pressed */
+    sourcePostId: z.string().min(1),
+    /** Label of the action button that was pressed */
+    actionLabel: z.string().min(1),
+    /** Whether this message should be hidden from the sender's view */
+    senderHidden: z.boolean(),
+  });
+
+export type PostBlobDataEntryActionResponse = z.infer<
+  typeof PostBlobDataEntryActionResponseSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryActionButtonSchema,
+  PostBlobDataEntryActionResponseSchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
@@ -707,9 +729,11 @@ export function appendActionButtonToPostBlob(
   blob: string | undefined,
   opts: {
     label: string;
-    pokeApp: string;
-    pokeMark: string;
-    pokeJson: unknown;
+    pokeApp?: string;
+    pokeMark?: string;
+    pokeJson?: unknown;
+    responseText?: string;
+    responseSenderHidden?: boolean;
   }
 ) {
   return appendToPostBlob(blob, {
@@ -719,6 +743,25 @@ export function appendActionButtonToPostBlob(
     pokeApp: opts.pokeApp,
     pokeMark: opts.pokeMark,
     pokeJson: opts.pokeJson,
+    responseText: opts.responseText,
+    responseSenderHidden: opts.responseSenderHidden,
+  });
+}
+
+export function appendActionResponseToPostBlob(
+  blob: string | undefined,
+  opts: {
+    sourcePostId: string;
+    actionLabel: string;
+    senderHidden: boolean;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'action-response',
+    version: 1,
+    sourcePostId: opts.sourcePostId,
+    actionLabel: opts.actionLabel,
+    senderHidden: opts.senderHidden,
   });
 }
 
@@ -740,6 +783,20 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return { type: 'unknown' } as const;
     },
     arr
+  );
+}
+
+/**
+ * Returns true if the blob contains an action-response entry with
+ * senderHidden set to true.
+ */
+export function isSenderHiddenActionResponse(
+  blob: string | null | undefined
+): boolean {
+  if (!blob) return false;
+  const entries = parsePostBlob(blob);
+  return entries.some(
+    (entry) => entry.type === 'action-response' && entry.senderHidden
   );
 }
 
