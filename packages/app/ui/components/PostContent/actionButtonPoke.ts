@@ -61,6 +61,9 @@ export async function fireActionButtonPoke(
   ctx: PokeTemplateContext = {},
   pokeFn: typeof poke = poke
 ) {
+  if (!actionButton.pokeApp || !actionButton.pokeMark) {
+    return;
+  }
   await pokeFn({
     app: actionButton.pokeApp,
     mark: actionButton.pokeMark,

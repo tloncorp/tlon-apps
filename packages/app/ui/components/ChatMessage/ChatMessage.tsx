@@ -6,6 +6,7 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { PokeTemplateContext } from '../PostContent/actionButtonPoke';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -140,6 +141,16 @@ const ChatMessage = ({
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
+
+  const templateContext = useMemo<PokeTemplateContext>(
+    () => ({
+      targetUser: post.authorId ?? undefined,
+      currentChannel: post.channelId ?? undefined,
+      targetChannel: post.channelId ?? undefined,
+      sourcePostId: post.id ?? undefined,
+    }),
+    [post.authorId, post.channelId, post.id]
+  );
 
   if (!post) {
     return null;
@@ -278,6 +289,7 @@ const ChatMessage = ({
           ) : (
             <ChatContentRenderer
               content={post.editStatus === 'failed' ? lastEditContent : content}
+              templateContext={templateContext}
               isNotice={post.type === 'notice'}
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}

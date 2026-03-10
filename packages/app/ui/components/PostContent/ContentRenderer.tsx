@@ -127,6 +127,7 @@ export function createContentRenderer({
     ...props
   }: ContentRendererProps & {
     content: PostContent;
+    templateContext?: PokeTemplateContext;
   }) {
     return (
       <BlockRendererProvider

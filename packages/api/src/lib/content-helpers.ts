@@ -614,9 +614,12 @@ export type PostBlobDataEntryVoiceMemo = z.infer<
 export const PostBlobDataEntryActionButtonSchema =
   definePostBlobDataEntrySchema('action-button', 1, {
     label: z.string().min(1),
-    pokeApp: z.string().min(1),
-    pokeMark: z.string().min(1),
-    pokeJson: z.unknown(),
+    /** App to poke when pressed. Optional if only responseText is needed. */
+    pokeApp: z.string().min(1).optional(),
+    /** Mark for the poke. Optional if only responseText is needed. */
+    pokeMark: z.string().min(1).optional(),
+    /** JSON payload for the poke. Optional if only responseText is needed. */
+    pokeJson: z.unknown().optional(),
     /** Optional text to send as a chat message when the button is pressed */
     responseText: z.string().min(1).optional(),
     /** Whether the response message is hidden from the sender (default true) */
@@ -726,9 +729,11 @@ export function appendActionButtonToPostBlob(
   blob: string | undefined,
   opts: {
     label: string;
-    pokeApp: string;
-    pokeMark: string;
-    pokeJson: unknown;
+    pokeApp?: string;
+    pokeMark?: string;
+    pokeJson?: unknown;
+    responseText?: string;
+    responseSenderHidden?: boolean;
   }
 ) {
   return appendToPostBlob(blob, {
@@ -738,6 +743,8 @@ export function appendActionButtonToPostBlob(
     pokeApp: opts.pokeApp,
     pokeMark: opts.pokeMark,
     pokeJson: opts.pokeJson,
+    responseText: opts.responseText,
+    responseSenderHidden: opts.responseSenderHidden,
   });
 }
 
