@@ -10,10 +10,9 @@
     ++  v7
       |=  re=reply-essay:v10:cv
       ^-  memo:v7:cv
-      (v7:memo:v9 memo.re)
+      (v7:memo:v9 -.re)
     --
   --
-+
 ++  v9
   |%
   ++  v-channels
