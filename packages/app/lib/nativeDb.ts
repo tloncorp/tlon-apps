@@ -18,51 +18,79 @@ export class NativeDb extends BaseDb {
   private isProcessingChanges: boolean = false;
   private changesPending: boolean = false;
   private didMigrate: boolean = false;
+  private setupPromise: Promise<void> | null = null;
+  private readyPromise: Promise<void> | null = null;
 
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'setupDb: starting setup',
     });
-    if (this.connection || this.client) {
+    if (this.connection && this.client) {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'setupDb: already have existing connection, ignoring',
       });
       return;
     }
+
+    if (this.setupPromise) {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'setupDb: setup already in progress, awaiting existing setup',
+      });
+      await this.setupPromise;
+      return;
+    }
+
+    this.setupPromise = (async () => {
+      try {
+        if (this.connection && !this.client) {
+          logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+            context:
+              'setupDb: found connection without client, resetting stale connection',
+          });
+          this.connection.close();
+          this.connection = null;
+        }
+
+        this.connection = new OPSQLite$SQLiteConnection(
+          // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+          // this, you should change that too.
+          open({ location: 'default', name: 'tlon.sqlite' })
+        );
+        // Experimental SQLite settings. May cause crashes. More here:
+        // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
+        await this.connection.execute('PRAGMA mmap_size=268435456');
+        await this.connection.execute('PRAGMA journal_mode=DELETE');
+        await this.connection.execute('PRAGMA synchronous=OFF');
+
+        this.connection.updateHook(() => this.handleUpdate());
+
+        this.client = this.connection.createClient({
+          schema,
+          logger: enableLogger
+            ? {
+                logQuery(query, params) {
+                  logger.log(escapeLog(query), params);
+                },
+              }
+            : undefined,
+        });
+        setClient(this.client);
+        logger.log('SQLite database opened at', this.connection.getDbPath());
+      } catch (e) {
+        logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+          context: 'setupDb: error setting up db',
+          errorMessage: e.message,
+          errorStack: e.stack,
+          severity: AnalyticsSeverity.Critical,
+        });
+        throw e;
+      }
+    })();
+
     try {
-      this.connection = new OPSQLite$SQLiteConnection(
-        // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-        // this, you should change that too.
-        open({ location: 'default', name: 'tlon.sqlite' })
-      );
-      // Experimental SQLite settings. May cause crashes. More here:
-      // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-      await this.connection.execute('PRAGMA mmap_size=268435456');
-      await this.connection.execute('PRAGMA journal_mode=DELETE');
-      await this.connection.execute('PRAGMA synchronous=OFF');
-
-      this.connection.updateHook(() => this.handleUpdate());
-
-      this.client = this.connection.createClient({
-        schema,
-        logger: enableLogger
-          ? {
-              logQuery(query, params) {
-                logger.log(escapeLog(query), params);
-              },
-            }
-          : undefined,
-      });
-      setClient(this.client);
-      logger.log('SQLite database opened at', this.connection.getDbPath());
-    } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        context: 'setupDb: error setting up db',
-        errorMessage: e.message,
-        errorStack: e.stack,
-        severity: AnalyticsSeverity.Critical,
-      });
-      throw e;
+      await this.setupPromise;
+    } finally {
+      this.setupPromise = null;
     }
   }
 
@@ -128,7 +156,38 @@ export class NativeDb extends BaseDb {
     return this.connection?.getDbPath();
   }
 
+  async ensureDbReady() {
+    if (this.didMigrate && this.connection && this.client) {
+      return;
+    }
+
+    if (this.readyPromise) {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'ensureDbReady: awaiting in-flight db initialization',
+      });
+      await this.readyPromise;
+      return;
+    }
+
+    this.readyPromise = (async () => {
+      await this.setupDb();
+      if (!this.didMigrate) {
+        await this.runMigrationsInternal();
+      }
+    })();
+
+    try {
+      await this.readyPromise;
+    } finally {
+      this.readyPromise = null;
+    }
+  }
+
   async runMigrations() {
+    await this.ensureDbReady();
+  }
+
+  private async runMigrationsInternal() {
     if (this.didMigrate) {
       return;
     }
@@ -136,19 +195,25 @@ export class NativeDb extends BaseDb {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'runMigrations: starting migrations',
     });
+
     if (!this.client || !this.connection) {
-      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        context:
-          'runMigrations: attempted before connection connection was set up, skipping',
+      const error = new Error(
+        'runMigrations: connection/client missing after setup'
+      );
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        context: 'runMigrations: setup incomplete before migration',
+        errorMessage: error.message,
+        errorStack: error.stack,
+        severity: AnalyticsSeverity.Critical,
       });
-      return;
+      throw error;
     }
 
     const MIGRATION_TIMEOUT = 2000; // 2 seconds
 
     try {
       await Promise.race([
-        this.connection?.migrateClient(this.client!),
+        this.connection.migrateClient(this.client),
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error('Migration timeout exceeded')),
@@ -159,7 +224,7 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: successfully migrated DB',
       });
-      await this.connection?.execute(TRIGGER_SETUP);
+      await this.connection.execute(TRIGGER_SETUP);
       this.didMigrate = true;
       return;
     } catch (e) {
@@ -176,8 +241,15 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: migration retry: purged db',
       });
+
+      if (!this.client || !this.connection) {
+        throw new Error(
+          'runMigrations: connection/client missing after purge retry setup'
+        );
+      }
+
       await Promise.race([
-        this.connection?.migrateClient(this.client!),
+        this.connection.migrateClient(this.client),
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error('Migration timeout exceeded on retry')),
@@ -205,6 +277,7 @@ export class NativeDb extends BaseDb {
 // Create singleton instance
 const nativeDb = new NativeDb();
 export const setupDb = () => nativeDb.setupDb();
+export const ensureDbReady = () => nativeDb.ensureDbReady();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const resetDb = () => nativeDb.resetDb();

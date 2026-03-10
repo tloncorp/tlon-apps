@@ -4,7 +4,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { setupDb } from '@tloncorp/app/lib/nativeDb';
+import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -76,7 +76,7 @@ function MainInner(props) {
 
   useEffect(() => {
     async function checkDb() {
-      await setupDb();
+      await ensureDbReady();
       setIsDbReady(true);
     }
     checkDb();
