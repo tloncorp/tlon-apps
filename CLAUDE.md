@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Critical Git Rules
+
+-   **NEVER force-push to `origin/develop` or `origin/staging`**. These are protected shared branches. Do not use `git push --force` targeting them under any circumstances.
+-   When resetting a feature branch to a new base, always verify the branch's upstream tracking (`git branch -vv`) before pushing to ensure you are not accidentally pushing to develop or staging.
+
 ## Development Commands
 
 ### Building
