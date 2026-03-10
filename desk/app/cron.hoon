@@ -1,10 +1,12 @@
-::  %cron: CRUD agent for LLM prompt timers with cron scheduling
+::  %cron: scheduled poke agent
+::
+::  Fires pokes on a repeating timer.
 ::
 ::  HTTP API (all paths under /cron):
 ::    GET    /cron           list all timers
-::    POST   /cron           create a timer  {prompt, cron, period}
+::    POST   /cron           create a timer
 ::    GET    /cron/:id       get a timer
-::    PUT    /cron/:id       update a timer  {prompt?, cron?, period?, active?}
+::    PUT    /cron/:id       update a timer
 ::    DELETE /cron/:id       delete a timer
 ::
 /-  c=cron
@@ -41,7 +43,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  :_  this(state !<(state-0 old))
+  =/  sot  (mole |.(!<(state-0 old)))
+  :_  ?~(sot this this(state u.sot))
   ~[[%pass /eyre/connect %arvo %e %connect [~ /cron] dap.bowl]]
 ::
 ++  on-poke
@@ -67,7 +70,18 @@
 ::
 ++  on-peek   on-peek:def
 ++  on-leave  on-leave:def
-++  on-agent  on-agent:def
+++  on-agent
+  |=  [=wire =sign:agent:gall]
+  ^-  (quip card _this)
+  ?+  wire  (on-agent:def wire sign)
+      [%fire *]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      %-  (slog [leaf+"cron: poke nacked" u.p.sign])
+      `this
+    ==
+  ==
 ++  on-fail   on-fail:def
 --
 ::
@@ -90,7 +104,6 @@
     (handle-http req-id inbound-request)
   ::
       %noun
-    ::  %rebind: re-emit the eyre HTTP binding
     ?+  q.vase  cor
         %rebind
       (emit [%pass /eyre/connect %arvo %e %connect [~ /cron] dap.bowl])
@@ -119,6 +132,10 @@
     =/  =timer:c  u.t
     ::  ignore stale fires (from before update/delete)
     ?.  &(active.timer =(u.ver version.timer))  cor
+    ::  fire the poke
+    =/  ps=poke-spec:c  poke.timer
+    =/  real-body=@t  (fill-body body.ps now.bowl)
+    =.  cor  (emit [%pass ~[%fire (scot %ud u.tid)] %agent [ship.ps agent.ps] %poke mark.ps !>(real-body)])
     ::  bump version and reschedule
     =/  next-ver=@ud  (add version.timer 1)
     =.  timers.state
@@ -180,16 +197,32 @@
   ?~  parsed  (reply-err req-id 400 'invalid json')
   ?.  ?=(%o -.u.parsed)  (reply-err req-id 400 'expected object')
   =/  obj  p.u.parsed
-  =/  prompt=(unit cord)  (get-str obj 'prompt')
+  ::  parse poke spec
+  =/  poke-json=(unit json)  (~(get by obj) 'poke')
+  ?~  poke-json  (reply-err req-id 400 'required: poke object')
+  ?.  ?=(%o -.u.poke-json)  (reply-err req-id 400 'poke must be an object')
+  =/  pobj  p.u.poke-json
+  =/  ship-str=(unit cord)   (get-str pobj 'ship')
+  =/  agent-str=(unit cord)  (get-str pobj 'agent')
+  =/  mark-str=(unit cord)   (get-str pobj 'mark')
+  =/  body-str=cord          (fall (get-str pobj 'body') '')
+  ?~  ship-str   (reply-err req-id 400 'poke.ship required')
+  ?~  agent-str  (reply-err req-id 400 'poke.agent required')
+  ?~  mark-str   (reply-err req-id 400 'poke.mark required')
+  =/  target-ship=(unit @p)  (slaw %p u.ship-str)
+  ?~  target-ship  (reply-err req-id 400 'invalid poke.ship')
+  ::  parse timer fields
   =/  cron=(unit cord)    (get-str obj 'cron')
   =/  period=(unit @ud)   (get-ud obj 'period')
-  ?.  &(?=(^ prompt) ?=(^ cron) ?=(^ period))
-    (reply-err req-id 400 'required: prompt (str), cron (str), period (ud seconds)')
+  ?~  cron    (reply-err req-id 400 'required: cron (str)')
+  ?~  period  (reply-err req-id 400 'required: period (ud seconds)')
   =/  tid=@ud  next-id.state
   =.  next-id.state  +(tid)
+  =/  ps=poke-spec:c
+    [ship=u.target-ship agent=`@tas``@`u.agent-str mark=`@tas``@`u.mark-str body=body-str]
   =/  =timer:c
     :*  id=tid
-        prompt=u.prompt
+        poke=ps
         cron=u.cron
         period=u.period
         active=%.y
@@ -213,14 +246,30 @@
   ?~  parsed  (reply-err req-id 400 'invalid json')
   ?.  ?=(%o -.u.parsed)  (reply-err req-id 400 'expected object')
   =/  obj  p.u.parsed
-  =/  new-prompt=cord   (fall (get-str obj 'prompt') prompt.u.old)
+  ::  merge poke spec with existing
+  =/  old-ps=poke-spec:c  poke.u.old
+  =/  new-ps=poke-spec:c
+    =/  poke-json=(unit json)  (~(get by obj) 'poke')
+    ?~  poke-json  old-ps
+    ?.  ?=(%o -.u.poke-json)  old-ps
+    =/  pobj  p.u.poke-json
+    =/  s=(unit cord)  (get-str pobj 'ship')
+    =/  a=(unit cord)  (get-str pobj 'agent')
+    =/  m=(unit cord)  (get-str pobj 'mark')
+    =/  b=(unit cord)  (get-str pobj 'body')
+    :*  ship=(fall (bind s |=(c=cord (fall (slaw %p c) ship.old-ps))) ship.old-ps)
+        agent=?~(a agent.old-ps `@tas``@`u.a)
+        mark=?~(m mark.old-ps `@tas``@`u.m)
+        body=(fall b body.old-ps)
+    ==
+  ::  merge timer fields
   =/  new-cron=cord     (fall (get-str obj 'cron') cron.u.old)
   =/  new-period=@ud    (fall (get-ud obj 'period') period.u.old)
   =/  new-active=?      (fall (get-bool obj 'active') active.u.old)
   =/  next-ver=@ud      (add version.u.old 1)
   =/  updated=timer:c
     :*  id=id.u.old
-        prompt=new-prompt
+        poke=new-ps
         cron=new-cron
         period=new-period
         active=new-active
@@ -251,12 +300,25 @@
   =,  enjs:format
   %-  pairs
   :~  ['id' (numb id.t)]
-      ['prompt' s+prompt.t]
+      ['poke' (enjs-poke-spec poke.t)]
       ['cron' s+cron.t]
       ['period' (numb period.t)]
       ['active' b+active.t]
       ['created' s+(scot %da created.t)]
       ['version' (numb version.t)]
+  ==
+::
+::  +enjs-poke-spec: encode a poke spec as a JSON object
+::
+++  enjs-poke-spec
+  |=  ps=poke-spec:c
+  ^-  json
+  =,  enjs:format
+  %-  pairs
+  :~  ['ship' s+(scot %p ship.ps)]
+      ['agent' s+agent.ps]
+      ['mark' s+mark.ps]
+      ['body' s+body.ps]
   ==
 ::
 ::  +get-str: extract a string field from a JSON object map
@@ -285,6 +347,29 @@
   ?~  v=(~(get by obj) key)  ~
   ?.  ?=(%b -.u.v)  ~
   `p.u.v
+::
+::  +fill-body: replace {now} in body with current time
+::
+++  fill-body
+  |=  [bod=@t now=time]
+  ^-  @t
+  =/  hay=tape  (trip bod)
+  =/  ned=tape  (trip '{now}')
+  =/  rep=tape  (trip (scot %da now))
+  (crip (sub-tape hay ned rep))
+::
+::  +sub-tape: replace first occurrence of needle in haystack
+::
+++  sub-tape
+  |=  [hay=tape ned=tape rep=tape]
+  ^-  tape
+  =/  ned-len=@ud  (lent ned)
+  =/  out=tape  ~
+  |-  ^+  out
+  ?~  hay  out
+  ?.  =(ned (scag ned-len `tape`hay))
+    $(hay t.hay, out (snoc out i.hay))
+  (weld (weld out rep) (slag ned-len `tape`hay))
 ::
 ::  +reply-json: send a JSON HTTP response
 ::
