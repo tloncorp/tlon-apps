@@ -24,7 +24,7 @@ import { Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
-import { DUMMY_WAVEFORM_VALUES, Waveform } from '../AudioRecorder/Waveform';
+import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -36,6 +36,10 @@ import { HighlightedCode } from '../HighlightedCode';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+const DUMMY_WAVEFORM_VALUES = [
+  1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
+];
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',

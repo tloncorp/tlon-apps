@@ -1,25 +1,17 @@
+import * as sk from '@shopify/react-native-skia';
 import { ForwardingProps } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import {
-  FlatList,
-  LayoutChangeEvent,
-  LayoutRectangle,
-  View,
-} from 'react-native';
-import { styled } from 'tamagui';
-
-export const DUMMY_WAVEFORM_VALUES = [
-  1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
-];
+import { useCallback, useMemo, useState } from 'react';
+import { LayoutChangeEvent, LayoutRectangle, View } from 'react-native';
+import { useTheme } from 'tamagui';
 
 export function Waveform({
   values,
   visualRange,
   candleWidth = 6,
   candleSpacing = 2,
-  candleActiveColor = '$primaryText',
-  candleUnplayedColor = '$border',
-  candleInactiveColor = '$border',
+  candleActiveColor: candleActiveColorProp,
+  candleUnplayedColor: candleUnplayedColorProp,
+  candleInactiveColor: candleInactiveColorProp,
   candlePlaybackPosition = 0,
   style,
   onLayout: onLayoutProp,
@@ -31,15 +23,20 @@ export function Waveform({
     visualRange?: [min: number, max: number];
     candleWidth?: number;
     candleSpacing?: number;
-    candleActiveColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    candleActiveColor?: string;
     /** color for candles whose index >= candlePlaybackPosition, i.e. the "unplayed" portion of the waveform */
-    candleUnplayedColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    candleUnplayedColor?: string;
     /** used to fill out container for short sounds */
-    candleInactiveColor?: ComponentProps<typeof Candle>['backgroundColor'];
+    candleInactiveColor?: string;
     candlePlaybackPosition?: number;
   },
   'ref'
 >) {
+  const theme = useTheme();
+  const candleActiveColor = candleActiveColorProp ?? theme.primaryText.get();
+  const candleUnplayedColor = candleUnplayedColorProp ?? theme.border.get();
+  const candleInactiveColor = candleInactiveColorProp ?? theme.border.get();
+
   const [layout, setLayout] = useState<LayoutRectangle | null>(null);
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -55,18 +52,34 @@ export function Waveform({
     [layout, candleWidth, candleSpacing]
   );
 
+  // if candles don't fill width, pad with nulls.
+  // if candles exceed width, simplify waveform to fit
   const valuesWithPadding = useMemo(() => {
-    const out: (number | null)[] = [...values];
-    if (
-      maxVisibleCandleCount != null &&
-      values.length < maxVisibleCandleCount
-    ) {
-      const paddingCount = maxVisibleCandleCount - values.length;
-      const padding: null[] = Array(paddingCount).fill(null);
-      out.push(...padding);
+    let out: (number | null)[] = [...values];
+    if (maxVisibleCandleCount != null) {
+      if (values.length < maxVisibleCandleCount) {
+        const paddingCount = maxVisibleCandleCount - values.length;
+        const padding: null[] = Array(paddingCount).fill(null);
+        out.push(...padding);
+      }
+      if (values.length > maxVisibleCandleCount) {
+        out = simplifyWaveform(values, maxVisibleCandleCount);
+      }
     }
     return out;
   }, [values, maxVisibleCandleCount]);
+
+  const scaledCandlePlaybackPosition = useMemo(() => {
+    if (
+      maxVisibleCandleCount == null ||
+      values.length <= maxVisibleCandleCount
+    ) {
+      return candlePlaybackPosition;
+    }
+    return Math.floor(
+      (candlePlaybackPosition / values.length) * maxVisibleCandleCount
+    );
+  }, [candlePlaybackPosition, values.length, maxVisibleCandleCount]);
 
   const effectiveVisualRange = useMemo(() => {
     if (visualRange) {
@@ -78,50 +91,50 @@ export function Waveform({
   }, [visualRange, values]);
 
   return (
-    <FlatList
-      {...passedProps}
-      contentContainerStyle={{ alignItems: 'center' }}
-      onLayout={onLayout}
-      style={[{ flexGrow: 0, opacity: layout == null ? 0 : 1 }, style]}
-      data={valuesWithPadding}
-      alwaysBounceHorizontal={false}
-      horizontal
-      initialNumToRender={maxVisibleCandleCount ?? undefined}
-      showsHorizontalScrollIndicator={false}
-      renderItem={({ item, index }) => {
-        const [min, max] = effectiveVisualRange;
-        const range = max - min;
-        const heightRatio =
-          item == null ? null : range === 0 ? 1 : (item - min) / range;
-        return (
-          <Candle
-            backgroundColor={
-              heightRatio == null
-                ? candleInactiveColor
-                : index < candlePlaybackPosition
-                  ? candleActiveColor
-                  : candleUnplayedColor
-            }
-            style={[
-              {
-                width: candleWidth,
-                marginRight: candleSpacing,
-              },
-              heightRatio != null && {
-                height: layout
-                  ? layout.height * heightRatio
-                  : `${heightRatio * 100}%`,
-              },
-            ]}
-          />
-        );
-      }}
-      keyExtractor={(_, index) => index.toString()}
-    />
+    <sk.Canvas {...passedProps} style={style} onLayout={onLayout}>
+      {layout &&
+        valuesWithPadding.map((value, index) => {
+          const [min, max] = effectiveVisualRange;
+          const range = max - min;
+          const heightRatio =
+            value == null ? null : range === 0 ? 1 : (value - min) / range;
+          const height = Math.max(5, layout.height * (heightRatio ?? 0));
+          return (
+            <sk.RoundedRect
+              key={index}
+              x={index * (candleWidth + candleSpacing)}
+              y={(layout.height - height) * 0.5}
+              width={candleWidth}
+              height={Math.max(5, layout.height * (heightRatio ?? 0))}
+              r={40}
+              color={
+                heightRatio == null
+                  ? candleInactiveColor
+                  : index < scaledCandlePlaybackPosition
+                    ? candleActiveColor
+                    : candleUnplayedColor
+              }
+            />
+          );
+        })}
+    </sk.Canvas>
   );
 }
 
-const Candle = styled(View, {
-  borderRadius: 40,
-  minHeight: 5,
-});
+function simplifyWaveform(values: number[], targetCount: number): number[] {
+  if (values.length <= targetCount) {
+    return values;
+  }
+
+  const bucketSize = values.length / targetCount;
+  const simplified: number[] = [];
+  for (let i = 0; i < targetCount; i++) {
+    const start = Math.floor(i * bucketSize);
+    const end = Math.floor((i + 1) * bucketSize);
+    const bucketValues = values.slice(start, end);
+    const bucketAverage =
+      bucketValues.reduce((sum, val) => sum + val, 0) / bucketValues.length;
+    simplified.push(bucketAverage);
+  }
+  return simplified;
+}
