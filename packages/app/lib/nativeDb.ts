@@ -2,6 +2,7 @@ import { open } from '@op-engineering/op-sqlite';
 import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
 import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
+import { getTableName } from 'drizzle-orm';
 
 import {
   BaseDb,
@@ -12,6 +13,13 @@ import {
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
 import { SQLiteConnection } from './sqliteConnection';
 import { TRIGGER_SETUP } from './triggers';
+
+const REQUIRED_SENTINEL_TABLES = [
+  schema.groups,
+  schema.channels,
+  schema.posts,
+  schema.activityEvents,
+].map((table) => getTableName(table));
 
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
@@ -192,6 +200,44 @@ export class NativeDb extends BaseDb {
     }
   }
 
+  private async verifyRequiredTables() {
+    if (!this.connection) {
+      throw new Error(
+        'runMigrations: schema check attempted without connection'
+      );
+    }
+
+    const missingTables: string[] = [];
+
+    for (const tableName of REQUIRED_SENTINEL_TABLES) {
+      try {
+        await this.connection.execute(`SELECT 1 FROM "${tableName}" LIMIT 1`);
+      } catch {
+        missingTables.push(tableName);
+      }
+    }
+
+    if (missingTables.length > 0) {
+      const error = new Error(
+        `runMigrations: schema health check failed. Missing required tables: ${missingTables.join(
+          ', '
+        )}`
+      );
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        context: 'runMigrations: schema health check failed',
+        errorMessage: error.message,
+        errorStack: error.stack,
+        missingTables,
+        severity: AnalyticsSeverity.Critical,
+      });
+      throw error;
+    }
+
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'runMigrations: schema health check passed',
+    });
+  }
+
   private async runMigrationsInternal() {
     if (this.didMigrate) {
       return;
@@ -215,27 +261,39 @@ export class NativeDb extends BaseDb {
     }
 
     const MIGRATION_TIMEOUT = 2000; // 2 seconds
+    const runMigrationAttempt = async (timeoutErrorMessage: string) => {
+      if (!this.client || !this.connection) {
+        throw new Error(
+          'runMigrations: connection/client missing before migration attempt'
+        );
+      }
 
-    try {
       await Promise.race([
         this.connection.migrateClient(this.client),
         new Promise((_, reject) =>
           setTimeout(
-            () => reject(new Error('Migration timeout exceeded')),
+            () => reject(new Error(timeoutErrorMessage)),
             MIGRATION_TIMEOUT
           )
         ),
       ]);
-      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        context: 'runMigrations: successfully migrated DB',
-      });
+
+      await this.verifyRequiredTables();
       await this.connection.execute(TRIGGER_SETUP);
       this.didMigrate = true;
+    };
+
+    try {
+      await runMigrationAttempt('Migration timeout exceeded');
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context:
+          'runMigrations: successfully migrated DB and passed schema health check',
+      });
       return;
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context:
-          'runMigrations: migrations failed. Attempting to purge and retry',
+          'runMigrations: migration/schema verification failed. Attempting to purge and retry',
         errorMessage: e.message,
         errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
@@ -253,20 +311,11 @@ export class NativeDb extends BaseDb {
         );
       }
 
-      await Promise.race([
-        this.connection.migrateClient(this.client),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Migration timeout exceeded on retry')),
-            MIGRATION_TIMEOUT
-          )
-        ),
-      ]);
+      await runMigrationAttempt('Migration timeout exceeded on retry');
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context:
-          'runMigrations: migration retry: successfully migrated on retry (this should not happen often)',
+          'runMigrations: migration retry: successfully migrated and passed schema health check',
       });
-      this.didMigrate = true;
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: migration retry failed. Giving up',
