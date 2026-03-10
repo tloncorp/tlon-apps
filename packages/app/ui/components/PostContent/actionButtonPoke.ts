@@ -1,10 +1,14 @@
-import { getCurrentUserId, poke } from '@tloncorp/api';
+import { getCurrentUserId, poke, sendPost } from '@tloncorp/api';
 import type { PostBlobDataEntryActionButton } from '@tloncorp/api/lib/content-helpers';
+import { appendActionResponseToPostBlob } from '@tloncorp/api/lib/content-helpers';
+import type { Story } from '@tloncorp/api/urbit';
 
 export type PokeTemplateContext = {
   targetUser?: string;
   currentChannel?: string;
   targetChannel?: string;
+  /** ID of the post containing the action button */
+  sourcePostId?: string;
 };
 
 /**
@@ -61,6 +65,40 @@ export async function fireActionButtonPoke(
     app: actionButton.pokeApp,
     mark: actionButton.pokeMark,
     json: resolvePokeTemplates(actionButton.pokeJson, ctx),
+  });
+}
+
+/**
+ * Send a response message to the channel after an action button is pressed.
+ * The message carries an `action-response` blob entry so the sender's UI
+ * can suppress it while the recipient sees the text.
+ */
+export async function sendActionResponse(
+  actionButton: PostBlobDataEntryActionButton,
+  ctx: PokeTemplateContext,
+  sendPostFn: typeof sendPost = sendPost,
+  getCurrentUserIdFn: typeof getCurrentUserId = getCurrentUserId
+) {
+  if (!actionButton.responseText || !ctx.currentChannel || !ctx.sourcePostId) {
+    return;
+  }
+
+  const authorId = getCurrentUserIdFn();
+  const senderHidden = actionButton.responseSenderHidden !== false;
+  const blob = appendActionResponseToPostBlob(undefined, {
+    sourcePostId: ctx.sourcePostId,
+    actionLabel: actionButton.label,
+    senderHidden,
+  });
+
+  const story: Story = [{ inline: [actionButton.responseText] }];
+
+  await sendPostFn({
+    channelId: ctx.currentChannel,
+    authorId,
+    sentAt: Date.now(),
+    content: story,
+    blob,
   });
 }
 

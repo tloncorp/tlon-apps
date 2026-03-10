@@ -6,6 +6,7 @@ import { assertNever } from './assertNever';
 import {
   parsePostBlob,
   PostBlobDataEntryActionButton,
+  PostBlobDataEntryActionResponse,
   PostBlobDataEntryFile,
   PostBlobDataEntryVoiceMemo,
 } from './content-helpers';
@@ -114,6 +115,11 @@ export type ActionButtonBlockData = {
   actionButton: PostBlobDataEntryActionButton;
 };
 
+export type ActionResponseBlockData = {
+  type: 'action-response';
+  actionResponse: PostBlobDataEntryActionResponse;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -163,6 +169,7 @@ export type BlockData =
   | FileUploadBlockData
   | VoiceMemoBlockData
   | ActionButtonBlockData
+  | ActionResponseBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -252,6 +259,8 @@ export function plaintextPreviewOf(
           return '(Video)';
         case 'action-button':
           return `[Button: ${block.actionButton.label}]`;
+        case 'action-response':
+          return `[Action: ${block.actionResponse.actionLabel}]`;
         case 'reference':
           return config.includeRefTag ? '(Ref)' : '';
         case 'code':
@@ -387,6 +396,14 @@ export function convertContent(
           out.push({
             type: 'action-button',
             actionButton: entry,
+          });
+          break;
+        }
+
+        case 'action-response': {
+          out.push({
+            type: 'action-response',
+            actionResponse: entry,
           });
           break;
         }

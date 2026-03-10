@@ -7,6 +7,7 @@ import {
   PokeTemplateContext,
   actionButtonErrorMessage,
   fireActionButtonPoke,
+  sendActionResponse,
 } from './actionButtonPoke';
 
 export function ActionButtonBlock({
@@ -24,6 +25,7 @@ export function ActionButtonBlock({
     try {
       setIsSubmitting(true);
       await fireActionButtonPoke(actionButton, templateContext);
+      await sendActionResponse(actionButton, templateContext ?? {});
       setHasPressed(true);
     } catch (error) {
       showToast({

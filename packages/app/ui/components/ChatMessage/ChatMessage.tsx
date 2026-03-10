@@ -1,5 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { isSenderHiddenActionResponse } from '@tloncorp/api/lib/content-helpers';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -178,6 +179,11 @@ const ChatMessage = ({
         actionTestID="ShowBlockedMessageButton"
       />
     );
+  } else if (
+    post.authorId === currentUserId &&
+    isSenderHiddenActionResponse(post.blob)
+  ) {
+    return null;
   }
 
   const shouldRenderReplies =

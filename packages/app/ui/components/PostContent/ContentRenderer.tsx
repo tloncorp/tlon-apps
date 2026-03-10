@@ -50,8 +50,9 @@ export function PostContentRenderer({
       targetUser: post.authorId ?? undefined,
       currentChannel: post.channelId ?? undefined,
       targetChannel: post.channelId ?? undefined,
+      sourcePostId: post.id ?? undefined,
     }),
-    [post.authorId, post.channelId]
+    [post.authorId, post.channelId, post.id]
   );
 
   return (
