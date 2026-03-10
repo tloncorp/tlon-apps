@@ -437,7 +437,7 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
-          goToImageViewer={navigateToImage}
+          goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}

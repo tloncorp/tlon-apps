@@ -1,16 +1,24 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  AnalyticsEvent,
   createDevLogger,
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
+import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
+import {
+  AVPlaybackStatus,
+  ResizeMode,
+  Video as ExpoVideo,
+} from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import {
   ElementRef,
   PropsWithChildren,
+  useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -30,16 +38,249 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import { Spinner, Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
-import { triggerHaptic } from '../utils';
+import type { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
 const logger = createDevLogger('imageViewer', false);
 
-export function ImageViewerScreenView(props: {
+function MediaViewerModal({
+  dismiss,
+  children,
+}: PropsWithChildren<{
+  dismiss?: () => void;
+}>) {
+  if (isWeb) {
+    return <Modal animationType="none" onRequestClose={dismiss}>{children}</Modal>;
+  }
+
+  return <>{children}</>;
+}
+
+function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
+  return (
+    <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+      <Icon type={icon} size="$l" color="$white" />
+    </Stack>
+  );
+}
+
+function VideoLoadingOverlay({ visible }: { visible: boolean }) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <View
+      position="absolute"
+      top={0}
+      right={0}
+      bottom={0}
+      left={0}
+      justifyContent="center"
+      alignItems="center"
+      pointerEvents="none"
+    >
+      <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+        <Spinner size="large" color="$white" />
+      </Stack>
+    </View>
+  );
+}
+
+function VideoViewer({
+  uri,
+  posterUri,
+  goBack,
+}: {
   uri?: string;
+  posterUri?: string;
   goBack: () => void;
 }) {
+  const { top } = useSafeAreaInsets();
+  const [hasTrackedPlaybackStart, setHasTrackedPlaybackStart] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(!!uri);
+  const [isReady, setIsReady] = useState(!posterUri);
+  const source = useMemo(() => (uri ? { uri } : undefined), [uri]);
+
+  useEffect(() => {
+    setHasTrackedPlaybackStart(false);
+    setShowOverlay(true);
+    setIsBuffering(!!uri);
+    setIsReady(!posterUri);
+  }, [uri, posterUri]);
+
+  const trackPlaybackStarted = useCallback(() => {
+    if (hasTrackedPlaybackStart) {
+      return;
+    }
+    logger.trackEvent(AnalyticsEvent.VideoPlaybackStarted, { src: uri });
+    setHasTrackedPlaybackStart(true);
+  }, [hasTrackedPlaybackStart, uri]);
+
+  const handlePlaybackStatusUpdate = useCallback(
+    (status: AVPlaybackStatus) => {
+      if (!status.isLoaded) {
+        setIsBuffering(true);
+        return;
+      }
+      if (status.isPlaying) {
+        trackPlaybackStarted();
+      }
+      setIsBuffering(status.isBuffering);
+      if (status.positionMillis > 0 || status.isPlaying) {
+        setIsReady(true);
+      }
+    },
+    [trackPlaybackStarted]
+  );
+
+  const handlePlaybackError = useCallback(
+    (error: unknown) => {
+      setIsBuffering(false);
+      logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+        src: uri,
+        error,
+      });
+    },
+    [uri]
+  );
+  const toggleOverlay = useCallback(() => {
+    setShowOverlay((previous) => !previous);
+  }, []);
+
+  if (isWeb) {
+    return (
+      <MediaViewerModal dismiss={goBack}>
+        <ZStack flex={1} backgroundColor="$black">
+          <Pressable
+            onPress={goBack}
+            position="absolute"
+            top={0}
+            right={0}
+            bottom={0}
+            left={0}
+          />
+          <View
+            flex={1}
+            width="100%"
+            alignItems="center"
+            justifyContent="center"
+            padding="$l"
+            pointerEvents="box-none"
+          >
+            {!uri ? (
+              <Text color="$white">Unable to load video.</Text>
+            ) : (
+              <video
+                src={uri}
+                poster={posterUri}
+                controls
+                autoPlay
+                preload="metadata"
+                onPlay={trackPlaybackStarted}
+                onLoadedData={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onCanPlay={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onWaiting={() => {
+                  setIsBuffering(true);
+                }}
+                onPlaying={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                  trackPlaybackStarted();
+                }}
+                onError={handlePlaybackError}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleOverlay();
+                }}
+                style={{
+                  width: '100%',
+                  maxWidth: 1100,
+                  maxHeight: '90vh',
+                  display: 'block',
+                }}
+              />
+            )}
+          </View>
+          <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+
+          {showOverlay ? (
+            <Pressable
+              onPress={goBack}
+              position="absolute"
+              top={16}
+              right="$xl"
+            >
+              <OverlayIconButton icon="Close" />
+            </Pressable>
+          ) : null}
+        </ZStack>
+      </MediaViewerModal>
+    );
+  }
+
+  return (
+    <ZStack flex={1} backgroundColor="$black">
+      <View
+        flex={1}
+        width="100%"
+        alignItems="center"
+        justifyContent="center"
+        padding="$l"
+        onTouchEnd={toggleOverlay}
+      >
+        {!uri ? (
+          <Text color="$white">Unable to load video.</Text>
+        ) : (
+          source && (
+            <ExpoVideo
+              source={source}
+              usePoster={!!posterUri}
+              posterSource={posterUri ? { uri: posterUri } : undefined}
+              useNativeControls
+              shouldPlay
+              onReadyForDisplay={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+              }}
+              onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+              onError={handlePlaybackError}
+              resizeMode={ResizeMode.CONTAIN}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+            />
+          )
+        )}
+      </View>
+      <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+
+      {showOverlay ? (
+        <Pressable
+          onPress={goBack}
+          position="absolute"
+          top={top}
+          right="$xl"
+        >
+          <OverlayIconButton icon="Close" />
+        </Pressable>
+      ) : null}
+    </ZStack>
+  );
+}
+
+function ImageViewer(props: { uri?: string; goBack: () => void }) {
   const zoomableRef = useRef<ElementRef<typeof Zoomable>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
   const [maxPanPointers, setMaxPanPointers] = useState(2);
@@ -191,7 +432,7 @@ export function ImageViewerScreenView(props: {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri,
+            props.uri, 
             localUri
           );
 
@@ -405,4 +646,17 @@ function ImageViewerContainer({
   }
 
   return <GestureDetector gesture={dismissGesture}>{children}</GestureDetector>;
+}
+
+export default function MediaViewerScreen(props: Props) {
+  const { mediaType, uri, posterUri } = props.route.params;
+  const goBack = useCallback(() => {
+    props.navigation.pop();
+  }, [props.navigation]);
+
+  if (mediaType === 'video') {
+    return <VideoViewer uri={uri} posterUri={posterUri} goBack={goBack} />;
+  }
+
+  return <ImageViewer uri={uri} goBack={goBack} />;
 }
