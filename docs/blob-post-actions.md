@@ -1,108 +1,107 @@
-# Action Button Post Blob Entry Type
+# Action Button Blob Entry
 
-## Concept
+The `action-button` blob entry type attaches interactive buttons to posts.
+Each button carries a label and an action that fires when the recipient taps it.
 
-A new blob entry type `action-button` that carries a label and an arbitrary
-Urbit poke payload. When rendered, each entry displays as a tappable button.
-Pressing the button fires the embedded poke. This lets an LLM (or any automated
-sender) attach structured actions to a message — e.g. "Approve" / "Deny"
-buttons that poke the appropriate agent without the recipient typing anything.
+The primary use case is LLM-generated messages with structured actions —
+e.g. "Approve" / "Deny" buttons that poke the appropriate agent or send a
+canned response without the recipient typing anything.
 
 ## Entry shape (`action-button` v1)
 
-| field | type | notes |
-|-------|------|-------|
-| `type` | `'action-button'` | discriminant |
-| `version` | `1` | schema version |
-| `label` | `string` | button text shown to user |
-| `pokeApp` | `string` | Urbit app to poke (e.g. `'chat'`) |
-| `pokeMark` | `string` | poke mark (e.g. `'chat-dm-action-1'`) |
-| `pokeJson` | `unknown` (validated as JSON-serializable) | the poke payload |
+| field     | type                              | notes                                         |
+| --------- | --------------------------------- | --------------------------------------------- |
+| `type`    | `'action-button'`                 | discriminant                                  |
+| `version` | `1`                               | schema version                                |
+| `label`   | `string`                          | button text shown to user                     |
+| `action`  | `ActionButtonAction` (see below)  | what happens when pressed                     |
+| `target`  | `string` (optional)               | ship, role, or `'all'` — controls visibility  |
 
-A single post can carry multiple `action-button` entries (the blob is an
-array), so you get a row of buttons under the message.
+### `action` discriminated union
 
-## Files to change
+Each button does exactly one thing when pressed, determined by `action.type`:
 
-### 1. `packages/api/src/lib/content-helpers.ts` — Schema + write helpers
+**Poke action** — fires an arbitrary Urbit poke:
 
-- Add `PostBlobDataEntryActionButtonSchema` using
-  `definePostBlobDataEntrySchema('action-button', 1, { ... })`
-- Export `PostBlobDataEntryActionButton` type
-- Add schema to `postBlobDataEntryDefinitions`
-- Add `appendActionButtonToPostBlob()` convenience function
-- No `toPostData` case needed — action buttons won't originate from the
-  attachment picker; they'll be appended to the blob directly by whatever
-  creates the post (e.g. an LLM response handler)
+| field  | type      | notes                            |
+| ------ | --------- | -------------------------------- |
+| `type` | `'poke'`  | discriminant                     |
+| `app`  | `string`  | Urbit app to poke                |
+| `mark` | `string`  | poke mark                        |
+| `json` | `unknown` | the poke payload (JSON-safe)     |
 
-### 2. `packages/api/src/lib/postContent.ts` — Read path + block type
+**Response action** — sends a chat message back to the channel:
 
-- Add `ActionButtonBlockData` type:
-  `{ type: 'action-button'; actionButton: PostBlobDataEntryActionButton }`
-- Add to `BlockData` union
-- Add `case 'action-button'` in `convertContent`'s blob loop
-- Add `case 'action-button'` in `plaintextPreviewOf` (render as
-  `"[Button: <label>]"`)
+| field    | type                | notes                                              |
+| -------- | ------------------- | -------------------------------------------------- |
+| `type`   | `'response'`        | discriminant                                       |
+| `text`   | `string`            | message text to send                               |
+| `hidden` | `boolean` (optional)| hide from sender's view (default `true`)           |
 
-### 3. `packages/api/src/__tests__/content-helpers.test.ts` — Tests
+## Entry shape (`action-response` v1)
 
-- Round-trip test: `appendActionButtonToPostBlob` → `parsePostBlob` returns
-  correct typed entry
-- Malformed payload test: missing `label` or `pokeApp` → degrades to
-  `{ type: 'unknown' }`
-- Multiple buttons in one blob test
-- Coexistence test: action buttons alongside file/voicememo entries
+When a response-type action button is pressed, the resulting message carries
+an `action-response` blob entry so the UI can identify it:
 
-### 4. `packages/ui/` (or `packages/app/`) — Renderer component (later)
+| field          | type      | notes                                        |
+| -------------- | --------- | -------------------------------------------- |
+| `type`         | `'action-response'` | discriminant                         |
+| `version`      | `1`                 | schema version                       |
+| `sourcePostId` | `string`            | ID of the post with the button       |
+| `actionLabel`  | `string`            | label of the button that was pressed |
+| `senderHidden` | `boolean`           | suppress in sender's message list    |
 
-- Create an `ActionButtonBlock` component that renders the button and fires the
-  poke on press
-- The component receives `PostBlobDataEntryActionButton`, calls
-  `poke({ app: entry.pokeApp, mark: entry.pokeMark, json: entry.pokeJson })`
-  on tap
-- Security consideration: may want a confirmation dialog or allowlist of
-  pokeable apps
+## Template variables
 
-## What does NOT change
+Poke-type actions support template variables that are resolved at press time:
 
-- **No backend (Hoon) changes** — blob is opaque `(unit @t)`
-- **No attachment type changes** — action buttons aren't user-created
-  attachments; they're programmatically injected into the blob
-- **No `toPostData` case** — no attachment picker flow for these
-- **No database schema changes** — blob column is already text
+| variable            | resolves to                          |
+| ------------------- | ------------------------------------ |
+| `{{currentUser}}`   | the pressing user's ship name        |
+| `{{targetUser}}`    | the post author's ship name          |
+| `{{currentChannel}}`| the channel the post appears in      |
+| `{{targetChannel}}` | a referenced channel (e.g. linked)   |
 
-## Design considerations
+Variables are replaced recursively through the entire `json` payload.
+Unresolved variables are left as-is.
 
-### `pokeJson` validation
+## Security considerations
 
-We use `z.unknown()` (must be JSON-serializable) rather than constraining the
-shape. The blob system is client-opaque by design; constraining poke payloads
-would couple the blob schema to every possible agent's action schema.
+The poke action executes with the recipient's identity. A malicious sender
+could embed a poke that does something the recipient didn't intend.
 
-### Security
+Current mitigations:
+- The button label is visible before pressing — the user decides to tap
+- Response-type actions are inherently safe (just send a message)
 
-The poke executes with the recipient's identity. A malicious sender could embed
-a poke that does something the recipient didn't intend. Options:
+Future mitigations under consideration:
+- Confirmation modal showing the target app/mark before firing a poke
+- Allowlist of safe app+mark combinations
+- Restricting poke targets to the post sender's ship
 
-- **MVP**: No guard — treat like clicking a link (user sees the label, decides
-  to press)
-- **Later**: Confirmation modal showing the target app/mark before firing
-- **Later**: Allowlist of safe app+mark combinations
+## Button visibility
 
-### Immutability
+The optional `target` field controls who sees the button:
+- A ship name (e.g. `~zod`) — only that ship sees the button
+- A role name — only members with that role see the button
+- `'all'` — everyone sees the button
+- Omitted — everyone sees the button (same as `'all'`)
 
-Per design rule 5, blob is immutable after send. Buttons can't be removed or
-change label/action after the post is sent. This is fine for the
-approval/denial use case.
+Target-based filtering is not yet enforced in the UI.
 
-### Graceful degradation
+## Graceful degradation
 
-Older clients that don't know `action-button` will render the standard "Upgrade
-your app" blockquote — no crash.
+Older clients that don't recognize `action-button` will render the standard
+"Upgrade your app" blockquote. No crash, no data loss.
 
-## Execution order
+## Key files
 
-1. Schema + helpers in `content-helpers.ts`
-2. Block type + `convertContent` case in `postContent.ts`
-3. Tests in `content-helpers.test.ts`
-4. UI renderer (separate follow-up)
+| file | role |
+| ---- | ---- |
+| `packages/api/src/lib/content-helpers.ts` | Schema definitions, append helpers, parse logic |
+| `packages/api/src/lib/postContent.ts` | Block types, `convertContent` mapping, plaintext preview |
+| `packages/app/ui/components/PostContent/ActionButtonBlock.tsx` | Button UI component |
+| `packages/app/ui/components/PostContent/actionButtonPoke.ts` | Poke execution + template resolution |
+| `packages/app/ui/components/PostContent/actionButtonUtils.ts` | Grouping consecutive buttons into rows |
+| `packages/app/ui/components/PostContent/BlockRenderer.tsx` | Block renderer registry |
+| `packages/app/ui/components/PostContent/ContentRenderer.tsx` | Template context threading |

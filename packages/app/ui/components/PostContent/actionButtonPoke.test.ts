@@ -8,19 +8,22 @@ import {
   sendActionResponse,
 } from './actionButtonPoke';
 
-const actionButton: PostBlobDataEntryActionButton = {
+const pokeActionButton: PostBlobDataEntryActionButton = {
   type: 'action-button',
   version: 1,
   label: 'Approve',
-  pokeApp: 'permissions',
-  pokeMark: 'json',
-  pokeJson: { allow: true, requestId: 'req-123' },
+  action: {
+    type: 'poke',
+    app: 'permissions',
+    mark: 'json',
+    json: { allow: true, requestId: 'req-123' },
+  },
 };
 
-test('fireActionButtonPoke sends the action-button payload through poke', async () => {
+test('fireActionButtonPoke sends the poke action payload through poke', async () => {
   const poke = vi.fn().mockResolvedValue(undefined);
 
-  await fireActionButtonPoke(actionButton, {}, poke);
+  await fireActionButtonPoke(pokeActionButton, {}, poke);
 
   expect(poke).toHaveBeenCalledWith({
     app: 'permissions',
@@ -35,12 +38,15 @@ test('fireActionButtonPoke resolves template variables from context', async () =
     type: 'action-button',
     version: 1,
     label: 'Reply',
-    pokeApp: 'chat',
-    pokeMark: 'chat-dm-action-1',
-    pokeJson: {
-      ship: '{{targetUser}}',
-      channel: '{{currentChannel}}',
-      target: '{{targetChannel}}',
+    action: {
+      type: 'poke',
+      app: 'chat',
+      mark: 'chat-dm-action-1',
+      json: {
+        ship: '{{targetUser}}',
+        channel: '{{currentChannel}}',
+        target: '{{targetChannel}}',
+      },
     },
   };
 
@@ -65,17 +71,33 @@ test('fireActionButtonPoke resolves template variables from context', async () =
   });
 });
 
+test('fireActionButtonPoke does nothing for response-type action buttons', async () => {
+  const poke = vi.fn().mockResolvedValue(undefined);
+  const responseButton: PostBlobDataEntryActionButton = {
+    type: 'action-button',
+    version: 1,
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
+  };
+
+  await fireActionButtonPoke(responseButton, {}, poke);
+
+  expect(poke).not.toHaveBeenCalled();
+});
+
 const mockGetCurrentUserId = () => '~zod';
 
-test('sendActionResponse sends a post with action-response blob when responseText is set', async () => {
+test('sendActionResponse sends a post with action-response blob when action type is response', async () => {
   const sendPost = vi.fn().mockResolvedValue(undefined);
-  const buttonWithResponse: PostBlobDataEntryActionButton = {
-    ...actionButton,
-    responseText: 'approve',
+  const responseButton: PostBlobDataEntryActionButton = {
+    type: 'action-button',
+    version: 1,
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
   };
 
   await sendActionResponse(
-    buttonWithResponse,
+    responseButton,
     {
       currentChannel: 'chat/~zod/test',
       sourcePostId: '170141184506828851385935487131294105600',
@@ -88,6 +110,7 @@ test('sendActionResponse sends a post with action-response blob when responseTex
   const call = sendPost.mock.calls[0][0];
   expect(call.channelId).toBe('chat/~zod/test');
   expect(call.authorId).toBe('~zod');
+  expect(call.content).toEqual([{ inline: ['approve'] }]);
   expect(call.blob).toBeDefined();
 
   const blobEntries = parsePostBlob(call.blob);
@@ -101,11 +124,11 @@ test('sendActionResponse sends a post with action-response blob when responseTex
   });
 });
 
-test('sendActionResponse does nothing when responseText is not set', async () => {
+test('sendActionResponse does nothing for poke-type action buttons', async () => {
   const sendPost = vi.fn().mockResolvedValue(undefined);
 
   await sendActionResponse(
-    actionButton,
+    pokeActionButton,
     { currentChannel: 'chat/~zod/test', sourcePostId: 'post-1' },
     sendPost
   );
@@ -115,26 +138,29 @@ test('sendActionResponse does nothing when responseText is not set', async () =>
 
 test('sendActionResponse does nothing when currentChannel is missing', async () => {
   const sendPost = vi.fn().mockResolvedValue(undefined);
-  const buttonWithResponse: PostBlobDataEntryActionButton = {
-    ...actionButton,
-    responseText: 'approve',
+  const responseButton: PostBlobDataEntryActionButton = {
+    type: 'action-button',
+    version: 1,
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
   };
 
-  await sendActionResponse(buttonWithResponse, {}, sendPost);
+  await sendActionResponse(responseButton, {}, sendPost);
 
   expect(sendPost).not.toHaveBeenCalled();
 });
 
-test('sendActionResponse respects responseSenderHidden=false', async () => {
+test('sendActionResponse respects hidden=false on response action', async () => {
   const sendPost = vi.fn().mockResolvedValue(undefined);
-  const buttonWithResponse: PostBlobDataEntryActionButton = {
-    ...actionButton,
-    responseText: 'approve',
-    responseSenderHidden: false,
+  const responseButton: PostBlobDataEntryActionButton = {
+    type: 'action-button',
+    version: 1,
+    label: 'Approve',
+    action: { type: 'response', text: 'approve', hidden: false },
   };
 
   await sendActionResponse(
-    buttonWithResponse,
+    responseButton,
     {
       currentChannel: 'chat/~zod/test',
       sourcePostId: 'post-1',

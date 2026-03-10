@@ -24,8 +24,11 @@ export function ActionButtonBlock({
   const handlePress = useCallback(async () => {
     try {
       setIsSubmitting(true);
-      await fireActionButtonPoke(actionButton, templateContext);
-      await sendActionResponse(actionButton, templateContext ?? {});
+      if (actionButton.action.type === 'poke') {
+        await fireActionButtonPoke(actionButton, templateContext);
+      } else if (actionButton.action.type === 'response') {
+        await sendActionResponse(actionButton, templateContext ?? {});
+      }
       setHasPressed(true);
     } catch (error) {
       showToast({

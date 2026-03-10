@@ -10,9 +10,12 @@ const makeActionButtonBlock = (label: string) =>
       type: 'action-button',
       version: 1,
       label,
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { label },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { label },
+      },
     },
   }) as const;
 

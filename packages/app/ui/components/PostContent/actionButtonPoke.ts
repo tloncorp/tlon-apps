@@ -61,13 +61,13 @@ export async function fireActionButtonPoke(
   ctx: PokeTemplateContext = {},
   pokeFn: typeof poke = poke
 ) {
-  if (!actionButton.pokeApp || !actionButton.pokeMark) {
+  if (actionButton.action.type !== 'poke') {
     return;
   }
   await pokeFn({
-    app: actionButton.pokeApp,
-    mark: actionButton.pokeMark,
-    json: resolvePokeTemplates(actionButton.pokeJson, ctx),
+    app: actionButton.action.app,
+    mark: actionButton.action.mark,
+    json: resolvePokeTemplates(actionButton.action.json, ctx),
   });
 }
 
@@ -82,19 +82,22 @@ export async function sendActionResponse(
   sendPostFn: typeof sendPost = sendPost,
   getCurrentUserIdFn: typeof getCurrentUserId = getCurrentUserId
 ) {
-  if (!actionButton.responseText || !ctx.currentChannel || !ctx.sourcePostId) {
+  if (actionButton.action.type !== 'response') {
+    return;
+  }
+  if (!ctx.currentChannel || !ctx.sourcePostId) {
     return;
   }
 
   const authorId = getCurrentUserIdFn();
-  const senderHidden = actionButton.responseSenderHidden !== false;
+  const senderHidden = actionButton.action.hidden !== false;
   const blob = appendActionResponseToPostBlob(undefined, {
     sourcePostId: ctx.sourcePostId,
     actionLabel: actionButton.label,
     senderHidden,
   });
 
-  const story: Story = [{ inline: [actionButton.responseText] }];
+  const story: Story = [{ inline: [actionButton.action.text] }];
 
   await sendPostFn({
     channelId: ctx.currentChannel,

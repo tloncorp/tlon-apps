@@ -51,12 +51,15 @@ test('parsePostBlob parses voicememo blob entries', () => {
   ]);
 });
 
-test('appendActionButtonToPostBlob round-trips through parsePostBlob', () => {
+test('appendActionButtonToPostBlob round-trips through parsePostBlob (poke action)', () => {
   const blob = appendActionButtonToPostBlob(undefined, {
     label: 'Approve',
-    pokeApp: 'permissions',
-    pokeMark: 'json',
-    pokeJson: { allow: true, requestId: 'req-123' },
+    action: {
+      type: 'poke',
+      app: 'permissions',
+      mark: 'json',
+      json: { allow: true, requestId: 'req-123' },
+    },
   });
 
   expect(parsePostBlob(blob)).toEqual([
@@ -64,9 +67,28 @@ test('appendActionButtonToPostBlob round-trips through parsePostBlob', () => {
       type: 'action-button',
       version: 1,
       label: 'Approve',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob round-trips through parsePostBlob (response action)', () => {
+  const blob = appendActionButtonToPostBlob(undefined, {
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: { type: 'response', text: 'approve' },
     },
   ]);
 });
@@ -78,16 +100,19 @@ test('parsePostBlob degrades action-button payloads missing label to unknown', (
         {
           type: 'action-button',
           version: 1,
-          pokeApp: 'permissions',
-          pokeMark: 'json',
-          pokeJson: { allow: true, requestId: 'req-123' },
+          action: {
+            type: 'poke',
+            app: 'permissions',
+            mark: 'json',
+            json: { allow: true },
+          },
         },
       ])
     )
   ).toEqual([{ type: 'unknown' }]);
 });
 
-test('parsePostBlob degrades action-button payloads missing pokeApp to unknown', () => {
+test('parsePostBlob degrades action-button payloads missing action to unknown', () => {
   expect(
     parsePostBlob(
       JSON.stringify([
@@ -95,8 +120,6 @@ test('parsePostBlob degrades action-button payloads missing pokeApp to unknown',
           type: 'action-button',
           version: 1,
           label: 'Approve',
-          pokeMark: 'json',
-          pokeJson: { allow: true, requestId: 'req-123' },
         },
       ])
     )
@@ -107,15 +130,21 @@ test('appendActionButtonToPostBlob appends multiple action-button entries', () =
   const blob = appendActionButtonToPostBlob(
     appendActionButtonToPostBlob(undefined, {
       label: 'Approve',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
     }),
     {
       label: 'Deny',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: false, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: false, requestId: 'req-123' },
+      },
     }
   );
 
@@ -124,17 +153,23 @@ test('appendActionButtonToPostBlob appends multiple action-button entries', () =
       type: 'action-button',
       version: 1,
       label: 'Approve',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
     },
     {
       type: 'action-button',
       version: 1,
       label: 'Deny',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: false, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: false, requestId: 'req-123' },
+      },
     },
   ]);
 });
@@ -159,9 +194,12 @@ test('parsePostBlob parses action-button entries alongside file and voicememo en
     ),
     {
       label: 'Approve',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
     }
   );
 
@@ -186,9 +224,12 @@ test('parsePostBlob parses action-button entries alongside file and voicememo en
       type: 'action-button',
       version: 1,
       label: 'Approve',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true, requestId: 'req-123' },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
     },
   ]);
 });
@@ -197,9 +238,12 @@ test('appendActionButtonToPostBlob validates action-button entries', () => {
   expect(() =>
     appendActionButtonToPostBlob(undefined, {
       label: '',
-      pokeApp: 'permissions',
-      pokeMark: 'json',
-      pokeJson: { allow: true },
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true },
+      },
     })
   ).toThrow('Invalid PostBlobDataEntry');
 });
@@ -277,6 +321,24 @@ test('toPostData uses attachment mimeType when serializing file blobs', () => {
       mimeType: 'application/pdf',
       name: 'report.pdf',
       size: 2048,
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob preserves target field', () => {
+  const blob = appendActionButtonToPostBlob(undefined, {
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
+    target: '~zod',
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: { type: 'response', text: 'approve' },
+      target: '~zod',
     },
   ]);
 });

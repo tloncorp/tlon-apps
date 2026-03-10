@@ -611,19 +611,32 @@ export type PostBlobDataEntryVoiceMemo = z.infer<
   typeof PostBlobDataEntryVoiceMemoSchema
 >;
 
+const ActionButtonPokeActionSchema = z.object({
+  type: z.literal('poke'),
+  app: z.string().min(1),
+  mark: z.string().min(1),
+  json: z.unknown(),
+});
+
+const ActionButtonResponseActionSchema = z.object({
+  type: z.literal('response'),
+  text: z.string().min(1),
+  hidden: z.boolean().optional(),
+});
+
+export const ActionButtonActionSchema = z.discriminatedUnion('type', [
+  ActionButtonPokeActionSchema,
+  ActionButtonResponseActionSchema,
+]);
+
+export type ActionButtonAction = z.infer<typeof ActionButtonActionSchema>;
+
 export const PostBlobDataEntryActionButtonSchema =
   definePostBlobDataEntrySchema('action-button', 1, {
     label: z.string().min(1),
-    /** App to poke when pressed. Optional if only responseText is needed. */
-    pokeApp: z.string().min(1).optional(),
-    /** Mark for the poke. Optional if only responseText is needed. */
-    pokeMark: z.string().min(1).optional(),
-    /** JSON payload for the poke. Optional if only responseText is needed. */
-    pokeJson: z.unknown().optional(),
-    /** Optional text to send as a chat message when the button is pressed */
-    responseText: z.string().min(1).optional(),
-    /** Whether the response message is hidden from the sender (default true) */
-    responseSenderHidden: z.boolean().optional(),
+    action: ActionButtonActionSchema,
+    /** Optional ship, role, or 'all' to control button visibility */
+    target: z.string().min(1).optional(),
   });
 
 export type PostBlobDataEntryActionButton = z.infer<
@@ -729,22 +742,16 @@ export function appendActionButtonToPostBlob(
   blob: string | undefined,
   opts: {
     label: string;
-    pokeApp?: string;
-    pokeMark?: string;
-    pokeJson?: unknown;
-    responseText?: string;
-    responseSenderHidden?: boolean;
+    action: ActionButtonAction;
+    target?: string;
   }
 ) {
   return appendToPostBlob(blob, {
     type: 'action-button',
     version: 1,
     label: opts.label,
-    pokeApp: opts.pokeApp,
-    pokeMark: opts.pokeMark,
-    pokeJson: opts.pokeJson,
-    responseText: opts.responseText,
-    responseSenderHidden: opts.responseSenderHidden,
+    action: opts.action,
+    target: opts.target,
   });
 }
 
