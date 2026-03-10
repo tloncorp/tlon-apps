@@ -73,14 +73,46 @@ function useJsHeartbeat(enabled) {
 
 function MainInner(props) {
   const [isDbReady, setIsDbReady] = useState(false);
+  const [dbInitError, setDbInitError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const MAX_ATTEMPTS = 3;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
     async function checkDb() {
-      await ensureDbReady();
-      setIsDbReady(true);
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          await ensureDbReady();
+          if (!cancelled) {
+            setIsDbReady(true);
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < MAX_ATTEMPTS && !cancelled) {
+            await wait(500 * attempt);
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setDbInitError(lastError);
+      }
     }
+
     checkDb();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  if (dbInitError) {
+    throw dbInitError;
+  }
 
   useEffect(() => {
     async function init() {

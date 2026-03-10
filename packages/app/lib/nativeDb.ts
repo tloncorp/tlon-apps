@@ -185,6 +185,11 @@ export class NativeDb extends BaseDb {
 
   async runMigrations() {
     await this.ensureDbReady();
+    if (!this.didMigrate) {
+      throw new Error(
+        'runMigrations: completed without recording successful migration'
+      );
+    }
   }
 
   private async runMigrationsInternal() {
