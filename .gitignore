@@ -17,3 +17,4 @@ apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
 
 dump.sqlite3
+.claude

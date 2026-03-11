@@ -2471,7 +2471,7 @@
         (max recency.remark.channel id-reply)
       =?  unread-threads.remark.channel
           ?&  ?=(%& -.reply)
-              !=(our.bowl author.reply)
+              !=(our.bowl (get-author-ship:utils author.reply))
               (gth id-reply last-read.remark.channel)
           ==
         (~(put in unread-threads.remark.channel) id-post)
@@ -2644,7 +2644,7 @@
           (lot:on-v-replies:c replies.u.parent `last-read.remark.channel ~)
         |=  [tim=time reply=(may:c v-reply:c)]
         ?&  ?=(%& -.reply)
-            !=(author.reply our.bowl)
+            !=((get-author-ship:utils author.reply) our.bowl)
         ==
       =/  count=@ud  (lent unreads)
       :-  (add sum count)

@@ -13,6 +13,7 @@ export interface PostWithNeighbors {
 
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
+  scrollToEnd: (opts: { animated?: boolean }) => void;
   scrollToIndex: (opts: { index: number; animated?: boolean }) => void;
 }
 
@@ -53,6 +54,14 @@ export type PostListComponentProps = {
   }) => React.ReactElement | null;
   scrollEnabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Content to display at the visual top of the list (above all items).
+   * Used to render gallery/notebook headers inside the PostList, avoiding
+   * nested FlatLists which break on Android.
+   *
+   * Mapped to ListFooterComponent when inverted, ListHeaderComponent otherwise.
+   */
+  listHeaderComponent?: React.ReactElement;
 };
 
 export type PostListComponent = ReturnType<

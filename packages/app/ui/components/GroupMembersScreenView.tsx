@@ -210,7 +210,7 @@ export function GroupMembersScreenView({
           membersWithoutRoles.length > 0
             ? [
                 {
-                  title: 'Everyone Else',
+                  title: 'Members',
                   data: membersWithoutRoles,
                 },
               ]

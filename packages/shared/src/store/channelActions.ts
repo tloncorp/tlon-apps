@@ -10,6 +10,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { GroupChannelV7, getChannelKindFromType } from '../urbit';
+import { SyncPriority, syncQueue } from './syncQueue';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -377,12 +378,18 @@ export async function markChannelRead({
   }
 
   try {
-    await api.readChannel({
-      channelId: existingChannel.id,
-      channelType: existingChannel.type,
-      groupId: existingChannel.groupId,
-      deep: !!includeThreads,
-    });
+    await syncQueue.add(
+      'markChannelRead',
+      { priority: SyncPriority.Medium },
+      () => {
+        return api.readChannel({
+          channelId: existingChannel.id,
+          channelType: existingChannel.type,
+          groupId: existingChannel.groupId,
+          deep: !!includeThreads,
+        });
+      }
+    );
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update

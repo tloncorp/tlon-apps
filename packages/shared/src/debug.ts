@@ -8,7 +8,13 @@ import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
 
 const MAX_POSTHOG_EVENT_SIZE = 1_000_000;
+const jsContextId = Math.random().toString(36).slice(2, 10);
 const BREADCRUMB_LIMIT = 100;
+
+let _buildInfo: string | null = null;
+export function setDebugBuildInfo(info: string) {
+  _buildInfo = info;
+}
 
 interface Breadcrumb {
   tag: string;
@@ -46,6 +52,7 @@ export type Logger = Console & {
 
 interface ErrorLoggerStub {
   capture: (event: string, data: Record<string, unknown>) => void;
+  flush?: () => Promise<void>;
 }
 
 interface DebugStore {
@@ -195,6 +202,10 @@ export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
 }
 
+export function flushErrorLogger() {
+  return useDebugStore.getState().errorLogger?.flush?.() ?? Promise.resolve();
+}
+
 async function getDebugInfo() {
   let platformState = null;
   const { platform, appInfo } = useDebugStore.getState();
@@ -283,6 +294,8 @@ export function createDevLogger(tag: string, enabled: boolean) {
               errorMessage: errorObj?.message,
               errorStack: errorObj?.stack,
               logLevel: 'error',
+              jsContextId,
+              buildInfo: _buildInfo,
               ...customProps,
             });
           };
@@ -301,6 +314,8 @@ export function createDevLogger(tag: string, enabled: boolean) {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
               logger: tag,
+              jsContextId,
+              buildInfo: _buildInfo,
             });
           }
           resolvedProp = 'log';

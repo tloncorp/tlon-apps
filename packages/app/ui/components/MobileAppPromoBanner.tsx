@@ -1,5 +1,6 @@
+import { getConstants } from '@tloncorp/shared/domain';
 import { Icon, Image, TlonText } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -8,6 +9,8 @@ import { useNag } from '../../hooks/useNag';
 
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
+  const isE2eRun = (globalThis as any).TLON_IS_E2E === true;
+  const isWeb = Platform.OS === 'web';
 
   const nag = useNag({
     key: 'mobileAppPromoBanner',
@@ -16,14 +19,12 @@ export function MobileAppPromoBanner() {
     initialDelay: 500,
   });
 
-  const isWeb = Platform.OS === 'web';
-
   useEffect(() => {
-    if (nag.shouldShow) {
+    if (!isE2eRun && nag.shouldShow) {
       const timer = setTimeout(() => setIsVisible(true), 300);
       return () => clearTimeout(timer);
     }
-  }, [nag.shouldShow]);
+  }, [isE2eRun, nag.shouldShow]);
 
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
@@ -38,7 +39,7 @@ export function MobileAppPromoBanner() {
     }
   }, []);
 
-  if (!isWeb || !nag.shouldShow) {
+  if (!isWeb || isE2eRun || !nag.shouldShow) {
     return null;
   }
 
@@ -79,7 +80,7 @@ export function MobileAppPromoBanner() {
           <Image
             style={{ width: '100%', height: 150 }}
             contentFit={'cover'}
-            source={'./mobile-banner.png'}
+            source={`/apps/groups/mobile-banner.png`}
           />
         </YStack>
         <Pressable

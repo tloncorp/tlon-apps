@@ -49,5 +49,7 @@ export function getConstants(): Constants {
 
 export function isOpenRouterConfigured(): boolean {
   const constants = getConstants();
-  return !!constants.OPENROUTER_API_KEY && constants.OPENROUTER_API_KEY.length > 0;
+  return (
+    !!constants.OPENROUTER_API_KEY && constants.OPENROUTER_API_KEY.length > 0
+  );
 }
