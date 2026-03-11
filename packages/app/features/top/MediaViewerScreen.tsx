@@ -8,10 +8,12 @@ import {
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
 import {
-  AVPlaybackStatus,
-  ResizeMode,
-  Video as ExpoVideo,
-} from 'expo-av';
+  VideoView,
+  useVideoPlayer,
+  type PlayingChangeEventPayload,
+  type StatusChangeEventPayload,
+  type TimeUpdateEventPayload,
+} from 'expo-video';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import {
@@ -83,9 +85,7 @@ function VideoLoadingOverlay({ visible }: { visible: boolean }) {
       alignItems="center"
       pointerEvents="none"
     >
-      <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
-        <Spinner size="large" color="$white" />
-      </Stack>
+      <Spinner size="large" color="$white" />
     </View>
   );
 }
@@ -100,46 +100,110 @@ function VideoViewer({
   goBack: () => void;
 }) {
   const { top } = useSafeAreaInsets();
-  const [hasTrackedPlaybackStart, setHasTrackedPlaybackStart] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
-  const source = useMemo(() => (uri ? { uri } : undefined), [uri]);
+  const videoSource = useMemo(
+    () => (uri ? { uri } : null),
+    [uri]
+  );
+  const player = useVideoPlayer(isWeb ? null : videoSource);
+  const hasStartedPlaybackRef = useRef(false);
+  const hasTrackedPlaybackStartRef = useRef(false);
 
   useEffect(() => {
-    setHasTrackedPlaybackStart(false);
     setShowOverlay(true);
     setIsBuffering(!!uri);
     setIsReady(!posterUri);
+    hasStartedPlaybackRef.current = false;
+    hasTrackedPlaybackStartRef.current = false;
   }, [uri, posterUri]);
 
   const trackPlaybackStarted = useCallback(() => {
-    if (hasTrackedPlaybackStart) {
+    if (hasTrackedPlaybackStartRef.current) {
       return;
     }
+    hasTrackedPlaybackStartRef.current = true;
     logger.trackEvent(AnalyticsEvent.VideoPlaybackStarted, { src: uri });
-    setHasTrackedPlaybackStart(true);
-  }, [hasTrackedPlaybackStart, uri]);
+  }, [uri]);
 
-  const handlePlaybackStatusUpdate = useCallback(
-    (status: AVPlaybackStatus) => {
-      if (!status.isLoaded) {
-        setIsBuffering(true);
-        return;
+  useEffect(() => {
+    if (isWeb) {
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      player.bufferOptions = {
+        waitsToMinimizeStalling: false,
+        preferredForwardBufferDuration: 1,
+      };
+    }
+    player.timeUpdateEventInterval = 0.25;
+    if (uri) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [player, uri]);
+
+  useEffect(() => {
+    if (isWeb || !uri) {
+      return;
+    }
+
+    const statusSubscription = player.addListener(
+      'statusChange',
+      ({ status, error }: StatusChangeEventPayload) => {
+        if (status === 'error') {
+          setIsReady(true);
+          setIsBuffering(false);
+          logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+            src: uri,
+            error,
+          });
+          return;
+        }
+
+        if (status === 'readyToPlay' && !player.playing) {
+          player.play();
+        }
+
+        const isNowBuffering = status === 'loading';
+        setIsBuffering(isNowBuffering || !hasStartedPlaybackRef.current);
       }
-      if (status.isPlaying) {
+    );
+
+    const playingSubscription = player.addListener(
+      'playingChange',
+      ({ isPlaying }: PlayingChangeEventPayload) => {
+        if (!isPlaying) {
+          return;
+        }
         trackPlaybackStarted();
       }
-      setIsBuffering(status.isBuffering);
-      if (status.positionMillis > 0 || status.isPlaying) {
+    );
+
+    const timeUpdateSubscription = player.addListener(
+      'timeUpdate',
+      ({ currentTime }: TimeUpdateEventPayload) => {
+        if (currentTime <= 0) {
+          return;
+        }
+        hasStartedPlaybackRef.current = true;
         setIsReady(true);
+        setIsBuffering(false);
       }
-    },
-    [trackPlaybackStarted]
-  );
+    );
+
+    return () => {
+      statusSubscription.remove();
+      playingSubscription.remove();
+      timeUpdateSubscription.remove();
+    };
+  }, [player, uri, trackPlaybackStarted]);
 
   const handlePlaybackError = useCallback(
     (error: unknown) => {
+      setIsReady(true);
       setIsBuffering(false);
       logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
         src: uri,
@@ -237,31 +301,32 @@ function VideoViewer({
         alignItems="center"
         justifyContent="center"
         padding="$l"
-        onTouchEnd={toggleOverlay}
       >
         {!uri ? (
           <Text color="$white">Unable to load video.</Text>
         ) : (
-          source && (
-            <ExpoVideo
-              source={source}
-              usePoster={!!posterUri}
-              posterSource={posterUri ? { uri: posterUri } : undefined}
-              useNativeControls
-              shouldPlay
-              onReadyForDisplay={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-              }}
-              onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-              onError={handlePlaybackError}
-              resizeMode={ResizeMode.CONTAIN}
+          <ZStack width="100%" height="100%">
+            <VideoView
+              player={player}
+              nativeControls
+              contentFit="contain"
               style={{
                 width: '100%',
                 height: '100%',
               }}
             />
-          )
+            {posterUri && !isReady ? (
+              <Image
+                source={{ uri: posterUri }}
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                }}
+                contentFit="contain"
+              />
+            ) : null}
+          </ZStack>
         )}
       </View>
       <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />

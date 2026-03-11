@@ -4,11 +4,14 @@ const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
 export const VIDEO_COMPOSITION_ERROR =
   'Video posts support one video and optional text only.';
 export const VIDEO_VALIDATION_ERROR = 'Unsupported video attachment';
-const VIDEO_MIME_ALLOWLIST = new Set([
-  'video/mp4',
-  'video/quicktime',
-  'video/webm',
-]);
+const VIDEO_EXTENSION_TO_MIME = {
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+} as const;
+const VIDEO_MIME_ALLOWLIST: ReadonlySet<string> = new Set(
+  Object.values(VIDEO_EXTENSION_TO_MIME)
+);
 const VIDEO_EXTENSION_REGEX = /\.(mp4|mov|webm)(?:\?.*)?$/i;
 
 export type AttachmentValidationResult =
@@ -34,6 +37,28 @@ export function isLikelyVideoSource({
   );
 }
 
+export function inferAllowedVideoMimeType({
+  mimeType,
+  name,
+  uri,
+}: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): string | undefined {
+  if (mimeType) {
+    const normalizedMimeType = mimeType.toLowerCase();
+    if (VIDEO_MIME_ALLOWLIST.has(normalizedMimeType)) {
+      return normalizedMimeType;
+    }
+  }
+
+  const formatCandidate = (name ?? uri)?.toLowerCase();
+  const extension = formatCandidate?.match(VIDEO_EXTENSION_REGEX)?.[1];
+  if (!extension) {
+    return undefined;
+  }
+  return VIDEO_EXTENSION_TO_MIME[
+    extension as keyof typeof VIDEO_EXTENSION_TO_MIME
+  ];
+}
+
 export function validateVideoSource(
   { mimeType, size, name, uri }: VideoCandidate
 ): boolean {
@@ -43,12 +68,7 @@ export function validateVideoSource(
   if (size > MAX_VIDEO_SIZE_BYTES) {
     return false;
   }
-  if (mimeType) {
-    const normalizedMimeType = mimeType.toLowerCase();
-    return VIDEO_MIME_ALLOWLIST.has(normalizedMimeType);
-  }
-  const formatCandidate = name ?? uri;
-  return !!formatCandidate && VIDEO_EXTENSION_REGEX.test(formatCandidate);
+  return inferAllowedVideoMimeType({ mimeType, name, uri }) != null;
 }
 
 function getVideoName(video: Extract<Attachment, { type: 'video' }>): string {
