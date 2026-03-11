@@ -81,11 +81,9 @@ test('rejects unknown-size remote video', () => {
   });
 });
 
-test('rejects unsupported video MIME type', () => {
+test('allows fallback to supported extension when MIME type is unsupported', () => {
   expect(canAddAttachment([], makeVideo({ mimeType: 'video/avi' }))).toEqual({
-    ok: false,
-    reason: VIDEO_VALIDATION_ERROR,
-    kind: 'validation',
+    ok: true,
   });
 });
 
