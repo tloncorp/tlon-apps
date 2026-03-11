@@ -234,13 +234,14 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
         nowPlaying.play();
       }
     } else {
-      nowPlaying.replace({ url: block.voiceMemo.fileUri });
-
-      // `setTimeout` necessary - without it, the `play()` request fails
-      // before the new media is loaded
-      setTimeout(() => {
-        nowPlaying.play();
-      }, 1);
+      nowPlaying
+        .replace({ url: block.voiceMemo.fileUri })
+        .then(() => {
+          nowPlaying.play();
+        })
+        .catch((e) => {
+          console.error('Failed to load voice memo', e);
+        });
     }
   }, [nowPlaying, block.voiceMemo.fileUri]);
 

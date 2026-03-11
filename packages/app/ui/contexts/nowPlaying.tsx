@@ -29,7 +29,8 @@ type NowPlayingEventMap = {
 };
 
 export interface NowPlayingValue extends TypedEventEmitter<NowPlayingEventMap> {
-  replace: (nowPlaying: MediaItem | null) => void;
+  /** @returns promise that resolves when media item is loaded (rejects if fails to load) */
+  replace: (nowPlaying: MediaItem | null) => Promise<void>;
   play(): void;
   pause(): void;
   seekTo(seconds: number): Promise<void>;
@@ -89,6 +90,21 @@ export function NowPlayingProvider({
     () => ({
       replace(nowPlaying: MediaItem | null) {
         dispatch({ type: 'replace', nowPlaying });
+        if (!nowPlaying) {
+          return Promise.resolve();
+        }
+
+        return new Promise<void>((resolve) => {
+          const unsub = audioPlayer.addListener(
+            'playbackStatusUpdate',
+            (status) => {
+              if (status.isLoaded) {
+                resolve();
+                unsub.remove();
+              }
+            }
+          );
+        });
       },
       play() {
         audioPlayer.play();
