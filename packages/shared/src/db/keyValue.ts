@@ -399,9 +399,22 @@ const defaultNagState: NagState = {
   firstEligibleTime: 0,
 };
 
-export const createNagStorageItem = (key: string) => {
-  return createStorageItem<NagState>({
+// Cache nag storage items to avoid creating new instances on every render
+// This prevents race conditions from multiple updateLock instances
+const nagStorageItemCache = new Map<string, ReturnType<typeof createStorageItem<NagState>>>();
+
+export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
+  const cached = nagStorageItemCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  
+  const storageItem = createStorageItem<NagState>({
     key: `nag:${key}`,
     defaultValue: defaultNagState,
+    persistAfterLogout,
   });
+  
+  nagStorageItemCache.set(key, storageItem);
+  return storageItem;
 };

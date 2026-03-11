@@ -1,16 +1,30 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  AnalyticsEvent,
   createDevLogger,
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
+import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
+// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
+// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
+import {
+  VideoView,
+} from 'expo-video/build/VideoView';
+import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
+import type {
+  PlayingChangeEventPayload,
+  StatusChangeEventPayload,
+  TimeUpdateEventPayload,
+} from 'expo-video/build/VideoPlayerEvents.types';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import {
   ElementRef,
   PropsWithChildren,
+  useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -30,16 +44,318 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import { Spinner, Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
-import { triggerHaptic } from '../utils';
+import type { RootStackParamList } from '../../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
 const logger = createDevLogger('imageViewer', false);
 
-export function ImageViewerScreenView(props: {
+function MediaViewerModal({
+  dismiss,
+  children,
+}: PropsWithChildren<{
+  dismiss?: () => void;
+}>) {
+  if (isWeb) {
+    return <Modal animationType="none" onRequestClose={dismiss}>{children}</Modal>;
+  }
+
+  return <>{children}</>;
+}
+
+function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
+  return (
+    <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+      <Icon type={icon} size="$l" color="$white" />
+    </Stack>
+  );
+}
+
+function VideoLoadingOverlay({ visible }: { visible: boolean }) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <View
+      position="absolute"
+      top={0}
+      right={0}
+      bottom={0}
+      left={0}
+      justifyContent="center"
+      alignItems="center"
+      pointerEvents="none"
+    >
+      <Spinner size="large" color="$white" />
+    </View>
+  );
+}
+
+function VideoViewer({
+  uri,
+  posterUri,
+  goBack,
+}: {
   uri?: string;
+  posterUri?: string;
   goBack: () => void;
 }) {
+  const { top } = useSafeAreaInsets();
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(!!uri);
+  const [isReady, setIsReady] = useState(!posterUri);
+  const videoSource = useMemo(
+    () => (uri ? { uri } : null),
+    [uri]
+  );
+  const player = useVideoPlayer(isWeb ? null : videoSource);
+  const hasStartedPlaybackRef = useRef(false);
+  const hasTrackedPlaybackStartRef = useRef(false);
+
+  useEffect(() => {
+    setShowOverlay(true);
+    setIsBuffering(!!uri);
+    setIsReady(!posterUri);
+    hasStartedPlaybackRef.current = false;
+    hasTrackedPlaybackStartRef.current = false;
+  }, [uri, posterUri]);
+
+  const trackPlaybackStarted = useCallback(() => {
+    if (hasTrackedPlaybackStartRef.current) {
+      return;
+    }
+    hasTrackedPlaybackStartRef.current = true;
+    logger.trackEvent(AnalyticsEvent.VideoPlaybackStarted, { src: uri });
+  }, [uri]);
+
+  useEffect(() => {
+    if (isWeb) {
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      player.bufferOptions = {
+        waitsToMinimizeStalling: false,
+        preferredForwardBufferDuration: 1,
+      };
+    }
+    player.timeUpdateEventInterval = 0.25;
+    if (uri) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [player, uri]);
+
+  useEffect(() => {
+    if (isWeb || !uri) {
+      return;
+    }
+
+    const statusSubscription = player.addListener(
+      'statusChange',
+      ({ status, error }: StatusChangeEventPayload) => {
+        if (status === 'error') {
+          setIsReady(true);
+          setIsBuffering(false);
+          logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+            src: uri,
+            error,
+          });
+          return;
+        }
+
+        if (status === 'readyToPlay' && !player.playing) {
+          player.play();
+        }
+
+        const isNowBuffering = status === 'loading';
+        setIsBuffering(isNowBuffering || !hasStartedPlaybackRef.current);
+      }
+    );
+
+    const playingSubscription = player.addListener(
+      'playingChange',
+      ({ isPlaying }: PlayingChangeEventPayload) => {
+        if (!isPlaying) {
+          return;
+        }
+        trackPlaybackStarted();
+      }
+    );
+
+    const timeUpdateSubscription = player.addListener(
+      'timeUpdate',
+      ({ currentTime }: TimeUpdateEventPayload) => {
+        if (currentTime <= 0) {
+          return;
+        }
+        hasStartedPlaybackRef.current = true;
+        setIsReady(true);
+        setIsBuffering(false);
+      }
+    );
+
+    return () => {
+      statusSubscription.remove();
+      playingSubscription.remove();
+      timeUpdateSubscription.remove();
+    };
+  }, [player, uri, trackPlaybackStarted]);
+
+  const handlePlaybackError = useCallback(
+    (error: unknown) => {
+      setIsReady(true);
+      setIsBuffering(false);
+      logger.trackEvent(AnalyticsEvent.VideoPlaybackError, {
+        src: uri,
+        error,
+      });
+    },
+    [uri]
+  );
+  const toggleOverlay = useCallback(() => {
+    setShowOverlay((previous) => !previous);
+  }, []);
+
+  if (isWeb) {
+    return (
+      <MediaViewerModal dismiss={goBack}>
+        <View
+          flex={1}
+          width="100%"
+          height="100%"
+          position="relative"
+          backgroundColor="$black"
+        >
+          <Pressable
+            onPress={goBack}
+            position="absolute"
+            top={0}
+            right={0}
+            bottom={0}
+            left={0}
+          />
+          <View
+            flex={1}
+            width="100%"
+            alignItems="center"
+            justifyContent="center"
+            padding="$l"
+            pointerEvents="box-none"
+          >
+            {!uri ? (
+              <Text color="$white">Unable to load video.</Text>
+            ) : (
+              <video
+                src={uri}
+                poster={posterUri}
+                controls
+                autoPlay
+                preload="metadata"
+                onPlay={trackPlaybackStarted}
+                onLoadedData={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onCanPlay={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onWaiting={() => {
+                  setIsBuffering(true);
+                }}
+                onPlaying={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                  trackPlaybackStarted();
+                }}
+                onError={handlePlaybackError}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleOverlay();
+                }}
+                style={{
+                  width: '100%',
+                  maxWidth: 1100,
+                  maxHeight: '90vh',
+                  display: 'block',
+                }}
+              />
+            )}
+          </View>
+          <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+
+          {showOverlay ? (
+            <Pressable
+              onPress={goBack}
+              position="absolute"
+              top={16}
+              right="$xl"
+            >
+              <OverlayIconButton icon="Close" />
+            </Pressable>
+          ) : null}
+        </View>
+      </MediaViewerModal>
+    );
+  }
+
+  return (
+    <ZStack flex={1} backgroundColor="$black">
+      <View
+        flex={1}
+        width="100%"
+        alignItems="center"
+        justifyContent="center"
+        padding="$l"
+      >
+        {!uri ? (
+          <Text color="$white">Unable to load video.</Text>
+        ) : (
+          <ZStack width="100%" height="100%">
+            <VideoView
+              player={player}
+              nativeControls
+              contentFit="contain"
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+            />
+            {posterUri && !isReady ? (
+              <Image
+                source={{ uri: posterUri }}
+                style={{
+                  position: 'absolute',
+                  width: '100%',
+                  height: '100%',
+                }}
+                contentFit="contain"
+              />
+            ) : null}
+          </ZStack>
+        )}
+      </View>
+      <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+
+      {showOverlay ? (
+        <Pressable
+          onPress={goBack}
+          position="absolute"
+          top={top}
+          right="$xl"
+        >
+          <OverlayIconButton icon="Close" />
+        </Pressable>
+      ) : null}
+    </ZStack>
+  );
+}
+
+function ImageViewer(props: { uri?: string; goBack: () => void }) {
   const zoomableRef = useRef<ElementRef<typeof Zoomable>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
   const [maxPanPointers, setMaxPanPointers] = useState(2);
@@ -191,7 +507,7 @@ export function ImageViewerScreenView(props: {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri,
+            props.uri, 
             localUri
           );
 
@@ -405,4 +721,17 @@ function ImageViewerContainer({
   }
 
   return <GestureDetector gesture={dismissGesture}>{children}</GestureDetector>;
+}
+
+export default function MediaViewerScreen(props: Props) {
+  const { mediaType, uri, posterUri } = props.route.params;
+  const goBack = useCallback(() => {
+    props.navigation.pop();
+  }, [props.navigation]);
+
+  if (mediaType === 'video') {
+    return <VideoViewer uri={uri} posterUri={posterUri} goBack={goBack} />;
+  }
+
+  return <ImageViewer uri={uri} goBack={goBack} />;
 }
