@@ -3,7 +3,11 @@ import {
   TypedEventEmitter,
 } from '@tloncorp/api/lib/EventEmitter';
 import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
-import { useAudioPlayer } from 'expo-audio';
+import {
+  setAudioModeAsync,
+  setIsAudioActiveAsync,
+  useAudioPlayer,
+} from 'expo-audio';
 import {
   createContext,
   useCallback,
@@ -124,11 +128,17 @@ export function NowPlayingProvider({
           );
         });
       },
-      play() {
+      async play() {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'doNotMix',
+        });
+        await setIsAudioActiveAsync(true);
         audioPlayer.play();
       },
-      pause() {
+      async pause() {
         audioPlayer.pause();
+        await setIsAudioActiveAsync(false);
       },
       async seekTo(seconds: number) {
         await audioPlayer.seekTo(seconds);
@@ -151,10 +161,11 @@ export function NowPlayingProvider({
   useEffect(() => {
     const subscription = audioPlayer.addListener(
       'playbackStatusUpdate',
-      (status) => {
+      async (status) => {
         if (status.didJustFinish) {
           audioPlayer.pause();
           audioPlayer.seekTo(0);
+          await setIsAudioActiveAsync(false);
         }
 
         const isPlaying = status.playing && !status.didJustFinish;
@@ -184,9 +195,10 @@ export function NowPlayingProvider({
   // Stop audio when backgrounding the app
   useAppStatusChange(
     useCallback(
-      (status) => {
+      async (status) => {
         if (status === 'background') {
           audioPlayer.pause();
+          await setIsAudioActiveAsync(false);
         }
       },
       [audioPlayer]
@@ -248,8 +260,7 @@ export function useNowPlayingController({
   // re-render) when the event is relevant to this block's source.
   const progressReducer = useCallback(
     (prev: NowPlayingProgress | null, [event]: [NowPlayingProgress]) => {
-      const isRelevant =
-        sourceUri != null && event.sourceUrl === sourceUri;
+      const isRelevant = sourceUri != null && event.sourceUrl === sourceUri;
       const wasRelevant =
         prev != null && sourceUri != null && prev.sourceUrl === sourceUri;
 
