@@ -105,23 +105,44 @@ export function NowPlayingProvider({
   // useContext(ctx) consumers don't re-render on every audio tick.
   const mediaItemRef = useRef<MediaItem | null>(null);
   const isPlayingRef = useRef(false);
+  const replaceGenRef = useRef(0);
 
   const ctxValue = useMemo(
     () => ({
       replace(nowPlaying: MediaItem | null) {
-        // Update ref immediately so progress events have the right source
-        // before the React state update commits
-        mediaItemRef.current = nowPlaying;
+        const gen = ++replaceGenRef.current;
+        const hadPreviousSource = mediaItemRef.current != null;
+
+        // Clear ref during transition so progress events aren't
+        // misattributed to the new source while the old one unloads
+        mediaItemRef.current = null;
+
         dispatch({ type: 'replace', nowPlaying });
-        if (!nowPlaying) {
-          return Promise.resolve();
-        }
+
+        if (!nowPlaying) return Promise.resolve();
 
         return new Promise<void>((resolve) => {
+          // If we didn't have something loaded before, we can resolve as soon
+          // as we see isLoaded=true.
+          // But otherwise, we need to first see the old source unload
+          // (isLoaded=false) before resolving on an isLoaded=true.
+          // (We don't know *which* source is loaded.)
+          let seenUnloaded = !hadPreviousSource;
+
           const unsub = audioPlayer.addListener(
             'playbackStatusUpdate',
             (status) => {
-              if (status.isLoaded) {
+              // Superseded by a newer replace() call — abandon
+              if (replaceGenRef.current !== gen) {
+                unsub.remove();
+                return;
+              }
+              if (!status.isLoaded) {
+                seenUnloaded = true;
+              }
+              if (status.isLoaded && seenUnloaded) {
+                // New source confirmed loaded — safe to attribute events
+                mediaItemRef.current = nowPlaying;
                 resolve();
                 unsub.remove();
               }
@@ -327,6 +348,9 @@ export function useNowPlayingController({
         nowPlaying.play();
       }
     } else {
+      // Reset so stale wasLoadedRef from a previous playback session
+      // doesn't cause the effect to immediately clear the new intent
+      wasLoadedRef.current = false;
       setPlaybackIntent(true);
       nowPlaying
         .replace({ url: sourceUri })
