@@ -185,6 +185,7 @@ export function useOnboardingHelpers() {
       if (!guideFirstLogin) {
         await db.hostedAccountIsInitialized.setValue(true);
       }
+      await db.hostedNodeIsRunning.setValue(true);
 
       // Step 3: Authenticate with node
       console.log('authenticating with node', nodeId);

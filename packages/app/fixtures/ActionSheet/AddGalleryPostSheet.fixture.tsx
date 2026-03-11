@@ -4,7 +4,7 @@ import { FixtureWrapper } from '../FixtureWrapper';
 export default (
   <FixtureWrapper fillHeight fillWidth>
     <AddGalleryPost
-      onSetImage={() => {}}
+      onSetMedia={() => {}}
       route="add-post"
       setRoute={() => {}}
     />

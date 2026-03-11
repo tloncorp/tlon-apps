@@ -96,6 +96,8 @@ export type VideoBlockData = {
   height: number;
   width: number;
   alt: string;
+  duration?: number;
+  posterUri?: string;
 };
 
 export type FileUploadBlockData = {
@@ -370,6 +372,19 @@ export function convertContent(
           out.push({
             type: 'voicememo',
             voiceMemo: entry,
+          });
+          break;
+        }
+
+        case 'video': {
+          out.push({
+            type: 'video',
+            src: entry.fileUri,
+            width: entry.width ?? 1,
+            height: entry.height ?? 1,
+            alt: entry.name ?? 'video',
+            duration: entry.duration,
+            posterUri: entry.posterUri,
           });
           break;
         }
