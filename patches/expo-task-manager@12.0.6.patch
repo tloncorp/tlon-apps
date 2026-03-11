@@ -1,6 +1,8 @@
---- a/android/src/main/java/expo/modules/taskManager/TaskService.java	1985-10-26 04:15:00
-+++ b/android/src/main/java/expo/modules/taskManager/TaskService.java	2026-03-10 23:37:57
-@@ -24,7 +24,16 @@
+diff --git a/android/src/main/java/expo/modules/taskManager/TaskService.java b/android/src/main/java/expo/modules/taskManager/TaskService.java
+index 2b6c2fa60a8c52dda8a41641d416563db6e15725..fc05c9c6d76ab946fb7dfc8f6219e6c235952ad8 100644
+--- a/android/src/main/java/expo/modules/taskManager/TaskService.java
++++ b/android/src/main/java/expo/modules/taskManager/TaskService.java
+@@ -24,7 +24,16 @@ import java.util.List;
  import java.util.Map;
  import java.util.UUID;
  
@@ -17,7 +19,7 @@
  
  import expo.modules.interfaces.taskManager.TaskConsumerInterface;
  import expo.modules.interfaces.taskManager.TaskExecutionCallback;
-@@ -68,6 +77,10 @@
+@@ -68,6 +77,10 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
    // Map of callbacks for task execution events. Schema: { "<eventId>": TaskExecutionCallback }
    private static final Map<String, TaskExecutionCallback> sTaskCallbacks = new HashMap<>();
  
@@ -28,7 +30,7 @@
    public TaskService(Context context) {
      super();
      mContextRef = new WeakReference<>(context);
-@@ -205,6 +218,7 @@
+@@ -205,6 +218,7 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
  
        if (appEvents.size() == 0) {
          sEvents.remove(appScopeKey);
@@ -36,7 +38,7 @@
  
          // Invalidate app record but after 2 seconds delay so we can still take batched events.
          Handler handler = new Handler();
-@@ -386,16 +400,25 @@
+@@ -386,16 +400,25 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
        sTaskCallbacks.put(eventId, callback);
      }
  
@@ -64,12 +66,10 @@
      if (taskManager != null) {
        taskManager.executeTaskWithBody(body);
        return;
-@@ -617,6 +640,97 @@
-         jobService.jobFinished(params, false);
-       }
+@@ -619,4 +642,95 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
      }, timeout);
-+  }
-+
+   }
+ 
 +  /**
 +   * Registers a headless JS task with React Native's HeadlessJsTaskContext to signal that
 +   * background work is in progress. This prevents JavaTimerManager from pausing JS timers
@@ -113,8 +113,8 @@
 +        Log.w(TAG, "Failed to start headless task: " + e.getMessage());
 +      }
 +    });
-   }
- 
++  }
++
 +  private void waitForReactContextAndStartTask(Context context, String appScopeKey) {
 +    ReactApplication app = (ReactApplication) context.getApplicationContext();
 +    ReactHost reactHost = app.getReactHost();
@@ -162,8 +162,10 @@
 +    return reactHost != null ? reactHost.getCurrentReactContext() : null;
 +  }
  }
---- a/src/TaskManager.ts	1985-10-26 04:15:00
-+++ b/src/TaskManager.ts	2026-03-10 17:22:25
+diff --git a/src/TaskManager.ts b/src/TaskManager.ts
+index 5ec995fbb089ad9ee4cf134f76bfc78688e648bf..3f1133c32966d7dde38a66f19d270f596df10180 100644
+--- a/src/TaskManager.ts
++++ b/src/TaskManager.ts
 @@ -1,9 +1,16 @@
  import { isRunningInExpoGo } from 'expo';
  import { LegacyEventEmitter, UnavailabilityError } from 'expo-modules-core';
