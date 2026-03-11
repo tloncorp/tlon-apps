@@ -223,7 +223,13 @@ function VideoViewer({
   if (isWeb) {
     return (
       <MediaViewerModal dismiss={goBack}>
-        <ZStack flex={1} backgroundColor="$black">
+        <View
+          flex={1}
+          width="100%"
+          height="100%"
+          position="relative"
+          backgroundColor="$black"
+        >
           <Pressable
             onPress={goBack}
             position="absolute"
@@ -292,7 +298,7 @@ function VideoViewer({
               <OverlayIconButton icon="Close" />
             </Pressable>
           ) : null}
-        </ZStack>
+        </View>
       </MediaViewerModal>
     );
   }
