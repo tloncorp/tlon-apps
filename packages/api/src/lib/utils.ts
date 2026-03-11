@@ -1,3 +1,4 @@
+import type * as db from '@tloncorp/shared/db/types';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
@@ -11,7 +12,6 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
 } from '../client/apiUtils';
-import type * as db from '@tloncorp/shared/db/types';
 import * as domain from '../types';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
@@ -234,6 +234,24 @@ export function makePrettyTimeFromMs(ms: number) {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export function makePrettyDurationFromSeconds(seconds: number | undefined) {
+  if (seconds == null || !Number.isFinite(seconds)) {
+    return undefined;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
+      remainingSeconds
+    ).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
 export function makePrettyDay(date: Date) {

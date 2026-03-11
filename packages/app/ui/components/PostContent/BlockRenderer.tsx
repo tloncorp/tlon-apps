@@ -1,6 +1,5 @@
-import { isValidUrl } from '@tloncorp/shared';
+import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
-import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   Icon,
@@ -219,47 +218,90 @@ export function ReferenceBlock({
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   const { openExternalLink } = useNavigation();
+
   return (
-    <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
-      <Reference.Header>
+    <Reference.Frame>
+      <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
         </Reference.Title>
 
-        <Reference.TitleIcon type="Play" color="$primaryText" />
+        <Reference.TitleIcon type="Wave" color="$primaryText" />
       </Reference.Header>
 
       <Reference.Body
-        flexDirection="row"
-        alignItems="center"
+        flexDirection="column"
+        alignItems="stretch"
         gap="$l"
         padding="$l"
+        // Reference.Body definition sets `pointerEvents: none`
+        pointerEvents="auto"
       >
-        <View
-          backgroundColor="$background"
-          width="$4xl"
-          aspectRatio={1}
-          alignItems="center"
-          justifyContent="center"
-          borderRadius={8}
-        >
-          <Icon type="Play" color="$primaryText" />
-        </View>
-        <YStack flex={1} gap="$s">
-          <Waveform
-            candleWidth={3}
-            candleSpacing={1}
-            values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-            style={{ width: '100%', height: 22 }}
+        <XStack gap="$xl" alignItems="center">
+          <Pressable
+            backgroundColor="$background"
+            width="$4xl"
+            aspectRatio={1}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius={8}
+            cursor="pointer"
+            hoverStyle={{ backgroundColor: '$positiveBackground' }}
+            pressStyle={{ opacity: 0.5 }}
+            onPress={() => {
+              openExternalLink(block.voiceMemo.fileUri);
+            }}
+          >
+            <Icon type="Play" color="$primaryText" />
+          </Pressable>
+          <XStack flex={1} gap={9} alignItems="center">
+            <Waveform
+              candleWidth={3}
+              candleSpacing={1}
+              candlePlaybackPosition={0}
+              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+              style={{ width: '100%', height: 22 }}
+            />
+            {block.voiceMemo.duration != null && (
+              <Text size="$label/s" color="$secondaryText">
+                {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+              </Text>
+            )}
+          </XStack>
+        </XStack>
+
+        {block.voiceMemo.transcription && (
+          <VoiceMemoTranscription
+            transcription={block.voiceMemo.transcription}
           />
-          {block.voiceMemo.duration != null && (
-            <Text size="$label/s" color="$secondaryText">
-              {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
-            </Text>
-          )}
-        </YStack>
+        )}
       </Reference.Body>
     </Reference.Frame>
+  );
+}
+
+function VoiceMemoTranscription({ transcription }: { transcription: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <XStack gap="$s" alignItems="baseline">
+      <Text
+        flex={1}
+        size="$label/m"
+        numberOfLines={expanded ? undefined : 1}
+        ellipsizeMode="tail"
+        selectable
+      >
+        {transcription}
+      </Text>
+      {!expanded && (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text size="$label/m" color="$tertiaryText">
+            See more
+          </Text>
+        </Pressable>
+      )}
+    </XStack>
   );
 }
 

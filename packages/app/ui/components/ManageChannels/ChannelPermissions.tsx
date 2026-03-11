@@ -1,14 +1,11 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Platform, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
-import { RadioControl, TextInput } from '../Form';
-import { ListItem } from '../ListItem';
+import { RadioControl } from '../Form';
 import {
   ChannelPrivacyFormSchema,
   MEMBERS_MARKER,
@@ -121,9 +118,9 @@ export function PermissionTable({
     // Always show Members option if it's in readers
     const hasMembersInReaders = readers.includes(MEMBERS_MARKER);
 
-    // Build the final list: Members first (if present), then regular roles
+    // Build the final list: regular roles first, then Members (if present)
     const roles = hasMembersInReaders
-      ? [MEMBER_ROLE_OPTION, ...regularRoles]
+      ? [...regularRoles, MEMBER_ROLE_OPTION]
       : regularRoles;
 
     return roles;
@@ -354,159 +351,3 @@ function PermissionTableControlCell({
   );
 }
 
-export function RoleSelectionSheet({
-  open,
-  onOpenChange,
-  allRoles,
-  selectedRoleIds,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  allRoles: RoleOption[];
-  selectedRoleIds: string[];
-  onSave: (roleIds: string[]) => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tempSelectedRoleIds, setTempSelectedRoleIds] =
-    useState<string[]>(selectedRoleIds);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (open) {
-      setTempSelectedRoleIds(selectedRoleIds);
-      setSearchQuery('');
-      setIsScrolling(false);
-    } else {
-      setIsScrolling(false);
-    }
-  }, [open, selectedRoleIds]);
-
-  const filteredRoles = useMemo(() => {
-    const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
-    if (!searchQuery.trim()) {
-      return rolesWithMembers;
-    }
-    const query = searchQuery.toLowerCase();
-    return rolesWithMembers.filter((role) =>
-      role.label.toLowerCase().includes(query)
-    );
-  }, [allRoles, searchQuery]);
-
-  const handleToggleRole = useCallback((roleId: string) => {
-    setTempSelectedRoleIds((prev) => {
-      if (prev.includes(roleId)) {
-        return prev.filter((id) => id !== roleId);
-      }
-      return [...prev, roleId];
-    });
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave(tempSelectedRoleIds);
-    onOpenChange(false);
-  }, [tempSelectedRoleIds, onSave, onOpenChange]);
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      snapPointsMode="percent"
-      disableDrag={isScrolling}
-      modal
-    >
-      <ActionSheet.SimpleHeader
-        title="Search and add roles"
-        subtitle="Select roles for this channel"
-      />
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$xl"
-        paddingBottom={0}
-      >
-        <TextInput
-          icon="Search"
-          placeholder="Search roles"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          testID="RoleSearchInput"
-        />
-      </ActionSheet.Content>
-      <ActionSheet.ScrollableContent
-        paddingHorizontal="$l"
-        onScrollBeginDrag={() => setIsScrolling(true)}
-        onScrollEndDrag={() => setIsScrolling(false)}
-      >
-        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
-          {filteredRoles.map((role) => (
-            <SelectableRoleListItem
-              key={role.value}
-              role={role}
-              isSelected={tempSelectedRoleIds.includes(role.value)}
-              onPress={() => handleToggleRole(role.value)}
-            />
-          ))}
-          {filteredRoles.length === 0 && (
-            <View paddingVertical="$2xl" alignItems="center">
-              <Text color="$tertiaryText">No roles found</Text>
-            </View>
-          )}
-        </YStack>
-        <View
-          paddingHorizontal="$l"
-          paddingTop="$m"
-          paddingBottom={insets.bottom}
-          backgroundColor="$background"
-          borderTopWidth={1}
-          borderTopColor="$border"
-        >
-          <Button
-            preset="hero"
-            label="Save"
-            onPress={handleSave}
-            testID="RoleSelectionSaveButton"
-          />
-        </View>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function SelectableRoleListItem({
-  role,
-  isSelected,
-  onPress,
-}: {
-  role: RoleOption;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <ListItem
-        {...(isSelected
-          ? { backgroundColor: '$secondaryBackground' }
-          : { borderColor: '$secondaryBorder', borderWidth: 1 })}
-        borderRadius="$xl"
-        height={130}
-        paddingLeft="$3xl"
-        paddingRight="$2xl"
-        alignItems="center"
-      >
-        <ListItem.MainContent alignItems="center" justifyContent="center">
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <ListItem.Title>{role.label}</ListItem.Title>
-            <RadioControl checked={isSelected} />
-          </XStack>
-        </ListItem.MainContent>
-      </ListItem>
-    </Pressable>
-  );
-}

@@ -18,28 +18,16 @@ import {
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
-  Attachment,
-  PostDataDraft,
   REF_REGEX,
   createDevLogger,
-  extractContentTypesFromPost,
   tiptap,
 } from '@tloncorp/shared';
-import {
-  contentReferenceToCite,
-  toContentReference,
-} from '@tloncorp/api';
+import { toContentReference } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/api/urbit';
-import {
-  Inline,
-  JSONContent,
-  citeToPath,
-  isInline,
-  pathToCite,
-} from '@tloncorp/api/urbit';
+import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -65,7 +53,7 @@ import { useBranchDomain, useBranchKey } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
-import { processReferenceAndUpdateEditor } from './helpers';
+import { hydrateEditPost, processReferenceAndUpdateEditor } from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
@@ -264,39 +252,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
             if (editingPost && editingPost.content) {
               messageInputLogger.log('Editing post', editingPost.content);
-              const {
-                story,
-                references: postReferences,
-                blocks,
-              } = extractContentTypesFromPost(editingPost);
+              const { story, attachments, isEmpty } = hydrateEditPost(
+                editingPost,
+                'references-only'
+              );
 
-              if (story === null && !postReferences && blocks.length === 0) {
+              if (isEmpty) {
+                setHasSetInitialContent(true);
                 return;
               }
-
-              const attachments: Attachment[] = [];
-
-              postReferences.forEach((p) => {
-                const cite = contentReferenceToCite(p);
-                const path = citeToPath(cite);
-                attachments.push({
-                  type: 'reference',
-                  reference: p,
-                  path,
-                });
-              });
-
-              // Note: We don't add inline images from blocks to attachments here
-              // because they're already in the Tiptap editor content (via diaryMixedToJSON).
-              // Adding them as attachments would cause duplicates when saving.
-              // Only non-image blocks need to be handled as attachments.
-              blocks.forEach((b) => {
-                // Skip image blocks - they're handled inline in the editor
-                if ('image' in b) {
-                  return;
-                }
-                // Handle other block types if needed in the future
-              });
 
               resetAttachments(attachments);
 

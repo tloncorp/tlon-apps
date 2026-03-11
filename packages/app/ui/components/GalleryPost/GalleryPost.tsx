@@ -376,7 +376,10 @@ export function GalleryPostDetailView({
     (src: string) => {
       logger.log('Detail view: Image pressed, navigating to', src);
       try {
-        navigation.navigate('ImageViewer', { uri: src });
+        navigation.navigate('MediaViewer', {
+          mediaType: 'image',
+          uri: src,
+        });
       } catch (error) {
         logger.log('Navigation error:', error);
         // Try the fallback if direct navigation fails
@@ -641,7 +644,16 @@ const LargeContentRenderer = createContentRenderer({
     },
     video: {
       borderRadius: 0,
-      ...noWrapperPadding,
+      maxHeight: 300,
+      alignSelf: 'center',
+      wrapperProps: {
+        padding: 0,
+        width: '100%',
+        minHeight: 300,
+        backgroundColor: '$secondaryBackground',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
     },
     code: {
       borderRadius: 0,
@@ -691,6 +703,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     video: {
       height: '100%',
+      borderRadius: 0,
       ...noWrapperPadding,
     },
     reference: {

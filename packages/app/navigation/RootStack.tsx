@@ -28,7 +28,7 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
-import ImageViewerScreen from '../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import PostScreen from '../features/top/PostScreen';
 import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
@@ -97,8 +97,8 @@ export function RootStack() {
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
-        name="ImageViewer"
-        component={ImageViewerScreen}
+        name="MediaViewer"
+        component={MediaViewerScreen}
         options={{ animation: 'fade' }}
       />
       <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />

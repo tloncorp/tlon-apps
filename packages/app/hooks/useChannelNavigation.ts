@@ -14,7 +14,10 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
 
   const navigation =
     useNavigation<
-      NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
+      NativeStackNavigationProp<
+        RootStackParamList,
+        'Channel' | 'Post' | 'MediaViewer'
+      >
     >();
 
   const { navigateToPost, navigateToChannel } = useRootNavigation();
@@ -40,7 +43,10 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      navigation.navigate('ImageViewer', { uri });
+      navigation.navigate('MediaViewer', {
+        mediaType: 'image',
+        uri,
+      });
     },
     [navigation]
   );

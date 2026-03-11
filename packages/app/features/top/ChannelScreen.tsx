@@ -239,6 +239,8 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     posts: filteredPosts,
     isFocused,
+    cursorPostId: cursor || null,
+    channelMode: cursor && !clearedCursor ? 'around' : 'newest',
   });
 
   const handleDeletePost = useCallback(
@@ -435,7 +437,7 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
-          goToImageViewer={navigateToImage}
+          goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}

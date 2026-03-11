@@ -148,7 +148,7 @@ export function GalleryInput({
 
   // Handle image selection
   const handleGalleryImageSet = useCallback(
-    (assets?: ImagePickerAsset[] | null) => {
+    (assets?: domain.Attachment.UploadIntent[] | null) => {
       const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
@@ -376,7 +376,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetImage={handleGalleryImageSet}
+        onSetMedia={handleGalleryImageSet}
       />
     </>
   );

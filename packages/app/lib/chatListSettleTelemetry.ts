@@ -1,3 +1,4 @@
+import { fetch as fetchNetInfo } from '@react-native-community/netinfo';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 
@@ -65,7 +66,12 @@ let measurement: ChatListSettleMeasurement | null = null;
 let lastChats: db.GroupedChats | null = null;
 let settleIdleTimer: ReturnType<typeof setTimeout> | null = null;
 let settleCheckpointTimer: ReturnType<typeof setTimeout> | null = null;
+let chatListIsFocused = false;
 const measurementStartObservers = new Set<() => void>();
+
+export function setChatListFocused(focused: boolean) {
+  chatListIsFocused = focused;
+}
 
 function clearSettleTimers() {
   if (settleIdleTimer) {
@@ -110,10 +116,10 @@ function captureTimingEvent(
   const aboveTheFoldTerminalPaintDurationMs = currentMeasurement.lastRenderAtMs
     ? currentMeasurement.lastRenderAtMs - currentMeasurement.startedAt
     : null;
-  const latestDataPaintDurationMs = currentMeasurement.latestDataPaintAtMs
+  const latestPaintDurationMs = currentMeasurement.latestDataPaintAtMs
     ? currentMeasurement.latestDataPaintAtMs - currentMeasurement.startedAt
     : null;
-  const latestDataConfirmedDurationMs =
+  const latestConfirmedDurationMs =
     outcome === 'settled' ? Date.now() - currentMeasurement.startedAt : null;
   const aboveTheFoldTerminalPaintMatchesData =
     currentMeasurement.lastRenderedSignature !== null &&
@@ -183,13 +189,19 @@ function captureTimingEvent(
     nativeCacheApplied: currentMeasurement.nativeCacheApplied,
     nativeCacheTotalMs: currentMeasurement.nativeCacheTotalMs,
     aboveTheFoldTerminalPaintDurationMs,
-    latestDataPaintDurationMs,
-    latestDataConfirmedDurationMs,
+    latestPaintDurationMs,
+    latestConfirmedDurationMs,
     aboveTheFoldTerminalPaintMatchesData,
-    aboveTheFoldCacheRenderDurationMs,
+    cacheRenderDurationMs: aboveTheFoldCacheRenderDurationMs,
     cacheVsGroundTruthDiverged,
     groundTruthPath,
     syncUnreadTopItemMatched,
+    syncToPaintMs:
+      currentMeasurement.latestDataPaintAtMs != null &&
+      currentMeasurement.syncCompletedAtMs != null
+        ? currentMeasurement.latestDataPaintAtMs -
+          currentMeasurement.syncCompletedAtMs
+        : null,
     networkType: currentMeasurement.networkType,
     networkConnected: currentMeasurement.networkConnected,
     networkInternetReachable: currentMeasurement.networkInternetReachable,
@@ -272,6 +284,9 @@ function queueSettleIfReady(startedAt: number) {
 }
 
 export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
+  if (!chatListIsFocused) {
+    return;
+  }
   clearSettleTimers();
   const startedAt = Date.now();
   measurement = {
@@ -317,6 +332,17 @@ export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
     networkInternetReachable: null,
     cellularGeneration: null,
   };
+  fetchNetInfo().then((state) => {
+    if (measurement && measurement.startedAt === startedAt) {
+      measurement.networkType = state.type;
+      measurement.networkConnected = state.isConnected ?? null;
+      measurement.networkInternetReachable = state.isInternetReachable ?? null;
+      measurement.cellularGeneration =
+        state.type === 'cellular'
+          ? state.details.cellularGeneration ?? null
+          : null;
+    }
+  });
   measurementStartObservers.forEach((observer) => observer());
 
   settleCheckpointTimer = setTimeout(() => {
@@ -480,28 +506,6 @@ export function reportChatListRendered(signature: string) {
     captureTimingEvent(activeMeasurement, 'settled', 'idle_window');
     stopSettleMeasurement();
   }
-}
-
-export function setChatListNetworkContext({
-  networkType,
-  networkConnected,
-  networkInternetReachable,
-  cellularGeneration,
-}: {
-  networkType?: string | null;
-  networkConnected?: boolean | null;
-  networkInternetReachable?: boolean | null;
-  cellularGeneration?: string | null;
-}) {
-  const activeMeasurement = measurement;
-  if (!activeMeasurement) {
-    return;
-  }
-
-  activeMeasurement.networkType = networkType ?? null;
-  activeMeasurement.networkConnected = networkConnected ?? null;
-  activeMeasurement.networkInternetReachable = networkInternetReachable ?? null;
-  activeMeasurement.cellularGeneration = cellularGeneration ?? null;
 }
 
 export function reportChatListNativeCacheResult({

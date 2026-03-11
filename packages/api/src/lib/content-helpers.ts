@@ -5,6 +5,7 @@ import {
   makeParagraph,
   makeText,
 } from '@tloncorp/shared/logic/tiptap';
+import { filenameFromPath } from '@tloncorp/shared/utils/files';
 import isURL from 'validator/lib/isURL';
 
 import {
@@ -13,6 +14,7 @@ import {
   ReferenceAttachment,
   UploadedFileAttachment,
   UploadedImageAttachment,
+  UploadedVideoAttachment,
   uploadStateUri,
 } from '../types';
 import {
@@ -23,7 +25,6 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
-import { fileFromPath } from './file';
 
 const logger = createDevLogger('content-helpers', false);
 
@@ -580,6 +581,25 @@ export type PostBlobDataEntry =
         /** in seconds */
         duration?: number;
       }
+    >
+  | BuildPostBlobDataEntry<
+      'video',
+      { version: 1 },
+      {
+        fileUri: string;
+        mimeType?: string;
+        name?: string;
+        /** in bytes */
+        size: number;
+        /** in pixels */
+        width?: number;
+        /** in pixels */
+        height?: number;
+        /** in seconds */
+        duration?: number;
+        /** local preview URI (optional in v1) */
+        posterUri?: string;
+      }
     >;
 
 type PostBlobData = PostBlobDataEntry[];
@@ -628,6 +648,38 @@ export function appendFileUploadToPostBlob(
   });
 }
 
+export function appendVideoToPostBlob(
+  blob: string | undefined,
+  opts: {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+    /** in pixels */
+    width?: number;
+    /** in pixels */
+    height?: number;
+    /** in seconds */
+    duration?: number;
+    /** local preview URI (optional in v1) */
+    posterUri?: string;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'video',
+    version: 1,
+    fileUri: opts.fileUri,
+    name: opts.name,
+    mimeType: opts.mimeType,
+    size: opts.size,
+    width: opts.width,
+    height: opts.height,
+    duration: opts.duration,
+    posterUri: opts.posterUri,
+  });
+}
+
 /** Client-side parsed representation of PostBlob data */
 export type ClientPostBlobData = Array<PostBlobDataEntry | { type: 'unknown' }>;
 
@@ -642,6 +694,9 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return entry;
     }
     if (entry.type === 'voicememo' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'video' && entry.version === 1) {
       return entry;
     }
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });
@@ -699,7 +754,9 @@ export function toPostData({
             attachment.name ??
             (attachment.localFile instanceof File
               ? attachment.localFile.name
-              : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+              : filenameFromPath(attachment.localFile, {
+                  decodeURI: true,
+                })) ??
             undefined;
           blob = appendFileUploadToPostBlob(blob, {
             fileUri: UploadedFileAttachment.uri(attachment),
@@ -716,9 +773,29 @@ export function toPostData({
             version: 1,
             fileUri: uploadStateUri(attachment.uploadState),
             size: attachment.size,
-            transcription: undefined,
+            transcription: attachment.transcription,
             waveformPreview: attachment.waveformPreview,
             duration: attachment.duration,
+          });
+          break;
+        }
+
+        case 'video': {
+          const name =
+            attachment.name ??
+            (attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : filenameFromPath(attachment.localFile, { decodeURI: true })) ??
+            undefined;
+          blob = appendVideoToPostBlob(blob, {
+            fileUri: UploadedVideoAttachment.uri(attachment),
+            name,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            width: attachment.width,
+            height: attachment.height,
+            duration: attachment.duration,
+            posterUri: attachment.posterUri,
           });
           break;
         }
