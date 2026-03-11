@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useInterval } from '@tloncorp/shared/utils/useInterval';
+import { useCallback, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
-import { Falsy } from 'react-native';
 
 import { Waveform } from '../ui/components/AudioRecorder/Waveform';
 import { FixtureWrapper } from './FixtureWrapper';
@@ -18,13 +18,15 @@ export default function WaveformFixture() {
     useCallback(() => {
       setValues((prevValues) => [...prevValues, Math.random()]);
     }, []),
-    growWaveform && 100
+    100,
+    growWaveform
   );
   useInterval(
     useCallback(() => {
       setCandlePlaybackPosition((prev) => prev + 1);
     }, []),
-    playing && 411
+    411,
+    playing
   );
 
   return (
@@ -41,14 +43,4 @@ export default function WaveformFixture() {
       />
     </FixtureWrapper>
   );
-}
-
-function useInterval(callback: () => void, delay: number | Falsy) {
-  useEffect(() => {
-    if (!delay) {
-      return;
-    }
-    const id = setInterval(callback, delay);
-    return () => clearInterval(id);
-  }, [callback, delay]);
 }
