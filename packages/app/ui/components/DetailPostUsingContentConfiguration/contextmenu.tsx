@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
 
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { useHandleExposeSuccess } from '../../utils/exposeUtils';
 
 interface PostContextMenuPresentation {
   anchorRef: RefObject<ElementRef<typeof RNView>>;
@@ -30,6 +31,8 @@ export function usePostContextMenu(opts: {
 }) {
   const [presentation, setPresentation] =
     useState<PostContextMenuPresentation | null>(null);
+
+  const handleExposeSuccess = useHandleExposeSuccess();
 
   const performActionAndDismissCallback = useCallback(
     (actionType: PostContextMenuActions) => {
@@ -59,6 +62,7 @@ export function usePostContextMenu(opts: {
             onReply={performActionAndDismissCallback('startThread')}
             onEdit={performActionAndDismissCallback('edit')}
             onViewReactions={performActionAndDismissCallback('viewReactions')}
+            onExposeSuccess={handleExposeSuccess}
             mode="immediate"
           />
         )}

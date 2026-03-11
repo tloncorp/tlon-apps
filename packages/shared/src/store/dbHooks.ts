@@ -727,3 +727,21 @@ export const usePendingPostsInChannel = (channelId: string) => {
   const pendingPosts = logic.useOptimizedQueryResults(data);
   return pendingPosts ?? [];
 };
+
+export const useExposedPostCites = () => {
+  const currentUserId = api.getCurrentUserId();
+  const deps = useKeyFromQueryDeps(db.getContactExposedCites);
+  return useQuery({
+    queryKey: [['exposedPostCites', currentUserId], deps],
+    queryFn: () => db.getContactExposedCites(currentUserId),
+  });
+};
+
+export const useExposedPostIds = () => {
+  const currentUserId = api.getCurrentUserId();
+  const deps = useKeyFromQueryDeps(db.getContactExposedPostIds);
+  return useQuery({
+    queryKey: [['exposedPostIds', currentUserId], deps],
+    queryFn: () => db.getContactExposedPostIds(currentUserId),
+  });
+};

@@ -595,10 +595,17 @@ export const syncContacts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ) => {
-  const contacts = await syncQueue.add('contacts', ctx, () =>
-    api.getContacts()
-  );
+  // Fetch contacts and expose cites in parallel — expose cites live on the
+  // self-contact in %contacts and don't require a separate agent round-trip.
+  const [contacts, exposedCites] = await Promise.all([
+    syncQueue.add('contacts', ctx, () => api.getContacts()),
+    api
+      .getExposedPostCitesNormalized()
+      .catch((e) => (logger.error('error fetching exposed cites', e), new Set<string>())),
+  ]);
   logger.log('got contacts from api', contacts.length, 'contacts');
+
+  const currentUserId = api.getCurrentUserId();
 
   const writer = async () => {
     try {
@@ -607,6 +614,12 @@ export const syncContacts = async (
     } catch (e) {
       logger.error('error inserting contacts', e);
     }
+    await db
+      .setContactExposedCites({
+        contactId: currentUserId,
+        referencePaths: [...exposedCites],
+      })
+      .catch((e) => logger.error('error storing exposed cites', e));
   };
 
   if (yieldWriter) {
@@ -615,6 +628,15 @@ export const syncContacts = async (
     await writer();
     return () => Promise.resolve();
   }
+};
+
+export const syncExposedCites = async () => {
+  const currentUserId = api.getCurrentUserId();
+  const cites = await api.getExposedPostCitesNormalized();
+  await db.setContactExposedCites({
+    contactId: currentUserId,
+    referencePaths: [...cites],
+  });
 };
 
 export const syncUserAttestations = async (ctx?: SyncCtx) => {
@@ -1289,6 +1311,14 @@ export const handleContactUpdate = async (
   switch (update.type) {
     case 'upsertContact':
       await db.upsertContact(update.contact, ctx);
+      // %expose writes expose-cites back to %contacts on each show/hide poke,
+      // triggering a self-contact subscription event. Re-sync whenever we see
+      // a self-contact update so expose state stays current without polling.
+      if (update.contact.id === api.getCurrentUserId()) {
+        syncExposedCites().catch((e) =>
+          logger.error('error syncing exposed cites on self-contact update', e)
+        );
+      }
       break;
 
     case 'removeContact':

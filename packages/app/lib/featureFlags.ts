@@ -31,6 +31,11 @@ export const featureMeta = {
     label: 'Enable recording and sending voice memos in chats',
     onlyTlon: true,
   },
+  publicProfileControls: {
+    default: false,
+    label: 'Enable public profile controls in profile editor',
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }

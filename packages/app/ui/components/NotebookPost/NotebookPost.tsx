@@ -25,6 +25,7 @@ import {
 } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
+import { usePostExposeState } from '../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -72,6 +73,8 @@ export function NotebookPost({
 
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
+
+  const { isExposed, publicPostUrl } = usePostExposeState(post);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -171,11 +174,13 @@ export function NotebookPost({
               </Text>
             )}
 
-            {showReplies && hasReplies ? (
+            {(showReplies && hasReplies) || isExposed ? (
               <ChatMessageReplySummary
                 post={post}
                 showTime={false}
                 textColor="$tertiaryText"
+                showPubliclyViewable={isExposed}
+                publicPostUrl={publicPostUrl ?? undefined}
               />
             ) : null}
           </>
@@ -290,6 +295,8 @@ export function NotebookPostDetailView({
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
 
+  const { isExposed, publicPostUrl } = usePostExposeState(post);
+
   const handlePressImage = useCallback(
     (src: string) => {
       onPressImage?.(post, src);
@@ -316,6 +323,16 @@ export function NotebookPostDetailView({
         borderBottomColor="$border"
         testID="NotebookPostHeaderDetailView"
       />
+      {isExposed && (
+        <View paddingHorizontal={'$xl'}>
+          <ChatMessageReplySummary
+            post={post}
+            showTime={false}
+            showPubliclyViewable
+            publicPostUrl={publicPostUrl ?? undefined}
+          />
+        </View>
+      )}
       <NotebookContentRenderer
         marginTop="$-l"
         marginHorizontal="$-l"

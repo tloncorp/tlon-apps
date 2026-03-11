@@ -2,6 +2,8 @@ export * from './channelUtils';
 export * from './clipboardUtils';
 export * from './groupUtils';
 export * from './colorUtils';
+export * from './exposeUtils';
+export * from './postUtils';
 export * from './user';
 export * from './animation';
 export * from './themeUtils';

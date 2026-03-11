@@ -8,6 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
+import { useHandleExposeSuccess } from '../../utils/exposeUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
@@ -40,6 +41,8 @@ const ChatMessage = ({
   hideOverflowMenu,
   displayDebugMode = false,
   searchQuery,
+  isExposed = false,
+  publicPostUrl = null,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -59,6 +62,8 @@ const ChatMessage = ({
   displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
+  isExposed?: boolean;
+  publicPostUrl?: string | null;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -125,6 +130,8 @@ const ChatMessage = ({
     onShowEmojiPicker?.(post);
   }, [post, onShowEmojiPicker]);
 
+  const handleExposeSuccess = useHandleExposeSuccess();
+
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
       setIsHovered(true);
@@ -184,7 +191,7 @@ const ChatMessage = ({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   const shouldRenderReplySummary =
-    shouldRenderReplies || (!showAuthor && post.isEdited);
+    shouldRenderReplies || (!showAuthor && post.isEdited) || isExposed;
 
   return (
     <Pressable
@@ -295,6 +302,8 @@ const ChatMessage = ({
               post={post}
               onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
               showEditedIndicator={!showAuthor && !!post.isEdited}
+              showPubliclyViewable={isExposed}
+              publicPostUrl={publicPostUrl ?? undefined}
             />
           </XStack>
         ) : null}
@@ -313,6 +322,7 @@ const ChatMessage = ({
             onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
+            onExposeSuccess={handleExposeSuccess}
             trigger={
               <OverflowTriggerButton testID="MessageActionsTrigger" />
             }
@@ -374,7 +384,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.searchQuery === next.searchQuery &&
-    prev.displayDebugMode === next.displayDebugMode;
+    prev.displayDebugMode === next.displayDebugMode &&
+    prev.isExposed === next.isExposed;
 
   return isPostEqual && areOtherPropsEqual;
 });

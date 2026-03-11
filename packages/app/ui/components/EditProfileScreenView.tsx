@@ -1,20 +1,28 @@
+import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import {
   getNicknameErrorMessage,
   validateNickname,
 } from '@tloncorp/shared/logic';
 import {
+  Button,
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
+  Text,
+  triggerHaptic,
   useIsWindowNarrow,
+  useToast,
 } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, useTheme } from 'tamagui';
+import { ScrollView, View, XStack, YStack, useTheme } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
@@ -27,6 +35,7 @@ import {
   ControlledTextareaField,
   Field,
   FormFrame,
+  TextInput,
 } from './Form';
 import { ScreenHeader } from './ScreenHeader';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
@@ -37,11 +46,47 @@ interface Props {
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
 
+const PROFILE_WIDGET_DESK = 'groups';
+
+const PUBLIC_PROFILE_WIDGETS: Array<{
+  term: string;
+  label: string;
+}> = [
+  { term: 'profile', label: 'Profile info' },
+  { term: 'profile-bio', label: 'Bio' },
+  { term: 'expose-all', label: 'Featured posts' },
+  { term: 'join-button', label: 'Message me' },
+];
+
+const DEFAULT_WIDGET_STATE = PUBLIC_PROFILE_WIDGETS.reduce<
+  Record<string, boolean>
+>((acc, widget) => {
+  acc[widget.term] = false;
+  return acc;
+}, {});
+
+function getWidgetStateFromLayout(layout: api.PublicProfileWidget[]) {
+  const visible = new Set(
+    layout
+      .filter((widget) => widget.desk === PROFILE_WIDGET_DESK)
+      .map((widget) => widget.term)
+  );
+
+  return PUBLIC_PROFILE_WIDGETS.reduce<Record<string, boolean>>(
+    (acc, widget) => {
+      acc[widget.term] = visible.has(widget.term);
+      return acc;
+    },
+    { ...DEFAULT_WIDGET_STATE }
+  );
+}
+
 export function EditProfileScreenView(props: Props) {
   const store = useStore();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
+  const [showPublicProfileControls] = useFeatureFlag('publicProfileControls');
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   const {
@@ -373,6 +418,8 @@ export function EditProfileScreenView(props: Props) {
                   />
                 </Field>
 
+                {showPublicProfileControls && <PublicProfileControls />}
+
                 <EditAttestationsDisplay
                   attestations={attestations}
                   onPressAttestation={props.onGoToAttestation}
@@ -404,5 +451,182 @@ export function EditProfileScreenView(props: Props) {
         onConfirm={handleDiscardConfirm}
       />
     </View>
+  );
+}
+
+function PublicProfileControls() {
+  const showToast = useToast();
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [widgetState, setWidgetState] =
+    useState<Record<string, boolean>>(DEFAULT_WIDGET_STATE);
+  const [updatingWidget, setUpdatingWidget] = useState<string | null>(null);
+
+  const publicProfileUrl = useMemo(
+    () => `${api.getCurrentShipUrl()}/profile`,
+    []
+  );
+
+  const handleCopyProfileUrl = useCallback(() => {
+    Clipboard.setString(publicProfileUrl);
+    triggerHaptic('baseButtonClick');
+    showToast({ message: 'Profile URL copied', duration: 2000 });
+  }, [publicProfileUrl, showToast]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const [enabled, layout] = await Promise.all([
+          api.getPublicProfileEnabled(),
+          api.getPublicProfileLayout(),
+        ]);
+        if (active) {
+          setIsEnabled(enabled);
+          setWidgetState(getWidgetStateFromLayout(layout));
+        }
+      } catch (error) {
+        console.warn('Failed to load public profile setting', error);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleToggle = useCallback(
+    async (nextValue: boolean) => {
+      const prevValue = isEnabled;
+      setIsEnabled(nextValue);
+      setIsUpdating(true);
+
+      try {
+        await api.setPublicProfileEnabled(nextValue);
+        if (nextValue) {
+          const layout = await api.getPublicProfileLayout();
+          setWidgetState(getWidgetStateFromLayout(layout));
+        }
+      } catch (error) {
+        setIsEnabled(prevValue);
+        triggerHaptic('error');
+        showToast({
+          message: 'Could not update public profile setting',
+          duration: 2000,
+        });
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [isEnabled, showToast]
+  );
+
+  const handleWidgetToggle = useCallback(
+    async (term: string, nextValue: boolean) => {
+      const prevValue = widgetState[term];
+      if (prevValue === nextValue) {
+        return;
+      }
+
+      setWidgetState((current) => ({
+        ...current,
+        [term]: nextValue,
+      }));
+      setUpdatingWidget(term);
+
+      try {
+        await api.setPublicProfileWidgetEnabled(
+          { desk: PROFILE_WIDGET_DESK, term },
+          nextValue
+        );
+      } catch (error) {
+        setWidgetState((current) => ({
+          ...current,
+          [term]: prevValue,
+        }));
+        triggerHaptic('error');
+        showToast({
+          message: 'Could not update profile widget',
+          duration: 2000,
+        });
+      } finally {
+        setUpdatingWidget(null);
+      }
+    },
+    [showToast, widgetState]
+  );
+
+  return (
+    <Field label="Public profile">
+      <YStack
+        borderRadius="$xl"
+        borderWidth={1}
+        borderColor="$border"
+        overflow="hidden"
+      >
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          paddingHorizontal="$2xl"
+          paddingVertical="$2xl"
+        >
+          <Text size="$body">Public /profile page</Text>
+          <Switch
+            value={isEnabled}
+            onValueChange={handleToggle}
+            disabled={isLoading || isUpdating}
+          />
+        </XStack>
+        {isEnabled ? (
+          <>
+            <View
+              paddingHorizontal="$2xl"
+              paddingTop="$l"
+              paddingBottom="$l"
+              borderTopWidth={1}
+              borderTopColor="$border"
+            >
+              <TextInput
+                value={publicProfileUrl}
+                editable={false}
+                rightControls={
+                  <Button
+                    icon="Copy"
+                    size="small"
+                    fill="ghost"
+                    intent="secondary"
+                    onPress={handleCopyProfileUrl}
+                  />
+                }
+              />
+            </View>
+            {PUBLIC_PROFILE_WIDGETS.map((widget) => (
+              <XStack
+                key={widget.term}
+                justifyContent="space-between"
+                alignItems="center"
+                paddingHorizontal="$2xl"
+                paddingVertical="$2xl"
+              >
+                <Text size="$body">{widget.label}</Text>
+                <Switch
+                  value={widgetState[widget.term] ?? false}
+                  onValueChange={(value) => {
+                    void handleWidgetToggle(widget.term, value);
+                  }}
+                  disabled={isLoading || isUpdating || updatingWidget !== null}
+                />
+              </XStack>
+            ))}
+          </>
+        ) : null}
+      </YStack>
+    </Field>
   );
 }

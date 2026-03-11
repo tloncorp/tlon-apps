@@ -53,3 +53,17 @@ export function setScryOutput<T>(output: T) {
 export function setScryOutputs<T>(outputs: T[]) {
   vi.mocked(scry).mockImplementation(async () => outputs.shift()!);
 }
+
+export function setScryOutputsByPath(
+  outputs: Record<string, unknown | undefined>
+) {
+  vi.mocked(scry).mockImplementation(
+    async (params: { app: string; path: string }) => {
+      const key = `${params.app}:${params.path}`;
+      if (!(key in outputs)) {
+        throw new Error(`No mocked scry response for ${key}`);
+      }
+      return outputs[key];
+    }
+  );
+}

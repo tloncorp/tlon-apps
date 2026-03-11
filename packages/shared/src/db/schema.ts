@@ -159,6 +159,7 @@ export const contacts = sqliteTable(
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
   pinnedGroups: many(contactGroups),
   attestations: many(contactAttestations),
+  exposedPosts: many(contactExposedPosts),
   systemContact: one(systemContacts, {
     fields: [contacts.systemContactId],
     references: [systemContacts.id],
@@ -1171,11 +1172,45 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
+  exposedByContacts: many(contactExposedPosts),
   volumeSettings: one(volumeSettings, {
     fields: [posts.id],
     references: [volumeSettings.itemId],
   }),
 }));
+
+export const contactExposedPosts = sqliteTable(
+  'contact_exposed_posts',
+  {
+    contactId: text('contact_id')
+      .references(() => contacts.id, { onDelete: 'cascade' })
+      .notNull(),
+    referencePath: text('reference_path').notNull(),
+    // Nullable so we can persist cites before matching local posts.
+    postId: text('post_id').references(() => posts.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.contactId, table.referencePath] }),
+    contactIdIndex: index('contact_exposed_posts_contact_id_index').on(
+      table.contactId
+    ),
+    postIdIndex: index('contact_exposed_posts_post_id_index').on(table.postId),
+  })
+);
+
+export const contactExposedPostsRelations = relations(
+  contactExposedPosts,
+  ({ one }) => ({
+    contact: one(contacts, {
+      fields: [contactExposedPosts.contactId],
+      references: [contacts.id],
+    }),
+    post: one(posts, {
+      fields: [contactExposedPosts.postId],
+      references: [posts.id],
+    }),
+  })
+);
 
 export const postImages = sqliteTable(
   'post_images',

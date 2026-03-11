@@ -9,6 +9,7 @@ import contactsResponse from '../test/contacts.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
+  setScryOutputsByPath,
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../test/helpers';
@@ -448,11 +449,12 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);
   await syncInitData();
-  setScryOutputs([
-    contactsResponse,
-    contactBookResponse,
-    suggestedContactsResponse,
-  ]);
+  setScryOutputsByPath({
+    'contacts:/all': contactsResponse,
+    'contacts:/v1/book': contactBookResponse,
+    'groups-ui:/suggested-contacts': suggestedContactsResponse,
+    'contacts:/v1/self': { self: {} },
+  });
   await syncContacts();
 
   // Get a group with members
@@ -509,11 +511,12 @@ test('getMentionCandidates: limits results to 6', async () => {
   // Setup
   setScryOutputs([initResponse]);
   await syncInitData();
-  setScryOutputs([
-    contactsResponse,
-    contactBookResponse,
-    suggestedContactsResponse,
-  ]);
+  setScryOutputsByPath({
+    'contacts:/all': contactsResponse,
+    'contacts:/v1/book': contactBookResponse,
+    'groups-ui:/suggested-contacts': suggestedContactsResponse,
+    'contacts:/v1/self': { self: {} },
+  });
   await syncContacts();
 
   const chatId = '~nibset-napwyn/tlon';

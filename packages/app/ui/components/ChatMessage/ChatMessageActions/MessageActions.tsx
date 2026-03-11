@@ -6,14 +6,18 @@ import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
-import { memo, useMemo } from 'react';
+
+import { useQuery } from '@tanstack/react-query';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
+import { usePostExposeState } from '../../../../hooks/usePostExposeState';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
+import { getExposeReferencePath } from '../../../utils/exposeUtils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 
@@ -26,6 +30,7 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
+  onExposeSuccess,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
@@ -33,6 +38,7 @@ export default function MessageActions({
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
+  onExposeSuccess?: (message: string, url?: string) => void;
 }) {
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
@@ -45,6 +51,12 @@ export default function MessageActions({
           {...{ dismiss, onReply, onEdit, onViewReactions, post, actionId }}
         />
       ))}
+      <PublicProfileExposeAction
+        post={post}
+        dismiss={dismiss}
+        onExposeSuccess={onExposeSuccess}
+        last={!ENABLE_COPY_JSON}
+      />
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
   );
@@ -179,6 +191,86 @@ const ConnectedAction = memo(function ConnectedAction({
   );
 });
 
+function PublicProfileExposeAction({
+  post,
+  dismiss,
+  onExposeSuccess,
+  last,
+}: {
+  post: db.Post;
+  dismiss: () => void;
+  onExposeSuccess?: (message: string, url?: string) => void;
+  last?: boolean;
+}) {
+  const channel = useChannelContext();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const referencePath = getExposeReferencePath(post);
+  const isEligible =
+    channel.type !== 'dm' && channel.type !== 'groupDm' && !post.parentId;
+
+  const { isExposed, publicPostUrl } = usePostExposeState(post, isEligible);
+
+  const { data: publicProfileEnabled, isLoading } = useQuery({
+    queryKey: ['publicProfileEnabled'],
+    queryFn: () => api.getPublicProfileEnabled(),
+    staleTime: 30_000,
+    enabled: isEligible,
+  });
+
+  const onPress = useCallback(async () => {
+    if (isUpdating) {
+      return;
+    }
+
+    const nextShownState = !isExposed;
+    setIsUpdating(true);
+
+    try {
+      await api.setPublicProfilePostShown(referencePath, nextShownState);
+      await store.syncExposedCites().catch((error) => {
+        // Expose poke already succeeded; don't fail UX on follow-up sync issues.
+        console.warn('Failed to sync exposed cites after expose toggle', error);
+      });
+      triggerHaptic('success');
+      if (nextShownState) {
+        const shipUrl = api.getCurrentShipUrl();
+        const publicUrl = `${shipUrl}/expose${referencePath}`;
+        onExposeSuccess?.('Post published; URL copied', publicUrl);
+      } else {
+        onExposeSuccess?.('Post hidden from public profile');
+      }
+      dismiss();
+      return;
+    } catch {
+      triggerHaptic('error');
+      onExposeSuccess?.(
+        nextShownState
+          ? 'Could not show post on public profile'
+          : 'Could not hide post from public profile'
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [dismiss, isExposed, isUpdating, onExposeSuccess, referencePath]);
+
+  if (isLoading || !publicProfileEnabled) {
+    return null;
+  }
+
+  return (
+    <ActionList.Action
+      height="auto"
+      onPress={() => {
+        void onPress();
+      }}
+      disabled={isUpdating}
+      last={last}
+    >
+      {isExposed ? 'Hide from public profile' : 'Show on public profile'}
+    </ActionList.Action>
+  );
+}
+
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {
     return JSON.stringify(post.content, null, 2);
@@ -203,7 +295,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
-  showToast,
+  showToast: _showToast,
 }: {
   id: ChannelAction.Id;
   post: db.Post;

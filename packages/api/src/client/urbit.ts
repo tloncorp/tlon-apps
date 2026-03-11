@@ -47,6 +47,7 @@ export type PokeParams = {
   app: string;
   mark: string;
   json: any;
+  suppressErrorTracking?: boolean;
 };
 
 export type NounPokeParams = {
@@ -131,24 +132,32 @@ export const getCurrentUserId = () => {
   return client.nodeId;
 };
 
+export const getCurrentShipUrl = () => {
+  if (config.shipUrl) {
+    return config.shipUrl;
+  }
+  // On web, shipUrl is intentionally empty (requests are same-origin).
+  // In development, prefer the configured ship URL to avoid localhost/proxy
+  // mismatches in generated links and hosting checks.
+  if (typeof window !== 'undefined') {
+    if (__DEV__) {
+      const env = getConstants();
+      if (env?.DEV_SHIP_URL) {
+        return env.DEV_SHIP_URL;
+      }
+    }
+    return window.location.origin;
+  }
+  return '';
+};
+
 export const getCurrentUserIsHosted = () => {
   if (!client.nodeId) {
     throw new Error('Client not initialized');
   }
 
-  // prefer referencing client URL if available
-  if (client.url) {
-    return Hosting.nodeUrlIsHosted(client.url);
-  }
-
-  /*
-    On web, client URL is implicit based on location
-    Note: during development, the true URL is supplied via the environment. Localhost is
-    set up to redirect there
-  */
-  const env = getConstants();
-  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
-  return Hosting.nodeUrlIsHosted(implicitUrl);
+  // Prefer the explicit client URL, then shared fallback URL logic.
+  return Hosting.nodeUrlIsHosted(client.url || getCurrentShipUrl());
 };
 
 export function internalConfigureClient({
@@ -404,7 +413,12 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   }
 }
 
-export async function poke({ app, mark, json }: PokeParams) {
+export async function poke({
+  app,
+  mark,
+  json,
+  suppressErrorTracking,
+}: PokeParams) {
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
     app,
@@ -425,10 +439,12 @@ export async function poke({ app, mark, json }: PokeParams) {
     });
   };
   const retry = async (err: any) => {
-    logger.trackError(`bad poke to ${app} with mark ${mark}`, {
-      stack: err,
-      body: json,
-    });
+    if (!suppressErrorTracking) {
+      logger.trackError(`bad poke to ${app} with mark ${mark}`, {
+        stack: err,
+        body: json,
+      });
+    }
     if (!(err instanceof AuthError)) {
       trackDuration('error');
       throw err;
