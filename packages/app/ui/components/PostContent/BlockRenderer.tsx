@@ -1,5 +1,6 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
+import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
 import {
   ForwardingProps,
   Icon,
@@ -20,10 +21,10 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Linking, Platform } from 'react-native';
+import { ActivityIndicator, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { PlaybackState, useNowPlaying } from '../../contexts/nowPlaying';
 import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
@@ -221,7 +222,44 @@ export function ReferenceBlock({
 }
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
-  const { openExternalLink } = useNavigation();
+  const nowPlaying = useNowPlaying();
+  const isThisMemoLoaded =
+    nowPlaying.nowPlaying?.url === block.voiceMemo.fileUri;
+
+  const togglePlayback = useCallback(() => {
+    if (nowPlaying.nowPlaying?.url === block.voiceMemo.fileUri) {
+      if (nowPlaying.isPlaying) {
+        nowPlaying.pause();
+      } else {
+        nowPlaying.play();
+      }
+    } else {
+      nowPlaying.replace({ url: block.voiceMemo.fileUri });
+
+      // `setTimeout` necessary - without it, the `play()` request fails
+      // before the new media is loaded
+      setTimeout(() => {
+        nowPlaying.play();
+      }, 1);
+    }
+  }, [nowPlaying, block.voiceMemo.fileUri]);
+
+  const progress = useEventEmitter(
+    nowPlaying,
+    'progress',
+    (_prev, [status]) => status,
+    null as null | PlaybackState
+  );
+
+  const candlePlaybackPosition = useMemo(() => {
+    const candleCount = block.voiceMemo.waveformPreview
+      ? block.voiceMemo.waveformPreview.length
+      : DUMMY_WAVEFORM_VALUES.length;
+    if (progress?.loadState !== 'loaded' || !isThisMemoLoaded) {
+      return 0;
+    }
+    return Math.floor((progress.currentTime / progress.duration) * candleCount);
+  }, [progress, block.voiceMemo.waveformPreview, isThisMemoLoaded]);
 
   return (
     <Reference.Frame>
@@ -252,23 +290,34 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
             cursor="pointer"
             hoverStyle={{ backgroundColor: '$positiveBackground' }}
             pressStyle={{ opacity: 0.5 }}
-            onPress={() => {
-              openExternalLink(block.voiceMemo.fileUri);
-            }}
+            onPress={togglePlayback}
           >
-            <Icon type="Play" color="$primaryText" />
+            {isThisMemoLoaded ? (
+              progress?.loadState === 'loading' ? (
+                <ActivityIndicator />
+              ) : (
+                <Icon
+                  type={nowPlaying.isPlaying ? 'Stop' : 'Play'}
+                  color="$primaryText"
+                />
+              )
+            ) : (
+              <Icon type={'Play'} color="$primaryText" />
+            )}
           </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
             <Waveform
               candleWidth={3}
               candleSpacing={1}
-              candlePlaybackPosition={0}
+              candlePlaybackPosition={candlePlaybackPosition}
               values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-              style={{ width: '100%', height: 22 }}
+              style={{ flex: 1, height: 22 }}
             />
             {block.voiceMemo.duration != null && (
               <Text size="$label/s" color="$secondaryText">
-                {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+                {progress?.loadState === 'loaded'
+                  ? makePrettyTimeFromMs(progress.currentTime * 1000)
+                  : makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
               </Text>
             )}
           </XStack>
