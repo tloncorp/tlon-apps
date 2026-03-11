@@ -1,13 +1,9 @@
 import {
   Attachment,
   PLACEHOLDER_ASSET_URI,
+  VoiceMemoAttachment,
   createDevLogger,
 } from '@tloncorp/shared';
-import {
-  getAudioFileDurationSeconds,
-  getFileSize,
-  getMimeType,
-} from '../../utils/files';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -28,6 +24,11 @@ import {
   normalizeUploadIntents,
   pickFile,
 } from '../../utils/filepicker';
+import {
+  getAudioFileDurationSeconds,
+  getFileSize,
+  getMimeType,
+} from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -40,6 +41,7 @@ import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
+import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -70,6 +72,7 @@ export default function AttachmentSheet({
     addAttachment,
     clearAttachments,
     removeAttachment,
+    uploadAssets,
   } = useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
@@ -153,11 +156,11 @@ export default function AttachmentSheet({
     removeAttachment(placeholderToRemove);
   }, [removeAttachment]);
 
-  const useVideoInMediaPicker =
-    allowVideoInMediaPicker ?? mediaType === 'all';
-  const pickerMediaTypes: ImagePicker.MediaType[] = useVideoInMediaPicker
-    ? ['images', 'videos']
-    : ['images'];
+  const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
+  const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
 
   const attachNormalizedUploadIntents = useCallback(
     async (uploadIntents: Attachment.UploadIntent[]) => {
@@ -234,6 +237,7 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
@@ -243,15 +247,46 @@ export default function AttachmentSheet({
           return undefined;
         }
       })();
-      addAttachment({
+      const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
         localUri: audioFilePath,
         size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
         mimeType: getMimeType(audioFilePath) ?? undefined,
-      });
+      };
       audioRecorder.dismiss();
+
+      // If possible, try sending post immediately.
+      if (draftInputContext != null) {
+        const ui = Attachment.toUploadIntent(attachment);
+        if (ui.needsUpload) {
+          uploadAssets([ui], {
+            // without this flag, attachment context tries to add the uploaded
+            // attachment to the context's attachment list, which ends up
+            // showing in the draft box. we want to skip the preview entirely.
+            skipAddToAttachmentList: true,
+          });
+        }
+        await draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          channelType: draftInputContext.channel.type,
+          content: [],
+          attachments: [attachment],
+          ...(draftInputContext.editingPost == null
+            ? {
+                isEdit: false,
+              }
+            : {
+                isEdit: true,
+                editTargetPostId: draftInputContext.editingPost.id,
+              }),
+          replyToPostId: null,
+        });
+      } else {
+        // otherwise, add attachment to draft
+        addAttachment(attachment);
+      }
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {
