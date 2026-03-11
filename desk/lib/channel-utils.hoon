@@ -808,21 +808,21 @@
 ++  drop-bad-links
   |%
   ++  channel
-    |=  chan=v-channel:c
+    |=  chan=v-channel:v9:cv
     ~>  %spin.['libcu-channel']
     ^+  chan
     %_  chan
         posts
-      %+  run:on-v-posts:c
+      %+  run:on-v-posts:v9:cv
         posts.chan
-      |=  post=(may:c v-post:c)
+      |=  post=(may:v9:cv v-post:v9:cv)
       ?.  ?=(%& -.post)  post
       post(+>+ (essay +>+.post))
     ::
         log
-      %+  run:log-on:c
+      %+  run:log-on:v9:cv
         log.chan
-      |=  upd=u-channel:c
+      |=  upd=u-channel:v9:cv
       ?.  ?=([%post * ?([%set %& *] [%essay *])] upd)  upd
       ?-  -.u-post.upd
         %set    upd(+>+.post.u-post (essay +>+.post.u-post.upd))
@@ -830,7 +830,7 @@
       ==
     ==
   ++  said
-    |=  =said:c
+    |=  =said:v9:cv
     ~>  %spin.['libcu-said']
     ?+  q.said  said
       [%post %& *]     said(+>.post.q (essay +>.post.q.said))

@@ -218,10 +218,10 @@
   +$  current-state
     $:  %17
         =v-channels:v10:cv
-        voc=(map [nest:v9:cv plan:v9:cv] (unit said:v9:cv))
-        hidden-posts=(set id-post:v9:cv)
-        debounce=(jug nest:v9:cv @da)  ::  temporary bandaid
-        last-updated=(list [=nest:v9:cv =time])  ::  newest first, one-per-nest
+        voc=(map [nest:cv plan:cv] (unit said:v10:cv))
+        hidden-posts=(set id-post:cv)
+        debounce=(jug nest:cv @da)  ::  temporary bandaid
+        last-updated=(list [=nest:cv =time])  ::  newest first, one-per-nest
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
@@ -543,7 +543,7 @@
         voc
       %-  ~(run by voc.s)
       |=  s=(unit said:v8:cv)
-      ?~(s ~ `(said-8-to-9:utils u.s))
+      ?~(s ~ `(v9:said:v8:ccv u.s))
     ==
   ::
   ++  state-8-to-9
@@ -558,7 +558,7 @@
     ^-  state-8
     %=  s  -  %8
       v-channels  (v-channels-7-to-8:utils v-channels.s)
-      voc  (~(run by voc.s) |=(s=(unit said:v7:cv) ?~(s ~ `(said-7-to-8:utils u.s))))
+      voc  (~(run by voc.s) |=(s=(unit said:v7:cv) ?~(s ~ `(v8:said:v7:ccv u.s))))
     ==
   ::
   ++  state-6-to-7
@@ -1242,13 +1242,14 @@
       ::
           %channel-said
         %-  some
-        %-  said-8-to-9:utils
-        (said-7-to-8:utils !<(=said:v7:cv q.cage.sign))
+        %-  v10:said:v9:ccv
+        %-  v9:said:v8:ccv
+        (v8:said:v7:ccv !<(=said:v7:cv q.cage.sign))
       ::
           %channel-said-1
-        `(said-8-to-9:utils !<(=said:v8:cv q.cage.sign))
+        `(v10:said:v9:ccv (v9:said:v8:ccv !<(=said:v8:cv q.cage.sign)))
       ::
-        %channel-said-2  `!<(=said:v9:cv q.cage.sign)
+        %channel-said-2  `(v10:said:v9:ccv !<(=said:v9:cv q.cage.sign))
       ==
     =.  voc
       %+  ~(put by voc)  [nest plan]
@@ -1262,19 +1263,19 @@
       %^  give  %fact
         ~[path v0+path v1+path]
       ?~  got  cage.sign
-      channel-said+!>((v7:said:v9:ccv u.got))
+      channel-said+!>((v7:said:v9:ccv (v9:said:v10:ccv u.got)))
     =/  suffix=^path
       [%said (scot %p src.bowl) (tail path)]
     =.  cor
       %^  give  %fact
         ~[v2+path v3+suffix]
       ?~  got  cage.sign
-      channel-said-1+!>((v8:said:v9:ccv u.got))
+      channel-said-1+!>((v8:said:v9:ccv (v9:said:v10:ccv u.got)))
     =.  cor
       %^  give  %fact
         ~[v4+suffix]
       ?~  got  cage.sign
-      channel-said-2+!>(`said:v9:cv`u.got)
+      channel-said-2+!>((v9:said:v10:ccv u.got))
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
@@ -1557,16 +1558,21 @@
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     =;  output=(unit (unit said:v8:cv))
       ``noun+!>(output)
-    =/  said=(unit (unit said:v9:cv))  (~(get by voc) nest plan)
+    =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
-    ``(v8:said:v9:ccv u.u.said)
+    ``(v8:said:v9:ccv (v9:said:v10:ccv u.u.said))
   ::
       [%x %v4 %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    ``noun+!>(`(unit (unit said:v9:cv))`(~(get by voc) nest plan))
+    =;  output=(unit (unit said:v9:cv))
+      ``noun+!>(output)
+    =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
+    ?~  said  ~
+    ?~  u.said  [~ ~]
+    ``(v9:said:v10:ccv u.u.said)
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
@@ -2790,7 +2796,7 @@
       (uv-posts-without-replies-2:utils posts)
     ::
         %v4
-      =;  =paged-posts:c
+      =;  =paged-posts:v9:cv
         ``channel-posts-4+!>(paged-posts)
       =/  latest=@ud
         ?~  latest=(ram:on-v-posts:c posts.channel)  0
@@ -2928,7 +2934,7 @@
             ``channel-posts-3+!>(paged-posts)
         ::
             %v4
-            =/  =paged-posts:c
+            =/  =paged-posts:v9:cv
               [(uv-posts-3:utils posts) newer older latest count]
             ``channel-posts-4+!>(paged-posts)
         ==

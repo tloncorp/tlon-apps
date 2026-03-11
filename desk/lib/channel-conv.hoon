@@ -7,10 +7,68 @@
   |%
   ++  reply-essay
     |%
+    ++  v9
+      |=  re=reply-essay:v10:cv
+      ^-  memo:v9:cv
+      -.re
     ++  v7
       |=  re=reply-essay:v10:cv
       ^-  memo:v7:cv
-      (v7:memo:v9 -.re)
+      (v7:memo:^v9 -.re)
+    --
+  ++  simple-reply
+    |%
+    ++  v9
+      |=  reply=simple-reply:v10:cv
+      ^-  simple-reply:v9:cv
+      [-.reply +<.reply-essay]
+    --
+  ++  simple-replies
+    |%
+    ++  v9
+      |=  replies=simple-replies:v10:cv
+      ^-  simple-replies:v9:cv
+      (run:on-simple-replies:v10:cv replies v9:simple-reply)
+    --
+  ++  simple-seal
+    |%
+    ++  v9
+      |=  seal=simple-seal:v10:cv
+      ^-  simple-seal:v9:cv
+      :*  id.seal
+          seq.seal
+          mod-at.seal
+          reacts.seal
+          (v9:simple-replies replies.seal)
+          reply-meta.seal
+      ==
+    --
+  ++  simple-post
+    |%
+    ++  v9
+      |=  post=simple-post:v10:cv
+      ^-  simple-post:v9:cv
+      [(v9:simple-seal -.post) +.post]
+    --
+  ++  reference
+    |%
+    ++  v9
+      |=  ref=reference:v10:cv
+      ^-  reference:v9:cv
+      ?-  -.ref
+          %post
+        [%post ?:(?=(%| -.post.ref) post.ref [%& (v9:simple-post +.post.ref)])]
+      ::
+          %reply
+        [%reply id-post.ref ?:(?=(%| -.reply.ref) reply.ref [%& (v9:simple-reply +.reply.ref)])]
+      ==
+    --
+  ++  said
+    |%
+    ++  v9
+      |=  said=said:v10:cv
+      ^-  said:v9:cv
+      said(q (v9:reference q.said))
     --
   --
 ++  v9
@@ -244,6 +302,10 @@
       |=  =said:v9:cv
       ^-  said:v7:cv
       (v7:said:^v8 (v8 said))
+    ++  v10
+      |=  said=said:v9:cv
+      ^-  said:v10:cv
+      said(q (v10:reference q.said))
     --
   ++  reference
     |%
@@ -272,6 +334,20 @@
         ==
       ^-  simple-post:v8:cv
       [simple-seal +>.post.reference]
+    ++  v10
+      |=  ref=reference:v9:cv
+      ^-  reference:v10:cv
+      ?-  -.ref
+          %post
+        :-  %post
+        ?:  ?=(%| -.post.ref)  post.ref
+        [%& (v10:simple-post +.post.ref)]
+      ::
+          %reply
+        :-  %post
+        ?:  ?=(%| -.reply.ref)  reply.ref
+        [%& (v10:simple-reply +.reply.ref)]
+      ==
     --
   ++  scan
     |%
@@ -316,6 +392,41 @@
       |=  replies=pending-replies:v9:cv
       ^-  pending-replies:v1:cv
       (~(run by replies) v1:memo)
+    --
+  ++  simple-seal
+    |%
+    ++  v10
+      |=  seal=simple-seal:v9:cv
+      ^-  simple-seal:v10:cv
+      =,  seal
+      :*  id
+          seq
+          mod-at
+          reacts
+          (v10:simple-replies replies)
+          reply-meta
+      ==
+    --
+  ++  simple-post
+    |%
+    ++  v10
+      |=  post=simple-post:v9:cv
+      ^-  simple-post:v10:cv
+      [(v10:simple-seal -.post) +.post]
+    --
+  ++  simple-reply
+    |%
+    ++  v10
+      |=  reply=simple-reply:v9:cv
+      ^-  simple-reply:v10:cv
+      [-.reply [+<.reply ~]]
+    --
+  ++  simple-replies
+    |%
+    ++  v10
+      |=  replies=simple-replies:v9:cv
+      ^-  simple-replies:v10:cv
+      (run:on-simple-replies:v9:cv replies v10:simple-reply)
     --
   --
 ++  v8
