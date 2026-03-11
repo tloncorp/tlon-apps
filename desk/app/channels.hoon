@@ -998,14 +998,14 @@
           [%post %reply * %add *]
         %=    old-a-channels
             memo.c-reply.c-post.a-channel
-          :: reply-seal
+          :: reply-essay
           [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
         ==
         ::
           [%post %reply * %edit *]
         %=    old-a-channels
             memo.c-reply.c-post.a-channel
-          ::  reply-seal
+          ::  reply-essay
           [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
         ==
         ::
@@ -1422,7 +1422,8 @@
     ``channels-2+!>(`channels:v1:cv`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v3 %v-channels ~]
-    ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels))
+    =+  v-channels-9=(v9:v-channels:v10:ccv v-channels)
+    ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels-9))
     ::
       [%x %v4 %v-channels ~]
     ``noun+!>(v-channels)
@@ -1491,7 +1492,7 @@
         ~
       :^  ~  ~
         %channel-changed-posts
-      !>  ^-  (map nest:c (unit posts:c))
+      !>  ^-  (map nest:c (unit posts:v9:cv))
       (~(run by changes) (curr bind uv-posts-3:utils))
     ::
         [%count ~]
@@ -1519,14 +1520,14 @@
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     :^  ~  ~  %channel-changed-posts
-    !>  %-  ~(gas by *(map nest:c (unit posts:c)))
+    !>  %-  ~(gas by *(map nest:c (unit posts:v9:cv)))
     %+  turn
       %+  scag  channels
       %+  sort  ~(tap by v-channels)
       |=  [[* a=v-channel:c] [* b=v-channel:c]]
       (gth recency.remark.a recency.remark.b)
     |=  [=nest:c chan=v-channel:c]
-    ^-  [_nest (unit posts:c)]
+    ^-  [_nest (unit posts:v9:cv)]
     :-  nest
     %-  some
     %-  uv-posts-3:utils
@@ -2257,7 +2258,7 @@
       ?:  =(old `post)  ~
       %+  some  id
       ?:  ?=(%| -.post)  post
-      &+(uv-post-3:utils +.post)
+      &+(uv-post-4:utils +.post)
     ca-core
   ::
   ++  ca-sync-backlog
@@ -2364,7 +2365,7 @@
       ?~  post
         =/  post=(may:c post:c)
           ?-  -.post.u-post
-            %&  &+(uv-post-3:utils +.post.u-post)
+            %&  &+(uv-post-4:utils +.post.u-post)
             %|  post.u-post
           ==
         =?  ca-core  ?=(%& -.post.u-post)
@@ -2392,7 +2393,7 @@
       =/  merged  (ca-apply-post id-post old new)
       ?:  =(merged old)  ca-core
       =.  posts.channel  (put:on-v-posts:c posts.channel id-post &+merged)
-      (ca-response %post id-post %set &+(uv-post-3:utils merged))
+      (ca-response %post id-post %set &+(uv-post-4:utils merged))
     ::
     ?~  post
       =.  diffs.future.channel
@@ -2450,7 +2451,7 @@
       ?~  reply
         =/  reply=(may:c reply:c)
           ?:  ?=(%| -.reply.u-reply)  reply.u-reply
-          &+(uv-reply-2:utils id-post +.reply.u-reply)
+          &+(uv-reply-4:utils id-post +.reply.u-reply)
         =?  ca-core  ?=(%& -.reply.u-reply)
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
@@ -2471,7 +2472,7 @@
       ?>  ?=(%& -.merged)
       ?:  =(merged old)  ca-core
       =.  ca-core  (ca-heed ~[author.new])
-      (put-reply merged %set &+(uv-reply-2:utils id-post +.merged))
+      (put-reply merged %set &+(uv-reply-4:utils id-post +.merged))
     ::
     ?~  reply  ca-core
     =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.reply)))
@@ -2552,17 +2553,17 @@
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
-    =/  =r-channels:c  [nest r-channel]
+    =/  r-channels-9=r-channels:v9:cv
+      [nest (v9:r-channel:v10:ccv r-channel)]
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
-      =/  rc=r-channels:v9:cv  r-channels
-      channel-response-4+!>(rc)
+      channel-response-4+!>(r-channels-9)
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
       =/  rc=r-channels:v8:cv
-        (v8:r-channels:v9:ccv r-channels)
+        (v8:r-channels:v9:ccv r-channels-9)
       channel-response-3+!>(rc)
     ::
     ::  omit %meta response in previous versions
@@ -2570,66 +2571,68 @@
     =.  ca-core
       %^  give  %fact
         ~[/v1 v1+ca-area]
-      channel-response-2+!>((v7:r-channels:v9:ccv r-channels))
-    =;  r-simple=r-channels-simple-post:v7:cv
-      %^  give  %fact
-        ~[/ ca-area /v0 v0+ca-area]
-      channel-response+!>(r-simple)
-    :-  nest
-    ?+    r-channel  r-channel
-        [%posts *]
-      r-channel(posts (s-posts-1:utils posts.r-channel))
-    ::
-        [%post * %set *]
-      ^-  r-channel-simple-post:v7:cv
-      ?:  ?=(%| -.post.r-post.r-channel)
-        r-channel(post.r-post ~)
-      r-channel(post.r-post `(s-post-1:utils +.post.r-post.r-channel))
-    ::
-        [%post * %reply * * %set *]
-      ^-  r-channel-simple-post:v7:cv
-      %=    r-channel
-          ::
-          reply.r-reply.r-post
-        ?:  ?=(%| -.reply.r-reply.r-post.r-channel)  ~
-        `(s-reply-1:utils +.reply.r-reply.r-post.r-channel)
-        ::
-          reply-meta.r-post
-        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
-      ==
-    ::
-        [%post * %reply * * %reacts *]
-      %=    r-channel
-          ::
-          reply-meta.r-post
-        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
-        ::
-          reacts.r-reply.r-post
-        (v7:reacts:v9:ccv reacts.r-reply.r-post.r-channel)
-      ==
-    ::
-        [%post * %reacts *]
-      r-channel(reacts.r-post (v7:reacts:v9:ccv reacts.r-post.r-channel))
-    ::
-        [%post id-post:c %essay *]
-      r-channel(essay.r-post (v7:essay:v9:ccv essay.r-post.r-channel))
-    ::
-        [%pending client-id:c %post *]
-      %=    r-channel
-          essay.r-pending
-        (v7:essay:v9:ccv essay.r-pending.r-channel)
-      ==
-    ::
-        [%pending client-id:c %reply *]
-      %=    r-channel
-          ::
-          reply-meta.r-pending
-        (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
-        ::
-          reply-essay.r-pending
-        (v7:reply-essay:v10:ccv reply-essay.r-pending.r-channel)
-      ==
-    ==
+      channel-response-2+!>((v7:r-channels:v9:ccv r-channels-9))
+    ca-core
+    ::TODO confirm we can deprecate /v0 endpoint
+    :: =;  r-simple=r-channels-simple-post:v7:cv
+    ::   %^  give  %fact
+    ::     ~[/ ca-area /v0 v0+ca-area]
+    ::   channel-response+!>(r-simple)
+    :: :-  nest
+    :: ?+    r-channel  r-channel
+    ::     [%posts *]
+    ::   r-channel(posts (s-posts-1:utils posts.r-channel))
+    :: ::
+    ::     [%post * %set *]
+    ::   ^-  r-channel-simple-post:v7:cv
+    ::   ?:  ?=(%| -.post.r-post.r-channel)
+    ::     r-channel(post.r-post ~)
+    ::   r-channel(post.r-post `(s-post-1:utils +.post.r-post.r-channel))
+    :: ::
+    ::     [%post * %reply * * %set *]
+    ::   ^-  r-channel-simple-post:v7:cv
+    ::   %=    r-channel
+    ::       ::
+    ::       reply.r-reply.r-post
+    ::     ?:  ?=(%| -.reply.r-reply.r-post.r-channel)  ~
+    ::     `(s-reply-1:utils +.reply.r-reply.r-post.r-channel)
+    ::     ::
+    ::       reply-meta.r-post
+    ::     (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
+    ::   ==
+    :: ::
+    ::     [%post * %reply * * %reacts *]
+    ::   %=    r-channel
+    ::       ::
+    ::       reply-meta.r-post
+    ::     (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
+    ::     ::
+    ::       reacts.r-reply.r-post
+    ::     (v7:reacts:v9:ccv reacts.r-reply.r-post.r-channel)
+    ::   ==
+    :: ::
+    ::     [%post * %reacts *]
+    ::   r-channel(reacts.r-post (v7:reacts:v9:ccv reacts.r-post.r-channel))
+    :: ::
+    ::     [%post id-post:c %essay *]
+    ::   r-channel(essay.r-post (v7:essay:v9:ccv essay.r-post.r-channel))
+    :: ::
+    ::     [%pending client-id:c %post *]
+    ::   %=    r-channel
+    ::       essay.r-pending
+    ::     (v7:essay:v9:ccv essay.r-pending.r-channel)
+    ::   ==
+    :: ::
+    ::     [%pending client-id:c %reply *]
+    ::   %=    r-channel
+    ::       ::
+    ::       reply-meta.r-pending
+    ::     (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
+    ::     ::
+    ::       reply-essay.r-pending
+    ::     (v7:reply-essay:v10:ccv reply-essay.r-pending.r-channel)
+    ::   ==
+    :: ==
   ::
   ::  produce an up-to-date unread state
   ::
@@ -2689,7 +2692,7 @@
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scam:c
+      =;  =scam:v9:cv
         ?-  ver
           ?(%v0 %v1 %v2)  channel-scam+!>(`scam:v7:cv`(v7:scam:v9:ccv scam))
           %v3  channel-scam-2+!>(`scam:v8:cv`(v8:scam:v9:ccv scam))
@@ -2709,7 +2712,7 @@
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scan:c
+      =;  =scan:v9:cv
         ?-  ver
           ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
           %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
@@ -2722,7 +2725,7 @@
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scan:c
+      =;  =scan:v9:cv
         ?-  ver
           ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
           %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
@@ -3109,13 +3112,13 @@
           ++  mention
             |=  [sip=@ud len=@ud nedl=ship]
             ~>  %spin.['mention']
-            ^-  scan:c
+            ^-  scan:v9:cv
             (scour-count sip len %mention nedl)
           ::
           ++  text
             |=  [sip=@ud len=@ud nedl=@t]
             ~>  %spin.['text']
-            ^-  scan:c
+            ^-  scan:v9:cv
             (scour-count sip len %text nedl)
           --
         ::
@@ -3124,13 +3127,13 @@
           ++  mention
             |=  [fro=(unit id-post:c) sum=@ud nedl=ship]
             ~>  %spin.['mention']
-            ^-  [(unit id-post:c) scan:c]
+            ^-  [(unit id-post:c) scan:v9:cv]
             (scour-tries fro sum %mention nedl)
           ::
           ++  text
             |=  [fro=(unit id-post:c) sum=@ud nedl=@t]
             ~>  %spin.['text']
-            ^-  [(unit id-post:c) scan:c]
+            ^-  [(unit id-post:c) scan:v9:cv]
             (scour-tries fro sum %text nedl)
           --
         --
@@ -3145,7 +3148,7 @@
       ~>  %spin.['scour-tries']
       =*  posts  posts.channel
       =.  posts  (lot:on-v-posts:c posts ~ from)  ::  verified correct
-      =|  s=[tries=_tries last=(unit id-post:c) =scan:c]
+      =|  s=[tries=_tries last=(unit id-post:c) =scan:v9:cv]
       =<  [last scan]
       |-  ^+  s
       ?~  posts  s
@@ -3157,7 +3160,7 @@
         ?:  ?=(%| -.val.n.posts)  scan.s
         ?.  (match +.val.n.posts match-type)  scan.s
         :_  scan.s
-        =/  =simple-post:c
+        =/  =simple-post:v9:cv
           (suv-post-without-replies-3:utils +.val.n.posts)
         [%post %& simple-post]
       ::
@@ -3173,8 +3176,8 @@
           ?:  ?=(%| -.val.n.replies)  scan.s
           ?.  (match-reply +.val.n.replies match-type)  scan.s
           :_  scan.s
-          =/  =simple-reply:c
-            (suv-reply-2:utils id-post +.val.n.replies)
+          =/  =simple-reply:v9:cv
+            (suv-reply-3:utils id-post +.val.n.replies)
           [%reply id-post %& simple-reply]
         ::
         $(replies l.replies)
@@ -3188,7 +3191,7 @@
       ~>  %spin.['scour-count']
       =*  posts  posts.channel
       ?>  (gth len 0)
-      =+  s=[skip=skip len=len *=scan:c]
+      =+  s=[skip=skip len=len *=scan:v9:cv]
       =-  (flop scan)
       ::NOTE  yes, walking the tree manually is faster than using built-ins.
       ::      +dop:mo gets closest, but is still slower.
@@ -3215,7 +3218,7 @@
       $(posts l.posts)
     ::
     ++  scour-replys
-      |=  [s=[skip=@ud len=@ud =scan:c] =id-post:c replies=v-replies:c =match-type]
+      |=  [s=[skip=@ud len=@ud =scan:v9:cv] =id-post:c replies=v-replies:c =match-type]
       ~>  %spin.['scour-replys']
       |-  ^+  s
       ?~  replies  s

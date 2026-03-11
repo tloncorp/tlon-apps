@@ -2,9 +2,15 @@
 /-  cv=channels-ver, m=meta
 /+  em=emojimart
 |%
-::  v10 carries reply-essay for replies; downconvert it to legacy memo for v7/v1 facts.
 ++  v10
   |%
+  ++  v-channels
+    |%
+    ++  v9
+      |=  =v-channels:v10:cv
+      ^-  v-channels:v9:cv
+      *v-channels:v9:cv
+    --
   ++  reply-essay
     |%
     ++  v9
@@ -21,7 +27,7 @@
     ++  v9
       |=  reply=simple-reply:v10:cv
       ^-  simple-reply:v9:cv
-      [-.reply +<.reply-essay]
+      [-.reply +<.reply]
     --
   ++  simple-replies
     |%
@@ -69,6 +75,22 @@
       |=  said=said:v10:cv
       ^-  said:v9:cv
       said(q (v9:reference q.said))
+    --
+  ++  r-channel
+    |%
+    ++  v9
+      |=  =r-channel:v10:cv
+      ^-  r-channel:v9:cv
+      ::TODO fill
+      *r-channel:v9:cv
+    --
+  ++  reply
+    |%
+    ++  v9
+      |=  =reply:v10:cv
+      ^-  reply:v9:cv
+      ::TODO fill
+      *reply:v9:cv
     --
   --
 ++  v9
@@ -344,7 +366,7 @@
         [%& (v10:simple-post +.post.ref)]
       ::
           %reply
-        :-  %post
+        :-  %reply  :-  id-post.ref
         ?:  ?=(%| -.reply.ref)  reply.ref
         [%& (v10:simple-reply +.reply.ref)]
       ==
@@ -419,7 +441,7 @@
     ++  v10
       |=  reply=simple-reply:v9:cv
       ^-  simple-reply:v10:cv
-      [-.reply [+<.reply ~]]
+      [-.reply [+.reply ~]]
     --
   ++  simple-replies
     |%

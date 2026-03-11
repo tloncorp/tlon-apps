@@ -1167,7 +1167,7 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.reply-essay.c-reply)
+      ?>  =(src.bowl (get-author-ship:utils author.reply-essay.c-reply))
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
@@ -1191,7 +1191,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl author.u.reply)
+      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]

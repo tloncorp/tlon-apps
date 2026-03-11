@@ -256,6 +256,21 @@
       (get-reply-meta v-post)
   ==
 ::
+++  uv-post-4
+  |=  =v-post:c
+  ~>  %spin.['libcu-uv-post-3']
+  ^-  post:c
+  =/  =replies:c
+    (uv-replies-4 id.v-post replies.v-post)
+  :_  +.v-post
+  :*  id.v-post
+      seq.v-post
+      mod-at.v-post
+      (uv-reacts reacts.v-post)
+      replies
+      (get-reply-meta v-post)
+  ==
+::
 ++  s-post-1
   |=  =post:v9:cv
   ~>  %spin.['libcu-s-post-1']
@@ -494,7 +509,19 @@
   |=  [=time v-reply=(may:c v-reply:c)]
   ^-  [id-reply:c (may:v9:cv reply:v9:cv)]
   ?:  ?=(%| -.v-reply)  [time v-reply]
-  [time [%& (uv-reply-2 parent-id +.v-reply)]]
+  [time [%& (uv-reply-3 parent-id +.v-reply)]]
+::
+++  uv-replies-4
+  |=  [parent-id=id-post:c =v-replies:c]
+  ~>  %spin.['libcu-uv-replies-3']
+  ^-  replies:c
+  %+  gas:on-replies:c  *replies:c
+  %+  turn  (tap:on-v-replies:c v-replies)
+  |=  [=time v-reply=(may:c v-reply:c)]
+  ^-  [id-reply:c (may:c reply:c)]
+  ?:  ?=(%| -.v-reply)  [time v-reply]
+  [time [%& (uv-reply-4 parent-id +.v-reply)]]
+::
 ++  s-replies-1
   |=  =replies:v9:cv
   ~>  %spin.['libcu-s-replies-1']
@@ -507,12 +534,12 @@
   (some [time (s-reply-1 +.reply)])
 ::
 ++  s-replies-2
-  |=  =replies:c
+  |=  =replies:v9:cv
   ~>  %spin.['libcu-s-replies-2']
   ^-  simple-replies:v8:cv
   %+  gas:on-simple-replies:v8:cv  *simple-replies:v8:cv
-  %+  murn  (tap:on-replies:c replies)
-  |=  [=time reply=(may:c reply:c)]
+  %+  murn  (tap:on-replies:v9:cv replies)
+  |=  [=time reply=(may:v9:cv reply:v9:cv)]
   ^-  (unit [id-reply:c simple-reply:v8:cv])
   ?:  ?=(%| -.reply)  ~
   (some [time (s-reply-2 +.reply)])
@@ -533,6 +560,21 @@
   ~>  %spin.['libcu-suv-replies-1']
   ^-  simple-replies:v7:cv
   (s-replies-1 (uv-replies-3 parent-id v-replies))
+::
+++  uv-reply-4
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-uv-reply-2']
+  ^-  reply:c
+  :_  +.v-reply
+  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
+::
+++  uv-reply-3
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-uv-reply-2']
+  ^-  reply:v9:cv
+  =*  reply-essay  +>.v-reply
+  :_  [rev.v-reply (v9:reply-essay:v10:ccv reply-essay)]
+  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
 ++  uv-reply-2
   |=  [parent-id=id-reply:c =v-reply:c]
@@ -557,17 +599,18 @@
   (simple-reply-1 -.reply +>.reply)
 ::
 ++  s-reply-2
-  |=  =reply:c
+  |=  =reply:v9:cv
   ~>  %spin.['libcu-s-reply-2']
   ^-  simple-reply:v8:cv
-  =*  reply-essay  +>.reply
-  [-.reply (v8:memo:v9:ccv -.reply-essay)]
+  =*  memo  +>.reply
+  [-.reply (v8:memo:v9:ccv memo)]
 ::
 ++  s-reply-3
   |=  =reply:v9:cv
   ~>  %spin.['libcu-s-reply-3']
   ^-  simple-reply:v9:cv
-  [-.reply +>.reply]
+  =*  memo  +>.reply
+  [-.reply memo]
 ::
 ++  suv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
@@ -579,8 +622,13 @@
   |=  [parent-id=id-reply:c =v-reply:c]
   ~>  %spin.['libcu-suv-reply-2']
   ^-  simple-reply:v8:cv
-  =/  =reply:v8:cv  (uv-reply-2 parent-id v-reply)
-  [-.reply +>.reply]
+  (s-reply-2 (uv-reply-2 parent-id v-reply))
+::
+++  suv-reply-3
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-suv-reply-3']
+  ^-  simple-reply:v9:cv
+  (s-reply-3 (uv-reply-3 parent-id v-reply))
 ::
 ++  uv-reacts
   |=  =v-reacts:c
@@ -968,7 +1016,7 @@
   ?:  ?=(%| -.val.u.vp)
     $(slip &, posts +:(pop:on-v-posts:c posts))
   =*  result
-    `[nest recency.remark %& (uv-post-3 +.val.u.vp)]
+    `[nest recency.remark %& (uv-post-without-replies-3 +.val.u.vp)]
   ::  if the request is bounded, check that latest message is "in bounds"
   ::  (and not presumably already known by the requester)
   ::

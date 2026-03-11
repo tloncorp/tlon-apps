@@ -1561,9 +1561,7 @@
         `[%edit time u.edit]
       =/  parent-time  (~(get by dex.pact.u.old-chat) u.replying.writ)
       ?~  parent-time  ~
-      =/  edit=essay:d  u.edit
-      =/  reply-essay=reply-essay:d
-        [-.edit blob.edit]
+      =/  =reply-essay:d  [- blob]:u.edit
       `[%reply u.parent-time %edit time reply-essay]
     ?~  command  ~
     =/  =cage
