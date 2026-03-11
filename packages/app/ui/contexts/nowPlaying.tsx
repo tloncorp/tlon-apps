@@ -3,7 +3,7 @@ import {
   TypedEventEmitter,
 } from '@tloncorp/api/lib/EventEmitter';
 import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useAudioPlayer } from 'expo-audio';
 import {
   createContext,
   useCallback,
@@ -11,6 +11,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from 'react';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
@@ -28,8 +29,13 @@ export type PlaybackState =
       loadState: 'empty';
     };
 
+export type NowPlayingProgress = PlaybackState & {
+  sourceUrl: string | null;
+  isPlaying: boolean;
+};
+
 type NowPlayingEventMap = {
-  progress: (event: PlaybackState) => void;
+  progress: (event: NowPlayingProgress) => void;
 };
 
 export interface NowPlayingValue extends TypedEventEmitter<NowPlayingEventMap> {
@@ -51,7 +57,6 @@ export function NowPlayingProvider({
 }) {
   const navigation = useNavigation();
   const audioPlayer = useAudioPlayer();
-  const status = useAudioPlayerStatus(audioPlayer);
 
   type NavigationState = ReturnType<typeof navigation.getState>;
   type ReducerState = {
@@ -90,9 +95,18 @@ export function NowPlayingProvider({
     []
   );
 
+  // Use refs for reactive state so the context value can remain stable.
+  // This is the key perf optimization: a stable context reference means
+  // useContext(ctx) consumers don't re-render on every audio tick.
+  const mediaItemRef = useRef<MediaItem | null>(null);
+  const isPlayingRef = useRef(false);
+
   const ctxValue = useMemo(
     () => ({
       replace(nowPlaying: MediaItem | null) {
+        // Update ref immediately so progress events have the right source
+        // before the React state update commits
+        mediaItemRef.current = nowPlaying;
         dispatch({ type: 'replace', nowPlaying });
         if (!nowPlaying) {
           return Promise.resolve();
@@ -119,13 +133,18 @@ export function NowPlayingProvider({
       async seekTo(seconds: number) {
         await audioPlayer.seekTo(seconds);
       },
-      nowPlaying: state?.mediaItem ?? null,
-      isPlaying: status.playing && !status.didJustFinish,
+      get nowPlaying() {
+        return mediaItemRef.current;
+      },
+      get isPlaying() {
+        return isPlayingRef.current;
+      },
       on: eventEmitter.on.bind(eventEmitter),
       off: eventEmitter.off.bind(eventEmitter),
       emit: eventEmitter.emit.bind(eventEmitter),
     }),
-    [audioPlayer, state, status.playing, status.didJustFinish, eventEmitter]
+    // Only stable deps - audioPlayer and eventEmitter don't change
+    [audioPlayer, eventEmitter]
   );
 
   // Emit progress updates and handle end of playback
@@ -138,16 +157,22 @@ export function NowPlayingProvider({
           audioPlayer.seekTo(0);
         }
 
-        ctxValue.emit(
-          'progress',
-          status.isLoaded
-            ? {
-                loadState: 'loaded',
-                currentTime: status.currentTime,
-                duration: status.duration,
-              }
-            : { loadState: status.isBuffering ? 'loading' : 'empty' }
-        );
+        const isPlaying = status.playing && !status.didJustFinish;
+        isPlayingRef.current = isPlaying;
+
+        const playback: PlaybackState = status.isLoaded
+          ? {
+              loadState: 'loaded',
+              currentTime: status.currentTime,
+              duration: status.duration,
+            }
+          : { loadState: status.isBuffering ? 'loading' : 'empty' };
+
+        ctxValue.emit('progress', {
+          ...playback,
+          sourceUrl: mediaItemRef.current?.url ?? null,
+          isPlaying,
+        });
       }
     );
 
@@ -218,8 +243,41 @@ export function useNowPlayingController({
   sourceUri: string | null;
 }) {
   const nowPlaying = useNowPlaying();
+
+  // Filter progress events by source URL: only update state (and thus
+  // re-render) when the event is relevant to this block's source.
+  const progressReducer = useCallback(
+    (prev: NowPlayingProgress | null, [event]: [NowPlayingProgress]) => {
+      const isRelevant =
+        sourceUri != null && event.sourceUrl === sourceUri;
+      const wasRelevant =
+        prev != null && sourceUri != null && prev.sourceUrl === sourceUri;
+
+      if (!isRelevant && !wasRelevant) {
+        // Not relevant to this block - return same reference to skip re-render
+        return prev;
+      }
+
+      if (!isRelevant && wasRelevant) {
+        // Source changed away from us, clear our state
+        return null;
+      }
+
+      // This is our source, update
+      return event;
+    },
+    [sourceUri]
+  );
+
+  const progress = useEventEmitter(
+    nowPlaying,
+    'progress',
+    progressReducer,
+    null as null | NowPlayingProgress
+  );
+
   const isThisSourceLoaded =
-    sourceUri != null && nowPlaying.nowPlaying?.url === sourceUri;
+    sourceUri != null && progress?.sourceUrl === sourceUri;
 
   const togglePlayback = useCallback(() => {
     if (sourceUri == null) return;
@@ -241,13 +299,6 @@ export function useNowPlayingController({
     }
   }, [nowPlaying, sourceUri, isThisSourceLoaded]);
 
-  const progress = useEventEmitter(
-    nowPlaying,
-    'progress',
-    (_prev, [status]) => status,
-    null as null | PlaybackState
-  );
-
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
     if (
       !isThisSourceLoaded ||
@@ -258,11 +309,11 @@ export function useNowPlayingController({
     }
     switch (progress.loadState) {
       case 'loaded':
-        return nowPlaying.isPlaying ? 'playing' : 'paused';
+        return progress.isPlaying ? 'playing' : 'paused';
       case 'loading':
         return 'loading';
     }
-  }, [progress, isThisSourceLoaded, nowPlaying.isPlaying]);
+  }, [progress, isThisSourceLoaded]);
 
   return {
     togglePlayback,
