@@ -20,6 +20,7 @@ type VideoEmbedProps = ComponentProps<typeof View> & {
     duration?: number;
     posterUri?: string;
   };
+  contentFit?: 'contain' | 'cover';
 };
 const logger = createDevLogger('VideoEmbed', false);
 type VideoLayout = {
@@ -129,10 +130,11 @@ function resolveVideoLayout({
   };
 }
 
-export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
+export default function VideoEmbed({ video, contentFit = 'contain', ...props }: VideoEmbedProps) {
   const {
     maxWidth,
     maxHeight,
+    height: explicitHeight,
     alignSelf: alignSelfProp,
     ...rest
   } = props;
@@ -146,7 +148,8 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
     alignSelf: alignSelfProp,
     aspectRatio,
   });
-  const mediaSizeProps = layout.fillMedia
+  const shouldFillMedia = layout.fillMedia || explicitHeight != null;
+  const mediaSizeProps = shouldFillMedia
     ? { height: '100%' as const }
     : { maxWidth, maxHeight, aspectRatio };
 
@@ -175,7 +178,7 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
       alignSelf={layout.alignSelf}
       maxWidth={maxWidth}
       width={layout.width}
-      height={layout.height}
+      height={explicitHeight ?? layout.height}
       {...(layout.centerContainer
         ? {
             alignItems: 'center',
@@ -190,7 +193,7 @@ export default function VideoEmbed({ video, ...props }: VideoEmbedProps) {
           width="100%"
           {...mediaSizeProps}
           backgroundColor="$secondaryBackground"
-          contentFit="contain"
+          contentFit={contentFit}
           alt={video.alt}
         />
       ) : (

@@ -84,9 +84,9 @@ export function AttachmentPreview({
             width="100%"
             height="100%"
             alignItems="center"
-            backgroundColor="$translucentBlack"
+            backgroundColor="$secondaryBackground"
           >
-            <Spinner size="large" color="$primaryText" />
+            <Spinner size="small" color="$primaryText" />
           </View>
         )}
       </View>

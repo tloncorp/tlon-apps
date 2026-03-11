@@ -704,6 +704,7 @@ const SmallContentRenderer = createContentRenderer({
     video: {
       height: '100%',
       borderRadius: 0,
+      contentFit: 'cover',
       ...noWrapperPadding,
     },
     reference: {
