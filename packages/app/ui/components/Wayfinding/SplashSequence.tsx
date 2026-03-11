@@ -293,6 +293,7 @@ export function GroupsPane(props: {
       </YStack>
       <Button
         data-testid="got-it"
+        testID="got-it"
         onPress={props.onActionPress}
         label="Got it"
         preset="hero"
@@ -348,6 +349,7 @@ export function ChannelsPane(props: {
       </YStack>
       <Button
         data-testid="one-quick-thing"
+        testID="one-quick-thing"
         onPress={props.onActionPress}
         label={
           props.hostingBotEnabled ? 'Invite your friends' : 'One quick thing'
@@ -392,6 +394,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         </YStack>
         <Button
           data-testid="invite-friends"
+          testID="invite-friends"
           onPress={props.onActionPress}
           label="Invite your friends"
           preset="hero"
