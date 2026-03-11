@@ -22,7 +22,10 @@ interface MediaItem {
 export type PlaybackState =
   | { loadState: 'loaded'; duration: number; currentTime: number }
   | { loadState: 'loading' }
-  | { loadState: 'empty' };
+  | {
+      /** no source loaded */
+      loadState: 'empty';
+    };
 
 type NowPlayingEventMap = {
   progress: (event: PlaybackState) => void;
@@ -202,4 +205,68 @@ export function useNowPlaying() {
     throw new Error('Must call `useNowPlaying` within a `NowPlayingProvider`');
   }
   return value;
+}
+
+/** Provides a controller for loading + controlling playback of the given
+ * source URI, using the contextual singleton "now playing" media player. This
+ * does *not* automatically load the file or start playback (so you can have
+ * multiple of these in a tree and they won't try to steal "now playing"). */
+export function useNowPlayingController({
+  sourceUri,
+}: {
+  sourceUri: string | null;
+}) {
+  const nowPlaying = useNowPlaying();
+  const isThisSourceLoaded =
+    sourceUri != null && nowPlaying.nowPlaying?.url === sourceUri;
+
+  const togglePlayback = useCallback(() => {
+    if (sourceUri == null) return;
+    if (isThisSourceLoaded) {
+      if (nowPlaying.isPlaying) {
+        nowPlaying.pause();
+      } else {
+        nowPlaying.play();
+      }
+    } else {
+      nowPlaying
+        .replace({ url: sourceUri })
+        .then(() => {
+          nowPlaying.play();
+        })
+        .catch((e) => {
+          console.error('Failed to load voice memo', e);
+        });
+    }
+  }, [nowPlaying, sourceUri, isThisSourceLoaded]);
+
+  const progress = useEventEmitter(
+    nowPlaying,
+    'progress',
+    (_prev, [status]) => status,
+    null as null | PlaybackState
+  );
+
+  const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
+    if (
+      !isThisSourceLoaded ||
+      progress == null ||
+      progress.loadState === 'empty'
+    ) {
+      return null;
+    }
+    switch (progress.loadState) {
+      case 'loaded':
+        return nowPlaying.isPlaying ? 'playing' : 'paused';
+      case 'loading':
+        return 'loading';
+    }
+  }, [progress, isThisSourceLoaded, nowPlaying.isPlaying]);
+
+  return {
+    togglePlayback,
+    progress,
+    status,
+    isThisSourceLoaded,
+  };
 }

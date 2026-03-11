@@ -24,7 +24,7 @@ import React, {
 import { ActivityIndicator, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { PlaybackState, useNowPlaying } from '../../contexts/nowPlaying';
+import { useNowPlayingController } from '../../contexts/nowPlaying';
 import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
@@ -222,45 +222,18 @@ export function ReferenceBlock({
 }
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
-  const nowPlaying = useNowPlaying();
-  const isThisMemoLoaded =
-    nowPlaying.nowPlaying?.url === block.voiceMemo.fileUri;
-
-  const togglePlayback = useCallback(() => {
-    if (nowPlaying.nowPlaying?.url === block.voiceMemo.fileUri) {
-      if (nowPlaying.isPlaying) {
-        nowPlaying.pause();
-      } else {
-        nowPlaying.play();
-      }
-    } else {
-      nowPlaying
-        .replace({ url: block.voiceMemo.fileUri })
-        .then(() => {
-          nowPlaying.play();
-        })
-        .catch((e) => {
-          console.error('Failed to load voice memo', e);
-        });
-    }
-  }, [nowPlaying, block.voiceMemo.fileUri]);
-
-  const progress = useEventEmitter(
-    nowPlaying,
-    'progress',
-    (_prev, [status]) => status,
-    null as null | PlaybackState
-  );
+  const { togglePlayback, progress, status, isThisSourceLoaded } =
+    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 
   const candlePlaybackPosition = useMemo(() => {
     const candleCount = block.voiceMemo.waveformPreview
       ? block.voiceMemo.waveformPreview.length
       : DUMMY_WAVEFORM_VALUES.length;
-    if (progress?.loadState !== 'loaded' || !isThisMemoLoaded) {
+    if (progress?.loadState !== 'loaded' || !isThisSourceLoaded) {
       return 0;
     }
     return Math.floor((progress.currentTime / progress.duration) * candleCount);
-  }, [progress, block.voiceMemo.waveformPreview, isThisMemoLoaded]);
+  }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
   return (
     <Reference.Frame>
@@ -293,18 +266,18 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
             pressStyle={{ opacity: 0.5 }}
             onPress={togglePlayback}
           >
-            {isThisMemoLoaded ? (
-              progress?.loadState === 'loading' ? (
-                <ActivityIndicator />
-              ) : (
-                <Icon
-                  type={nowPlaying.isPlaying ? 'Stop' : 'Play'}
-                  color="$primaryText"
-                />
-              )
-            ) : (
-              <Icon type={'Play'} color="$primaryText" />
-            )}
+            {(() => {
+              switch (status) {
+                case null:
+                  return <Icon type={'Play'} color="$primaryText" />;
+                case 'loading':
+                  return <ActivityIndicator />;
+                case 'playing':
+                  return <Icon type={'Stop'} color="$primaryText" />;
+                case 'paused':
+                  return <Icon type={'Play'} color="$primaryText" />;
+              }
+            })()}
           </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
             <Waveform
