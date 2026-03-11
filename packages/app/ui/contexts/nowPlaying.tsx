@@ -2,6 +2,7 @@ import {
   EventEmitter,
   TypedEventEmitter,
 } from '@tloncorp/api/lib/EventEmitter';
+import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
   createContext,
@@ -124,7 +125,7 @@ export function NowPlayingProvider({
       off: eventEmitter.off.bind(eventEmitter),
       emit: eventEmitter.emit.bind(eventEmitter),
     }),
-    [audioPlayer, state, status, eventEmitter]
+    [audioPlayer, state, status.playing, status.didJustFinish, eventEmitter]
   );
 
   // Emit progress updates and handle end of playback
