@@ -147,6 +147,28 @@ Update environment variables to disable the React Cosmos `NativeFixtureLoader` w
 IGNORE_COSMOS=true
 ```
 
+## Testing Background Sync (Android)
+
+The `DebugBgSyncReceiver` (debug builds only) lets you trigger background sync via ADB. Background the app first, then send the broadcast:
+
+```sh
+# Production flavor (io.tlon.groups)
+adb shell am broadcast \
+  -a io.tlon.landscape.DEBUG_BG_SYNC \
+  -n io.tlon.groups/io.tlon.landscape.DebugBgSyncReceiver
+
+# Preview flavor (io.tlon.groups.preview)
+adb shell am broadcast \
+  -a io.tlon.landscape.DEBUG_BG_SYNC \
+  -n io.tlon.groups.preview/io.tlon.landscape.DebugBgSyncReceiver
+```
+
+Watch logs with:
+
+```sh
+adb logcat -s DebugBgSyncReceiver:* BackgroundTask:*
+```
+
 ## Deployment
 
 Deployment is handled by [Expo Application Services](https://expo.dev/eas).
