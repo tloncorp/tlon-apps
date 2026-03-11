@@ -157,9 +157,10 @@ export default function AttachmentSheet({
   }, [removeAttachment]);
 
   const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
-  const pickerMediaTypes: ImagePicker.MediaType[] = useVideoInMediaPicker
-    ? ['images', 'videos']
-    : ['images'];
+  const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
 
   const attachNormalizedUploadIntents = useCallback(
     async (uploadIntents: Attachment.UploadIntent[]) => {
