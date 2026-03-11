@@ -115,6 +115,11 @@ onFlowComplete:
 - tapOn:
     id: invite-friends
 
+- assertVisible:
+    id: finish-invites
+- tapOn:
+    id: finish-invites
+
 # allow 7 seconds before checking metadata has loaded
 - extendedWaitUntil:
     visible: invalidText

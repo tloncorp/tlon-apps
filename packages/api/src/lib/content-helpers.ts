@@ -15,6 +15,7 @@ import {
   ReferenceAttachment,
   UploadedFileAttachment,
   UploadedImageAttachment,
+  UploadedVideoAttachment,
   uploadStateUri,
 } from '../types';
 import {
@@ -611,6 +612,30 @@ export type PostBlobDataEntryVoiceMemo = z.infer<
   typeof PostBlobDataEntryVoiceMemoSchema
 >;
 
+export const PostBlobDataEntryVideoSchema = definePostBlobDataEntrySchema(
+  'video',
+  1,
+  {
+    fileUri: z.string().min(1),
+    mimeType: z.string().optional(),
+    name: z.string().optional(),
+    /** in bytes */
+    size: z.number().finite().nonnegative(),
+    /** in pixels */
+    width: z.number().finite().nonnegative().optional(),
+    /** in pixels */
+    height: z.number().finite().nonnegative().optional(),
+    /** in seconds */
+    duration: z.number().finite().nonnegative().optional(),
+    /** local preview URI (optional in v1) */
+    posterUri: z.string().optional(),
+  }
+);
+
+export type PostBlobDataEntryVideo = z.infer<
+  typeof PostBlobDataEntryVideoSchema
+>;
+
 const ActionButtonPokeActionSchema = z.object({
   type: z.literal('poke'),
   app: z.string().min(1),
@@ -660,6 +685,7 @@ export type PostBlobDataEntryActionResponse = z.infer<
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
+  PostBlobDataEntryVideoSchema,
   PostBlobDataEntryActionButtonSchema,
   PostBlobDataEntryActionResponseSchema,
 ] as const;
@@ -735,6 +761,38 @@ export function appendFileUploadToPostBlob(
     name: opts.name,
     mimeType: opts.mimeType,
     size: opts.size,
+  });
+}
+
+export function appendVideoToPostBlob(
+  blob: string | undefined,
+  opts: {
+    fileUri: string;
+    mimeType?: string;
+    name?: string;
+    /** in bytes */
+    size: number;
+    /** in pixels */
+    width?: number;
+    /** in pixels */
+    height?: number;
+    /** in seconds */
+    duration?: number;
+    /** local preview URI (optional in v1) */
+    posterUri?: string;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'video',
+    version: 1,
+    fileUri: opts.fileUri,
+    name: opts.name,
+    mimeType: opts.mimeType,
+    size: opts.size,
+    width: opts.width,
+    height: opts.height,
+    duration: opts.duration,
+    posterUri: opts.posterUri,
   });
 }
 
@@ -879,6 +937,26 @@ export function toPostData({
             transcription: attachment.transcription,
             waveformPreview: attachment.waveformPreview,
             duration: attachment.duration,
+          });
+          break;
+        }
+
+        case 'video': {
+          const name =
+            attachment.name ??
+            (attachment.localFile instanceof File
+              ? attachment.localFile.name
+              : filenameFromPath(attachment.localFile, { decodeURI: true })) ??
+            undefined;
+          blob = appendVideoToPostBlob(blob, {
+            fileUri: UploadedVideoAttachment.uri(attachment),
+            name,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            width: attachment.width,
+            height: attachment.height,
+            duration: attachment.duration,
+            posterUri: attachment.posterUri,
           });
           break;
         }
