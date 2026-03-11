@@ -16,6 +16,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from 'react';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
@@ -256,6 +257,12 @@ export function useNowPlayingController({
 }) {
   const nowPlaying = useNowPlaying();
 
+  // Tracks our *intent* to play, covering the gaps before expo-audio
+  // confirms via playbackStatusUpdate:
+  //  - "will-buffer": replace() called, waiting for first status update
+  //  - "will-play": play() called, waiting for audio session setup + play
+  const [playbackIntent, setPlaybackIntent] = useState(false);
+
   // Filter progress events by source URL: only update state (and thus
   // re-render) when the event is relevant to this block's source.
   const progressReducer = useCallback(
@@ -290,15 +297,37 @@ export function useNowPlayingController({
   const isThisSourceLoaded =
     sourceUri != null && progress?.sourceUrl === sourceUri;
 
+  // Clear playback intent once expo-audio confirms playback started,
+  // or if another source took over (isThisSourceLoaded was true, now false).
+  const wasLoadedRef = useRef(false);
+  if (isThisSourceLoaded) {
+    wasLoadedRef.current = true;
+  }
+  useEffect(() => {
+    if (!playbackIntent) return;
+    if (progress?.isPlaying) {
+      setPlaybackIntent(false);
+      wasLoadedRef.current = false;
+    } else if (wasLoadedRef.current && !isThisSourceLoaded) {
+      // We had a progress event for our source, but now it's gone —
+      // another source replaced us.
+      setPlaybackIntent(false);
+      wasLoadedRef.current = false;
+    }
+  }, [playbackIntent, progress, isThisSourceLoaded]);
+
   const togglePlayback = useCallback(() => {
     if (sourceUri == null) return;
     if (isThisSourceLoaded) {
       if (nowPlaying.isPlaying) {
+        setPlaybackIntent(false);
         nowPlaying.pause();
       } else {
+        setPlaybackIntent(true);
         nowPlaying.play();
       }
     } else {
+      setPlaybackIntent(true);
       nowPlaying
         .replace({ url: sourceUri })
         .then(() => {
@@ -306,11 +335,16 @@ export function useNowPlayingController({
         })
         .catch((e) => {
           console.error('Failed to load voice memo', e);
+          setPlaybackIntent(false);
         });
     }
   }, [nowPlaying, sourceUri, isThisSourceLoaded]);
 
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
+    // Playback requested but not confirmed by expo-audio yet
+    if (playbackIntent && !progress?.isPlaying) {
+      return 'loading';
+    }
     if (
       !isThisSourceLoaded ||
       progress == null ||
@@ -324,7 +358,7 @@ export function useNowPlayingController({
       case 'loading':
         return 'loading';
     }
-  }, [progress, isThisSourceLoaded]);
+  }, [playbackIntent, progress, isThisSourceLoaded]);
 
   return {
     togglePlayback,
