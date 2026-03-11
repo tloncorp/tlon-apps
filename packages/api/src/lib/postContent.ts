@@ -5,6 +5,8 @@ import * as ub from '../urbit';
 import { assertNever } from './assertNever';
 import {
   parsePostBlob,
+  PostBlobDataEntryActionButton,
+  PostBlobDataEntryActionResponse,
   PostBlobDataEntryFile,
   PostBlobDataEntryVoiceMemo,
 } from './content-helpers';
@@ -110,6 +112,16 @@ export type VoiceMemoBlockData = {
   voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
+export type ActionButtonBlockData = {
+  type: 'action-button';
+  actionButton: PostBlobDataEntryActionButton;
+};
+
+export type ActionResponseBlockData = {
+  type: 'action-response';
+  actionResponse: PostBlobDataEntryActionResponse;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -158,6 +170,8 @@ export type BlockData =
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
+  | ActionButtonBlockData
+  | ActionResponseBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -245,6 +259,10 @@ export function plaintextPreviewOf(
           return '(Image)';
         case 'video':
           return '(Video)';
+        case 'action-button':
+          return `[Button: ${block.actionButton.label}]`;
+        case 'action-response':
+          return `[Action: ${block.actionResponse.actionLabel}]`;
         case 'reference':
           return config.includeRefTag ? '(Ref)' : '';
         case 'code':
@@ -385,6 +403,22 @@ export function convertContent(
             alt: entry.name ?? 'video',
             duration: entry.duration,
             posterUri: entry.posterUri,
+          });
+          break;
+        }
+
+        case 'action-button': {
+          out.push({
+            type: 'action-button',
+            actionButton: entry,
+          });
+          break;
+        }
+
+        case 'action-response': {
+          out.push({
+            type: 'action-response',
+            actionResponse: entry,
           });
           break;
         }

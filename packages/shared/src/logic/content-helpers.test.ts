@@ -2,6 +2,9 @@ import { expect, test } from 'vitest';
 
 import {
   Mention,
+  appendActionResponseToPostBlob,
+  isSenderHiddenActionResponse,
+  parsePostBlob,
   textAndMentionsToContent,
 } from '@tloncorp/api/lib/content-helpers';
 
@@ -362,4 +365,55 @@ test('textAndMentionsToContent: text immediately before mention (no space)', () 
       },
     ],
   });
+});
+
+test('appendActionResponseToPostBlob creates a valid action-response entry', () => {
+  const blob = appendActionResponseToPostBlob(undefined, {
+    sourcePostId: 'post-123',
+    actionLabel: 'Approve',
+    senderHidden: true,
+  });
+
+  const entries = parsePostBlob(blob);
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toEqual({
+    type: 'action-response',
+    version: 1,
+    sourcePostId: 'post-123',
+    actionLabel: 'Approve',
+    senderHidden: true,
+  });
+});
+
+test('isSenderHiddenActionResponse returns true for sender-hidden blob', () => {
+  const blob = appendActionResponseToPostBlob(undefined, {
+    sourcePostId: 'post-123',
+    actionLabel: 'Approve',
+    senderHidden: true,
+  });
+
+  expect(isSenderHiddenActionResponse(blob)).toBe(true);
+});
+
+test('isSenderHiddenActionResponse returns false when senderHidden is false', () => {
+  const blob = appendActionResponseToPostBlob(undefined, {
+    sourcePostId: 'post-123',
+    actionLabel: 'Approve',
+    senderHidden: false,
+  });
+
+  expect(isSenderHiddenActionResponse(blob)).toBe(false);
+});
+
+test('isSenderHiddenActionResponse returns false for null/undefined blob', () => {
+  expect(isSenderHiddenActionResponse(null)).toBe(false);
+  expect(isSenderHiddenActionResponse(undefined)).toBe(false);
+});
+
+test('isSenderHiddenActionResponse returns false for blob without action-response', () => {
+  const blob = JSON.stringify([
+    { type: 'file', version: 1, fileUri: 'https://example.com/f.pdf', size: 100 },
+  ]);
+
+  expect(isSenderHiddenActionResponse(blob)).toBe(false);
 });

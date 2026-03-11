@@ -33,6 +33,8 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { ActionButtonBlock } from './ActionButtonBlock';
+import type { PokeTemplateContext } from './actionButtonPoke';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -277,6 +279,21 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
         )}
       </Reference.Body>
     </Reference.Frame>
+  );
+}
+
+export function ActionButtonBlockRenderer({
+  block,
+  templateContext,
+}: {
+  block: cn.ActionButtonBlockData;
+  templateContext?: PokeTemplateContext;
+}) {
+  return (
+    <ActionButtonBlock
+      actionButton={block.actionButton}
+      templateContext={templateContext}
+    />
   );
 }
 
@@ -587,6 +604,7 @@ HeaderText.displayName = 'HeaderText';
 
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
+  templateContext?: PokeTemplateContext;
 }) => React.ReactNode;
 
 export type BlockRendererConfig = {
@@ -599,6 +617,11 @@ export type BlockRendererConfig = {
   ) => React.ReactNode;
   lineText: (props: ComponentProps<typeof LineText>) => React.ReactNode;
 };
+
+/** action-response blob entries are metadata-only; nothing to render */
+function ActionResponseBlockRenderer() {
+  return null;
+}
 
 export const defaultBlockRenderers: BlockRendererConfig = {
   blockWrapper: BlockWrapper,
@@ -616,6 +639,8 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  'action-button': ActionButtonBlockRenderer,
+  'action-response': ActionResponseBlockRenderer,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -638,6 +663,8 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  'action-button': BlockSettings<typeof ActionButtonBlockRenderer>;
+  'action-response': BlockSettings<typeof ActionResponseBlockRenderer>;
 };
 
 interface BlockRendererContextValue {
@@ -658,7 +685,13 @@ export const BlockRendererProvider = React.memo(function BlockRendererProvider({
   );
 });
 
-export function BlockRenderer({ block }: { block: cn.BlockData }) {
+export function BlockRenderer({
+  block,
+  templateContext,
+}: {
+  block: cn.BlockData;
+  templateContext?: PokeTemplateContext;
+}) {
   const { renderers, settings: defaultProps } =
     useContext(BlockRendererContext);
   const Wrapper = renderers?.blockWrapper ?? BlockWrapper;
@@ -670,7 +703,11 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
 
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
-      <Renderer {...defaultPropsForBlock} block={block} />
+      <Renderer
+        {...defaultPropsForBlock}
+        block={block}
+        templateContext={templateContext}
+      />
     </Wrapper>
   );
 }

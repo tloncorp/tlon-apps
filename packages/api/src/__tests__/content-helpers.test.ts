@@ -2,20 +2,44 @@ import { expect, test } from 'vitest';
 
 import type { FinalizedAttachment } from '../types';
 import {
+  appendActionButtonToPostBlob,
   appendFileUploadToPostBlob,
   appendToPostBlob,
   parsePostBlob,
   toPostData,
 } from '../lib/content-helpers';
 
-test('parsePostBlob parses registered blob entry types', () => {
-  const blob = appendToPostBlob(
-    appendFileUploadToPostBlob(undefined, {
+test('parsePostBlob parses file blob entries', () => {
+  const blob = appendFileUploadToPostBlob(undefined, {
+    fileUri: 'https://files.example/report.pdf',
+    mimeType: 'application/pdf',
+    name: 'report.pdf',
+    size: 2048,
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'file',
+      version: 1,
       fileUri: 'https://files.example/report.pdf',
       mimeType: 'application/pdf',
       name: 'report.pdf',
       size: 2048,
-    }),
+    },
+  ]);
+});
+
+test('parsePostBlob parses voicememo blob entries', () => {
+  const blob = appendToPostBlob(undefined, {
+    type: 'voicememo',
+    version: 1,
+    fileUri: 'https://files.example/memo.m4a',
+    size: 1024,
+    duration: 12,
+    waveformPreview: [0, 0.25, 1],
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
     {
       type: 'voicememo',
       version: 1,
@@ -23,6 +47,159 @@ test('parsePostBlob parses registered blob entry types', () => {
       size: 1024,
       duration: 12,
       waveformPreview: [0, 0.25, 1],
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob round-trips through parsePostBlob (poke action)', () => {
+  const blob = appendActionButtonToPostBlob(undefined, {
+    label: 'Approve',
+    action: {
+      type: 'poke',
+      app: 'permissions',
+      mark: 'json',
+      json: { allow: true, requestId: 'req-123' },
+    },
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob round-trips through parsePostBlob (response action)', () => {
+  const blob = appendActionButtonToPostBlob(undefined, {
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: { type: 'response', text: 'approve' },
+    },
+  ]);
+});
+
+test('parsePostBlob degrades action-button payloads missing label to unknown', () => {
+  expect(
+    parsePostBlob(
+      JSON.stringify([
+        {
+          type: 'action-button',
+          version: 1,
+          action: {
+            type: 'poke',
+            app: 'permissions',
+            mark: 'json',
+            json: { allow: true },
+          },
+        },
+      ])
+    )
+  ).toEqual([{ type: 'unknown' }]);
+});
+
+test('parsePostBlob degrades action-button payloads missing action to unknown', () => {
+  expect(
+    parsePostBlob(
+      JSON.stringify([
+        {
+          type: 'action-button',
+          version: 1,
+          label: 'Approve',
+        },
+      ])
+    )
+  ).toEqual([{ type: 'unknown' }]);
+});
+
+test('appendActionButtonToPostBlob appends multiple action-button entries', () => {
+  const blob = appendActionButtonToPostBlob(
+    appendActionButtonToPostBlob(undefined, {
+      label: 'Approve',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
+    }),
+    {
+      label: 'Deny',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: false, requestId: 'req-123' },
+      },
+    }
+  );
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
+    },
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Deny',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: false, requestId: 'req-123' },
+      },
+    },
+  ]);
+});
+
+test('parsePostBlob parses action-button entries alongside file and voicememo entries', () => {
+  const blob = appendActionButtonToPostBlob(
+    appendToPostBlob(
+      appendFileUploadToPostBlob(undefined, {
+        fileUri: 'https://files.example/report.pdf',
+        mimeType: 'application/pdf',
+        name: 'report.pdf',
+        size: 2048,
+      }),
+      {
+        type: 'voicememo',
+        version: 1,
+        fileUri: 'https://files.example/memo.m4a',
+        size: 1024,
+        duration: 12,
+        waveformPreview: [0, 0.25, 1],
+      }
+    ),
+    {
+      label: 'Approve',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
     }
   );
 
@@ -43,7 +220,32 @@ test('parsePostBlob parses registered blob entry types', () => {
       duration: 12,
       waveformPreview: [0, 0.25, 1],
     },
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true, requestId: 'req-123' },
+      },
+    },
   ]);
+});
+
+test('appendActionButtonToPostBlob validates action-button entries', () => {
+  expect(() =>
+    appendActionButtonToPostBlob(undefined, {
+      label: '',
+      action: {
+        type: 'poke',
+        app: 'permissions',
+        mark: 'json',
+        json: { allow: true },
+      },
+    })
+  ).toThrow('Invalid PostBlobDataEntry');
 });
 
 test('parsePostBlob degrades gracefully for malformed or invalid payloads', () => {
@@ -119,6 +321,24 @@ test('toPostData uses attachment mimeType when serializing file blobs', () => {
       mimeType: 'application/pdf',
       name: 'report.pdf',
       size: 2048,
+    },
+  ]);
+});
+
+test('appendActionButtonToPostBlob preserves target field', () => {
+  const blob = appendActionButtonToPostBlob(undefined, {
+    label: 'Approve',
+    action: { type: 'response', text: 'approve' },
+    target: '~zod',
+  });
+
+  expect(parsePostBlob(blob)).toEqual([
+    {
+      type: 'action-button',
+      version: 1,
+      label: 'Approve',
+      action: { type: 'response', text: 'approve' },
+      target: '~zod',
     },
   ]);
 });

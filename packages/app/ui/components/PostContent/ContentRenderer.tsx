@@ -4,6 +4,9 @@ import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
 
+import { ActionButtonRow } from './ActionButtonBlock';
+import { PokeTemplateContext } from './actionButtonPoke';
+import { groupActionButtonBlocks } from './actionButtonUtils';
 import {
   BlockRenderer,
   BlockRendererConfig,
@@ -42,10 +45,24 @@ export function PostContentRenderer({
     return content;
   }, [post.content, post.blob]);
 
+  const templateContext = useMemo<PokeTemplateContext>(
+    () => ({
+      targetUser: post.authorId ?? undefined,
+      currentChannel: post.channelId ?? undefined,
+      targetChannel: post.channelId ?? undefined,
+      sourcePostId: post.id ?? undefined,
+    }),
+    [post.authorId, post.channelId, post.id]
+  );
+
   return (
     <BlockRendererProvider>
       <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
+        <ContentRenderer
+          content={content}
+          templateContext={templateContext}
+          {...props}
+        />
       </InlineRendererProvider>
     </BlockRendererProvider>
   );
@@ -53,6 +70,7 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  templateContext,
   onPressImage,
   onLongPress,
   isNotice,
@@ -60,7 +78,10 @@ function ContentRenderer({
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
+  templateContext?: PokeTemplateContext;
 }) {
+  const renderItems = useMemo(() => groupActionButtonBlocks(content), [content]);
+
   return (
     <ContentContext.Provider
       onPressImage={onPressImage}
@@ -69,8 +90,24 @@ function ContentRenderer({
       searchQuery={searchQuery}
     >
       <ContentRendererFrame {...rest}>
-        {content.map((block, k) => {
-          return <BlockRenderer key={k} block={block} />;
+        {renderItems.map((item, k) => {
+          if (item.type === 'action-button-row') {
+            return (
+              <ActionButtonRow
+                key={`action-buttons-${k}`}
+                actionButtons={item.actionButtons}
+                templateContext={templateContext}
+              />
+            );
+          }
+
+          return (
+            <BlockRenderer
+              key={k}
+              block={item.block}
+              templateContext={templateContext}
+            />
+          );
         })}
       </ContentRendererFrame>
     </ContentContext.Provider>
@@ -90,6 +127,7 @@ export function createContentRenderer({
     ...props
   }: ContentRendererProps & {
     content: PostContent;
+    templateContext?: PokeTemplateContext;
   }) {
     return (
       <BlockRendererProvider
