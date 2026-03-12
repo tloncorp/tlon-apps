@@ -84,7 +84,14 @@ export function NowPlayingProvider({
         case 'replace':
           if (action.nowPlaying) {
             // replace right away so that caller can call `play` immediately
-            audioPlayer.replace({ uri: action.nowPlaying.url });
+            audioPlayer.replace({
+              uri: action.nowPlaying.url,
+              headers: {
+                // android exo-player requests with no user-agent, which 403s
+                // on a lot of servers. add something.
+                'User-Agent': 'Tlon/1.0 (https://tlon.io)',
+              },
+            });
             return {
               mediaItem: action.nowPlaying,
               navigationState: navigation.getState(),
