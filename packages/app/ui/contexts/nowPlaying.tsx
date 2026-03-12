@@ -387,6 +387,7 @@ export function useNowPlayingController({
   const togglePlayback = useCallback(() => {
     if (sourceUri == null) return;
     if (isThisSourceLoaded) {
+      // Already loaded - either pause or request play (which might require buffering)
       if (nowPlaying.isPlaying) {
         setPlaybackIntent(false);
         nowPlaying.pause();
@@ -395,6 +396,8 @@ export function useNowPlayingController({
         nowPlaying.play();
       }
     } else {
+      // Not yet loaded - load and play the new source
+
       // Reset so stale wasLoadedRef from a previous playback session
       // doesn't cause the effect to immediately clear the new intent
       wasLoadedRef.current = false;
