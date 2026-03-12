@@ -9,6 +9,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
+import { clamp } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -228,10 +229,18 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
     const candleCount = block.voiceMemo.waveformPreview
       ? block.voiceMemo.waveformPreview.length
       : DUMMY_WAVEFORM_VALUES.length;
-    if (progress?.loadState !== 'loaded' || !isThisSourceLoaded) {
+    if (
+      progress?.loadState !== 'loaded' ||
+      !isThisSourceLoaded ||
+      progress.duration === 0
+    ) {
       return 0;
     }
-    return Math.floor((progress.currentTime / progress.duration) * candleCount);
+    return clamp(
+      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      0,
+      candleCount - 1
+    );
   }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
   return (
