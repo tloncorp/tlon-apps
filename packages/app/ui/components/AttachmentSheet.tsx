@@ -18,7 +18,6 @@ import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import {
   imagePickerAssetToUploadIntent,
   normalizeUploadIntents,
@@ -372,7 +371,6 @@ export default function AttachmentSheet({
     const uploadIntents = await pickFile();
     await attachNormalizedUploadIntents(uploadIntents);
   }, [attachNormalizedUploadIntents, onOpenChange]);
-  const [canRecordVoiceMemos] = useFeatureFlag('recordVoiceMemos');
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -417,7 +415,6 @@ export default function AttachmentSheet({
             action: startFilePicker,
           },
           mediaType === 'all' &&
-            canRecordVoiceMemos &&
             !isWeb && {
               title: 'Voice Memo',
               description: 'Record an audio message',
@@ -435,7 +432,6 @@ export default function AttachmentSheet({
       ),
     [
       startRecordingVoiceMemo,
-      canRecordVoiceMemos,
       onClearAttachments,
       pickImage,
       startFilePicker,
