@@ -22,6 +22,9 @@ import {
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
 import { useNavigation } from '../../navigation/utils';
 
+// error if load takes longer than this
+const REPLACE_TIMEOUT_MS = 10000;
+
 interface MediaItem {
   url: string;
 }
@@ -121,7 +124,15 @@ export function NowPlayingProvider({
 
         if (!nowPlaying) return Promise.resolve();
 
-        return new Promise<void>((resolve) => {
+        const cleanups: (() => void)[] = [];
+        return new Promise<void>((resolve, reject) => {
+          let timedOut = false;
+          const timeout = setTimeout(() => {
+            timedOut = true;
+            reject(new Error('Loading audio timed out'));
+          }, REPLACE_TIMEOUT_MS);
+          cleanups.push(() => clearTimeout(timeout));
+
           // If we didn't have something loaded before, we can resolve as soon
           // as we see isLoaded=true.
           // But otherwise, we need to first see the old source unload
@@ -132,9 +143,16 @@ export function NowPlayingProvider({
           const unsub = audioPlayer.addListener(
             'playbackStatusUpdate',
             (status) => {
+              if (timedOut) {
+                // shouldn't hit this, but abort just in case
+                return;
+              }
+
               // Superseded by a newer replace() call — abandon
               if (replaceGenRef.current !== gen) {
-                unsub.remove();
+                reject(
+                  new Error('Audio source replaced before loading completed')
+                );
                 return;
               }
               if (!status.isLoaded) {
@@ -144,10 +162,12 @@ export function NowPlayingProvider({
                 // New source confirmed loaded — safe to attribute events
                 mediaItemRef.current = nowPlaying;
                 resolve();
-                unsub.remove();
               }
             }
           );
+          cleanups.push(() => unsub.remove());
+        }).finally(() => {
+          cleanups.forEach((fn) => fn());
         });
       },
       async play() {
