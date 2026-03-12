@@ -1,0 +1,26 @@
+diff --git a/android/src/main/java/expo/modules/audio/AudioModule.kt b/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 3badbf1bff5bba86cf1767d35d77c8c0980bef61..38efbcdb7c46acb3f941a53a8665429b803e87f9 100644
+--- a/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -266,7 +266,7 @@ class AudioModule : Module() {
+             val mediaSource = createMediaItem(source)
+             val wasPlaying = ref.player.isPlaying
+             mediaSource?.let {
+-              ref.player.replaceMediaItem(0, it.mediaItem)
++              ref.setMediaSource(it)
+               if (wasPlaying) {
+                 ref.player.play()
+               }
+diff --git a/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index ef9ec3c3d8f3bcb008710ad8ad97c7442d1a3738..8897220672638e02621cac3e91e81477372508bc 100644
+--- a/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -65,7 +65,7 @@ class AudioPlayer(
+     }
+   }
+ 
+-  private fun setMediaSource(source: MediaSource) {
++  fun setMediaSource(source: MediaSource) {
+     player.setMediaSource(source)
+     player.prepare()
+     startUpdating()
