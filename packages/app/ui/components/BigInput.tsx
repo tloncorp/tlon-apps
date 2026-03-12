@@ -22,7 +22,6 @@ import {
 } from '@tloncorp/ui';
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
@@ -192,12 +191,6 @@ export function BigInput({
   const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
     null
   );
-  const pendingInlineImageSheetOpenTimeoutRef = useRef<
-    ReturnType<typeof setTimeout> | null
-  >(null);
-  const pendingInlineImageSheetKeyboardListenerRef = useRef<
-    ReturnType<typeof Keyboard.addListener> | null
-  >(null);
   const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -517,41 +510,6 @@ export function BigInput({
     [showToast]
   );
 
-  const clearPendingInlineImageSheetOpen = useCallback(() => {
-    if (pendingInlineImageSheetOpenTimeoutRef.current) {
-      clearTimeout(pendingInlineImageSheetOpenTimeoutRef.current);
-      pendingInlineImageSheetOpenTimeoutRef.current = null;
-    }
-
-    if (pendingInlineImageSheetKeyboardListenerRef.current) {
-      pendingInlineImageSheetKeyboardListenerRef.current.remove();
-      pendingInlineImageSheetKeyboardListenerRef.current = null;
-    }
-  }, []);
-
-  const openInlineImageSheetAfterKeyboardDismiss = useCallback(() => {
-    if (Platform.OS === 'web') {
-      setShowInlineImageSheet(true);
-      return;
-    }
-
-    clearPendingInlineImageSheetOpen();
-
-    const openSheet = () => {
-      clearPendingInlineImageSheetOpen();
-      if (isMountedRef.current) {
-        setShowInlineImageSheet(true);
-      }
-    };
-
-    pendingInlineImageSheetKeyboardListenerRef.current = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      openSheet
-    );
-    pendingInlineImageSheetOpenTimeoutRef.current = setTimeout(openSheet, 250);
-    setShouldBlur(true);
-  }, [clearPendingInlineImageSheetOpen, setShouldBlur]);
-
   // Update image URI when editing post changes
   useEffect(() => {
     setImageUri(editingPost?.image || null);
@@ -559,7 +517,6 @@ export function BigInput({
 
   useEffect(() => {
     return () => {
-      clearPendingInlineImageSheetOpen();
       isMountedRef.current = false;
       // Clear attachments when component unmounts to prevent stale attachments
       // from appearing in other inputs that share the same attachment context
@@ -567,7 +524,7 @@ export function BigInput({
         clearAttachments();
       }
     };
-  }, [clearPendingInlineImageSheetOpen, editingPost, clearAttachments]);
+  }, [editingPost, clearAttachments]);
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
@@ -578,7 +535,8 @@ export function BigInput({
             from: editorState.selection.from,
             to: editorState.selection.to,
           };
-          openInlineImageSheetAfterKeyboardDismiss();
+          setShouldBlur(true);
+          setShowInlineImageSheet(true);
         },
       active: () => false,
       disabled: () => false,
@@ -604,7 +562,7 @@ export function BigInput({
     isMarkdownMode,
     handleMarkdownToggle,
     markdownNotebooksEnabled,
-    openInlineImageSheetAfterKeyboardDismiss,
+    setShouldBlur,
   ]);
 
   return (
