@@ -4,7 +4,7 @@
 ++  grow
   |%
   ++  noun  hp
-  ++  json  (hidden-posts:enjs:j hp)
+  ++  json  (hidden-posts:v9:enjs:j hp)
   --
 ++  grab
   |%

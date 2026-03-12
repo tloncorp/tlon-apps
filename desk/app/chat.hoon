@@ -1561,7 +1561,8 @@
         `[%edit time u.edit]
       =/  parent-time  (~(get by dex.pact.u.old-chat) u.replying.writ)
       ?~  parent-time  ~
-      `[%reply u.parent-time %edit time -.u.edit]
+      =/  =reply-essay:d  [- blob]:u.edit
+      `[%reply u.parent-time %edit time reply-essay]
     ?~  command  ~
     =/  =cage
       :-  %channel-action-1
@@ -1706,7 +1707,7 @@
     |=  [id=@da old=writ:t]
     ~>  %spin.['convert-quip']
     ^-  v-reply:d
-    [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
+    [[id (convert-feels feels.old)] %0 [(convert-memo +.old) ~]]
   ::
   ++  convert-memo
     |=  old=memo:t

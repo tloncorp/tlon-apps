@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  reply
-  ++  json  (reply:enjs:j reply)
+  ++  json  (reply:v8:enjs:j reply)
   --
 ++  grab
   |%
