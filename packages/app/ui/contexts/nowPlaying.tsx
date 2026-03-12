@@ -1,7 +1,9 @@
+import { useFocusEffect } from '@react-navigation/native';
 import {
   EventEmitter,
   TypedEventEmitter,
 } from '@tloncorp/api/lib/EventEmitter';
+import { useMutableRef } from '@tloncorp/shared';
 import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
 import {
   setAudioModeAsync,
@@ -20,7 +22,6 @@ import {
 import { Platform } from 'react-native';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
-import { useNavigation } from '../../navigation/utils';
 
 // error if load takes longer than this
 const REPLACE_TIMEOUT_MS = 10000;
@@ -63,15 +64,7 @@ export function NowPlayingProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const navigation = useNavigation();
-  type NavigationState = ReturnType<typeof navigation.getState>;
-
   const audioPlayer = useAudioPlayer();
-
-  const [state, setState] = useState<{
-    mediaItem: MediaItem;
-    navigationState: NavigationState;
-  } | null>(null);
 
   const eventEmitter = useMemo(
     () => new EventEmitter<NowPlayingEventMap>(),
@@ -97,7 +90,6 @@ export function NowPlayingProvider({
 
         if (!nowPlaying) {
           audioPlayer.replace(null);
-          setState(null);
           return Promise.resolve();
         }
 
@@ -165,10 +157,6 @@ export function NowPlayingProvider({
             'User-Agent': 'Tlon/1.0 (https://tlon.io)',
           },
         });
-        setState({
-          mediaItem: nowPlaying,
-          navigationState: navigation.getState(),
-        });
 
         return out;
       },
@@ -212,7 +200,7 @@ export function NowPlayingProvider({
       emit: eventEmitter.emit.bind(eventEmitter),
     }),
     // Only stable deps - audioPlayer and eventEmitter don't change
-    [audioPlayer, eventEmitter, navigation]
+    [audioPlayer, eventEmitter]
   );
 
   // Emit progress updates and handle end of playback
@@ -271,35 +259,6 @@ export function NowPlayingProvider({
       [audioPlayer]
     )
   );
-
-  // Stop audio when navigating away from initiating screen
-  useEffect(() => {
-    function shouldStopAudio(prev: NavigationState, next: NavigationState) {
-      if (!prev || !next) {
-        return false;
-      }
-      const prevRoute = prev.routes[prev.index];
-      const nextRoute = next.routes[next.index];
-      if (prevRoute.key !== nextRoute.key) {
-        if (state?.navigationState) {
-          const isPrevRouteActive =
-            prevRoute.key ===
-            state.navigationState.routes[state.navigationState.index].key;
-          const isNextRouteActive =
-            nextRoute.key ===
-            state.navigationState.routes[state.navigationState.index].key;
-          return isPrevRouteActive && !isNextRouteActive;
-        }
-      }
-    }
-
-    const unsub = navigation.addListener('state', (event) => {
-      if (state && shouldStopAudio(state.navigationState, event.data.state)) {
-        ctxValue.pause();
-      }
-    });
-    return unsub;
-  }, [navigation, ctxValue, state]);
 
   return <ctx.Provider value={ctxValue}>{children}</ctx.Provider>;
 }
@@ -446,6 +405,18 @@ export function useNowPlayingController({
         return 'loading';
     }
   }, [playbackIntent, progress, isThisSourceLoaded]);
+
+  const statusRef = useMutableRef(status);
+  const nowPlayingRef = useMutableRef(nowPlaying);
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (statusRef.current === 'playing') {
+          nowPlayingRef.current.pause();
+        }
+      };
+    }, [nowPlayingRef, statusRef])
+  );
 
   return {
     togglePlayback,
