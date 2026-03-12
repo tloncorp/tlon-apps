@@ -14,7 +14,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from 'react';
@@ -64,46 +63,14 @@ export function NowPlayingProvider({
   children: React.ReactNode;
 }) {
   const navigation = useNavigation();
+  type NavigationState = ReturnType<typeof navigation.getState>;
+
   const audioPlayer = useAudioPlayer();
 
-  type NavigationState = ReturnType<typeof navigation.getState>;
-  type ReducerState = {
+  const [state, setState] = useState<{
     mediaItem: MediaItem;
     navigationState: NavigationState;
-  } | null;
-
-  const [state, dispatch] = useReducer(
-    (
-      prev: ReducerState,
-      action: {
-        type: 'replace';
-        nowPlaying: MediaItem | null;
-      }
-    ): ReducerState => {
-      switch (action.type) {
-        case 'replace':
-          if (action.nowPlaying) {
-            // replace right away so that caller can call `play` immediately
-            audioPlayer.replace({
-              uri: action.nowPlaying.url,
-              headers: {
-                // android exo-player requests with no user-agent, which 403s
-                // on a lot of servers. add something.
-                'User-Agent': 'Tlon/1.0 (https://tlon.io)',
-              },
-            });
-            return {
-              mediaItem: action.nowPlaying,
-              navigationState: navigation.getState(),
-            };
-          } else {
-            audioPlayer.replace(null);
-            return null;
-          }
-      }
-    },
-    null
-  );
+  } | null>(null);
 
   const eventEmitter = useMemo(
     () => new EventEmitter<NowPlayingEventMap>(),
@@ -127,12 +94,33 @@ export function NowPlayingProvider({
         // misattributed to the new source while the old one unloads
         mediaItemRef.current = null;
 
-        dispatch({ type: 'replace', nowPlaying });
+        if (nowPlaying) {
+          // replace right away so that caller can call `play` immediately
+          audioPlayer.replace({
+            uri: nowPlaying.url,
+            headers: {
+              // android exo-player requests with no user-agent, which 403s
+              // on a lot of servers. add something.
+              'User-Agent': 'Tlon/1.0 (https://tlon.io)',
+            },
+          });
+          setState({
+            mediaItem: nowPlaying,
+            navigationState: navigation.getState(),
+          });
+        } else {
+          audioPlayer.replace(null);
+          setState(null);
+        }
 
         if (!nowPlaying) return Promise.resolve();
 
+        // We requested a replace - we now need to return a promise that
+        // resolves once the new audio source loads in. This seems like the
+        // only way to detect when the source swaps out:
         const cleanups: (() => void)[] = [];
         return new Promise<void>((resolve, reject) => {
+          // Set up a timeout in case we don't get our expo-audio event
           let timedOut = false;
           const timeout = setTimeout(() => {
             timedOut = true;
@@ -217,7 +205,7 @@ export function NowPlayingProvider({
       emit: eventEmitter.emit.bind(eventEmitter),
     }),
     // Only stable deps - audioPlayer and eventEmitter don't change
-    [audioPlayer, eventEmitter]
+    [audioPlayer, eventEmitter, navigation]
   );
 
   // Emit progress updates and handle end of playback
