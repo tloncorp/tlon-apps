@@ -1642,7 +1642,7 @@
       %channels
     ::  Run channel effects after normal cards in the same event so the
     ::  originating post update has time to commit/propagate first.
-    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`a-channels.effect)
+    =/  =cage  channel-action-2+!>(`a-channels:v10:cv`a-channels.effect)
     (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
