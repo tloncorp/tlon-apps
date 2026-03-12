@@ -1,13 +1,9 @@
 import {
   Attachment,
   PLACEHOLDER_ASSET_URI,
+  VoiceMemoAttachment,
   createDevLogger,
 } from '@tloncorp/shared';
-import {
-  getAudioFileDurationSeconds,
-  getFileSize,
-  getMimeType,
-} from '../../utils/files';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -28,6 +24,11 @@ import {
   normalizeUploadIntents,
   pickFile,
 } from '../../utils/filepicker';
+import {
+  getAudioFileDurationSeconds,
+  getFileSize,
+  getMimeType,
+} from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -40,6 +41,7 @@ import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
+import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -70,6 +72,7 @@ export default function AttachmentSheet({
     addAttachment,
     clearAttachments,
     removeAttachment,
+    uploadAssets,
   } = useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
@@ -153,11 +156,11 @@ export default function AttachmentSheet({
     removeAttachment(placeholderToRemove);
   }, [removeAttachment]);
 
-  const useVideoInMediaPicker =
-    allowVideoInMediaPicker ?? mediaType === 'all';
-  const pickerMediaTypes: ImagePicker.MediaType[] = useVideoInMediaPicker
-    ? ['images', 'videos']
-    : ['images'];
+  const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
+  const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
 
   const attachNormalizedUploadIntents = useCallback(
     async (uploadIntents: Attachment.UploadIntent[]) => {
@@ -234,6 +237,7 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
+  const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
@@ -243,15 +247,46 @@ export default function AttachmentSheet({
           return undefined;
         }
       })();
-      addAttachment({
+      const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
         localUri: audioFilePath,
         size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
         mimeType: getMimeType(audioFilePath) ?? undefined,
-      });
+      };
       audioRecorder.dismiss();
+
+      // If possible, try sending post immediately.
+      if (draftInputContext != null) {
+        const ui = Attachment.toUploadIntent(attachment);
+        if (ui.needsUpload) {
+          uploadAssets([ui], {
+            // without this flag, attachment context tries to add the uploaded
+            // attachment to the context's attachment list, which ends up
+            // showing in the draft box. we want to skip the preview entirely.
+            skipAddToAttachmentList: true,
+          });
+        }
+        await draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          channelType: draftInputContext.channel.type,
+          content: [],
+          attachments: [attachment],
+          ...(draftInputContext.editingPost == null
+            ? {
+                isEdit: false,
+              }
+            : {
+                isEdit: true,
+                editTargetPostId: draftInputContext.editingPost.id,
+              }),
+          replyToPostId: null,
+        });
+      } else {
+        // otherwise, add attachment to draft
+        addAttachment(attachment);
+      }
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {
@@ -262,8 +297,6 @@ export default function AttachmentSheet({
 
   const pickImage = useCallback(() => {
     const openImagePicker = async () => {
-      let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
-
       try {
         if (mediaLibraryPermissionStatus?.granted === false) {
           const permissionResult = await requestMediaLibraryPermission();
@@ -272,13 +305,11 @@ export default function AttachmentSheet({
           }
         }
 
-        // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        placeholderTimeout = setTimeout(() => {
-          if (Platform.OS !== 'web') {
-            attachAssets([placeholderUploadIntent]);
-          }
-        }, 200);
+        // Show loading placeholder as soon as the sheet closes, before waiting
+        // on the native media picker round-trip.
+        if (Platform.OS !== 'web') {
+          attachAssets([placeholderUploadIntent]);
+        }
 
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
@@ -288,13 +319,25 @@ export default function AttachmentSheet({
         });
 
         if (!result.canceled) {
-          // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
 
+          const { uploadIntents: normalizedUploadIntents, errorMessage } =
+            await normalizeUploadIntents([
+              imagePickerAssetToUploadIntent(realAsset),
+            ]);
+
+          // Remove placeholder before attaching the selected media so validation
+          // does not reject the real attachment as "extra".
           removePlaceholderAttachment();
-          await attachNormalizedUploadIntents([
-            imagePickerAssetToUploadIntent(realAsset),
-          ]);
+
+          if (errorMessage) {
+            Alert.alert('Unable to attach', errorMessage);
+          }
+
+          if (normalizedUploadIntents.length > 0) {
+            attachAssets(normalizedUploadIntents);
+            onAttach?.(normalizedUploadIntents);
+          }
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -305,10 +348,6 @@ export default function AttachmentSheet({
 
         // In case of error, remove the placeholder
         clearAttachments();
-      } finally {
-        if (placeholderTimeout) {
-          clearTimeout(placeholderTimeout);
-        }
       }
     };
 
@@ -333,7 +372,7 @@ export default function AttachmentSheet({
     pickerMediaTypes,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
-    attachNormalizedUploadIntents,
+    onAttach,
     removePlaceholderAttachment,
   ]);
 

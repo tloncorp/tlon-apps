@@ -6,6 +6,7 @@ import {
   VIDEO_COMPOSITION_ERROR,
   VIDEO_VALIDATION_ERROR,
   canAddAttachment,
+  inferAllowedVideoMimeType,
 } from './attachmentRules';
 
 function makeVideo(
@@ -80,11 +81,9 @@ test('rejects unknown-size remote video', () => {
   });
 });
 
-test('rejects unsupported video MIME type', () => {
+test('allows fallback to supported extension when MIME type is unsupported', () => {
   expect(canAddAttachment([], makeVideo({ mimeType: 'video/avi' }))).toEqual({
-    ok: false,
-    reason: VIDEO_VALIDATION_ERROR,
-    kind: 'validation',
+    ok: true,
   });
 });
 
@@ -96,4 +95,18 @@ test('rejects unsupported extension when MIME is missing', () => {
     reason: VIDEO_VALIDATION_ERROR,
     kind: 'validation',
   });
+});
+
+test('inferAllowedVideoMimeType reuses allowlisted mime when present', () => {
+  expect(inferAllowedVideoMimeType({ mimeType: 'video/quicktime' })).toBe(
+    'video/quicktime'
+  );
+});
+
+test('inferAllowedVideoMimeType infers from extension', () => {
+  expect(
+    inferAllowedVideoMimeType({
+      uri: 'https://cdn.example.com/clip.MOV?token=abc',
+    })
+  ).toBe('video/quicktime');
 });

@@ -9,6 +9,7 @@ const logger = createDevLogger('videoPreviewData.native', false);
 const THUMBNAIL_CANDIDATE_TIMES_SECONDS = [0, 0.1, 0.5, 1];
 const THUMBNAIL_RETRY_DELAY_MS = 150;
 const PLAYER_READY_TIMEOUT_MS = 1500;
+const POSTER_MAX_DIMENSION_PX = 960;
 
 export async function getVideoPreviewData(
   source: VideoPreviewSource
@@ -31,7 +32,17 @@ export async function getVideoPreviewData(
       };
     }
 
-    const imageRef = await ImageManipulator.manipulate(thumbnail).renderAsync();
+    const manipulator = ImageManipulator.manipulate(thumbnail);
+    const { width: thumbWidth = 0, height: thumbHeight = 0 } = thumbnail;
+    const maxDimension = Math.max(thumbWidth, thumbHeight);
+    if (maxDimension > POSTER_MAX_DIMENSION_PX) {
+      if (thumbWidth >= thumbHeight) {
+        manipulator.resize({ width: POSTER_MAX_DIMENSION_PX });
+      } else {
+        manipulator.resize({ height: POSTER_MAX_DIMENSION_PX });
+      }
+    }
+    const imageRef = await manipulator.renderAsync();
     const saved = await imageRef.saveAsync({
       compress: 0.75,
       format: SaveFormat.JPEG,
