@@ -11,7 +11,7 @@
     %+  turn  ~(tap by changes)
     |=  [=nest:c posts=(unit posts:v9:cv)]
     :-  (nest-cord nest)
-    ?~(posts ~ (^posts u.posts))
+    ?~(posts ~ (posts:v9 u.posts))
   --
 ++  grab
   |%

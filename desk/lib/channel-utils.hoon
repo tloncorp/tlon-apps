@@ -259,8 +259,8 @@
 ++  uv-post-4
   |=  =v-post:c
   ~>  %spin.['libcu-uv-post-3']
-  ^-  post:c
-  =/  =replies:c
+  ^-  post:v10:cv
+  =/  =replies:v10:cv
     (uv-replies-4 id.v-post replies.v-post)
   :_  +.v-post
   :*  id.v-post

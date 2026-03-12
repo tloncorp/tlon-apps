@@ -124,11 +124,8 @@
       |=  ref=reference:v10:cv
       ^-  reference:v9:cv
       ?-  -.ref
-          %post
-        [%post ?:(?=(%| -.post.ref) post.ref [%& (v9:simple-post +.post.ref)])]
-      ::
-          %reply
-        [%reply id-post.ref ?:(?=(%| -.reply.ref) reply.ref [%& (v9:simple-reply +.reply.ref)])]
+        %post   [%post (mind:v9:cv post.ref v9:simple-post)]
+        %reply  [%reply id-post.ref (mind:v9:cv reply.ref v9:simple-reply)]
       ==
     --
   ++  said
@@ -443,15 +440,8 @@
       |=  ref=reference:v9:cv
       ^-  reference:v10:cv
       ?-  -.ref
-          %post
-        :-  %post
-        ?:  ?=(%| -.post.ref)  post.ref
-        [%& (v10:simple-post +.post.ref)]
-      ::
-          %reply
-        :-  %reply  :-  id-post.ref
-        ?:  ?=(%| -.reply.ref)  reply.ref
-        [%& (v10:simple-reply +.reply.ref)]
+        %post   [%post (mind:v9:cv post.ref v10:simple-post)]
+        %reply  [%reply id-post.ref (mind:v9:cv reply.ref v10:simple-reply)]
       ==
     --
   ++  scan

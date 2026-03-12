@@ -948,13 +948,13 @@
       cor
     ==
   ::
-    :: TODO: add transfer/import channels
       %channel-action
-    =;  a-channel-9=a-channel:v9:cv
-      $(+< channel-action-1+!>(a-channel-9))
+    =;  =a-channels:v9:cv
+      $(+< channel-action-1+!>(a-channels))
     =+  !<(old-a-channels=a-channels:v7:cv vase)
-    ::  upconvert old %create action
     ?:  ?=([%create *] old-a-channels)
+      ::  upconvert old %create action
+      ::
       :-  %create
       =>  create-channel.old-a-channels
       :*  kind
@@ -1017,23 +1017,33 @@
       ==
     ==
   ::
-      :: %channel-action-1
-    ::  upconvert to channel-action-2
+      %channel-action-1
+    =;  =a-channels:v10:cv
+      $(+< channel-action-2+!>(a-channels))
+    =+  !<(old-a-channels=a-channels:v9:cv vase)
+    ?.  ?=([%channel *] old-a-channels)  old-a-channels
+    ?:  ?=([%channel * %post %reply @ %add *] old-a-channels)
+      =*  memo  memo.c-reply.c-post.a-channel.old-a-channels
+      old-a-channels(memo.c-reply.c-post.a-channel [memo ~])
+    ?:  ?=([%channel * %post %reply @ %edit *] old-a-channels)
+      =*  memo  memo.c-reply.c-post.a-channel.old-a-channels
+      old-a-channels(memo.c-reply.c-post.a-channel [memo ~])
+    old-a-channels
   ::
-    :: %channel-action-2
-    :: ?:  ?=(%create -.a-channels)
-    ::   ca-abet:(ca-create:ca-core create-channel.a-channels)
-    :: ?:  ?=(%pin -.a-channels)
-    ::   ~&  %channels-vestigial-pin-action
-    ::   ?>  from-self
-    ::   cor
-    :: ?:  ?=(%toggle-post -.a-channels)
-    ::   ?>  from-self
-    ::   (toggle-post toggle.a-channels)
-    :: ?:  ?=(%join -.a-channel.a-channels)
-    ::   ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    :: $(channel-action
-    :: ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+      %channel-action-2
+    =+  !<(=a-channels:v10:cv vase)
+    ?:  ?=(%create -.a-channels)
+      ca-abet:(ca-create:ca-core create-channel.a-channels)
+    ?:  ?=(%pin -.a-channels)
+      ~&  %channels-vestigial-pin-action
+      ?>  from-self
+      cor
+    ?:  ?=(%toggle-post -.a-channels)
+      ?>  from-self
+      (toggle-post toggle.a-channels)
+    ?:  ?=(%join -.a-channel.a-channels)
+      ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-request-join
     =+  !<([=nest:c =flag:g] vase)
