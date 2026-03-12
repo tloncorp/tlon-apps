@@ -20,6 +20,10 @@ const REQUIRED_SENTINEL_TABLES = [
   schema.posts,
   schema.activityEvents,
 ].map((table) => getTableName(table));
+type E2eCorruptibleTable = (typeof REQUIRED_SENTINEL_TABLES)[number];
+const E2E_CORRUPTIBLE_TABLES = new Set<E2eCorruptibleTable>(
+  REQUIRED_SENTINEL_TABLES
+);
 
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
@@ -162,6 +166,27 @@ export class NativeDb extends BaseDb {
 
   async getDbPath(): Promise<string | undefined> {
     return this.connection?.getDbPath();
+  }
+
+  async e2eDropTable(tableName: E2eCorruptibleTable) {
+    if (!E2E_CORRUPTIBLE_TABLES.has(tableName)) {
+      throw new Error(`e2eDropTable: unsupported table ${tableName}`);
+    }
+
+    await this.ensureDbReady();
+    if (!this.connection) {
+      throw new Error('e2eDropTable: no active connection');
+    }
+
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'e2eDropTable: dropping table',
+      tableName,
+    });
+    await this.connection.execute(`DROP TABLE IF EXISTS "${tableName}"`);
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'e2eDropTable: dropped table',
+      tableName,
+    });
   }
 
   async ensureDbReady() {
@@ -407,6 +432,8 @@ export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
+export const e2eDropTable = (tableName: E2eCorruptibleTable) =>
+  nativeDb.e2eDropTable(tableName);
 export const resetDb = () => nativeDb.resetDb();
 export const runMigrations = () => nativeDb.runMigrations();
 export const useMigrations = () => useMigrationsBase(nativeDb);

@@ -1,0 +1,27 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/login-e2e-node.yaml
+- assertVisible: 'Home'
+# Corrupt a sentinel table through the automated-test-only deep link command.
+# - openLink: 'io.tlon.groups://e2e/db?op=drop-table&table=groups'
+# - waitForAnimationToEnd:
+# - waitForAnimationToEnd:
+
+# - killApp
+# - launchApp:
+#     permissions:
+#       notifications: allow
+#       contacts: allow
+
+# # Wait if we encounter the ship-restarting screen.
+# - runFlow:
+#     when:
+#       visible: 'Notify me when.*'
+#     commands:
+#       - extendedWaitUntil:
+#           notVisible: 'Notify me when.*'
+#           timeout: 600000 # 10 minutes
+
+# - assertNotVisible: 'Something went wrong'
+# - assertVisible: 'Home'
