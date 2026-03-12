@@ -949,88 +949,91 @@
     ==
   ::
     :: TODO: add transfer/import channels
-      ?(%channel-action %channel-action-1)
-    =/  =a-channels:c
-      ?.  ?=(%channel-action mark)
-        !<(a-channels:c vase)
-      =+  !<(old-a-channels=a-channels:v7:cv vase)
-      ::  upconvert old %create action
-      ?:  ?=([%create *] old-a-channels)
-        :-  %create
-        =>  create-channel.old-a-channels
-        :*  kind
-            name
-            group
-            title
-            description
-            ~  ::  meta
-            readers
-            writers
-        ==
-      ?.  ?=([%channel *] old-a-channels)
-        old-a-channels
-      ::  upconvert old %channel action
-      ::
-      ?+    a-channel.old-a-channels  old-a-channels
-        ::
-          [%post %add *]
-        %=    old-a-channels
-            essay.c-post.a-channel
-          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %edit *]
-        %=    old-a-channels
-            essay.c-post.a-channel
-          (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-        ==
-        ::
-          [%post %add-react *]
-        %=  old-a-channels
-            q.c-post.a-channel
-          ^-  react:c
-          =*  react  q.c-post.a-channel.old-a-channels
-          ?~  react=(kill:em react)
-            [%any ^react]
-          u.react
-        ==
-        ::
-          [%post %reply * %add *]
-        %=    old-a-channels
-            memo.c-reply.c-post.a-channel
-          :: reply-essay
-          [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
-        ==
-        ::
-          [%post %reply * %edit *]
-        %=    old-a-channels
-            memo.c-reply.c-post.a-channel
-          ::  reply-essay
-          [(memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels) ~]
-        ==
-        ::
-          [%post %reply * %add-react *]
-        %=  old-a-channels
-            q.c-reply.c-post.a-channel
-          ^-  react:c
-          =*  react  q.c-reply.c-post.a-channel.old-a-channels
-          ?~  react=(kill:em react)
-            [%any ^react]
-          u.react
-        ==
+      %channel-action
+    =;  a-channel-9=a-channel:v9:cv
+      $(+< channel-action-1+!>(a-channel-9))
+    =+  !<(old-a-channels=a-channels:v7:cv vase)
+    ::  upconvert old %create action
+    ?:  ?=([%create *] old-a-channels)
+      :-  %create
+      =>  create-channel.old-a-channels
+      :*  kind
+          name
+          group
+          title
+          description
+          ~  ::  meta
+          readers
+          writers
       ==
-    ?:  ?=(%create -.a-channels)
-      ca-abet:(ca-create:ca-core create-channel.a-channels)
-    ?:  ?=(%pin -.a-channels)
-      ~&  %channels-vestigial-pin-action
-      ?>  from-self
-      cor
-    ?:  ?=(%toggle-post -.a-channels)
-      ?>  from-self
-      (toggle-post toggle.a-channels)
-    ?:  ?=(%join -.a-channel.a-channels)
-      ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+    ?.  ?=([%channel *] old-a-channels)
+      old-a-channels
+    ?+    a-channel.old-a-channels  old-a-channels
+      ::
+        [%post %add *]
+      %=    old-a-channels
+          essay.c-post.a-channel
+        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %edit *]
+      %=    old-a-channels
+          essay.c-post.a-channel
+        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %add-react *]
+      %=  old-a-channels
+          q.c-post.a-channel
+        ^-  react:c
+        =*  react  q.c-post.a-channel.old-a-channels
+        ?~  react=(kill:em react)
+          [%any ^react]
+        u.react
+      ==
+      ::
+        [%post %reply * %add *]
+      %=    old-a-channels
+          memo.c-reply.c-post.a-channel
+        :: reply-essay
+        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %reply * %edit *]
+      %=    old-a-channels
+          memo.c-reply.c-post.a-channel
+        ::  reply-essay
+        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
+      ==
+      ::
+        [%post %reply * %add-react *]
+      %=  old-a-channels
+          q.c-reply.c-post.a-channel
+        ^-  react:c
+        =*  react  q.c-reply.c-post.a-channel.old-a-channels
+        ?~  react=(kill:em react)
+          [%any ^react]
+        u.react
+      ==
+    ==
+  ::
+      :: %channel-action-1
+    ::  upconvert to channel-action-2
+  ::
+    :: %channel-action-2
+    :: ?:  ?=(%create -.a-channels)
+    ::   ca-abet:(ca-create:ca-core create-channel.a-channels)
+    :: ?:  ?=(%pin -.a-channels)
+    ::   ~&  %channels-vestigial-pin-action
+    ::   ?>  from-self
+    ::   cor
+    :: ?:  ?=(%toggle-post -.a-channels)
+    ::   ?>  from-self
+    ::   (toggle-post toggle.a-channels)
+    :: ?:  ?=(%join -.a-channel.a-channels)
+    ::   ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
+    :: $(channel-action
+    :: ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-request-join
     =+  !<([=nest:c =flag:g] vase)
@@ -2553,8 +2556,9 @@
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
-    =/  r-channels-9=r-channels:v9:cv
-      [nest (v9:r-channel:v10:ccv r-channel)]
+    =+  r-channel=(v9:r-channel:v10:ccv r-channel)
+    =/  r-channels-9
+      [nest r-channel]
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
@@ -2572,67 +2576,65 @@
       %^  give  %fact
         ~[/v1 v1+ca-area]
       channel-response-2+!>((v7:r-channels:v9:ccv r-channels-9))
-    ca-core
-    ::TODO confirm we can deprecate /v0 endpoint
-    :: =;  r-simple=r-channels-simple-post:v7:cv
-    ::   %^  give  %fact
-    ::     ~[/ ca-area /v0 v0+ca-area]
-    ::   channel-response+!>(r-simple)
-    :: :-  nest
-    :: ?+    r-channel  r-channel
-    ::     [%posts *]
-    ::   r-channel(posts (s-posts-1:utils posts.r-channel))
-    :: ::
-    ::     [%post * %set *]
-    ::   ^-  r-channel-simple-post:v7:cv
-    ::   ?:  ?=(%| -.post.r-post.r-channel)
-    ::     r-channel(post.r-post ~)
-    ::   r-channel(post.r-post `(s-post-1:utils +.post.r-post.r-channel))
-    :: ::
-    ::     [%post * %reply * * %set *]
-    ::   ^-  r-channel-simple-post:v7:cv
-    ::   %=    r-channel
-    ::       ::
-    ::       reply.r-reply.r-post
-    ::     ?:  ?=(%| -.reply.r-reply.r-post.r-channel)  ~
-    ::     `(s-reply-1:utils +.reply.r-reply.r-post.r-channel)
-    ::     ::
-    ::       reply-meta.r-post
-    ::     (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
-    ::   ==
-    :: ::
-    ::     [%post * %reply * * %reacts *]
-    ::   %=    r-channel
-    ::       ::
-    ::       reply-meta.r-post
-    ::     (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
-    ::     ::
-    ::       reacts.r-reply.r-post
-    ::     (v7:reacts:v9:ccv reacts.r-reply.r-post.r-channel)
-    ::   ==
-    :: ::
-    ::     [%post * %reacts *]
-    ::   r-channel(reacts.r-post (v7:reacts:v9:ccv reacts.r-post.r-channel))
-    :: ::
-    ::     [%post id-post:c %essay *]
-    ::   r-channel(essay.r-post (v7:essay:v9:ccv essay.r-post.r-channel))
-    :: ::
-    ::     [%pending client-id:c %post *]
-    ::   %=    r-channel
-    ::       essay.r-pending
-    ::     (v7:essay:v9:ccv essay.r-pending.r-channel)
-    ::   ==
-    :: ::
-    ::     [%pending client-id:c %reply *]
-    ::   %=    r-channel
-    ::       ::
-    ::       reply-meta.r-pending
-    ::     (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
-    ::     ::
-    ::       reply-essay.r-pending
-    ::     (v7:reply-essay:v10:ccv reply-essay.r-pending.r-channel)
-    ::   ==
-    :: ==
+    =;  r-simple=r-channels-simple-post:v7:cv
+      %^  give  %fact
+        ~[/ ca-area /v0 v0+ca-area]
+      channel-response+!>(r-simple)
+    :-  nest
+    ?+    r-channel  r-channel
+        [%posts *]
+      r-channel(posts (s-posts-1:utils posts.r-channel))
+    ::
+        [%post * %set *]
+      ^-  r-channel-simple-post:v7:cv
+      ?:  ?=(%| -.post.r-post.r-channel)
+        r-channel(post.r-post ~)
+      r-channel(post.r-post `(s-post-1:utils +.post.r-post.r-channel))
+    ::
+        [%post * %reply * * %set *]
+      ^-  r-channel-simple-post:v7:cv
+      %=    r-channel
+          ::
+          reply.r-reply.r-post
+        ?:  ?=(%| -.reply.r-reply.r-post.r-channel)  ~
+        `(s-reply-1:utils +.reply.r-reply.r-post.r-channel)
+        ::
+          reply-meta.r-post
+        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
+      ==
+    ::
+        [%post * %reply * * %reacts *]
+      %=    r-channel
+          ::
+          reply-meta.r-post
+        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
+        ::
+          reacts.r-reply.r-post
+        (v7:reacts:v9:ccv reacts.r-reply.r-post.r-channel)
+      ==
+    ::
+        [%post * %reacts *]
+      r-channel(reacts.r-post (v7:reacts:v9:ccv reacts.r-post.r-channel))
+    ::
+        [%post id-post:c %essay *]
+      r-channel(essay.r-post (v7:essay:v9:ccv essay.r-post.r-channel))
+    ::
+        [%pending client-id:c %post *]
+      %=    r-channel
+          essay.r-pending
+        (v7:essay:v9:ccv essay.r-pending.r-channel)
+      ==
+    ::
+        [%pending client-id:c %reply *]
+      %=    r-channel
+          ::
+          reply-meta.r-pending
+        (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
+        ::
+          memo.r-pending
+        (v7:memo:v9:ccv memo.r-pending.r-channel)
+      ==
+    ==
   ::
   ::  produce an up-to-date unread state
   ::

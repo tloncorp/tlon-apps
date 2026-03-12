@@ -9,7 +9,69 @@
     ++  v9
       |=  =v-channels:v10:cv
       ^-  v-channels:v9:cv
-      *v-channels:v9:cv
+      (~(run by v-channels) v9:v-channel)
+    --
+  ++  v-channel
+    |%
+    ++  v9
+      |=  =v-channel:v10:cv
+      ^-  v-channel:v9:cv
+      %=    v-channel
+          posts
+        %+  run:on-v-posts:v10:cv  posts.v-channel
+        |=  post=(may:v10:cv v-post:v10:cv)
+        ^-  (may:v9:cv v-post:v9:cv)
+        (mind:v10:cv post v9:v-post)
+      ::
+          diffs.future
+        %-  ~(run by diffs.future.v-channel)
+        |=  =(set u-post:v10:cv)
+        (~(run in set) v9:u-post)
+      ::
+          replies.pending
+        (~(run by replies.pending.v-channel) head)
+      ::
+        log  (run:log-on:v10:cv log.v-channel v9:u-channel)
+      ==
+    --
+  ++  u-channel
+    |%
+    ++  v9
+      |=  =u-channel:v10:cv
+      ^-  u-channel:v9:cv
+      ?:  ?=([%post *] u-channel)
+        u-channel(u-post (v9:u-post u-post.u-channel))
+      u-channel
+    --
+  ++  u-post
+    |%
+    ++  v9
+      |=  =u-post:v10:cv
+      ^-  u-post:v9:cv
+      ?:  ?=([%set *] u-post)
+        u-post(post (mind:v10:cv post.u-post v9:v-post))
+      ?:  ?=([%reply @ %set *] u-post)
+        =*  reply  reply.u-reply.u-post
+        u-post(reply.u-reply (mind:v10:cv reply v9:v-reply))
+      u-post
+    --
+  ++  v-post
+    |%
+    ++  v9
+      |=  =v-post:v10:cv
+      ^-  v-post:v9:cv
+      :_  +.v-post
+      -.v-post(replies (run:on-v-replies:v10:cv replies.v-post (curr mind:v10:cv v9:v-reply)))
+    --
+  ++  v-reply
+    |%
+    ++  v9
+      |=  =v-reply:v10:cv
+      ^-  v-reply:v9:cv
+      =*  rev-essay  +.v-reply
+      :-  -.v-reply
+      ::  [rev memo]
+      [- +<]:rev-essay
     --
   ++  reply-essay
     |%
@@ -81,16 +143,37 @@
     ++  v9
       |=  =r-channel:v10:cv
       ^-  r-channel:v9:cv
-      ::TODO fill
-      *r-channel:v9:cv
+      ?:  ?=([%posts *] r-channel)
+        :-  %posts
+        (run:on-posts:v10:cv posts.r-channel (curr mind:v10:cv v9:post))
+      ?:  ?=([%post * %set *] r-channel)
+        =*  post  post.r-post.r-channel
+        r-channel(post.r-post (mind:v10:cv post v9:^post))
+      ?:  ?=([%post @ %reply @ * %set *] r-channel)
+        =*  reply  reply.r-reply.r-post.r-channel
+        r-channel(reply.r-reply.r-post (mind:v10:cv reply v9:^reply))
+      ?:  ?=([%pending * %reply *] r-channel)
+        =*  reply-essay  reply-essay.r-pending.r-channel
+        r-channel(reply-essay.r-pending -.reply-essay)
+      r-channel
+    --
+  ++  post
+    |%
+    ++  v9
+      |=  =post:v10:cv
+      ^-  post:v9:cv
+      :_  +.post
+      -.post(replies (run:on-replies:v10:cv replies.post (curr mind:v10:cv v9:reply)))
     --
   ++  reply
     |%
     ++  v9
       |=  =reply:v10:cv
       ^-  reply:v9:cv
-      ::TODO fill
-      *reply:v9:cv
+      =*  seal   -.reply
+      =*  rev-essay  +.reply
+      ::  seal [rev memo]
+      [seal [-.rev-essay +<.rev-essay]]
     --
   --
 ++  v9
