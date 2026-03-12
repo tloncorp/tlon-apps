@@ -161,7 +161,7 @@ adb shell am broadcast \
 Watch logs with:
 
 ```sh
-adb logcat -s ReactNativeJS DebugBgTaskReceiver BackgroundTaskScheduler
+adb logcat -s ReactNativeJS DebugBgSyncReceiver BackgroundTaskScheduler
 ```
 
 ## Deployment

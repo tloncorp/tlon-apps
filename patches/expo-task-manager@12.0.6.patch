@@ -11,7 +11,7 @@ index 3f037e0d84068f841de5bda969a96bc3dd712f0c..9ae797cb9f0fa1ff0ee3f5db44858d3e
    api "androidx.core:core:1.0.0"
  }
 diff --git a/android/src/main/java/expo/modules/taskManager/TaskService.java b/android/src/main/java/expo/modules/taskManager/TaskService.java
-index 2b6c2fa60a8c52dda8a41641d416563db6e15725..fc05c9c6d76ab946fb7dfc8f6219e6c235952ad8 100644
+index 2b6c2fa60a8c52dda8a41641d416563db6e15725..be8307d35bc3d1337f21c39f243acf174a0dda04 100644
 --- a/android/src/main/java/expo/modules/taskManager/TaskService.java
 +++ b/android/src/main/java/expo/modules/taskManager/TaskService.java
 @@ -24,7 +24,16 @@ import java.util.List;
@@ -78,7 +78,7 @@ index 2b6c2fa60a8c52dda8a41641d416563db6e15725..fc05c9c6d76ab946fb7dfc8f6219e6c2
      if (taskManager != null) {
        taskManager.executeTaskWithBody(body);
        return;
-@@ -619,4 +642,95 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
+@@ -619,4 +642,99 @@ public class TaskService implements SingletonModule, TaskServiceInterface {
      }, timeout);
    }
  
@@ -146,22 +146,26 @@ index 2b6c2fa60a8c52dda8a41641d416563db6e15725..fc05c9c6d76ab946fb7dfc8f6219e6c2
 +   * to pause timers again when all background tasks are complete.
 +   */
 +  private void maybeFinishHeadlessTask(String appScopeKey) {
-+    Integer taskId = sHeadlessTaskIds.remove(appScopeKey);
-+    if (taskId == null) return;
++    // Run on UI thread to match startTask and ensure sHeadlessTaskIds is only
++    // accessed from the UI thread.
++    UiThreadUtil.runOnUiThread(() -> {
++      Integer taskId = sHeadlessTaskIds.remove(appScopeKey);
++      if (taskId == null) return;
 +
-+    try {
-+      Context context = mContextRef.get();
-+      if (context == null) return;
++      try {
++        Context context = mContextRef.get();
++        if (context == null) return;
 +
-+      ReactContext reactContext = getReactContext(context);
-+      if (reactContext == null) return;
++        ReactContext reactContext = getReactContext(context);
++        if (reactContext == null) return;
 +
-+      HeadlessJsTaskContext headlessContext = HeadlessJsTaskContext.getInstance(reactContext);
-+      headlessContext.finishTask(taskId);
-+      Log.i(TAG, "Finished headless task " + taskId + " for '" + appScopeKey + "'");
-+    } catch (Exception e) {
-+      Log.w(TAG, "Failed to finish headless task: " + e.getMessage());
-+    }
++        HeadlessJsTaskContext headlessContext = HeadlessJsTaskContext.getInstance(reactContext);
++        headlessContext.finishTask(taskId);
++        Log.i(TAG, "Finished headless task " + taskId + " for '" + appScopeKey + "'");
++      } catch (Exception e) {
++        Log.w(TAG, "Failed to finish headless task: " + e.getMessage());
++      }
++    });
 +  }
 +
 +  /**
