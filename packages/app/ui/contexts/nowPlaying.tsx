@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
 import { useNavigation } from '../../navigation/utils';
@@ -94,32 +95,18 @@ export function NowPlayingProvider({
         // misattributed to the new source while the old one unloads
         mediaItemRef.current = null;
 
-        if (nowPlaying) {
-          // replace right away so that caller can call `play` immediately
-          audioPlayer.replace({
-            uri: nowPlaying.url,
-            headers: {
-              // android exo-player requests with no user-agent, which 403s
-              // on a lot of servers. add something.
-              'User-Agent': 'Tlon/1.0 (https://tlon.io)',
-            },
-          });
-          setState({
-            mediaItem: nowPlaying,
-            navigationState: navigation.getState(),
-          });
-        } else {
+        if (!nowPlaying) {
           audioPlayer.replace(null);
           setState(null);
+          return Promise.resolve();
         }
 
-        if (!nowPlaying) return Promise.resolve();
-
-        // We requested a replace - we now need to return a promise that
-        // resolves once the new audio source loads in. This seems like the
-        // only way to detect when the source swaps out:
+        // We requested a replace - we need to return a promise that
+        // resolves once the new audio source loads in. Set up a listener now,
+        // before we call replace. This seems like the only way to detect when
+        // the source swaps out:
         const cleanups: (() => void)[] = [];
-        return new Promise<void>((resolve, reject) => {
+        const out = new Promise<void>((resolve, reject) => {
           // Set up a timeout in case we don't get our expo-audio event
           let timedOut = false;
           const timeout = setTimeout(() => {
@@ -164,6 +151,26 @@ export function NowPlayingProvider({
         }).finally(() => {
           cleanups.forEach((fn) => fn());
         });
+
+        // this shouldn't be necessary, but on web, `replace()` is implemented
+        // by creating a new Audio element, which means the previous one will
+        // stay alive/playing if not paused.
+        audioPlayer.pause();
+
+        audioPlayer.replace({
+          uri: nowPlaying.url,
+          headers: {
+            // android exo-player requests with no user-agent, which 403s
+            // on a lot of servers. add something.
+            'User-Agent': 'Tlon/1.0 (https://tlon.io)',
+          },
+        });
+        setState({
+          mediaItem: nowPlaying,
+          navigationState: navigation.getState(),
+        });
+
+        return out;
       },
       async play() {
         await setAudioModeAsync({
@@ -222,11 +229,20 @@ export function NowPlayingProvider({
         const isPlaying = status.playing && !status.didJustFinish;
         isPlayingRef.current = isPlaying;
 
+        function toSeconds(expoAudioUnit: number): number {
+          if (Platform.OS === 'web') {
+            // web is in milliseconds!
+            return expoAudioUnit / 1000;
+          } else {
+            return expoAudioUnit;
+          }
+        }
+
         const playback: PlaybackState = status.isLoaded
           ? {
               loadState: 'loaded',
-              currentTime: status.currentTime,
-              duration: status.duration,
+              currentTime: toSeconds(status.currentTime),
+              duration: toSeconds(status.duration),
             }
           : { loadState: status.isBuffering ? 'loading' : 'empty' };
 
