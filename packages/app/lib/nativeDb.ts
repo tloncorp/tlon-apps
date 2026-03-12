@@ -189,6 +189,41 @@ export class NativeDb extends BaseDb {
     });
   }
 
+  async e2eAssertTableState(
+    tableName: E2eCorruptibleTable,
+    expectedState: 'present' | 'missing'
+  ) {
+    if (!E2E_CORRUPTIBLE_TABLES.has(tableName)) {
+      throw new Error(`e2eAssertTableState: unsupported table ${tableName}`);
+    }
+
+    await this.ensureDbReady();
+    if (!this.connection) {
+      throw new Error('e2eAssertTableState: no active connection');
+    }
+
+    let isPresent = true;
+    try {
+      await this.connection.execute(`SELECT 1 FROM "${tableName}" LIMIT 1`);
+    } catch {
+      isPresent = false;
+    }
+
+    const shouldBePresent = expectedState === 'present';
+    if (isPresent !== shouldBePresent) {
+      throw new Error(
+        `e2eAssertTableState: expected "${tableName}" to be ${expectedState}, but it was ${isPresent ? 'present' : 'missing'}`
+      );
+    }
+
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'e2eAssertTableState: assertion passed',
+      tableName,
+      expectedState,
+      actualState: isPresent ? 'present' : 'missing',
+    });
+  }
+
   async ensureDbReady() {
     if (this.didMigrate && this.connection && this.client) {
       return;
@@ -434,6 +469,10 @@ export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const e2eDropTable = (tableName: E2eCorruptibleTable) =>
   nativeDb.e2eDropTable(tableName);
+export const e2eAssertTableState = (
+  tableName: E2eCorruptibleTable,
+  expectedState: 'present' | 'missing'
+) => nativeDb.e2eAssertTableState(tableName, expectedState);
 export const resetDb = () => nativeDb.resetDb();
 export const runMigrations = () => nativeDb.runMigrations();
 export const useMigrations = () => useMigrationsBase(nativeDb);

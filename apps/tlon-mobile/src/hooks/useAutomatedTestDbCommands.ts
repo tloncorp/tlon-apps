@@ -1,7 +1,7 @@
 import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
-import { e2eDropTable } from '@tloncorp/app/lib/nativeDb';
+import { e2eAssertTableState, e2eDropTable } from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger } from '@tloncorp/shared';
-import { Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { useEffect, useRef } from 'react';
 
 const logger = createDevLogger('e2eDbCommands', false);
@@ -16,7 +16,7 @@ const CORRUPTIBLE_TABLES = new Set<E2eCorruptibleTable>([
 ]);
 
 type E2eDbCommand = {
-  op: 'drop-table';
+  op: 'drop-table' | 'assert-table-present' | 'assert-table-missing';
   table: E2eCorruptibleTable;
 };
 
@@ -29,10 +29,14 @@ function parseE2eDbCommand(url: string): E2eDbCommand | null {
 
     const op = parsed.searchParams.get('op');
     const table = parsed.searchParams.get('table');
+    if (!table || !CORRUPTIBLE_TABLES.has(table as E2eCorruptibleTable)) {
+      return null;
+    }
+
     if (
-      op !== 'drop-table' ||
-      !table ||
-      !CORRUPTIBLE_TABLES.has(table as E2eCorruptibleTable)
+      op !== 'drop-table' &&
+      op !== 'assert-table-present' &&
+      op !== 'assert-table-missing'
     ) {
       return null;
     }
@@ -66,10 +70,21 @@ export function useAutomatedTestDbCommands() {
       try {
         if (command.op === 'drop-table') {
           await e2eDropTable(command.table);
+        } else {
+          const expectedState =
+            command.op === 'assert-table-present' ? 'present' : 'missing';
+          await e2eAssertTableState(command.table, expectedState);
+          Alert.alert(
+            'E2E DB Check',
+            `PASS: ${command.table} is ${expectedState}`
+          );
         }
         logger.log('automated test DB command complete', command);
       } catch (error) {
         logger.error('automated test DB command failed', command, error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        Alert.alert('E2E DB Check', `FAIL: ${errorMessage}`);
       }
     };
 
