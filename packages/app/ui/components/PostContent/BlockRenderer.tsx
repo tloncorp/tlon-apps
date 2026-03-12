@@ -1,6 +1,5 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
-import { useEventEmitter } from '@tloncorp/shared/utils/useEventEmitter';
 import {
   ForwardingProps,
   Icon,
