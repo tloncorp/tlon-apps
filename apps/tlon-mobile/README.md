@@ -156,17 +156,12 @@ The `DebugBgSyncReceiver` (debug builds only) lets you trigger background sync v
 adb shell am broadcast \
   -a io.tlon.landscape.DEBUG_BG_SYNC \
   -n io.tlon.groups/io.tlon.landscape.DebugBgSyncReceiver
-
-# Preview flavor (io.tlon.groups.preview)
-adb shell am broadcast \
-  -a io.tlon.landscape.DEBUG_BG_SYNC \
-  -n io.tlon.groups.preview/io.tlon.landscape.DebugBgSyncReceiver
 ```
 
 Watch logs with:
 
 ```sh
-adb logcat -s 'DebugBgSyncReceiver:*' 'BackgroundTask:*'
+adb logcat -s ReactNativeJS DebugBgTaskReceiver BackgroundTaskScheduler
 ```
 
 ## Deployment
