@@ -1,5 +1,9 @@
 import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
-import { e2eAssertTableState, e2eDropTable } from '@tloncorp/app/lib/nativeDb';
+import {
+  e2eAssertTableState,
+  e2eDropTable,
+  type E2eCorruptibleTable,
+} from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger } from '@tloncorp/shared';
 import { Alert, Linking } from 'react-native';
 import { useEffect, useRef } from 'react';
@@ -7,7 +11,6 @@ import { useEffect, useRef } from 'react';
 const logger = createDevLogger('e2eDbCommands', false);
 const E2E_DB_HOST = 'e2e';
 const E2E_DB_PATH = '/db';
-type E2eCorruptibleTable = 'groups' | 'channels' | 'posts' | 'activity_events';
 const CORRUPTIBLE_TABLES = new Set<E2eCorruptibleTable>([
   'groups',
   'channels',

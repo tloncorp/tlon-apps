@@ -20,7 +20,7 @@ const REQUIRED_SENTINEL_TABLES = [
   schema.posts,
   schema.activityEvents,
 ].map((table) => getTableName(table));
-type E2eCorruptibleTable = (typeof REQUIRED_SENTINEL_TABLES)[number];
+export type E2eCorruptibleTable = (typeof REQUIRED_SENTINEL_TABLES)[number];
 const E2E_CORRUPTIBLE_TABLES = new Set<E2eCorruptibleTable>(
   REQUIRED_SENTINEL_TABLES
 );
