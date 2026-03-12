@@ -295,8 +295,21 @@ export function useNowPlayingController({
   // Tracks our *intent* to play, covering the gaps before expo-audio
   // confirms via playbackStatusUpdate:
   //  - "will-buffer": replace() called, waiting for first status update
-  //  - "will-play": play() called, waiting for audio session setup + play
-  const [playbackIntent, setPlaybackIntent] = useState(false);
+  //  - "will-play": play() called on an already-loaded source
+  const [playbackIntent, setPlaybackIntent] = useState<
+    false | 'will-play' | 'will-buffer'
+  >(false);
+
+  // When the source is already loaded, we optimistically show "playing"
+  // instead of a spinner. If the native ack takes longer than 200ms,
+  // escalate to a spinner so the user knows something is happening.
+  useEffect(() => {
+    if (playbackIntent !== 'will-play') return;
+    const timer = setTimeout(() => {
+      setPlaybackIntent((cur) => (cur === 'will-play' ? 'will-buffer' : cur));
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [playbackIntent]);
 
   // Filter progress events by source URL: only update state (and thus
   // re-render) when the event is relevant to this block's source.
@@ -358,14 +371,14 @@ export function useNowPlayingController({
         setPlaybackIntent(false);
         nowPlaying.pause();
       } else {
-        setPlaybackIntent(true);
+        setPlaybackIntent('will-play');
         nowPlaying.play();
       }
     } else {
       // Reset so stale wasLoadedRef from a previous playback session
       // doesn't cause the effect to immediately clear the new intent
       wasLoadedRef.current = false;
-      setPlaybackIntent(true);
+      setPlaybackIntent('will-buffer');
       nowPlaying
         .replace({ url: sourceUri })
         .then(() => {
@@ -381,7 +394,9 @@ export function useNowPlayingController({
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
     // Playback requested but not confirmed by expo-audio yet
     if (playbackIntent && !progress?.isPlaying) {
-      return 'loading';
+      // Already-loaded source: optimistically show "playing" (the timer
+      // will escalate to 'will-buffer' → spinner after 200ms if needed)
+      return playbackIntent === 'will-play' ? 'playing' : 'loading';
     }
     if (
       !isThisSourceLoaded ||
