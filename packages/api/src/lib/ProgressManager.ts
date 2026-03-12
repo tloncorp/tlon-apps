@@ -1,4 +1,4 @@
-import { EventEmitter } from './EventEmitter';
+import { EventEmitter, TypedEventEmitter } from './EventEmitter';
 
 type ProgressManagerEventMap<Task> = {
   complete: (opts: { completed: Set<Task> }) => void;
@@ -9,7 +9,13 @@ type ProgressManagerEventMap<Task> = {
 export class ProgressManager<Task> {
   private completedTasks: Set<Task> = new Set();
 
-  emitter = new EventEmitter<ProgressManagerEventMap<Task>>();
+  // the double generic here was causing contravariance issues downstream:
+  // hide it behind a simpler public getter
+  #emitter = new EventEmitter<ProgressManagerEventMap<Task>>();
+
+  get emitter(): TypedEventEmitter<ProgressManagerEventMap<Task>> {
+    return this.#emitter;
+  }
 
   constructor(
     /** Tasks that are not completed - once completed, task is removed from this set */
@@ -53,13 +59,13 @@ export class ProgressManager<Task> {
   }
 
   private updateProgress(): void {
-    this.emitter.emit('progress', {
+    this.#emitter.emit('progress', {
       pending: this.pendingTasks.size,
       completed: this.completedTasks.size,
     });
 
     if (this.pendingTasks.size === 0) {
-      this.emitter.emit('complete', { completed: this.completedTasks });
+      this.#emitter.emit('complete', { completed: this.completedTasks });
     }
   }
 }
