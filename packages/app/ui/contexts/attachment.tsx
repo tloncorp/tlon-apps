@@ -20,7 +20,10 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
+
+import { canAddAttachment } from './attachmentRules';
 
 export type AttachmentState = {
   attachments: Attachment[];
@@ -31,7 +34,8 @@ export type AttachmentState = {
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
   attachAssets: (assets: Attachment.UploadIntent[]) => void;
   uploadAssets: (
-    assets: Attachment.UploadIntent[]
+    assets: Attachment.UploadIntent[],
+    options?: { skipAddToAttachmentList?: boolean }
   ) => Promise<FinalizedAttachment[]>;
   canUpload: boolean;
 };
@@ -62,6 +66,74 @@ export const useAttachmentContext = () => {
   return context;
 };
 
+type AddAttachmentResult = {
+  attachments: Attachment[];
+  errorMessage: string | null;
+};
+
+function addAttachmentToState(
+  prev: Attachment[],
+  attachment: Attachment
+): AddAttachmentResult {
+  const validation = canAddAttachment(prev, attachment);
+  if (!validation.ok) {
+    return {
+      attachments: prev,
+      errorMessage: validation.reason,
+    };
+  }
+  if (attachment.type === 'video') {
+    return {
+      attachments: [...prev.filter((att) => att.type !== 'video'), attachment],
+      errorMessage: null,
+    };
+  }
+  return {
+    attachments: [...prev, attachment],
+    errorMessage: null,
+  };
+}
+
+function isBlobUri(uri: string | undefined): uri is string {
+  return !!uri && uri.startsWith('blob:');
+}
+
+function getVideoBlobPreviewUris(attachment: Attachment): string[] {
+  if (attachment.type !== 'video') {
+    return [];
+  }
+  const uris = [
+    attachment.posterUri,
+    attachment.uploadState?.status === 'success'
+      ? attachment.uploadState.posterUri
+      : undefined,
+  ];
+  return uris.filter(isBlobUri);
+}
+
+function revokeBlobUri(uri: string) {
+  if (!isWeb || typeof URL.revokeObjectURL !== 'function') {
+    return;
+  }
+  try {
+    URL.revokeObjectURL(uri);
+  } catch {
+    // Ignore failures when URLs are already revoked.
+  }
+}
+
+function revokeDetachedVideoPreviewUris(
+  previous: Attachment[],
+  next: Attachment[]
+) {
+  const retainedUris = new Set(next.flatMap(getVideoBlobPreviewUris));
+  previous.flatMap(getVideoBlobPreviewUris).forEach((uri) => {
+    if (!retainedUris.has(uri)) {
+      revokeBlobUri(uri);
+    }
+  });
+}
+
 export const AttachmentProvider = ({
   initialAttachments,
   uploadAsset,
@@ -76,6 +148,11 @@ export const AttachmentProvider = ({
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const assetUploadStates = useUploadStates(
     useMemo(
@@ -120,7 +197,14 @@ export const AttachmentProvider = ({
   }, [attachments, uploadAsset, assetUploadStates]);
 
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    setState((prev) => [...prev, attachment]);
+    const previous = stateRef.current;
+    const next = addAttachmentToState(previous, attachment);
+    if (next.errorMessage) {
+      Alert.alert('Unable to attach', next.errorMessage);
+    }
+    stateRef.current = next.attachments;
+    setState(next.attachments);
+    revokeDetachedVideoPreviewUris(previous, next.attachments);
   }, []);
 
   const handleAttachAssets = useCallback(
@@ -134,37 +218,40 @@ export const AttachmentProvider = ({
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {
     const removedUploadInfo = Attachment.toUploadIntent(attachment);
-    setState((prev) =>
-      prev.filter((a) => {
-        // remove identical attachments
-        if (a === attachment) {
+    const previousState = stateRef.current;
+    const nextState = previousState.filter((a) => {
+      // remove identical attachments
+      if (a === attachment) {
+        return false;
+      }
+
+      if (removedUploadInfo.needsUpload) {
+        const itemUploadInfo = Attachment.toUploadIntent(a);
+
+        // remove attachments pointing to the same data
+        if (
+          itemUploadInfo.needsUpload &&
+          Attachment.UploadIntent.equivalent(itemUploadInfo, removedUploadInfo)
+        ) {
           return false;
         }
-
-        if (removedUploadInfo.needsUpload) {
-          const itemUploadInfo = Attachment.toUploadIntent(a);
-
-          // remove attachments pointing to the same data
-          if (
-            itemUploadInfo.needsUpload &&
-            Attachment.UploadIntent.equivalent(
-              itemUploadInfo,
-              removedUploadInfo
-            )
-          ) {
-            return false;
-          }
-        }
-        return true;
-      })
-    );
+      }
+      return true;
+    });
+    revokeDetachedVideoPreviewUris(previousState, nextState);
+    stateRef.current = nextState;
+    setState(nextState);
   }, []);
 
   const handleClearAttachments = useCallback(() => {
+    revokeDetachedVideoPreviewUris(stateRef.current, []);
+    stateRef.current = [];
     setState([]);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
+    revokeDetachedVideoPreviewUris(stateRef.current, attachments);
+    stateRef.current = attachments;
     setState(attachments);
   }, []);
 
@@ -175,7 +262,10 @@ export const AttachmentProvider = ({
 
   const handleUploadAssets = useCallback(
     async (
-      uploadIntents: Attachment.UploadIntent[]
+      uploadIntents: Attachment.UploadIntent[],
+      {
+        skipAddToAttachmentList = false,
+      }: { skipAddToAttachmentList?: boolean } = {}
     ): Promise<FinalizedAttachment[]> => {
       const assetUris: Attachment.UploadIntent.Key[] = [];
 
@@ -187,10 +277,12 @@ export const AttachmentProvider = ({
 
       const uploadedAssets = await Promise.all(uploadPromises);
 
-      setState((prev) => [
-        ...prev,
-        ...uploadedAssets.map((asset) => Attachment.fromUploadIntent(asset)),
-      ]);
+      if (!skipAddToAttachmentList) {
+        setState((prev) => [
+          ...prev,
+          ...uploadedAssets.map((asset) => Attachment.fromUploadIntent(asset)),
+        ]);
+      }
 
       const uploadStates = await waitForUploads(assetUris);
 

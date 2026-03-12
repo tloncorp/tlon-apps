@@ -332,6 +332,12 @@ const WebChatImageRenderer: DefaultRendererProps['image'] = {
   },
 };
 
+const WebChatVideoRenderer: DefaultRendererProps['video'] = {
+  alignItems: 'flex-start',
+  maxWidth: 600,
+  maxHeight: 400,
+};
+
 const ChatContentRenderer = createContentRenderer({
   blockSettings: {
     blockWrapper: {
@@ -342,6 +348,7 @@ const ChatContentRenderer = createContentRenderer({
       maxWidth: 600,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
+    video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,
       maxWidth: 600,

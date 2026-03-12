@@ -46,7 +46,7 @@ export function GalleryInput({
   } = draftInputContext;
 
   const safeAreaInsets = useSafeAreaInsets();
-  const { resetAttachments, addAttachment, attachAssets } =
+  const { attachments, resetAttachments, addAttachment, attachAssets } =
     useAttachmentContext();
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
@@ -55,8 +55,7 @@ export function GalleryInput({
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
 
-  // Determine if the editing post is an image gallery post or text gallery post
-  // This effect runs when an editingPost is provided and sets up the appropriate editing UI
+  // Set up the editing UI based on the post type (image, link, or text)
   useEffect(() => {
     if (!editingPost) return;
 
@@ -91,7 +90,6 @@ export function GalleryInput({
 
         // Set up image for editing by creating a mock attachment from the existing image
         const imageBlock = blocks[0].image;
-        // Create a mock attachment for the image
         const mockAttachment = {
           type: 'image' as const,
           file: {
@@ -105,7 +103,6 @@ export function GalleryInput({
           },
         };
 
-        // Set the attachment for editing
         attachAssets([
           domain.Attachment.UploadIntent.fromImagePickerAsset(
             mockAttachment.file
@@ -115,7 +112,6 @@ export function GalleryInput({
       } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
         const linkBlock = blocks[0].link as { url: string };
-        console.log('linkBlock', linkBlock);
         const mockAttachment: domain.LinkAttachment = {
           type: 'link' as const,
           url: linkBlock.url,
@@ -148,13 +144,37 @@ export function GalleryInput({
 
   // Handle image selection
   const handleGalleryImageSet = useCallback(
-    (assets?: ImagePickerAsset[] | null) => {
+    (assets?: domain.Attachment.UploadIntent[] | null) => {
       const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
       setCanPost(hasAssets);
     },
     []
   );
+
+  // For image/video picks we often attach a placeholder immediately and then
+  // normalize metadata (e.g. poster generation) asynchronously. Move to review
+  // as soon as any attachment exists so UI does not wait on normalization.
+  useEffect(() => {
+    if (editingPost) {
+      return;
+    }
+
+    const hasAttachments = attachments.length > 0;
+
+    if (
+      hasAttachments &&
+      (route === 'gallery' || route === 'add-post' || route === 'add-attachment')
+    ) {
+      setRoute('review-attachment');
+      return;
+    }
+
+    if (!hasAttachments && route === 'review-attachment') {
+      setRoute('gallery');
+      setCanPost(false);
+    }
+  }, [attachments.length, editingPost, route]);
 
   // Load caption from draft when image is being uploaded
   useEffect(() => {
@@ -376,7 +396,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetImage={handleGalleryImageSet}
+        onSetMedia={handleGalleryImageSet}
       />
     </>
   );

@@ -18,7 +18,7 @@ import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
-import ImageViewerScreen from '../../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -194,8 +194,8 @@ function ChannelStack(
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
-          name="ImageViewer"
-          component={ImageViewerScreen}
+          name="MediaViewer"
+          component={MediaViewerScreen}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"
