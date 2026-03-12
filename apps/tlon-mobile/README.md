@@ -166,7 +166,7 @@ adb shell am broadcast \
 Watch logs with:
 
 ```sh
-adb logcat -s DebugBgSyncReceiver:* BackgroundTask:*
+adb logcat -s 'DebugBgSyncReceiver:*' 'BackgroundTask:*'
 ```
 
 ## Deployment
