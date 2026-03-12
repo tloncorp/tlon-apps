@@ -348,21 +348,25 @@ class TlonSSEClient:
         """Send actions to the Eyre channel."""
         import aiohttp
 
-        headers = {"Content-Type": "application/json"}
-        if self.cookie:
-            headers["Cookie"] = self.cookie
+        action_types = [a.get("action", "?") for a in actions]
+        logger.debug("[tlon] Sending %d action(s) to %s: %s",
+                     len(actions), self.channel_url, action_types)
 
+        # Let the cookie jar handle auth (set by authenticate())
         async with self._session.put(
             self.channel_url,
             json=actions,
-            headers=headers,
+            headers={"Content-Type": "application/json"},
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status not in (200, 204):
                 text = await resp.text()
+                logger.error("[tlon] Channel action failed: HTTP %d - %s",
+                            resp.status, text[:200])
                 raise ConnectionError(
                     f"Channel action failed: HTTP {resp.status} - {text[:200]}"
                 )
+            logger.debug("[tlon] Action(s) sent OK: HTTP %d", resp.status)
 
     async def connect(self) -> None:
         """
@@ -384,14 +388,8 @@ class TlonSSEClient:
 
     async def _open_stream(self) -> None:
         """Open the SSE GET stream."""
-        import aiohttp
-
-        headers = {
-            "Accept": "text/event-stream",
-        }
-        if self.cookie:
-            headers["Cookie"] = self.cookie
-
+        # Let cookie jar handle auth
+        headers = {"Accept": "text/event-stream"}
         self._sse_task = asyncio.create_task(self._stream_loop(headers))
 
     async def _stream_loop(self, headers: Dict[str, str]) -> None:
@@ -448,6 +446,8 @@ class TlonSSEClient:
         if not data:
             return
 
+        logger.debug("[tlon] SSE event id=%s, data=%s", event_id, data[:120])
+
         # Track and ack events
         if event_id is not None and event_id > self._last_heard_event_id:
             self._last_heard_event_id = event_id
@@ -474,6 +474,10 @@ class TlonSSEClient:
         # Dispatch to handlers
         sub_id = parsed.get("id")
         event_json = parsed.get("json")
+        resp_type = parsed.get("response", "")
+
+        logger.debug("[tlon] Dispatching: sub_id=%s, response=%s, has_json=%s, handlers=%s",
+                     sub_id, resp_type, event_json is not None, list(self._event_handlers.keys()))
 
         if sub_id and sub_id in self._event_handlers:
             handler = self._event_handlers[sub_id]
@@ -591,14 +595,11 @@ class TlonSSEClient:
         """Scry a path and return the JSON response."""
         import aiohttp
 
-        headers = {}
-        if self.cookie:
-            headers["Cookie"] = self.cookie
-
         full_path = path if path.endswith(".json") else f"{path}.json"
+        # Use /~/scry prefix for Eyre scry endpoint
+        scry_url = f"{self.url}/~/scry{full_path}"
         async with self._session.get(
-            f"{self.url}{full_path}",
-            headers=headers,
+            scry_url,
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status != 200:
@@ -632,13 +633,9 @@ class TlonSSEClient:
                 pass
 
             try:
-                headers = {}
-                if self.cookie:
-                    headers["Cookie"] = self.cookie
                 await self._session.delete(
                     self.channel_url,
-                    headers=headers,
-                    timeout=5,
+                    timeout=aiohttp.ClientTimeout(total=5),
                 )
             except Exception:
                 pass
@@ -790,11 +787,14 @@ class TlonAdapter(BasePlatformAdapter):
         chat_id: channel nest (e.g. "chat/~host/channel") or ship name for DMs
         """
         if not self._sse or not self._sse._connected:
+            logger.error("[tlon] Send called but not connected!")
             return SendResult(success=False, error="Not connected")
 
         try:
             sent_at = int(time.time() * 1000)
             story = _text_to_story(content)
+            logger.info("[tlon] Sending to %s (%d chars, story=%d blocks)",
+                       chat_id, len(content), len(story))
 
             if chat_id.startswith("~"):
                 # DM
@@ -804,10 +804,11 @@ class TlonAdapter(BasePlatformAdapter):
                 await self._send_channel_post(chat_id, story, sent_at, reply_to)
 
             msg_id = f"{self.ship_name}/{sent_at}"
+            logger.info("[tlon] ✓ Message sent: %s", msg_id)
             return SendResult(success=True, message_id=msg_id)
 
         except Exception as e:
-            logger.error("[tlon] Send failed: %s", e)
+            logger.error("[tlon] Send failed: %s", e, exc_info=True)
             return SendResult(success=False, error=str(e))
 
     async def _send_dm(
@@ -819,44 +820,46 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         """Send a DM via %chat poke."""
         to_ship = _normalize_ship(to_ship)
+        bare_self = self.ship_name.lstrip("~")
+
+        # Build the writ ID (author/ud-timestamp)
+        writ_id = f"{bare_self}/{sent_at}"
+
+        delta = {
+            "add": {
+                "essay": {
+                    "content": story,
+                    "author": bare_self,
+                    "sent": sent_at,
+                    "kind": "/chat",
+                    "meta": None,
+                    "blob": None,
+                },
+                "time": None,
+            }
+        }
 
         if reply_to:
-            # Reply to a specific message in a DM thread
             await self._sse.poke(
                 app="chat",
-                mark="chat-action",
+                mark="chat-dm-action-1",
                 json_data={
                     "ship": to_ship.lstrip("~"),
                     "diff": {
-                        "reply": {
-                            "id": reply_to,
-                            "delta": {
-                                "add": {
-                                    "memo": {
-                                        "content": story,
-                                        "author": self.ship_name.lstrip("~"),
-                                        "sent": sent_at,
-                                    }
-                                }
-                            },
-                        }
+                        "id": reply_to,
+                        "delta": delta,
                     },
                 },
             )
         else:
             await self._sse.poke(
                 app="chat",
-                mark="chat-action",
+                mark="chat-dm-action-1",
                 json_data={
                     "ship": to_ship.lstrip("~"),
                     "diff": {
-                        "add": {
-                            "essay": {
-                                "content": story,
-                                "author": self.ship_name.lstrip("~"),
-                                "sent": sent_at,
-                            }
-                        }
+                        "id": writ_id,
+                        "delta": delta,
                     },
                 },
             )
@@ -869,10 +872,28 @@ class TlonAdapter(BasePlatformAdapter):
         reply_to: Optional[str] = None,
     ) -> None:
         """Send a post to a channel (chat, heap, diary)."""
+        bare_self = self.ship_name.lstrip("~")
+
+        # Determine kind from nest type
+        kind = "/chat"
+        if nest.startswith("diary/"):
+            kind = "/diary"
+        elif nest.startswith("heap/"):
+            kind = "/heap"
+
+        essay = {
+            "content": story,
+            "author": bare_self,
+            "sent": sent_at,
+            "kind": kind,
+            "meta": None,
+            "blob": None,
+        }
+
         if reply_to:
             await self._sse.poke(
                 app="channels",
-                mark="channel-action",
+                mark="channel-action-1",
                 json_data={
                     "channel": {
                         "nest": nest,
@@ -882,11 +903,8 @@ class TlonAdapter(BasePlatformAdapter):
                                     "id": reply_to,
                                     "delta": {
                                         "add": {
-                                            "memo": {
-                                                "content": story,
-                                                "author": self.ship_name.lstrip("~"),
-                                                "sent": sent_at,
-                                            }
+                                            "essay": essay,
+                                            "time": None,
                                         }
                                     },
                                 }
@@ -898,18 +916,15 @@ class TlonAdapter(BasePlatformAdapter):
         else:
             await self._sse.poke(
                 app="channels",
-                mark="channel-action",
+                mark="channel-action-1",
                 json_data={
                     "channel": {
                         "nest": nest,
                         "action": {
                             "post": {
                                 "add": {
-                                    "essay": {
-                                        "content": story,
-                                        "author": self.ship_name.lstrip("~"),
-                                        "sent": sent_at,
-                                    }
+                                    "essay": essay,
+                                    "time": None,
                                 }
                             }
                         },
@@ -1037,7 +1052,33 @@ class TlonAdapter(BasePlatformAdapter):
         return channels
 
     async def _handle_channel_event(self, event: Any) -> None:
-        """Handle a channels firehose (/v2) event."""
+        """
+        Handle a channels firehose (/v2) event.
+
+        Event structure for new posts:
+        {
+          "nest": "chat/~host/channel",
+          "response": {
+            "post": {
+              "id": "170141...",
+              "r-post": {
+                "set": {
+                  "revision": "0",
+                  "seal": { "id": "...", ... },
+                  "essay": {
+                    "author": "~ship",
+                    "sent": 1773...,
+                    "kind": "/chat",
+                    "content": [{"inline": ["text"]}],
+                    ...
+                  },
+                  "type": "post"
+                }
+              }
+            }
+          }
+        }
+        """
         try:
             if not isinstance(event, dict):
                 return
@@ -1058,30 +1099,42 @@ class TlonAdapter(BasePlatformAdapter):
             if not response:
                 return
 
-            # Extract post content (new posts and replies)
-            essay = (response.get("post", {})
-                     .get("r-post", {})
-                     .get("set", {})
-                     .get("essay"))
-            memo = (response.get("post", {})
-                    .get("r-post", {})
-                    .get("reply", {})
-                    .get("r-reply", {})
-                    .get("set", {})
-                    .get("memo"))
-
-            content = memo or essay
-            if not content:
+            # Extract post data
+            post = response.get("post")
+            if not post or not isinstance(post, dict):
                 return
 
-            is_thread_reply = bool(memo)
-            msg_id = (
-                response.get("post", {}).get("r-post", {}).get("reply", {}).get("id")
-                if is_thread_reply
-                else response.get("post", {}).get("id")
-            )
+            msg_id = post.get("id")
+            r_post = post.get("r-post", {})
+            if not r_post:
+                return
 
-            if not msg_id or not self._mark_processed(str(msg_id)):
+            # Handle new posts: r-post.set contains the essay
+            post_data = r_post.get("set")
+            if not post_data or not isinstance(post_data, dict):
+                return
+
+            # Skip null sets (deletions)
+            essay = post_data.get("essay")
+            if not essay:
+                return
+
+            # Check for replies
+            is_thread_reply = False
+            reply_data = r_post.get("reply")
+            reply_essay = None
+            if reply_data and isinstance(reply_data, dict):
+                reply_r = reply_data.get("r-reply", {})
+                if reply_r:
+                    reply_set = reply_r.get("set")
+                    if reply_set and isinstance(reply_set, dict):
+                        reply_essay = reply_set.get("memo") or reply_set.get("essay")
+                        is_thread_reply = True
+
+            content = reply_essay or essay
+            effective_id = msg_id
+
+            if not effective_id or not self._mark_processed(str(effective_id)):
                 return
 
             sender = _normalize_ship(content.get("author", ""))
@@ -1092,8 +1145,12 @@ class TlonAdapter(BasePlatformAdapter):
             if not text.strip():
                 return
 
+            logger.info("[tlon] Channel msg from %s in %s: %s",
+                       sender, nest, text[:80])
+
             # In group channels, only respond to mentions
             if not self._is_bot_mentioned(text):
+                logger.debug("[tlon] Not mentioned, ignoring")
                 return
 
             # Check user authorization
@@ -1103,17 +1160,11 @@ class TlonAdapter(BasePlatformAdapter):
 
             # Strip bot mention from text
             clean_text = self._strip_bot_mention(text)
+            logger.info("[tlon] Processing message from %s: %s", sender, clean_text[:80])
 
-            # Get parent ID for thread context
-            seal = (
-                response.get("post", {}).get("r-post", {}).get("reply", {})
-                .get("r-reply", {}).get("set", {}).get("seal")
-                if is_thread_reply
-                else response.get("post", {}).get("r-post", {}).get("set", {}).get("seal")
-            )
-            parent_id = None
-            if seal:
-                parent_id = seal.get("parent-id") or seal.get("parent")
+            # Get seal for thread context
+            seal = post_data.get("seal", {})
+            parent_id = seal.get("parent-id") or seal.get("parent")
 
             # Build message event
             parsed = _parse_channel_nest(nest)
