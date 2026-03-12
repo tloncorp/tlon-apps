@@ -1,13 +1,13 @@
 import { da } from '@urbit/aura';
 
-import * as api from '../api';
-import { getCanonicalPostId } from '../api/apiUtils';
+import * as api from '@tloncorp/api';
+import { getCanonicalPostId } from '@tloncorp/api';
 import * as db from '../db';
 import * as domain from '../domain';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
-import * as ub from '../urbit';
-import { getChannelKindFromType } from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
+import { getChannelKindFromType } from '@tloncorp/api/urbit';
 import * as types from './types';
 
 export function assembleNewChannelIdAndName({

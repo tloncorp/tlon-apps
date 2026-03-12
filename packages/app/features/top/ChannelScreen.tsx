@@ -14,7 +14,7 @@ import {
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/store';
-import { Story } from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/api/urbit';
 import React, {
   useCallback,
   useEffect,
@@ -302,13 +302,25 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleChatDetailsPressed = useCallback(() => {
-    if (group) {
+    const groupId = channel?.groupId ?? group?.id;
+    if (!groupId) return;
+
+    const isSingleChannelGroup = group?.channels?.length === 1;
+    // Single-channel groups show group details; multi-channel show channel details
+    if (isSingleChannelGroup) {
       navigationRef.current.navigate('ChatDetails', {
         chatType: 'group',
-        chatId: group.id,
+        chatId: groupId,
+        groupId,
+      });
+    } else if (channel) {
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channel.id,
+        groupId,
       });
     }
-  }, [group, navigationRef]);
+  }, [channel, group, navigationRef]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -366,14 +378,15 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToEditChannel = useCallback(
+  const handleGoToChannelDetails = useCallback(
     (groupId: string, channelId: string) => {
-      props.navigation.navigate('GroupSettings', {
-        screen: 'EditChannel',
-        params: { groupId, channelId },
+      navigationRef.current.navigate('ChatDetails', {
+        chatType: 'channel',
+        chatId: channelId,
+        groupId,
       });
     },
-    [props.navigation]
+    [navigationRef]
   );
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
@@ -424,12 +437,12 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
-          goToImageViewer={navigateToImage}
+          goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToEditChannel={handleGoToEditChannel}
+          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

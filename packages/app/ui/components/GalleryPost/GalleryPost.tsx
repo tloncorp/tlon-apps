@@ -13,6 +13,7 @@ import {
   BlockFromType,
   BlockType,
   PostContent,
+  parsePostBlob,
 } from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
@@ -40,6 +41,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
+import { Reference } from '../ContentReference';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
@@ -79,6 +81,11 @@ export function GalleryPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
+  const hasFileUpload = useMemo(() => {
+    if (!post.blob) return false;
+    const blobData = parsePostBlob(post.blob);
+    return blobData != null && blobData.some((x) => x.type === 'file');
+  }, [post.blob]);
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -175,6 +182,19 @@ export function GalleryPost({
     >
       <GalleryPostFrame {...rest}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
+        {hasFileUpload && (
+          <GalleryPostRow>
+            <XStack alignItems="center" gap="$xs">
+              <Icon
+                type="ChannelNote"
+                color="$tertiaryText"
+                customSize={['$l', '$l']}
+              />
+              <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
+            </XStack>
+            <Reference.ActionIcon />
+          </GalleryPostRow>
+        )}
         <GalleryContentRenderer
           testID="GalleryPostContentPreview"
           post={post}
@@ -209,13 +229,16 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button.Frame
-                  borderWidth="unset"
-                  onPress={handleOverflowPress}
+                <Button
+                  icon="Overflow"
+                  fill="ghost"
+                  type="secondary"
+                  size="small"
+                  width={32}
+                  height={32}
+                  borderRadius="$m"
                   testID="MessageActionsTrigger"
-                >
-                  <Icon type="Overflow" />
-                </Button.Frame>
+                />
               }
             />
           </Pressable>
@@ -225,7 +248,7 @@ export function GalleryPost({
   );
 }
 
-export function GalleryPostHeader({ post }: { post: db.Post }) {
+function GalleryPostRow({ children }: PropsWithChildren) {
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -238,19 +261,31 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
         padding="$l"
         gap="$m"
       >
-        <ContactName
-          userId={post.authorId}
-          showNickname
-          size="$label/m"
-          color="$tertiaryText"
-        />
-        <Text size="$label/m" color="$tertiaryText">
-          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
-            ? makePrettyShortDate(new Date(post.receivedAt))
-            : makePrettyDaysSince(new Date(post.receivedAt))}
-        </Text>
+        {children}
       </XStack>
     </View>
+  );
+}
+GalleryPostRow.Text = styled(Text, {
+  size: '$label/m',
+  color: '$tertiaryText',
+});
+
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <GalleryPostRow>
+      <ContactName
+        userId={post.authorId}
+        showNickname
+        size="$label/m"
+        color="$tertiaryText"
+      />
+      <GalleryPostRow.Text>
+        {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+          ? makePrettyShortDate(new Date(post.receivedAt))
+          : makePrettyDaysSince(new Date(post.receivedAt))}
+      </GalleryPostRow.Text>
+    </GalleryPostRow>
   );
 }
 
@@ -341,7 +376,10 @@ export function GalleryPostDetailView({
     (src: string) => {
       logger.log('Detail view: Image pressed, navigating to', src);
       try {
-        navigation.navigate('ImageViewer', { uri: src });
+        navigation.navigate('MediaViewer', {
+          mediaType: 'image',
+          uri: src,
+        });
       } catch (error) {
         logger.log('Navigation error:', error);
         // Try the fallback if direct navigation fails
@@ -606,7 +644,16 @@ const LargeContentRenderer = createContentRenderer({
     },
     video: {
       borderRadius: 0,
-      ...noWrapperPadding,
+      maxHeight: 300,
+      alignSelf: 'center',
+      wrapperProps: {
+        padding: 0,
+        width: '100%',
+        minHeight: 300,
+        backgroundColor: '$secondaryBackground',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
     },
     code: {
       borderRadius: 0,
@@ -626,6 +673,9 @@ const LargeContentRenderer = createContentRenderer({
       imageProps: {
         aspectRatio: 1.5,
       },
+    },
+    file: {
+      fullbleed: false,
     },
   },
 });
@@ -653,6 +703,8 @@ const SmallContentRenderer = createContentRenderer({
     },
     video: {
       height: '100%',
+      borderRadius: 0,
+      contentFit: 'cover',
       ...noWrapperPadding,
     },
     reference: {
@@ -676,6 +728,9 @@ const SmallContentRenderer = createContentRenderer({
         aspectRatio: 'unset',
       },
       ...noWrapperPadding,
+    },
+    file: {
+      fullbleed: true,
     },
   },
 });
@@ -745,8 +800,6 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 function firstBlockIsPreviewable(content: BlockData[]): boolean {
   return (
     content.length > 0 &&
-    (content[0].type === 'image' ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference')
+    ['image', 'video', 'reference', 'file'].includes(content[0].type)
   );
 }

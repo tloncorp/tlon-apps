@@ -18,7 +18,7 @@ import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
-import ImageViewerScreen from '../../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -108,7 +108,16 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     'chatType' in focusedRouteParams
   ) {
     if (focusedRouteParams.chatType === 'channel') {
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
+      // If groupId is provided, show the group's channel list in the sidebar
+      if ('groupId' in focusedRouteParams && focusedRouteParams.groupId) {
+        return (
+          <GroupChannelsScreenContent
+            groupId={focusedRouteParams.groupId as string}
+            focusedChannelId={focusedRouteParams.chatId as string}
+          />
+        );
+      }
+      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />;
     } else if (focusedRouteParams.chatType === 'group') {
       return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }
@@ -185,8 +194,8 @@ function ChannelStack(
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
-          name="ImageViewer"
-          component={ImageViewerScreen}
+          name="MediaViewer"
+          component={MediaViewerScreen}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

@@ -66,8 +66,17 @@ async function getDatabaseInfo(sqlocal: SQLocalDrizzle) {
 export default async function migrate<TSchema extends Record<string, unknown>>(
   db: SqliteRemoteDatabase<TSchema>,
   migrationConfig: typeof sharedMigrations,
-  sqlocal: SQLocalDrizzle
-) {
+  sqlocal: SQLocalDrizzle,
+  {
+    dryRun = false,
+  }: {
+    /** If true, does not apply the migrations (but *will* create the `__drizzle_migrations` table). */
+    dryRun?: boolean;
+  } = {}
+): Promise<{
+  /** migration tags that were applied (or would be applied on dry run) */
+  applied: string[];
+}> {
   const { journal, migrations } = migrationConfig;
 
   logger.log('Migrating database', { db, journal, migrations });
@@ -108,36 +117,52 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
     const appliedMigrationHashes = new Set(appliedMigrations.map((m) => m[1]));
     logger.log('Applied migration hashes', appliedMigrationHashes);
 
+    const out = { applied: [] as string[] };
+
     for (const entry of journal.entries) {
       logger.log('Checking migration', entry);
-      // tag looks like this "0000_swift_yellow_claw"
-      // we only want the hash part
-      const migrationHash = `m${entry.tag.split('_').slice(0, 1).join('_')}`;
+      const migrationKey = `m${entry.tag.split('_').slice(0, 1).join('_')}`;
+      // NB: We previously used `migrationKey` as the `hash` column - we've
+      // changed to use the entire tag ('0000_swift_yellow_claw').
+      const migrationHash = entry.tag;
       logger.log('Checking migration hash', migrationHash);
       if (!appliedMigrationHashes.has(migrationHash)) {
-        const migrationSql = migrations[migrationHash];
+        const migrationSql = migrations[migrationKey];
         if (migrationSql) {
-          try {
-            await db.run(sql.raw(migrationSql));
-            logger.log(`Applied migration ${migrationHash}`);
+          // we need to track `failed` because we don't throw (i.e. return)
+          // on migration failure
+          let failed = false;
 
-            // Record migration as applied
-            await db.run(sql`
+          if (!dryRun) {
+            try {
+              await db.run(sql.raw(migrationSql));
+              logger.log(`Applied migration ${migrationHash}`);
+
+              // Record migration as applied
+              await db.run(sql`
           INSERT INTO __drizzle_migrations (hash, created_at)
           VALUES (${migrationHash}, datetime('now'))
         `);
-            logger.log(`Recorded migration ${migrationHash}`);
-          } catch (e) {
-            logger.error(`Error applying migration ${migrationHash}`, e);
-            // throw e;
+              logger.log(`Recorded migration ${migrationHash}`);
+            } catch (e) {
+              logger.error(`Error applying migration ${migrationHash}`, e);
+              failed = true;
+              // throw e;
+            }
+          }
+          if (!failed) {
+            out.applied.push(migrationHash);
           }
         } else {
-          console.warn(`Migration SQL not found for hash: ${migrationHash}`);
+          console.warn(
+            `Migration SQL not found for tag: ${migrationHash} (key: ${migrationKey})`
+          );
         }
       }
     }
 
     logger.log('Database migration complete');
+    return out;
   } catch (e) {
     logger.error('Error migrating database', e);
     throw e;

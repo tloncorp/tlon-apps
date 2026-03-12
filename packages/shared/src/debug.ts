@@ -190,7 +190,7 @@ export const useDebugStore = create<DebugStore>(
     }),
     {
       name: 'debug-store',
-      getStorage: () => getStorageMethods(false),
+      getStorage: () => getStorageMethods({ isSecure: false }),
       partialize: (state) => {
         return { enabled: state.enabled };
       },

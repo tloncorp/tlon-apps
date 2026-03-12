@@ -2,14 +2,14 @@ import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '../api';
-import { GetChangedPostsOptions } from '../api';
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '../logic/activity';
+import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -454,6 +454,9 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const result = await syncQueue.add('settings', ctx, () => api.getSettings());
   logger.log('got settings from api', result);
   await db.insertSettings(result.settings);
+  await db.dismissedPinnedPostBannerIds.setValue(
+    result.dismissedPinnedPostBannerIds
+  );
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1379,6 +1382,17 @@ export const handleSettingsUpdate = async (
         },
         ctx
       );
+      break;
+    case 'dismissPinnedPostBanner':
+      await db.dismissedPinnedPostBannerIds.setValue((current) => {
+        if (update.dismissed) {
+          if (current.includes(update.postId)) {
+            return current;
+          }
+          return [...current, update.postId];
+        }
+        return current.filter((postId) => postId !== update.postId);
+      });
       break;
   }
 };

@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import { useMutableRef } from '@tloncorp/shared';
-import { getCurrentUserIsHosted } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';

@@ -4,6 +4,7 @@ import {
   postWithCode,
   postWithDeleted,
   postWithEmoji,
+  postWithFileUpload,
   postWithGalleryReference,
   postWithGroupReference,
   postWithGroupReferenceNoAvatar,
@@ -64,4 +65,5 @@ export default {
   Hidden: <DetailViewFixture channel={channel} post={postWithHidden} />,
   Link: <DetailViewFixture channel={channel} post={postWithLink} />,
   Note: <DetailViewFixture channel={channel} post={postWithLongNote} />,
+  FileUpload: <DetailViewFixture channel={channel} post={postWithFileUpload} />,
 };

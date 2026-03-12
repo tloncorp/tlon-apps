@@ -56,7 +56,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
-    openRouterApiKey: process.env.OPENROUTER_API_KEY,
   },
   ios: {
     runtimeVersion: '4.0.2',
@@ -94,6 +93,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-contacts',
       {
         contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+      },
+    ],
+    'expo-audio',
+    [
+      'expo-speech-transcriber',
+      {
+        speechRecognitionPermission:
+          'We need permission to transcribe voice memos in your messages',
       },
     ],
   ],

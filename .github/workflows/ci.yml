@@ -36,10 +36,13 @@ jobs:
 
       - name: Build packages
         run: pnpm build:all
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(node -p
+        run:
+          echo "version=$(node -p
           "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
         working-directory: ./apps/tlon-web
 
@@ -48,7 +51,8 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{
+          key:
+            playwright-${{ runner.os }}-${{
             steps.playwright-version.outputs.version }}
 
       - name: Install Playwright Browsers
@@ -71,6 +75,7 @@ jobs:
             ./apps/tlon-web/test-results/
             ./apps/tlon-web/playwright-report/
           retention-days: 7
+
   # Backend unit tests
   backend-test:
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -78,12 +83,57 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Backend Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
+
+      - name: Skip backend tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend tests."
+  # Backend aqua tests
+  backend-aqua-test:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: Backend Aqua Tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect desk file changes
+        id: desk_changes
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Backend Aqua Tests for Groups
+        if: steps.desk_changes.outputs.changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat patch
+          ./backend/run-aqua-tests.sh
+
+      - name: Skip backend aqua tests (no desk changes)
+        if: steps.desk_changes.outputs.changed != 'true'
+        run: echo "No desk/** changes detected; skipping backend aqua tests."
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     runs-on: blacksmith-16vcpu-ubuntu-2204

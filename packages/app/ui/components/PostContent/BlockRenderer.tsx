@@ -1,6 +1,13 @@
-import { isValidUrl } from '@tloncorp/shared';
+import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
-import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import {
+  ForwardingProps,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+  useCopy,
+} from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -16,13 +23,17 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
+import { useNavigation } from '../../contexts';
+import { DUMMY_WAVEFORM_VALUES, Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
   Reference,
 } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
+import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
 
@@ -203,6 +214,106 @@ export function ReferenceBlock({
   }
 
   return <ContentReferenceLoader reference={block} {...props} />;
+}
+
+export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
+  const { openExternalLink } = useNavigation();
+
+  return (
+    <Reference.Frame>
+      <Reference.Header alignItems="center">
+        <Reference.Title>
+          <Reference.TitleText>Voice Memo</Reference.TitleText>
+        </Reference.Title>
+
+        <Reference.TitleIcon type="Wave" color="$primaryText" />
+      </Reference.Header>
+
+      <Reference.Body
+        flexDirection="column"
+        alignItems="stretch"
+        gap="$l"
+        padding="$l"
+        // Reference.Body definition sets `pointerEvents: none`
+        pointerEvents="auto"
+      >
+        <XStack gap="$xl" alignItems="center">
+          <Pressable
+            backgroundColor="$background"
+            width="$4xl"
+            aspectRatio={1}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius={8}
+            cursor="pointer"
+            hoverStyle={{ backgroundColor: '$positiveBackground' }}
+            pressStyle={{ opacity: 0.5 }}
+            onPress={() => {
+              openExternalLink(block.voiceMemo.fileUri);
+            }}
+          >
+            <Icon type="Play" color="$primaryText" />
+          </Pressable>
+          <XStack flex={1} gap={9} alignItems="center">
+            <Waveform
+              candleWidth={3}
+              candleSpacing={1}
+              candlePlaybackPosition={0}
+              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+              style={{ width: '100%', height: 22 }}
+            />
+            {block.voiceMemo.duration != null && (
+              <Text size="$label/s" color="$secondaryText">
+                {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+              </Text>
+            )}
+          </XStack>
+        </XStack>
+
+        {block.voiceMemo.transcription && (
+          <VoiceMemoTranscription
+            transcription={block.voiceMemo.transcription}
+          />
+        )}
+      </Reference.Body>
+    </Reference.Frame>
+  );
+}
+
+function VoiceMemoTranscription({ transcription }: { transcription: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <XStack gap="$s" alignItems="baseline">
+      <Text
+        flex={1}
+        size="$label/m"
+        numberOfLines={expanded ? undefined : 1}
+        ellipsizeMode="tail"
+        selectable
+      >
+        {transcription}
+      </Text>
+      {!expanded && (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text size="$label/m" color="$tertiaryText">
+            See more
+          </Text>
+        </Pressable>
+      )}
+    </XStack>
+  );
+}
+
+export function FileUploadBlock({
+  block,
+  ...passedProps
+}: ForwardingProps<
+  typeof FileUploadPreview,
+  { block: cn.FileUploadBlockData },
+  'file'
+>) {
+  return <FileUploadPreview file={block.file} {...passedProps} />;
 }
 
 export function BigEmojiBlock({
@@ -429,17 +540,6 @@ export function BlockquoteBlock({
   );
 }
 
-export const BlockquoteSideBorder = styled(View, {
-  name: 'BlockquoteSideBorder',
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  borderRadius: 1,
-  left: -2,
-  backgroundColor: '$border',
-});
-
 export function HeaderBlock({
   block,
   ...props
@@ -514,6 +614,8 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   rule: RuleBlock,
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
+  file: FileUploadBlock,
+  voicememo: VoiceMemoBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -534,6 +636,8 @@ export type DefaultRendererProps = {
   rule: BlockSettings<typeof RuleBlock>;
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
+  file: BlockSettings<typeof FileUploadBlock>;
+  voicememo: BlockSettings<typeof VoiceMemoBlock>;
 };
 
 interface BlockRendererContextValue {
