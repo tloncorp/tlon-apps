@@ -20,6 +20,6 @@ import { ComponentPropsWithRef, ElementType } from 'react';
  */
 export type ForwardingProps<
   E extends ElementType,
-  CustomProps extends Record<string, unknown>,
+  CustomProps extends object = object,
   OmitKeys extends keyof ComponentPropsWithRef<E> = never,
 > = CustomProps & Omit<ComponentPropsWithRef<E>, keyof CustomProps | OmitKeys>;

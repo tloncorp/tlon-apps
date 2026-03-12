@@ -13,32 +13,21 @@ import {
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
   CodeBlockBridge,
+  HorizontalRuleBridge,
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
-  Attachment,
-  PostDataDraft,
   REF_REGEX,
   createDevLogger,
-  extractContentTypesFromPost,
   tiptap,
 } from '@tloncorp/shared';
-import {
-  contentReferenceToCite,
-  toContentReference,
-} from '@tloncorp/shared/api';
+import { toContentReference } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/shared/urbit';
-import {
-  Inline,
-  JSONContent,
-  citeToPath,
-  isInline,
-  pathToCite,
-} from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
+import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -64,7 +53,7 @@ import { useBranchDomain, useBranchKey } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
-import { processReferenceAndUpdateEditor } from './helpers';
+import { hydrateEditPost, processReferenceAndUpdateEditor } from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
@@ -184,12 +173,18 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [editorIsEmpty, setEditorIsEmpty] = useState(
       attachments.length === 0
     );
+    // Ref mirror of editorIsEmpty: the effect below checks emptiness inside an
+    // async .then() callback.  Reading state there would capture the stale value
+    // from the closure; the ref always reflects the latest value without needing
+    // to be in the dependency array (which would cause the effect to re-run).
+    const editorIsEmptyRef = useRef(editorIsEmpty);
 
     const bridgeExtensions = [
       ...TenTapStartKit,
       MentionsBridge,
       ShortcutsBridge,
       CodeBlockBridge,
+      HorizontalRuleBridge,
     ];
 
     if (placeholder) {
@@ -257,40 +252,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
             if (editingPost && editingPost.content) {
               messageInputLogger.log('Editing post', editingPost.content);
-              const {
-                story,
-                references: postReferences,
-                blocks,
-              } = extractContentTypesFromPost(editingPost);
+              const { story, attachments, isEmpty } = hydrateEditPost(
+                editingPost,
+                'references-only'
+              );
 
-              if (story === null && !postReferences && blocks.length === 0) {
+              if (isEmpty) {
+                setHasSetInitialContent(true);
                 return;
               }
-
-              const attachments: Attachment[] = [];
-
-              postReferences.forEach((p) => {
-                const cite = contentReferenceToCite(p);
-                const path = citeToPath(cite);
-                attachments.push({
-                  type: 'reference',
-                  reference: p,
-                  path,
-                });
-              });
-
-              blocks.forEach((b) => {
-                if ('image' in b) {
-                  attachments.push({
-                    type: 'image',
-                    file: {
-                      uri: b.image.src,
-                      height: b.image.height,
-                      width: b.image.width,
-                    },
-                  });
-                }
-              });
 
               resetAttachments(attachments);
 
@@ -372,6 +342,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [shouldBlur, editor, editorState, setShouldBlur]);
 
     useEffect(() => {
+      editorIsEmptyRef.current = editorIsEmpty;
+    }, [editorIsEmpty]);
+
+    useEffect(() => {
       editor.getJSON().then((json: JSONContent) => {
         const inlines = tiptap
           .JSONToInlines(json)
@@ -396,13 +370,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           blocks.length === 0 &&
           attachments.length === 0;
 
-        if (isEmpty !== editorIsEmpty) {
+        if (isEmpty !== editorIsEmptyRef.current) {
           messageInputLogger.log('Editor is empty?', isEmpty);
           setEditorIsEmpty(isEmpty);
+          editorIsEmptyRef.current = isEmpty;
           setContainerHeight(initialHeight);
         }
       });
-    }, [editor, attachments, editorIsEmpty, initialHeight]);
+    }, [editor, attachments, initialHeight]);
 
     useEffect(() => {
       if (!editor) return;
@@ -531,13 +506,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : { isEdit: false }),
         };
 
-        await sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft);
+        await clearDraft(draftType);
+        await sendOperation;
 
         setEditingPost?.(undefined);
         onSend?.();
         editor.setContent('');
         clearAttachments();
-        clearDraft(draftType);
         setShowBigInput?.(false);
       },
       [

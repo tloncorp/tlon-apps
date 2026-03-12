@@ -6,13 +6,13 @@ import {
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
-import * as api from '../api';
-import { getMessagesFilter } from '../api';
+import * as api from '@tloncorp/api';
+import { getMessagesFilter } from '@tloncorp/api';
+import { getConstants } from '@tloncorp/api/types/constants';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
-import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -470,15 +470,21 @@ export const usePostReference = ({
   channelId,
   postId,
   replyId,
+  enabled = true,
 }: {
   channelId: string;
   postId: string;
   replyId?: string;
+  enabled?: boolean;
 }) => {
   const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
     queryKey: [['postReference', postId], deps],
+    enabled: enabled && !!postId,
     queryFn: async () => {
+      if (!postId) {
+        return null;
+      }
       const post = await db.getPostWithRelations({ id: postId });
       if (post) {
         return post;

@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -27,13 +27,8 @@ type GroupSettingsProps = NativeStackScreenProps<
 >;
 type Props = RootStackProps | GroupSettingsProps;
 
-// Check if we're in group settings stack
-function isGroupSettingsProps(props: Props): props is GroupSettingsProps {
-  return 'fromChatDetails' in props.route.params;
-}
-
 export function ChatVolumeScreen(props: Props) {
-  const { chatType, chatId } = props.route.params;
+  const { chatType, chatId, groupId } = props.route.params;
   const chatSettings = useChatSettingsNavigation();
 
   return (
@@ -44,15 +39,7 @@ export function ChatVolumeScreen(props: Props) {
       }}
       {...chatSettings}
     >
-      <ChatVolumeScreenView
-        chatType={chatType}
-        chatId={chatId}
-        fromChatDetails={
-          isGroupSettingsProps(props)
-            ? props.route.params.fromChatDetails
-            : false
-        }
-      />
+      <ChatVolumeScreenView chatType={chatType} chatId={chatId} groupId={groupId} />
     </ChatOptionsProvider>
   );
 }
@@ -82,15 +69,16 @@ export const volumeOptions: {
 function ChatVolumeScreenView({
   chatType,
   chatId,
-  fromChatDetails,
+  groupId,
 }: {
   chatType: 'group' | 'channel';
   chatId: string;
-  fromChatDetails?: boolean;
+  groupId?: string;
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
   const { updateVolume, group, channel } = useChatOptions();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
     channel?.id ?? ''
@@ -102,31 +90,31 @@ function ChatVolumeScreenView({
   const currentVolumeLevel =
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
-  const handleBackNavigation = useCallback(() => {
-    if (fromChatDetails && group?.id) {
-      navigateToChatDetails({ type: 'group', id: group.id });
-    } else if (chatType === 'group' && chatId) {
-      navigateToChatDetails({ type: chatType, id: chatId });
-    } else {
+  const handleGoBack = useCallback(() => {
+    // On mobile, just go back. On desktop, navigate explicitly since
+    // HomeDrawer is a drawer navigator where goBack() doesn't work as expected.
+    if (isWindowNarrow || !chatId) {
       navigation.goBack();
+    } else {
+      navigateToChatDetails({ type: chatType, id: chatId, groupId });
     }
-  }, [
-    navigateToChatDetails,
-    group,
-    fromChatDetails,
-    navigation,
-    chatType,
-    chatId,
-  ]);
-
-  const isWindowNarrow = useIsWindowNarrow();
+  }, [navigateToChatDetails, navigation, chatType, chatId, groupId, isWindowNarrow]);
 
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Notifications"
+        subtitle={
+          chatType === 'channel'
+            ? `${group?.title}: ${channel?.title}`
+            : group?.title
+        }
+        showSubtitle={
+          (chatType === 'channel' && !!channel?.title && !!group?.title) ||
+          (chatType === 'group' && !!group?.title)
+        }
         backgroundColor="$secondaryBackground"
-        backAction={handleBackNavigation}
+        backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
       />
       <Form.FormFrame backgroundType="secondary">

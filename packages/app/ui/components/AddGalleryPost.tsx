@@ -1,5 +1,4 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
 
 import { Action, SimpleActionSheet } from './ActionSheet';
@@ -9,15 +8,15 @@ import { GalleryRoute } from './draftInputs/shared';
 export default function AddGalleryPost({
   route,
   setRoute,
-  onSetImage,
+  onSetMedia,
 }: {
   route: GalleryRoute;
   setRoute: (route: GalleryRoute) => void;
-  onSetImage: (assets: ImagePickerAsset[]) => void;
+  onSetMedia: (assets: Attachment.UploadIntent[]) => void;
 }) {
   const actions: Action[] = [
     {
-      title: 'Image',
+      title: 'Media or File',
       action: () => {
         setRoute('gallery');
         setTimeout(() => {
@@ -42,11 +41,11 @@ export default function AddGalleryPost({
     },
   ];
 
-  const handleImageSet = useCallback(
+  const handleAttachmentSet = useCallback(
     (assets: Attachment.UploadIntent[]) => {
-      onSetImage(Attachment.UploadIntent.extractImagePickerAssets(assets));
+      onSetMedia(assets);
     },
-    [onSetImage]
+    [onSetMedia]
   );
 
   const onClose = useCallback(
@@ -68,8 +67,8 @@ export default function AddGalleryPost({
       <AttachmentSheet
         isOpen={route === 'add-attachment'}
         onOpenChange={onClose}
-        onAttach={handleImageSet}
-        mediaType="image"
+        onAttach={handleAttachmentSet}
+        mediaType="all"
       />
     </>
   );

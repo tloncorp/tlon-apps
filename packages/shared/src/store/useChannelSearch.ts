@@ -2,7 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { da } from '@urbit/aura';
 import { useEffect, useMemo } from 'react';
 
-import { searchChannel } from '../api/channelsApi';
+import { searchChannel } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import { useAttachAuthorToPosts } from './useAttachAuthorToPosts';
 

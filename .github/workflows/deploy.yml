@@ -59,6 +59,7 @@ jobs:
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_WEB_PROJECT: ${{ secrets.SENTRY_WEB_PROJECT }}
       CI: true
+      NODE_OPTIONS: --max-old-space-size=6144
   glob:
     runs-on: ubuntu-latest
     name: "Make a glob"

@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { createContext, useContext, useMemo } from 'react';
+import { Linking } from 'react-native';
 
 type State = {
   onPressRef?: (channel: db.Channel, post: db.Post) => void;
@@ -7,6 +8,7 @@ type State = {
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
   onGoToGroupSettings?: () => void;
+  openExternalLink: (url: string) => Promise<void>;
   focusedChannelId?: string;
 };
 
@@ -28,6 +30,7 @@ const Context = createContext<ContextValue>({
   onGoToGroupSettings: () => {
     console.log(`onGoToGroupSettings called, but missing from context`);
   },
+  openExternalLink: (url) => Linking.openURL(url),
 });
 
 export const useNavigation = () => {
@@ -64,6 +67,9 @@ export const NavigationProvider = ({
       onPressGoToDm,
       onGoToUserProfile,
       onGoToGroupSettings,
+      openExternalLink: (url: string) => {
+        return Linking.openURL(url);
+      },
       focusedChannelId,
     }),
     [

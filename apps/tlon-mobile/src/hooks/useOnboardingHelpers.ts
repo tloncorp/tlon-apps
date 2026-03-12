@@ -10,7 +10,7 @@ import {
   scaffoldPersonalGroup,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
@@ -185,6 +185,7 @@ export function useOnboardingHelpers() {
       if (!guideFirstLogin) {
         await db.hostedAccountIsInitialized.setValue(true);
       }
+      await db.hostedNodeIsRunning.setValue(true);
 
       // Step 3: Authenticate with node
       console.log('authenticating with node', nodeId);

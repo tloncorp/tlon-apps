@@ -23,6 +23,7 @@ export function GroupMembersScreen(props: Props) {
     banUser,
     unbanUser,
     kickUser,
+    revokeInvite,
     bannedUsers,
     acceptUserJoin,
     rejectUserJoin,
@@ -63,6 +64,7 @@ export function GroupMembersScreen(props: Props) {
       onPressAssignRole={addUserToRole}
       onPressRemoveRole={removeUserFromRole}
       onPressKick={kickUser}
+      onPressRevokeInvite={revokeInvite}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}
       groupPrivacyType={groupPrivacyType}

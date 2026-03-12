@@ -1,3 +1,5 @@
+import { toContentReference } from '@tloncorp/api';
+import { Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
@@ -6,17 +8,11 @@ import {
   TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
-  extractContentTypesFromPost,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import {
-  contentReferenceToCite,
-  toContentReference,
-} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -39,6 +35,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -46,6 +43,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { hydrateEditPost } from '../MessageInput/helpers';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
@@ -102,28 +100,48 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
 
     const handlePaste = async (e: ClipboardEvent) => {
       const items = Array.from(e.clipboardData?.items || []);
-      const image = items.find((item) => item.type.includes('image'));
+      const media = items.find(
+        (item) => item.type.includes('image') || item.type.includes('video')
+      );
 
-      if (!image) return;
+      if (!media) return;
 
-      const file = image.getAsFile();
+      const file = media.getAsFile();
       if (!file) return;
 
-      const uri = URL.createObjectURL(file);
-      const img = new Image();
+      if (media.type.includes('image')) {
+        const uri = URL.createObjectURL(file);
+        const img = new Image();
 
-      img.onload = () => {
+        img.onload = () => {
+          addAttachment({
+            type: 'image',
+            file: {
+              uri,
+              height: img.height,
+              width: img.width,
+            },
+          });
+        };
+
+        img.src = uri;
+        return;
+      }
+
+      if (media.type.includes('video')) {
+        const previewData = await getVideoPreviewData({ file });
         addAttachment({
-          type: 'image',
-          file: {
-            uri,
-            height: img.height,
-            width: img.width,
-          },
+          type: 'video',
+          localFile: file,
+          size: file.size,
+          mimeType: file.type,
+          name: file.name,
+          width: previewData.width,
+          height: previewData.height,
+          duration: previewData.duration,
+          posterUri: previewData.posterUri,
         });
-      };
-
-      img.src = uri;
+      }
     };
 
     document.addEventListener('paste', handlePaste);
@@ -425,7 +443,11 @@ export default function BareChatInput({
       setEditingPost?.(undefined);
 
       try {
-        await sendPostFromDraft(draft);
+        bareChatInputLogger.log('sending message');
+        const sendOperation = sendPostFromDraft(draft);
+        bareChatInputLogger.log('clearing draft');
+        await clearDraft();
+        await sendOperation;
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
@@ -433,8 +455,6 @@ export default function BareChatInput({
         onSend?.();
         bareChatInputLogger.log('sent message');
         setMentions([]);
-        bareChatInputLogger.log('clearing draft');
-        await clearDraft();
         bareChatInputLogger.log('setting initial content');
         setHasSetInitialContent(false);
       }
@@ -515,7 +535,15 @@ export default function BareChatInput({
   // This effect watches for URL changes and updates link previews accordingly
   useEffect(() => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = debouncedText.match(urlRegex) || [];
+    // Strip backtick code spans/blocks (including unclosed ones) before
+    // scanning for URLs so that URLs inside code fences are not turned into
+    // link attachments. Triple-backtick alternation is listed first so that
+    // ``` is not accidentally consumed by the single-backtick branch.
+    const textOutsideCodeBlocks = debouncedText.replace(
+      /```[\s\S]*?(?:```|$)|`[^`]*(?:`|$)/g,
+      ''
+    );
+    const matches = textOutsideCodeBlocks.match(urlRegex) || [];
 
     // Normalize URLs (remove hash) and deduplicate
     const currentUrls = [
@@ -678,48 +706,15 @@ export default function BareChatInput({
           }
 
           if (editingPost && editingPost.content) {
-            const {
-              story,
-              references: postReferences,
-              blocks,
-            } = extractContentTypesFromPost(editingPost);
+            const { story, attachments, isEmpty } = hydrateEditPost(
+              editingPost,
+              'references-media'
+            );
 
-            if (story === null && !postReferences && blocks.length === 0) {
+            if (isEmpty) {
+              setHasSetInitialContent(true);
               return;
             }
-
-            const attachments: Attachment[] = [];
-
-            postReferences.forEach((p) => {
-              const cite = contentReferenceToCite(p);
-              const path = citeToPath(cite);
-              attachments.push({
-                type: 'reference',
-                reference: p,
-                path,
-              });
-            });
-
-            blocks.forEach((b) => {
-              if ('image' in b) {
-                attachments.push({
-                  type: 'image',
-                  file: {
-                    uri: b.image.src,
-                    height: b.image.height,
-                    width: b.image.width,
-                  },
-                });
-              }
-              if ('link' in b) {
-                attachments.push({
-                  type: 'link',
-                  url: b.link.url,
-                  resourceType: 'page',
-                  ...b.link.meta,
-                });
-              }
-            });
 
             resetAttachments(attachments);
             const jsonContent = diaryMixedToJSON(

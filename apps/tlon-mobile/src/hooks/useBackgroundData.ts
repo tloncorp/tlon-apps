@@ -1,5 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import {
   CHANGES_SYNCED_AT_KEY,
   registerStorageItemListener,

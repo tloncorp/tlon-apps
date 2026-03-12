@@ -4,10 +4,10 @@ import {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
-} from '../api';
+} from '@tloncorp/api';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '../urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -22,6 +22,11 @@ export const isTlonEmployee = createStorageItem<boolean>({
 });
 
 export const STORAGE_SETTINGS_QUERY_KEY = ['storageSettings'];
+
+export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
+  key: 'dismissedPinnedPostBannerIds',
+  defaultValue: [],
+});
 
 export const storageConfiguration =
   createStorageItem<StorageConfiguration | null>({
@@ -356,6 +361,30 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
+export const sqliteContent = createStorageItem<ArrayBuffer | null>({
+  key: 'sqliteContent',
+  defaultValue: null,
+  persistAfterLogout: false,
+  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
+  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
+  isLarge: true,
+});
+
+function stringToArrayBuffer(str: string) {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
+function arrayBufferToString(buf: ArrayBuffer) {
+  const uint8s = new Uint8Array(buf);
+  const chars = Array.from(uint8s, (byte) => String.fromCharCode(byte));
+  return chars.join('');
+}
+
 export type NagState = {
   lastDismissed: number;
   dismissCount: number;
@@ -370,9 +399,22 @@ const defaultNagState: NagState = {
   firstEligibleTime: 0,
 };
 
-export const createNagStorageItem = (key: string) => {
-  return createStorageItem<NagState>({
+// Cache nag storage items to avoid creating new instances on every render
+// This prevents race conditions from multiple updateLock instances
+const nagStorageItemCache = new Map<string, ReturnType<typeof createStorageItem<NagState>>>();
+
+export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
+  const cached = nagStorageItemCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  
+  const storageItem = createStorageItem<NagState>({
     key: `nag:${key}`,
     defaultValue: defaultNagState,
+    persistAfterLogout,
   });
+  
+  nagStorageItemCache.set(key, storageItem);
+  return storageItem;
 };

@@ -8,12 +8,31 @@ import { JSONContent } from '@tiptap/react';
 import { valid } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
-import { Story } from '../urbit/channel';
-import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
-import { Inline, InlineKey, Link, Task } from '../urbit/content';
-import { citeToPath, pathToCite, preSig, desig } from '../urbit/utils';
+import { Story } from '@tloncorp/api/urbit/channel';
+import { Block, Cite, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
+import { Inline, InlineKey, Link, Task } from '@tloncorp/api/urbit/content';
+import { citeToPath, pathToCite, preSig, desig } from '@tloncorp/api/urbit/utils';
 
 export const ALL_MENTION_ID = '-all-';
+
+/**
+ * Decode HTML entities in a string.
+ * TipTap/ProseMirror sometimes encodes characters like spaces as HTML entities (&#x20;)
+ * when processing content. This function decodes them back to normal characters.
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    )
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
 
 export interface HandlerParams {
   editor: Editor;
@@ -94,7 +113,7 @@ export function tipTapToString(json: JSONContent): string {
     return tipTapToString(jsonWithoutMarks);
   }
 
-  return json.text || '';
+  return decodeHtmlEntities(json.text || '');
 }
 
 // Limits the amount of consecutive breaks to 2 or less
@@ -124,101 +143,6 @@ function limitBreaks(
 const isList = (c: JSONContent) =>
   c.type === 'orderedList' || c.type === 'bulletList' || c.type === 'taskList';
 
-export function JSONToListing(
-  json: JSONContent,
-  limitNewlines = true
-): Listing {
-  switch (json.type) {
-    case 'orderedList': {
-      return {
-        list: {
-          type: 'ordered',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'bulletList': {
-      return {
-        list: {
-          type: 'unordered',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'taskList': {
-      return {
-        list: {
-          type: 'tasklist',
-          items:
-            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
-          contents: [],
-        },
-      };
-    }
-    case 'listItem': {
-      const list = json.content?.find(isList);
-      const para = json.content?.find((c) => !isList(c));
-      const contents = para
-        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
-          (JSONToInlines(para, limitNewlines) as Inline[])
-        : [];
-
-      if (list) {
-        return {
-          list: {
-            contents,
-            items: list.content
-              ? list.content.map((c) => JSONToListing(c, limitNewlines))
-              : ([] as Listing[]),
-            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
-          },
-        };
-      }
-
-      return {
-        item: contents,
-      };
-    }
-    case 'taskItem': {
-      const list = json.content?.find(isList);
-      const para = json.content?.find((c) => !isList(c));
-      const contents = para
-        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
-          (JSONToInlines(para, limitNewlines) as Inline[])
-        : [];
-
-      if (list) {
-        return {
-          list: {
-            contents,
-            items: list.content
-              ? list.content.map((c) => JSONToListing(c, limitNewlines))
-              : ([] as Listing[]),
-            type: 'tasklist',
-          },
-        };
-      }
-
-      return {
-        item: [
-          {
-            task: {
-              checked: json.attrs?.checked || false,
-              content: contents,
-            },
-          },
-        ],
-      };
-    }
-    default:
-      return { item: [''] };
-  }
-}
-
 export function JSONToInlines(
   json: JSONContent,
   limitNewlines = true,
@@ -226,9 +150,12 @@ export function JSONToInlines(
 ): (Inline | Block)[] {
   switch (json.type) {
     case 'text': {
+      // Decode any HTML entities that TipTap/ProseMirror may have encoded
+      const text = decodeHtmlEntities(json.text ?? '');
+
       // unstyled / marks base case
       if (!json.marks || json.marks.length === 0) {
-        return [json.text ?? ''];
+        return [text];
       }
 
       // styled
@@ -239,26 +166,43 @@ export function JSONToInlines(
 
       // inline code special case
       if (
-        json.text &&
+        text &&
         (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
       ) {
         return [
           {
-            'inline-code': json.text,
+            'inline-code': text,
           },
         ];
       }
 
       // link special case
       if (first.type === 'link' && first.attrs) {
-        return [
-          {
-            link: {
-              href: first.attrs.href,
-              content: json.text || first.attrs.href,
-            },
+        const linkInline = {
+          link: {
+            href: first.attrs.href,
+            content: text || first.attrs.href,
           },
-        ];
+        };
+
+        // If there are remaining marks (e.g., italic, bold), wrap the link in them
+        if (json.marks && json.marks.length > 0) {
+          // Process remaining marks by wrapping the link
+          let result: Inline = linkInline;
+          for (const mark of json.marks) {
+            const markType = convertMarkType(mark.type);
+            if (markType === 'italics') {
+              result = { italics: [result] };
+            } else if (markType === 'bold') {
+              result = { bold: [result] };
+            } else if (markType === 'strike') {
+              result = { strike: [result] };
+            }
+          }
+          return [result];
+        }
+
+        return [linkInline];
       }
 
       return [
@@ -328,37 +272,23 @@ export function JSONToInlines(
       if (!json.content || json.content.length === 0) {
         return [];
       }
+      const codeText = decodeHtmlEntities(json.content[0].text ?? '');
       return [
         codeWithLang
           ? {
               code: {
-                code: json.content[0].text ?? '',
+                code: codeText,
                 lang: json.attrs?.language ?? 'plaintext',
               },
             }
-          : { code: json.content[0].text ?? '' },
+          : { code: codeText },
       ];
     }
-    case 'orderedList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
-    }
-    case 'bulletList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
-    }
+    case 'orderedList':
+    case 'bulletList':
     case 'taskList': {
-      return [
-        {
-          listing: JSONToListing(json, limitNewlines),
-        },
-      ];
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      return [{ listing: JSONToListing(json, limitNewlines) }];
     }
     case 'heading': {
       return [
@@ -455,10 +385,118 @@ export function JSONToInlines(
   }
 }
 
+export function JSONToListing(
+  json: JSONContent,
+  limitNewlines = true
+): Listing {
+  switch (json.type) {
+    case 'orderedList': {
+      return {
+        list: {
+          type: 'ordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'bulletList': {
+      return {
+        list: {
+          type: 'unordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'taskList': {
+      return {
+        list: {
+          type: 'tasklist',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'listItem': {
+      const list = json.content?.find(isList);
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as Listing[]),
+            type: list.type === 'bulletList' ? 'unordered' : 'ordered',
+          },
+        };
+      }
+
+      return {
+        item: contents,
+      };
+    }
+    case 'taskItem': {
+      const list = json.content?.find(isList);
+      const paras = json.content?.filter((c) => !isList(c)) || [];
+
+      // Process all paragraphs and add breaks between them
+      const contents: Inline[] = [];
+      for (let i = 0; i < paras.length; i++) {
+        if (i > 0) {
+          contents.push({ break: null });
+        }
+        contents.push(...(JSONToInlines(paras[i], limitNewlines) as Inline[]));
+      }
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as Listing[]),
+            type: 'tasklist',
+          },
+        };
+      }
+
+      return {
+        item: [
+          {
+            task: {
+              checked: json.attrs?.checked || false,
+              content: contents,
+            },
+          },
+        ],
+      };
+    }
+    default:
+      return { item: [''] };
+  }
+}
+
 export const makeText = (t: string) => ({ type: 'text', text: t });
-const makeLink = (link: Link['link']) => ({
+const makeLink = (link: Link['link'], ctx?: JSONContent) => ({
   type: 'text',
-  marks: [{ type: 'link', attrs: { href: link.href } }],
+  marks: [
+    { type: 'link', attrs: { href: link.href } },
+    ...(ctx?.marks || []),
+  ],
   text: link.content,
 });
 export const makeMention = (id: string) => ({
@@ -580,7 +618,7 @@ export const inlineToContent = (
   }
 
   if ('link' in inline) {
-    return makeLink(inline.link);
+    return makeLink(inline.link, ctx);
   }
 
   if ('image' in inline) {
@@ -623,10 +661,27 @@ export const inlineToContent = (
 
     // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
     // an un-nestable tag such as inline-code or code
-    return inlineToContent(
-      Array.isArray(inlineValue) ? inlineValue[0] : inlineValue,
-      newContext
-    );
+    if (Array.isArray(inlineValue)) {
+      // Process all elements in the array with the mark context applied
+      const contentItems = (inlineValue as Inline[]).flatMap((item: Inline) => {
+        const result = inlineToContent(item, newContext);
+        // If the result is a paragraph, extract its content
+        if (result.type === 'paragraph' && result.content) {
+          return result.content;
+        }
+        return [result];
+      });
+
+      // If there's only a single text node, return it directly without wrapping
+      // in a paragraph. This prevents inline styles from creating block-level breaks.
+      if (contentItems.length === 1 && contentItems[0].type === 'text') {
+        return contentItems[0];
+      }
+
+      return makeParagraph(contentItems);
+    }
+
+    return inlineToContent(inlineValue as Inline, newContext);
   }
 
   // TODO: is there a better fallback than an empty newline?

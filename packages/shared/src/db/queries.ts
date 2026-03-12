@@ -31,8 +31,8 @@ import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
   getCurrentUserId,
-} from '../api';
-import { parseGroupId } from '../api/apiUtils';
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -40,9 +40,9 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '../logic/activity';
+} from '@tloncorp/api/lib/activity';
 import { Session } from '../store';
-import { Rank } from '../urbit';
+import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -2549,9 +2549,14 @@ export const setJoinedGroupChannels = createWriteQuery(
       return await ctx.db
         .update($channels)
         .set({
-          currentUserIsMember: inArray($channels.id, channelsWhereMember),
+          currentUserIsMember: true,
         })
-        .where(isNotNull($channels.groupId));
+        .where(
+          and(
+            inArray($channels.id, channelsWhereMember),
+            isNotNull($channels.groupId)
+          )
+        );
     }
   },
   ['channels']
@@ -5076,29 +5081,6 @@ function conflictUpdateSet(...columns: Column[]) {
     })
   );
 }
-
-export const getChannelPostsByTimeRange = createReadQuery(
-  'getChannelPostsByTimeRange',
-  async (
-    {
-      channelId,
-      startTime,
-      limit = 500,
-    }: { channelId: string; startTime: number; limit?: number },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db.query.posts.findMany({
-      where: and(
-        eq($posts.channelId, channelId),
-        gte($posts.sentAt, startTime),
-        isNull($posts.deliveryStatus)
-      ),
-      orderBy: [asc($posts.sentAt)],
-      limit,
-    });
-  },
-  ['posts']
-);
 
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(
