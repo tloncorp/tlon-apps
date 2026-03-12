@@ -160,6 +160,20 @@ export function NowPlayingProvider({
       },
       async pause() {
         audioPlayer.pause();
+        isPlayingRef.current = false;
+
+        // Emit synthetic progress immediately so the UI updates without
+        // waiting for the next native playbackStatusUpdate tick
+        if (mediaItemRef.current) {
+          eventEmitter.emit('progress', {
+            sourceUrl: mediaItemRef.current.url,
+            isPlaying: false,
+            loadState: 'loaded',
+            currentTime: audioPlayer.currentTime,
+            duration: audioPlayer.duration,
+          });
+        }
+
         await setIsAudioActiveAsync(false);
       },
       async seekTo(seconds: number) {
