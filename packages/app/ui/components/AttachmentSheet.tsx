@@ -295,11 +295,7 @@ export default function AttachmentSheet({
   }, [onOpenChange, audioRecorder]);
 
   const pickImage = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
-    setTimeout(async () => {
+    const openImagePicker = async () => {
       try {
         if (mediaLibraryPermissionStatus?.granted === false) {
           const permissionResult = await requestMediaLibraryPermission();
@@ -352,7 +348,21 @@ export default function AttachmentSheet({
         // In case of error, remove the placeholder
         clearAttachments();
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    };
+
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    if (Platform.OS === 'web') {
+      // File picker must open in the same user gesture on web.
+      void openImagePicker();
+      return;
+    }
+
+    // Native: wait for close animation to complete before opening picker.
+    setTimeout(() => {
+      void openImagePicker();
+    }, 50);
   }, [
     attachAssets,
     clearAttachments,
