@@ -230,11 +230,9 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
-  // Click Save in the header to persist permission changes (if dirty)
-  const saveButton = page.getByTestId('SavePermissionsButton');
-  if (await saveButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await saveButton.click();
-  }
+  // Click Save in the header to persist permission changes
+  await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId('SavePermissionsButton').click();
   await page.waitForTimeout(2000);
 
   // Navigate back to exit any settings screens
