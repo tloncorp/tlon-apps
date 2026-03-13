@@ -1427,6 +1427,23 @@ export const handleChannelsUpdate = async (
         },
         ctx
       );
+      // When a post is pinned (or re-pinned), clear its dismissal so the
+      // banner shows again.
+      {
+        const newPinnedPostId = update.order?.[0];
+        if (newPinnedPostId) {
+          const dismissedIds =
+            await db.dismissedPinnedPostBannerIds.getValue();
+          if (dismissedIds.includes(newPinnedPostId)) {
+            await db.dismissedPinnedPostBannerIds.setValue(
+              dismissedIds.filter((id) => id !== newPinnedPostId)
+            );
+            const settingKey =
+              api.getDismissedPinnedPostBannerKey(newPinnedPostId);
+            api.setSetting(settingKey, false).catch(() => {});
+          }
+        }
+      }
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
