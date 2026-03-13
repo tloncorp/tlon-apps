@@ -110,21 +110,20 @@ export function PermissionTable({
   const writers = watch('writers');
 
   const displayedRoles = useMemo(() => {
-    // Get all group roles that are in the readers list
+    // Use the union of readers and writers so writer-only roles remain visible
+    const allRelevantIds = [...new Set([...readers, ...writers])];
     const regularRoles = groupRolesToOptions(groupRoles).filter((role) =>
-      readers.includes(role.value)
+      allRelevantIds.includes(role.value)
     );
 
-    // Always show Members option if it's in readers
-    const hasMembersInReaders = readers.includes(MEMBERS_MARKER);
+    const hasMembersInRelevant = allRelevantIds.includes(MEMBERS_MARKER);
 
-    // Build the final list: regular roles first, then Members (if present)
-    const roles = hasMembersInReaders
+    const roles = hasMembersInRelevant
       ? [...regularRoles, MEMBER_ROLE_OPTION]
       : regularRoles;
 
     return roles;
-  }, [groupRoles, readers]);
+  }, [groupRoles, readers, writers]);
 
   const handleToggleWriter = useCallback(
     (roleId: string) => {
@@ -132,18 +131,20 @@ export function PermissionTable({
       const isCurrentlyReader = readers.includes(roleId);
 
       if (isCurrentlyWriter) {
-        // Remove from writers
+        // Remove from writers; add to readers if not already there so the role
+        // stays visible as read-only instead of vanishing
         setValue(
           'writers',
           writers.filter((w) => w !== roleId),
           { shouldDirty: true }
         );
+        if (!isCurrentlyReader) {
+          setValue('readers', [...readers, roleId], { shouldDirty: true });
+        }
       } else {
-        // Add to writers
+        // Add to writers; write implies read
         setValue('writers', [...writers, roleId], { shouldDirty: true });
-
-        // For Members marker, also ensure it's in readers when enabling write
-        if (roleId === MEMBERS_MARKER && !isCurrentlyReader) {
+        if (!isCurrentlyReader) {
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
@@ -153,25 +154,22 @@ export function PermissionTable({
 
   const handleToggleReader = useCallback(
     (roleId: string) => {
-      // For Members marker, toggle it in/out of readers
-      if (roleId === MEMBERS_MARKER) {
-        const isCurrentlyReader = readers.includes(roleId);
-        if (isCurrentlyReader) {
-          // Remove from both readers and writers
-          setValue(
-            'readers',
-            readers.filter((r) => r !== roleId),
-            { shouldDirty: true }
-          );
-          setValue(
-            'writers',
-            writers.filter((w) => w !== roleId),
-            { shouldDirty: true }
-          );
-        } else {
-          // Add to readers
-          setValue('readers', [...readers, roleId], { shouldDirty: true });
-        }
+      const isCurrentlyReader = readers.includes(roleId);
+      if (isCurrentlyReader) {
+        // Remove from both readers and writers (no read implies no write)
+        setValue(
+          'readers',
+          readers.filter((r) => r !== roleId),
+          { shouldDirty: true }
+        );
+        setValue(
+          'writers',
+          writers.filter((w) => w !== roleId),
+          { shouldDirty: true }
+        );
+      } else {
+        // Add to readers
+        setValue('readers', [...readers, roleId], { shouldDirty: true });
       }
     },
     [readers, writers, setValue]
@@ -350,4 +348,3 @@ function PermissionTableControlCell({
     </XStack>
   );
 }
-
