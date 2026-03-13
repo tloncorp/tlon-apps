@@ -160,15 +160,24 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
         backAction={handleGoBack}
         title={role ? `Select members for ${role.title}` : 'Select members'}
         rightControls={
-          !searchQuery.trim() ? (
+          <>
+            {!searchQuery.trim() && (
+              <ScreenHeader.TextButton
+                onPress={handleSelectAll}
+                color="$positiveActionText"
+                testID="SelectAllMembers"
+              >
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </ScreenHeader.TextButton>
+            )}
             <ScreenHeader.TextButton
-              onPress={handleSelectAll}
+              onPress={handleGoBack}
               color="$positiveActionText"
-              testID="SelectAllMembers"
+              testID="MemberSelectionDoneButton"
             >
-              {allSelected ? 'Deselect all' : 'Select all'}
+              Done
             </ScreenHeader.TextButton>
-          ) : undefined
+          </>
         }
       />
       <View paddingHorizontal="$l" paddingBottom="$s">

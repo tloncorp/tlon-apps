@@ -178,6 +178,36 @@ export function ChannelDetailsScreenView({
   const canInvite =
     (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
+  const handleGoBack = useCallback(() => {
+    if (onGoBack) {
+      onGoBack();
+      return;
+    }
+    if (isWindowNarrow) {
+      navigateBack();
+    } else if (channel) {
+      navigateToChannel(channel);
+    } else {
+      navigateBack();
+    }
+  }, [onGoBack, channel, navigateToChannel, navigateBack, isWindowNarrow]);
+
+  const [permissionsDirty, setPermissionsDirty] = useState(false);
+  const savePermissionsRef = useRef<(() => void) | null>(null);
+
+  const handlePermissionsDirtyChange = useCallback(
+    (dirty: boolean, save: () => void) => {
+      setPermissionsDirty(dirty);
+      savePermissionsRef.current = save;
+    },
+    []
+  );
+
+  const handleSavePermissions = useCallback(() => {
+    savePermissionsRef.current?.();
+    handleGoBack();
+  }, [handleGoBack]);
+
   const groupTitle = useGroupTitle(group) ?? 'group';
   const title = useChatTitle(channel, group);
   const insets = useSafeAreaInsets();
@@ -208,27 +238,12 @@ export function ChannelDetailsScreenView({
     }
   }, [channel, onEditChannelMeta]);
 
-  const handleGoBack = useCallback(() => {
-    if (onGoBack) {
-      onGoBack();
-      return;
-    }
-    if (isWindowNarrow) {
-      navigateBack();
-    } else if (channel) {
-      navigateToChannel(channel);
-    } else {
-      navigateBack();
-    }
-  }, [onGoBack, channel, navigateToChannel, navigateBack, isWindowNarrow]);
-
   if (!channel) {
     return null;
   }
 
   const members = channel.members;
-  const showInlinePermissions =
-    currentUserIsAdmin && channel.groupId && group;
+  const showInlinePermissions = currentUserIsAdmin && channel.groupId && group;
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -240,13 +255,23 @@ export function ChannelDetailsScreenView({
         title="Channel info"
         rightControls={
           currentUserIsAdmin ? (
-            <ScreenHeader.IconButton
-              aria-label="Edit"
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              type="Draw"
-              testID="DetailsEditButton"
-            />
+            <XStack gap="$l" alignItems="center">
+              {permissionsDirty && (
+                <ScreenHeader.TextButton
+                  onPress={handleSavePermissions}
+                  testID="SavePermissionsButton"
+                >
+                  Save
+                </ScreenHeader.TextButton>
+              )}
+              <ScreenHeader.IconButton
+                aria-label="Edit"
+                onPress={!actionsEnabled ? undefined : handlePressEdit}
+                disabled={!actionsEnabled}
+                type="Draw"
+                testID="DetailsEditButton"
+              />
+            </XStack>
           ) : null
         }
       />
@@ -263,7 +288,7 @@ export function ChannelDetailsScreenView({
         <XStack
           alignItems="flex-start"
           gap="$xl"
-          paddingHorizontal="$xl"
+          paddingHorizontal="$l"
           marginVertical="$l"
         >
           {group ? (
@@ -293,25 +318,30 @@ export function ChannelDetailsScreenView({
         )}
 
         {showInlinePermissions && (
-          <InlineChannelPermissions
-            channel={channel}
-            group={group}
-            actionsEnabled={actionsEnabled}
-            selectedRoleIds={selectedRoleIds}
-            createdRoleId={createdRoleId}
-            createdRoleTitle={createdRoleTitle}
-            onSelectRoles={
-              actionsEnabled && onSelectRoles
-                ? (currentReaders) =>
-                    onSelectRoles(channel.id, channel.groupId!, currentReaders)
-                : undefined
-            }
-            onPressRole={
-              actionsEnabled && onPressRole
-                ? (roleId) => onPressRole(channel.groupId!, roleId)
-                : undefined
-            }
-          />
+          <View paddingHorizontal="$l">
+            <View $gtSm={{ paddingHorizontal: '$m' }}>
+              <InlineChannelPermissions
+              channel={channel}
+              group={group}
+              actionsEnabled={actionsEnabled}
+              selectedRoleIds={selectedRoleIds}
+              createdRoleId={createdRoleId}
+              createdRoleTitle={createdRoleTitle}
+              onSelectRoles={
+                actionsEnabled && onSelectRoles
+                  ? (currentReaders) =>
+                      onSelectRoles(channel.id, channel.groupId!, currentReaders)
+                  : undefined
+              }
+              onPressRole={
+                actionsEnabled && onPressRole
+                  ? (roleId) => onPressRole(channel.groupId!, roleId)
+                  : undefined
+              }
+              onDirtyChange={handlePermissionsDirtyChange}
+            />
+            </View>
+          </View>
         )}
 
         {members?.length ? (
@@ -344,6 +374,7 @@ function InlineChannelPermissions({
   createdRoleTitle,
   onSelectRoles,
   onPressRole,
+  onDirtyChange,
 }: {
   channel: db.Channel;
   group: db.Group;
@@ -353,6 +384,7 @@ function InlineChannelPermissions({
   createdRoleTitle?: string;
   onSelectRoles?: (currentReaders: string[]) => void;
   onPressRole?: (roleId: string) => void;
+  onDirtyChange?: (isDirty: boolean, save: () => void) => void;
 }) {
   const { updateChannel } = useGroupContext({ groupId: group.id });
 
@@ -396,13 +428,32 @@ function InlineChannelPermissions({
     });
   }, [channel, form]);
 
+  // Save current form state to the backend
+  const savePermissions = useCallback(() => {
+    if (!channel) return;
+    const {
+      readers: currentReaders,
+      writers: currentWriters,
+      isPrivate: currentIsPrivate,
+    } = form.getValues();
+    const { finalReaders, finalWriters } = processFinalPermissions(
+      currentReaders,
+      currentWriters,
+      currentIsPrivate
+    );
+    updateChannel({ ...channel }, finalReaders, finalWriters);
+    form.reset(form.getValues());
+  }, [channel, form, updateChannel]);
+
+  // Expose dirty state and save function to parent
+  useEffect(() => {
+    onDirtyChange?.(isDirty, savePermissions);
+  }, [isDirty, savePermissions, onDirtyChange]);
+
   // Handle newly created role returned from AddRole screen (consume once)
   const consumedCreatedRoleRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      !createdRoleId ||
-      consumedCreatedRoleRef.current === createdRoleId
-    )
+    if (!createdRoleId || consumedCreatedRoleRef.current === createdRoleId)
       return;
     consumedCreatedRoleRef.current = createdRoleId;
     const currentReaders = form.getValues('readers');
@@ -451,64 +502,32 @@ function InlineChannelPermissions({
     onSelectRoles?.(currentReaders);
   }, [form, onSelectRoles]);
 
-  const handleSave = useCallback(() => {
-    if (!channel) return;
-
-    const {
-      readers: currentReaders,
-      writers: currentWriters,
-      isPrivate: currentIsPrivate,
-    } = form.getValues();
-    const { finalReaders, finalWriters } = processFinalPermissions(
-      currentReaders,
-      currentWriters,
-      currentIsPrivate
-    );
-
-    updateChannel({ ...channel }, finalReaders, finalWriters);
-    form.reset(form.getValues());
-  }, [channel, form, updateChannel]);
-
   return (
     <FormProvider {...form}>
-      <View paddingHorizontal="$l">
-        <YStack gap="$l">
-          <TlonText.Text size="$label/xl" color="$tertiaryText">
-            Permissions
-          </TlonText.Text>
-          <YStack
-            width="100%"
-            overflow="hidden"
-            borderRadius="$2xl"
-            borderWidth={1}
-            borderColor="$secondaryBorder"
-            backgroundColor="$background"
-          >
-            <PrivateChannelToggle
-              isPrivate={isPrivate}
-              onTogglePrivate={
-                actionsEnabled ? handleTogglePrivate : () => {}
-              }
-            />
-          </YStack>
-          <PermissionTable
-            groupRoles={augmentedRoles}
-            onPressRole={onPressRole}
-            disabled={!actionsEnabled}
+      <YStack
+        overflow="hidden"
+        borderRadius="$2xl"
+        backgroundColor="$background"
+        padding="$xl"
+        gap="$l"
+      >
+        <PrivateChannelToggle
+          isPrivate={isPrivate}
+          onTogglePrivate={actionsEnabled ? handleTogglePrivate : () => {}}
+        />
+        <PermissionTable
+          groupRoles={augmentedRoles}
+          onPressRole={onPressRole}
+          disabled={!actionsEnabled}
+        />
+        {isPrivate && actionsEnabled && onSelectRoles && (
+          <Button
+            preset="secondaryOutline"
+            onPress={handleSelectRoles}
+            label="Add roles"
           />
-          {isPrivate && actionsEnabled && onSelectRoles && (
-            <Button onPress={handleSelectRoles} label="Add roles" />
-          )}
-          {isDirty && actionsEnabled && (
-            <Button
-              preset="hero"
-              onPress={handleSave}
-              label="Save permissions"
-              testID="SavePermissionsButton"
-            />
-          )}
-        </YStack>
-      </View>
+        )}
+      </YStack>
     </FormProvider>
   );
 }

@@ -49,7 +49,7 @@ export function ChatDetailsScreen(props: Props) {
   const { chatType, chatId, selectedRoleIds, createdRoleId, createdRoleTitle } =
     props.route.params;
 
-  const { navigation } = useRootNavigation();
+  const { navigation, navigateToGroup } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const chatSettingsNav = useChatSettingsNavigation();
@@ -74,32 +74,48 @@ export function ChatDetailsScreen(props: Props) {
   );
 
   const handleSelectRoles = useCallback(
-    (channelId: string, groupId: string, currentReaders: string[]) => {
-      navigation.navigate('GroupSettings', {
-        screen: 'SelectChannelRoles',
-        params: {
-          groupId,
-          selectedRoleIds: currentReaders,
-          returnScreen: 'ChatDetails',
-          returnParams: {
-            chatType: 'channel' as const,
-            chatId: channelId,
-            groupId,
-          },
+    async (channelId: string, groupId: string, currentReaders: string[]) => {
+      if (!isWindowNarrow) {
+        await navigateToGroup(groupId);
+      }
+      setTimeout(
+        () => {
+          navigation.navigate('GroupSettings', {
+            screen: 'SelectChannelRoles',
+            params: {
+              groupId,
+              selectedRoleIds: currentReaders,
+              returnScreen: 'ChatDetails',
+              returnParams: {
+                chatType: 'channel' as const,
+                chatId: channelId,
+                groupId,
+              },
+            },
+          });
         },
-      });
+        !isWindowNarrow ? 100 : 0
+      );
     },
-    [navigation]
+    [navigation, navigateToGroup, isWindowNarrow]
   );
 
   const handlePressRole = useCallback(
-    (groupId: string, roleId: string) => {
-      navigation.navigate('GroupSettings', {
-        screen: 'EditRole',
-        params: { groupId, roleId },
-      });
+    async (groupId: string, roleId: string) => {
+      if (!isWindowNarrow) {
+        await navigateToGroup(groupId);
+      }
+      setTimeout(
+        () => {
+          navigation.navigate('GroupSettings', {
+            screen: 'EditRole',
+            params: { groupId, roleId },
+          });
+        },
+        !isWindowNarrow ? 100 : 0
+      );
     },
-    [navigation]
+    [navigation, navigateToGroup, isWindowNarrow]
   );
 
   const inviteSheet = !isWindowNarrow && (

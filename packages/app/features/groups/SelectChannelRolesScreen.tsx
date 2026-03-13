@@ -252,7 +252,11 @@ export function SelectChannelRolesScreen() {
           </YStack>
         </ScrollView>
         <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button onPress={handleCreateRole} label="Create new role" />
+          <Button
+            preset="secondaryOutline"
+            onPress={handleCreateRole}
+            label="Create new role"
+          />
         </YStack>
       </YStack>
     </View>

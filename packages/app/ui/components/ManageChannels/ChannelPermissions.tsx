@@ -31,7 +31,6 @@ export function PrivateChannelToggle({
       justifyContent="space-between"
       alignItems="center"
       gap="$xl"
-      backgroundColor="$secondaryBackground"
       width="100%"
       pointerEvents="auto"
     >
@@ -102,10 +101,12 @@ export function PermissionTable({
   groupRoles,
   onPressRole,
   disabled,
+  onChange,
 }: {
   groupRoles: db.GroupRole[];
   onPressRole?: (roleId: string) => void;
   disabled?: boolean;
+  onChange?: () => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -135,32 +136,27 @@ export function PermissionTable({
       const isCurrentlyReader = readers.includes(roleId);
 
       if (isCurrentlyWriter) {
-        // Remove from writers
         setValue(
           'writers',
           writers.filter((w) => w !== roleId),
           { shouldDirty: true }
         );
       } else {
-        // Add to writers
         setValue('writers', [...writers, roleId], { shouldDirty: true });
-
-        // For Members marker, also ensure it's in readers when enabling write
         if (roleId === MEMBERS_MARKER && !isCurrentlyReader) {
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
+      onChange?.();
     },
-    [writers, readers, setValue]
+    [writers, readers, setValue, onChange]
   );
 
   const handleToggleReader = useCallback(
     (roleId: string) => {
-      // For Members marker, toggle it in/out of readers
       if (roleId === MEMBERS_MARKER) {
         const isCurrentlyReader = readers.includes(roleId);
         if (isCurrentlyReader) {
-          // Remove from both readers and writers
           setValue(
             'readers',
             readers.filter((r) => r !== roleId),
@@ -172,12 +168,12 @@ export function PermissionTable({
             { shouldDirty: true }
           );
         } else {
-          // Add to readers
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
+      onChange?.();
     },
-    [readers, writers, setValue]
+    [readers, writers, setValue, onChange]
   );
 
   const handleDeleteRole = useCallback(
@@ -193,8 +189,9 @@ export function PermissionTable({
         writers.filter((writerId) => writerId !== roleId),
         { shouldDirty: true }
       );
+      onChange?.();
     },
-    [readers, writers, setValue]
+    [readers, writers, setValue, onChange]
   );
 
   if (!isPrivate || displayedRoles.length === 0) return null;

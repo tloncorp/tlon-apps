@@ -324,6 +324,18 @@ export function RoleFormScreen({ navigation, route }: Props) {
         backAction={handleGoBack}
         title={screenTitle}
         backgroundColor="$secondaryBackground"
+        rightControls={
+          !isAdminRole ? (
+            <ScreenHeader.TextButton
+              onPress={handleSubmit(handleSave)}
+              disabled={!isValid}
+              color="$positiveActionText"
+              testID="RoleSaveButton"
+            >
+              Save
+            </ScreenHeader.TextButton>
+          ) : undefined
+        }
       />
       <ScrollView
         flex={1}
@@ -423,12 +435,6 @@ export function RoleFormScreen({ navigation, route }: Props) {
               </ListItem.EndContent>
             </ListItem>
           </Pressable>
-          <Button
-            preset="hero"
-            onPress={handleSubmit(handleSave)}
-            disabled={!isValid}
-            label="Save"
-          />
           {isEditMode && !isAdminRole && (
             <YStack gap="$l">
               <Button

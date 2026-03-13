@@ -130,7 +130,7 @@ test('should display inline channel permissions on channel details', async ({
   });
 });
 
-test('inline channel permissions toggle and save', async ({
+test('inline channel permissions toggle and save from header', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -160,20 +160,16 @@ test('inline channel permissions toggle and save', async ({
     timeout: 5000,
   });
 
-  // Save button should appear after toggling
+  // Verify Save button appears in header
   await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({
     timeout: 5000,
   });
 
-  // Save permissions
+  // Click Save to persist permissions and navigate back to channel
   await page.getByTestId('SavePermissionsButton').click();
-  await page.waitForTimeout(2000);
 
-  // Verify we're still on channel details with sidebar intact
-  await expect(page.getByText('Channel info')).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+  // Verify we navigated back to the channel conversation
+  await expect(page.getByTestId('MessageInput')).toBeVisible({
     timeout: 5000,
   });
 });

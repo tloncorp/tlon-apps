@@ -153,6 +153,8 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(writeToggle).toBeVisible();
   await expect(writeToggle.getByRole('img')).toBeVisible(); // Checkmark icon
 
+  // Click Save in the header to persist permission changes
+  await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({ timeout: 5000 });
   await page.getByTestId('SavePermissionsButton').click();
   await page.waitForTimeout(2000);
 
@@ -228,10 +230,14 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
-  await page.getByTestId('SavePermissionsButton').click();
+  // Click Save in the header to persist permission changes (if dirty)
+  const saveButton = page.getByTestId('SavePermissionsButton');
+  if (await saveButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await saveButton.click();
+  }
   await page.waitForTimeout(2000);
 
-  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // Navigate back to exit any settings screens
   for (let i = 0; i < 3; i++) {
     try {
       const backButton = page.getByTestId('HeaderBackButton').first();
