@@ -1,11 +1,5 @@
-import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import {
-  makeMention,
-  makeParagraph,
-  makeText,
-} from '@tloncorp/shared/logic/tiptap';
-import { filenameFromPath } from '@tloncorp/shared/utils/files';
+import type { ChannelType, PostMetadata } from '../types/models';
+import { createDevLogger } from '../client/logger';
 import isURL from 'validator/lib/isURL';
 
 import {
@@ -27,6 +21,50 @@ import {
 } from '../urbit';
 
 const logger = createDevLogger('content-helpers', false);
+
+const makeText = (text: string): JSONContent => ({
+  type: 'text',
+  text,
+});
+
+const makeMention = (id: string): JSONContent => ({
+  type: 'mention',
+  attrs: { id },
+});
+
+const makeParagraph = (content?: JSONContent[]): JSONContent => {
+  const paragraph: JSONContent = { type: 'paragraph' };
+
+  if (!content) {
+    return paragraph;
+  }
+
+  if (
+    content.length > 0 &&
+    content[0].type === 'text' &&
+    content[0].text === ''
+  ) {
+    return paragraph;
+  }
+
+  return { ...paragraph, content };
+};
+
+function filenameFromPath(
+  path: string,
+  opts: { decodeURI?: boolean } = {}
+): string | null {
+  if (path.endsWith('/')) {
+    return null;
+  }
+
+  let out = path.split('/').pop() ?? null;
+  if (opts.decodeURI && out) {
+    out = decodeURIComponent(out);
+  }
+
+  return out;
+}
 
 const isBoldStart = (text: string): boolean => {
   return text.startsWith('**');

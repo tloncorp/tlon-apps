@@ -1,8 +1,8 @@
 import { Poke } from '@urbit/http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type * as db from '../types/models';
+import type { GroupPrivacy } from '../types/models';
+import { createDevLogger } from './logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';
@@ -527,13 +527,14 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
+  const sectionId = navSection.sectionId ?? navSection.id;
   return await trackedPoke<ub.V1GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
         'a-group': {
           section: {
-            'section-id': navSection.sectionId,
+            'section-id': sectionId,
             'a-section': {
               add: {
                 title: navSection.title ?? '',
@@ -591,13 +592,14 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
+  const sectionId = navSection.sectionId ?? navSection.id;
   return await poke(
     groupAction4({
       group: {
         flag: groupId,
         'a-group': {
           section: {
-            'section-id': navSection.sectionId,
+            'section-id': sectionId,
             'a-section': {
               edit: {
                 title: navSection.title ?? '',
@@ -755,7 +757,8 @@ export const updateGroupNavigation = async ({
   const sections: Record<string, ub.GroupNavigationSectionData> = {};
 
   for (const section of navSections) {
-    sections[section.sectionId] = {
+    const sectionId = section.sectionId ?? section.id;
+    sections[sectionId] = {
       meta: {
         title: section.title ?? '',
         description: section.description ?? '',
@@ -773,7 +776,8 @@ export const updateGroupNavigation = async ({
     sections,
     order: navSections
       .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
-      .map((s) => s.sectionId),
+      .map((s) => s.sectionId ?? s.id)
+      .filter((id): id is string => !!id),
   };
 
   return await poke(groupNavigationBatchUpdate(groupId, navigation));

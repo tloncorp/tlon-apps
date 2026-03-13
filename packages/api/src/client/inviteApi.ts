@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import type * as db from '../types/models';
 import { InviteLinkMetadata } from '../types/invite.types';
 import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
