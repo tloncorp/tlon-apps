@@ -826,17 +826,8 @@ export async function setChannelPermissions(
     await expect(page.getByText('Select roles')).toBeVisible();
 
     // Deselect Members if it's pre-selected and not in the requested roles
-    if (!readerRoles.some((r) => r.toLowerCase() === 'members')) {
-      const membersOption = page.getByTestId('RoleOption-Members');
-      if (await membersOption.isVisible({ timeout: 1000 })) {
-        await membersOption.click();
-      }
-    }
-
-    // Deselect Members if pre-selected and not in the requested roles
     if (!keepMembers && !readerRoles.some((r) => r.toLowerCase() === 'members')) {
-      const sheet = page.getByRole('dialog');
-      const membersOption = sheet.getByText('Members', { exact: true });
+      const membersOption = page.getByTestId('RoleOption-Members');
       if (await membersOption.isVisible({ timeout: 1000 })) {
         await membersOption.click();
       }
