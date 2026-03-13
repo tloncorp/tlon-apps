@@ -1,4 +1,9 @@
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import {
+  CommonActions,
+  RouteProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGroup } from '@tloncorp/shared';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
@@ -134,6 +139,20 @@ export function SelectChannelRolesScreen() {
           createdRoleId: params.createdRoleId,
           createdRoleTitle: params.createdRoleTitle,
         });
+        break;
+      case 'ChatDetails':
+        // Navigate across navigators back to RootStack's ChatDetails
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'ChatDetails',
+            params: {
+              ...params.returnParams,
+              selectedRoleIds: finalRoleIds,
+              createdRoleId: params.createdRoleId,
+              createdRoleTitle: params.createdRoleTitle,
+            },
+          })
+        );
         break;
     }
   }, [navigation, selectedRoleIds, route.params]);

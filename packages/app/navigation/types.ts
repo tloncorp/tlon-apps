@@ -89,6 +89,9 @@ export type RootStackParamList = {
     chatType: 'group' | 'channel';
     chatId: string;
     groupId?: string;
+    selectedRoleIds?: string[];
+    createdRoleId?: string;
+    createdRoleTitle?: string;
   };
   ChatVolume: {
     chatType: 'group' | 'channel';
@@ -211,6 +214,14 @@ export type RoleSelectionReturn =
         chatId: string;
         groupId: string;
         fromChatDetails?: boolean;
+      };
+    }
+  | {
+      returnScreen: 'ChatDetails';
+      returnParams: {
+        chatType: 'group' | 'channel';
+        chatId: string;
+        groupId?: string;
       };
     };
 

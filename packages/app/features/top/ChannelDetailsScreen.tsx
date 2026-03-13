@@ -49,7 +49,8 @@ import { useShipConnectionStatus } from './useShipConnectionStatus';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
 export function ChannelDetailsScreen(props: Props) {
-  const { chatId } = props.route.params;
+  const { chatId, selectedRoleIds, createdRoleId, createdRoleTitle } =
+    props.route.params;
 
   const { navigation } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
@@ -82,7 +83,9 @@ export function ChannelDetailsScreen(props: Props) {
         params: {
           groupId,
           selectedRoleIds: currentReaders,
-          returnScreen: 'ChannelInfo',
+          createdRoleId,
+          createdRoleTitle,
+          returnScreen: 'ChatDetails',
           returnParams: {
             chatType: 'channel' as const,
             chatId: channelId,
@@ -91,7 +94,7 @@ export function ChannelDetailsScreen(props: Props) {
         },
       });
     },
-    [navigation]
+    [navigation, createdRoleId, createdRoleTitle]
   );
 
   const handlePressRole = useCallback(
@@ -119,6 +122,9 @@ export function ChannelDetailsScreen(props: Props) {
           onEditChannelMeta={handleEditChannelMeta}
           onSelectRoles={handleSelectRoles}
           onPressRole={handlePressRole}
+          selectedRoleIds={selectedRoleIds}
+          createdRoleId={createdRoleId}
+          createdRoleTitle={createdRoleTitle}
         />
         {!isWindowNarrow && (
           <InviteUsersSheet
