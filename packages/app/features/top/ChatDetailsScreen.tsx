@@ -34,6 +34,7 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '../../ui';
+import { ChannelDetailsScreenView } from './ChannelDetailsScreen';
 import {
   ChannelQuickActions,
   LeaveActionsSection,
@@ -45,24 +46,97 @@ import { useShipConnectionStatus } from './useShipConnectionStatus';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
 export function ChatDetailsScreen(props: Props) {
-  const { chatType, chatId } = props.route.params;
+  const { chatType, chatId, selectedRoleIds, createdRoleId, createdRoleTitle } =
+    props.route.params;
 
   const { navigation } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
+  const chatSettingsNav = useChatSettingsNavigation();
+  const { onPressEditChannelMeta } = chatSettingsNav;
 
   const handleInvitePressed = useCallback(
     (groupId: string) => {
       if (isWindowNarrow) {
-        // Mobile: Use navigation to screen
         navigation.navigate('InviteUsers', { groupId });
       } else {
-        // Desktop: Use sheet
         setInviteSheetGroup(groupId);
       }
     },
     [isWindowNarrow, navigation]
   );
+
+  const handleEditChannelMeta = useCallback(
+    (channelId: string, groupId: string) => {
+      onPressEditChannelMeta(channelId, groupId, true);
+    },
+    [onPressEditChannelMeta]
+  );
+
+  const handleSelectRoles = useCallback(
+    (channelId: string, groupId: string, currentReaders: string[]) => {
+      navigation.navigate('GroupSettings', {
+        screen: 'SelectChannelRoles',
+        params: {
+          groupId,
+          selectedRoleIds: currentReaders,
+          returnScreen: 'ChatDetails',
+          returnParams: {
+            chatType: 'channel' as const,
+            chatId: channelId,
+            groupId,
+          },
+        },
+      });
+    },
+    [navigation]
+  );
+
+  const handlePressRole = useCallback(
+    (groupId: string, roleId: string) => {
+      navigation.navigate('GroupSettings', {
+        screen: 'EditRole',
+        params: { groupId, roleId },
+      });
+    },
+    [navigation]
+  );
+
+  const inviteSheet = !isWindowNarrow && (
+    <InviteUsersSheet
+      open={inviteSheetGroup !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setInviteSheetGroup(null);
+        }
+      }}
+      groupId={inviteSheetGroup ?? undefined}
+      onInviteComplete={() => setInviteSheetGroup(null)}
+    />
+  );
+
+  if (chatType === 'channel') {
+    return (
+      <ForwardGroupSheetProvider>
+        <ChatOptionsProvider
+          key={`channel-${chatId}`}
+          initialChat={{ type: 'channel', id: chatId }}
+          onPressInvite={handleInvitePressed}
+          {...chatSettingsNav}
+        >
+          <ChannelDetailsScreenView
+            onEditChannelMeta={handleEditChannelMeta}
+            onSelectRoles={handleSelectRoles}
+            onPressRole={handlePressRole}
+            selectedRoleIds={selectedRoleIds}
+            createdRoleId={createdRoleId}
+            createdRoleTitle={createdRoleTitle}
+          />
+          {inviteSheet}
+        </ChatOptionsProvider>
+      </ForwardGroupSheetProvider>
+    );
+  }
 
   return (
     <ForwardGroupSheetProvider>
@@ -73,27 +147,16 @@ export function ChatDetailsScreen(props: Props) {
           id: chatId,
         }}
         onPressInvite={handleInvitePressed}
-        {...useChatSettingsNavigation()}
+        {...chatSettingsNav}
       >
-        <ChatDetailsScreenView />
-        {!isWindowNarrow && (
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={(open) => {
-              if (!open) {
-                setInviteSheetGroup(null);
-              }
-            }}
-            groupId={inviteSheetGroup ?? undefined}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-          />
-        )}
+        <GroupDetailsScreenView />
+        {inviteSheet}
       </ChatOptionsProvider>
     </ForwardGroupSheetProvider>
   );
 }
 
-function ChatDetailsScreenView() {
+function GroupDetailsScreenView() {
   const {
     params: { chatType, chatId },
   } = useRoute<RootStackRouteProp<'ChatDetails'>>();
