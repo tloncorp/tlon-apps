@@ -107,7 +107,7 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
   });
 });
 
-test('should navigate to channel privacy settings from channel details', async ({
+test('should display inline channel permissions on channel details', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -121,24 +121,16 @@ test('should navigate to channel privacy settings from channel details', async (
   await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
-  // Click on Privacy setting
-  await page.getByTestId('ChannelPrivacy').click();
+  // Verify inline permissions section is visible (no separate screen navigation)
+  await expect(page.getByText('Permissions')).toBeVisible({ timeout: 5000 });
 
-  // Verify we're on the channel privacy screen (now a separate screen)
-  await expect(page.getByText('Channel permissions')).toBeVisible({
-    timeout: 5000,
-  });
-  // The privacy toggle should be visible
+  // The privacy toggle should be visible inline
   await expect(page.getByTestId('PrivateChannelToggle')).toBeVisible({
-    timeout: 5000,
-  });
-  // Save button should be visible
-  await expect(page.getByTestId('ChannelPrivacySaveButton')).toBeVisible({
     timeout: 5000,
   });
 });
 
-test('channel privacy back button returns to channel details', async ({
+test('inline channel permissions toggle and save', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -152,33 +144,35 @@ test('channel privacy back button returns to channel details', async ({
   await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
-  // Verify sidebar shows group channels (not Home sidebar)
+  // Verify sidebar shows group channels
   await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
     timeout: 5000,
   });
 
-  // Click on Privacy setting
-  await page.getByTestId('ChannelPrivacy').click();
+  // Toggle custom permissions on
+  await page.getByTestId('PrivateChannelToggle').click();
 
-  // Verify we're on the channel privacy screen
-  await expect(page.getByText('Channel permissions')).toBeVisible({
+  // Verify permission table appears with role rows
+  await expect(page.getByTestId('ReadToggle-Admin')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(page.getByTestId('ReadToggle-Members')).toBeVisible({
     timeout: 5000,
   });
 
-  // Verify sidebar still shows group channels
-  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+  // Save button should appear after toggling
+  await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({
     timeout: 5000,
   });
 
-  // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  // Save permissions
+  await page.getByTestId('SavePermissionsButton').click();
+  await page.waitForTimeout(2000);
 
-  // Verify we're back on channel details
+  // Verify we're still on channel details with sidebar intact
   await expect(page.getByText('Channel info')).toBeVisible({
     timeout: 5000,
   });
-
-  // Verify sidebar still shows group channels after navigating back
   await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
     timeout: 5000,
   });
