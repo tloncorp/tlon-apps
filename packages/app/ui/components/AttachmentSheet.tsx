@@ -248,7 +248,7 @@ export default function AttachmentSheet({
       })();
       const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: audioFilePath,
+        localUri: filePathToFileUri(audioFilePath),
         size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
@@ -524,4 +524,15 @@ function useAudioRecorderController({
     present: () => setIsSheetOpen(true),
     dismiss: () => setIsSheetOpen(false),
   };
+}
+
+function filePathToFileUri(filePath: string) {
+  try {
+    // if this is already a valid URI, return it as-is
+    return new URL(filePath).toString();
+  } catch {
+    // otherwise, assume it's a file path and convert to file URI
+    // if there was some other kind of error, this will likely also fail, but we'll let that error propagate
+    return new URL(`file://${filePath}`).toString();
+  }
 }
