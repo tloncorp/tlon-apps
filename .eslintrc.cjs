@@ -20,6 +20,65 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
+  overrides: [
+    {
+      files: ['packages/api/src/**/*.{ts,tsx}'],
+      excludedFiles: [
+        'packages/api/src/**/__tests__/**',
+        'packages/api/src/**/test/**',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['@tloncorp/*'],
+                message:
+                  'API package boundaries: imports from @tloncorp/* are not allowed.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ['packages/api/src/**/*.{ts,tsx}'],
+      excludedFiles: [
+        'packages/api/src/**/__tests__/**',
+        'packages/api/src/**/test/**',
+        'packages/api/src/client/systemContactsApi.native.ts',
+        'packages/api/src/client/upload.ts',
+        'packages/api/src/types/attachment.ts',
+        'packages/api/src/urbit/settings.ts',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['@tloncorp/*'],
+                message:
+                  'API package boundaries: imports from @tloncorp/* are not allowed.',
+              },
+              {
+                group: [
+                  'react',
+                  'expo-*',
+                  'tamagui',
+                  'zustand',
+                  '@aws-sdk/*',
+                ],
+                message:
+                  'API core boundaries: runtime/UI adapter dependencies must live outside API core.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
   rules: {
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',

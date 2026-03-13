@@ -1,6 +1,6 @@
 import { da, render } from '@urbit/aura';
 
-import * as db from '@tloncorp/shared/db';
+import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';

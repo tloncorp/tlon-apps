@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
+    "lint:api-boundaries": "bash ./bin/check-api-boundaries.sh",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
     "build:web": "pnpm --filter 'tlon-web' build",
@@ -27,7 +28,7 @@
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild && pnpm run -r test run -u",
     "test:ci": "npm rebuild && pnpm run -r test run",
-    "lint:all": "pnpm -r lint"
+    "lint:all": "pnpm run lint:api-boundaries && pnpm -r lint"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"

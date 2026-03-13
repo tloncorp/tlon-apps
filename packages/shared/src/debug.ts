@@ -1,3 +1,4 @@
+import { configureLoggerFactory as configureApiLoggerFactory } from '@tloncorp/api/api/logger';
 import { useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';
@@ -76,6 +77,8 @@ interface DebugStore {
   ) => void;
   initializeErrorLogger: (errorLoggerInput: ErrorLoggerStub) => void;
 }
+
+configureApiLoggerFactory((tag, enabled) => createDevLogger(tag, enabled));
 
 export const useDebugStore = create<DebugStore>(
   persist(

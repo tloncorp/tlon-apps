@@ -1,8 +1,8 @@
 import { da, render } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type * as db from '../types/models';
+import { createDevLogger } from './logger';
 import { IMAGE_URL_REGEX } from '../lib/utils';
 import {
   PlaintextPreviewConfig,

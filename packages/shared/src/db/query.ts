@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm';
 
-import { queryClient } from '@tloncorp/api';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { startTrace } from '../perf';
+import { queryClient } from '../store/reactQuery';
 import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { TableName } from './types';
