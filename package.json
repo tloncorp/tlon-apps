@@ -70,6 +70,7 @@
       "expo@52.0.47": "patches/expo@52.0.47.patch",
       "expo-background-task@0.1.4": "patches/expo-background-task@0.1.4.patch",
       "expo-localization@16.0.1": "patches/expo-localization@16.0.1.patch",
+      "expo-share-intent@3.2.3": "patches/expo-share-intent@3.2.3.patch",
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch"
     },
     "allowNonAppliedPatches": true,

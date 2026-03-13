@@ -1,0 +1,39 @@
+diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/ios/ShareExtensionViewController.swift
+index 1234567..89abcde 100644
+--- a/plugin/build/ios/ShareExtensionViewController.swift
++++ b/plugin/build/ios/ShareExtensionViewController.swift
+@@ -13,6 +13,7 @@
+   let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
+   let shareProtocol = "<SCHEME>"
+   let sharedKey = "<SCHEME>ShareKey"
++  private let loadingIndicator = UIActivityIndicatorView(style: .large)
+   var sharedMedia: [SharedMediaFile] = []
+   var sharedWebUrl: [WebUrl] = []
+   var sharedText: [String] = []
+@@ -26,6 +27,7 @@
+ 
+   override func viewDidLoad() {
+     super.viewDidLoad()
++    setupLoadingIndicator()
+   }
+ 
+   override func viewDidAppear(_ animated: Bool) {
+@@ -382,6 +384,18 @@
+     case text
+     case weburl
+     case file
++  }
++
++  private func setupLoadingIndicator() {
++    view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
++    loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
++    loadingIndicator.hidesWhenStopped = false
++    view.addSubview(loadingIndicator)
++    NSLayoutConstraint.activate([
++      loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++      loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
++    ])
++    loadingIndicator.startAnimating()
+   }
+ 
+   func getExtension(from url: URL, type: SharedMediaType) -> String {
