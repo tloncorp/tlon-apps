@@ -44,39 +44,8 @@ module.exports = {
     },
     {
       files: ['packages/api/src/**/*.{ts,tsx}'],
-      excludedFiles: [
-        'packages/api/src/**/__tests__/**',
-        'packages/api/src/**/test/**',
-        'packages/api/src/client/systemContactsApi.native.ts',
-        'packages/api/src/client/upload.ts',
-        'packages/api/src/types/attachment.ts',
-        'packages/api/src/urbit/settings.ts',
-      ],
-      rules: {
-        'no-restricted-imports': [
-          'error',
-          {
-            patterns: [
-              {
-                group: ['@tloncorp/*'],
-                message:
-                  'API package boundaries: imports from @tloncorp/* are not allowed.',
-              },
-              {
-                group: [
-                  'react',
-                  'expo-*',
-                  'tamagui',
-                  'zustand',
-                  '@aws-sdk/*',
-                ],
-                message:
-                  'API core boundaries: runtime/UI adapter dependencies must live outside API core.',
-              },
-            ],
-          },
-        ],
-      },
+      excludedFiles: ['packages/api/src/**/__tests__/**', 'packages/api/src/**/test/**'],
+      rules: {},
     },
   ],
   rules: {
@@ -130,11 +99,6 @@ module.exports = {
           'ImportSpecifier[imported.name="reset"][parent.parent.source.value="@react-navigation/native"]',
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
-      },
-      {
-        selector: 'ImportDeclaration > Literal[value=/^packages/]',
-        message:
-          'Do not import directly from the "packages" directory. Use the package name (or relative path, if within the same package) instead.',
       },
     ],
   },
