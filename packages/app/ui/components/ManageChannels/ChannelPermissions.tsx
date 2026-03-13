@@ -97,12 +97,13 @@ export function RoleChip({
 }
 
 const checkboxColumnWidth = 75;
-const actionsColumnWidth = 75;
 
 export function PermissionTable({
   groupRoles,
+  onPressRole,
 }: {
   groupRoles: db.GroupRole[];
+  onPressRole?: (roleId: string) => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -216,9 +217,8 @@ export function PermissionTable({
         </Text>
         <PermissionTableHeaderCell>Read</PermissionTableHeaderCell>
         <PermissionTableHeaderCell>Write</PermissionTableHeaderCell>
-        <PermissionTableHeaderCell width={actionsColumnWidth}>
-          Remove
-        </PermissionTableHeaderCell>
+        <PermissionTableHeaderCell>Edit</PermissionTableHeaderCell>
+        <PermissionTableHeaderCell>Remove</PermissionTableHeaderCell>
       </XStack>
       <YStack>
         {displayedRoles.map((role, index) => (
@@ -236,6 +236,7 @@ export function PermissionTable({
               onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
               onDeleteRole={() => handleDeleteRole(role.value)}
+              onPressRole={onPressRole ? () => onPressRole(role.value) : undefined}
             />
           </YStack>
         ))}
@@ -273,6 +274,7 @@ function PermissionTableRow({
   onToggleRead,
   onToggleWrite,
   onDeleteRole,
+  onPressRole,
 }: {
   role: RoleOption;
   canRead: boolean;
@@ -280,9 +282,11 @@ function PermissionTableRow({
   onToggleRead: () => void;
   onToggleWrite: () => void;
   onDeleteRole: () => void;
+  onPressRole?: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
+  const isTappable = onPressRole && !isMember && !isAdmin;
 
   return (
     <XStack width="100%" alignItems="stretch" flex={1} height={68}>
@@ -316,7 +320,17 @@ function PermissionTableRow({
           </Pressable>
         )}
       </PermissionTableControlCell>
-      <PermissionTableControlCell width={actionsColumnWidth}>
+      <PermissionTableControlCell>
+        {isTappable ? (
+          <IconButton
+            onPress={onPressRole}
+            testID={`EditRole-${role.label}`}
+          >
+            <Icon type="Draw" size="$m" />
+          </IconButton>
+        ) : null}
+      </PermissionTableControlCell>
+      <PermissionTableControlCell>
         {role.value !== 'admin' ? (
           <IconButton
             onPress={onDeleteRole}

@@ -81,6 +81,27 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     [groupRoles]
   );
 
+  const joinedMemberIds = useMemo(
+    () =>
+      groupMembers
+        .filter((m) => m.status !== 'invited')
+        .map((m) => m.contactId),
+    [groupMembers]
+  );
+
+  const allSelected = useMemo(
+    () => joinedMemberIds.every((id) => selectedMembers.includes(id)),
+    [joinedMemberIds, selectedMembers]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedMembers([]);
+    } else {
+      setSelectedMembers([...joinedMemberIds]);
+    }
+  }, [allSelected, joinedMemberIds]);
+
   const handleToggleMember = useCallback(
     (member: db.ChatMember) => {
       const contactId = member.contactId;
@@ -138,6 +159,17 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
       <ScreenHeader
         backAction={handleGoBack}
         title={role ? `Select members for ${role.title}` : 'Select members'}
+        rightControls={
+          !searchQuery.trim() ? (
+            <ScreenHeader.TextButton
+              onPress={handleSelectAll}
+              color="$positiveActionText"
+              testID="SelectAllMembers"
+            >
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </ScreenHeader.TextButton>
+          ) : undefined
+        }
       />
       <View paddingHorizontal="$l" paddingBottom="$s">
         <TextInput

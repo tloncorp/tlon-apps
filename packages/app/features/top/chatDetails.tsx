@@ -264,6 +264,7 @@ export interface SettingsSectionProps {
   group?: db.Group | null;
   actionsEnabled: boolean;
   onEditChannelPrivacy?: (channelId: string, groupId: string) => void;
+  hidePermissions?: boolean;
 }
 
 export function SettingsSection({
@@ -272,6 +273,7 @@ export function SettingsSection({
   group,
   actionsEnabled,
   onEditChannelPrivacy,
+  hidePermissions,
 }: SettingsSectionProps) {
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
@@ -380,6 +382,9 @@ export function SettingsSection({
     }
 
     if (entityType === 'channel' && channel) {
+      if (hidePermissions) {
+        return [notificationAction];
+      }
       const isPrivate =
         (channel.readerRoles?.length ?? 0) > 0 ||
         (channel.writerRoles?.length ?? 0) > 0;
@@ -409,6 +414,7 @@ export function SettingsSection({
     handlePressManageChannels,
     handlePressEditChannelPrivacy,
     groupRoles,
+    hidePermissions,
   ]);
 
   return (

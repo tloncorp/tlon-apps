@@ -203,6 +203,15 @@ export type RoleSelectionReturn =
         groupId: string;
         fromChatDetails?: boolean;
       };
+    }
+  | {
+      returnScreen: 'ChannelInfo';
+      returnParams: {
+        chatType: 'group' | 'channel';
+        chatId: string;
+        groupId: string;
+        fromChatDetails?: boolean;
+      };
     };
 
 export type GroupSettingsStackParamList = {
@@ -216,6 +225,9 @@ export type GroupSettingsStackParamList = {
     chatId: string;
     groupId: string;
     fromChatDetails?: boolean;
+    selectedRoleIds?: string[];
+    createdRoleId?: string;
+    createdRoleTitle?: string;
   };
   EditChannelMeta: {
     channelId: string;
@@ -282,6 +294,7 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     selectedRoleIds: string[];
     createdRoleId?: string;
+    createdRoleTitle?: string;
   } & RoleSelectionReturn;
   ChatVolume: {
     chatType: 'group' | 'channel';

@@ -229,6 +229,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
               navigation.navigate(returnScreen, {
                 ...returnParams,
                 createdRoleId: newRoleId,
+                createdRoleTitle: data.title,
               } as GroupSettingsStackParamList['SelectChannelRoles']);
             }
             return;
