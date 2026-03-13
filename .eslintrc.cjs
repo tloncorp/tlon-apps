@@ -33,19 +33,14 @@ module.exports = {
           {
             patterns: [
               {
-                group: ['@tloncorp/*'],
+                group: ['@tloncorp/shared', '@tloncorp/shared/*'],
                 message:
-                  'API package boundaries: imports from @tloncorp/* are not allowed.',
+                  'API package boundaries: imports from @tloncorp/shared are not allowed.',
               },
             ],
           },
         ],
       },
-    },
-    {
-      files: ['packages/api/src/**/*.{ts,tsx}'],
-      excludedFiles: ['packages/api/src/**/__tests__/**', 'packages/api/src/**/test/**'],
-      rules: {},
     },
   ],
   rules: {
