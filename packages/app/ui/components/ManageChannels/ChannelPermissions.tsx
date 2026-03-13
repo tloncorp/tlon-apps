@@ -3,7 +3,6 @@ import { Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Platform, Switch } from 'react-native';
-import { Pressable as GHPressable } from 'react-native-gesture-handler';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RadioControl } from '../Form';
@@ -48,14 +47,14 @@ export function PrivateChannelToggle({
         // pointerEvents="none" to make it purely visual, while Pressable handles
         // all touch interaction. This fixes Switch tap detection issues in sheets
         // on physical Android devices.
-        <GHPressable
+        <Pressable
           onPress={handleToggle}
           testID="PrivateChannelTogglePressable"
         >
           <View pointerEvents="none">
             <Switch value={isPrivate} testID="PrivateChannelToggle" />
           </View>
-        </GHPressable>
+        </Pressable>
       ) : (
         <Switch
           value={isPrivate}
@@ -89,9 +88,9 @@ export function RoleChip({
         {role.label}
       </Text>
       {onRemove && (
-        <GHPressable onPress={onRemove} testID={`RemoveRole-${role.label}`}>
+        <Pressable onPress={onRemove} testID={`RemoveRole-${role.label}`}>
           <Icon type="Close" size="$s" color="$positiveActionText" />
-        </GHPressable>
+        </Pressable>
       )}
     </XStack>
   );
@@ -292,9 +291,9 @@ function PermissionTableRow({
       </YStack>
       <PermissionTableControlCell>
         {isMember ? (
-          <GHPressable onPress={onToggleRead} testID={`ReadToggle-${role.label}`}>
+          <Pressable onPress={onToggleRead} testID={`ReadToggle-${role.label}`}>
             <RadioControl checked={canRead} />
-          </GHPressable>
+          </Pressable>
         ) : (
           <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
         )}
@@ -307,12 +306,12 @@ function PermissionTableRow({
             testID={`WriteToggle-${role.label}`}
           />
         ) : (
-          <GHPressable
+          <Pressable
             onPress={onToggleWrite}
             testID={`WriteToggle-${role.label}`}
           >
             <RadioControl checked={canWrite} />
-          </GHPressable>
+          </Pressable>
         )}
       </PermissionTableControlCell>
       <PermissionTableControlCell width={actionsColumnWidth}>
@@ -349,4 +348,3 @@ function PermissionTableControlCell({
     </XStack>
   );
 }
-
