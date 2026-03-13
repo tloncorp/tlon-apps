@@ -301,13 +301,13 @@ export function ChannelDetailsScreenView({
             createdRoleId={createdRoleId}
             createdRoleTitle={createdRoleTitle}
             onSelectRoles={
-              onSelectRoles
+              actionsEnabled && onSelectRoles
                 ? (currentReaders) =>
                     onSelectRoles(channel.id, channel.groupId!, currentReaders)
                 : undefined
             }
             onPressRole={
-              onPressRole
+              actionsEnabled && onPressRole
                 ? (roleId) => onPressRole(channel.groupId!, roleId)
                 : undefined
             }
@@ -494,6 +494,7 @@ function InlineChannelPermissions({
           <PermissionTable
             groupRoles={augmentedRoles}
             onPressRole={onPressRole}
+            disabled={!actionsEnabled}
           />
           {isPrivate && actionsEnabled && onSelectRoles && (
             <Button onPress={handleSelectRoles} label="Add roles" />

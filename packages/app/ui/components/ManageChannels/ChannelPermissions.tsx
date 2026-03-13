@@ -101,9 +101,11 @@ const checkboxColumnWidth = 75;
 export function PermissionTable({
   groupRoles,
   onPressRole,
+  disabled,
 }: {
   groupRoles: db.GroupRole[];
   onPressRole?: (roleId: string) => void;
+  disabled?: boolean;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -233,10 +235,10 @@ export function PermissionTable({
               role={role}
               canRead={readers.includes(role.value)}
               canWrite={writers.includes(role.value)}
-              onToggleRead={() => handleToggleReader(role.value)}
-              onToggleWrite={() => handleToggleWriter(role.value)}
-              onDeleteRole={() => handleDeleteRole(role.value)}
-              onPressRole={onPressRole ? () => onPressRole(role.value) : undefined}
+              onToggleRead={disabled ? undefined : () => handleToggleReader(role.value)}
+              onToggleWrite={disabled ? undefined : () => handleToggleWriter(role.value)}
+              onDeleteRole={disabled ? undefined : () => handleDeleteRole(role.value)}
+              onPressRole={disabled || !onPressRole ? undefined : () => onPressRole(role.value)}
             />
           </YStack>
         ))}
@@ -279,9 +281,9 @@ function PermissionTableRow({
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
-  onToggleRead: () => void;
-  onToggleWrite: () => void;
-  onDeleteRole: () => void;
+  onToggleRead?: () => void;
+  onToggleWrite?: () => void;
+  onDeleteRole?: () => void;
   onPressRole?: () => void;
 }) {
   const isAdmin = role.value === 'admin';
@@ -296,28 +298,28 @@ function PermissionTableRow({
         </Text>
       </YStack>
       <PermissionTableControlCell>
-        {isMember ? (
+        {isMember && onToggleRead ? (
           <Pressable onPress={onToggleRead} testID={`ReadToggle-${role.label}`}>
             <RadioControl checked={canRead} />
           </Pressable>
         ) : (
-          <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
+          <RadioControl checked={canRead} disabled testID={`ReadToggle-${role.label}`} />
         )}
       </PermissionTableControlCell>
       <PermissionTableControlCell>
-        {isAdmin ? (
-          <RadioControl
-            checked={canWrite}
-            disabled
-            testID={`WriteToggle-${role.label}`}
-          />
-        ) : (
+        {!isAdmin && onToggleWrite ? (
           <Pressable
             onPress={onToggleWrite}
             testID={`WriteToggle-${role.label}`}
           >
             <RadioControl checked={canWrite} />
           </Pressable>
+        ) : (
+          <RadioControl
+            checked={canWrite}
+            disabled
+            testID={`WriteToggle-${role.label}`}
+          />
         )}
       </PermissionTableControlCell>
       <PermissionTableControlCell>
@@ -331,7 +333,7 @@ function PermissionTableRow({
         ) : null}
       </PermissionTableControlCell>
       <PermissionTableControlCell>
-        {role.value !== 'admin' ? (
+        {role.value !== 'admin' && onDeleteRole ? (
           <IconButton
             onPress={onDeleteRole}
             testID={`RemoveRole-${role.label}`}
