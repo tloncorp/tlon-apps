@@ -809,7 +809,8 @@ export async function deleteChannel(
 export async function setChannelPermissions(
   page: Page,
   readerRoles?: string[],
-  writerRoles?: string[]
+  writerRoles?: string[],
+  keepMembers?: boolean
 ) {
   if (readerRoles && readerRoles.length > 0) {
     const privateToggle = page.getByTestId('PrivateChannelToggle');
@@ -833,7 +834,7 @@ export async function setChannelPermissions(
     }
 
     // Deselect Members if pre-selected and not in the requested roles
-    if (!readerRoles.some((r) => r.toLowerCase() === 'members')) {
+    if (!keepMembers && !readerRoles.some((r) => r.toLowerCase() === 'members')) {
       const sheet = page.getByRole('dialog');
       const membersOption = sheet.getByText('Members', { exact: true });
       if (await membersOption.isVisible({ timeout: 1000 })) {

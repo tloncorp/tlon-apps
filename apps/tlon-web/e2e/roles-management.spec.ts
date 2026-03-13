@@ -276,3 +276,132 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Verify role count is back to 2 (Admin + virtual Members role)
   await helpers.verifyElementCount(page, 'GroupRoles', 2);
 });
+
+test('should persist role permissions after save and reopen', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(page);
+
+  // Handle welcome message if present
+  if (await page.getByText('Welcome to your group!').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  }
+
+  // Navigate back to Home and verify group creation
+  if (await page.getByTestId('HomeNavIcon').isVisible()) {
+    await helpers.navigateBack(page);
+  } else {
+    await helpers.navigateBack(page, 1);
+  }
+
+  if (await page.getByText('Home').isVisible()) {
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await page.getByText('Untitled group').first().click();
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+  }
+
+  // Open group settings and create a role
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupRoles').click();
+
+  await helpers.createRole(page, 'Writer role', 'Role with write access');
+
+  await helpers.navigateBack(page);
+
+  // Navigate to Channels and edit the General channel
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupChannels').click();
+
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible();
+  const generalChannel = page.getByTestId(/^ChannelItem-General-/);
+  await expect(generalChannel).toBeVisible({ timeout: 5000 });
+  await generalChannel.getByTestId('EditChannelButton').first().click();
+  await expect(page.getByText('Channel settings')).toBeVisible();
+
+  // Set permissions: keep Members selected, add "Writer role" with read+write
+  await helpers.setChannelPermissions(
+    page,
+    ['Writer role'],
+    ['Writer role'],
+    true // keepMembers — exercises the Members + specific role code path
+  );
+
+  // Verify Members is still visible as a role chip
+  await expect(page.getByText('Members', { exact: true }).first()).toBeVisible();
+
+  // Uncheck write for Members (so Members = read-only, Writer role = read+write)
+  const membersWriteToggle = page.getByTestId('WriteToggle-Members');
+  await expect(membersWriteToggle).toBeVisible();
+  // Members starts with write enabled (since MEMBERS_MARKER is in writers by default)
+  // Click to disable write for Members
+  await membersWriteToggle.click();
+
+  // Verify Writer role has write enabled
+  const writerRoleWriteToggle = page.getByTestId('WriteToggle-Writer role');
+  await expect(writerRoleWriteToggle).toBeVisible();
+  await expect(writerRoleWriteToggle.getByRole('img')).toBeVisible();
+
+  // Save — handleSubmit awaits updateChannel then navigates back automatically
+  await page.getByTestId('ChannelSettingsSaveButton').click();
+  await page.waitForTimeout(2000);
+
+  // Navigate back to group settings (Save auto-navigates to Channels list)
+  await helpers.navigateBack(page);
+  await expect(page.getByText('Group Info')).toBeVisible({ timeout: 10000 });
+
+  // Navigate to Channels to re-open
+  await page.getByTestId('GroupChannels').click();
+
+  // Re-open the same channel's edit screen
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible({ timeout: 5000 });
+  const generalChannelAgain = page.getByTestId(/^ChannelItem-General-/);
+  await expect(generalChannelAgain).toBeVisible({ timeout: 5000 });
+  await generalChannelAgain.getByTestId('EditChannelButton').first().click();
+  await expect(page.getByText('Channel settings')).toBeVisible();
+
+  // Verify "Writer role" chip is still visible in the permissions section
+  await expect(page.getByText('Writer role', { exact: true }).first()).toBeVisible();
+
+  // Verify Members is still visible
+  await expect(page.getByText('Members', { exact: true }).first()).toBeVisible();
+
+  // Verify "Writer role" still has write permission (checkmark visible)
+  const writerRoleWriteToggleAfter = page.getByTestId('WriteToggle-Writer role');
+  await expect(writerRoleWriteToggleAfter).toBeVisible();
+  await expect(writerRoleWriteToggleAfter.getByRole('img')).toBeVisible();
+
+  // Verify "Writer role" has read permission
+  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
+
+  // Verify Members write is still unchecked (read-only) after reopen
+  const membersWriteToggleAfter = page.getByTestId('WriteToggle-Members');
+  await expect(membersWriteToggleAfter).toBeVisible();
+  // Members write toggle should NOT have a checkmark (we unchecked it before save)
+  await expect(membersWriteToggleAfter.getByRole('img')).not.toBeVisible();
+
+  // Verify writer-only roles survive opening and saving from the role picker
+  await page.getByText('Add roles').click();
+  await expect(page.getByText('Search and add roles')).toBeVisible();
+  // "Writer role" should be pre-selected in the picker
+  await page.getByTestId('RoleSelectionSaveButton').click();
+
+  // Verify "Writer role" is still present after saving from picker without changes
+  await expect(page.getByText('Writer role', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role')).toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role').getByRole('img')).toBeVisible();
+
+  // Verify unchecking write doesn't cause the role to vanish from the table
+  await page.getByTestId('WriteToggle-Writer role').click();
+  // Role should still be visible in the table as read-only
+  await expect(page.getByText('Writer role', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
+  // Write toggle should no longer have a checkmark
+  await expect(page.getByTestId('WriteToggle-Writer role').getByRole('img')).not.toBeVisible();
+});

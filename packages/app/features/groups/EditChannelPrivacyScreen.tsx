@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
 
@@ -48,22 +48,28 @@ export function EditChannelPrivacyScreen(props: Props) {
   });
 
   const isPrivate = form.watch('isPrivate');
+  const { isDirty } = form.formState;
+  const channelIdRef = useRef(channel?.id);
 
-  // Reset form when channel data loads
+  // Reset form when channel data loads or channel changes, but not when
+  // background DB updates arrive while the user has unsaved edits
   useEffect(() => {
     if (!channel) return;
-    const defaults = getChannelPrivacyDefaults(channel);
-    if (!selectedRoleIds) {
-      form.reset({
-        isPrivate: defaults.isPrivate,
-        readers: defaults.readers,
-        writers: defaults.writers,
-      });
-    } else {
-      form.setValue('isPrivate', true);
-      form.setValue('writers', defaults.writers);
+    if (channel.id !== channelIdRef.current || !isDirty) {
+      channelIdRef.current = channel.id;
+      const defaults = getChannelPrivacyDefaults(channel);
+      if (!selectedRoleIds) {
+        form.reset({
+          isPrivate: defaults.isPrivate,
+          readers: defaults.readers,
+          writers: defaults.writers,
+        });
+      } else {
+        form.setValue('isPrivate', true);
+        form.setValue('writers', defaults.writers);
+      }
     }
-  }, [channel, selectedRoleIds, form]);
+  }, [channel, selectedRoleIds, form, isDirty]);
 
   // Handle newly created role returned from AddRole screen
   useEffect(() => {
