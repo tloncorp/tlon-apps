@@ -1,5 +1,6 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useInterval } from '@tloncorp/shared/utils/useInterval';
 import { shuffle } from 'lodash';
 import {
   forwardRef,
@@ -108,26 +109,6 @@ export const StrobePostCollectionView: IPostCollectionView = forwardRef(
     return <_StrobePostCollectionView strobeDurationMs={strobeDurationMs} />;
   }
 );
-
-function useInterval(
-  fn: (() => void) | null,
-  intervalMs: number,
-  enabled = true
-) {
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    const handle = setInterval(() => {
-      fnRef.current?.();
-    }, intervalMs);
-    return () => clearInterval(handle);
-  }, [fnRef, intervalMs, enabled]);
-}
 
 function* bag<T>(xs: T[]) {
   const items = [...xs];

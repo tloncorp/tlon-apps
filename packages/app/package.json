@@ -31,6 +31,7 @@
     "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
+    "@shopify/react-native-skia": "*",
     "expo-blur": "*",
     "expo-constants": "*",
     "expo-notifications": "*",
