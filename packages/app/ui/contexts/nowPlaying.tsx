@@ -179,8 +179,8 @@ export function NowPlayingProvider({
             sourceUrl: mediaItemRef.current.url,
             isPlaying: false,
             loadState: 'loaded',
-            currentTime: audioPlayer.currentTime,
-            duration: audioPlayer.duration,
+            currentTime: toSeconds(audioPlayer.currentTime),
+            duration: toSeconds(audioPlayer.duration),
           });
         }
 
@@ -216,15 +216,6 @@ export function NowPlayingProvider({
 
         const isPlaying = status.playing && !status.didJustFinish;
         isPlayingRef.current = isPlaying;
-
-        function toSeconds(expoAudioUnit: number): number {
-          if (Platform.OS === 'web') {
-            // web is in milliseconds!
-            return expoAudioUnit / 1000;
-          } else {
-            return expoAudioUnit;
-          }
-        }
 
         const playback: PlaybackState = status.isLoaded
           ? {
@@ -424,4 +415,13 @@ export function useNowPlayingController({
     status,
     isThisSourceLoaded,
   };
+}
+
+function toSeconds(expoAudioUnit: number): number {
+  if (Platform.OS === 'web') {
+    // web is in milliseconds!
+    return expoAudioUnit / 1000;
+  } else {
+    return expoAudioUnit;
+  }
 }
