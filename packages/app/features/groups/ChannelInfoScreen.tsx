@@ -49,8 +49,6 @@ export function ChannelInfoScreen(props: Props) {
       navigation.navigate('SelectChannelRoles', {
         groupId: gId,
         selectedRoleIds: currentReaders,
-        createdRoleId,
-        createdRoleTitle,
         returnScreen: 'ChannelInfo',
         returnParams: {
           chatType,
@@ -59,7 +57,7 @@ export function ChannelInfoScreen(props: Props) {
         },
       });
     },
-    [navigation, chatType, chatId, createdRoleId, createdRoleTitle]
+    [navigation, chatType, chatId]
   );
 
   const handlePressRole = useCallback(

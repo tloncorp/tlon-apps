@@ -83,8 +83,6 @@ export function ChannelDetailsScreen(props: Props) {
         params: {
           groupId,
           selectedRoleIds: currentReaders,
-          createdRoleId,
-          createdRoleTitle,
           returnScreen: 'ChatDetails',
           returnParams: {
             chatType: 'channel' as const,
@@ -94,7 +92,7 @@ export function ChannelDetailsScreen(props: Props) {
         },
       });
     },
-    [navigation, createdRoleId, createdRoleTitle]
+    [navigation]
   );
 
   const handlePressRole = useCallback(
@@ -398,9 +396,15 @@ function InlineChannelPermissions({
     });
   }, [channel, form]);
 
-  // Handle newly created role returned from AddRole screen
+  // Handle newly created role returned from AddRole screen (consume once)
+  const consumedCreatedRoleRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!createdRoleId) return;
+    if (
+      !createdRoleId ||
+      consumedCreatedRoleRef.current === createdRoleId
+    )
+      return;
+    consumedCreatedRoleRef.current = createdRoleId;
     const currentReaders = form.getValues('readers');
     if (!currentReaders.includes(createdRoleId)) {
       const base = currentReaders.includes('admin')
