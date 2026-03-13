@@ -138,6 +138,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               }}
             />
             <ActionSheet.Action
+              testID="log-in-with-email"
               action={{
                 title: 'Log in with email',
                 action: () => {

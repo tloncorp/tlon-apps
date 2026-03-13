@@ -4,7 +4,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { setupDb } from '@tloncorp/app/lib/nativeDb';
+import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -73,14 +73,46 @@ function useJsHeartbeat(enabled) {
 
 function MainInner(props) {
   const [isDbReady, setIsDbReady] = useState(false);
+  const [dbInitError, setDbInitError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const MAX_ATTEMPTS = 3;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
     async function checkDb() {
-      await setupDb();
-      setIsDbReady(true);
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          await ensureDbReady();
+          if (!cancelled) {
+            setIsDbReady(true);
+          }
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < MAX_ATTEMPTS && !cancelled) {
+            await wait(500 * attempt);
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setDbInitError(lastError);
+      }
     }
+
     checkDb();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  if (dbInitError) {
+    throw dbInitError;
+  }
 
   useEffect(() => {
     async function init() {
