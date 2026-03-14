@@ -31,7 +31,6 @@ export function PrivateChannelToggle({
       justifyContent="space-between"
       alignItems="center"
       gap="$xl"
-      backgroundColor="$secondaryBackground"
       width="100%"
       pointerEvents="auto"
     >
@@ -97,12 +96,17 @@ export function RoleChip({
 }
 
 const checkboxColumnWidth = 75;
-const actionsColumnWidth = 75;
 
 export function PermissionTable({
   groupRoles,
+  onPressRole,
+  disabled,
+  onChange,
 }: {
   groupRoles: db.GroupRole[];
+  onPressRole?: (roleId: string) => void;
+  disabled?: boolean;
+  onChange?: () => void;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
@@ -132,32 +136,27 @@ export function PermissionTable({
       const isCurrentlyReader = readers.includes(roleId);
 
       if (isCurrentlyWriter) {
-        // Remove from writers
         setValue(
           'writers',
           writers.filter((w) => w !== roleId),
           { shouldDirty: true }
         );
       } else {
-        // Add to writers
         setValue('writers', [...writers, roleId], { shouldDirty: true });
-
-        // For Members marker, also ensure it's in readers when enabling write
         if (roleId === MEMBERS_MARKER && !isCurrentlyReader) {
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
+      onChange?.();
     },
-    [writers, readers, setValue]
+    [writers, readers, setValue, onChange]
   );
 
   const handleToggleReader = useCallback(
     (roleId: string) => {
-      // For Members marker, toggle it in/out of readers
       if (roleId === MEMBERS_MARKER) {
         const isCurrentlyReader = readers.includes(roleId);
         if (isCurrentlyReader) {
-          // Remove from both readers and writers
           setValue(
             'readers',
             readers.filter((r) => r !== roleId),
@@ -169,12 +168,12 @@ export function PermissionTable({
             { shouldDirty: true }
           );
         } else {
-          // Add to readers
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
+      onChange?.();
     },
-    [readers, writers, setValue]
+    [readers, writers, setValue, onChange]
   );
 
   const handleDeleteRole = useCallback(
@@ -190,8 +189,9 @@ export function PermissionTable({
         writers.filter((writerId) => writerId !== roleId),
         { shouldDirty: true }
       );
+      onChange?.();
     },
-    [readers, writers, setValue]
+    [readers, writers, setValue, onChange]
   );
 
   if (!isPrivate || displayedRoles.length === 0) return null;
@@ -216,9 +216,8 @@ export function PermissionTable({
         </Text>
         <PermissionTableHeaderCell>Read</PermissionTableHeaderCell>
         <PermissionTableHeaderCell>Write</PermissionTableHeaderCell>
-        <PermissionTableHeaderCell width={actionsColumnWidth}>
-          Remove
-        </PermissionTableHeaderCell>
+        <PermissionTableHeaderCell>Edit</PermissionTableHeaderCell>
+        <PermissionTableHeaderCell>Remove</PermissionTableHeaderCell>
       </XStack>
       <YStack>
         {displayedRoles.map((role, index) => (
@@ -233,9 +232,10 @@ export function PermissionTable({
               role={role}
               canRead={readers.includes(role.value)}
               canWrite={writers.includes(role.value)}
-              onToggleRead={() => handleToggleReader(role.value)}
-              onToggleWrite={() => handleToggleWriter(role.value)}
-              onDeleteRole={() => handleDeleteRole(role.value)}
+              onToggleRead={disabled ? undefined : () => handleToggleReader(role.value)}
+              onToggleWrite={disabled ? undefined : () => handleToggleWriter(role.value)}
+              onDeleteRole={disabled ? undefined : () => handleDeleteRole(role.value)}
+              onPressRole={disabled || !onPressRole ? undefined : () => onPressRole(role.value)}
             />
           </YStack>
         ))}
@@ -273,16 +273,19 @@ function PermissionTableRow({
   onToggleRead,
   onToggleWrite,
   onDeleteRole,
+  onPressRole,
 }: {
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
-  onToggleRead: () => void;
-  onToggleWrite: () => void;
-  onDeleteRole: () => void;
+  onToggleRead?: () => void;
+  onToggleWrite?: () => void;
+  onDeleteRole?: () => void;
+  onPressRole?: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
+  const isTappable = onPressRole && !isMember && !isAdmin;
 
   return (
     <XStack width="100%" alignItems="stretch" flex={1} height={68}>
@@ -292,32 +295,42 @@ function PermissionTableRow({
         </Text>
       </YStack>
       <PermissionTableControlCell>
-        {isMember ? (
+        {isMember && onToggleRead ? (
           <Pressable onPress={onToggleRead} testID={`ReadToggle-${role.label}`}>
             <RadioControl checked={canRead} />
           </Pressable>
         ) : (
-          <RadioControl checked disabled testID={`ReadToggle-${role.label}`} />
+          <RadioControl checked={canRead} disabled testID={`ReadToggle-${role.label}`} />
         )}
       </PermissionTableControlCell>
       <PermissionTableControlCell>
-        {isAdmin ? (
-          <RadioControl
-            checked={canWrite}
-            disabled
-            testID={`WriteToggle-${role.label}`}
-          />
-        ) : (
+        {!isAdmin && onToggleWrite ? (
           <Pressable
             onPress={onToggleWrite}
             testID={`WriteToggle-${role.label}`}
           >
             <RadioControl checked={canWrite} />
           </Pressable>
+        ) : (
+          <RadioControl
+            checked={canWrite}
+            disabled
+            testID={`WriteToggle-${role.label}`}
+          />
         )}
       </PermissionTableControlCell>
-      <PermissionTableControlCell width={actionsColumnWidth}>
-        {role.value !== 'admin' ? (
+      <PermissionTableControlCell>
+        {isTappable ? (
+          <IconButton
+            onPress={onPressRole}
+            testID={`EditRole-${role.label}`}
+          >
+            <Icon type="Draw" size="$m" />
+          </IconButton>
+        ) : null}
+      </PermissionTableControlCell>
+      <PermissionTableControlCell>
+        {role.value !== 'admin' && onDeleteRole ? (
           <IconButton
             onPress={onDeleteRole}
             testID={`RemoveRole-${role.label}`}

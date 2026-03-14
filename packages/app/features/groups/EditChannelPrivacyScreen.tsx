@@ -104,6 +104,16 @@ export function EditChannelPrivacyScreen(props: Props) {
     [form]
   );
 
+  const handlePressRole = useCallback(
+    (roleId: string) => {
+      navigation.navigate('EditRole', {
+        groupId,
+        roleId,
+      });
+    },
+    [navigation, groupId]
+  );
+
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
     navigation.navigate('SelectChannelRoles', {
@@ -170,7 +180,7 @@ export function EditChannelPrivacyScreen(props: Props) {
                 onTogglePrivate={handleTogglePrivate}
               />
             </YStack>
-            <PermissionTable groupRoles={group.roles ?? []} />
+            <PermissionTable groupRoles={group.roles ?? []} onPressRole={handlePressRole} />
             {isPrivate && (
               <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             )}
