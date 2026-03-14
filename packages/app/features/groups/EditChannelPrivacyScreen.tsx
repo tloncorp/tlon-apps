@@ -3,19 +3,21 @@ import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
 
+import { buildSelectChannelRolesParams } from './roleSelectionNavigation';
 import { useChannelEditScreen } from '../../hooks/useChannelEditScreen';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   PermissionTable,
   PrivateChannelToggle,
 } from '../../ui/components/ManageChannels/ChannelPermissions';
+import { PermissionActionButtons } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import {
-  PermissionActionButtons,
-  processFinalPermissions,
-} from '../../ui/components/ManageChannels/ChannelPermissionsContent';
-import {
-  MEMBERS_MARKER,
+  ChannelPrivacyFormSchema,
+  addRoleIdToSelection,
   getChannelPrivacyDefaults,
+  getChannelPrivacyToggleValues,
+  getSelectedRolePermissions,
+  processFinalPermissions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
@@ -39,7 +41,7 @@ export function EditChannelPrivacyScreen(props: Props) {
     channelId,
   });
 
-  const form = useForm({
+  const form = useForm<ChannelPrivacyFormSchema>({
     defaultValues: {
       isPrivate: false,
       readers: [] as string[],
@@ -68,38 +70,31 @@ export function EditChannelPrivacyScreen(props: Props) {
   // Handle newly created role returned from AddRole screen
   useEffect(() => {
     if (!createdRoleId) return;
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId]);
-      form.setValue('isPrivate', true);
-    }
+    form.setValue(
+      'readers',
+      addRoleIdToSelection(form.getValues('readers'), createdRoleId)
+    );
+    form.setValue('isPrivate', true);
   }, [createdRoleId, form]);
 
   // Handle roles selected from SelectChannelRoles screen
   useEffect(() => {
     if (!selectedRoleIds) return;
-    form.setValue('readers', selectedRoleIds);
-    const currentWriters = form.getValues('writers');
-    form.setValue(
-      'writers',
-      currentWriters.filter((w) => selectedRoleIds.includes(w))
+    const { readers, writers } = getSelectedRolePermissions(
+      selectedRoleIds,
+      form.getValues('writers')
     );
+    form.setValue('readers', readers);
+    form.setValue('writers', writers);
     form.setValue('isPrivate', true);
   }, [selectedRoleIds, form]);
 
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
-      form.setValue('isPrivate', value);
-      if (value) {
-        form.setValue('readers', ['admin', MEMBERS_MARKER]);
-        form.setValue('writers', ['admin', MEMBERS_MARKER]);
-      } else {
-        form.setValue('readers', []);
-        form.setValue('writers', []);
-      }
+      const nextValues = getChannelPrivacyToggleValues(value);
+      form.setValue('isPrivate', nextValues.isPrivate);
+      form.setValue('readers', nextValues.readers);
+      form.setValue('writers', nextValues.writers);
     },
     [form]
   );
@@ -115,17 +110,19 @@ export function EditChannelPrivacyScreen(props: Props) {
   );
 
   const handleSelectRoles = useCallback(() => {
-    const currentReaders = form.getValues('readers');
-    navigation.navigate('SelectChannelRoles', {
-      groupId,
-      selectedRoleIds: currentReaders,
-      returnScreen: 'EditChannelPrivacy',
-      returnParams: {
+    navigation.navigate(
+      'SelectChannelRoles',
+      buildSelectChannelRolesParams({
         groupId,
-        channelId,
-        fromChatDetails,
-      },
-    });
+        selectedRoleIds: form.getValues('readers'),
+        returnScreen: 'EditChannelPrivacy',
+        returnParams: {
+          groupId,
+          channelId,
+          fromChatDetails,
+        },
+      })
+    );
   }, [navigation, groupId, channelId, fromChatDetails, form]);
 
   const handleSave = useCallback(() => {
@@ -180,7 +177,10 @@ export function EditChannelPrivacyScreen(props: Props) {
                 onTogglePrivate={handleTogglePrivate}
               />
             </YStack>
-            <PermissionTable groupRoles={group.roles ?? []} onPressRole={handlePressRole} />
+            <PermissionTable
+              groupRoles={group.roles ?? []}
+              onPressRole={handlePressRole}
+            />
             {isPrivate && (
               <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             )}

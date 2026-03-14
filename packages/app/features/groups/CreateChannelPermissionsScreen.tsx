@@ -7,13 +7,17 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
+import { buildSelectChannelRolesParams } from './roleSelectionNavigation';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermissions';
+import { PermissionActionButtons } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import {
-  PermissionActionButtons,
+  ChannelPrivacyFormSchema,
+  addRoleIdToSelection,
+  getCreateChannelPrivacyDefaults,
+  getSelectedRolePermissions,
   processFinalPermissions,
-} from '../../ui/components/ManageChannels/ChannelPermissionsContent';
-import { MEMBERS_MARKER } from '../../ui/components/ManageChannels/channelFormUtils';
+} from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
@@ -35,51 +39,44 @@ export function CreateChannelPermissionsScreen() {
 
   const { data: group } = useGroup({ id: groupId });
 
-  const form = useForm({
-    defaultValues: {
-      title: channelTitle,
-      description: '',
-      isPrivate: true,
-      readers: selectedRoleIds ?? ['admin', MEMBERS_MARKER],
-      writers: ['admin', MEMBERS_MARKER],
-    },
+  const form = useForm<ChannelPrivacyFormSchema>({
+    defaultValues: getCreateChannelPrivacyDefaults(selectedRoleIds),
   });
 
   // Handle newly created role returned from AddRole screen
   useEffect(() => {
     if (!createdRoleId) return;
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId]);
-    }
+    form.setValue(
+      'readers',
+      addRoleIdToSelection(form.getValues('readers'), createdRoleId)
+    );
   }, [createdRoleId, form]);
 
   // Handle roles selected from SelectChannelRoles screen
   useEffect(() => {
     if (!selectedRoleIds) return;
-    form.setValue('readers', selectedRoleIds);
-    const currentWriters = form.getValues('writers');
-    form.setValue(
-      'writers',
-      currentWriters.filter((w) => selectedRoleIds.includes(w))
+    const { readers, writers } = getSelectedRolePermissions(
+      selectedRoleIds,
+      form.getValues('writers')
     );
+    form.setValue('readers', readers);
+    form.setValue('writers', writers);
   }, [selectedRoleIds, form]);
 
   const handleSelectRoles = useCallback(() => {
-    const currentReaders = form.getValues('readers');
-    navigation.navigate('SelectChannelRoles', {
-      groupId,
-      selectedRoleIds: currentReaders,
-      returnScreen: 'CreateChannelPermissions',
-      returnParams: {
+    navigation.navigate(
+      'SelectChannelRoles',
+      buildSelectChannelRolesParams({
         groupId,
-        channelTitle,
-        channelType,
-      },
-    });
+        selectedRoleIds: form.getValues('readers'),
+        returnScreen: 'CreateChannelPermissions',
+        returnParams: {
+          groupId,
+          channelTitle,
+          channelType,
+        },
+      })
+    );
   }, [navigation, groupId, form, channelTitle, channelType]);
 
   const handleCreateChannel = useCallback(() => {

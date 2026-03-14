@@ -9,6 +9,8 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { buildSelectChannelRolesParams } from '../groups/roleSelectionNavigation';
+import { appendCreatedRole } from '../groups/roleSelectionUtils';
 import {
   Button,
   ChatOptionsProvider,
@@ -32,11 +34,13 @@ import {
   PermissionTable,
   PrivateChannelToggle,
 } from '../../ui/components/ManageChannels/ChannelPermissions';
-import { processFinalPermissions } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import {
   ChannelPrivacyFormSchema,
-  MEMBERS_MARKER,
+  addRoleIdToSelection,
   getChannelPrivacyDefaults,
+  getChannelPrivacyToggleValues,
+  getSelectedRolePermissions,
+  processFinalPermissions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
 import {
   ChannelQuickActions,
@@ -80,7 +84,7 @@ export function ChannelDetailsScreen(props: Props) {
     (channelId: string, groupId: string, currentReaders: string[]) => {
       navigation.navigate('GroupSettings', {
         screen: 'SelectChannelRoles',
-        params: {
+        params: buildSelectChannelRolesParams({
           groupId,
           selectedRoleIds: currentReaders,
           returnScreen: 'ChatDetails',
@@ -89,7 +93,7 @@ export function ChannelDetailsScreen(props: Props) {
             chatId: channelId,
             groupId,
           },
-        },
+        }),
       });
     },
     [navigation]
@@ -389,20 +393,15 @@ function InlineChannelPermissions({
   const { updateChannel } = useGroupContext({ groupId: group.id });
 
   // Augment group roles with newly created role that may not be in group data yet
-  const augmentedRoles = useMemo(() => {
-    const roles = group.roles ?? [];
-    if (
-      createdRoleId &&
-      createdRoleTitle &&
-      !roles.some((r) => r.id === createdRoleId)
-    ) {
-      return [
-        ...roles,
-        { id: createdRoleId, title: createdRoleTitle } as db.GroupRole,
-      ];
-    }
-    return roles;
-  }, [group.roles, createdRoleId, createdRoleTitle]);
+  const augmentedRoles = useMemo(
+    () =>
+      appendCreatedRole(
+        group.roles ?? [],
+        createdRoleId,
+        createdRoleTitle
+      ),
+    [group.roles, createdRoleId, createdRoleTitle]
+  );
 
   const form = useForm<ChannelPrivacyFormSchema>({
     defaultValues: {
@@ -456,43 +455,32 @@ function InlineChannelPermissions({
     if (!createdRoleId || consumedCreatedRoleRef.current === createdRoleId)
       return;
     consumedCreatedRoleRef.current = createdRoleId;
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId], { shouldDirty: true });
-      form.setValue('isPrivate', true);
-    }
+    form.setValue(
+      'readers',
+      addRoleIdToSelection(form.getValues('readers'), createdRoleId),
+      { shouldDirty: true }
+    );
+    form.setValue('isPrivate', true, { shouldDirty: true });
   }, [createdRoleId, form]);
 
   // Handle roles selected from SelectChannelRoles screen
   useEffect(() => {
     if (!selectedRoleIds) return;
-    form.setValue('readers', selectedRoleIds, { shouldDirty: true });
-    const currentWriters = form.getValues('writers');
-    form.setValue(
-      'writers',
-      currentWriters.filter((w) => selectedRoleIds.includes(w)),
-      { shouldDirty: true }
+    const { readers, writers } = getSelectedRolePermissions(
+      selectedRoleIds,
+      form.getValues('writers')
     );
+    form.setValue('readers', readers, { shouldDirty: true });
+    form.setValue('writers', writers, { shouldDirty: true });
     form.setValue('isPrivate', true);
   }, [selectedRoleIds, form]);
 
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
-      form.setValue('isPrivate', value, { shouldDirty: true });
-      if (value) {
-        form.setValue('readers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-        form.setValue('writers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-      } else {
-        form.setValue('readers', [], { shouldDirty: true });
-        form.setValue('writers', [], { shouldDirty: true });
-      }
+      const nextValues = getChannelPrivacyToggleValues(value);
+      form.setValue('isPrivate', nextValues.isPrivate, { shouldDirty: true });
+      form.setValue('readers', nextValues.readers, { shouldDirty: true });
+      form.setValue('writers', nextValues.writers, { shouldDirty: true });
     },
     [form]
   );

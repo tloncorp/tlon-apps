@@ -11,6 +11,7 @@ import {
   ChatOptionsProvider,
   ForwardGroupSheetProvider,
 } from '../../ui';
+import { buildSelectChannelRolesParams } from './roleSelectionNavigation';
 import { ChannelDetailsScreenView } from '../top/ChannelDetailsScreen';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'ChannelInfo'>;
@@ -46,16 +47,19 @@ export function ChannelInfoScreen(props: Props) {
 
   const handleSelectRoles = useCallback(
     (channelId: string, gId: string, currentReaders: string[]) => {
-      navigation.navigate('SelectChannelRoles', {
-        groupId: gId,
-        selectedRoleIds: currentReaders,
-        returnScreen: 'ChannelInfo',
-        returnParams: {
-          chatType,
-          chatId,
+      navigation.navigate(
+        'SelectChannelRoles',
+        buildSelectChannelRolesParams({
           groupId: gId,
-        },
-      });
+          selectedRoleIds: currentReaders,
+          returnScreen: 'ChannelInfo',
+          returnParams: {
+            chatType,
+            chatId,
+            groupId: gId,
+          },
+        })
+      );
     },
     [navigation, chatType, chatId]
   );

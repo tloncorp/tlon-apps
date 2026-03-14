@@ -9,6 +9,11 @@ import { View, getTokenValue } from 'tamagui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import {
+  areAllIdsSelected,
+  toggleAllSelectedIds,
+  toggleSelectedIds,
+} from './roleSelectionUtils';
 import { ContactList, ScreenHeader, TextInput } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -90,28 +95,19 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
   );
 
   const allSelected = useMemo(
-    () => joinedMemberIds.every((id) => selectedMembers.includes(id)),
+    () => areAllIdsSelected(joinedMemberIds, selectedMembers),
     [joinedMemberIds, selectedMembers]
   );
 
   const handleSelectAll = useCallback(() => {
-    if (allSelected) {
-      setSelectedMembers([]);
-    } else {
-      setSelectedMembers([...joinedMemberIds]);
-    }
-  }, [allSelected, joinedMemberIds]);
+    setSelectedMembers((prev) => toggleAllSelectedIds(joinedMemberIds, prev));
+  }, [joinedMemberIds]);
 
   const handleToggleMember = useCallback(
     (member: db.ChatMember) => {
-      const contactId = member.contactId;
-      if (selectedMembers.includes(contactId)) {
-        setSelectedMembers(selectedMembers.filter((id) => id !== contactId));
-      } else {
-        setSelectedMembers([...selectedMembers, contactId]);
-      }
+      setSelectedMembers((prev) => toggleSelectedIds(prev, member.contactId));
     },
-    [selectedMembers]
+    []
   );
 
   const handleGoBack = useCallback(() => {

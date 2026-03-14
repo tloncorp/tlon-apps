@@ -1,11 +1,17 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  addRoleIdToSelection,
+  ensureAdminRole,
+  getChannelPrivacyToggleValues,
+  getCreateChannelPrivacyDefaults,
   MEMBERS_MARKER,
   MEMBER_ROLE_OPTION,
   getChannelPrivacyDefaults,
+  getSelectedRolePermissions,
   groupRolesToOptions,
   mapRoleIdsToOptions,
+  processFinalPermissions,
 } from './channelFormUtils';
 
 describe('groupRolesToOptions', () => {
@@ -143,5 +149,107 @@ describe('getChannelPrivacyDefaults', () => {
     const result = getChannelPrivacyDefaults(channel);
     expect(result.writers).toContain('admin');
     expect(result.writers[0]).toBe('admin');
+  });
+});
+
+describe('ensureAdminRole', () => {
+  test('adds admin when missing', () => {
+    expect(ensureAdminRole(['moderator'])).toEqual(['admin', 'moderator']);
+  });
+
+  test('does not duplicate admin when already present', () => {
+    expect(ensureAdminRole(['admin', 'moderator'])).toEqual([
+      'admin',
+      'moderator',
+    ]);
+  });
+});
+
+describe('addRoleIdToSelection', () => {
+  test('adds a created role and preserves admin', () => {
+    expect(addRoleIdToSelection(['moderator'], 'new-role')).toEqual([
+      'admin',
+      'moderator',
+      'new-role',
+    ]);
+  });
+
+  test('returns original ids when created role is missing', () => {
+    expect(addRoleIdToSelection(['moderator'])).toEqual(['moderator']);
+  });
+});
+
+describe('getCreateChannelPrivacyDefaults', () => {
+  test('uses default private roles when no selection is provided', () => {
+    expect(getCreateChannelPrivacyDefaults()).toEqual({
+      isPrivate: true,
+      readers: ['admin', MEMBERS_MARKER],
+      writers: ['admin', MEMBERS_MARKER],
+    });
+  });
+
+  test('uses selected role ids for readers when provided', () => {
+    expect(getCreateChannelPrivacyDefaults(['admin', 'moderator'])).toEqual({
+      isPrivate: true,
+      readers: ['admin', 'moderator'],
+      writers: ['admin', MEMBERS_MARKER],
+    });
+  });
+});
+
+describe('getSelectedRolePermissions', () => {
+  test('filters writers to selected reader roles', () => {
+    expect(
+      getSelectedRolePermissions(['admin', 'moderator'], [
+        'admin',
+        'moderator',
+        'writer-only',
+      ])
+    ).toEqual({
+      readers: ['admin', 'moderator'],
+      writers: ['admin', 'moderator'],
+    });
+  });
+});
+
+describe('getChannelPrivacyToggleValues', () => {
+  test('returns default private values when toggled on', () => {
+    expect(getChannelPrivacyToggleValues(true)).toEqual({
+      isPrivate: true,
+      readers: ['admin', MEMBERS_MARKER],
+      writers: ['admin', MEMBERS_MARKER],
+    });
+  });
+
+  test('returns empty values when toggled off', () => {
+    expect(getChannelPrivacyToggleValues(false)).toEqual({
+      isPrivate: false,
+      readers: [],
+      writers: [],
+    });
+  });
+});
+
+describe('processFinalPermissions', () => {
+  test('serializes members marker to empty arrays', () => {
+    expect(
+      processFinalPermissions(
+        ['admin', MEMBERS_MARKER],
+        ['admin', MEMBERS_MARKER],
+        true
+      )
+    ).toEqual({
+      finalReaders: [],
+      finalWriters: [],
+    });
+  });
+
+  test('returns empty arrays for public channels', () => {
+    expect(
+      processFinalPermissions(['admin', 'moderator'], ['admin'], false)
+    ).toEqual({
+      finalReaders: [],
+      finalWriters: [],
+    });
   });
 });

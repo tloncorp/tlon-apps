@@ -225,6 +225,13 @@ export type RoleSelectionReturn =
       };
     };
 
+export type SelectChannelRolesParams = {
+  groupId: string;
+  selectedRoleIds: string[];
+  createdRoleId?: string;
+  createdRoleTitle?: string;
+} & RoleSelectionReturn;
+
 export type GroupSettingsStackParamList = {
   // Use 'ChannelInfo' instead of 'ChannelDetails' to avoid navigation conflicts.
   // HomeDrawer also has a 'ChatDetails' screen, and React Navigation can get
@@ -301,12 +308,7 @@ export type GroupSettingsStackParamList = {
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };
-  SelectChannelRoles: {
-    groupId: string;
-    selectedRoleIds: string[];
-    createdRoleId?: string;
-    createdRoleTitle?: string;
-  } & RoleSelectionReturn;
+  SelectChannelRoles: SelectChannelRolesParams;
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;

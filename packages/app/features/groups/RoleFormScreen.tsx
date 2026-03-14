@@ -8,7 +8,18 @@ import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { GroupSettingsStackParamList } from '../../navigation/types';
+import {
+  GroupSettingsStackParamList,
+  SelectChannelRolesParams,
+} from '../../navigation/types';
+import {
+  getAddedSelectedIds,
+  getRemovedSelectedIds,
+  hasSelectedIdsChanged,
+} from './roleSelectionUtils';
+import {
+  withCreatedRoleSelection,
+} from './roleSelectionNavigation';
 import {
   ActionSheet,
   Button,
@@ -108,20 +119,9 @@ export function RoleFormScreen({ navigation, route }: Props) {
 
   // Check if there are unsaved changes
   const hasMemberChanges = useMemo(() => {
-    if (!isEditMode) {
-      return selectedMembers.length > 0;
-    }
-
-    const initialSet = new Set(initialMembers);
-    const currentSet = new Set(selectedMembers);
-
-    if (initialSet.size !== currentSet.size) return true;
-
-    for (const id of currentSet) {
-      if (!initialSet.has(id)) return true;
-    }
-
-    return false;
+    return isEditMode
+      ? hasSelectedIdsChanged(initialMembers, selectedMembers)
+      : selectedMembers.length > 0;
   }, [isEditMode, initialMembers, selectedMembers]);
 
   const hasUnsavedChanges = isDirty || hasMemberChanges;
@@ -185,11 +185,10 @@ export function RoleFormScreen({ navigation, route }: Props) {
       try {
         if (isEditMode && role) {
           // Edit existing role
-          const addMembers = selectedMembers.filter(
-            (id) => !initialMembers.includes(id)
-          );
-          const removeMembers = initialMembers.filter(
-            (id) => !selectedMembers.includes(id)
+          const addMembers = getAddedSelectedIds(initialMembers, selectedMembers);
+          const removeMembers = getRemovedSelectedIds(
+            initialMembers,
+            selectedMembers
           );
 
           await updateGroupRole({
@@ -222,16 +221,18 @@ export function RoleFormScreen({ navigation, route }: Props) {
             )
           );
 
-          if ('returnScreen' in route.params && route.params.returnScreen) {
-            const { returnScreen, returnParams } = route.params;
-            // Navigate back with the created role ID (only SelectChannelRoles uses this pattern)
-            if (returnScreen === 'SelectChannelRoles') {
-              navigation.navigate(returnScreen, {
-                ...returnParams,
-                createdRoleId: newRoleId,
-                createdRoleTitle: data.title,
-              } as GroupSettingsStackParamList['SelectChannelRoles']);
-            }
+          if (
+            'returnScreen' in route.params &&
+            route.params.returnScreen === 'SelectChannelRoles'
+          ) {
+            navigation.navigate(
+              'SelectChannelRoles',
+              withCreatedRoleSelection(
+                route.params.returnParams as SelectChannelRolesParams,
+                newRoleId,
+                data.title
+              )
+            );
             return;
           }
         }

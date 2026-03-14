@@ -1,9 +1,4 @@
-import {
-  CommonActions,
-  RouteProp,
-  useNavigation,
-  useRoute,
-} from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGroup } from '@tloncorp/shared';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
@@ -11,13 +6,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
+import {
+  buildAddRoleParamsFromRoleSelection,
+  getRoleSelectionSaveAction,
+} from './roleSelectionNavigation';
+import {
+  areAllIdsSelected,
+  ensureSelectedId,
+  getSelectableRoleOptions,
+  toggleAllSelectedIds,
+  toggleSelectedIds,
+} from './roleSelectionUtils';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { TextInput } from '../../ui/components/Form';
 import { ListItem } from '../../ui/components/ListItem';
-import {
-  MEMBER_ROLE_OPTION,
-  groupRolesToOptions,
-} from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function SelectChannelRolesScreen() {
@@ -44,32 +46,25 @@ export function SelectChannelRolesScreen() {
 
   // Auto-select newly created role when returning from AddRole screen
   useEffect(() => {
-    if (createdRoleId) {
-      setSelectedRoleIds((prev) =>
-        prev.includes(createdRoleId) ? prev : [...prev, createdRoleId]
-      );
-    }
+    setSelectedRoleIds((prev) => ensureSelectedId(prev, createdRoleId));
   }, [createdRoleId]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: group } = useGroup({ id: groupId });
 
-  const allRoles = useMemo(() => {
-    const roles = groupRolesToOptions(group?.roles ?? []).filter(
-      (role) => role.value !== 'admin'
-    );
-
-    // Include newly created role immediately, even before group data refreshes
-    if (
-      createdRoleId &&
-      createdRoleTitle &&
-      !roles.some((r) => r.value === createdRoleId)
-    ) {
-      roles.push({ label: createdRoleTitle, value: createdRoleId });
-    }
-
-    return [...roles, MEMBER_ROLE_OPTION];
-  }, [group?.roles, createdRoleId, createdRoleTitle]);
+  const allRoles = useMemo(
+    () =>
+      getSelectableRoleOptions(
+        group?.roles ?? [],
+        createdRoleId,
+        createdRoleTitle
+      ),
+    [group?.roles, createdRoleId, createdRoleTitle]
+  );
+  const allRoleIds = useMemo(
+    () => allRoles.map((role) => role.value),
+    [allRoles]
+  );
 
   const filteredRoles = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -80,95 +75,30 @@ export function SelectChannelRolesScreen() {
   }, [allRoles, searchQuery]);
 
   const handleToggleRole = useCallback((roleId: string) => {
-    setSelectedRoleIds((prev) => {
-      if (prev.includes(roleId)) {
-        return prev.filter((id) => id !== roleId);
-      } else {
-        return [...prev, roleId];
-      }
-    });
+    setSelectedRoleIds((prev) => toggleSelectedIds(prev, roleId));
   }, []);
 
   const allSelected = useMemo(
-    () => allRoles.every((role) => selectedRoleIds.includes(role.value)),
-    [allRoles, selectedRoleIds]
+    () => areAllIdsSelected(allRoleIds, selectedRoleIds),
+    [allRoleIds, selectedRoleIds]
   );
 
   const handleSelectAll = useCallback(() => {
-    if (allSelected) {
-      // Deselect all (except keep any that aren't in the allRoles list)
-      setSelectedRoleIds((prev) =>
-        prev.filter((id) => !allRoles.some((r) => r.value === id))
-      );
-    } else {
-      setSelectedRoleIds((prev) => {
-        const newIds = new Set(prev);
-        allRoles.forEach((role) => newIds.add(role.value));
-        return Array.from(newIds);
-      });
-    }
-  }, [allRoles, allSelected]);
+    setSelectedRoleIds((prev) => toggleAllSelectedIds(allRoleIds, prev));
+  }, [allRoleIds]);
 
   const handleSave = useCallback(() => {
-    // Ensure admin is always included
-    const finalRoleIds = selectedRoleIds.includes('admin')
-      ? selectedRoleIds
-      : ['admin', ...selectedRoleIds];
-
-    // Navigate back to the return screen with selected roles.
-    // Access returnScreen/returnParams via route.params so TypeScript
-    // can narrow the discriminated union per branch.
-    const params = route.params;
-    switch (params.returnScreen) {
-      case 'CreateChannelPermissions':
-        navigation.navigate(params.returnScreen, {
-          ...params.returnParams,
-          selectedRoleIds: finalRoleIds,
-        });
-        break;
-      case 'EditChannelPrivacy':
-        navigation.navigate(params.returnScreen, {
-          ...params.returnParams,
-          selectedRoleIds: finalRoleIds,
-        });
-        break;
-      case 'ChannelInfo':
-        navigation.navigate(params.returnScreen, {
-          ...params.returnParams,
-          selectedRoleIds: finalRoleIds,
-          createdRoleId: params.createdRoleId,
-          createdRoleTitle: params.createdRoleTitle,
-        });
-        break;
-      case 'ChatDetails':
-        // Navigate across navigators back to RootStack's ChatDetails
-        navigation.dispatch(
-          CommonActions.navigate({
-            name: 'ChatDetails',
-            params: {
-              ...params.returnParams,
-              selectedRoleIds: finalRoleIds,
-              createdRoleId: params.createdRoleId,
-              createdRoleTitle: params.createdRoleTitle,
-            },
-          })
-        );
-        break;
-    }
+    navigation.dispatch(
+      getRoleSelectionSaveAction(route.params, selectedRoleIds)
+    );
   }, [navigation, selectedRoleIds, route.params]);
 
   const handleCreateRole = useCallback(() => {
-    navigation.navigate('AddRole', {
-      groupId,
-      returnScreen: 'SelectChannelRoles',
-      returnParams: {
-        groupId,
-        selectedRoleIds,
-        returnScreen: route.params.returnScreen,
-        returnParams: route.params.returnParams,
-      },
-    });
-  }, [navigation, groupId, selectedRoleIds, route.params]);
+    navigation.navigate(
+      'AddRole',
+      buildAddRoleParamsFromRoleSelection(route.params, selectedRoleIds)
+    );
+  }, [navigation, selectedRoleIds, route.params]);
 
   if (!group) {
     return null;
