@@ -6,7 +6,6 @@ export * from '@tloncorp/api/lib/activity';
 export * from '@tloncorp/api/lib/branch';
 export * from '@tloncorp/api/lib/deeplinks';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';
-export * from './tiptap';
 export * from '@tloncorp/api/lib/hosting';
 export * from './markdown';
 export * from '@tloncorp/api/lib/postContent';
