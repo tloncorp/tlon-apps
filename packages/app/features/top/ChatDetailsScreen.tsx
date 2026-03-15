@@ -302,7 +302,11 @@ function ChatDetailsScreenView() {
             <LeaveActionsSection entityType="group" group={group} />
           ) : null}
           {chatType === 'channel' && channel && channel.groupId && (
-            <LeaveActionsSection entityType="channel" channel={channel} />
+            <LeaveActionsSection
+              entityType="channel"
+              channel={channel}
+              group={group ?? undefined}
+            />
           )}
         </ScrollView>
       )}
