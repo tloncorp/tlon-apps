@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/store';
+import { useChannelVolumeLevel, useGroupVolumeLevel } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { useCallback } from 'react';
 
@@ -80,10 +80,10 @@ function ChatVolumeScreenView({
   const { updateVolume, group, channel } = useChatOptions();
   const isWindowNarrow = useIsWindowNarrow();
 
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
+  const { data: currentChannelVolume } = useChannelVolumeLevel(
     channel?.id ?? ''
   );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
+  const { data: currentGroupVolume } = useGroupVolumeLevel(
     group?.id ?? ''
   );
 

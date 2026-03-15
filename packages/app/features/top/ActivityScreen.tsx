@@ -1,7 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { markGroupRead, resetActivity, useInfiniteBucketedActivity } from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'tamagui';
 
@@ -25,9 +25,9 @@ export function ActivityScreen(props: Props) {
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
 
-  const allFetcher = store.useInfiniteBucketedActivity('all');
-  const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
-  const repliesFetcher = store.useInfiniteBucketedActivity('replies');
+  const allFetcher = useInfiniteBucketedActivity('all');
+  const mentionsFetcher = useInfiniteBucketedActivity('mentions');
+  const repliesFetcher = useInfiniteBucketedActivity('replies');
   const bucketedActivity = useMemo(() => {
     return {
       all: allFetcher,
@@ -49,7 +49,7 @@ export function ActivityScreen(props: Props) {
   }, [isLoading, syncLoadingSubtitle]);
 
   const handleRefreshActivity = useCallback(async () => {
-    return store.resetActivity();
+    return resetActivity();
   }, []);
 
   const handleGoToChannel = useCallback(
@@ -71,7 +71,7 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
-      store.markGroupRead(group.id);
+      markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
         screen: 'GroupMembers',
         params: { groupId: group.id },

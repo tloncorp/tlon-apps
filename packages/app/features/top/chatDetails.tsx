@@ -1,6 +1,6 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { deleteChannel, useBaseVolumeLevel } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -291,7 +291,7 @@ export function SettingsSection({
   const navigateToEditChannelPrivacy =
     onEditChannelPrivacy ?? defaultOnPressEditChannelPrivacy;
 
-  const baseVolumeLevel = store.useBaseVolumeLevel();
+  const baseVolumeLevel = useBaseVolumeLevel();
 
   const volumeSettings =
     entityType === 'group' ? group?.volumeSettings : channel?.volumeSettings;
@@ -501,7 +501,7 @@ export function LeaveActionsSection({
       onLeaveGroup();
     } else if (channel?.groupId) {
       try {
-        await store.deleteChannel({
+        await deleteChannel({
           channelId: channel.id,
           groupId: channel.groupId,
         });

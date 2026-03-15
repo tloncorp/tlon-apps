@@ -2,7 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { uploadAsset, useCalmSettings, useCanUpload, useContacts } from '@tloncorp/shared/store';
 import { useMemo, useState } from 'react';
 import { useCallback } from 'react';
 import { View, isWeb, useTheme } from 'tamagui';
@@ -34,9 +34,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
   const userId = params?.userId || currentUserId;
-  const { data: contacts } = store.useContacts();
+  const { data: contacts } = useContacts();
   const connectionStatus = useShipConnectionStatus(userId);
-  const { data: calmSettings } = store.useCalmSettings();
+  const { data: calmSettings } = useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { resetToDm } = useRootNavigation();
 
@@ -63,7 +63,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
     navigation.navigate('EditProfile', { userId });
   }, [isWindowNarrow, navigation, userId]);
 
-  const canUpload = store.useCanUpload();
+  const canUpload = useCanUpload();
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -106,7 +106,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
       <NavigationProvider onPressGoToDm={handleGoToDm}>
         <AttachmentProvider
           canUpload={canUpload}
-          uploadAsset={store.uploadAsset}
+          uploadAsset={uploadAsset}
         >
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
             <ScreenHeader

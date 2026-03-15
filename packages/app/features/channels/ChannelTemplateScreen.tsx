@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useChannel, useGroups } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -10,8 +10,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChannelTemplate'>;
 
 export function ChannelTemplateScreen(props: Props) {
   const { channelId } = props.route.params;
-  const channelQuery = store.useChannel({ id: channelId });
-  const { data: groups } = store.useGroups({});
+  const channelQuery = useChannel({ id: channelId });
+  const { data: groups } = useGroups({});
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel) => {

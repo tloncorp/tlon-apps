@@ -8,7 +8,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { markInvitesRead } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { SyncPriority, syncQueue, useChannelPreview, useConnectionStatus, useCurrentChats, useGroup, useGroupPreview, usePostReference, usePostWithRelations } from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
@@ -84,12 +84,12 @@ export function ChatListScreenView({
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
-  const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
+  const { data: selectedGroup } = useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
 
-  const { data: chats } = store.useCurrentChats({
+  const { data: chats } = useCurrentChats({
     enabled: isFocused,
   });
   const { performGroupAction } = useGroupActions();
@@ -111,7 +111,7 @@ export function ChatListScreenView({
     [navigation]
   );
 
-  const connStatus = store.useConnectionStatus();
+  const connStatus = useConnectionStatus();
 
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
@@ -213,9 +213,9 @@ export function ChatListScreenView({
   useEffect(() => {
     if (isFocused) {
       setTimeout(() => {
-        store.syncQueue.add(
+        syncQueue.add(
           'markInvitesRead',
-          { priority: store.SyncPriority.Medium },
+          { priority: SyncPriority.Medium },
           async () => {
             markInvitesRead();
           }
@@ -287,11 +287,11 @@ export function ChatListScreenView({
 
   return (
     <RequestsProvider
-      usePostReference={store.usePostReference}
-      useChannel={store.useChannelPreview}
-      usePost={store.usePostWithRelations}
+      usePostReference={usePostReference}
+      useChannel={useChannelPreview}
+      usePost={usePostWithRelations}
       useApp={db.appInfo.useValue}
-      useGroup={store.useGroupPreview}
+      useGroup={useGroupPreview}
     >
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}

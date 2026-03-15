@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { deleteFailedPost, draftKeyFor, retrySendPost, syncThreadPosts, uploadAsset, upsertDmChannel, useCanUpload, usePostWithThreadUnreads } from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -21,15 +21,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 export default function PostScreen(props: Props) {
   const { postId, channelId, authorId } = props.route.params;
   const chatOptionsNavProps = useChatSettingsNavigation();
-  const canUpload = store.useCanUpload();
-  const { data: post, isLoading } = store.usePostWithThreadUnreads({
+  const canUpload = useCanUpload();
+  const { data: post, isLoading } = usePostWithThreadUnreads({
     id: postId,
   });
 
   useEffect(() => {
     // if we don't already have the post in the DB, make sure we sync it
     if (!post && !isLoading) {
-      store.syncThreadPosts({ postId, authorId, channelId });
+      syncThreadPosts({ postId, authorId, channelId });
     }
   }, [post, isLoading, postId, authorId, channelId]);
 
@@ -38,7 +38,7 @@ export default function PostScreen(props: Props) {
       initialChat={{ type: 'channel', id: channelId }}
       {...chatOptionsNavProps}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
         {post && (
           <PostScreenContent
             post={post}
@@ -64,7 +64,7 @@ function PostScreenContent({
   const { group, channel, negotiationStatus, editingPost, setEditingPost } =
     useStore().useChannelContext({
       channelId: channelId,
-      draftKey: store.draftKeyFor.thread({
+      draftKey: draftKeyFor.thread({
         parentPostId: postId,
       }),
     });
@@ -80,7 +80,7 @@ function PostScreenContent({
       if (!channel) {
         throw new Error('Tried to delete message before channel loaded');
       }
-      await store.deleteFailedPost({
+      await deleteFailedPost({
         post,
       });
     },
@@ -92,7 +92,7 @@ function PostScreenContent({
       if (!channel) {
         throw new Error('Tried to retry send before channel loaded');
       }
-      await store.retrySendPost({
+      await retrySendPost({
         channel,
         post,
       });
@@ -111,7 +111,7 @@ function PostScreenContent({
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
+      const dmChannel = await upsertDmChannel({
         participants,
       });
       navigation.navigate('DM', { channelId: dmChannel.id });

@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { schema } from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { updateGroupPrivacy } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
@@ -45,7 +45,7 @@ export function GroupPrivacyScreen(props: Props) {
     (newPrivacy: GroupPrivacy) => {
       if (group && group.privacy !== newPrivacy) {
         triggerHaptic('baseButtonClick');
-        store.updateGroupPrivacy(group, newPrivacy);
+        updateGroupPrivacy(group, newPrivacy);
       }
     },
     [group]

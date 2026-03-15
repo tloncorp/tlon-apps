@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { addContact, removeContactSuggestion, useCalmSettings, useContacts, useSuggestedContacts, useSystemContacts, useUserContacts } from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
@@ -36,11 +36,11 @@ export default function ContactsScreen(props: Props) {
   );
   const currentUser = useCurrentUserId();
 
-  const { data: userContacts } = store.useUserContacts();
-  const { data: contacts } = store.useContacts();
-  const { data: suggestions } = store.useSuggestedContacts();
-  const { data: calmSettings } = store.useCalmSettings();
-  const { data: systemContacts } = store.useSystemContacts();
+  const { data: userContacts } = useUserContacts();
+  const { data: contacts } = useContacts();
+  const { data: suggestions } = useSuggestedContacts();
+  const { data: calmSettings } = useCalmSettings();
+  const { data: systemContacts } = useSystemContacts();
 
   const systemContactsWithoutContactId = useMemo(
     () => systemContacts?.filter((contact) => !contact.contactId),
@@ -55,7 +55,7 @@ export default function ContactsScreen(props: Props) {
   );
 
   const onAddContact = useCallback((contact: db.Contact) => {
-    store.addContact(contact.id);
+    addContact(contact.id);
   }, []);
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
@@ -69,14 +69,14 @@ export default function ContactsScreen(props: Props) {
           text: 'Add Contact',
           style: 'default',
           onPress: () => {
-            store.addContact(contact.id);
+            addContact(contact.id);
           },
         },
         {
           text: 'Decline Suggestion',
           style: 'destructive',
           onPress: () => {
-            store.removeContactSuggestion(contact.id);
+            removeContactSuggestion(contact.id);
           },
         },
       ]);
