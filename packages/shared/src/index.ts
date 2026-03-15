@@ -39,7 +39,6 @@ export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './perf';
 export * from './electrtonAuth';
-export * from '@urbit/aura';
 export * from './store/dbHooks';
 export * from './utils';
 export * as Transcription from './transcription';
