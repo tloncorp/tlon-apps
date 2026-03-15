@@ -57,10 +57,15 @@ export function configureUrbitClient({
     shipUrl: shipUrl,
     verbose: ENABLED_LOGGERS.includes('urbit'),
     fetchFn: apiFetch,
-    onQuitOrReset: (cause) => {
-      sync.handleDiscontinuity({
-        retainChannelStatus: cause === 'subscriptionQuit',
-      });
+    onQuitOrReset: (cause, relevantSubscription) => {
+      const discontinuityParams =
+        cause === 'subscriptionQuit'
+          ? {
+              retainChannelStatus: true,
+              context: `sub quit: ${relevantSubscription}`,
+            }
+          : { retainChannelStatus: false };
+      sync.handleDiscontinuity(discontinuityParams);
     },
     onChannelStatusChange: sync.handleChannelStatusChange,
     getCode: async () => {

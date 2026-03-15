@@ -98,7 +98,10 @@ export namespace PostDataDraft {
    */
   export function revokeBlobUrls(draft: PostDataDraft): void {
     for (const att of draft.attachments) {
-      if (att.type === 'file' && typeof att.localFile === 'string') {
+      if (
+        (att.type === 'file' || att.type === 'video') &&
+        typeof att.localFile === 'string'
+      ) {
         // Only revoke blob: URLs, not file:// or other URLs
         if (att.localFile.startsWith('blob:')) {
           try {

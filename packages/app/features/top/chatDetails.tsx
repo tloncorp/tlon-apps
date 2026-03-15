@@ -370,7 +370,7 @@ export function SettingsSection({
         },
         {
           title: 'Roles',
-          endValue: `${groupRoles?.length ?? 0}`,
+          endValue: `${(groupRoles?.length ?? 0) + 1}`,
           testID: 'GroupRoles',
           disabled: !actionsEnabled,
           onPress: handlePressRoles,

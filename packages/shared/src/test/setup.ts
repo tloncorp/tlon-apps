@@ -11,6 +11,13 @@ const loggers = process.env.ENABLED_LOGGERS?.split(',') ?? [];
 
 addCustomEnabledLoggers(loggers);
 
+vi.mock('../transcription', () => ({
+  transcribeAudioFileWithGlobalCache: vi.fn().mockResolvedValue(null),
+  requestTranscriptionPermissionsIfNeeded: vi
+    .fn()
+    .mockResolvedValue({ status: 'not-granted' }),
+}));
+
 vi.mock('@react-native-firebase/crashlytics', () => {
   return {
     log: vi.fn(),

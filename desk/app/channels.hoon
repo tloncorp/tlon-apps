@@ -1592,40 +1592,33 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
-      [%numbers kind=?(%chat %diary %heap) ship=@ name=@ ~]
+      [?(%numbers %tombstones) kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
     =.  cor
       (emit (tell:plog %dbug ~[>[(spat pole) %waking-up]<] ~))
     =/  =nest:c    [kind.pole host name.pole]
+    ?.  (~(has by v-channels) nest)  cor
     ?.  (can-poke:neg bowl host %channels-server)
-      =/  duration  (~(rad og eny.bowl) ~m15)
+      =/  duration  (add ~h12 (~(rad og eny.bowl) ~h12))
       =/  wait=card
-        [%pass pole %arvo %b %wait :(add now.bowl ~m15 duration)]
+        [%pass pole %arvo %b %wait (add now.bowl duration)]
       =/  =tang
-        ~[>[%cant-poke (spat pole) %fires-in `@dr`(add ~m15 duration)]<]
+        ~[>[%cant-poke (spat pole) %fires-in `@dr`duration]<]
       (emil wait (tell:plog %dbug tang ~) ~)
-    =/  =cage  [%noun !>([%send-sequence-numbers nest])]
-    %-  emil
-    :~  (tell:plog %dbug ~[>[%asking-numbers host nest]<] ~)
-        [%pass pole %agent [host %channels-server] %poke cage]
-    ==
-  ::
-      [%tombstones kind=?(%chat %diary %heap) ship=@ name=@ ~]
-    =/  host=ship  (slav %p ship.pole)
-    =.  cor
-      (emit (tell:plog %dbug ~[>[(spat pole) %waking-up]<] ~))
-    =/  =nest:c    [kind.pole host name.pole]
-    ?.  (can-poke:neg bowl host %channels-server)
-      =/  duration  (~(rad og eny.bowl) ~m15)
-      =/  wait=card
-        [%pass pole %arvo %b %wait :(add now.bowl ~m15 duration)]
-      =/  =tang
-        ~[>[%cant-poke (spat pole) %fires-in `@dr`(add ~m15 duration)]<]
-      (emil wait (tell:plog %dbug tang ~) ~)
-    =/  =cage  [%noun !>([%send-tombstones nest])]
-    %-  emil
-    :~  (tell:plog %dbug ~[>[%asking-tombstones host nest]<] ~)
-        [%pass pole %agent [host %channels-server] %poke cage]
+    ?-  -.pole
+        %numbers
+      =/  =cage  [%noun !>([%send-sequence-numbers nest])]
+      %-  emil
+      :~  (tell:plog %dbug ~[>[%asking-numbers host nest]<] ~)
+          [%pass pole %agent [host %channels-server] %poke cage]
+      ==
+    ::
+        %tombstones
+      =/  =cage  [%noun !>([%send-tombstones nest])]
+      %-  emil
+      :~  (tell:plog %dbug ~[>[%asking-tombstones host nest]<] ~)
+          [%pass pole %agent [host %channels-server] %poke cage]
+      ==
     ==
   ==
 ::
@@ -2471,7 +2464,7 @@
         (max recency.remark.channel id-reply)
       =?  unread-threads.remark.channel
           ?&  ?=(%& -.reply)
-              !=(our.bowl author.reply)
+              !=(our.bowl (get-author-ship:utils author.reply))
               (gth id-reply last-read.remark.channel)
           ==
         (~(put in unread-threads.remark.channel) id-post)
@@ -2644,7 +2637,7 @@
           (lot:on-v-replies:c replies.u.parent `last-read.remark.channel ~)
         |=  [tim=time reply=(may:c v-reply:c)]
         ?&  ?=(%& -.reply)
-            !=(author.reply our.bowl)
+            !=((get-author-ship:utils author.reply) our.bowl)
         ==
       =/  count=@ud  (lent unreads)
       :-  (add sum count)

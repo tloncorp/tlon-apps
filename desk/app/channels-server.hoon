@@ -75,7 +75,7 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       log   ~(. logs [our.bowl /logs])
-      cor   ~(. +> [bowl ~])
+      cor   ~(. +> [bowl ~ ~])
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
@@ -128,11 +128,13 @@
     [cards this]
   --
 ::
-|_  [=bowl:gall cards=(list card)]
-++  abet  [(flop cards) state]
+|_  [=bowl:gall cards=(list card) cards-late=(list card)]
+++  abet  [(weld (flop cards) (flop cards-late)) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
+++  emit-late  |=(=card cor(cards-late [card cards-late]))
+++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
@@ -1007,7 +1009,7 @@
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
+      ?>  |(=(src.bowl our.bowl) =(src.bowl (get-author-ship:utils author.essay.c-post)))
       ?>  =(kind.nest -.kind.essay.c-post)
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
@@ -1029,12 +1031,12 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
-      ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.essay.c-post)) (is-admin:ca-perms src.bowl))
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
@@ -1052,7 +1054,7 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
@@ -1152,7 +1154,7 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.memo.c-reply)
+      ?>  =(src.bowl (get-author-ship:utils author.memo.c-reply))
       ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
@@ -1176,7 +1178,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl author.u.reply)
+      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
       ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
@@ -1195,7 +1197,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.reply)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
@@ -1623,8 +1625,10 @@
     $(effects t.effects)
   ?-  -.effect
       %channels
-    =/  =cage  channel-action+!>(a-channels.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    ::  Run channel effects after normal cards in the same event so the
+    ::  originating post update has time to commit/propagate first.
+    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`a-channels.effect)
+    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
     =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)

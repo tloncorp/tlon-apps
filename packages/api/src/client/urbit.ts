@@ -93,7 +93,10 @@ export interface ClientParams {
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: (params: { mustLogout: boolean }) => void;
-  onQuitOrReset?: (cause: 'subscriptionQuit' | 'reset') => void;
+  onQuitOrReset?: (
+    cause: 'subscriptionQuit' | 'reset',
+    relevantSubscription?: string
+  ) => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
 }
 
@@ -261,7 +264,7 @@ export async function subscribe<T>(
       },
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
-        config.onQuitOrReset?.('subscriptionQuit');
+        config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
       },
       err: (error, id) => {
         logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {

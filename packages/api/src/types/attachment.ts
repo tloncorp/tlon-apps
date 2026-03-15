@@ -78,6 +78,28 @@ export type FileAttachment = {
   mimeType?: string;
 };
 
+type VideoAttachmentMetadata = {
+  /** in pixels */
+  width?: number;
+  /** in pixels */
+  height?: number;
+  /** in seconds */
+  duration?: number;
+  /** local-only preview URI in v1 */
+  posterUri?: string;
+};
+
+export type VideoAttachment = {
+  type: 'video';
+  // File or local URI string
+  localFile: File | string;
+  name?: string;
+  /** in bytes */
+  size: number;
+  mimeType?: string;
+  uploadState?: UploadState;
+} & VideoAttachmentMetadata;
+
 export type VoiceMemoAttachment = {
   type: 'voicememo';
   localUri: string;
@@ -85,6 +107,7 @@ export type VoiceMemoAttachment = {
   size: number;
   /** waveform values to use as a preview */
   waveformPreview?: number[];
+  transcription?: string;
   /** in seconds */
   duration?: number;
   mimeType?: string;
@@ -109,11 +132,22 @@ export type UploadedVoiceMemoAttachment = {
   /** in seconds */
   duration?: number;
   waveformPreview?: number[];
+  transcription?: string;
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
+};
+
+export type UploadedVideoAttachment = Omit<VideoAttachment, 'uploadState'> & {
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
 export namespace UploadedFileAttachment {
   export function uri(attachment: UploadedFileAttachment): string {
+    return uploadStateUri(attachment.uploadState);
+  }
+}
+
+export namespace UploadedVideoAttachment {
+  export function uri(attachment: UploadedVideoAttachment): string {
     return uploadStateUri(attachment.uploadState);
   }
 }
@@ -127,6 +161,7 @@ export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
   | FileAttachment
+  | VideoAttachment
   | VoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
@@ -135,6 +170,7 @@ export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
   | UploadedFileAttachment
+  | UploadedVideoAttachment
   | UploadedVoiceMemoAttachment
   | TextAttachment
   | LinkAttachment;
@@ -160,10 +196,12 @@ export namespace Attachment {
           | false
           | {
               duration?: number;
+              transcription?: string;
               waveformPreview?: number[];
             };
+        video?: false | VideoAttachmentMetadata;
       }
-    | { type: 'file'; file: File };
+    | { type: 'file'; file: File; video?: false | VideoAttachmentMetadata };
 
   export namespace UploadIntent {
     /** Branded type to avoid using wrong keys downstream */
@@ -178,8 +216,11 @@ export namespace Attachment {
       };
     }
 
-    export function fromFile(file: File): UploadIntent {
-      return { type: 'file', file };
+    export function fromFile(
+      file: File,
+      opts?: { video?: false | VideoAttachmentMetadata }
+    ): UploadIntent {
+      return { type: 'file', file, video: opts?.video };
     }
 
     export function createLocalUri(uploadIntent: UploadIntent): string {
@@ -192,6 +233,37 @@ export namespace Attachment {
           return URL.createObjectURL(uploadIntent.file);
         case 'fileUri':
           return uploadIntent.localUri;
+      }
+    }
+
+    export function getVideoUploadMetadata(
+      uploadIntent: UploadIntent
+    ): { isVideo: boolean; posterUri?: string } {
+      const videoMetadata =
+        uploadIntent.type === 'file' || uploadIntent.type === 'fileUri'
+          ? uploadIntent.video
+          : undefined;
+      const posterUri =
+        videoMetadata && typeof videoMetadata === 'object'
+          ? videoMetadata.posterUri
+          : undefined;
+
+      switch (uploadIntent.type) {
+        case 'image':
+          return { isVideo: false };
+        case 'file':
+          return {
+            isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
+            posterUri,
+          };
+        case 'fileUri':
+          return {
+            isVideo:
+              !!videoMetadata ||
+              (!!uploadIntent.mimeType &&
+                uploadIntent.mimeType.startsWith('video/')),
+            posterUri,
+          };
       }
     }
 
@@ -252,6 +324,12 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUploadIntent(uploadIntent),
+              uploadState
+            );
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -268,9 +346,15 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              transcription: uploadIntent.voiceMemo.transcription,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
               uploadState,
             };
+          } else if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUriUploadIntent(uploadIntent),
+              uploadState
+            );
           } else {
             return {
               type: 'file',
@@ -300,6 +384,15 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUploadIntent(uploadIntent),
+              {
+                status: 'uploading',
+                localUri: createLocalUri(uploadIntent),
+              }
+            );
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -319,12 +412,21 @@ export namespace Attachment {
               localUri: uploadIntent.localUri,
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
+              transcription: uploadIntent.voiceMemo.transcription,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
               uploadState: {
                 status: 'uploading',
                 localUri: uploadIntent.localUri,
               },
             };
+          } else if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUriUploadIntent(uploadIntent),
+              {
+                status: 'uploading',
+                localUri: uploadIntent.localUri,
+              }
+            );
           } else {
             return {
               type: 'file',
@@ -371,6 +473,25 @@ export namespace Attachment {
             mimeType: attachment.mimeType,
           };
         }
+      case 'video':
+        if (attachment.localFile instanceof File) {
+          return {
+            needsUpload: true,
+            type: 'file',
+            file: attachment.localFile,
+            video: toVideoMetadata(attachment),
+          };
+        } else {
+          return {
+            needsUpload: true,
+            type: 'fileUri',
+            localUri: attachment.localFile,
+            name: attachment.name,
+            size: attachment.size,
+            mimeType: attachment.mimeType,
+            video: toVideoMetadata(attachment),
+          };
+        }
       case 'voicememo':
         return {
           needsUpload: true,
@@ -381,6 +502,7 @@ export namespace Attachment {
           mimeType: attachment.mimeType,
           voiceMemo: {
             duration: attachment.duration,
+            transcription: attachment.transcription,
             waveformPreview: attachment.waveformPreview,
           },
         };
@@ -399,6 +521,9 @@ export namespace Attachment {
         return { type: 'image', file: uploadIntent.asset };
       }
       case 'file': {
+        if (uploadIntent.video) {
+          return videoAttachmentFromFileUploadIntent(uploadIntent);
+        }
         return {
           type: 'file',
           localFile: uploadIntent.file,
@@ -413,8 +538,11 @@ export namespace Attachment {
             localUri: uploadIntent.localUri,
             size: uploadIntent.size,
             duration: uploadIntent.voiceMemo.duration,
+            transcription: uploadIntent.voiceMemo.transcription,
             waveformPreview: uploadIntent.voiceMemo.waveformPreview,
           };
+        } else if (uploadIntent.video) {
+          return videoAttachmentFromFileUriUploadIntent(uploadIntent);
         } else {
           return {
             type: 'file',
@@ -446,6 +574,12 @@ export namespace Attachment {
           };
 
         case 'file':
+          if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUploadIntent(uploadIntent),
+              uploadState
+            );
+          }
           return {
             type: 'file',
             localFile: uploadIntent.file,
@@ -463,8 +597,14 @@ export namespace Attachment {
               size: uploadIntent.size,
               duration: uploadIntent.voiceMemo.duration,
               waveformPreview: uploadIntent.voiceMemo.waveformPreview,
+              transcription: uploadIntent.voiceMemo.transcription,
               uploadState,
             };
+          } else if (uploadIntent.video) {
+            return withUploadState(
+              videoAttachmentFromFileUriUploadIntent(uploadIntent),
+              uploadState
+            );
           } else {
             return {
               type: 'file',
@@ -488,7 +628,7 @@ export namespace Attachment {
    */
   export function makeSerializable(att: Attachment): Attachment {
     if (
-      att.type === 'file' &&
+      (att.type === 'file' || att.type === 'video') &&
       att.localFile instanceof File &&
       typeof URL.createObjectURL === 'function'
     ) {
@@ -502,6 +642,112 @@ export namespace Attachment {
     }
     return att;
   }
+
+  export function isRemoteUri(uri: string): boolean {
+    return uri.startsWith('http://') || uri.startsWith('https://');
+  }
+}
+
+type NonErrorUploadState = Extract<
+  UploadState,
+  { status: 'success' | 'uploading' }
+>;
+
+function toVideoMetadata(
+  metadata: VideoAttachmentMetadata
+): VideoAttachmentMetadata {
+  return {
+    width: metadata.width,
+    height: metadata.height,
+    duration: metadata.duration,
+    posterUri: metadata.posterUri,
+  };
+}
+
+function videoAttachmentFromFileUploadIntent(
+  uploadIntent: Extract<Attachment.UploadIntent, { type: 'file' }>
+): Omit<VideoAttachment, 'uploadState'> {
+  return {
+    type: 'video',
+    localFile: uploadIntent.file,
+    size: uploadIntent.file.size,
+    mimeType: uploadIntent.file.type,
+    name: uploadIntent.file.name,
+    ...toVideoMetadata(uploadIntent.video as VideoAttachmentMetadata),
+  };
+}
+
+function videoAttachmentFromFileUriUploadIntent(
+  uploadIntent: Extract<Attachment.UploadIntent, { type: 'fileUri' }>
+): Omit<VideoAttachment, 'uploadState'> {
+  return {
+    type: 'video',
+    localFile: uploadIntent.localUri,
+    name: uploadIntent.name,
+    size: uploadIntent.size,
+    mimeType: uploadIntent.mimeType,
+    ...toVideoMetadata(uploadIntent.video as VideoAttachmentMetadata),
+  };
+}
+
+function withUploadState(
+  attachment: Omit<VideoAttachment, 'uploadState'>,
+  uploadState: NonErrorUploadState
+): UploadedVideoAttachment {
+  if (uploadState.status === 'uploading') {
+    return {
+      ...attachment,
+      uploadState,
+    };
+  }
+
+  const posterUri =
+    uploadState.posterUri ??
+    (attachment.posterUri && Attachment.isRemoteUri(attachment.posterUri)
+      ? attachment.posterUri
+      : undefined);
+  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } = attachment;
+
+  return {
+    ...attachmentWithoutPoster,
+    ...(posterUri ? { posterUri } : {}),
+    uploadState,
+  };
+}
+
+export function videoPreviewUri(
+  videoAttachment: VideoAttachment
+): string | undefined {
+  return videoPosterUri(videoAttachment) ?? videoFileUri(videoAttachment);
+}
+
+export function videoPosterUri(
+  videoAttachment: VideoAttachment
+): string | undefined {
+  if (videoAttachment.posterUri) {
+    return videoAttachment.posterUri;
+  }
+  if (
+    videoAttachment.uploadState?.status === 'success' &&
+    videoAttachment.uploadState.posterUri
+  ) {
+    return videoAttachment.uploadState.posterUri;
+  }
+  return undefined;
+}
+
+export function videoFileUri(
+  videoAttachment: VideoAttachment
+): string | undefined {
+  if (
+    videoAttachment.uploadState?.status === 'success' ||
+    videoAttachment.uploadState?.status === 'uploading'
+  ) {
+    return uploadStateUri(videoAttachment.uploadState);
+  }
+  return typeof videoAttachment.localFile === 'string'
+    ? videoAttachment.localFile
+    : undefined;
 }
 
 export function uploadStateUri(

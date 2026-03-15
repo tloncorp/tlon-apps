@@ -1,6 +1,5 @@
-import { isValidUrl } from '@tloncorp/shared';
+import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
-import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   Icon,
@@ -10,6 +9,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
+import { clamp } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -21,11 +21,11 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Linking, Platform } from 'react-native';
+import { ActivityIndicator, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
-import { DUMMY_WAVEFORM_VALUES, Waveform } from '../AudioRecorder/Waveform';
+import { useNowPlayingController } from '../../contexts/nowPlaying';
+import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -37,6 +37,10 @@ import { HighlightedCode } from '../HighlightedCode';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+const DUMMY_WAVEFORM_VALUES = [
+  1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
+];
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
@@ -218,48 +222,121 @@ export function ReferenceBlock({
 }
 
 export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
-  const { openExternalLink } = useNavigation();
+  const { togglePlayback, progress, status, isThisSourceLoaded } =
+    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+
+  const candlePlaybackPosition = useMemo(() => {
+    const candleCount = block.voiceMemo.waveformPreview
+      ? block.voiceMemo.waveformPreview.length
+      : DUMMY_WAVEFORM_VALUES.length;
+    if (
+      progress?.loadState !== 'loaded' ||
+      !isThisSourceLoaded ||
+      progress.duration === 0
+    ) {
+      return 0;
+    }
+    return clamp(
+      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      0,
+      candleCount - 1
+    );
+  }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
+
   return (
-    <Reference.Frame onPress={() => openExternalLink(block.voiceMemo.fileUri)}>
-      <Reference.Header>
+    <Reference.Frame>
+      <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
         </Reference.Title>
 
-        <Reference.TitleIcon type="Play" color="$primaryText" />
+        <Reference.TitleIcon type="Wave" color="$primaryText" />
       </Reference.Header>
 
       <Reference.Body
-        flexDirection="row"
-        alignItems="center"
+        flexDirection="column"
+        alignItems="stretch"
         gap="$l"
         padding="$l"
+        // Reference.Body definition sets `pointerEvents: none`
+        pointerEvents="auto"
       >
-        <View
-          backgroundColor="$background"
-          width="$4xl"
-          aspectRatio={1}
-          alignItems="center"
-          justifyContent="center"
-          borderRadius={8}
-        >
-          <Icon type="Play" color="$primaryText" />
-        </View>
-        <YStack flex={1} gap="$s">
-          <Waveform
-            candleWidth={3}
-            candleSpacing={1}
-            values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-            style={{ width: '100%', height: 22 }}
+        <XStack gap="$xl" alignItems="center">
+          <Pressable
+            backgroundColor="$background"
+            width="$4xl"
+            aspectRatio={1}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius={8}
+            cursor="pointer"
+            hoverStyle={{ backgroundColor: '$positiveBackground' }}
+            pressStyle={{ opacity: 0.5 }}
+            onPress={togglePlayback}
+          >
+            {(() => {
+              switch (status) {
+                case null:
+                  return <Icon type={'Play'} color="$primaryText" />;
+                case 'loading':
+                  return <ActivityIndicator />;
+                case 'playing':
+                  return <Icon type={'Stop'} color="$primaryText" />;
+                case 'paused':
+                  return <Icon type={'Play'} color="$primaryText" />;
+              }
+            })()}
+          </Pressable>
+          <XStack flex={1} gap={9} alignItems="center">
+            <Waveform
+              candleWidth={3}
+              candleSpacing={1}
+              candlePlaybackPosition={candlePlaybackPosition}
+              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+              style={{ flex: 1, height: 22 }}
+            />
+            {block.voiceMemo.duration != null && (
+              <Text size="$label/s" color="$secondaryText">
+                {progress?.loadState === 'loaded'
+                  ? makePrettyTimeFromMs(progress.currentTime * 1000)
+                  : makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+              </Text>
+            )}
+          </XStack>
+        </XStack>
+
+        {block.voiceMemo.transcription && (
+          <VoiceMemoTranscription
+            transcription={block.voiceMemo.transcription}
           />
-          {block.voiceMemo.duration != null && (
-            <Text size="$label/s" color="$secondaryText">
-              {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
-            </Text>
-          )}
-        </YStack>
+        )}
       </Reference.Body>
     </Reference.Frame>
+  );
+}
+
+function VoiceMemoTranscription({ transcription }: { transcription: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <XStack gap="$s" alignItems="baseline">
+      <Text
+        flex={1}
+        size="$label/m"
+        numberOfLines={expanded ? undefined : 1}
+        ellipsizeMode="tail"
+        selectable
+      >
+        {transcription}
+      </Text>
+      {!expanded && (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text size="$label/m" color="$tertiaryText">
+            See more
+          </Text>
+        </Pressable>
+      )}
+    </XStack>
   );
 }
 

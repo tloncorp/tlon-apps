@@ -33,10 +33,10 @@ import * as fixture26 from './packages/app/fixtures/NotebookPost.fixture';
 import * as fixture27 from './packages/app/fixtures/MetaEditorScreen.fixture';
 import * as fixture28 from './packages/app/fixtures/MessageInput.fixture';
 import * as fixture29 from './packages/app/fixtures/MessageActions.fixture';
-import * as fixture30 from './packages/app/fixtures/InviteUsersSheet.fixture';
-import * as fixture31 from './packages/app/fixtures/InviteFriendsToTlonButton.fixture';
-import * as fixture32 from './packages/app/fixtures/Input.fixture';
-import * as fixture33 from './packages/app/fixtures/ImageViewer.fixture';
+import * as fixture30 from './packages/app/fixtures/MediaImageViewer.fixture';
+import * as fixture31 from './packages/app/fixtures/InviteUsersSheet.fixture';
+import * as fixture32 from './packages/app/fixtures/InviteFriendsToTlonButton.fixture';
+import * as fixture33 from './packages/app/fixtures/Input.fixture';
 import * as fixture34 from './packages/app/fixtures/GroupListItem.fixture';
 import * as fixture35 from './packages/app/fixtures/GalleryPost.fixture';
 import * as fixture36 from './packages/app/fixtures/ForwardChannelListItem.fixture';
@@ -122,10 +122,10 @@ const fixtures = {
   'packages/app/fixtures/MetaEditorScreen.fixture.tsx': { module: fixture27 },
   'packages/app/fixtures/MessageInput.fixture.tsx': { module: fixture28 },
   'packages/app/fixtures/MessageActions.fixture.tsx': { module: fixture29 },
-  'packages/app/fixtures/InviteUsersSheet.fixture.tsx': { module: fixture30 },
-  'packages/app/fixtures/InviteFriendsToTlonButton.fixture.tsx': { module: fixture31 },
-  'packages/app/fixtures/Input.fixture.tsx': { module: fixture32 },
-  'packages/app/fixtures/ImageViewer.fixture.tsx': { module: fixture33 },
+  'packages/app/fixtures/MediaImageViewer.fixture.tsx': { module: fixture30 },
+  'packages/app/fixtures/InviteUsersSheet.fixture.tsx': { module: fixture31 },
+  'packages/app/fixtures/InviteFriendsToTlonButton.fixture.tsx': { module: fixture32 },
+  'packages/app/fixtures/Input.fixture.tsx': { module: fixture33 },
   'packages/app/fixtures/GroupListItem.fixture.tsx': { module: fixture34 },
   'packages/app/fixtures/GalleryPost.fixture.tsx': { module: fixture35 },
   'packages/app/fixtures/ForwardChannelListItem.fixture.tsx': { module: fixture36 },

@@ -1,4 +1,4 @@
-export function fileFromPath(
+export function filenameFromPath(
   path: string,
   opts: { decodeURI?: boolean } = {}
 ): string | null {

@@ -25,7 +25,6 @@ interface Constants {
   ENABLED_LOGGERS: string[];
   IGNORE_COSMOS: boolean;
   TLON_EMPLOYEE_GROUP: string;
-  TLON_IS_E2E?: boolean;
   BRANCH_KEY: string;
   BRANCH_DOMAIN: string;
   INVITE_SERVICE_ENDPOINT: string;

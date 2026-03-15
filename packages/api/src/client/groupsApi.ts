@@ -153,6 +153,32 @@ export function inviteGroupMembers({
   );
 }
 
+export function revokeGroupMemberInvites({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          entry: {
+            pending: {
+              ships: contactIds,
+              'a-pending': {
+                del: null,
+              },
+            },
+          },
+        },
+      },
+    })
+  );
+}
+
 export function rescindGroupInvitationRequest(groupId: string) {
   logger.log('api rescinding', groupId);
   return poke({

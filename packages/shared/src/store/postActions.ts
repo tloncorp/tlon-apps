@@ -7,6 +7,7 @@ import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
+import * as Transcription from '../transcription';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -52,6 +53,39 @@ export async function finalizePostDraft(
         att.type === 'image' && att.file.uri !== draft.image;
       if (isNonheaderImage) {
         attachments.splice(i, 1);
+      }
+    }
+  }
+
+  let permissionStatus: 'granted' | 'not-granted' | 'unavailable' | 'unknown' =
+    'unknown';
+  transcribeAll: for (const att of attachments) {
+    if (
+      att.type === 'voicememo' &&
+      att.localUri != null &&
+      att.transcription == null
+    ) {
+      // we only want to request permissions when there's a voicememo
+      // attachment, and if the user declines, we want to bail out of the outer
+      // loop.
+      if (permissionStatus === 'unknown') {
+        permissionStatus = (
+          await Transcription.requestTranscriptionPermissionsIfNeeded()
+        ).status;
+        if (permissionStatus !== 'granted') {
+          break transcribeAll;
+        }
+      }
+
+      try {
+        const transcriptionText =
+          await Transcription.transcribeAudioFileWithGlobalCache(att.localUri);
+        att.transcription = transcriptionText ?? undefined;
+      } catch (err) {
+        console.warn(
+          'Failed to transcribe audio file, proceeding without transcription',
+          err
+        );
       }
     }
   }

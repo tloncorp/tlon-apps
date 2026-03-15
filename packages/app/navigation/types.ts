@@ -40,8 +40,10 @@ export type RootStackParamList = {
     authorId: string;
     groupId?: string;
   };
-  ImageViewer: {
+  MediaViewer: {
+    mediaType: 'image' | 'video';
     uri?: string;
+    posterUri?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
@@ -160,7 +162,7 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
-  ImageViewer: RootStackParamList['ImageViewer'];
+  MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
@@ -172,7 +174,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
-  | 'ImageViewer'
+  | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
   | 'ChannelMembers'

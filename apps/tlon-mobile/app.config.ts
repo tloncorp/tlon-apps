@@ -95,6 +95,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         contactsPermission: 'Allow Tlon Messenger to access your contacts.',
       },
     ],
+    'expo-audio',
+    [
+      'expo-speech-transcriber',
+      {
+        speechRecognitionPermission:
+          'We need permission to transcribe voice memos in your messages',
+      },
+    ],
   ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,

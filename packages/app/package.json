@@ -25,10 +25,13 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "expo-audio": "*",
     "expo-document-picker": "*",
     "expo-file-system": "*",
+    "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
+    "@shopify/react-native-skia": "*",
     "expo-blur": "*",
     "expo-constants": "*",
     "expo-notifications": "*",

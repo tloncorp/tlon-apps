@@ -5,6 +5,10 @@ import {
 } from '@tloncorp/shared';
 import { Button, ForwardingProps, Pressable, Text, View } from '@tloncorp/ui';
 import {
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
+import {
   ComponentProps,
   forwardRef,
   useCallback,
@@ -21,12 +25,10 @@ import { useTheme } from 'tamagui';
 import {
   FinishMode,
   IWaveformRef,
-  PermissionStatus,
   PlayerState,
   RecorderState,
   Waveform,
   hasRNWaveformNativeModule,
-  useAudioPermission,
   useExtractWaveformDataCallback,
 } from './react-native-audio-waveform';
 
@@ -94,7 +96,6 @@ export const AudioRecorder = forwardRef<
 ) {
   const theme = useTheme();
   const [renderKey, incrementRenderKey] = useReducer((x) => x + 1, 0);
-  const permissions = useAudioPermission();
 
   const [state, setState] = useState<State>(() =>
     startInRecordingMode
@@ -144,19 +145,13 @@ export const AudioRecorder = forwardRef<
       },
       async startRecording() {
         try {
-          const status = await permissions.checkHasAudioRecorderPermission();
-          let failedPermission = status === PermissionStatus.denied;
+          let permissionsResponse = await getRecordingPermissionsAsync();
 
-          // if we can, try to request permission
-          if (status === PermissionStatus.undetermined) {
-            const requestedPermission =
-              await permissions.getAudioRecorderPermission();
-            if (requestedPermission !== PermissionStatus.granted) {
-              failedPermission = true;
-            }
+          if (!permissionsResponse.granted && permissionsResponse.canAskAgain) {
+            permissionsResponse = await requestRecordingPermissionsAsync();
           }
 
-          if (failedPermission) {
+          if (!permissionsResponse.granted) {
             Alert.alert(
               'Missing microphone access',
               "Enable microphone access in your device's settings to record audio."
@@ -209,7 +204,7 @@ export const AudioRecorder = forwardRef<
         await waveformRef.current?.resumePlayer();
       },
     }),
-    [permissions]
+    [onCancel]
   );
 
   useImperativeHandle(ref, () => refApi);

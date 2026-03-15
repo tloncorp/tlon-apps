@@ -1,6 +1,7 @@
 import {
   Attachment,
   PLACEHOLDER_ASSET_URI,
+  VoiceMemoAttachment,
   createDevLogger,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
@@ -13,13 +14,20 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
-import { pickFile } from '../../utils/filepicker';
-import fs from '../../utils/files';
+import {
+  imagePickerAssetToUploadIntent,
+  normalizeUploadIntents,
+  pickFile,
+} from '../../utils/filepicker';
+import {
+  getAudioFileDurationSeconds,
+  getFileSize,
+  getMimeType,
+} from '../../utils/files';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -32,6 +40,7 @@ import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
+import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
 
@@ -42,6 +51,7 @@ export default function AttachmentSheet({
   onClearAttachments,
   onAttach,
   mediaType,
+  allowVideoInMediaPicker,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
@@ -49,14 +59,20 @@ export default function AttachmentSheet({
   onOpenChange: (open: boolean) => void;
   onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
+  allowVideoInMediaPicker?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const { attachAssets, addAttachment, clearAttachments, removeAttachment } =
-    useAttachmentContext();
+  const {
+    attachAssets,
+    addAttachment,
+    clearAttachments,
+    removeAttachment,
+    uploadAssets,
+  } = useAttachmentContext();
 
   const [hasClipboardImage, setHasClipboardImage] = useState(false);
 
@@ -139,6 +155,29 @@ export default function AttachmentSheet({
     removeAttachment(placeholderToRemove);
   }, [removeAttachment]);
 
+  const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
+  const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
+    () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
+    [useVideoInMediaPicker]
+  );
+
+  const attachNormalizedUploadIntents = useCallback(
+    async (uploadIntents: Attachment.UploadIntent[]) => {
+      const { uploadIntents: normalizedUploadIntents, errorMessage } =
+        await normalizeUploadIntents(uploadIntents);
+
+      if (errorMessage) {
+        Alert.alert('Unable to attach', errorMessage);
+      }
+
+      if (normalizedUploadIntents.length > 0) {
+        attachAssets(normalizedUploadIntents);
+        onAttach?.(normalizedUploadIntents);
+      }
+    },
+    [attachAssets, onAttach]
+  );
+
   const takePicture = useCallback(() => {
     // Close the sheet immediately
     onOpenChange(false);
@@ -160,7 +199,7 @@ export default function AttachmentSheet({
         }
 
         const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
+          mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
@@ -171,11 +210,9 @@ export default function AttachmentSheet({
           const realAsset = result.assets[0];
 
           removePlaceholderAttachment();
-          const atts = [
-            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
-          ];
-          attachAssets(atts);
-          onAttach?.(atts);
+          await attachNormalizedUploadIntents([
+            imagePickerAssetToUploadIntent(realAsset),
+          ]);
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -190,32 +227,65 @@ export default function AttachmentSheet({
   }, [
     attachAssets,
     clearAttachments,
-    onAttach,
     onOpenChange,
     cameraPermissionStatus,
+    pickerMediaTypes,
     requestCameraPermission,
     placeholderUploadIntent,
+    attachNormalizedUploadIntents,
     removePlaceholderAttachment,
   ]);
 
+  const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
       const duration = await (async () => {
         try {
-          return await fs.getAudioFileDurationSeconds(audioFilePath);
+          return await getAudioFileDurationSeconds(audioFilePath);
         } catch {
           return undefined;
         }
       })();
-      addAttachment({
+      const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: audioFilePath,
-        size: fs.getFileSize(audioFilePath) ?? -1,
+        localUri: filePathToFileUri(audioFilePath),
+        size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
-        mimeType: fs.getMimeType(audioFilePath) ?? undefined,
-      });
+        mimeType: getMimeType(audioFilePath) ?? undefined,
+      };
       audioRecorder.dismiss();
+
+      // If possible, try sending post immediately.
+      if (draftInputContext != null) {
+        const ui = Attachment.toUploadIntent(attachment);
+        if (ui.needsUpload) {
+          uploadAssets([ui], {
+            // without this flag, attachment context tries to add the uploaded
+            // attachment to the context's attachment list, which ends up
+            // showing in the draft box. we want to skip the preview entirely.
+            skipAddToAttachmentList: true,
+          });
+        }
+        await draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          channelType: draftInputContext.channel.type,
+          content: [],
+          attachments: [attachment],
+          ...(draftInputContext.editingPost == null
+            ? {
+                isEdit: false,
+              }
+            : {
+                isEdit: true,
+                editTargetPostId: draftInputContext.editingPost.id,
+              }),
+          replyToPostId: null,
+        });
+      } else {
+        // otherwise, add attachment to draft
+        addAttachment(attachment);
+      }
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {
@@ -225,13 +295,7 @@ export default function AttachmentSheet({
   }, [onOpenChange, audioRecorder]);
 
   const pickImage = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
-    setTimeout(async () => {
-      let placeholderTimeout: ReturnType<typeof setTimeout> | null = null;
-
+    const openImagePicker = async () => {
       try {
         if (mediaLibraryPermissionStatus?.granted === false) {
           const permissionResult = await requestMediaLibraryPermission();
@@ -240,31 +304,39 @@ export default function AttachmentSheet({
           }
         }
 
-        // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        placeholderTimeout = setTimeout(() => {
-          if (Platform.OS !== 'web') {
-            attachAssets([placeholderUploadIntent]);
-          }
-        }, 200);
+        // Show loading placeholder as soon as the sheet closes, before waiting
+        // on the native media picker round-trip.
+        if (Platform.OS !== 'web') {
+          attachAssets([placeholderUploadIntent]);
+        }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
+          mediaTypes: pickerMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
         });
 
         if (!result.canceled) {
-          // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
 
+          const { uploadIntents: normalizedUploadIntents, errorMessage } =
+            await normalizeUploadIntents([
+              imagePickerAssetToUploadIntent(realAsset),
+            ]);
+
+          // Remove placeholder before attaching the selected media so validation
+          // does not reject the real attachment as "extra".
           removePlaceholderAttachment();
-          const atts = [
-            Attachment.UploadIntent.fromImagePickerAsset(realAsset),
-          ];
-          attachAssets(atts);
-          onAttach?.(atts);
+
+          if (errorMessage) {
+            Alert.alert('Unable to attach', errorMessage);
+          }
+
+          if (normalizedUploadIntents.length > 0) {
+            attachAssets(normalizedUploadIntents);
+            onAttach?.(normalizedUploadIntents);
+          }
         } else {
           // If user canceled, remove the placeholder
           clearAttachments();
@@ -275,20 +347,31 @@ export default function AttachmentSheet({
 
         // In case of error, remove the placeholder
         clearAttachments();
-      } finally {
-        if (placeholderTimeout) {
-          clearTimeout(placeholderTimeout);
-        }
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    };
+
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    if (Platform.OS === 'web') {
+      // File picker must open in the same user gesture on web.
+      void openImagePicker();
+      return;
+    }
+
+    // Native: wait for close animation to complete before opening picker.
+    setTimeout(() => {
+      void openImagePicker();
+    }, 50);
   }, [
     attachAssets,
     clearAttachments,
-    onAttach,
     onOpenChange,
     mediaLibraryPermissionStatus,
+    pickerMediaTypes,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
+    onAttach,
     removePlaceholderAttachment,
   ]);
 
@@ -296,12 +379,8 @@ export default function AttachmentSheet({
     onOpenChange(false);
 
     const uploadIntents = await pickFile();
-    if (uploadIntents.length > 0) {
-      attachAssets(uploadIntents);
-      onAttach?.(uploadIntents);
-    }
-  }, [attachAssets, onOpenChange, onAttach]);
-  const [canRecordVoiceMemos] = useFeatureFlag('recordVoiceMemos');
+    await attachNormalizedUploadIntents(uploadIntents);
+  }, [attachNormalizedUploadIntents, onOpenChange]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -309,15 +388,29 @@ export default function AttachmentSheet({
         [
           'neutral',
           {
-            title: isWeb ? 'Upload an Image' : 'Photo Library',
+            title: useVideoInMediaPicker
+              ? isWeb
+                ? 'Upload Media'
+                : 'Media Library'
+              : isWeb
+                ? 'Upload an Image'
+                : 'Photo Library',
             description: isWeb
-              ? 'Upload an image from your computer'
-              : 'Choose a photo from your library',
+              ? useVideoInMediaPicker
+                ? 'Upload an image or video from your computer'
+                : 'Upload an image from your computer'
+              : useVideoInMediaPicker
+                ? 'Choose a photo or video from your library'
+                : 'Choose a photo from your library',
             action: pickImage,
           },
           !isWeb && {
-            title: 'Take a Photo',
-            description: 'Use your camera to take a photo',
+            title: useVideoInMediaPicker
+              ? 'Capture Photo or Video'
+              : 'Take a Photo',
+            description: useVideoInMediaPicker
+              ? 'Use your camera to capture a photo or video'
+              : 'Use your camera to take a photo',
             action: takePicture,
           },
           !isWeb &&
@@ -332,7 +425,6 @@ export default function AttachmentSheet({
             action: startFilePicker,
           },
           mediaType === 'all' &&
-            canRecordVoiceMemos &&
             !isWeb && {
               title: 'Voice Memo',
               description: 'Record an audio message',
@@ -350,7 +442,6 @@ export default function AttachmentSheet({
       ),
     [
       startRecordingVoiceMemo,
-      canRecordVoiceMemos,
       onClearAttachments,
       pickImage,
       startFilePicker,
@@ -359,6 +450,7 @@ export default function AttachmentSheet({
       hasClipboardImage,
       createAssetFromClipboard,
       mediaType,
+      useVideoInMediaPicker,
     ]
   );
 
@@ -442,4 +534,15 @@ function useAudioRecorderController({
     present: () => setIsSheetOpen(true),
     dismiss: () => setIsSheetOpen(false),
   };
+}
+
+function filePathToFileUri(filePath: string) {
+  try {
+    // if this is already a valid URI, return it as-is
+    return new URL(filePath).toString();
+  } catch {
+    // otherwise, assume it's a file path and convert to file URI
+    // if there was some other kind of error, this will likely also fail, but we'll let that error propagate
+    return new URL(`file://${filePath}`).toString();
+  }
 }

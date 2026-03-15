@@ -1,15 +1,15 @@
+import { ChannelContentConfiguration } from '@tloncorp/api';
+import * as urbit from '@tloncorp/api/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/api/urbit';
-import { JSONContent } from '@tloncorp/api/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -47,6 +47,7 @@ import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { DraftInputContext } from './draftInputs';
+import { DraftInputContextProvider } from './draftInputs/shared';
 
 const noop = async () => {};
 
@@ -562,14 +563,6 @@ function SinglePostView({
           maxWidth: 600,
         };
   }, [isChatChannel]);
-  const bareInputDraftProps = useMemo(() => {
-    return {
-      getDraft,
-      storeDraft,
-      clearDraft,
-    };
-  }, [getDraft, storeDraft, clearDraft]);
-
   const scrollToNewReply = useCallback(() => {
     requestAnimationFrame(() => {
       if (isChatChannel) {
@@ -600,7 +593,7 @@ function SinglePostView({
       await store.finalizeAndSendPost(draft);
       scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply]
+    [parentPost, store, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
@@ -609,6 +602,34 @@ function SinglePostView({
       channel.type === 'dm' ||
       channel.type === 'groupDm',
     [channel.type]
+  );
+
+  const replyDraftInputContext = useMemo(
+    (): DraftInputContext => ({
+      channel,
+      clearDraft,
+      editingPost,
+      getDraft,
+      group,
+      sendPostFromDraft: sendReplyFromDraft,
+      setEditingPost,
+      setShouldBlur: setInputShouldBlur,
+      shouldBlur: inputShouldBlur,
+      storeDraft,
+      replyToPost: { id: parentPost.id },
+    }),
+    [
+      channel,
+      clearDraft,
+      editingPost,
+      getDraft,
+      group,
+      sendReplyFromDraft,
+      setEditingPost,
+      inputShouldBlur,
+      storeDraft,
+      parentPost.id,
+    ]
   );
 
   return (
@@ -639,25 +660,22 @@ function SinglePostView({
           (channel.type === 'notebook' || channel.type === 'gallery')
         ) && (
           <View id="reply-container" {...containingProperties}>
-            <BareChatInput
-              placeholder="Reply"
-              groupId={channel.groupId}
-              shouldBlur={inputShouldBlur}
-              setShouldBlur={setInputShouldBlur}
-              sendPostFromDraft={sendReplyFromDraft}
-              channelId={channel.id}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-              {...bareInputDraftProps}
-              editingPost={editingPost}
-              setEditingPost={setEditingPost}
-              channelType="chat"
-              showAttachmentButton={isChatLike}
-              showInlineAttachments
-              shouldAutoFocus={
-                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-              }
-            />
+            <DraftInputContextProvider value={replyDraftInputContext}>
+              <BareChatInput
+                {...replyDraftInputContext}
+                placeholder="Reply"
+                channelId={replyDraftInputContext.channel.id}
+                groupId={replyDraftInputContext.channel.groupId}
+                groupMembers={groupMembers}
+                groupRoles={groupRoles}
+                channelType="chat"
+                showAttachmentButton={isChatLike}
+                showInlineAttachments
+                shouldAutoFocus={
+                  (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+                }
+              />
+            </DraftInputContextProvider>
           </View>
         )}
       {!negotiationMatch && channel && canWrite && (
