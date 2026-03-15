@@ -49,7 +49,7 @@ import { useAttachmentContext } from '../../contexts/attachment';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
-import * as utils from '../../utils';
+import { useChannelTitle, useCanWrite, useCanRead, useIsAdmin } from '../../utils';
 import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
@@ -180,12 +180,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const headerLoadingHideTimeoutRef = useRef<ReturnType<
       typeof setTimeout
     > | null>(null);
-    const title = utils.useChannelTitle(channel);
+    const title = useChannelTitle(channel);
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
-    const canWrite = utils.useCanWrite(channel, currentUserId);
-    const canRead = utils.useCanRead(channel, currentUserId);
-    const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
+    const canWrite = useCanWrite(channel, currentUserId);
+    const canRead = useCanRead(channel, currentUserId);
+    const isGroupAdmin = useIsAdmin(channel.groupId ?? '', currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;

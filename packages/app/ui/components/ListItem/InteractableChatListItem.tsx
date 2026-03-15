@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
-import * as utils from '../../utils';
+import { triggerHaptic } from '../../utils';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
@@ -53,7 +53,7 @@ function BaseInteractableChatRow({
 
   const handleAction = logic.useMutableCallback(
     async (actionId: 'pin' | 'mute' | 'markRead') => {
-      utils.triggerHaptic('swipeAction');
+      triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
           model.pin ? unpinItem(model.pin) : pinChat(model);

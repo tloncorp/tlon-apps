@@ -10,7 +10,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { draftKeyFor, finalizeAndSendPost, markThreadRead, useChannel, useChannelPosts, usePostDraftCallbacks, useThreadPosts } from '@tloncorp/shared/store';
-import { Carousel, ForwardingProps } from '@tloncorp/ui';
+import { Carousel, ForwardingProps, useIsWindowNarrow } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   createContext,
@@ -35,7 +35,7 @@ import {
   useCurrentUserId,
   useStore,
 } from '../contexts';
-import * as utils from '../utils';
+import { useIsAdmin, useCanWrite } from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import {
@@ -176,9 +176,9 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
-  const isWindowNarrow = utils.useIsWindowNarrow();
+  const isWindowNarrow = useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
+  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
@@ -545,7 +545,7 @@ function SinglePostView({
   const isEditingParent = useMemo(() => {
     return editingPost && editingPost.id === parentPost?.id;
   }, [editingPost, parentPost]);
-  const canWrite = utils.useCanWrite(channel, currentUserId);
+  const canWrite = useCanWrite(channel, currentUserId);
   const postsWithoutParent = useMemo(
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]

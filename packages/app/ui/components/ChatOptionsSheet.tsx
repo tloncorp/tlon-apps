@@ -18,7 +18,7 @@ import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
-import * as utils from '../utils';
+import { useGroupTitle, useIsAdmin, useChannelTitle } from '../utils';
 import {
   Action,
   ActionGroup,
@@ -162,9 +162,9 @@ export function GroupOptionsSheetLoader({
     }
   }, [open, resetPane]);
 
-  const title = utils.useGroupTitle(group) ?? 'Loading...';
+  const title = useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     useGroupUnread({ groupId });
   const { data: groupData } = useGroup({ id: groupId });
@@ -536,9 +536,9 @@ const ChannelOptionsSheetLoader = memo(
     const { data: group } = useGroup({
       id: groupId,
     });
-    const groupTitle = utils.useGroupTitle(group) ?? 'group';
+    const groupTitle = useGroupTitle(group) ?? 'group';
     const channelTitle =
-      utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
+      useChannelTitle(channelQuery.data ?? null) ?? 'channel';
     const isSingleChannelGroup = group?.channels.length === 1;
     const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
     const isWindowNarrow = useIsWindowNarrow();
@@ -654,13 +654,13 @@ export function ChannelOptionsSheetContent({
   const { data: hooksPreview } = useChannelHooksPreview(channel.id);
 
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(
+  const currentUserIsAdmin = useIsAdmin(
     channel.groupId ?? '',
     currentUserId
   );
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
 
-  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();

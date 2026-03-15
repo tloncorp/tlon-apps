@@ -12,7 +12,7 @@ import React, {
 import { View, isWeb } from 'tamagui';
 
 import { useChatOptions, useNavigation } from '../../contexts';
-import * as utils from '../../utils';
+import { useChannelTitle, getChannelTypeIcon, useGroupTitle, hasNickname } from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
@@ -47,7 +47,7 @@ export function ChannelListItem({
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
-  const title = utils.useChannelTitle(model);
+  const title = useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
@@ -116,12 +116,12 @@ export function ChannelListItem({
     if (model.type === 'dm' || model.type === 'groupDm') {
       return memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM';
     } else {
-      return utils.getChannelTypeIcon(model.type);
+      return getChannelTypeIcon(model.type);
     }
   }, [model, memberCount]);
 
   const isFocused = useNavigation().focusedChannelId === model.id;
-  const groupTitle = utils.useGroupTitle(model.group);
+  const groupTitle = useGroupTitle(model.group);
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
 
@@ -176,7 +176,7 @@ export function ChannelListItem({
             ) : showGroupTitle && model.group ? (
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
-              utils.hasNickname(model.members?.[0]?.contact) ? (
+              hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
                 <ContactName
                   contactId={firstMemberId}
