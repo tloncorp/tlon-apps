@@ -26,7 +26,7 @@ import {
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
+import { finishingSelfHostedLogin, haveHostedLogin, hostedAccountIsInitialized, hostedNodeIsRunning, hostingBotEnabled } from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
@@ -93,11 +93,11 @@ const App = () => {
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
 
-  const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
-  const haveHostedLogin = db.haveHostedLogin.useValue();
-  const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
-  const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const finishingSelfHostedLoginVal = finishingSelfHostedLogin.useValue();
+  const haveHostedLoginVal = haveHostedLogin.useValue();
+  const hostedAccountInitialized = hostedAccountIsInitialized.useValue();
+  const hostedNodeRunning = hostedNodeIsRunning.useValue();
+  const hostingBotEnabledVal = hostingBotEnabled.useValue();
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -124,8 +124,8 @@ const App = () => {
   const showAuthenticatedApp = useMemo(() => {
     const blockedOnSignup = currentlyOnboarding;
     const blockedOnLoginHosted =
-      haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
-    const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
+      haveHostedLoginVal && (!hostedAccountInitialized || !hostedNodeRunning);
+    const blockedOnLoginSelfHosted = finishingSelfHostedLoginVal;
     return (
       isAuthenticated &&
       !blockedOnSignup &&
@@ -134,10 +134,10 @@ const App = () => {
     );
   }, [
     currentlyOnboarding,
-    haveHostedLogin,
+    haveHostedLoginVal,
     hostedAccountInitialized,
     hostedNodeRunning,
-    finishingSelfHostedLogin,
+    finishingSelfHostedLoginVal,
     isAuthenticated,
   ]);
 
@@ -156,7 +156,7 @@ const App = () => {
           <SplashSequence
             onCompleted={clearNeedsSplashSequence}
             inviteSystemContacts={inviteSystemContacts}
-            hostingBotEnabled={hostingBotEnabled ?? false}
+            hostingBotEnabled={hostingBotEnabledVal ?? false}
           />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />

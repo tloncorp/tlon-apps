@@ -4,7 +4,7 @@ import {
 } from '@react-navigation/drawer';
 import { getVariableValue, useTheme } from '@tamagui/core';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
-import * as db from '@tloncorp/shared/db';
+import { hostingAuthToken, hostingUserId, hostingBotEnabled } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
@@ -32,7 +32,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const hostingBotEnabled = hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const botEnabled = isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
@@ -150,8 +150,8 @@ function useHasHostedAuth() {
   useEffect(() => {
     async function getHostingInfo() {
       const [cookie, userId] = await Promise.all([
-        db.hostingAuthToken.getValue(),
-        db.hostingUserId.getValue(),
+        hostingAuthToken.getValue(),
+        hostingUserId.getValue(),
       ]);
       if (cookie && userId) {
         setHasHostedAuth(true);
