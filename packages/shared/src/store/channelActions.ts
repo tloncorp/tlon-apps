@@ -56,6 +56,7 @@ export async function createChannel({
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
+    currentUserIsHost: true,
     contentConfiguration:
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
