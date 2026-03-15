@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { addPostReaction, removePostReaction } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../contexts';
@@ -19,8 +19,8 @@ export default function useOnEmojiSelect(
         return;
       }
       details.self.didReact && details.self.value.includes(value)
-        ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, value, currentUserId);
+        ? removePostReaction(post, currentUserId)
+        : addPostReaction(post, value, currentUserId);
 
       triggerHaptic('success');
 

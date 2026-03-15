@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { SyncPriority, leaveGroup, leaveGroupChannel, markChannelRead, markGroupRead, pinChannel, pinGroup, respondToDMInvite, setChannelVolumeLevel, setGroupVolumeLevel, syncGroup, unpinItem, useChannel, useGroup } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -18,7 +18,7 @@ import { InviteUsersSheet } from '../components/InviteUsersSheet';
 import { useChannelTitle } from '../utils';
 
 export type ChatOptionsContextValue = {
-  useGroup: typeof store.useGroup;
+  useGroup: typeof useGroup;
   group?: db.Group | null;
   channel?: db.Channel | null;
   markGroupRead: () => void;
@@ -45,7 +45,7 @@ export type ChatOptionsContextValue = {
 const noop = () => {};
 const noopAsync = async () => {};
 const defaultValue: ChatOptionsContextValue = {
-  useGroup: store.useGroup,
+  useGroup: useGroup,
   group: null,
   channel: null,
   markGroupRead: noop,
@@ -84,8 +84,8 @@ export const useChatOptions = (disabled = false) => {
 
 type ChatOptionsProviderProps = {
   children: ReactNode;
-  useChannel?: typeof store.useChannel;
-  useGroup?: typeof store.useGroup;
+  useChannel?: typeof useChannel;
+  useGroup?: typeof useGroup;
   onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean, fromChatDetails?: boolean) => void;
   onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressManageChannels?: (groupId: string, fromChatDetails?: boolean) => void;
@@ -115,8 +115,8 @@ type ChatOptionsProviderProps = {
 export const ChatOptionsProvider = ({
   children,
   initialChat,
-  useChannel = store.useChannel,
-  useGroup = store.useGroup,
+  useChannel = useChannel,
+  useGroup = useGroup,
   onPressGroupMeta,
   onPressGroupMembers = noop,
   onPressManageChannels,
@@ -205,8 +205,8 @@ export const ChatOptionsProvider = ({
       if (!groupId) return;
 
       try {
-        await store.syncGroup(groupId, {
-          priority: store.SyncPriority.Low,
+        await syncGroup(groupId, {
+          priority: SyncPriority.Low,
         });
       } catch (error) {
         console.error('sync failed for', groupId, error);
@@ -247,18 +247,18 @@ export const ChatOptionsProvider = ({
     });
 
     await logic.doPin(res, {
-      unpinItem: store.unpinItem,
-      pinChannel: store.pinChannel,
-      pinGroup: store.pinGroup,
+      unpinItem: unpinItem,
+      pinChannel: pinChannel,
+      pinGroup: pinGroup,
     });
   }, [chat, channel, group]);
 
   const updateVolume = useCallback(
     (level: ub.NotificationLevel | null) => {
       if (chat?.type === 'group' && group) {
-        store.setGroupVolumeLevel({ group, level });
+        setGroupVolumeLevel({ group, level });
       } else if (chat?.type === 'channel' && channel) {
-        store.setChannelVolumeLevel({ channel, level });
+        setChannelVolumeLevel({ channel, level });
       }
     },
     [channel, chat, group]
@@ -266,7 +266,7 @@ export const ChatOptionsProvider = ({
 
   const leaveGroup = useCallback(async () => {
     if (groupId) {
-      await store.leaveGroup(groupId);
+      await leaveGroup(groupId);
     }
     navigateOnLeave?.();
     closeSheet();
@@ -281,21 +281,21 @@ export const ChatOptionsProvider = ({
 
     if (isDm) {
       // Leaving a DM - navigate to Messages tab
-      store.respondToDMInvite({
+      respondToDMInvite({
         channel: leaveChannelData,
         accept: false,
       });
       navigateOnLeave?.();
     } else if (leaveChannelData.groupId) {
       // Leaving a channel in a group - navigate to the first available channel
-      store.leaveGroupChannel(leaveChannelData.id);
+      leaveGroupChannel(leaveChannelData.id);
       await navigateToGroupOnLeave?.(
         leaveChannelData.groupId,
         leaveChannelData.id
       );
     } else {
       // Fallback
-      store.leaveGroupChannel(leaveChannelData.id);
+      leaveGroupChannel(leaveChannelData.id);
       navigateOnLeave?.();
     }
     setLeaveChannelData(null);
@@ -310,7 +310,7 @@ export const ChatOptionsProvider = ({
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
-      store.markGroupRead(groupId, true);
+      markGroupRead(groupId, true);
     }
     closeSheet();
   }, [closeSheet, groupId]);
@@ -318,7 +318,7 @@ export const ChatOptionsProvider = ({
   const markChannelRead = useCallback(
     ({ includeThreads }: { includeThreads?: boolean } = {}) => {
       if (channelId) {
-        store.markChannelRead({
+        markChannelRead({
           id: channelId,
           groupId: groupId,
           includeThreads,

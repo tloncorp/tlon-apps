@@ -1,6 +1,6 @@
 import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { cancelGroupJoin, leaveGroup, useBaseVolumeLevel, useChannel, useChannelHooksPreview, useChannelVolumeLevel, useGroup, useGroupUnread, useGroupVolumeLevel } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
@@ -166,8 +166,8 @@ export function GroupOptionsSheetLoader({
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
-    store.useGroupUnread({ groupId });
-  const { data: groupData } = store.useGroup({ id: groupId });
+    useGroupUnread({ groupId });
+  const { data: groupData } = useGroup({ id: groupId });
   const isWindowNarrow = useIsWindowNarrow();
 
   if ((!group && !groupData) || !groupUnreadIsFetched) {
@@ -282,7 +282,7 @@ export function GroupOptionsSheetContent({
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
   const isPinned = group?.pin;
   const isErrored = group?.joinStatus === 'errored';
-  const baseVolumeLevel = store.useBaseVolumeLevel();
+  const baseVolumeLevel = useBaseVolumeLevel();
 
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
@@ -304,8 +304,8 @@ export function GroupOptionsSheetContent({
   }, [group.id, onPressChatDetails]);
 
   const handleCancel = useCallback(async () => {
-    await store.cancelGroupJoin(group);
-    store.leaveGroup(group.id);
+    await cancelGroupJoin(group);
+    leaveGroup(group.id);
   }, [group]);
 
   const notificationTitle = useMemo(
@@ -525,7 +525,7 @@ const ChannelOptionsSheetLoader = memo(
     onPressConfigureChannel?: () => void;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
-    const channelQuery = store.useChannel({
+    const channelQuery = useChannel({
       id: channelId,
     });
     const groupId = useMemo(
@@ -533,7 +533,7 @@ const ChannelOptionsSheetLoader = memo(
       [channelQuery.data?.groupId]
     );
 
-    const { data: group } = store.useGroup({
+    const { data: group } = useGroup({
       id: groupId,
     });
     const groupTitle = utils.useGroupTitle(group) ?? 'group';
@@ -651,7 +651,7 @@ export function ChannelOptionsSheetContent({
     leaveChannel,
     markChannelRead,
   } = useChatOptions();
-  const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
+  const { data: hooksPreview } = useChannelHooksPreview(channel.id);
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -664,7 +664,7 @@ export function ChannelOptionsSheetContent({
   const isSingleChannelGroup = group?.channels?.length === 1;
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
-  const baseVolumeLevel = store.useBaseVolumeLevel();
+  const baseVolumeLevel = useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
     if (!group) {
@@ -871,10 +871,10 @@ function NotificationsSheetContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { updateVolume, group, channel } = useChatOptions();
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
+  const { data: currentChannelVolume } = useChannelVolumeLevel(
     channel?.id ?? ''
   );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
+  const { data: currentGroupVolume } = useGroupVolumeLevel(
     group?.id ?? ''
   );
   const currentVolumeLevel = channel?.id

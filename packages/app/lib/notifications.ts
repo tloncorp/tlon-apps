@@ -1,7 +1,7 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
+import { getSession, useUnreadsCountWithoutMuted } from '@tloncorp/shared/store';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { compact } from 'lodash';
@@ -199,7 +199,7 @@ const channelIdFromNotification = (notif: Notifications.Notification) => {
  * We should move to a serverside badge + dismiss notification system, and remove this.
  */
 async function updatePresentedNotifications() {
-  if (store.getSession()?.channelStatus !== 'active') {
+  if (getSession()?.channelStatus !== 'active') {
     // If the session is not active, we can't be sure that our "fully-read"
     // status is up-to-date - e.g. we may have messages that we've received
     // over notifications, but which are not yet synced, in which case the DB
@@ -240,7 +240,7 @@ async function updatePresentedNotifications() {
 }
 
 export function useUpdatePresentedNotifications() {
-  const { data: unreadCount } = store.useUnreadsCountWithoutMuted();
+  const { data: unreadCount } = useUnreadsCountWithoutMuted();
   useEffect(() => {
     updatePresentedNotifications().catch((err) => {
       console.error('Failed to update presented notifications:', err);

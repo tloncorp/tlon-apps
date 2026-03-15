@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { blockUser, respondToDMInvite } from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,19 +15,19 @@ export function DmInviteOptions({
   const { bottom } = useSafeAreaInsets();
 
   const accept = useCallback(() => {
-    store.respondToDMInvite({ channel, accept: true });
+    respondToDMInvite({ channel, accept: true });
   }, [channel]);
 
   const deny = useCallback(async () => {
-    await store.respondToDMInvite({ channel, accept: false });
+    await respondToDMInvite({ channel, accept: false });
     goBack();
   }, [channel, goBack]);
 
   const blockAndDeny = useCallback(async () => {
-    await store.respondToDMInvite({ channel, accept: false });
+    await respondToDMInvite({ channel, accept: false });
     // only block if single DM for now
     if (channel.type === 'dm') {
-      store.blockUser(channel.id);
+      blockUser(channel.id);
     }
     goBack();
   }, [channel, goBack]);

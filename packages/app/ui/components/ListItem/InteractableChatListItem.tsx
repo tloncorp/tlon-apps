@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { markChannelRead, markGroupRead, muteChat, pinChat, unmuteChat, unpinItem } from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -56,16 +56,16 @@ function BaseInteractableChatRow({
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
-          model.pin ? store.unpinItem(model.pin) : store.pinChat(model);
+          model.pin ? unpinItem(model.pin) : pinChat(model);
           break;
         case 'mute':
-          isMuted ? store.unmuteChat(model) : store.muteChat(model);
+          isMuted ? unmuteChat(model) : muteChat(model);
           break;
         case 'markRead':
           if (model.type === 'group') {
-            store.markGroupRead(model.id, true);
+            markGroupRead(model.id, true);
           } else {
-            store.markChannelRead({
+            markChannelRead({
               id: model.id,
               groupId: model.channel.groupId ?? undefined,
             });

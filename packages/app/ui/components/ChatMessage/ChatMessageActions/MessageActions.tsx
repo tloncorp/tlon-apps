@@ -4,7 +4,7 @@ import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { deletePost, hidePost, muteThread, pinPostToChannel, reportPost, showPost, unmuteThread, unpinPostFromChannel, useConnectionStatus } from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -68,7 +68,7 @@ const ConnectedAction = memo(function ConnectedAction({
   onViewReactions?: (post: db.Post) => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const connectionStatus = store.useConnectionStatus();
+  const connectionStatus = useConnectionStatus();
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
@@ -230,8 +230,8 @@ export async function handleAction({
       break;
     case 'muteThread':
       isMuted
-        ? store.unmuteThread({ channel, thread: post })
-        : store.muteThread({ channel, thread: post });
+        ? unmuteThread({ channel, thread: post })
+        : muteThread({ channel, thread: post });
       break;
     case 'viewReactions':
       onViewReactions?.(post);
@@ -258,13 +258,13 @@ export async function handleAction({
       Clipboard.setString(post.textContent ?? '');
       break;
     case 'delete':
-      store.deletePost({ post });
+      deletePost({ post });
       break;
     case 'report':
-      store.reportPost({ userId, post });
+      reportPost({ userId, post });
       break;
     case 'visibility':
-      post.hidden ? store.showPost({ post }) : store.hidePost({ post });
+      post.hidden ? showPost({ post }) : hidePost({ post });
       break;
     case 'forward':
       // On iOS, dismiss the current modal first, then open the forward sheet
@@ -279,10 +279,10 @@ export async function handleAction({
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
     case 'pinPost':
-      store.pinPostToChannel({ channel, postId: post.id });
+      pinPostToChannel({ channel, postId: post.id });
       break;
     case 'unpinPost':
-      store.unpinPostFromChannel({ channel });
+      unpinPostFromChannel({ channel });
       break;
   }
 

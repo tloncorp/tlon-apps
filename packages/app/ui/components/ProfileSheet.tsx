@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { blockUser, unblockUser } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -115,9 +115,9 @@ export function ProfileSheet({
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
-      store.unblockUser(contactId);
+      unblockUser(contactId);
     } else {
-      store.blockUser(contactId);
+      blockUser(contactId);
     }
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);

@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { addPostReaction, removePostReaction, useChannel } from '@tloncorp/shared/store';
 import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -24,7 +24,7 @@ export function ReactionsDisplay({
 }) {
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const channel = store.useChannel({ id: post.channelId });
+  const channel = useChannel({ id: post.channelId });
   const canWrite = useCanWrite(channel.data, currentUserId);
 
   const handleSelectEmoji = useOnEmojiSelect(post, () => setSheetOpen(false));
@@ -52,12 +52,12 @@ export function ReactionsDisplay({
         reactionDetails.self.didReact &&
         reactionDetails.self.value === value
       ) {
-        store.removePostReaction(post, currentUserId);
+        removePostReaction(post, currentUserId);
       } else {
         // Convert legacy shortcodes to native emojis before adding reaction
         const nativeEmoji = getNativeEmoji(value);
         if (nativeEmoji) {
-          store.addPostReaction(post, nativeEmoji, currentUserId);
+          addPostReaction(post, nativeEmoji, currentUserId);
         }
         // If nativeEmoji is undefined, it means the input was an invalid shortcode
         // and we should not add the reaction

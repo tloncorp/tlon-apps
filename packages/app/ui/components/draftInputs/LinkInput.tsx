@@ -7,7 +7,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useLinkGrabber } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import {
   DEFAULT_BOTTOM_PADDING,
@@ -113,7 +113,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   useEffect(() => {
     setIsPendingDebounce(form.url !== url);
   }, [form.url, url]);
-  const { data, isLoading } = store.useLinkGrabber(url);
+  const { data, isLoading } = useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
 
   useEffect(() => {

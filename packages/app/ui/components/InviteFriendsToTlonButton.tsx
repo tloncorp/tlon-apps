@@ -4,7 +4,7 @@ import {
   enableGroupLinks,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useLure } from '@tloncorp/shared/store';
 import { Button, Text, useCopy } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
@@ -25,7 +25,7 @@ export function InviteFriendsToTlonButton({
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
-  const { status, shareUrl } = store.useLure({
+  const { status, shareUrl } = useLure({
     flag: group?.id ?? '',
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,

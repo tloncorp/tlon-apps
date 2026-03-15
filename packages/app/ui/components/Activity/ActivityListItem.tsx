@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { useLiveUnread } from '@tloncorp/shared/store';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -67,7 +67,7 @@ export function ActivityListItemContent({
       : summary.type === 'group-ask'
         ? newestPost.group?.unread ?? null
         : newestPost.parent?.threadUnread ?? null;
-  const { data: unread } = store.useLiveUnread(modelUnread);
+  const { data: unread } = useLiveUnread(modelUnread);
   const unreadCount = useMemo(() => {
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;
   }, [unread]);

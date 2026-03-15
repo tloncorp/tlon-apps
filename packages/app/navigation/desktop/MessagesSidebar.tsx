@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useChannelPreview, useConnectionStatus, useCurrentChats, useGroup, useGroupPreview, usePostReference, usePostWithRelations } from '@tloncorp/shared/store';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
@@ -44,16 +44,16 @@ export const MessagesSidebar = memo(
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
     );
-    const { data: selectedGroup } = store.useGroup({
+    const { data: selectedGroup } = useGroup({
       id: selectedGroupId ?? '',
     });
     const { setIsOpen: setSearchIsOpen } = useGlobalSearch();
 
-    const { data: chats } = store.useCurrentChats();
+    const { data: chats } = useCurrentChats();
     const { performGroupAction } = useGroupActions();
     const { loadingSubtitle: syncLoadingSubtitle } = useSyncStatus();
 
-    const connStatus = store.useConnectionStatus();
+    const connStatus = useConnectionStatus();
     const loadingSubtitle = useMemo(() => {
       if (syncLoadingSubtitle) {
         return syncLoadingSubtitle;
@@ -167,11 +167,11 @@ export const MessagesSidebar = memo(
 
     return (
       <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
+        usePostReference={usePostReference}
+        useChannel={useChannelPreview}
+        usePost={usePostWithRelations}
         useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+        useGroup={useGroupPreview}
       >
         <ChatOptionsProvider
           {...useChatSettingsNavigation()}

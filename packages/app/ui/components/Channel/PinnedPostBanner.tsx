@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { dismissPinnedPostBanner, usePostReference } from '@tloncorp/shared/store';
 import { Icon, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Pressable } from 'react-native';
@@ -23,7 +23,7 @@ export function PinnedPostBanner({
   const isDismissed =
     !!pinnedPostId && dismissedPinnedPostBannerIds.includes(pinnedPostId);
 
-  const postQuery = store.usePostReference({
+  const postQuery = usePostReference({
     channelId: channel.id,
     postId: pinnedPostId ?? '',
     enabled: !!pinnedPostId && !isDismissed,
@@ -37,7 +37,7 @@ export function PinnedPostBanner({
 
   const handleDismiss = useCallback(() => {
     if (pinnedPostId) {
-      store.dismissPinnedPostBanner(pinnedPostId);
+      dismissPinnedPostBanner(pinnedPostId);
     }
   }, [pinnedPostId]);
 

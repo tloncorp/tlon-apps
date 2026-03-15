@@ -1,7 +1,7 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { BucketFetchers, advanceActivitySeenMarker, markAllRead, useActivityIsEmpty, useActivitySeenMarker } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -44,7 +44,7 @@ export function ActivityScreenView({
   goToGroup: (group: db.Group) => void;
   goToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  bucketFetchers: store.BucketFetchers;
+  bucketFetchers: BucketFetchers;
   refresh: () => Promise<void>;
   subtitle?: string;
   loadingSubtitle?: string | null;
@@ -52,11 +52,11 @@ export function ActivityScreenView({
   onInviteFriends?: () => void;
 }) {
   const store = useStore();
-  const { data: activitySeenMarker } = store.useActivitySeenMarker();
+  const { data: activitySeenMarker } = useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
-  const { data: allTabsAreEmpty } = store.useActivityIsEmpty();
+  const { data: allTabsAreEmpty } = useActivityIsEmpty();
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
@@ -67,7 +67,7 @@ export function ActivityScreenView({
 
   const moveSeenMarker = useCallback(() => {
     setTimeout(() => {
-      store.advanceActivitySeenMarker(newestTimestamp);
+      advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
   }, [newestTimestamp, store]);
 
@@ -264,7 +264,7 @@ export function ActivityScreenContent({
   const markAllRead = useCallback(async () => {
     console.log('Marking all activity as read');
     await setBadgeCountAsync(0);
-    await store.markAllRead();
+    await markAllRead();
   }, []);
 
   const handleInviteFriends = useCallback(() => {

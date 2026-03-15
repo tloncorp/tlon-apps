@@ -1,7 +1,7 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { acceptGroupInvitation, cancelGroupJoin, joinGroup, markGroupNew, rejectGroupInvitation, requestGroupInvitation, rescindGroupInvitationRequest } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
@@ -126,9 +126,9 @@ export function GroupPreviewPane({
 
       if (accepted) {
         setIsJoining(true);
-        store.acceptGroupInvitation(group);
+        acceptGroupInvitation(group);
       } else {
-        store.rejectGroupInvitation(group);
+        rejectGroupInvitation(group);
         onActionComplete('other', group);
       }
     },
@@ -136,22 +136,22 @@ export function GroupPreviewPane({
   );
 
   const requestInvite = useCallback(() => {
-    store.requestGroupInvitation(group);
+    requestGroupInvitation(group);
     onActionComplete('other', group);
   }, [group, onActionComplete]);
 
   const rescindInvite = useCallback(() => {
-    store.rescindGroupInvitationRequest(group);
+    rescindGroupInvitationRequest(group);
     onActionComplete('other', group);
   }, [group, onActionComplete]);
 
   const joinGroup = useCallback(() => {
-    store.joinGroup(group);
+    joinGroup(group);
     setIsJoining(true);
   }, [group]);
 
   const cancelJoin = useCallback(() => {
-    store.cancelGroupJoin(group);
+    cancelGroupJoin(group);
     setIsJoining(false);
     onActionComplete('other', group);
   }, [group, onActionComplete]);
@@ -169,8 +169,7 @@ export function GroupPreviewPane({
         // TODO: handle case whare joinStatus === 'errored'
         if (nextGroup?.currentUserIsMember === true) {
           setIsJoining(false);
-          store
-            .markGroupNew(nextGroup)
+          markGroupNew(nextGroup)
             .finally(() => onActionComplete('joined', nextGroup));
           clearInterval(interval);
           logger.trackEvent(
