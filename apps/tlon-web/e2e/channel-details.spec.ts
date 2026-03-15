@@ -38,8 +38,8 @@ test('should display channel details screen with all expected elements', async (
     timeout: 5000,
   });
 
-  // Leave actions - check for "Leave channel" text
-  await expect(page.getByText('Leave channel')).toBeVisible({
+  // Leave/Delete actions - host sees "Delete channel" instead of "Leave channel"
+  await expect(page.getByText('Delete channel')).toBeVisible({
     timeout: 5000,
   });
 });
