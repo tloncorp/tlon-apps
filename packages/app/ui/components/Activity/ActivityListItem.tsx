@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import type { SourceActivityEvents } from '@tloncorp/shared/logic';
+import { makePrettyTime } from '@tloncorp/shared/logic';
 import { useLiveUnread } from '@tloncorp/shared/store';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -19,7 +20,7 @@ export const ActivityListItem = React.memo(function ActivityListItem({
   seenMarker,
   onPress,
 }: {
-  sourceActivity: logic.SourceActivityEvents;
+  sourceActivity: SourceActivityEvents;
   seenMarker: number;
   onPress: (event: db.ActivityEvent) => void;
 }) {
@@ -53,7 +54,7 @@ export function ActivityListItemContent({
   pressHandler,
   seenMarker,
 }: {
-  summary: logic.SourceActivityEvents;
+  summary: SourceActivityEvents;
   pressHandler?: () => void;
   seenMarker: number;
 }) {
@@ -170,7 +171,7 @@ function ActivitySummaryHeader({
       </Text>
       {sentTime && (
         <Text size="$label/m" color="$tertiaryText">
-          {logic.makePrettyTime(new Date(sentTime))}
+          {makePrettyTime(new Date(sentTime))}
         </Text>
       )}
     </XStack>

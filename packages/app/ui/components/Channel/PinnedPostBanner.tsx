@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getPinnedPostId } from '@tloncorp/shared/logic';
 import { dismissPinnedPostBanner, usePostReference } from '@tloncorp/shared/store';
 import { Icon, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
@@ -17,7 +17,7 @@ export function PinnedPostBanner({
   channel,
   onPressPost,
 }: PinnedPostBannerProps) {
-  const pinnedPostId = logic.getPinnedPostId(channel);
+  const pinnedPostId = getPinnedPostId(channel);
   const dismissedPinnedPostBannerIds =
     db.dismissedPinnedPostBannerIds.useValue();
   const isDismissed =

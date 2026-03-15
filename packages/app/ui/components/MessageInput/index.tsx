@@ -25,7 +25,7 @@ import {
 import { toContentReference } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
+import { getReferenceFromDeeplink } from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/api/urbit';
 import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
@@ -437,7 +437,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           pastedText,
           matchRegex: DEEPLINK_REGEX,
           processMatch: async (deeplink) => {
-            const deeplinkRef = await logic.getReferenceFromDeeplink({
+            const deeplinkRef = await getReferenceFromDeeplink({
               deepLink: deeplink,
               branchKey,
               branchDomain,
@@ -467,7 +467,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             const parts = tlonLure.split('/');
             const token = parts[parts.length - 1];
             if (!token) return null;
-            const deeplinkRef = await logic.getReferenceFromDeeplink({
+            const deeplinkRef = await getReferenceFromDeeplink({
               deepLink: `https://${branchDomain}/${token}`,
               branchKey,
               branchDomain,

@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import { uploadAsset, useCalmSettings, useCanUpload, useContacts } from '@tloncorp/shared/store';
 import { useMemo, useState } from 'react';
 import { useCallback } from 'react';
@@ -76,7 +76,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const handlePressGroup = useCallback((group: db.Group) => {
     logger.trackEvent(
       AnalyticsEvent.ActionViewProfileGroup,
-      logic.getModelAnalytics({ group })
+      getModelAnalytics({ group })
     );
     setSelectedGroup(group);
   }, []);

@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { whichPin, doPin } from '@tloncorp/shared/logic';
 import { SyncPriority, leaveGroup, leaveGroupChannel, markChannelRead, markGroupRead, pinChannel, pinGroup, respondToDMInvite, setChannelVolumeLevel, setGroupVolumeLevel, syncGroup, unpinItem, useChannel, useGroup } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
@@ -240,13 +240,13 @@ export const ChatOptionsProvider = ({
     }
 
     // Use pinning logic
-    const res = logic.whichPin({
+    const res = whichPin({
       chat,
       channel: updatedChannel,
       group: updatedGroup,
     });
 
-    await logic.doPin(res, {
+    await doPin(res, {
       unpinItem: unpinItem,
       pinChannel: pinChannel,
       pinGroup: pinGroup,

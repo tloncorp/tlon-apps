@@ -3,7 +3,7 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
+import { getPinnedPostId, isMuted, postToContentReference, getPostReferencePath } from '@tloncorp/shared/logic';
 import { deletePost, hidePost, muteThread, pinPostToChannel, reportPost, showPost, unmuteThread, unpinPostFromChannel, useConnectionStatus } from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
@@ -74,7 +74,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
-  const pinnedPostId = logic.getPinnedPostId(channel);
+  const pinnedPostId = getPinnedPostId(channel);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -160,7 +160,7 @@ const ConnectedAction = memo(function ConnectedAction({
           post,
           userId: currentUserId,
           channel,
-          isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+          isMuted: isMuted(post.volumeSettings?.level, 'thread'),
           dismiss,
           onReply,
           onEdit,
@@ -218,7 +218,7 @@ export async function handleAction({
   addAttachment: (attachment: Attachment) => void;
   showToast?: (options: { message: string; duration?: number }) => void;
 }) {
-  const [path, reference] = logic.postToContentReference(post);
+  const [path, reference] = postToContentReference(post);
 
   switch (id) {
     case 'debugJson':
@@ -252,7 +252,7 @@ export async function handleAction({
       onEdit?.();
       break;
     case 'copyRef':
-      Clipboard.setString(logic.getPostReferencePath(post));
+      Clipboard.setString(getPostReferencePath(post));
       break;
     case 'copyText':
       Clipboard.setString(post.textContent ?? '');
@@ -311,7 +311,7 @@ export function useDisplaySpecForChannelActionId(
 ): {
   label: string;
 } {
-  const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
+  const isMuted = isMuted(post.volumeSettings?.level, 'thread');
   const postTerm = useMemo(() => {
     return ['dm', 'groupDm', 'chat'].includes(channel?.type)
       ? 'message'

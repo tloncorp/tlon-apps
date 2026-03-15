@@ -1,5 +1,5 @@
 import type * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { useMutableCallback } from '@tloncorp/shared/logic';
 import React, { useMemo } from 'react';
 
 import { ChannelListItem } from './ChannelListItem';
@@ -16,11 +16,11 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   onLayout?: (e: any) => void;
   showGroupTitle?: boolean;
 }) {
-  const handlePress = logic.useMutableCallback(() => {
+  const handlePress = useMutableCallback(() => {
     onPress?.(model);
   });
 
-  const handleLongPress = logic.useMutableCallback(() => {
+  const handleLongPress = useMutableCallback(() => {
     onLongPress?.(model);
   });
 

@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isGroup } from '@tloncorp/shared/logic';
 import { useBaseVolumeLevel, useVolumeExceptions, setBaseVolumeLevel, setGroupVolumeLevel, setChannelVolumeLevel } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { ComponentProps, useCallback, useMemo } from 'react';
@@ -45,7 +45,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
 
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
-      if (logic.isGroup(exception)) {
+      if (isGroup(exception)) {
         await setGroupVolumeLevel({ group: exception, level: null });
       } else {
         await setChannelVolumeLevel({ channel: exception, level: null });

@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import { joinGroupChannel, useUnjoinedGroupChannels } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
@@ -53,7 +53,7 @@ export function GroupChannelsScreenContent({
     (channel: db.Channel) => {
       logger.trackEvent(
         AnalyticsEvent.ActionGroupChannelSelected,
-        logic.getModelAnalytics({ channel })
+        getModelAnalytics({ channel })
       );
       navigateToChannel(channel);
     },

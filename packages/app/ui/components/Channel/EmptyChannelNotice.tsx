@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isDefaultPersonalChannel } from '@tloncorp/shared/logic';
 import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { YStack, styled } from 'tamagui';
@@ -28,7 +28,7 @@ export function EmptyChannelNotice({
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
   const isDefaultPersonalChannel = useMemo(() => {
-    return logic.isDefaultPersonalChannel(channel, userId);
+    return isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
 
   const messagesNoun = useMemo(() => {

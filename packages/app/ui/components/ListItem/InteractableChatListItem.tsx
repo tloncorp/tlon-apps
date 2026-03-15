@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isMuted, useMutableCallback } from '@tloncorp/shared/logic';
 import { markChannelRead, markGroupRead, muteChat, pinChat, unmuteChat, unpinItem } from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
@@ -38,7 +38,7 @@ function BaseInteractableChatRow({
   >(null);
 
   const isMuted = useMemo(() => {
-    return logic.isMuted(model.volumeSettings?.level, model.type);
+    return isMuted(model.volumeSettings?.level, model.type);
   }, [model]);
 
   // prevent color flicker when unmuting
@@ -51,7 +51,7 @@ function BaseInteractableChatRow({
     }
   }, [isMuted, mutedState]);
 
-  const handleAction = logic.useMutableCallback(
+  const handleAction = useMutableCallback(
     async (actionId: 'pin' | 'mute' | 'markRead') => {
       triggerHaptic('swipeAction');
       switch (actionId) {

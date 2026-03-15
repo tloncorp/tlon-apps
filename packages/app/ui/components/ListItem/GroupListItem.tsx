@@ -1,6 +1,6 @@
 // sort-imports-ignore
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { useMutableCallback, isMuted } from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import { View, isWeb } from 'tamagui';
 
@@ -85,11 +85,11 @@ export const GroupListItem = ({
     }
   };
 
-  const handlePress = logic.useMutableCallback(() => {
+  const handlePress = useMutableCallback(() => {
     onPress?.(model);
   });
 
-  const handleLongPress = logic.useMutableCallback(() => {
+  const handleLongPress = useMutableCallback(() => {
     onLongPress?.(model);
   });
 
@@ -187,7 +187,7 @@ export const GroupListItem = ({
                     opacity={isHovered ? 0 : 1}
                     notified={notified}
                     count={unreadCount}
-                    muted={logic.isMuted(model.volumeSettings?.level, 'group')}
+                    muted={isMuted(model.volumeSettings?.level, 'group')}
                     marginTop={isWeb ? 3 : 'unset'}
                     testID="UnreadCount"
                   />

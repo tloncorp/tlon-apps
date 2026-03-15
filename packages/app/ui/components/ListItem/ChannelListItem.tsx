@@ -1,5 +1,5 @@
 import type * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { useMutableCallback, isMuted } from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -104,11 +104,11 @@ export function ChannelListItem({
     }
   };
 
-  const handlePress = logic.useMutableCallback(() => {
+  const handlePress = useMutableCallback(() => {
     onPress?.(model);
   });
 
-  const handleLongPress = logic.useMutableCallback(() => {
+  const handleLongPress = useMutableCallback(() => {
     onLongPress?.(model);
   });
 
@@ -217,7 +217,7 @@ export function ChannelListItem({
                   opacity={isHovered ? 0 : 1}
                   notified={notified}
                   count={unreadCount}
-                  muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
+                  muted={isMuted(model.volumeSettings?.level, 'channel')}
                   marginTop={isWeb ? 3 : 'unset'}
                 />
               )}

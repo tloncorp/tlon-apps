@@ -1,6 +1,7 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import type { SourceActivityEvents } from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import { BucketFetchers, advanceActivitySeenMarker, markAllRead, useActivityIsEmpty, useActivitySeenMarker } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
@@ -89,7 +90,7 @@ export function ActivityScreenView({
         case 'post':
           if (event.channel) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
-              ...logic.getModelAnalytics({ channel: event.channel }),
+              ...getModelAnalytics({ channel: event.channel }),
               type: 'channelPost',
             });
             if (event.postId) {
@@ -101,7 +102,7 @@ export function ActivityScreenView({
             const channel = await db.getChannel({ id: event.channelId });
             if (channel) {
               logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
-                ...logic.getModelAnalytics({ channel }),
+                ...getModelAnalytics({ channel }),
                 type: 'channelPost',
               });
               goToChannel(channel, event.postId!);
@@ -127,7 +128,7 @@ export function ActivityScreenView({
         case 'group-ask':
           if (event.group) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
-              ...logic.getModelAnalytics({ group: event.group }),
+              ...getModelAnalytics({ group: event.group }),
               type: 'groupInvite',
             });
             goToGroup(event.group);
@@ -235,7 +236,7 @@ export function ActivityScreenContent({
   onPressTab: (tab: db.ActivityBucket) => void;
   onPressEvent: (event: db.ActivityEvent) => void;
   onEndReached: () => void;
-  events: logic.SourceActivityEvents[];
+  events: SourceActivityEvents[];
   isFetching: boolean;
   allTabsAreEmpty: boolean;
   currentTabIsEmpty: boolean;
@@ -276,12 +277,12 @@ export function ActivityScreenContent({
     }
   }, [onInviteFriends]);
 
-  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
+  const keyExtractor = useCallback((item: SourceActivityEvents) => {
     return `${item.newest.id}/${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: logic.SourceActivityEvents }) => {
+    ({ item }: { item: SourceActivityEvents }) => {
       return (
         <ActivityListItem
           sourceActivity={item}

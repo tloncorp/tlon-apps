@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import { BlockData, InlineData, prependInline } from '@tloncorp/shared/logic';
+import type { SourceActivityEvents, BlockData, InlineData } from '@tloncorp/shared/logic';
+import { prependInline } from '@tloncorp/shared/logic';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -13,7 +13,7 @@ import { createContentRenderer } from '../PostContent';
 import { usePostContent } from '../PostContent/contentUtils';
 
 type ActivitySourceContentProps = {
-  summary: logic.SourceActivityEvents;
+  summary: SourceActivityEvents;
   unreadCount?: number;
   pressHandler?: () => void;
 };
@@ -157,7 +157,7 @@ function NotebookOrGalleryContentRenderer({
   );
 }
 
-function useUniqueSummaryPosts(summary: logic.SourceActivityEvents) {
+function useUniqueSummaryPosts(summary: SourceActivityEvents) {
   return useMemo(() => {
     const seen = new Set();
     return summary.all?.flatMap((event) => {

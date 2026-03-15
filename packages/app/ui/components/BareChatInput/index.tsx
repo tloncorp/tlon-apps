@@ -12,7 +12,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
+import { isPersonalChatChannel } from '@tloncorp/shared/logic';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -805,7 +805,7 @@ export default function BareChatInput({
 
   const handleFocus = useCallback(() => {
     // dismiss wayfinding tooltip if needed
-    if (logic.isPersonalChatChannel(channelId)) {
+    if (isPersonalChatChannel(channelId)) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedChatInput: true,

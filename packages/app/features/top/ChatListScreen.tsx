@@ -7,7 +7,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { markInvitesRead } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import { SyncPriority, syncQueue, useChannelPreview, useConnectionStatus, useCurrentChats, useGroup, useGroupPreview, usePostReference, usePostWithRelations } from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
@@ -178,14 +178,14 @@ export function ChatListScreenView({
         } else {
           logger.trackEvent(
             AnalyticsEvent.ActionTappedChat,
-            logic.getModelAnalytics({ group: item.group })
+            getModelAnalytics({ group: item.group })
           );
           navigateToGroup(item.group.id);
         }
       } else {
         logger.trackEvent(
           AnalyticsEvent.ActionTappedChat,
-          logic.getModelAnalytics({ channel: item.channel })
+          getModelAnalytics({ channel: item.channel })
         );
         navigateToChannel(item.channel);
       }

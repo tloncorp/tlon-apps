@@ -18,7 +18,7 @@ import {
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
+import { getPinnedPostId } from '@tloncorp/shared/logic';
 import { JSONContent } from '@tloncorp/api/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -193,7 +193,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isGroupDm = isGroupDmChannelId(channel.id);
     const isNotebookOrGallery =
       channel.type === 'notebook' || channel.type === 'gallery';
-    const pinnedPostId = logic.getPinnedPostId(channel);
+    const pinnedPostId = getPinnedPostId(channel);
     const isSingleChannelGroup = group?.channels?.length === 1;
 
     // For DMs, get the other participant's ID

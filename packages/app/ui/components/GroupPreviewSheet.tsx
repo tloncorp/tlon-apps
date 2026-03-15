@@ -1,6 +1,6 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import { acceptGroupInvitation, cancelGroupJoin, joinGroup, markGroupNew, rejectGroupInvitation, requestGroupInvitation, rescindGroupInvitationRequest } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -174,7 +174,7 @@ export function GroupPreviewPane({
           clearInterval(interval);
           logger.trackEvent(
             AnalyticsEvent.GroupJoinComplete,
-            logic.getModelAnalytics({ group: nextGroup })
+            getModelAnalytics({ group: nextGroup })
           );
         }
       }, 1_000);

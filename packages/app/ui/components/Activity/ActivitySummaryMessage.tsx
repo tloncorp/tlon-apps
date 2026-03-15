@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import type { SourceActivityEvents } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import React, { Fragment, useMemo } from 'react';
 import { styled } from 'tamagui';
@@ -10,7 +10,7 @@ import { ContactName } from '../ContactNameV2';
 function SummaryMessageRaw({
   summary,
 }: {
-  summary: logic.SourceActivityEvents;
+  summary: SourceActivityEvents;
 }) {
   const currentUserId = useCurrentUserId();
   const relevancy = getRelevancy(summary, currentUserId);
@@ -189,7 +189,7 @@ type ActivityRelevancy =
   | 'contactUpdate';
 
 export function getRelevancy(
-  summary: logic.SourceActivityEvents,
+  summary: SourceActivityEvents,
   currentUserId: string
 ): ActivityRelevancy {
   const newest = summary.newest;
@@ -298,7 +298,7 @@ export function ActivitySummaryAuthorList({
   }
 }
 
-export function useActivitySummaryAuthors(summary: logic.SourceActivityEvents) {
+export function useActivitySummaryAuthors(summary: SourceActivityEvents) {
   return useMemo(() => {
     if (summary.type === 'contact') {
       return [summary.newest.contactUserId ?? ''];
