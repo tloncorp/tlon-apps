@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
+import { useSystemContacts, recordSentInvites } from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InviteSystemContacts'>;
 
 export function InviteSystemContactsScreen(props: Props) {
   const inviteSystemContacts = useInviteSystemContacts();
-  const { data: systemContacts } = store.useSystemContacts();
+  const { data: systemContacts } = useSystemContacts();
   const [selectedRecipients, setSelectedRecipients] = useState<
     db.SystemContact[]
   >([]);
@@ -106,7 +106,7 @@ export function InviteSystemContactsScreen(props: Props) {
 
     const didSend = await inviteSystemContacts?.(params);
     if (didSend) {
-      await store.recordSentInvites(
+      await recordSentInvites(
         domain.InvitedToPersonalKey,
         selectedRecipients
       );

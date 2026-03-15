@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/store';
+import { useCanUpload, useGroups, uploadAsset } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -12,8 +12,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
 export function EditProfileScreen({ route, navigation }: Props) {
-  const canUpload = store.useCanUpload();
-  const { data: groups } = store.useGroups({ includeUnjoined: true });
+  const canUpload = useCanUpload();
+  const { data: groups } = useGroups({ includeUnjoined: true });
 
   const handleGoToAttestation = useCallback(
     (attestationType: 'twitter' | 'phone') => {
@@ -24,7 +24,7 @@ export function EditProfileScreen({ route, navigation }: Props) {
 
   return (
     <GroupsProvider groups={groups ?? []}>
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
         <EditProfileScreenView
           userId={route.params.userId}
           onGoBack={navigation.goBack}

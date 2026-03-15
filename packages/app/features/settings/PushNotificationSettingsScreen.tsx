@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { useBaseVolumeLevel, useVolumeExceptions, setBaseVolumeLevel, setGroupVolumeLevel, setChannelVolumeLevel } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -26,8 +26,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 
 export function PushNotificationSettingsScreen({ navigation }: Props) {
-  const baseVolumeSetting = store.useBaseVolumeLevel();
-  const { data: exceptions } = store.useVolumeExceptions();
+  const baseVolumeSetting = useBaseVolumeLevel();
+  const { data: exceptions } = useVolumeExceptions();
   const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const numExceptions = useMemo(
@@ -38,7 +38,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   const setLevel = useCallback(
     async (level: ub.NotificationLevel) => {
       if (level === baseVolumeSetting) return;
-      await store.setBaseVolumeLevel({ level });
+      await setBaseVolumeLevel({ level });
     },
     [baseVolumeSetting]
   );
@@ -46,9 +46,9 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
       if (logic.isGroup(exception)) {
-        await store.setGroupVolumeLevel({ group: exception, level: null });
+        await setGroupVolumeLevel({ group: exception, level: null });
       } else {
-        await store.setChannelVolumeLevel({ channel: exception, level: null });
+        await setChannelVolumeLevel({ channel: exception, level: null });
       }
     },
     []

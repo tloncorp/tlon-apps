@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/store';
+import { useChannel, useGroup } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -31,11 +31,11 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
 
   const { updateChannel } = useGroupContext({ groupId });
 
-  const { data: channel, isLoading: channelLoading } = store.useChannel({
+  const { data: channel, isLoading: channelLoading } = useChannel({
     id: channelId ?? '',
   });
 
-  const { data: group, isLoading: groupLoading } = store.useGroup({
+  const { data: group, isLoading: groupLoading } = useGroup({
     id: groupId ?? '',
   });
 

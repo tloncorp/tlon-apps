@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useChannel } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
-  const channelQuery = store.useChannel({
+  const channelQuery = useChannel({
     id: channelId,
   });
 

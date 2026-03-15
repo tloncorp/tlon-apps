@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
+import { recordSentInvites } from '@tloncorp/shared/store';
 import { triggerHaptic } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -47,7 +47,7 @@ export function useInviteSystemContactHandler(
       };
       const didSend = await inviteSystemContacts(params);
       if (didSend) {
-        await store.recordSentInvites(domain.InvitedToPersonalKey, [
+        await recordSentInvites(domain.InvitedToPersonalKey, [
           systemContact,
         ]);
       }

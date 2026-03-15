@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useBlockedContacts, getConfirmationMessage, handleBlockingAction } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -17,21 +17,21 @@ import { formatUserId } from '../../ui/utils/user';
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
-  const { data: blockedContacts } = store.useBlockedContacts();
+  const { data: blockedContacts } = useBlockedContacts();
   const isNarrow = useIsWindowNarrow();
 
   const onBlockedContactPress = useCallback((contact: db.Contact) => {
     // For the confirmation dialog, we use nickname if available, otherwise formatted userId
     const displayName =
       contact.nickname || formatUserId(contact.id)?.display || contact.id;
-    const message = store.getConfirmationMessage(false); // Always unblocking from this screen
+    const message = getConfirmationMessage(false); // Always unblocking from this screen
 
     if (isWeb) {
       const confirmed = window.confirm(
         `Are you sure you want to unblock ${displayName}?`
       );
       if (confirmed) {
-        store.handleBlockingAction(contact.id, true);
+        handleBlockingAction(contact.id, true);
       }
     } else {
       Alert.alert(displayName, message, [
@@ -41,7 +41,7 @@ export function BlockedUsersScreen(props: Props) {
         },
         {
           text: 'Unblock',
-          onPress: () => store.handleBlockingAction(contact.id, true),
+          onPress: () => handleBlockingAction(contact.id, true),
         },
       ]);
     }

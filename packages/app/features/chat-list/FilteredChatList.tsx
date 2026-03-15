@@ -1,6 +1,6 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import type * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useCurrentChats } from '@tloncorp/shared/store';
 import React, {
   ComponentProps,
   useCallback,
@@ -46,7 +46,7 @@ export const FilteredChatList = React.memo(
     const listRef = useRef<FlashList<ChatListItemData>>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
 
-    const { data: chats } = store.useCurrentChats();
+    const { data: chats } = useCurrentChats();
     const resolvedChats = useResolvedChats(chats);
     const filteredChatsConfig = useMemo(
       () => ({

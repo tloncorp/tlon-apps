@@ -12,8 +12,21 @@ import {
   NodeBootPhase,
   getConstants,
 } from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
-import { verifyUserInviteLink } from '@tloncorp/shared/store';
+import {
+  useConnectionStatus,
+  authenticateWithReadyNode,
+  syncStart,
+  syncGroupPreviews,
+  leaveGroup,
+  scaffoldPersonalGroup,
+  addContact,
+  respondToDMInvite,
+  joinGroup,
+  syncContacts,
+  syncGroup,
+  syncDms,
+  verifyUserInviteLink,
+} from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/api/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -54,7 +67,7 @@ type BootSequenceReport = {
 export function useBootSequence() {
   const telemetry = usePosthog();
   const { setShip } = useShip();
-  const connectionStatus = store.useConnectionStatus();
+  const connectionStatus = useConnectionStatus();
   const lureMeta = useLureMetadata();
   const configureUrbitClient = useConfigureUrbitClient();
 
@@ -145,7 +158,7 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
       try {
-        const shipInfo = await store.authenticateWithReadyNode(
+        const shipInfo = await authenticateWithReadyNode(
           reservedNode.code
         );
         if (!shipInfo) {
@@ -165,7 +178,7 @@ export function useBootSequence() {
           shipName: shipInfo.ship,
           shipUrl: shipInfo.shipUrl,
         });
-        withRetry(() => store.syncStart(), {
+        withRetry(() => syncStart(), {
           numOfAttempts: 3,
           startingDelay: 30000,
         });
@@ -183,7 +196,7 @@ export function useBootSequence() {
     //
     if (bootPhase === NodeBootPhase.CONNECTING) {
       // immediately subscribing on a path that generates a fact significantly reduces connection time
-      store.syncGroupPreviews([GETTING_STARTED_GROUP_ID]);
+      syncGroupPreviews([GETTING_STARTED_GROUP_ID]);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
         // should be redundant, but make sure the node peers with the inviter's contact profile
@@ -217,7 +230,7 @@ export function useBootSequence() {
         });
       }
 
-      store.leaveGroup(TLON_STUDIO).catch((e) => {
+      leaveGroup(TLON_STUDIO).catch((e) => {
         logger.trackError('failed to leave tlon studio group', {
           errorMessage: e.message,
           errorStack: e.stack,
@@ -240,7 +253,7 @@ export function useBootSequence() {
       }
 
       try {
-        await store.scaffoldPersonalGroup();
+        await scaffoldPersonalGroup();
 
         // since we know they're using the app for the first time, enable coach marks
         db.wayfindingProgress.setValue((prev) => ({
@@ -267,7 +280,7 @@ export function useBootSequence() {
       if (lureMeta?.inviterUserId) {
         const contact = await db.getContact({ id: lureMeta.inviterUserId });
         if (!contact || !contact.isContact) {
-          store.addContact(lureMeta?.inviterUserId);
+          addContact(lureMeta?.inviterUserId);
         }
       }
 
@@ -317,14 +330,14 @@ export function useBootSequence() {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have tlon team dm invite, accepting`,
         });
-        store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
+        respondToDMInvite({ channel: tlonTeamDM, accept: true });
       }
 
       if (invitedDm && invitedDm.isDmInvite) {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have dm invite from inviter, accepting`,
         });
-        store.respondToDMInvite({ channel: invitedDm, accept: true });
+        respondToDMInvite({ channel: invitedDm, accept: true });
       }
 
       if (
@@ -335,23 +348,23 @@ export function useBootSequence() {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: `have group invite, joining`,
         });
-        store.joinGroup(invitedGroup);
+        joinGroup(invitedGroup);
       }
 
       // avoid race condition where remote contacts haven't yet arrived
       // on the node when we start syncing
       setTimeout(() => {
-        store.syncContacts();
+        syncContacts();
       }, 3000);
 
       // give the joins some time to process, then resync & pin
       setTimeout(() => {
         if (invitedGroup && !invitedGroup.currentUserIsMember) {
-          store.syncGroup(invitedGroup?.id, undefined, { force: true });
-          store.syncGroup(GETTING_STARTED_GROUP_ID, undefined, { force: true });
+          syncGroup(invitedGroup?.id, undefined, { force: true });
+          syncGroup(GETTING_STARTED_GROUP_ID, undefined, { force: true });
         }
         if (invitedDm && invitedDm.isDmInvite) {
-          store.syncDms();
+          syncDms();
         }
       }, 5000);
 
