@@ -131,11 +131,10 @@ export function EmptyChannelNotice({
         </Text>
       </YStack>
       {isGroupAdmin && (
-        <YStack gap="$xl">
+        <YStack gap="$xl" alignItems="flex-start">
           <Button
             fill="text"
             intent="positive"
-            centered={false}
             label="Invite people"
             testID="EmptyChannelInviteButton"
             onPress={onPressInvite}
@@ -143,7 +142,6 @@ export function EmptyChannelNotice({
           <Button
             fill="text"
             intent="positive"
-            centered={false}
             label={isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
             testID={
               isSingleChannelGroup
@@ -158,7 +156,6 @@ export function EmptyChannelNotice({
           />
           <Button
             preset="secondaryOutline"
-            centered={false}
             label={`${memberText} · ${roleText}`}
             leadingIcon={'Settings'}
             trailingIcon={'ChevronRight'}
