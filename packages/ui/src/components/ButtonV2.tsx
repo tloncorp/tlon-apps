@@ -39,14 +39,16 @@ type PresetConfig = {
   intent: ButtonIntent;
   fill: ButtonStyle;
   size?: ButtonSize;
+  centered?: boolean;
 };
 
 const presetConfigs: Record<ButtonPreset, PresetConfig> = {
-  hero: { intent: 'primary', fill: 'solid', size: 'large' },
+  hero: { intent: 'primary', fill: 'solid', size: 'large', centered: true },
   heroDestructive: {
     intent: 'negative',
     fill: 'solid',
     size: 'large',
+    centered: true,
   },
   positive: { intent: 'positive', fill: 'solid', size: 'small' },
   primary: { intent: 'primary', fill: 'solid' },
@@ -276,10 +278,6 @@ const ButtonFrame = styled(Pressable, {
     symmetricPadding: {
       small: { paddingHorizontal: '$xl' },
     },
-    centered: {
-      true: { justifyContent: 'center' },
-      false: { justifyContent: 'flex-start' },
-    },
     shadow: {
       true: {
         shadowColor: '$shadow',
@@ -296,7 +294,6 @@ const ButtonFrame = styled(Pressable, {
     fill: 'solid',
     intent: 'primary',
     disabled: false,
-    centered: true,
   },
 });
 
@@ -337,13 +334,13 @@ const ButtonText = styled(Text, {
     },
     centered: {
       true: { textAlign: 'center' },
-      false: { textAlign: 'left', flex: 1 },
+      false: { textAlign: 'left' },
     },
   } as const,
   defaultVariants: {
     size: 'medium',
     intent: 'primary',
-    centered: true,
+    centered: false,
   },
 });
 
@@ -422,7 +419,7 @@ const ButtonImpl = React.forwardRef<
   const size = sizeProp ?? presetConfig?.size ?? 'medium';
   const fill = fillProp ?? presetConfig?.fill ?? 'solid';
   const intent = intentProp ?? typeProp ?? presetConfig?.intent ?? 'primary';
-  const centered = centeredProp ?? true;
+  const centered = centeredProp ?? presetConfig?.centered ?? false;
 
   const isInteractive = !disabled && !loading;
   const isIconOnly = !!icon;
@@ -466,7 +463,6 @@ const ButtonImpl = React.forwardRef<
         size={size}
         fill={fill}
         intent={intent}
-        centered={centered}
         iconOnly={isIconOnly}
         hasLeadingIcon={leadingIcon && size === 'small' ? 'small' : undefined}
         symmetricPadding={
