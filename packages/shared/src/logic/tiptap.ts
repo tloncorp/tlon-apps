@@ -1,15 +1,9 @@
-import {
-  Editor,
-  Extension,
-  KeyboardShortcutCommand,
-  PasteRule,
-} from '@tiptap/core';
-import { JSONContent } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/react';
 import { valid } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
 import { Story } from '@tloncorp/api/urbit/channel';
-import { Block, Cite, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
+import { Block, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
 import { Inline, InlineKey, Link, Task } from '@tloncorp/api/urbit/content';
 import { citeToPath, pathToCite, preSig, desig } from '@tloncorp/api/urbit/utils';
 
@@ -32,29 +26,6 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'");
-}
-
-export interface HandlerParams {
-  editor: Editor;
-}
-
-export interface EditorOnUpdateProps {
-  editor: Editor;
-  transaction: any;
-}
-
-export interface EditorOnBlurProps {
-  editor: Editor;
-}
-
-export function Shortcuts(bindings: {
-  [keyCode: string]: KeyboardShortcutCommand;
-}) {
-  return Extension.create({
-    addKeyboardShortcuts() {
-      return bindings;
-    },
-  });
 }
 
 export function convertMarkType(type: string): string {
@@ -886,26 +857,3 @@ export function normalizeInline(inline: Inline[]): Inline[] {
   );
 }
 
-const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
-
-export function refPasteRule(onReference: (r: Cite) => void) {
-  return new PasteRule({
-    find: REF_REGEX,
-    handler: ({ state, range, match, chain }) => {
-      const cite = pathToCite(match[0] || '');
-      if (!cite) {
-        // maybe should provide feedback?
-        return;
-      }
-
-      const insert = '';
-      const start = range.from;
-      const end = range.to;
-
-      onReference(cite);
-
-      state.tr.insertText(insert, start, end);
-      setTimeout(() => console.log(chain().focus().run()), 1);
-    },
-  });
-}
