@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import produce from 'immer';
 import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
@@ -56,11 +55,7 @@ export const useLureState = create<LureState>((set, get) => ({
         path: '/bait',
       });
 
-      set(
-        produce((draft: LureState) => {
-          draft.bait = bait;
-        })
-      );
+      set((state) => ({ ...state, bait }));
     } catch (e) {
       lureLogger.trackEvent(AnalyticsEvent.InviteError, {
         error: e,
@@ -152,15 +147,17 @@ export const useLureState = create<LureState>((set, get) => ({
       deepLinkUrl,
     });
 
-    set(
-      produce((draft: LureState) => {
-        draft.lures[flag] = {
+    set((state) => ({
+      ...state,
+      lures: {
+        ...state.lures,
+        [flag]: {
           fetched: true,
           url,
           deepLinkUrl,
-        };
-      })
-    );
+        },
+      },
+    }));
   },
 }));
 
