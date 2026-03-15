@@ -37,7 +37,6 @@ export * as utils from '@tloncorp/api/lib/utils';
 export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';
-export * from './electrtonAuth';
 export * from './store/dbHooks';
 export * from './utils';
 export * as Transcription from './transcription';
