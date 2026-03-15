@@ -251,7 +251,6 @@ export function ChannelDetailsScreenView({
           <LeaveActionsSection
             entityType="channel"
             channel={channel}
-            group={group ?? undefined}
             onAfterDeleteChannel={onAfterDeleteChannel}
           />
         )}
