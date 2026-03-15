@@ -1,6 +1,5 @@
 export * from './utilHooks';
 export * from '@tloncorp/api/lib/utils';
-export * from '@tloncorp/api/lib/references';
 export * from './embed';
 export * from '@tloncorp/api/lib/types';
 export * from '@tloncorp/api/lib/activity';
@@ -10,7 +9,4 @@ export * as featureFlags from '@tloncorp/api/lib/featureFlags';
 export * from './tiptap';
 export * from '@tloncorp/api/lib/hosting';
 export * from './markdown';
-export * from '@tloncorp/api/lib/wayfinding';
 export * from '@tloncorp/api/lib/postContent';
-export * from '@tloncorp/api/lib/content-helpers';
-export * from '@tloncorp/api/lib/pinning';
