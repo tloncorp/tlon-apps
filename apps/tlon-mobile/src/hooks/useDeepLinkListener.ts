@@ -4,7 +4,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { useTypedReset } from '@tloncorp/app/navigation/utils';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
+import { redeemInviteIfNeeded } from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
 
 const logger = createDevLogger('deeplinkHandler', true);
@@ -55,7 +55,7 @@ export const useDeepLinkListener = () => {
                 lure.invitedGroupId
               );
 
-              store.redeemInviteIfNeeded(lure);
+              redeemInviteIfNeeded(lure);
               const previewGroupId = lure.invitedGroupId || lure.group;
               if (previewGroupId) {
                 reset([

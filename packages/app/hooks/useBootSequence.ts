@@ -28,7 +28,7 @@ import {
   verifyUserInviteLink,
 } from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/api/urbit';
-import * as utils from '@tloncorp/shared/utils';
+import { formattedDuration } from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
@@ -507,7 +507,7 @@ export function useBootSequence() {
         ...prev,
         startedAt: sequenceStartTimeRef.current,
         completedAt: Date.now(),
-        duration: utils.formattedDuration(
+        duration: formattedDuration(
           sequenceStartTimeRef.current,
           Date.now()
         ),

@@ -5,8 +5,8 @@ import {
   registerStorageItemListener,
 } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import * as utils from '@tloncorp/shared/utils';
+import { syncCachedChanges } from '@tloncorp/shared/store';
+import { formattedDuration } from '@tloncorp/shared/utils';
 import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
 import { reportPushNotifNativeCacheResult } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { useCallback, useEffect } from 'react';
@@ -137,7 +137,7 @@ export function useCachedChanges() {
     if (changes && begin && end) {
       try {
         logger.log(`Retrieved cached changes ${begin} - ${end}, syncing...`);
-        const didInsert = await store.syncCachedChanges({
+        const didInsert = await syncCachedChanges({
           changes,
           begin,
           end,
@@ -196,12 +196,12 @@ export function useCachedChanges() {
           end,
           numPosts: changes.posts.length,
           numGroups: changes.groups.length,
-          windowSize: utils.formattedDuration(begin, end),
-          duration: utils.formattedDuration(execStart, Date.now()),
+          windowSize: formattedDuration(begin, end),
+          duration: formattedDuration(execStart, Date.now()),
           didInsert,
-          timeToRead: utils.formattedDuration(execStart, readAt),
-          timeToParse: utils.formattedDuration(readAt, parsedAt),
-          timeToInsert: utils.formattedDuration(parsedAt, Date.now()),
+          timeToRead: formattedDuration(execStart, readAt),
+          timeToParse: formattedDuration(readAt, parsedAt),
+          timeToInsert: formattedDuration(parsedAt, Date.now()),
         });
       } catch (e) {
         reportChatListNativeCacheResult({
