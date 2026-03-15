@@ -1,6 +1,11 @@
 import { ThemeName } from 'tamagui';
 
-import * as api from '@tloncorp/api';
+import {
+  getDismissedPinnedPostBannerKey,
+  getPendingMemberDismissalKey,
+  setSetting,
+} from '@tloncorp/api/client/settingsApi';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -18,7 +23,7 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   try {
     // optimistic update
     await db.insertSettings({ messagesFilter: filter });
-    return api.setSetting('messagesFilter', filter);
+    return setSetting('messagesFilter', filter);
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
@@ -36,7 +41,7 @@ export async function updateCalmSetting(
     // optimistic update
     await db.insertSettings({ [calmKey]: value });
 
-    await api.setSetting(calmKey, value);
+    await setSetting(calmKey, value);
     logger.trackEvent(AnalyticsEvent.ActionCalmSettingsUpdate, {
       calmKey,
       value,
@@ -58,7 +63,7 @@ export async function completeWayfindingSplash() {
   // optimistic update
   await db.insertSettings({ completedWayfindingSplash: true });
   try {
-    await withRetry(() => api.setSetting('completedWayfindingSplash', true));
+    await withRetry(() => setSetting('completedWayfindingSplash', true));
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
@@ -75,7 +80,7 @@ export async function completeWayfindingTutorial() {
   // optimistic update
   await db.insertSettings({ completedWayfindingTutorial: true });
   try {
-    await withRetry(() => api.setSetting('completedWayfindingTutorial', true));
+    await withRetry(() => setSetting('completedWayfindingTutorial', true));
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
@@ -130,7 +135,7 @@ export async function updateTheme(theme: AppTheme) {
 
   try {
     await db.insertSettings({ theme });
-    await api.setSetting('theme', theme);
+    await setSetting('theme', theme);
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, { theme });
   } catch (error) {
     logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
@@ -150,7 +155,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
   try {
     // optimistic update
     await db.insertSettings({ disableTlonInfraEnhancement: disabled });
-    await api.setSetting('disableTlonInfraEnhancement', disabled);
+    await setSetting('disableTlonInfraEnhancement', disabled);
   } catch (e) {
     logger.trackError('Error updating disable tlon infra setting', {
       error: e,
@@ -168,7 +173,7 @@ export async function updateEnableTelemetry(value: boolean) {
   try {
     // optimistic update
     await db.insertSettings({ enableTelemetry: value });
-    await api.setSetting('enableTelemetry', value);
+    await setSetting('enableTelemetry', value);
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
       error: e,
@@ -191,8 +196,8 @@ export async function updatePendingMemberDismissal(
   });
 
   try {
-    const settingsKey = api.getPendingMemberDismissalKey(dismissal.groupId);
-    await api.setSetting(settingsKey, dismissal.dismissedAt);
+    const settingsKey = getPendingMemberDismissalKey(dismissal.groupId);
+    await setSetting(settingsKey, dismissal.dismissedAt);
   } catch (e) {
     logger.trackError('failed to set pending member dismissal', e);
 
@@ -219,8 +224,8 @@ export async function dismissPinnedPostBanner(postId: string) {
   ]);
 
   try {
-    const settingKey = api.getDismissedPinnedPostBannerKey(postId);
-    await api.setSetting(settingKey, Date.now());
+    const settingKey = getDismissedPinnedPostBannerKey(postId);
+    await setSetting(settingKey, Date.now());
   } catch (e) {
     logger.trackError('failed to dismiss pinned post banner', {
       postId,

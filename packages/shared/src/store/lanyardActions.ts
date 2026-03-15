@@ -1,4 +1,5 @@
-import * as api from '@tloncorp/api';
+import * as lanyardApi from '@tloncorp/api/client/lanyardApi';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -10,11 +11,11 @@ export async function initiateTwitterAttestation(handle: string) {
   try {
     // create the attestation
     step = 'creating';
-    await api.initiateTwitterAttestation(handle);
+    await lanyardApi.initiateTwitterAttestation(handle);
 
     // for twitter, set visibility to public
     step = 'setting discoverability';
-    await api.updateAttestationDiscoverability({
+    await lanyardApi.updateAttestationDiscoverability({
       type: 'twitter',
       value: handle,
       visibility: 'public',
@@ -22,7 +23,7 @@ export async function initiateTwitterAttestation(handle: string) {
 
     // set it to display on your profile
     step = 'setting profile display';
-    await api.updateAttestationProfileDisplay({
+    await lanyardApi.updateAttestationProfileDisplay({
       type: 'twitter',
       value: handle,
       displaySetting: 'full', // will show with handle
@@ -44,11 +45,11 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
   try {
     // create the attestation
     step = 'creating';
-    await api.initiatePhoneAttestation(phoneNumber);
+    await lanyardApi.initiatePhoneAttestation(phoneNumber);
 
     // for phone, set visibility to discoverable
     step = 'setting discoverability';
-    await api.updateAttestationDiscoverability({
+    await lanyardApi.updateAttestationDiscoverability({
       type: 'phone',
       value: phoneNumber,
       visibility: 'verified',
@@ -56,7 +57,7 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
 
     // set it to display on your profile
     step = 'setting profile display';
-    await api.updateAttestationProfileDisplay({
+    await lanyardApi.updateAttestationProfileDisplay({
       type: 'phone',
       value: phoneNumber,
       displaySetting: 'half', // will show it exists, but not reveal number
@@ -80,7 +81,7 @@ export async function confirmTwitterAttestation(
   postId: string
 ) {
   try {
-    await api.confirmTwitterAttestation(handle, postId);
+    await lanyardApi.confirmTwitterAttestation(handle, postId);
     logger.trackEvent(AnalyticsEvent.ActionConfirmTwitterAttest, {
       handle,
       postId,
@@ -99,7 +100,7 @@ export async function confirmPhoneAttestation(
   otp: string
 ) {
   try {
-    await api.confirmPhoneAttestation(phoneNumber, otp);
+    await lanyardApi.confirmPhoneAttestation(phoneNumber, otp);
     logger.trackEvent(AnalyticsEvent.ActionConfirmPhoneAttest, {
       phoneNumber,
       otp,
@@ -114,7 +115,7 @@ export async function confirmPhoneAttestation(
 }
 
 export async function revokeAttestation(attestation: db.Attestation) {
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
 
   if (attestation.contactId !== currentUserId) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
@@ -134,7 +135,7 @@ export async function revokeAttestation(attestation: db.Attestation) {
   }
 
   try {
-    await api.revokeAttestation({ type, value });
+    await lanyardApi.revokeAttestation({ type, value });
     await db.deleteAttestation({ type, value });
     logger.trackEvent(AnalyticsEvent.ActionRevokeAttestation, { attestation });
   } catch (e) {
@@ -152,7 +153,7 @@ export async function checkAttestedSignature(
   signature: string
 ): Promise<boolean> {
   try {
-    const isValid = await api.checkAttestedSignature(signature);
+    const isValid = await lanyardApi.checkAttestedSignature(signature);
     logger.trackEvent(AnalyticsEvent.ActionCheckAttestSig, {
       signature,
       isValid,
@@ -187,7 +188,7 @@ export async function updateAttestationDiscoverability({
   });
 
   try {
-    await api.updateAttestationDiscoverability({
+    await lanyardApi.updateAttestationDiscoverability({
       type: attestation.type,
       value: attestation.value!,
       visibility: discoverability,
@@ -214,7 +215,7 @@ export async function discoverContacts(
   const lastPhoneNumbers = await db.lastPhoneContactSetRequest.getValue();
 
   try {
-    const { matches, nextSalt } = await api.discoverContacts(
+    const { matches, nextSalt } = await lanyardApi.discoverContacts(
       phoneNumbers,
       lastSalt,
       lastPhoneNumbers
