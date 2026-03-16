@@ -47,9 +47,11 @@
 /%  m-channel-scan            %channel-scan
 /%  m-channel-scan-2          %channel-scan-2
 /%  m-channel-scan-3          %channel-scan-3
+/%  m-channel-scan-4          %channel-scan-4
 /%  m-channel-scam            %channel-scam
 /%  m-channel-scam-2          %channel-scam-2
 /%  m-channel-scam-3          %channel-scam-3
+/%  m-channel-scam-4          %channel-scam-4
 /%  m-channel-simple-post     %channel-simple-post
 /%  m-channel-simple-posts    %channel-simple-posts
 ::NOTE  these fail to build with /%, but can be built from dojo just fine.
@@ -62,6 +64,7 @@
 /%  m-channels-2              %channels-2
 /%  m-channels-3              %channels-3
 /%  m-channels-4              %channels-4
+/%  m-channels-5              %channels-5
 /%  m-hidden-posts            %hidden-posts
 /%  m-hook-channel-preview    %hook-channel-preview
 /%  m-toggle-post             %toggle-post
@@ -102,9 +105,13 @@
             :+  %channel-scan            &  -:!>(*vale:m-channel-scan)
             :+  %channel-scan-2          &  -:!>(*vale:m-channel-scan-2)
             :+  %channel-scan-3          &  -:!>(*vale:m-channel-scan-3)
+            ::TODO  make strict on next update
+            :+  %channel-scan-4          |  -:!>(*vale:m-channel-scan-4)
             :+  %channel-scam            &  -:!>(*vale:m-channel-scam)
             :+  %channel-scam-2          &  -:!>(*vale:m-channel-scam-2)
             :+  %channel-scam-3          &  -:!>(*vale:m-channel-scam-3)
+            ::TODO  make strict on next update
+            :+  %channel-scam-4          |  -:!>(*vale:m-channel-scam-4)
             :+  %channel-simple-post     &  -:!>(*vale:m-channel-simple-post)
             :+  %channel-simple-posts    &  -:!>(*vale:m-channel-simple-posts)
             :: :+  %channel-simple-replies  &  -:!>(*vale:m-channel-simple-replies)
@@ -116,6 +123,8 @@
             :+  %channels-2              |  -:!>(*vale:m-channels-2)
             :+  %channels-3              &  -:!>(*vale:m-channels-3)
             :+  %channels-4              &  -:!>(*vale:m-channels-4)
+            ::TODO  make strict on next update
+            :+  %channels-5              |  -:!>(*vale:m-channels-5)
             :+  %hidden-posts            &  -:!>(*vale:m-hidden-posts)
             :+  %hook-channel-preview    &  -:!>(*vale:m-hook-channel-preview)
             :+  %toggle-post             &  -:!>(*vale:m-toggle-post)
