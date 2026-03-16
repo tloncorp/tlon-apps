@@ -172,6 +172,41 @@
       ::  seal [rev memo]
       [seal [-.rev-essay +<.rev-essay]]
     --
+  ++  scam
+    |%
+    ++  v9
+      |=  =scam:v10:cv
+      ^-  scam:v9:cv
+      :-  last.scam
+      (v9:scan scan.scam)
+    ++  v8
+      |=  =scam:v10:cv
+      ^-  scam:v8:cv
+      %-  v8:scam:^v9
+      (v9:^scam scam)
+    ++  v7
+      |=  =scam:v10:cv
+      ^-  scam:v7:cv
+      %-  v7:scam:^v9
+      (v9:^scam scam)
+    --
+  ++  scan
+    |%
+    ++  v9
+      |=  =scan:v10:cv
+      ^-  scan:v9:cv
+      (turn scan v9:reference)
+    ++  v8
+      |=  =scan:v10:cv
+      ^-  scan:v8:cv
+      %-  v8:scan:^v9
+      (v9:^scan scan)
+    ++  v7
+      |=  =scan:v10:cv
+      ^-  scan:v7:cv
+      %-  v7:scan:^v9
+      (v9:^scan scan)
+    --
   --
 ++  v9
   |%

@@ -101,6 +101,30 @@
     remark  remark.channel
   ==
 ::
+++  uv-channels-4
+  |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-3']
+  ^-  channels:v10:cv
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:v10:cv
+  =/  base
+    %*  .  *channel:v10:cv
+      count    count.channel
+      meta     +.meta.channel
+      perm     +.perm.channel
+      view     +.view.channel
+      sort     +.sort.channel
+      order    +.order.channel
+      pending  pending.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts   (uv-posts-4 posts.channel)
+    net     net.channel
+    remark  remark.channel
+  ==
+::
 ::  pending conversions for legacy channel response versions
 ::
 ++  uv-pending
@@ -172,6 +196,16 @@
   |=  [=id-post:c v-post=(may:c v-post:c)]
   ^-  [id-post:c (may:c post:v9:cv)]
   [id-post ?:(?=(%| -.v-post) v-post [%& (uv-post-3 +.v-post)])]
+::
+++  uv-posts-4
+  |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-3']
+  ^-  posts:v10:cv
+  %+  gas:on-posts:v10:cv  *posts:v10:cv
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(may:c v-post:c)]
+  ^-  [id-post:c (may:c post:v10:cv)]
+  [id-post ?:(?=(%| -.v-post) v-post [%& (uv-post-4 +.v-post)])]
 ::
 ++  s-posts-1
   |=  =posts:v9:cv
@@ -372,6 +406,18 @@
   :-  id-post
   ?:  ?=(%| -.v-post)  v-post
   &+(uv-post-without-replies-3 +.v-post)
+::
+++  uv-posts-without-replies-4
+  |=  =v-posts:c
+  ~>  %spin.['libcu-uv-posts-without-replies-3']
+  ^-  posts:v10:cv
+  %+  gas:on-posts:v10:cv  *posts:v10:cv
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(may:c v-post:c)]
+  ^-  [id-post:c (may:v10:cv post:v10:cv)]
+  :-  id-post
+  ?:  ?=(%| -.v-post)  v-post
+  &+(uv-post-without-replies-4 +.v-post)
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c

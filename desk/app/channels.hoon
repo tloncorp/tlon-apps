@@ -142,6 +142,9 @@
           [/v3/said %channel-said-1 %channel-denied ~]
         ::
           [/v4/said %channel-said-2 %channel-denied ~]
+        ::
+          [/v4 %channel-response-5 ~]
+          [/v5/said %channel-said-3 %channel-denied ~]
       ==
     ::  scries
     ::
@@ -1443,13 +1446,19 @@
     ``noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels-9))
     ::
       [%x %v4 %v-channels ~]
-    ``noun+!>(v-channels)
+    ``noun+!>((v9:v-channels:v10:ccv v-channels))
+    ::
+      [%x %v5 %v-channels ~]
+    ``noun+!>(`v-channels:v10:cv`v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
     ``channels-3+!>(`channels:v8:cv`(uv-channels-2:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v4 %channels full=?(~ [%full ~])]
     ``channels-4+!>(`channels:v9:cv`(uv-channels-3:utils v-channels ?=(^ full.pole)))
+    ::
+      [%x %v5 %channels full=?(~ [%full ~])]
+    ``channels-5+!>(`channels:v10:cv`(uv-channels-4:utils v-channels ?=(^ full.pole)))
     ::
     ::  /x/v/init: get unreads and unversioned channels
     ::
@@ -1470,6 +1479,10 @@
       [%x %v5 %init ~]
     =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
     ``noun+!>(`[channels:v9:cv (set id-post:c)]`init)
+    ::
+      [%x %v6 %init ~]
+    =/  init  [(uv-channels-4:utils v-channels |) hidden-posts]
+    ``noun+!>(`[channels:v10:cv (set id-post:c)]`init)
     ::
       [%x %v5 %changes since=@ rest=*]
     ::TODO  since this is a scry endpoint, all relevant
@@ -1562,11 +1575,11 @@
   ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
-      [%x v=?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ rest=*]
+      [%x v=?(%v0 %v1 %v2 %v3 %v4 %v5) =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
-      [%u ?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ ~]
+      [%u ?(%v0 %v1 %v2 %v3 %v4 %v5) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ::
@@ -1591,6 +1604,17 @@
     ?~  said  ~
     ?~  u.said  [~ ~]
     ``(v9:said:v10:ccv u.u.said)
+  ::
+      [%x %v5 %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+    =/  host=ship   (slav %p host.pole)
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
+    =;  output=(unit (unit said:v10:cv))
+      ``noun+!>(output)
+    =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
+    ?~  said  ~
+    ?~  u.said  [~ ~]
+    ```said:v10:cv`u.u.said
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
@@ -2703,7 +2727,7 @@
   ::  handle scries
   ::
   ++  ca-peek
-    |=  [=(pole knot) ver=?(%v0 %v1 %v2 %v3 %v4)]
+    |=  [=(pole knot) ver=?(%v0 %v1 %v2 %v3 %v4 %v5)]
     ~>  %spin.['ca-peek']
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
@@ -2716,11 +2740,12 @@
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scam:v9:cv
+      =;  =scam:v10:cv
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scam+!>(`scam:v7:cv`(v7:scam:v9:ccv scam))
-          %v3  channel-scam-2+!>(`scam:v8:cv`(v8:scam:v9:ccv scam))
-          %v4  channel-scam-3+!>(`scam:v9:cv`scam)
+          ?(%v0 %v1 %v2)  channel-scam+!>(`scam:v7:cv`(v7:scam:v10:ccv scam))
+          %v3  channel-scam-2+!>(`scam:v8:cv`(v8:scam:v10:ccv scam))
+          %v4  channel-scam-3+!>(`scam:v9:cv`(v9:scam:v10:ccv scam))
+          %v5  channel-scam-4+!>(`scam:v10:cv`scam)
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:ca-search
@@ -2736,11 +2761,12 @@
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scan:v9:cv
+      =;  =scan:v10:cv
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
-          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
-          %v4  channel-scan-3+!>(`scan:v9:cv`scan)
+          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v10:ccv scan))
+          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v10:ccv scan))
+          %v4  channel-scan-3+!>(`scan:v9:cv`(v9:scan:v10:ccv scan))
+          %v5  channel-scan-4+!>(`scan:v10:cv`scan)
         ==
       %^    text:hits-bound:ca-search
           (slav %ud skip.pole)
@@ -2749,11 +2775,12 @@
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       :+  ~  ~
-      =;  =scan:v9:cv
+      =;  =scan:v10:cv
         ?-  ver
-          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v9:ccv scan))
-          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v9:ccv scan))
-          %v4  channel-scan-3+!>(`scan:v9:cv`scan)
+          ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v10:ccv scan))
+          %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v10:ccv scan))
+          %v4  channel-scan-3+!>(`scan:v9:cv`(v9:scan:v10:ccv scan))
+          %v5  channel-scan-4+!>(`scan:v9:cv`(v9:scan:v10:ccv scan))
         ==
       %^    mention:hits-bound:ca-search
           (slav %ud skip.pole)
@@ -2786,7 +2813,7 @@
   ::
   ++  give-posts
     |=  $:  mode=?(%outline %post)
-            version=?(%v1 %v2 %v3 %v4)
+            version=?(%v1 %v2 %v3 %v4 %v5)
             ls=(list [time (may:c v-post:c)])
         ==
     ~>  %spin.['give-posts']
@@ -2834,6 +2861,19 @@
       :_  [newer older latest (wyt:on-v-posts:c posts.channel)]
       ?:  =(%post mode)  (uv-posts-3:utils posts)
       (uv-posts-without-replies-3:utils posts)
+    ::
+        %v5
+      =;  =paged-posts:v10:cv
+        ``channel-posts-5+!>(paged-posts)
+      =/  latest=@ud
+        ?~  latest=(ram:on-v-posts:c posts.channel)  0
+        ?-  -.val.u.latest
+          %&  seq.val.u.latest
+          %|  seq.val.u.latest
+        ==
+      :_  [newer older latest (wyt:on-v-posts:c posts.channel)]
+      ?:  =(%post mode)  (uv-posts-4:utils posts)
+      (uv-posts-without-replies-4:utils posts)
     ==
   ++  ca-peek-posts-0
     |=  =(pole knot)
@@ -2885,7 +2925,7 @@
     ==
   ::
   ++  ca-peek-posts
-    |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4)]
+    |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4 %v5)]
     ~>  %spin.['ca-peek-posts']
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
@@ -2964,6 +3004,11 @@
             =/  =paged-posts:v9:cv
               [(uv-posts-3:utils posts) newer older latest count]
             ``channel-posts-4+!>(paged-posts)
+        ::
+            %v5
+            =/  =paged-posts:v10:cv
+              [(uv-posts-4:utils posts) newer older latest count]
+            ``channel-posts-5+!>(paged-posts)
         ==
       ::  walk both posts and logs, in chronological order, newest-first,
       ::  until we accumulate the desired amount of results
@@ -3040,6 +3085,7 @@
         %v2  ``channel-post-2+!>(`post:v7:cv`(uv-post-1:utils +.u.post))
         %v3  ``channel-post-3+!>(`post:v8:cv`(uv-post-2:utils +.u.post))
         %v4  ``channel-post-4+!>(`post:v9:cv`(uv-post-3:utils +.u.post))
+        %v5  ``channel-post-5+!>(`post:v10:cv`(uv-post-4:utils +.u.post))
       ==
     ::
         [%post %id time=@ %replies rest=*]
@@ -3084,7 +3130,7 @@
     ==
   ::
   ++  ca-peek-replies
-    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot) version=?(%v1 %v2 %v3 %v4)]
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot) version=?(%v1 %v2 %v3 %v4 %v5)]
     ~>  %spin.['ca-peek-replies']
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
@@ -3108,6 +3154,8 @@
         ``channel-replies-3+!>(`replies:v8:cv`(uv-replies-2:utils id u.vr))
           %v4
         ``channel-replies-4+!>(`replies:v9:cv`(uv-replies-3:utils id u.vr))
+          %v5
+        ``channel-replies-5+!>(`replies:v10:cv`(uv-replies-4:utils id u.vr))
       ==
     ?+    pole  ~
         [%all ~]  `replies
@@ -3136,13 +3184,13 @@
           ++  mention
             |=  [sip=@ud len=@ud nedl=ship]
             ~>  %spin.['mention']
-            ^-  scan:v9:cv
+            ^-  scan:c
             (scour-count sip len %mention nedl)
           ::
           ++  text
             |=  [sip=@ud len=@ud nedl=@t]
             ~>  %spin.['text']
-            ^-  scan:v9:cv
+            ^-  scan:c
             (scour-count sip len %text nedl)
           --
         ::
@@ -3151,13 +3199,13 @@
           ++  mention
             |=  [fro=(unit id-post:c) sum=@ud nedl=ship]
             ~>  %spin.['mention']
-            ^-  [(unit id-post:c) scan:v9:cv]
+            ^-  [(unit id-post:c) scan:c]
             (scour-tries fro sum %mention nedl)
           ::
           ++  text
             |=  [fro=(unit id-post:c) sum=@ud nedl=@t]
             ~>  %spin.['text']
-            ^-  [(unit id-post:c) scan:v9:cv]
+            ^-  [(unit id-post:c) scan:c]
             (scour-tries fro sum %text nedl)
           --
         --
@@ -3172,7 +3220,7 @@
       ~>  %spin.['scour-tries']
       =*  posts  posts.channel
       =.  posts  (lot:on-v-posts:c posts ~ from)  ::  verified correct
-      =|  s=[tries=_tries last=(unit id-post:c) =scan:v9:cv]
+      =|  s=[tries=_tries last=(unit id-post:c) =scan:c]
       =<  [last scan]
       |-  ^+  s
       ?~  posts  s
@@ -3184,8 +3232,8 @@
         ?:  ?=(%| -.val.n.posts)  scan.s
         ?.  (match +.val.n.posts match-type)  scan.s
         :_  scan.s
-        =/  =simple-post:v9:cv
-          (suv-post-without-replies-3:utils +.val.n.posts)
+        =/  =simple-post:v10:cv
+          (suv-post-without-replies-4:utils +.val.n.posts)
         [%post %& simple-post]
       ::
       =.  scan.s
@@ -3200,8 +3248,8 @@
           ?:  ?=(%| -.val.n.replies)  scan.s
           ?.  (match-reply +.val.n.replies match-type)  scan.s
           :_  scan.s
-          =/  =simple-reply:v9:cv
-            (suv-reply-3:utils id-post +.val.n.replies)
+          =/  =simple-reply:v10:cv
+            (suv-reply-4:utils id-post +.val.n.replies)
           [%reply id-post %& simple-reply]
         ::
         $(replies l.replies)
@@ -3215,7 +3263,7 @@
       ~>  %spin.['scour-count']
       =*  posts  posts.channel
       ?>  (gth len 0)
-      =+  s=[skip=skip len=len *=scan:v9:cv]
+      =+  s=[skip=skip len=len *=scan:c]
       =-  (flop scan)
       ::NOTE  yes, walking the tree manually is faster than using built-ins.
       ::      +dop:mo gets closest, but is still slower.
@@ -3232,7 +3280,7 @@
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
         =/  res
-          [%post %& (suv-post-without-replies-3:utils +.val.n.posts)]
+          [%post %& (suv-post-without-replies-4:utils +.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
@@ -3242,7 +3290,7 @@
       $(posts l.posts)
     ::
     ++  scour-replys
-      |=  [s=[skip=@ud len=@ud =scan:v9:cv] =id-post:c replies=v-replies:c =match-type]
+      |=  [s=[skip=@ud len=@ud =scan:c] =id-post:c replies=v-replies:c =match-type]
       ~>  %spin.['scour-replys']
       |-  ^+  s
       ?~  replies  s
@@ -3256,7 +3304,7 @@
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
         =/  res
-          [%reply id-post %& (suv-reply-2:utils id-post +.val.n.replies)]
+          [%reply id-post %& (suv-reply-4:utils id-post +.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(replies l.replies)
