@@ -1919,6 +1919,9 @@ function toClientChannelFromPreview({
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
 
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupChannelId(id);
+
   return {
     id,
     groupId,
@@ -1928,6 +1931,7 @@ function toClientChannelFromPreview({
     coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
+    currentUserIsHost: hostUserId === currentUserId,
   };
 }
 
