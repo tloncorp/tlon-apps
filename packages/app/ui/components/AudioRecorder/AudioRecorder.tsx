@@ -408,8 +408,8 @@ export const AudioRecorder = forwardRef<
           candleWidth={3}
           containerStyle={{ flex: 1, pointerEvents: 'none' }}
           inactive={{
-            waveColor: theme.border.val,
-            scrubColor: theme.border.val,
+            waveColor: theme.tertiaryText.val,
+            scrubColor: theme.tertiaryText.val,
           }}
           {...waveformConfig}
         />
