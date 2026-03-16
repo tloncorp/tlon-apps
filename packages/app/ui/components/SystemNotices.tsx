@@ -112,7 +112,6 @@ export function NotificationsPrompt() {
             fill="outline"
             label="Not Now"
             size="medium"
-            height={32}
             onPress={handleDismiss}
           />
           <Button
