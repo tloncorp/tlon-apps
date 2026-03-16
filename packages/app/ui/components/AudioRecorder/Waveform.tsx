@@ -34,8 +34,10 @@ export function Waveform({
 >) {
   const theme = useTheme();
   const candleActiveColor = candleActiveColorProp ?? theme.primaryText.get();
-  const candleUnplayedColor = candleUnplayedColorProp ?? theme.border.get();
-  const candleInactiveColor = candleInactiveColorProp ?? theme.border.get();
+  const candleUnplayedColor =
+    candleUnplayedColorProp ?? theme.tertiaryText.get();
+  const candleInactiveColor =
+    candleInactiveColorProp ?? theme.tertiaryText.get();
 
   const [layout, setLayout] = useState<LayoutRectangle | null>(null);
   const onLayout = useCallback(
