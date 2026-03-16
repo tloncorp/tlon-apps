@@ -3,7 +3,11 @@ import { formatUd } from '../client/apiUtils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { assertNever } from './assertNever';
-import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
+import {
+  parsePostBlob,
+  PostBlobDataEntryFile,
+  PostBlobDataEntryVoiceMemo,
+} from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
@@ -98,12 +102,12 @@ export type VideoBlockData = {
 
 export type FileUploadBlockData = {
   type: 'file';
-  file: Extract<PostBlobDataEntry, { type: 'file' }>;
+  file: PostBlobDataEntryFile;
 };
 
 export type VoiceMemoBlockData = {
   type: 'voicememo';
-  voiceMemo: Extract<PostBlobDataEntry, { type: 'voicememo' }>;
+  voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
 export type LinkBlockData = {

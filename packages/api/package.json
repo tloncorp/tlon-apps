@@ -23,6 +23,8 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
-    "@tloncorp/shared": "workspace:*"
+    "@tloncorp/shared": "workspace:*",
+    "validator": "^13.7.0",
+    "zod": "^3.25.76"
   }
 }
