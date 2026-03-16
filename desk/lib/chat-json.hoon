@@ -939,7 +939,7 @@
       `essay:c`[[story author time] kind meta blob]
     %-  ot
     :~  content/story:dejs:sj
-        author/author:dejs:dj
+        author/author:v9:dejs:dj
         sent/di
         :-  %kind
         (cu |=(=path ?>(?=([%chat *] path) path)) pa)
@@ -952,7 +952,7 @@
     %-  of
     :~  del/ul
         add-react/add-react
-        del-react/author:dejs:dj
+        del-react/author:v9:dejs:dj
         reply/reply-delta
     ::
       :-  %add
@@ -972,12 +972,12 @@
         %-  of
         :~  del/ul
             add-react/add-react
-            del-react/author:dejs:dj
+            del-react/author:v9:dejs:dj
         ::
           :-  %add
           ^-  $-(json [=memo:d time=(unit time)])
           %-  ot
-          :~  memo/memo:dejs:dj
+          :~  memo/memo:v9:dejs:dj
               time/(mu (se %ud))
           ==
         ==
@@ -988,8 +988,8 @@
   ::
   ++  add-react
     %-  ot
-    :~  author/author:dejs:dj
-        react/react:dejs:dj
+    :~  author/author:v9:dejs:dj
+        react/react:v9:dejs:dj
     ==
   ::
   ++  toggle-message

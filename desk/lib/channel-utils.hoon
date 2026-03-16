@@ -308,6 +308,16 @@
     reacts   (v7:reacts:v9:ccv reacts.post)
     replies  (s-replies-3 replies.post)
   ==
+::
+++  s-post-4
+  |=  =post:v10:cv
+  ~>  %spin.['libcu-s-post-3']
+  ^-  simple-post:v10:cv
+  :_  +>.post
+  %=  -.post
+    reacts   (v7:reacts:v9:ccv reacts.post)
+    replies  (s-replies-4 replies.post)
+  ==
 ++  suv-post
   |=  =v-post:c
   ~>  %spin.['libcu-suv-post']
@@ -434,13 +444,13 @@
 ++  uv-post-without-replies-4
   |=  post=v-post:c
   ~>  %spin.['libcu-uv-post-without-replies-4']
-  ^-  post:c
+  ^-  post:v10:cv
   :_  +.post
   :*  id.post
       seq.post
       mod-at.post
       (uv-reacts reacts.post)
-      *replies:c
+      *replies:v10:cv
       (get-reply-meta post)
   ==
 ++  suv-post-without-replies
@@ -466,6 +476,12 @@
   ~>  %spin.['libcu-suv-post-without-replies-3']
   ^-  simple-post:v9:cv
   (s-post-3 (uv-post-without-replies-3 post))
+::
+++  suv-post-without-replies-4
+  |=  post=v-post:c
+  ~>  %spin.['libcu-suv-post-without-replies-4']
+  ^-  simple-post:v10:cv
+  (s-post-4 (uv-post-without-replies-4 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
@@ -514,11 +530,11 @@
 ++  uv-replies-4
   |=  [parent-id=id-post:c =v-replies:c]
   ~>  %spin.['libcu-uv-replies-3']
-  ^-  replies:c
-  %+  gas:on-replies:c  *replies:c
+  ^-  replies:v10:cv
+  %+  gas:on-replies:v10:cv  *replies:v10:cv
   %+  turn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  [id-reply:c (may:c reply:c)]
+  ^-  [id-reply:c (may:v10:cv reply:v10:cv)]
   ?:  ?=(%| -.v-reply)  [time v-reply]
   [time [%& (uv-reply-4 parent-id +.v-reply)]]
 ::
@@ -555,6 +571,17 @@
   ?:  ?=(%| -.reply)  ~
   (some [time (s-reply-3 +.reply)])
 ::
+++  s-replies-4
+  |=  =replies:v10:cv
+  ~>  %spin.['libcu-s-replies-3']
+  ^-  simple-replies:v10:cv
+  %+  gas:on-simple-replies:v10:cv  *simple-replies:v10:cv
+  %+  murn  (tap:on-replies:v10:cv replies)
+  |=  [=time reply=(may:v10:cv reply:v10:cv)]
+  ^-  (unit [id-reply:c simple-reply:v10:cv])
+  ?:  ?=(%| -.reply)  ~
+  (some [time (s-reply-4 +.reply)])
+::
 ++  suv-replies-1
   |=  [parent-id=id-post:c =v-replies:c]
   ~>  %spin.['libcu-suv-replies-1']
@@ -564,7 +591,7 @@
 ++  uv-reply-4
   |=  [parent-id=id-reply:c =v-reply:c]
   ~>  %spin.['libcu-uv-reply-2']
-  ^-  reply:c
+  ^-  reply:v10:cv
   :_  +.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
@@ -612,6 +639,13 @@
   =*  memo  +>.reply
   [-.reply memo]
 ::
+++  s-reply-4
+  |=  =reply:v10:cv
+  ~>  %spin.['libcu-s-reply-4']
+  ^-  simple-reply:v10:cv
+  =*  reply-essay  +>.reply
+  [-.reply reply-essay]
+::
 ++  suv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
   ~>  %spin.['libcu-suv-reply-1']
@@ -629,6 +663,12 @@
   ~>  %spin.['libcu-suv-reply-3']
   ^-  simple-reply:v9:cv
   (s-reply-3 (uv-reply-3 parent-id v-reply))
+::
+++  suv-reply-4
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ~>  %spin.['libcu-suv-reply-3']
+  ^-  simple-reply:v10:cv
+  (s-reply-4 (uv-reply-4 parent-id v-reply))
 ::
 ++  uv-reacts
   |=  =v-reacts:c
@@ -819,6 +859,40 @@
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
   [%channel-said-2 !>(`said:v9:cv`[nest %reply p.plan reply])]
+++  said-4
+  |=  [=nest:c =plan:c posts=v-posts:c]
+  ~>  %spin.['libcu-said-4']
+  ^-  cage
+  =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
+  ?~  q.plan
+    =/  post=(may:v10:cv simple-post:v10:cv)
+      ?~  post
+        :-  %&  ::TODO  should eventually just unitize $reference
+        :-  *simple-seal:v10:cv
+        ?-  kind.nest
+          %diary  [*memo:c /diary/unknown ~ ~]
+          %heap   [*memo:c /heap/unknown ~ ~]
+          %chat   [*memo:c /chat/unknown ~ ~]
+        ==
+      ?:  ?=(%| -.u.post)  u.post
+      &+(suv-post-without-replies-4 +.u.post)
+    [%channel-said-3 !>(`said:v10:cv`[nest %post post])]
+  =/  reply=(may:v10:cv simple-reply:v10:cv)
+    ::XX the missing/deleted handling here is not great,
+    ::   and can't be fixed in the same manner as above.
+    ::   it seems $reference should explicitly support
+    ::   missing/deleted content
+    ::
+    ?~  post
+      &+[*reply-seal:c [~[%inline 'Comment on unknown post']~ ~nul *@da] ~]
+    ?:  ?=(%| -.u.post)
+      &+[*reply-seal:c [~[%inline 'Comment on deleted post']~ ~nul *@da] ~]
+    =/  reply=(unit (may:c v-reply:c))  (get:on-v-replies:c replies.+.u.post u.q.plan)
+    ?~  reply
+      &+[*reply-seal:c [~[%inline 'Unknown comment']~ ~nul *@da] ~]
+    ?:  ?=(%| -.u.reply)  u.reply
+    &+(suv-reply-4 p.plan +.u.reply)
+  [%channel-said-3 !>(`said:v10:cv`[nest %reply p.plan reply])]
 ++  may-bind
   |*  f=$-(* *)
   |*  v=(may:c *)

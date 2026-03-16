@@ -34,6 +34,8 @@
 /$  response-1  %channel-response-1   %json
 /$  response-2  %channel-response-2   %json
 /$  response-3  %channel-response-3   %json
+/$  response-4  %channel-response-4   %json
+/$  response-5  %channel-response-5   %json
 /$  simple-posts    %channel-simple-posts    %json
 /$  simple-post     %channel-simple-post     %json
 /$  simple-replies  %channel-simple-replies  %json
@@ -96,4 +98,6 @@
 /$  notify-client-action  %json  %notify-client-action
 /$  group-action-4        %json  %group-action-4
 /$  activity-action       %json  %activity-action
+/$  channel-action-1       %json  %channel-action-1
+/$  channel-action-2       %json  %channel-action-2
 ~

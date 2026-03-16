@@ -1157,12 +1157,12 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
-    [?(%v0 %v1 %v2 %v3) ~]                    ?>(from-self cor)
-    [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
-    [?(%v0 %v1 %v2 %v3) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+    [?(%v0 %v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
+    [?(%v0 %v1) %unreads ~]  ?>(from-self cor)
+    [?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
   ::
       [%v1 %hooks %preview =kind:c host=@ name=@ ~]
     =/  host=ship   (slav %p host.pole)
@@ -1175,7 +1175,7 @@
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (watch-said host nest plan -.pole)
   ::
-      [version=?(%v3 %v4) %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [version=?(%v3 %v4 %v5) %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     ::NOTE  best used through /ted/contact-pins or similar
     =/  ask=ship    (slav %p ask.pole)
     =/  host=ship   (slav %p host.pole)
@@ -1185,7 +1185,7 @@
   ==
 ::
 ++  watch-said
-  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3 %v4)]
+  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3 %v4 %v5)]
   ~>  %spin.['watch-said']
   ^+  cor
   ::  if we have the data locally, give it
@@ -1195,7 +1195,7 @@
       ==
     ?-  ver
       ?(%v0 %v1)  ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
-      ?(%v2 %v3 %v4)  ca-abet:(ca-said:(ca-abed:ca-core nest) plan ver)
+      ?(%v2 %v3 %v4 %v5)  ca-abet:(ca-said:(ca-abed:ca-core nest) plan ver)
     ==
   ::  if we don't have the data locally, ask the target for latest,
   ::  but don't go over the network on behalf of someone else.
@@ -1210,12 +1210,12 @@
     ::  because they want to hit the logic that circumvents channel permissions
     ::  for pinned posts
     ::
-    ?:  &(=(ask ship.nest) !?=(?(%v3 %v4) ver))
+    ?:  &(=(ask ship.nest) !?=(?(%v3 %v4 %v5) ver))
       [base server base]
     ::NOTE  attention! we subscribe to other "client agent" instances here.
     ::      uncommon pattern, very "soft". expect subscription failure and
     ::      handle it gracefully.
-    [base dap.bowl [%v4 base]]
+    [base dap.bowl [%v5 base]]
   ((safe-watch wire [ask dude] path) |)
 ::
 ++  said-path
@@ -1257,20 +1257,19 @@
         %-  some
         %-  v10:said:v9:ccv
         %-  v9:said:v8:ccv
-        (v8:said:v7:ccv !<(=said:v7:cv q.cage.sign))
+        (v8:said:v7:ccv !<(said:v7:cv q.cage.sign))
       ::
           %channel-said-1
-        `(v10:said:v9:ccv (v9:said:v8:ccv !<(=said:v8:cv q.cage.sign)))
+        `(v10:said:v9:ccv (v9:said:v8:ccv !<(said:v8:cv q.cage.sign)))
       ::
-        %channel-said-2  `(v10:said:v9:ccv !<(=said:v9:cv q.cage.sign))
+        %channel-said-2  `(v10:said:v9:ccv !<(said:v9:cv q.cage.sign))
+        %channel-said-3  ``said:v10:cv`!<(said:v10:v9:cv q.cage.sign)
       ==
     =.  voc
       %+  ~(put by voc)  [nest plan]
       %^  clap  had  got
       |=  [h=said:c g=said:c]
       g  ::TODO  can we pick the "latest" version? we have no .rev numbers...
-    ::  give the fact exactly as we got it
-    ::TODO  should v3 give what ended up going into state?
     ::
     =.  cor
       %^  give  %fact
@@ -1289,13 +1288,18 @@
         ~[v4+suffix]
       ?~  got  cage.sign
       channel-said-2+!>((v9:said:v10:ccv u.got))
+    =.  cor
+      %^  give  %fact
+        ~[v5+suffix]
+      ?~  got  cage.sign
+      channel-said-3+!>(`said:v10:cv`u.got)
     ::  they all got their responses, so kick their subscriptions,
     ::  and make sure we leave ours so we can do another fetch later.
     ::  (we don't know what agent we subscribed to, but it's fine, we can
     ::  just leave both.)
     ::
     =/  kick-paths
-      ~[path v0+path v1+path v2+path v3+suffix v4+suffix]
+      ~[path v0+path v1+path v2+path v3+suffix v4+suffix v5+suffix]
     =.  cor  (give %kick kick-paths ~)
     %-  emil
     :~  [%pass path %agent [src.bowl dap.bowl] %leave ~]
@@ -2055,7 +2059,7 @@
     (give %kick ~ ~)
   ::
   ++  ca-said
-    |=  [=plan:c version=?(%v2 %v3 %v4)]
+    |=  [=plan:c version=?(%v2 %v3 %v4 %v5)]
     ~>  %spin.['ca-said']
     ^+  ca-core
     =.  ca-core
@@ -2067,6 +2071,7 @@
         ?.  share
           channel-denied+!>(~)
         ?-  version
+          %v5         (said-4:utils nest plan posts.channel)
           %v4         (said-3:utils nest plan posts.channel)
           ?(%v2 %v3)  (said-2:utils nest plan posts.channel)
         ==
@@ -2566,9 +2571,15 @@
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
-    =+  r-channel=(v9:r-channel:v10:ccv r-channel)
-    =/  r-channels-9
+    =/  r-channels-10=r-channels:v10:cv
       [nest r-channel]
+    =.  ca-core
+      %^  give  %fact
+        ~[/v4 v4+ca-area]
+      channel-response-5+!>(r-channels-10)
+    =+  r-channel-9=(v9:r-channel:v10:ccv r-channel)
+    =/  r-channels-9
+      [nest r-channel-9]
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
@@ -2581,7 +2592,7 @@
       channel-response-3+!>(rc)
     ::
     ::  omit %meta response in previous versions
-    ?:  ?=(%meta -.r-channel)  ca-core
+    ?:  ?=(%meta -.r-channel-9)  ca-core
     =.  ca-core
       %^  give  %fact
         ~[/v1 v1+ca-area]
@@ -2590,6 +2601,7 @@
       %^  give  %fact
         ~[/ ca-area /v0 v0+ca-area]
       channel-response+!>(r-simple)
+    =*  r-channel  r-channel-9
     :-  nest
     ?+    r-channel  r-channel
         [%posts *]
