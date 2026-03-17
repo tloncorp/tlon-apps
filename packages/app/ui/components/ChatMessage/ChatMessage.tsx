@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -345,19 +346,25 @@ const ChatContentRenderer = createContentRenderer({
     },
     reference: {
       contentSize: '$l',
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
     video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
       imageProps: {
         aspectRatio: 2,
       },
     },
     code: {
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    file: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    voicememo: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
   },
 });
