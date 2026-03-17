@@ -6,7 +6,11 @@ import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
 import * as ub from '../urbit';
-import { toPostData, toPostReplyData, toPostsData } from '../client/postsApi';
+import {
+  toPostData,
+  toPostReplyData,
+  toPostsData,
+} from '../client/postsApi';
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
