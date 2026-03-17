@@ -12,6 +12,8 @@
 | 6   | Production baseline (with exp 1+2) | — | 2716ms | — | baseline |
 | 7   | Split RN vendor chunks | 2716ms | — | — | DISCARD (errors) |
 | 8   | Lazy-load GlobalSearch | 2716ms | 2736ms | +20ms | DISCARD |
+| 9   | Lazy-load DraftInputView | 2716ms | — | — | DISCARD (no split) |
+| 10  | Remove WDYR jsxImportSource | 2716ms | 2764ms | +48ms | DISCARD |
 
 ---
 
