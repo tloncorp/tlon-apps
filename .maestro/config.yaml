@@ -2,3 +2,7 @@ flows:
   - '00-start.yaml'
 
 baselineBranch: develop
+
+platform:
+  ios:
+    snapshotKeyHonorModalViews: false
