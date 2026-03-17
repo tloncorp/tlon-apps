@@ -291,7 +291,7 @@ describe('computeReactionDetails', () => {
         {
           postId: 'post-1',
           contactId: '~zod',
-          value: ':thumb:',
+          value: ':+1:',
           contact: {
             id: '~zod',
             customNickname: 'Zod',

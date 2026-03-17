@@ -1,3 +1,4 @@
+import EmojiData, { EmojiMartData } from '@emoji-mart/data';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
@@ -34,6 +35,13 @@ function resolveContactName(
   return contactId && contactId.trim() !== '' ? contactId : 'Unknown User';
 }
 
+function getReactionDisplayValue(value: string): string {
+  const shortCode = value.replace(/^:|:$/g, '');
+  return (
+    (EmojiData as EmojiMartData).emojis[shortCode]?.skins[0].native ?? value
+  );
+}
+
 export function computeReactionDetails(
   reactions: db.Reaction[],
   ourId: string
@@ -48,15 +56,17 @@ export function computeReactionDetails(
   } as ReactionDetails;
 
   reactions.forEach((reaction) => {
-    if (details.aggregate[reaction.value]) {
-      details.aggregate[reaction.value].count++;
-      details.aggregate[reaction.value].users.push({
+    const reactionValue = getReactionDisplayValue(reaction.value);
+
+    if (details.aggregate[reactionValue]) {
+      details.aggregate[reactionValue].count++;
+      details.aggregate[reactionValue].users.push({
         id: reaction.contactId,
         name: resolveContactName(reaction.contact, reaction.contactId),
       });
     } else {
-      details.aggregate[reaction.value] = {
-        value: reaction.value,
+      details.aggregate[reactionValue] = {
+        value: reactionValue,
         count: 1,
         users: [
           {
@@ -68,10 +78,11 @@ export function computeReactionDetails(
     }
     if (reaction.contactId === ourId) {
       details.self.didReact = true;
-      details.self.value = reaction.value;
+      details.self.value = reactionValue;
     }
-    details.list = Object.values(details.aggregate);
   });
+
+  details.list = Object.values(details.aggregate);
 
   return details;
 }
@@ -98,11 +109,13 @@ export function useGroupedReactions(
     const groupedReactions: GroupedReactions = {};
 
     reactions.forEach((reaction) => {
-      if (!groupedReactions[reaction.value]) {
-        groupedReactions[reaction.value] = [];
+      const reactionValue = getReactionDisplayValue(reaction.value);
+
+      if (!groupedReactions[reactionValue]) {
+        groupedReactions[reactionValue] = [];
       }
-      groupedReactions[reaction.value].push({
-        value: reaction.value,
+      groupedReactions[reactionValue].push({
+        value: reactionValue,
         userId: reaction.contactId,
       });
     });
