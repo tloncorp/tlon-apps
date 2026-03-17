@@ -35,22 +35,21 @@ function runAnimation(config, fromValue, onFrame, onDone) {
   if (config.type === 'sequence') {
     let cancel = null;
     let idx = 0;
-    function next(currentValue) {
+    const next = (currentValue) => {
       if (idx >= config.animations.length) {
         if (onDone) onDone(true);
         return;
       }
       const anim = config.animations[idx++];
       if (isAnimationConfig(anim)) {
-        cancel = runAnimation(anim, currentValue, onFrame, (finished) => {
+        cancel = runAnimation(anim, currentValue, onFrame, () => {
           next(anim.toValue ?? currentValue);
         });
       } else {
-        // Raw value
         onFrame(anim);
         next(anim);
       }
-    }
+    };
     next(fromValue);
     return () => { if (cancel) cancel(); };
   }
@@ -60,7 +59,7 @@ function runAnimation(config, fromValue, onFrame, onDone) {
     let reps = 0;
     const maxReps = config.numberOfReps < 0 ? Infinity : config.numberOfReps;
     let currentValue = fromValue;
-    function loop() {
+    const loop = () => {
       if (reps >= maxReps) {
         if (onDone) onDone(true);
         return;
@@ -73,7 +72,7 @@ function runAnimation(config, fromValue, onFrame, onDone) {
         onFrame,
         () => { currentValue = target; loop(); }
       );
-    }
+    };
     loop();
     return () => { if (cancel) cancel(); };
   }
@@ -259,9 +258,10 @@ export function withSequence(...animations) {
 }
 
 export function cancelAnimation(sharedValue) {
-  // Force-set current value to cancel
+  // Force-set current value to cancel any running animation
   if (sharedValue && typeof sharedValue.value === 'number') {
-    sharedValue.value = sharedValue.value;
+    const current = sharedValue.value;
+    sharedValue.value = current;
   }
 }
 
