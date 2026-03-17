@@ -498,12 +498,20 @@
     ==
   ::
   ++  state-16-to-17
-    |=  s=state-16
+    |=  state-16
     ~>  %spin.['state-16-to-17']
     ^-  state-17
-    *state-17
+    :*  %17
+        (~(run by v-channels) v10:v-channel:v9:ccv)
+        (~(run by voc) (curr bind v10:said:v9:ccv))
+        hidden-posts
+        debounce
+        last-updated
+        pending-ref-edits
+        subs
+        pimp
+    ==
   ::
-
   ++  state-15-to-16
     |=  state-15
     ~>  %spin.['state-15-to-16']

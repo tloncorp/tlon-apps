@@ -225,6 +225,53 @@
       ::NOTE  .future unused at the time of migration
       v(posts nu-posts, log nu-log, future *future:v-channel:v8:cv)
     --
+  ++  v-channel
+    |%
+    ++  v10
+      |=  =v-channel:v9:cv
+      ^-  v-channel:v10:cv
+      %=    v-channel
+          posts
+        %+  run:on-v-posts:v9:cv  posts.v-channel
+        |=  post=(may:v9:cv v-post:v9:cv)
+        ^-  (may:v10:cv v-post:v10:cv)
+        (mind:v9:cv post v10:v-post)
+      ::
+          diffs.future
+        %-  ~(run by diffs.future.v-channel)
+        |=  =(set u-post:v9:cv)
+        (~(run in set) v10:u-post)
+      ::
+          replies.pending
+        %-  ~(run by replies.pending.v-channel)
+        |=  =memo:v9:cv
+        ::  memo blob
+        [memo ~]
+      ::
+        log  (run:log-on:v9:cv log.v-channel v10:u-channel)
+      ==
+    --
+  ++  u-channel
+    |%
+    ++  v10
+      |=  =u-channel:v9:cv
+      ^-  u-channel:v10:cv
+      ?:  ?=([%post *] u-channel)
+        u-channel(u-post (v10:u-post u-post.u-channel))
+      u-channel
+    --
+  ++  u-post
+    |%
+    ++  v10
+      |=  =u-post:v9:cv
+      ^-  u-post:v10:cv
+      ?:  ?=([%set *] u-post)
+        u-post(post (mind:v9:cv post.u-post v10:v-post))
+      ?:  ?=([%reply @ %set *] u-post)
+        =*  reply  reply.u-reply.u-post
+        u-post(reply.u-reply (mind:v9:cv reply v10:v-reply))
+      u-post
+    --
   ++  v-posts
     |%
     ++  v8
@@ -238,6 +285,11 @@
     --
   ++  v-post
     |%
+    ++  v10
+      |=  =v-post:v9:cv
+      ^-  v-post:v10:cv
+      :_  +.v-post
+      -.v-post(replies (run:on-v-replies:v9:cv replies.v-post (curr mind:v9:cv v10:v-reply)))
     ++  v8
       |=  vp=v-post:v9:cv
       ^-  v-post:v8:cv
@@ -255,6 +307,13 @@
     --
   ++  v-reply
     |%
+    ++  v10
+      |=  =v-reply:v9:cv
+      ^-  v-reply:v10:cv
+      =*  rev-essay  +.v-reply
+      :-  -.v-reply
+      ::  [rev memo blob]
+      [- + ~]:rev-essay
     ++  v8
       |=  vr=v-reply:v9:cv
       ^-  v-reply:v8:cv

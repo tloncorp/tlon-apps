@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid, em=emojimart
+/+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -224,12 +224,14 @@
     ==
   ::
   ++  state-13-to-14
-    |=  s=state-13
+    |=  =state-13
     ~>  %spin.['state-13-to-14']
     ^-  state-14
-    *state-14
+    %=  state-13
+      -  %14
+      v-channels  (~(run by v-channels.state-13) v10:v-channel:v9:ccv)
+    ==
   ::
-
   ++  state-12-to-13
     |=  s=state-12
     ~>  %spin.['state-12-to-13']
