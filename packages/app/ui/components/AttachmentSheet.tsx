@@ -156,6 +156,7 @@ export default function AttachmentSheet({
   }, [removeAttachment]);
 
   const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
+  const showCameraAction = Platform.OS === 'ios';
   const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
     () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
     [useVideoInMediaPicker]
@@ -248,7 +249,7 @@ export default function AttachmentSheet({
       })();
       const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: audioFilePath,
+        localUri: filePathToFileUri(audioFilePath),
         size: getFileSize(audioFilePath) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
@@ -295,11 +296,7 @@ export default function AttachmentSheet({
   }, [onOpenChange, audioRecorder]);
 
   const pickImage = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
-    setTimeout(async () => {
+    const openImagePicker = async () => {
       try {
         if (mediaLibraryPermissionStatus?.granted === false) {
           const permissionResult = await requestMediaLibraryPermission();
@@ -352,7 +349,21 @@ export default function AttachmentSheet({
         // In case of error, remove the placeholder
         clearAttachments();
       }
-    }, 50); // Small delay to ensure the sheet closes first
+    };
+
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    if (Platform.OS === 'web') {
+      // File picker must open in the same user gesture on web.
+      void openImagePicker();
+      return;
+    }
+
+    // Native: wait for close animation to complete before opening picker.
+    setTimeout(() => {
+      void openImagePicker();
+    }, 50);
   }, [
     attachAssets,
     clearAttachments,
@@ -394,7 +405,7 @@ export default function AttachmentSheet({
                 : 'Choose a photo from your library',
             action: pickImage,
           },
-          !isWeb && {
+          showCameraAction && {
             title: useVideoInMediaPicker
               ? 'Capture Photo or Video'
               : 'Take a Photo',
@@ -441,6 +452,7 @@ export default function AttachmentSheet({
       createAssetFromClipboard,
       mediaType,
       useVideoInMediaPicker,
+      showCameraAction,
     ]
   );
 
@@ -524,4 +536,15 @@ function useAudioRecorderController({
     present: () => setIsSheetOpen(true),
     dismiss: () => setIsSheetOpen(false),
   };
+}
+
+function filePathToFileUri(filePath: string) {
+  try {
+    // if this is already a valid URI, return it as-is
+    return new URL(filePath).toString();
+  } catch {
+    // otherwise, assume it's a file path and convert to file URI
+    // if there was some other kind of error, this will likely also fail, but we'll let that error propagate
+    return new URL(`file://${filePath}`).toString();
+  }
 }
