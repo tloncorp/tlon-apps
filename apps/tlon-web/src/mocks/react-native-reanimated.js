@@ -25,6 +25,10 @@ export function useSharedValue(initial) {
         ref.current = v;
         forceRender((c) => c + 1);
       },
+      modify(fn) {
+        ref.current = fn(ref.current);
+        forceRender((c) => c + 1);
+      },
     };
     return obj;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,7 +103,9 @@ export function cancelAnimation(_sharedValue) {
 }
 
 export function makeMutable(initial) {
-  return { value: initial };
+  const obj = { value: initial };
+  obj.modify = (fn) => { obj.value = fn(obj.value); };
+  return obj;
 }
 
 export const Extrapolation = {
@@ -248,9 +254,10 @@ export function useAnimatedScrollHandler(handler) {
 // ---------------------------------------------------------------------------
 
 const AnimatedView = forwardRef((props, ref) => {
+  // eslint-disable-next-line no-unused-vars
   const { style, entering, exiting, ...rest } = props;
   const flatStyle = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
-  return <View ref={ref} style={{ transition: 'all 300ms ease', ...flatStyle }} {...rest} />;
+  return <View ref={ref} style={flatStyle} {...rest} />;
 });
 AnimatedView.displayName = 'Animated.View';
 
@@ -261,9 +268,10 @@ AnimatedFlatList.displayName = 'Animated.FlatList';
 
 function createAnimatedComponent(Component) {
   const Wrapper = forwardRef((props, ref) => {
+    // eslint-disable-next-line no-unused-vars
     const { style, entering, exiting, ...rest } = props;
     const flatStyle = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
-    return <Component ref={ref} style={{ transition: 'all 300ms ease', ...flatStyle }} {...rest} />;
+    return <Component ref={ref} style={flatStyle} {...rest} />;
   });
   Wrapper.displayName = `Animated(${Component.displayName || Component.name || 'Component'})`;
   return Wrapper;
