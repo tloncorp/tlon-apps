@@ -161,6 +161,16 @@
       ^-  post:v9:cv
       :_  +.post
       -.post(replies (run:on-replies:v10:cv replies.post (curr mind:v10:cv v9:reply)))
+    ++  v7
+      |=  =post:v10:cv
+      ^-  post:v7:cv
+      %-  v7:post:^v9
+      (v9:^post post)
+    ++  v8
+      |=  =post:v10:cv
+      ^-  post:v8:cv
+      %-  v8:post:^v9
+      (v9:^post post)
     --
   ++  reply
     |%

@@ -23,6 +23,7 @@
 /%  m-channel-heads           %channel-heads
 /%  m-channel-heads-2         %channel-heads-2
 /%  m-channel-heads-3         %channel-heads-3
+/%  m-channel-heads-4         %channel-heads-4
 /%  m-channel-perm            %channel-perm
 /%  m-channel-post            %channel-post
 /%  m-channel-post-2          %channel-post-2
@@ -83,6 +84,8 @@
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
+            ::TODO  make strict on next upgrade
+            :+  %channel-heads-4         &  -:!>(*vale:m-channel-heads-4)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
             ::TODO make strict one day (affected by versioning mistake)
             :+  %channel-post            |  -:!>(*vale:m-channel-post)
@@ -1620,7 +1623,7 @@
   =/  newer  (tab:on-v-posts:c posts.chan `u.around context)
   (weld older newer)
 ++  heads
-  |=  [since=?(~ [u=@ ~]) ver=?(%v2 %v3 %v4)]
+  |=  [since=?(~ [u=@ ~]) ver=?(%v2 %v3 %v4 %v5)]
   ~>  %spin.['heads']
   =/  since=(unit id-post:c)
     ?~  since  ~
@@ -1634,18 +1637,28 @@
     :-  %channel-heads
     !>  ^-  channel-heads:v7:cv
     %+  turn  heads
-    |=  head=[=nest:c recency=time latest=(may:c post:v9:cv)]
-    head(latest ((may-bind:utils v7:post:v9:ccv) latest.head))
+    |=  head=[=nest:c recency=time latest=(may:c post:c)]
+    head(latest ((may-bind:utils v7:post:v10:ccv) latest.head))
   ::
       %v3
     :-  %channel-heads-2
     !>  ^-  channel-heads:v8:cv
     %+  turn  heads
-    |=  head=[=nest:c recency=time latest=(may:c post:v9:cv)]
-    head(latest ((may-bind:utils v8:post:v9:ccv) latest.head))
+    |=  head=[=nest:c recency=time latest=(may:c post:c)]
+    head(latest ((may-bind:utils v8:post:v10:ccv) latest.head))
   ::
       %v4
-    channel-heads-3+!>(`channel-heads:v9:cv`heads)
+    :-  %channel-heads-3
+    !>  ^-  channel-heads:v9:cv
+    %+  turn  heads
+    |=  head=[=nest:c recency=time latest=(may:c post:c)]
+    ^-  [nest:c time (unit (may:v9:cv post:v9:cv))]
+    head(latest (mind:v9:cv v9:post:v10:ccv latest.head))
+  ::
+      %v5
+    :-  %channel-heads-4
+    !>  ^-  channel-heads:v10:cv
+    heads
   ==
 ::
 ++  arvo

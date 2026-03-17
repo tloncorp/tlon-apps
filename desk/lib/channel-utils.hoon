@@ -1128,7 +1128,7 @@
 ++  channel-head
   =|  slip=_|
   |=  [since=(unit id-post:c) =nest:c v-channel:c]
-  ^-  (unit [_nest time (may:c post:v9:cv)])
+  ^-  (unit [_nest time (may:c post:c)])
   ::  if there is no latest post, give nothing
   ::
   ?~  vp=(ram:on-v-posts:c posts)  ~
@@ -1137,7 +1137,7 @@
   ?:  ?=(%| -.val.u.vp)
     $(slip &, posts +:(pop:on-v-posts:c posts))
   =*  result
-    `[nest recency.remark %& (uv-post-without-replies-3 +.val.u.vp)]
+    `[nest recency.remark %& (uv-post-without-replies-4 +.val.u.vp)]
   ::  if the request is bounded, check that latest message is "in bounds"
   ::  (and not presumably already known by the requester)
   ::
