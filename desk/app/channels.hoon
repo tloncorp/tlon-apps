@@ -239,10 +239,10 @@
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      [~.channels^%3 ~ ~]
+      [~.channels^%4 ~ ~]
     %-  my
     :~  %groups^[~.groups^%2 ~ ~]
-        %channels-server^[~.channels^%3 ~ ~]
+        %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
 %^  verb  |  %warn
@@ -1652,8 +1652,7 @@
     !>  ^-  channel-heads:v9:cv
     %+  turn  heads
     |=  head=[=nest:c recency=time latest=(may:c post:c)]
-    ^-  [nest:c time (unit (may:v9:cv post:v9:cv))]
-    head(latest (mind:v9:cv v9:post:v10:ccv latest.head))
+    head(latest (mind:v9:cv latest.head v9:post:v10:ccv))
   ::
       %v5
     :-  %channel-heads-4
