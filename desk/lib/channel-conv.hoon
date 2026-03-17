@@ -558,6 +558,20 @@
       ^-  simple-replies:v10:cv
       (run:on-simple-replies:v9:cv replies v10:simple-reply)
     --
+  ++  a-channels
+    |%
+    ++  v10
+      |=  =a-channels:v9:cv
+      ^-  a-channels:v10:cv
+      ?.  ?=([%channel *] a-channels)  a-channels
+      ?:  ?=([%channel * %post %reply @ %add *] a-channels)
+        =*  memo  memo.c-reply.c-post.a-channel.a-channels
+        a-channels(memo.c-reply.c-post.a-channel [memo ~])
+      ?:  ?=([%channel * %post %reply @ %edit *] a-channels)
+        =*  memo  memo.c-reply.c-post.a-channel.a-channels
+        a-channels(memo.c-reply.c-post.a-channel [memo ~])
+      a-channels
+    --
   --
 ++  v8
   |%
@@ -1305,6 +1319,76 @@
       ::  %reacts
       ::
       u(reacts (v8:v-reacts:v7 reacts.u))
+    --
+  ++  a-channels
+    |%
+    ++  v9
+      |=  =a-channels:v7:cv
+      ^-  a-channels:v9:cv
+      ?:  ?=([%create *] a-channels)
+        ::  upconvert old %create action
+        ::
+        :-  %create
+        =>  create-channel.a-channels
+        :*  kind
+            name
+            group
+            title
+            description
+            ~  ::  meta
+            readers
+            writers
+        ==
+      ?.  ?=([%channel *] a-channels)
+        a-channels
+      ?+    a-channel.a-channels  a-channels
+        ::
+          [%post %add *]
+        %=    a-channels
+            essay.c-post.a-channel
+          (v8:essay:v7 essay.c-post.a-channel.a-channels)
+        ==
+        ::
+          [%post %edit *]
+        %=    a-channels
+            essay.c-post.a-channel
+          (v8:essay:v7 essay.c-post.a-channel.a-channels)
+        ==
+        ::
+          [%post %add-react *]
+        %=  a-channels
+            q.c-post.a-channel
+          ^-  react:v8:cv
+          =*  react  q.c-post.a-channel.a-channels
+          ?~  react=(kill:em react)
+            [%any ^react]
+          u.react
+        ==
+        ::
+          [%post %reply * %add *]
+        %=    a-channels
+            memo.c-reply.c-post.a-channel
+          :: reply-essay
+          (v8:memo:v7 memo.c-reply.c-post.a-channel.a-channels)
+        ==
+        ::
+          [%post %reply * %edit *]
+        %=    a-channels
+            memo.c-reply.c-post.a-channel
+          ::  reply-essay
+          (v8:memo:v7 memo.c-reply.c-post.a-channel.a-channels)
+        ==
+        ::
+          [%post %reply * %add-react *]
+        %=  a-channels
+            q.c-reply.c-post.a-channel
+          ^-  react:v8:cv
+          =*  react  q.c-reply.c-post.a-channel.a-channels
+          ?~  react=(kill:em react)
+            [%any ^react]
+          u.react
+        ==
+      ==
     --
   --
 --

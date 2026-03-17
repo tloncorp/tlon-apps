@@ -961,86 +961,14 @@
     ==
   ::
       %channel-action
-    =;  =a-channels:v9:cv
-      $(+< channel-action-1+!>(a-channels))
-    =+  !<(old-a-channels=a-channels:v7:cv vase)
-    ?:  ?=([%create *] old-a-channels)
-      ::  upconvert old %create action
-      ::
-      :-  %create
-      =>  create-channel.old-a-channels
-      :*  kind
-          name
-          group
-          title
-          description
-          ~  ::  meta
-          readers
-          writers
-      ==
-    ?.  ?=([%channel *] old-a-channels)
-      old-a-channels
-    ?+    a-channel.old-a-channels  old-a-channels
-      ::
-        [%post %add *]
-      %=    old-a-channels
-          essay.c-post.a-channel
-        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-      ==
-      ::
-        [%post %edit *]
-      %=    old-a-channels
-          essay.c-post.a-channel
-        (essay-7-to-8:utils essay.c-post.a-channel.old-a-channels)
-      ==
-      ::
-        [%post %add-react *]
-      %=  old-a-channels
-          q.c-post.a-channel
-        ^-  react:c
-        =*  react  q.c-post.a-channel.old-a-channels
-        ?~  react=(kill:em react)
-          [%any ^react]
-        u.react
-      ==
-      ::
-        [%post %reply * %add *]
-      %=    old-a-channels
-          memo.c-reply.c-post.a-channel
-        :: reply-essay
-        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
-      ==
-      ::
-        [%post %reply * %edit *]
-      %=    old-a-channels
-          memo.c-reply.c-post.a-channel
-        ::  reply-essay
-        (memo-7-to-8:utils memo.c-reply.c-post.a-channel.old-a-channels)
-      ==
-      ::
-        [%post %reply * %add-react *]
-      %=  old-a-channels
-          q.c-reply.c-post.a-channel
-        ^-  react:c
-        =*  react  q.c-reply.c-post.a-channel.old-a-channels
-        ?~  react=(kill:em react)
-          [%any ^react]
-        u.react
-      ==
-    ==
+    =/  a-channels
+      (v9:a-channels:v7:ccv !<(a-channels:v7:cv vase))
+    $(+< channel-action-1+!>(a-channels))
   ::
       %channel-action-1
-    =;  =a-channels:v10:cv
-      $(+< channel-action-2+!>(a-channels))
-    =+  !<(old-a-channels=a-channels:v9:cv vase)
-    ?.  ?=([%channel *] old-a-channels)  old-a-channels
-    ?:  ?=([%channel * %post %reply @ %add *] old-a-channels)
-      =*  memo  memo.c-reply.c-post.a-channel.old-a-channels
-      old-a-channels(memo.c-reply.c-post.a-channel [memo ~])
-    ?:  ?=([%channel * %post %reply @ %edit *] old-a-channels)
-      =*  memo  memo.c-reply.c-post.a-channel.old-a-channels
-      old-a-channels(memo.c-reply.c-post.a-channel [memo ~])
-    old-a-channels
+    =/  a-channels
+      (v10:a-channels:v9:ccv !<(a-channels:v9:cv vase))
+    $(+< channel-action-2+!>(a-channels))
   ::
       %channel-action-2
     =+  !<(=a-channels:v10:cv vase)
