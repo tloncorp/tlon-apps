@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isGroup, isPersonalGroup } from '@tloncorp/shared/logic';
 import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   PropsWithChildren,
@@ -40,7 +40,7 @@ export function MetaEditorScreenView({
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
-  const isGroup = !!chat && logic.isGroup(chat);
+  const isGroup = !!chat && isGroup(chat);
   const hostStatus = useShipConnectionStatus(isGroup ? chat.hostUserId : '', {
     enabled: isGroup,
   });
@@ -49,7 +49,7 @@ export function MetaEditorScreenView({
 
   const isPersonalGroup = useMemo(() => {
     if (isGroup) {
-      return logic.isPersonalGroup(chat, currentUserId);
+      return isPersonalGroup(chat, currentUserId);
     }
   }, [chat, currentUserId, isGroup]);
 

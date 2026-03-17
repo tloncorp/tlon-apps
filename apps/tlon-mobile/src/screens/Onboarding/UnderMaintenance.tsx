@@ -11,7 +11,7 @@ import { TlonText } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { makePrettyTime } from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { openComposer } from 'react-native-email-link';
@@ -80,7 +80,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
         </TlonText.Text>
         {checkedAt && (
           <TlonText.Text size="$label/l" color="$secondaryText">
-            Last checked at {logic.makePrettyTime(checkedAt)}
+            Last checked at {makePrettyTime(checkedAt)}
           </TlonText.Text>
         )}
         <Button

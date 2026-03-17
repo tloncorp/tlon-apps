@@ -4,9 +4,10 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import type { Channel, Post } from '@tloncorp/shared/db';
+import { getGroup, lastVisitedChannelId } from '@tloncorp/shared/db';
+import { useMutableRef, isDmChannelId, isGroupDmChannelId } from '@tloncorp/shared/logic';
+import { upsertDmChannel } from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { useGlobalSearch, useIsWindowNarrow } from '../ui';
@@ -54,7 +55,7 @@ export function useTypedReset() {
 
 function useResetToChannel() {
   const navigation = useNavigation();
-  const navigationRef = logic.useMutableRef(navigation);
+  const navigationRef = useMutableRef(navigation);
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
   const { lastOpenTab } = useGlobalSearch();
@@ -102,7 +103,7 @@ function useResetToDm() {
 
   return async function resetToDm(contactId: string) {
     try {
-      const dmChannel = await store.upsertDmChannel({
+      const dmChannel = await upsertDmChannel({
         participants: [contactId],
       });
       resetToChannel(dmChannel.id);
@@ -141,7 +142,7 @@ function useNavigateToChannel() {
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
-    (channel: db.Channel, selectedPostId?: string) => {
+    (channel: Channel, selectedPostId?: string) => {
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
@@ -182,7 +183,7 @@ export function useNavigateToPost() {
     navigation.getState()?.index === activityIndex;
 
   return useCallback(
-    (post: db.Post) => {
+    (post: Post) => {
       const postParams = {
         postId: post.id,
         authorId: post.authorId,
@@ -231,7 +232,7 @@ export function useNavigateBackFromPost() {
       : false;
 
   return useCallback(
-    (channel: db.Channel, postId: string) => {
+    (channel: Channel, postId: string) => {
       const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
       if (lastChannelWasChat && !isChatShaped) {
         // if we're returning from viewing a notebook/gallery post and the last
@@ -307,7 +308,7 @@ function getTab(
 export function useRootNavigation() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
-  const navigationRef = logic.useMutableRef(navigation);
+  const navigationRef = useMutableRef(navigation);
   const navigateToGroup = useCallback(
     async (groupId: string) => {
       navigationRef.current.navigate(
@@ -446,17 +447,15 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  const group = await db.getGroup({ id: groupId });
-  const lastVisitedChannelId = await db
-    .lastVisitedChannelId(groupId)
-    .getValue();
+  const group = await getGroup({ id: groupId });
+  const lastVisitedId = await lastVisitedChannelId(groupId).getValue();
   if (
     group &&
     group.channels &&
     (group.channels.length === 1 || !isWindowNarrow)
   ) {
-    if (!isWindowNarrow && lastVisitedChannelId) {
-      return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);
+    if (!isWindowNarrow && lastVisitedId) {
+      return getDesktopChannelRoute('Home', lastVisitedId, groupId);
     }
 
     if (!isWindowNarrow) {
@@ -482,9 +481,9 @@ export async function getMainGroupRoute(
 }
 
 export function screenNameFromChannelId(channelId: string) {
-  return logic.isDmChannelId(channelId)
+  return isDmChannelId(channelId)
     ? 'DM'
-    : logic.isGroupDmChannelId(channelId)
+    : isGroupDmChannelId(channelId)
       ? 'GroupDM'
       : 'Channel';
 }

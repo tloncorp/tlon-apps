@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
 import { markInvitesRead } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { SyncPriority, syncQueue, useChannelPreview, useConnectionStatus, useCurrentChats, useGroup, useGroupPreview, usePostReference, usePostWithRelations, useShowWebSplashModal } from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -49,16 +49,16 @@ export const HomeSidebar = memo(
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
     );
-    const { data: selectedGroup } = store.useGroup({
+    const { data: selectedGroup } = useGroup({
       id: selectedGroupId ?? '',
     });
     const { setIsOpen } = useGlobalSearch();
-    const showSplash = store.useShowWebSplashModal();
+    const showSplash = useShowWebSplashModal();
 
-    const { data: chats } = store.useCurrentChats();
+    const { data: chats } = useCurrentChats();
     const { performGroupAction } = useGroupActions();
 
-    const connStatus = store.useConnectionStatus();
+    const connStatus = useConnectionStatus();
 
     const noChats = useMemo(
       () =>
@@ -124,9 +124,9 @@ export const HomeSidebar = memo(
     useEffect(() => {
       if (isFocused) {
         setTimeout(() => {
-          store.syncQueue.add(
+          syncQueue.add(
             'markInvitesRead',
-            { priority: store.SyncPriority.Medium },
+            { priority: SyncPriority.Medium },
             async () => {
               markInvitesRead();
             }
@@ -203,11 +203,11 @@ export const HomeSidebar = memo(
 
     return (
       <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
+        usePostReference={usePostReference}
+        useChannel={useChannelPreview}
+        usePost={usePostWithRelations}
         useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+        useGroup={useGroupPreview}
       >
         <ChatOptionsProvider
           {...useChatSettingsNavigation()}

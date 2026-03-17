@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/store';
+import { changeMessageFilter, useMessagesFilter } from '@tloncorp/shared/store';
 import { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
@@ -6,12 +6,12 @@ import { ActionSheet, createActionGroups } from '../../ui';
 
 export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
-  const { data } = store.useMessagesFilter();
+  const { data } = useMessagesFilter();
   const talkFilter = data ?? 'Direct Messages';
 
   const handleAction = useCallback((value: TalkSidebarFilter) => {
     return () => {
-      store.changeMessageFilter(value);
+      changeMessageFilter(value);
       setIsOpen(false);
     };
   }, []);

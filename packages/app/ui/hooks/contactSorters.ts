@@ -5,7 +5,7 @@ import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 import { valid } from '@urbit/aura';
 
-import * as utils from '../utils';
+import { getFirstAlphabeticalChar } from '../utils';
 
 type UrbitSort = 'pals' | 'nickname' | 'alphabetical';
 const DEFAULT_SORT_ORDER: UrbitSort[] = ['nickname', 'alphabetical'];
@@ -35,7 +35,7 @@ export function useAlphabeticallySegmentedContacts(
         const sortableName = contact.nickname
           ? anyAscii(contact.nickname!.replace(/[~-]/g, ''))
           : contact.id.replace(/[~-]/g, '');
-        const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
+        const firstAlpha = getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
           segmented[firstAlpha] = [];
         }

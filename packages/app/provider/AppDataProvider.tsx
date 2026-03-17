@@ -1,5 +1,5 @@
 import * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
+import { useCalmSettings, useContacts, useCurrentSession } from '@tloncorp/shared/store';
 import { PropsWithChildren } from 'react';
 
 import {
@@ -24,9 +24,9 @@ export function AppDataProvider({
   ) => Promise<boolean>;
 }>) {
   const currentUserId = useCurrentUserId();
-  const session = store.useCurrentSession();
-  const contactsQuery = store.useContacts();
-  const calmSettingsQuery = store.useCalmSettings();
+  const session = useCurrentSession();
+  const contactsQuery = useContacts();
+  const calmSettingsQuery = useCalmSettings();
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}

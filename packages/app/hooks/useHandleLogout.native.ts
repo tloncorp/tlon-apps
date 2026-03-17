@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { removeClient, updateSession, clearSyncStartLock } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
@@ -18,14 +18,14 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
 
   const handleLogout = useCallback(async () => {
     api.queryClient.clear();
-    store.removeClient();
+    removeClient();
     clearShip();
     clearLure();
     clearDeepLink();
     clearTelemetry();
     clearSessionStorageItems();
-    store.updateSession(null);
-    store.clearSyncStartLock();
+    updateSession(null);
+    clearSyncStartLock();
     cancelNodeResumeNudge();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');

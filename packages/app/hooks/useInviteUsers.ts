@@ -1,5 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
+import { inviteGroupMembers } from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 
 const logger = createDevLogger('useInviteUsers', false);
@@ -11,7 +11,7 @@ export function useInviteGroupMembers(groupId: string, onComplete: () => void) {
   const handleInvite = useCallback(async () => {
     setLoading(true);
     try {
-      await store.inviteGroupMembers({
+      await inviteGroupMembers({
         groupId,
         contactIds: invitees,
       });

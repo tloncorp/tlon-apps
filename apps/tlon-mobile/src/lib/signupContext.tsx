@@ -11,8 +11,8 @@ import {
   NodeBootPhase,
   SignupParams,
 } from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
-import * as utils from '@tloncorp/shared/utils';
+import { updateCurrentUserProfile, setBaseVolumeLevel, initiatePhoneAttestation } from '@tloncorp/shared/store';
+import { formattedDuration } from '@tloncorp/shared/utils';
 import * as LibPhone from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import {
@@ -94,7 +94,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
       logger.trackEvent('hosted signup report', {
         ...bootReport,
         userSatWaitingFor: values.userWasReadyAt
-          ? utils.formattedDuration(values.userWasReadyAt, Date.now())
+          ? formattedDuration(values.userWasReadyAt, Date.now())
           : null,
         timeUnit: 's',
       });
@@ -172,7 +172,7 @@ async function runPostSignupActions(params: {
 }) {
   if (params.nickname) {
     try {
-      await store.updateCurrentUserProfile({
+      await updateCurrentUserProfile({
         nickname: params.nickname,
       });
     } catch (e) {
@@ -207,7 +207,7 @@ async function runPostSignupActions(params: {
 
   if (params.notificationLevel) {
     try {
-      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+      await setBaseVolumeLevel({ level: params.notificationLevel as any });
     } catch (e) {
       logger.trackError('post signup: failed to set notification level', e);
     }
@@ -215,7 +215,7 @@ async function runPostSignupActions(params: {
 
   if (params.notificationLevel) {
     try {
-      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+      await setBaseVolumeLevel({ level: params.notificationLevel as any });
     } catch (e) {
       logger.trackError('post signup: failed to set notification level', {
         errorMessage: e.message,
@@ -242,7 +242,7 @@ async function runPostSignupActions(params: {
         return;
       }
       const normalizedPhone = parsedPhone.format('E.164');
-      await store.initiatePhoneAttestation(normalizedPhone);
+      await initiatePhoneAttestation(normalizedPhone);
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
         severity: AnalyticsSeverity.Critical,

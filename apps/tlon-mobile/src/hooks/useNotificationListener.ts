@@ -19,7 +19,7 @@ import {
   syncGroups,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { getModelAnalytics } from '@tloncorp/shared/logic';
 import {
   Notification,
   clearLastNotificationResponseAsync,
@@ -264,7 +264,7 @@ export default function useNotificationListener() {
 
       logger.trackEvent(
         AnalyticsEvent.ActionTappedPushNotif,
-        logic.getModelAnalytics({ channel })
+        getModelAnalytics({ channel })
       );
       startPushNotifTapMeasurement({
         channelId: channel.id,

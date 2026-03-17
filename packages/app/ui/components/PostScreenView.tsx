@@ -9,8 +9,8 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
-import { Carousel, ForwardingProps } from '@tloncorp/ui';
+import { draftKeyFor, finalizeAndSendPost, markThreadRead, useChannel, useChannelPosts, usePostDraftCallbacks, useThreadPosts } from '@tloncorp/shared/store';
+import { Carousel, ForwardingProps, useIsWindowNarrow } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   createContext,
@@ -35,7 +35,7 @@ import {
   useCurrentUserId,
   useStore,
 } from '../contexts';
-import * as utils from '../utils';
+import { useIsAdmin, useCanWrite } from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import {
@@ -124,7 +124,7 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       onPresentationModeChange: noop,
       sendPostFromDraft: async (draft) => {
         setEditingPost?.(undefined);
-        await store.finalizeAndSendPost(draft);
+        await finalizeAndSendPost(draft);
       },
       setEditingPost,
       setShouldBlur,
@@ -176,9 +176,9 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
-  const isWindowNarrow = utils.useIsWindowNarrow();
+  const isWindowNarrow = useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
+  const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
@@ -252,19 +252,19 @@ export function PostScreenView({
     [onGroupAction]
   );
 
-  const draftCallbacks = store.usePostDraftCallbacks(
+  const draftCallbacks = usePostDraftCallbacks(
     focusedPost == null
       ? null
-      : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
+      : { draftKey: draftKeyFor.thread({ parentPostId: focusedPost.id }) }
   );
 
   // Separate draft callbacks for editing the parent post (gallery/notebook).
   // This uses a different key to prevent edit drafts from leaking to
   // BareChatInput, which uses the thread key for reply drafts.
-  const parentEditDraftCallbacks = store.usePostDraftCallbacks(
+  const parentEditDraftCallbacks = usePostDraftCallbacks(
     focusedPost == null
       ? null
-      : { draftKey: store.draftKeyFor.postEdit({ postId: focusedPost.id }) }
+      : { draftKey: draftKeyFor.postEdit({ postId: focusedPost.id }) }
   );
 
   const { attachAssets, clearAttachments } = useAttachmentContext();
@@ -453,7 +453,7 @@ function useMarkThreadAsReadEffect(
 
     const { channel, parent, mostRecentlyReceivedReply } = opts;
     if (channel && parent && mostRecentlyReceivedReply) {
-      store.markThreadRead({
+      markThreadRead({
         channel,
         parentPost: parent,
         post: mostRecentlyReceivedReply,
@@ -512,8 +512,8 @@ function SinglePostView({
     scrollToEnd: (opts: { animated?: boolean }) => void;
   }>(null);
 
-  const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
-    draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
+  const { getDraft, storeDraft, clearDraft } = usePostDraftCallbacks({
+    draftKey: draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
@@ -528,7 +528,7 @@ function SinglePostView({
     initializeChannelUnread();
   }, [parentPost.id]);
 
-  const { data: threadPosts } = store.useThreadPosts({
+  const { data: threadPosts } = useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.authorId,
     channelId: channel.id,
@@ -545,7 +545,7 @@ function SinglePostView({
   const isEditingParent = useMemo(() => {
     return editingPost && editingPost.id === parentPost?.id;
   }, [editingPost, parentPost]);
-  const canWrite = utils.useCanWrite(channel, currentUserId);
+  const canWrite = useCanWrite(channel, currentUserId);
   const postsWithoutParent = useMemo(
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
@@ -590,7 +590,7 @@ function SinglePostView({
     async (draft: domain.PostDataDraft) => {
       setEditingPost?.(undefined);
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft);
+      await finalizeAndSendPost(draft);
       scrollToNewReply();
     },
     [parentPost, store, scrollToNewReply, setEditingPost]
@@ -715,7 +715,7 @@ function SinglePostView({
             setShouldBlur={setInputShouldBlur}
             sendPostFromDraft={async (draft) => {
               setEditingPost?.(undefined);
-              await store.finalizeAndSendPost(draft);
+              await finalizeAndSendPost(draft);
             }}
             getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
             storeDraft={
@@ -748,7 +748,7 @@ function CarouselPostScreenContent({
   const {
     posts,
     query: { fetchNextPage, fetchPreviousPage },
-  } = store.useChannelPosts({
+  } = useChannelPosts({
     enabled: true,
     channelId: channelId,
     count: 10,
@@ -757,7 +757,7 @@ function CarouselPostScreenContent({
     firstPageCount: 50,
     filterDeleted: true,
   });
-  const { data: channel } = store.useChannel({ id: channelId });
+  const { data: channel } = useChannel({ id: channelId });
 
   const initialPostIndex = useMemo(() => {
     let index: number | undefined = undefined;

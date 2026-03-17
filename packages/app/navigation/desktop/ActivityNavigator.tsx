@@ -4,8 +4,8 @@ import {
 } from '@react-navigation/drawer';
 import { useIsFocused } from '@react-navigation/native';
 import { getVariableValue, useTheme } from '@tamagui/core';
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import type { Channel, Post, Group } from '@tloncorp/shared/db';
+import { useInfiniteBucketedActivity, resetActivity, markGroupRead } from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
@@ -23,9 +23,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
 
-  const allFetcher = store.useInfiniteBucketedActivity('all');
-  const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
-  const repliesFetcher = store.useInfiniteBucketedActivity('replies');
+  const allFetcher = useInfiniteBucketedActivity('all');
+  const mentionsFetcher = useInfiniteBucketedActivity('mentions');
+  const repliesFetcher = useInfiniteBucketedActivity('replies');
   const bucketedActivity = useMemo(() => {
     return {
       all: allFetcher,
@@ -35,11 +35,11 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [allFetcher, mentionsFetcher, repliesFetcher]);
 
   const handleRefreshActivity = useCallback(async () => {
-    return store.resetActivity();
+    return resetActivity();
   }, []);
 
   const handleGoToChannel = useCallback(
-    (channel: db.Channel, selectedPostId?: string) => {
+    (channel: Channel, selectedPostId?: string) => {
       navigateToChannel(channel, selectedPostId);
     },
     [navigateToChannel]
@@ -48,7 +48,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(
-    (post: db.Post) => {
+    (post: Post) => {
       // TODO: we have no way to route to specific thread message rn
       navigateToPost(post);
     },
@@ -56,8 +56,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   );
 
   const handleGoToGroup = useCallback(
-    (group: db.Group) => {
-      store.markGroupRead(group.id);
+    (group: Group) => {
+      markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
         screen: 'GroupMembers',
         params: { groupId: group.id },

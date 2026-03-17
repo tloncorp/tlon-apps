@@ -3,7 +3,7 @@ import anyAscii from 'any-ascii';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState } from 'react';
 
-import * as utils from '../utils';
+import { getFirstAlphabeticalChar } from '../utils';
 
 export type SystemContactSection = {
   label: string;
@@ -32,7 +32,7 @@ export function sortSystemContactsIntoSections(
   // Sort contacts into appropriate sections
   for (const contact of contacts) {
     const sortableName = getSystemContactSortableName(contact);
-    const sectionKey = utils.getFirstAlphabeticalChar(sortableName);
+    const sectionKey = getFirstAlphabeticalChar(sortableName);
 
     if (!sections[sectionKey]) {
       sections[sectionKey] = [];

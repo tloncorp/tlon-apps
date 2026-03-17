@@ -6,10 +6,23 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import {
+  SyncPriority,
+  deleteFailedPost,
+  deletePost,
+  editPost,
+  markChannelRead,
+  markChannelVisited,
+  markGroupVisited,
+  markPotentialWayfindingChannelVisit,
+  retrySendPost,
+  syncChannelThreadUnreads,
+  uploadAsset,
+  upsertDmChannel,
   useCanUpload,
+  useChannelPosts,
   useChannelPreview,
+  useGroup,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -82,11 +95,11 @@ export default function ChannelScreen(props: Props) {
     useCallback(() => {
       // Mark the channel as visited when we unfocus/leave this screen
       if (!channelIsPending) {
-        store.markChannelVisited(channelId);
+        markChannelVisited(channelId);
       }
 
       // Mark wayfinding channels as visited if needed
-      store.markPotentialWayfindingChannelVisit(channelId);
+      markPotentialWayfindingChannelVisit(channelId);
     }, [channelId, channelIsPending])
   );
 
@@ -95,7 +108,7 @@ export default function ChannelScreen(props: Props) {
     useCallback(() => {
       // Mark group visited on enter if new
       if (groupId && groupIsNew) {
-        store.markGroupVisited(groupId);
+        markGroupVisited(groupId);
       }
     }, [groupId, groupIsNew])
   );
@@ -120,8 +133,8 @@ export default function ChannelScreen(props: Props) {
         channelThreadAbortController.current.abort();
       }
       channelThreadAbortController.current = new AbortController();
-      store.syncChannelThreadUnreads(channelId, {
-        priority: store.SyncPriority.High,
+      syncChannelThreadUnreads(channelId, {
+        priority: SyncPriority.High,
         abortSignal: channelThreadAbortController.current?.signal,
       });
     }
@@ -199,7 +212,7 @@ export default function ChannelScreen(props: Props) {
     loadNewer,
     loadOlder,
     isLoading: isLoadingPosts,
-  } = store.useChannelPosts({
+  } = useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
@@ -248,7 +261,7 @@ export default function ChannelScreen(props: Props) {
       if (!channel) {
         throw new Error('Tried to delete message before channel loaded');
       }
-      await store.deleteFailedPost({
+      await deleteFailedPost({
         post,
       });
     },
@@ -262,7 +275,7 @@ export default function ChannelScreen(props: Props) {
       }
 
       if (post.deliveryStatus === 'failed') {
-        await store.retrySendPost({
+        await retrySendPost({
           channel,
           post,
         });
@@ -284,7 +297,7 @@ export default function ChannelScreen(props: Props) {
           };
         }
 
-        await store.editPost({
+        await editPost({
           post,
           content: JSON.parse(postFromDb?.lastEditContent as string) as Story,
           parentId: post.parentId ?? undefined,
@@ -293,7 +306,7 @@ export default function ChannelScreen(props: Props) {
       }
 
       if (post.deleteStatus === 'failed') {
-        await store.deletePost({
+        await deletePost({
           post,
         });
       }
@@ -324,7 +337,7 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
-      const dmChannel = await store.upsertDmChannel({
+      const dmChannel = await upsertDmChannel({
         participants,
       });
       navigationRef.current.push('DM', { channelId: dmChannel.id });
@@ -334,7 +347,7 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead({
+      markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
@@ -413,12 +426,12 @@ export default function ChannelScreen(props: Props) {
   return (
     <ChatOptionsProvider
       initialChat={initialChat}
-      useGroup={store.useGroup}
+      useGroup={useGroup}
       onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
         <Channel
           key={currentChannelId}
           ref={channelRef}

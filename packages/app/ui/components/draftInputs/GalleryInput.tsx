@@ -1,7 +1,7 @@
 import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
+import { isPersonalCollectionChannel } from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
   ParentAgnosticKeyboardAvoidingView,
@@ -214,7 +214,7 @@ export function GalleryInput({
   const handleAdd = useCallback(() => {
     setRoute('add-post');
 
-    if (logic.isPersonalCollectionChannel(channel.id)) {
+    if (isPersonalCollectionChannel(channel.id)) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedAddCollection: true,

@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/store';
+import { useUserContacts } from '@tloncorp/shared/store';
 import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ export function AddContactsView(props: {
   }, [newContacts, props]);
 
   const isWindowNarrow = useIsWindowNarrow();
-  const { data: existingContacts } = store.useUserContacts();
+  const { data: existingContacts } = useUserContacts();
   const existingIds = useMemo(() => {
     return existingContacts?.map((c) => c.id) ?? [];
   }, [existingContacts]);

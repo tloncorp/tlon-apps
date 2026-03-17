@@ -1,10 +1,10 @@
-import * as store from '@tloncorp/shared/store';
+import { useJoinedGroupsCount, findContactSuggestions } from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 
 export function useFindSuggestedContacts() {
-  const { data: joinedGroupCount } = store.useJoinedGroupsCount();
+  const { data: joinedGroupCount } = useJoinedGroupsCount();
 
   useEffect(() => {
-    store.findContactSuggestions();
+    findContactSuggestions();
   }, [joinedGroupCount]);
 }

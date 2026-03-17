@@ -1,5 +1,11 @@
-import * as store from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
+import type { GroupTemplateId } from '@tloncorp/shared';
+import {
+  createDefaultGroup,
+  createGroupFromTemplate,
+  upsertDmChannel,
+  useGroupsNegotiationClashes,
+} from '@tloncorp/shared/store';
 import * as db from '@tloncorp/shared/db';
 import {
   cloneElement,
@@ -50,7 +56,7 @@ export type CreateChatParams =
   | {
       type: 'group';
       contactIds: string[];
-      templateId?: store.GroupTemplateId;
+      templateId?: GroupTemplateId;
       title?: string;
     };
 
@@ -224,7 +230,7 @@ const CreateChatFormContent = ({
   const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
-  const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
+  const disabledIds = useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -282,7 +288,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     defaultOpen ? 'selectType' : 'initial'
   );
   const [selectedTemplateId, setSelectedTemplateId] = useState<
-    store.GroupTemplateId | undefined
+    GroupTemplateId | undefined
   >(undefined);
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
 
@@ -310,7 +316,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   }, []);
 
   const handleGroupTypeSelected = useCallback(
-    (groupType: GroupType, templateId?: store.GroupTemplateId) => {
+    (groupType: GroupType, templateId?: GroupTemplateId) => {
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
@@ -554,7 +560,7 @@ export function CreateChatInviteSheet({
   onSubmit: (params: CreateChatParams) => void;
   chatType: 'dm' | 'group';
   isCreating: boolean;
-  templateId?: store.GroupTemplateId;
+  templateId?: GroupTemplateId;
   title?: string;
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
@@ -636,7 +642,7 @@ function useCreateChat() {
       setIsCreatingChat(true);
       try {
         if (params.type === 'dm') {
-          const channel = await store.upsertDmChannel({
+          const channel = await upsertDmChannel({
             participants: [params.contactId],
           });
           navigateToChannel(channel);
@@ -644,14 +650,14 @@ function useCreateChat() {
           // Check if a template was selected
           let group: db.Group;
           if (params.templateId) {
-            group = await store.createGroupFromTemplate({
+            group = await createGroupFromTemplate({
               memberIds: params.contactIds,
               templateId: params.templateId,
               title: params.title,
             });
           } else {
             // No template, use default group
-            group = await store.createDefaultGroup({
+            group = await createDefaultGroup({
               memberIds: params.contactIds,
               title: params.title,
             });

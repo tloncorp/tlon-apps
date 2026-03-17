@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useAttestations } from '@tloncorp/shared/store';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
@@ -14,7 +14,7 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'Attestation'>;
 
 export function AttestationScreen({ route, navigation }: Props) {
-  const { data: attestations, isLoading } = store.useAttestations();
+  const { data: attestations, isLoading } = useAttestations();
   const currentUserId = useCurrentUserId();
   const personalInviteLink = db.personalInviteLink.useValue();
 

@@ -4,7 +4,7 @@ import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 
 import { useCalm } from '../contexts';
-import * as utils from '../utils';
+import { getFirstAlphabeticalChar, getGroupTitle } from '../utils';
 
 export type AlphaGroupsSegment = {
   label: string;
@@ -33,9 +33,9 @@ export function useAlphabeticallySegmentedGroups({
       // convert contact to alphabetical representation and bucket by first letter
       for (const group of groups) {
         const sortableName = anyAscii(
-          utils.getGroupTitle(group, disableNicknames).replace(/[~-]/g, '')
+          getGroupTitle(group, disableNicknames).replace(/[~-]/g, '')
         );
-        const firstAlpha = utils.getFirstAlphabeticalChar(sortableName);
+        const firstAlpha = getFirstAlphabeticalChar(sortableName);
         if (!segmented[firstAlpha]) {
           segmented[firstAlpha] = [];
         }

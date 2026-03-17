@@ -4,8 +4,8 @@ import {
 } from '@react-navigation/drawer';
 import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import type { Contact } from '@tloncorp/shared/db';
+import { useUserContacts, useSuggestedContacts, addContact, removeContactSuggestion } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
@@ -29,21 +29,21 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const { navigate } = props.navigation;
   const focusedRoute = state.routes[props.state.index];
 
-  const { data: userContacts } = store.useUserContacts();
-  const { data: suggestions } = store.useSuggestedContacts();
+  const { data: userContacts } = useUserContacts();
+  const { data: suggestions } = useSuggestedContacts();
 
   const onContactPress = useCallback(
-    (contact: db.Contact) => {
+    (contact: Contact) => {
       navigate('UserProfile', { userId: contact.id });
     },
     [navigate]
   );
 
-  const onAddContact = useCallback((contact: db.Contact) => {
-    store.addContact(contact.id);
+  const onAddContact = useCallback((contact: Contact) => {
+    addContact(contact.id);
   }, []);
 
-  const onContactLongPress = useCallback((contact: db.Contact) => {
+  const onContactLongPress = useCallback((contact: Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
       Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
         {
@@ -54,14 +54,14 @@ function DrawerContent(props: DrawerContentComponentProps) {
           text: 'Add Contact',
           style: 'default',
           onPress: () => {
-            store.addContact(contact.id);
+            addContact(contact.id);
           },
         },
         {
           text: 'Decline Suggestion',
           style: 'destructive',
           onPress: () => {
-            store.removeContactSuggestion(contact.id);
+            removeContactSuggestion(contact.id);
           },
         },
       ]);

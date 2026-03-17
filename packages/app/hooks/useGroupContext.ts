@@ -1,6 +1,30 @@
 import { sync, useUpdateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import {
+  useGroup,
+  SyncPriority,
+  updateGroupMeta,
+  deleteGroup as deleteGroupFn,
+  deleteChannel as deleteChannelFn,
+  addNavSection,
+  deleteNavSection as deleteNavSectionFn,
+  updateNavSection as updateNavSectionFn,
+  updateGroupNavigationBatch,
+  addGroupRole,
+  updateGroupRole as updateGroupRoleFn,
+  deleteGroupRole as deleteGroupRoleFn,
+  addMembersToRole,
+  removeMembersFromRole,
+  unpinItem,
+  pinGroup,
+  acceptUserJoin as acceptUserJoinFn,
+  rejectUserJoin as rejectUserJoinFn,
+  banUserFromGroup,
+  unbanUserFromGroup,
+  revokeGroupMemberInvites,
+  kickUserFromGroup,
+  leaveGroup as leaveGroupFn,
+} from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';
@@ -8,13 +32,13 @@ import { useCurrentUserId } from './useCurrentUser';
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
 
-  const groupQuery = store.useGroup({
+  const groupQuery = useGroup({
     id: groupId,
   });
 
   useEffect(() => {
     if (groupId) {
-      sync.syncGroup(groupId, { priority: store.SyncPriority.High });
+      sync.syncGroup(groupId, { priority: SyncPriority.High });
     }
   }, [groupId]);
 
@@ -77,7 +101,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const setGroupMetadata = useCallback(
     async (metadata: db.ClientMeta) => {
       if (group) {
-        await store.updateGroupMeta({
+        await updateGroupMeta({
           ...group,
           ...metadata,
         });
@@ -98,14 +122,14 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   const deleteGroup = useCallback(async () => {
     if (group) {
-      await store.deleteGroup(group);
+      await deleteGroupFn(group);
     }
   }, [group]);
 
   const deleteChannel = useCallback(
     async (channelId: string) => {
       if (group) {
-        store.deleteChannel({ groupId: group.id, channelId });
+        deleteChannelFn({ groupId: group.id, channelId });
       }
     },
     [group]
@@ -125,7 +149,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const createNavSection = useCallback(
     async ({ title }: { title: string }) => {
       if (group) {
-        await store.addNavSection(group, { title });
+        await addNavSection(group, { title });
       }
     },
     [group]
@@ -134,7 +158,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const deleteNavSection = useCallback(
     async (navSectionId: string) => {
       if (group) {
-        await store.deleteNavSection(group, navSectionId);
+        await deleteNavSectionFn(group, navSectionId);
       }
     },
     [group]
@@ -143,7 +167,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const updateNavSection = useCallback(
     async (navSection: db.GroupNavSection) => {
       if (group) {
-        await store.updateNavSection({
+        await updateNavSectionFn({
           navSection,
           group,
         });
@@ -194,7 +218,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
         (s): s is db.GroupNavSection => s !== null
       );
 
-      await store.updateGroupNavigationBatch({
+      await updateGroupNavigationBatch({
         group: {
           ...group,
           navSections: validNavSections,
@@ -226,7 +250,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
           console.error('Role ID is required');
           return;
         }
-        store.addGroupRole({
+        addGroupRole({
           groupId: group.id,
           roleId: role.id,
           meta: {
@@ -246,7 +270,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
           console.error('Role ID is required');
           return;
         }
-        store.updateGroupRole({
+        updateGroupRoleFn({
           groupId: group.id,
           roleId: role.id,
           meta: {
@@ -262,7 +286,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const deleteGroupRole = useCallback(
     async (roleId: string) => {
       if (group) {
-        store.deleteGroupRole({
+        deleteGroupRoleFn({
           groupId: group.id,
           roleId,
         });
@@ -274,7 +298,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const addUserToRole = useCallback(
     async (contactId: string, roleId: string) => {
       if (group) {
-        await store.addMembersToRole({
+        await addMembersToRole({
           groupId: group.id,
           roleId,
           contactIds: [contactId],
@@ -287,7 +311,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const removeUserFromRole = useCallback(
     async (contactId: string, roleId: string) => {
       if (group) {
-        await store.removeMembersFromRole({
+        await removeMembersFromRole({
           groupId: group.id,
           roleId,
           contactIds: [contactId],
@@ -306,9 +330,9 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
       }
 
       if (groupWithPin.pin) {
-        await store.unpinItem(groupWithPin.pin);
+        await unpinItem(groupWithPin.pin);
       } else {
-        await store.pinGroup(group);
+        await pinGroup(group);
       }
     }
   }, [group]);
@@ -316,7 +340,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const acceptUserJoin = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.acceptUserJoin({ groupId: group.id, contactId });
+        await acceptUserJoinFn({ groupId: group.id, contactId });
       }
     },
     [group]
@@ -325,7 +349,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const rejectUserJoin = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.rejectUserJoin({ groupId: group.id, contactId });
+        await rejectUserJoinFn({ groupId: group.id, contactId });
       }
     },
     [group]
@@ -342,7 +366,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const banUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.banUserFromGroup({
+        await banUserFromGroup({
           groupId: group.id,
           contactId,
         });
@@ -354,7 +378,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const unbanUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.unbanUserFromGroup({
+        await unbanUserFromGroup({
           groupId: group.id,
           contactId,
         });
@@ -374,7 +398,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const revokeInvite = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.revokeGroupMemberInvites({
+        await revokeGroupMemberInvites({
           groupId: group.id,
           contactIds: [contactId],
         });
@@ -386,7 +410,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const kickUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        await store.kickUserFromGroup({ groupId: group.id, contactId });
+        await kickUserFromGroup({ groupId: group.id, contactId });
       }
     },
     [group]
@@ -407,7 +431,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   const leaveGroup = useCallback(async () => {
     if (group) {
-      await store.leaveGroup(group.id);
+      await leaveGroupFn(group.id);
     }
   }, [group]);
 

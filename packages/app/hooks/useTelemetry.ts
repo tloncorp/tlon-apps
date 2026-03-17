@@ -9,7 +9,7 @@ import {
   hasClearedLegacyWebTelemetry,
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useTelemetrySettings, updateEnableTelemetry } from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
@@ -37,7 +37,7 @@ export function useTelemetry(): TelemetryClient {
   const posthog = usePosthog();
   const session = useCurrentSession();
   const currentUserId = useCurrentUserId();
-  const { data: settings, isLoading } = store.useTelemetrySettings();
+  const { data: settings, isLoading } = useTelemetrySettings();
   const telemetryStorage = didInitializeTelemetry.useStorageItem();
   const telemetryInitialized =
     telemetryStorage.value && !telemetryStorage.isLoading;
@@ -104,7 +104,7 @@ export function useTelemetry(): TelemetryClient {
       if (updateSettings) {
         // make sure we update settings to reflect, in case we're missing
         // the telemetry setting
-        store.updateEnableTelemetry(!shouldDisable);
+        updateEnableTelemetry(!shouldDisable);
       }
     },
     [currentUserId, posthog]
@@ -218,12 +218,12 @@ export function useTelemetry(): TelemetryClient {
     ) {
       if (settings.logActivity !== undefined && settings.logActivity !== null) {
         logger.log('Updating telemetry setting from logActivity');
-        store.updateEnableTelemetry(settings.logActivity);
+        updateEnableTelemetry(settings.logActivity);
       } else {
         logger.log('Updating telemetry setting from posthog');
         // if we don't have a logActivity setting, use posthog's default
         // value for enableTelemetry
-        store.updateEnableTelemetry(!(posthog.getIsOptedOut() ?? true));
+        updateEnableTelemetry(!(posthog.getIsOptedOut() ?? true));
       }
     }
   }, [ready, settings, posthog]);

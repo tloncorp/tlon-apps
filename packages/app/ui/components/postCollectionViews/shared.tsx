@@ -1,6 +1,6 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { editPost } from '@tloncorp/shared/store';
 import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
 import { useLivePost } from '../../contexts';
@@ -38,7 +38,7 @@ export function ConnectedPostView({
   const editPost = useCallback<
     Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
   >(async (post, content) => {
-    await store.editPost({
+    await editPost({
       post,
       content,
     });

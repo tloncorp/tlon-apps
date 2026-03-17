@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/store';
+import { useChannel } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
@@ -42,7 +42,7 @@ export function ChatMessageActions({
   mode,
 }: ChatMessageActionsProps) {
   const currentUserId = useCurrentUserId();
-  const channel = store.useChannel({ id: post.channelId });
+  const channel = useChannel({ id: post.channelId });
   const canWrite = useCanWrite(channel.data, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;

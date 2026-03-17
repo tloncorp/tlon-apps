@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
+import { updateTheme } from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
@@ -51,7 +51,7 @@ export function ThemeScreen(props: Props) {
 
     setLoadingTheme(value);
     try {
-      await store.updateTheme(value);
+      await updateTheme(value);
       setSelectedTheme(value);
     } catch (err) {
       console.error('Failed to save theme preference:', err);

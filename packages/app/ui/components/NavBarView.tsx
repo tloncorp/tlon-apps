@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared/store';
+import { updateCurrentUserProfile, useHaveUnreadUnseenActivity } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -27,7 +27,7 @@ export const NavBarView = ({
     }
     return currentRoute === routeName;
   };
-  const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
+  const haveUnreadUnseenActivity = useHaveUnreadUnseenActivity();
   const isWindowNarrow = useIsWindowNarrow();
 
   const openStatusSheet = useCallback(() => {
@@ -41,7 +41,7 @@ export const NavBarView = ({
 
   const handleUpdateStatus = useCallback(
     (newStatus: string) => {
-      store.updateCurrentUserProfile({ status: newStatus });
+      updateCurrentUserProfile({ status: newStatus });
       closeStatusSheet();
     },
     [closeStatusSheet]

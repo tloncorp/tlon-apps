@@ -4,7 +4,7 @@ import {
   useThreadPosts,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { finalizeAndSendPost } from '@tloncorp/shared/store';
 import { ForwardingProps } from '@tloncorp/ui';
 import { useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
@@ -69,7 +69,7 @@ export function DetailPostView({
     return {
       sendPostFromDraft: async (draft) => {
         channelCtx.setEditingPost(undefined);
-        await store.finalizeAndSendPost(draft);
+        await finalizeAndSendPost(draft);
         listRef.current?.scrollToEnd();
       },
       setShouldBlur: setInputShouldBlur,

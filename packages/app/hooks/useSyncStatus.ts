@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useConnectionStatus, useCurrentSession } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 function formatTimeAgo(timestamp: number): string {
@@ -21,8 +21,8 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export function useSyncStatus() {
-  const connectionStatus = store.useConnectionStatus();
-  const session = store.useCurrentSession();
+  const connectionStatus = useConnectionStatus();
+  const session = useCurrentSession();
   const lastActivityAt = db.lastActivityAt.useValue();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 

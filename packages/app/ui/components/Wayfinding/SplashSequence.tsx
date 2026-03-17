@@ -5,7 +5,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { completeWayfindingSplash, useSystemContacts } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -64,7 +64,7 @@ function SplashSequenceComponent(props: {
   const { hostingBotEnabled } = props;
 
   const handleSplashCompleted = useCallback(() => {
-    store.completeWayfindingSplash();
+    completeWayfindingSplash();
     props.onCompleted();
   }, [props, store]);
 
@@ -422,7 +422,7 @@ export function InviteContactsContent(props: {
     props.inviteSystemContacts,
     inviteLink
   );
-  const { data: storeSystemContacts } = store.useSystemContacts();
+  const { data: storeSystemContacts } = useSystemContacts();
   const systemContacts = props.systemContacts ?? storeSystemContacts;
   const isReady = !!inviteLink;
   const hasContacts = systemContacts && systemContacts.length > 0;

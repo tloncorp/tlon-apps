@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { isMuted, useMutableCallback } from '@tloncorp/shared/logic';
+import { markChannelRead, markGroupRead, muteChat, pinChat, unmuteChat, unpinItem } from '@tloncorp/shared/store';
 import { Icon, IconType } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
 
-import * as utils from '../../utils';
+import { triggerHaptic } from '../../utils';
 import { ChatListItem } from './ChatListItem';
 import { ListItemProps } from './ListItem';
 import { useBoundHandler } from './listItemUtils';
@@ -38,7 +38,7 @@ function BaseInteractableChatRow({
   >(null);
 
   const isMuted = useMemo(() => {
-    return logic.isMuted(model.volumeSettings?.level, model.type);
+    return isMuted(model.volumeSettings?.level, model.type);
   }, [model]);
 
   // prevent color flicker when unmuting
@@ -51,21 +51,21 @@ function BaseInteractableChatRow({
     }
   }, [isMuted, mutedState]);
 
-  const handleAction = logic.useMutableCallback(
+  const handleAction = useMutableCallback(
     async (actionId: 'pin' | 'mute' | 'markRead') => {
-      utils.triggerHaptic('swipeAction');
+      triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
-          model.pin ? store.unpinItem(model.pin) : store.pinChat(model);
+          model.pin ? unpinItem(model.pin) : pinChat(model);
           break;
         case 'mute':
-          isMuted ? store.unmuteChat(model) : store.muteChat(model);
+          isMuted ? unmuteChat(model) : muteChat(model);
           break;
         case 'markRead':
           if (model.type === 'group') {
-            store.markGroupRead(model.id, true);
+            markGroupRead(model.id, true);
           } else {
-            store.markChannelRead({
+            markChannelRead({
               id: model.id,
               groupId: model.channel.groupId ?? undefined,
             });

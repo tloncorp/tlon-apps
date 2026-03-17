@@ -1,6 +1,6 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isPersonalGroup } from '@tloncorp/shared/logic';
 import {
   SectionListHeader,
   Text,
@@ -84,7 +84,7 @@ export const GroupChannelsScreenView = React.memo(
     }, [group, navigateToChatDetails]);
 
     const isPersonalGroup = useMemo(() => {
-      return logic.isPersonalGroup(group, userId);
+      return isPersonalGroup(group, userId);
     }, [group, userId]);
 
     const handleOpenChannelOptions = useCallback(

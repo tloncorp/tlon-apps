@@ -1,4 +1,6 @@
-import * as api from '@tloncorp/api';
+import * as contactsApi from '@tloncorp/api/client/contactsApi';
+import type { ProfileUpdate } from '@tloncorp/api/client/contactsApi';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -18,7 +20,7 @@ export async function addContact(contactId: string) {
   });
 
   try {
-    await api.addContact(contactId);
+    await contactsApi.addContact(contactId);
   } catch (e) {
     console.error('Error adding contact', e);
     // Rollback the update
@@ -47,13 +49,13 @@ export async function addContacts(contacts: string[]) {
   try {
     // Backend will balk if we try to add the same contact twice, so filter out
     // any that are already contacts
-    const existingContacts = await api.getContacts();
+    const existingContacts = await contactsApi.getContacts();
     const newContacts = contacts.filter(
       (contactId) =>
         !existingContacts.some((c) => c.id === contactId && c.isContact)
     );
 
-    await api.addUserContacts(newContacts);
+    await contactsApi.addUserContacts(newContacts);
   } catch (e) {
     logger.trackError('Error adding contacts', e);
     // Rollback the update
@@ -73,7 +75,7 @@ export async function removeContact(contactId: string) {
   await db.updateContact({ id: contactId, isContact: false });
 
   try {
-    await api.removeContact(contactId);
+    await contactsApi.removeContact(contactId);
   } catch (e) {
     console.error('Error removing contact', e);
     // Rollback the update
@@ -87,7 +89,7 @@ export async function removeContactSuggestion(contactId: string) {
   await db.updateContact({ id: contactId, isContactSuggestion: false });
 
   try {
-    await api.removeContactSuggestion(contactId);
+    await contactsApi.removeContactSuggestion(contactId);
   } catch (e) {
     // Rollback the update
     console.error('Error removing contact suggestion', e);
@@ -107,7 +109,7 @@ export async function addContactSuggestions(contactIds: string[]) {
   await Promise.all(optimisticUpdates);
 
   try {
-    await api.addContactSuggestions(contactIds);
+    await contactsApi.addContactSuggestions(contactIds);
   } catch (e) {
     // Intentionally unhandled, make a best effort to persist the suggestions
     // failure is acceptable
@@ -116,7 +118,7 @@ export async function addContactSuggestions(contactIds: string[]) {
 
 export async function findContactSuggestions() {
   const runContext: Record<string, any> = {};
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const GROUP_SIZE_LIMIT = 14; // arbitrary smaller than trimmed member max
   const MAX_SUGGESTIONS = 6; // arbitrary
 
@@ -168,7 +170,7 @@ export async function findContactSuggestions() {
 
         logger.crumb(`Found ${allRelevantMembers.length} relevant members`);
 
-        await api.syncUserProfiles(allRelevantMembers);
+        await contactsApi.syncUserProfiles(allRelevantMembers);
         // hack: we don't track when the profiles actually populate, so wait a bit then resync
         await new Promise((resolve) => setTimeout(resolve, 5000));
         await syncContacts();
@@ -267,7 +269,7 @@ export async function updateContactMetadata(
   });
 
   try {
-    await api.updateContactMetadata(contactId, {
+    await contactsApi.updateContactMetadata(contactId, {
       nickname: nickname ? nickname : nickname === null ? '' : undefined,
       avatarImage: avatarImage
         ? avatarImage
@@ -286,8 +288,8 @@ export async function updateContactMetadata(
   }
 }
 
-export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
-  const currentUserId = api.getCurrentUserId();
+export async function updateCurrentUserProfile(update: ProfileUpdate) {
+  const currentUserId = getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
 
   const startFields: Partial<db.Contact> = {
@@ -316,7 +318,7 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
   await db.updateContact({ id: currentUserId, ...editedFields });
 
   try {
-    await api.updateCurrentUserProfile(update);
+    await contactsApi.updateCurrentUserProfile(update);
 
     // handle updating the personal group title if user sets their nickname
     const personalGroup = await db.getPersonalGroup();
@@ -348,7 +350,7 @@ export async function addPinnedGroupToProfile(groupId: string) {
   await db.addPinnedGroup({ groupId });
 
   try {
-    await api.addPinnedGroup(groupId);
+    await contactsApi.addPinnedGroup(groupId);
   } catch (e) {
     console.error('Error adding pinned group', e);
     // Rollback the update
@@ -361,7 +363,7 @@ export async function removePinnedGroupFromProfile(groupId: string) {
   await db.removePinnedGroup({ groupId });
 
   try {
-    await api.removePinnedGroup(groupId);
+    await contactsApi.removePinnedGroup(groupId);
   } catch (e) {
     console.error('Error removing pinned group', e);
     // Rollback the update
@@ -375,7 +377,7 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
     pinnedGroupsCount: newPinned.length,
   });
 
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const existingContact = await db.getContact({ id: currentUserId });
   const existingPinnedIds =
     existingContact?.pinnedGroups.map((pg) => pg.groupId) ?? [];
@@ -385,7 +387,7 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   await db.setPinnedGroups({ groupIds: newPinnedIds });
 
   try {
-    await api.setPinnedGroups(newPinnedIds);
+    await contactsApi.setPinnedGroups(newPinnedIds);
   } catch (e) {
     // Rollback the update
     await db.setPinnedGroups({ groupIds: existingPinnedIds });
@@ -396,12 +398,12 @@ export async function updateSigilColor(color: string | null) {
   logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
     editedSigilColor: true,
   });
-  const currentUserId = api.getCurrentUserId();
+  const currentUserId = getCurrentUserId();
   const existingContact = await db.getContact({ id: currentUserId });
   const existingColor = existingContact?.color ?? null;
   await db.updateContact({ id: currentUserId, color });
   try {
-    await api.updateSigilColor(color);
+    await contactsApi.updateSigilColor(color);
   } catch (e) {
     logger.trackError('Error updating sigil color', e);
     await db.updateContact({ id: currentUserId, color: existingColor });

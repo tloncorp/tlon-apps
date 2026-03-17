@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import * as api from '@tloncorp/api';
-import { queryClient } from '@tloncorp/api';
+import { getCurrentUserId, poke, scry, subscribe } from '@tloncorp/api/client/urbit';
+import { queryClient } from './reactQuery';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';
 
@@ -65,7 +65,7 @@ export function useNegotiation(
 
   useEffect(() => {
     if (!enabled) return;
-    api.subscribe(
+    subscribe(
       {
         app,
         path: `/~/negotiate/notify/json`,
@@ -79,7 +79,7 @@ export function useNegotiation(
     enabled,
     staleTime: 5000,
     queryFn: () =>
-      api.scry({
+      scry({
         app,
         path: '/~/negotiate/status/json',
       }),
@@ -123,7 +123,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     return { ...rest, matchedOrPending: true };
   }
 
-  const us = api.getCurrentUserId();
+  const us = getCurrentUserId();
 
   const shipKeys = ships
     .filter((ship) => ship !== us)
@@ -170,7 +170,7 @@ export function useForceNegotiationUpdate(ships: string[], app: string) {
       const responses: Promise<number | undefined>[] = [];
       shipsToCheck.forEach((ship) => {
         responses.push(
-          api.poke({
+          poke({
             app,
             mark: 'chat-negotiate',
             json: ship,

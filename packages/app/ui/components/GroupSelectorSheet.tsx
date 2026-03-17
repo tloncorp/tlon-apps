@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useCalmSettings, useContacts } from '@tloncorp/shared/store';
 import { SheetHeader, View } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 
@@ -22,8 +22,8 @@ interface SheetProps {
 export function GroupSelectorSheet(props: SheetProps) {
   const [contentScrolling, setContentScrolling] = useState(false);
 
-  const contactsQuery = store.useContacts();
-  const calmSettingsQuery = store.useCalmSettings();
+  const contactsQuery = useContacts();
+  const calmSettingsQuery = useCalmSettings();
 
   useEffect(() => {
     if (props.open) {

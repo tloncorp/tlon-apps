@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useBlockedContacts } from '@tloncorp/shared/store';
 import { useMemo, useState } from 'react';
 
 /**
@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react';
  */
 export function useBlockedAuthor(post: db.Post) {
   const [showBlockedContent, setShowBlockedContent] = useState(false);
-  const { data: blockedContacts } = store.useBlockedContacts();
+  const { data: blockedContacts } = useBlockedContacts();
 
   const isAuthorBlocked = useMemo(() => {
     if (!blockedContacts || !post.authorId) {

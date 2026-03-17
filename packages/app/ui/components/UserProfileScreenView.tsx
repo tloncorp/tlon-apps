@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { addContact, blockUser, queryClient, removeContact, removeContactSuggestion, syncGroupPreviews, unblockUser } from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
@@ -290,7 +290,7 @@ export function PinnedGroupsDisplay({
 
   useEffect(() => {
     if (pinnedGroupsKey.length) {
-      store.syncGroupPreviews(pinnedGroupsKey.split(','));
+      syncGroupPreviews(pinnedGroupsKey.split(','));
     }
   }, [pinnedGroupsKey]);
 
@@ -429,7 +429,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
-  const queryClient = store.queryClient;
+  const queryClient = queryClient;
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -450,9 +450,9 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   const handleBlock = useCallback(async () => {
     if (props.contact && props.contact.isBlocked) {
-      await store.unblockUser(props.userId);
+      await unblockUser(props.userId);
     } else {
-      await store.blockUser(props.userId);
+      await blockUser(props.userId);
     }
     queryClient.invalidateQueries({
       queryKey: [['contact', props.userId]],
@@ -461,14 +461,14 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
 
   const handleToggleContact = useCallback(() => {
     if (props.contact && props.contact.isContact) {
-      store.removeContact(props.userId);
+      removeContact(props.userId);
     } else {
-      store.addContact(props.userId);
+      addContact(props.userId);
     }
   }, [props]);
 
   const handleRemoveContactSuggestion = useCallback(() => {
-    store.removeContactSuggestion(props.userId);
+    removeContactSuggestion(props.userId);
   }, [props]);
 
   const isBlocked = useMemo(() => {

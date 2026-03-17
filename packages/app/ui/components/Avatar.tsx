@@ -15,8 +15,7 @@ import {
 } from 'tamagui';
 
 import { useCalm, useContact } from '../contexts';
-import * as utils from '../utils';
-import { getChannelTypeIcon } from '../utils';
+import { getChannelTypeIcon, getGroupTitle, useChannelTitle } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
 import { FacePile } from './FacePile';
 
@@ -132,7 +131,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   const fallbackTitle = useMemo(() => {
     return isGroupImageShim(model)
       ? model.title
-      : utils.getGroupTitle(model, disableNicknames);
+      : getGroupTitle(model, disableNicknames);
   }, [disableNicknames, model]);
 
   const memberContactIds = useMemo(() => {
@@ -209,7 +208,7 @@ export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
   useTypeIcon?: boolean;
   dimmed?: boolean;
 } & AvatarProps) {
-  const channelTitle = utils.useChannelTitle(model);
+  const channelTitle = useChannelTitle(model);
 
   if (useTypeIcon) {
     return <ChannelTypeAvatar channel={model} dimmed={dimmed} {...props} />;

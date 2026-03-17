@@ -3,8 +3,8 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
-import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { hasViewedPersonalInvite } from '@tloncorp/shared/db';
+import { useHaveUnreadUnseenActivity } from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
 import { getVariableValue, useTheme } from 'tamagui';
 
@@ -33,7 +33,7 @@ const Drawer = createDrawerNavigator<RootDrawerParamList>();
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const userId = useCurrentUserId();
   // const { data: baseUnread } = store.useBaseUnread();
-  const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
+  const haveUnreadUnseenActivity = useHaveUnreadUnseenActivity();
   const { webAppNeedsUpdate, triggerWebAppUpdate } = useWebAppUpdate();
   const lastHomeStateRef =
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
@@ -80,7 +80,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   }, [props.navigation, isRouteActive]);
 
   const handlePersonalInvitePress = useCallback(() => {
-    db.hasViewedPersonalInvite.setValue(true);
+    hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
 

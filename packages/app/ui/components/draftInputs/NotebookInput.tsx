@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
+import { isPersonalNotebookChannel } from '@tloncorp/shared/logic';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import {
   useCallback,
@@ -39,7 +39,7 @@ export function NotebookInput({
   const handleAdd = useCallback(() => {
     setShowBigInput(true);
 
-    if (logic.isPersonalNotebookChannel(draftInputContext.channel.id)) {
+    if (isPersonalNotebookChannel(draftInputContext.channel.id)) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedAddNote: true,

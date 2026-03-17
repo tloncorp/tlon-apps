@@ -2,7 +2,7 @@ import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as hostingApi from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { checkHostingNodeStatus } from '@tloncorp/shared/store';
 
 import { trackOnboardingAction } from '../utils/posthog';
 
@@ -35,7 +35,7 @@ export async function reserveNode(hostingUserId: string): Promise<{
 
 export async function checkNodeBooted(): Promise<boolean> {
   try {
-    const { status: nodeStatus } = await store.checkHostingNodeStatus();
+    const { status: nodeStatus } = await checkHostingNodeStatus();
     return nodeStatus === HostedNodeStatus.Running;
   } catch (e) {
     return false;

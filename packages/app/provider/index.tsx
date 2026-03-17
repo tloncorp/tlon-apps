@@ -1,4 +1,4 @@
-import * as store from '@tloncorp/shared';
+import { useThemeSettings } from '@tloncorp/shared/store';
 import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
@@ -57,7 +57,7 @@ function useSyncedAppTheme() {
   );
 
   // Query database for which theme the user has previously set
-  const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
+  const { data: storedThemeRaw, isLoading } = useThemeSettings();
 
   const storedTheme = useMemo(() => {
     if (isLoading) {

@@ -6,7 +6,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { removeClient, updateSession, clearSyncStartLock } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
@@ -20,11 +20,11 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const handleLogout = useCallback(async () => {
     logger.info('Logging out');
     api.queryClient.clear();
-    store.removeClient();
+    removeClient();
     clearShip();
     clearSessionStorageItems();
-    store.updateSession(null);
-    store.clearSyncStartLock();
+    updateSession(null);
+    clearSyncStartLock();
     cancelNodeResumeNudge();
 
     // Clear Electron stored credentials if in Electron environment

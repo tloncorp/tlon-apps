@@ -3,8 +3,8 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
+import { getPinnedPostId, isMuted, postToContentReference, getPostReferencePath } from '@tloncorp/shared/logic';
+import { deletePost, hidePost, muteThread, pinPostToChannel, reportPost, showPost, unmuteThread, unpinPostFromChannel, useConnectionStatus } from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -68,13 +68,13 @@ const ConnectedAction = memo(function ConnectedAction({
   onViewReactions?: (post: db.Post) => void;
 }) {
   const currentUserId = useCurrentUserId();
-  const connectionStatus = store.useConnectionStatus();
+  const connectionStatus = useConnectionStatus();
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
-  const pinnedPostId = logic.getPinnedPostId(channel);
+  const pinnedPostId = getPinnedPostId(channel);
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -160,7 +160,7 @@ const ConnectedAction = memo(function ConnectedAction({
           post,
           userId: currentUserId,
           channel,
-          isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+          isMuted: isMuted(post.volumeSettings?.level, 'thread'),
           dismiss,
           onReply,
           onEdit,
@@ -218,7 +218,7 @@ export async function handleAction({
   addAttachment: (attachment: Attachment) => void;
   showToast?: (options: { message: string; duration?: number }) => void;
 }) {
-  const [path, reference] = logic.postToContentReference(post);
+  const [path, reference] = postToContentReference(post);
 
   switch (id) {
     case 'debugJson':
@@ -230,8 +230,8 @@ export async function handleAction({
       break;
     case 'muteThread':
       isMuted
-        ? store.unmuteThread({ channel, thread: post })
-        : store.muteThread({ channel, thread: post });
+        ? unmuteThread({ channel, thread: post })
+        : muteThread({ channel, thread: post });
       break;
     case 'viewReactions':
       onViewReactions?.(post);
@@ -252,19 +252,19 @@ export async function handleAction({
       onEdit?.();
       break;
     case 'copyRef':
-      Clipboard.setString(logic.getPostReferencePath(post));
+      Clipboard.setString(getPostReferencePath(post));
       break;
     case 'copyText':
       Clipboard.setString(post.textContent ?? '');
       break;
     case 'delete':
-      store.deletePost({ post });
+      deletePost({ post });
       break;
     case 'report':
-      store.reportPost({ userId, post });
+      reportPost({ userId, post });
       break;
     case 'visibility':
-      post.hidden ? store.showPost({ post }) : store.hidePost({ post });
+      post.hidden ? showPost({ post }) : hidePost({ post });
       break;
     case 'forward':
       // On iOS, dismiss the current modal first, then open the forward sheet
@@ -279,10 +279,10 @@ export async function handleAction({
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
     case 'pinPost':
-      store.pinPostToChannel({ channel, postId: post.id });
+      pinPostToChannel({ channel, postId: post.id });
       break;
     case 'unpinPost':
-      store.unpinPostFromChannel({ channel });
+      unpinPostFromChannel({ channel });
       break;
   }
 
@@ -311,7 +311,7 @@ export function useDisplaySpecForChannelActionId(
 ): {
   label: string;
 } {
-  const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
+  const isMuted = isMuted(post.volumeSettings?.level, 'thread');
   const postTerm = useMemo(() => {
     return ['dm', 'groupDm', 'chat'].includes(channel?.type)
       ? 'message'

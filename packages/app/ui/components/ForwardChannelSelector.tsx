@@ -1,6 +1,6 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import { useCurrentChats } from '@tloncorp/shared/store';
 import {
   ComponentProps,
   useCallback,
@@ -29,7 +29,7 @@ export function ForwardChannelSelector({
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  const { data: chats } = store.useCurrentChats();
+  const { data: chats } = useCurrentChats();
   const resolvedChats = useResolvedChats(chats);
   const filteredChatsConfig = useMemo(
     () => ({
