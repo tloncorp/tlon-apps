@@ -9,6 +9,7 @@
     "incremental": true,
     "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
     "moduleResolution": "bundler",
     "noEmitOnError": false,
     "noImplicitAny": true,
