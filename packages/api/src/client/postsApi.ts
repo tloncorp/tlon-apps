@@ -96,7 +96,7 @@ export async function getPostReference({
   postId: string;
   replyId?: string;
 }) {
-  const path = `/said/${channelId}/post/${postId}${
+  const path = `/v5/said/${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>(
@@ -229,10 +229,11 @@ export const editPost = async ({
 
   if (parentId) {
     logger.log('editing a reply');
-    const memo: ub.Memo = {
+    const replyEssay: ub.ReplyEssay = {
       author: authorId,
       content,
       sent: sentAt,
+      blob: blob ?? null,
     };
 
     const action: ub.Action = {
@@ -242,7 +243,7 @@ export const editPost = async ({
           action: {
             edit: {
               id: postId,
-              memo,
+              'reply-essay': replyEssay,
             },
           },
         },
@@ -290,6 +291,7 @@ export const sendReply = async ({
   parentId,
   parentAuthor,
   content,
+  blob,
   sentAt,
   authorId,
 }: {
@@ -298,6 +300,7 @@ export const sendReply = async ({
   parentId: string;
   parentAuthor: string;
   content: Story;
+  blob?: string;
   sentAt: number;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
@@ -331,6 +334,7 @@ export const sendReply = async ({
           content,
           author: authorId,
           sent: sentAt,
+          blob: blob ?? null,
         },
       },
     },
@@ -358,7 +362,7 @@ export const getSequencedChannelPosts = async (
     ...[
       type === 'dm' ? 'v3/dm' : null,
       type === 'club' ? 'v3/club' : null,
-      type === 'channel' ? 'v4' : null,
+      type === 'channel' ? 'v5' : null,
     ],
     options.channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -420,7 +424,7 @@ export const getInitialPosts = async (config: {
 }) => {
   const response = await scry<ub.PostsInit>({
     app: 'groups-ui',
-    path: `/v5/init-posts/${config.channelCount}/${config.postCount}`,
+    path: `/v6/init-posts/${config.channelCount}/${config.postCount}`,
   });
 
   const channelPosts = Object.entries(response.channels).flatMap(
@@ -447,7 +451,7 @@ export const getChannelPosts = async ({
     ...[
       type === 'dm' ? 'v3/dm' : null,
       type === 'club' ? 'v3/club' : null,
-      type === 'channel' ? 'v4' : null,
+      type === 'channel' ? 'v5' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -615,7 +619,7 @@ export const getChangedPosts = async ({
   const response = await scry<ub.PagedPosts>({
     app: 'channels',
     path: formatScryPath(
-      `v1/${channelId}/posts/changes`,
+      `v5/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
       render('da', da.fromUnix(afterTime.valueOf()))
@@ -880,7 +884,7 @@ export async function showPost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action-1',
+      mark: 'channel-action-2',
       json: {
         'toggle-post': {
           show: post.id,
@@ -908,7 +912,7 @@ export async function hidePost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action-1',
+      mark: 'channel-action-2',
       json: {
         'toggle-post': {
           hide: post.id,
@@ -1097,7 +1101,7 @@ export const getPostWithReplies = async ({
     path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v4/${channelId}/posts/post/${postId}`;
+    path = `/v5/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -1408,7 +1412,8 @@ export function toPostReplyData(
     };
   }
 
-  const [content, flags] = toPostContent(reply.memo.content);
+  const replyEssay = 'reply-essay' in reply ? reply['reply-essay'] : reply.memo;
+  const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
     reply.seal && 'time' in reply.seal
@@ -1418,21 +1423,22 @@ export function toPostReplyData(
     id,
     channelId,
     type: 'reply',
-    authorId: getAuthorId(reply.memo.author),
+    authorId: getAuthorId(replyEssay.author),
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),
-    textContent: getTextContent(reply.memo.content),
-    sentAt: reply.memo.sent,
+    textContent: getTextContent(replyEssay.content),
+    sentAt: replyEssay.sent,
     // replies aren't sequenced, seq 0 is never genuine. drizzle has trouble
     // targeting nulls for onConflictDoUpdate so we use a default value instead
     sequenceNum: 0,
     backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
-    images: getContentImages(id, reply.memo.content),
+    images: getContentImages(id, replyEssay.content),
     syncedAt: Date.now(),
+    blob: 'blob' in replyEssay ? (replyEssay.blob ?? null) : null,
     ...flags,
   };
 }

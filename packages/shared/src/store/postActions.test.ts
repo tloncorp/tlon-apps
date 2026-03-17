@@ -562,7 +562,7 @@ describe('finalizeAndSendPost', () => {
     expect(poke).toHaveBeenCalledWith(
       expect.objectContaining({
         app: 'channels',
-        mark: 'channel-action-1',
+        mark: 'channel-action-2',
         json: expect.objectContaining({
           channel: expect.objectContaining({
             action: {
@@ -574,6 +574,7 @@ describe('finalizeAndSendPost', () => {
                       content: toPostData({ ...draft, attachments: [] }).story,
                       author: api.getCurrentUserId(),
                       sent: expect.any(Number),
+                      blob: null,
                     },
                   },
                 },

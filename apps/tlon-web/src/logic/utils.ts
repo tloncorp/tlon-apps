@@ -842,6 +842,7 @@ const chat = [
 ];
 const channels = [
   'channel-action',
+  'channel-action-2',
   'leave',
   'add-writers',
   'del-writers',
