@@ -93,15 +93,6 @@ const reactNativeWeb =
               )
             ),
           },
-          {
-            find: 'react-native-reanimated',
-            replacement: fileURLToPath(
-              new URL(
-                './src/mocks/react-native-reanimated.js',
-                import.meta.url
-              )
-            ),
-          },
         ],
       },
       optimizeDeps: {
@@ -115,7 +106,7 @@ const reactNativeWeb =
           output: {
             manualChunks: {
               'react-native-web': ['react-native-web'],
-              // react-native-reanimated replaced by web shim
+              'react-native-reanimated': ['react-native-reanimated'],
               'react-native-gesture-handler': ['react-native-gesture-handler'],
               'react-native-screens': ['react-native-screens'],
               'react-native-safe-area-context': [
