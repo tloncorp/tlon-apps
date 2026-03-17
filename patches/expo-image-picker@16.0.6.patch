@@ -1,8 +1,8 @@
 diff --git a/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt b/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
-index ba07483..7f65a99 100644
+index ba07483..6a12753 100644
 --- a/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
 +++ b/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
-@@ -271,6 +271,16 @@ class ImagePickerModule : Module() {
+@@ -271,6 +271,17 @@ class ImagePickerModule : Module() {
    private suspend fun ensureCameraPermissionsAreGranted(): Unit = suspendCancellableCoroutine { continuation ->
      val permissions = appContext.permissions ?: throw ModuleNotFoundException("Permissions")
  
