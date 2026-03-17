@@ -619,7 +619,7 @@ export const getChangedPosts = async ({
   const response = await scry<ub.PagedPosts>({
     app: 'channels',
     path: formatScryPath(
-      `v5/${channelId}/posts/changes`,
+      `v4/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
       render('da', da.fromUnix(afterTime.valueOf()))

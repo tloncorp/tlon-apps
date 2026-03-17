@@ -576,7 +576,8 @@ export const postWithVoiceMemo = makePost(
     blob: appendToPostBlob('', {
       type: 'voicememo',
       version: 1,
-      fileUri: 'https://picsum.photos/200',
+      fileUri:
+        'https://upload.wikimedia.org/wikipedia/commons/2/2e/Xabier_paya.wav',
       size: 123456,
       duration: 125,
       transcription: faker.lorem.paragraph(),

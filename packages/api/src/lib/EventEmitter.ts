@@ -2,10 +2,17 @@ type AnyEventMap = {
   [key: string | symbol | number]: (...args: any[]) => void;
 };
 
-export type EventMapForEmitter<Emitter extends EventEmitter> =
-  Emitter extends EventEmitter<infer M> ? M : never;
+export type EventMapForEmitter<Emitter extends TypedEventEmitter> =
+  Emitter extends TypedEventEmitter<infer M> ? M : never;
 
-export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
+export interface TypedEventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
+  on<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
+  off<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
+}
+
+export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap>
+  implements TypedEventEmitter<EventMap>
+{
   private listeners: Partial<{
     [E in keyof EventMap]: Array<EventMap[E]>;
   }> = {};
@@ -22,7 +29,7 @@ export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
 
   off<E extends keyof EventMap>(event: E, callback: EventMap[E]) {
     if (!(event in this.listeners)) {
-      return;
+      return this;
     }
     const index = this.listeners[event]!.findIndex((cb) => cb === callback);
     if (index !== -1) {

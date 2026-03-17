@@ -1071,7 +1071,8 @@ export const insertGroups = createWriteQuery(
                 $channels.addedToGroupAt,
                 $channels.type,
                 $channels.isPendingChannel,
-                $channels.contentConfiguration
+                $channels.contentConfiguration,
+                $channels.currentUserIsHost
               ),
             });
 

@@ -1,4 +1,3 @@
-import * as sk from '@shopify/react-native-skia';
 import { ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { LayoutChangeEvent, LayoutRectangle, View } from 'react-native';
@@ -93,33 +92,37 @@ export function Waveform({
   }, [visualRange, values]);
 
   return (
-    <sk.Canvas {...passedProps} style={style} onLayout={onLayout}>
-      {layout &&
-        valuesWithPadding.map((value, index) => {
-          const [min, max] = effectiveVisualRange;
-          const range = max - min;
-          const heightRatio =
-            value == null ? null : range === 0 ? 1 : (value - min) / range;
-          const height = Math.max(5, layout.height * (heightRatio ?? 0));
-          return (
-            <sk.RoundedRect
-              key={index}
-              x={index * (candleWidth + candleSpacing)}
-              y={(layout.height - height) * 0.5}
-              width={candleWidth}
-              height={Math.max(5, layout.height * (heightRatio ?? 0))}
-              r={40}
-              color={
-                heightRatio == null
-                  ? candleInactiveColor
-                  : index < scaledCandlePlaybackPosition
-                    ? candleActiveColor
-                    : candleUnplayedColor
-              }
-            />
-          );
-        })}
-    </sk.Canvas>
+    <View {...passedProps} style={style} onLayout={onLayout}>
+      {layout && (
+        <svg width={layout.width} height={layout.height}>
+          {valuesWithPadding.map((value, index) => {
+            const [min, max] = effectiveVisualRange;
+            const range = max - min;
+            const heightRatio =
+              value == null ? null : range === 0 ? 1 : (value - min) / range;
+            const height = Math.max(5, layout.height * (heightRatio ?? 0));
+            return (
+              <rect
+                key={index}
+                x={index * (candleWidth + candleSpacing)}
+                y={(layout.height - height) * 0.5}
+                width={candleWidth}
+                height={height}
+                rx={candleWidth / 2}
+                ry={candleWidth / 2}
+                fill={
+                  heightRatio == null
+                    ? candleInactiveColor
+                    : index < scaledCandlePlaybackPosition
+                      ? candleActiveColor
+                      : candleUnplayedColor
+                }
+              />
+            );
+          })}
+        </svg>
+      )}
+    </View>
   );
 }
 
