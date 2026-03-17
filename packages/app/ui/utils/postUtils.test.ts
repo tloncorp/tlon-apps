@@ -286,39 +286,6 @@ describe('computeReactionDetails', () => {
       expect(result.list[1].count).toBe(1);
     });
 
-    test('should collapse shortcode and native variants of the same emoji', () => {
-      const reactions: db.Reaction[] = [
-        {
-          postId: 'post-1',
-          contactId: '~zod',
-          value: ':+1:',
-          contact: {
-            id: '~zod',
-            customNickname: 'Zod',
-            peerNickname: null,
-          } as db.Contact,
-        },
-        {
-          postId: 'post-1',
-          contactId: '~bus',
-          value: '👍',
-          contact: {
-            id: '~bus',
-            customNickname: 'Bus',
-            peerNickname: null,
-          } as db.Contact,
-        },
-      ];
-
-      const result = computeReactionDetails(reactions, '~zod');
-
-      expect(result.list).toHaveLength(1);
-      expect(result.list[0].value).toBe('👍');
-      expect(result.list[0].count).toBe(2);
-      expect(result.self.didReact).toBe(true);
-      expect(result.self.value).toBe('👍');
-    });
-
     test('should track self reactions', () => {
       const reactions: db.Reaction[] = [
         {

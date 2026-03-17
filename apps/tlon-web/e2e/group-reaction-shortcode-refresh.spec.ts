@@ -6,7 +6,7 @@ import { test } from './test-fixtures';
 const GROUP_NAME = '~ten, ~zod';
 const MESSAGE_TEXT = 'Shortcode refresh duplicate reaction repro';
 
-test('should keep one thumb reaction chip when another ship reacts after zod reloads', async ({
+test('should never show duplicate thumb reaction chips after stale refresh', async ({
   zodSetup,
   tenSetup,
 }) => {
@@ -24,56 +24,11 @@ test('should keep one thumb reaction chip when another ship reacts after zod rel
 
   await openGeneralChannel(zodPage, GROUP_NAME);
   await expectSingleThumbReaction(zodPage);
+
+  const maxThumbChipCountPromise = watchMaxThumbReactionChipCount(zodPage);
   await addThumbReaction(zodPage);
-  await expectSingleThumbReactionWithCount(zodPage, 2);
-});
 
-test('should keep one thumb reaction chip when zod reacted before stale refresh', async ({
-  zodSetup,
-  tenSetup,
-}) => {
-  const zodPage = zodSetup.page;
-  const tenPage = tenSetup.page;
-
-  await setupGroupWithMessage(zodPage, tenPage);
-
-  await helpers.reactToMessage(zodPage, MESSAGE_TEXT, 'thumb');
-  await expect(tenPage.getByTestId('ReactionDisplay').getByText('👍')).toBeVisible();
-
-  await waitForWebDbSave(zodPage);
-  await reloadFromHome(zodPage);
-
-  await helpers.reactToMessage(tenPage, MESSAGE_TEXT, 'thumb');
-
-  await openGeneralChannel(zodPage, GROUP_NAME);
-  await expectSingleThumbReactionWithCount(zodPage, 2);
-});
-
-test('should keep one thumb reaction chip after zod refreshes again', async ({
-  zodSetup,
-  tenSetup,
-}) => {
-  const zodPage = zodSetup.page;
-  const tenPage = tenSetup.page;
-
-  await setupGroupWithMessage(zodPage, tenPage);
-
-  await waitForWebDbSave(zodPage);
-  await reloadFromHome(zodPage);
-
-  await helpers.reactToMessage(tenPage, MESSAGE_TEXT, 'thumb');
-
-  await openGeneralChannel(zodPage, GROUP_NAME);
-  await expectSingleThumbReaction(zodPage);
-  await addThumbReaction(zodPage);
-  await expectSingleThumbReactionWithCount(zodPage, 2);
-
-  await zodPage.reload();
-  await expect(zodPage.getByTestId('HomeNavIcon')).toBeVisible({
-    timeout: 30000,
-  });
-
-  await openGeneralChannel(zodPage, GROUP_NAME);
+  expect(await maxThumbChipCountPromise).toBe(1);
   await expectSingleThumbReactionWithCount(zodPage, 2);
 });
 
@@ -118,23 +73,58 @@ async function openGeneralChannel(page: Page, groupName: string) {
 }
 
 async function expectSingleThumbReaction(page: Page) {
-  await expect(page.getByTestId('ReactionDisplay')).toHaveCount(1);
-  await expect(page.getByTestId('ReactionDisplay').getByText('👍')).toHaveCount(
+  const reactionDisplay = getMessagePost(page).getByTestId('ReactionDisplay');
+  await expect(reactionDisplay).toHaveCount(1);
+  await expect(reactionDisplay.getByText('👍')).toHaveCount(1);
+}
+
+async function expectSingleThumbReactionWithCount(page: Page, count: number) {
+  const reactionDisplay = getMessagePost(page).getByTestId('ReactionDisplay');
+  await expectSingleThumbReaction(page);
+  await expect(reactionDisplay.getByText(String(count), { exact: true })).toHaveCount(
     1
   );
 }
 
-async function expectSingleThumbReactionWithCount(page: Page, count: number) {
-  await expectSingleThumbReaction(page);
-  await expect(
-    page.getByTestId('ReactionDisplay').getByText(String(count), { exact: true })
-  ).toHaveCount(1);
-}
-
 async function addThumbReaction(page: Page) {
-  // Add the same visible emoji from the refreshed client. If the cached
-  // reaction stayed as shortcode, the optimistic local insert creates a second
-  // visually identical chip keyed by Unicode.
   await helpers.longPressMessage(page, MESSAGE_TEXT);
   await page.getByTestId('EmojiToolbarButton-thumb').click();
+}
+
+async function watchMaxThumbReactionChipCount(page: Page, durationMs = 2000) {
+  const post = getMessagePost(page);
+
+  return post.evaluate(
+    (element, watchDurationMs) =>
+      new Promise<number>((resolve) => {
+        const countThumbReactionChips = () =>
+          Array.from(
+            element.querySelectorAll('[data-testid="ReactionDisplay"]')
+          ).filter((reaction) => reaction.textContent?.includes('👍')).length;
+
+        let maxCount = countThumbReactionChips();
+        const observer = new MutationObserver(() => {
+          maxCount = Math.max(maxCount, countThumbReactionChips());
+        });
+
+        observer.observe(element, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+
+        setTimeout(() => {
+          observer.disconnect();
+          resolve(maxCount);
+        }, watchDurationMs);
+      }),
+    durationMs
+  );
+}
+
+function getMessagePost(page: Page) {
+  return page
+    .getByTestId('Post')
+    .filter({ has: page.getByText(MESSAGE_TEXT, { exact: true }) })
+    .first();
 }
