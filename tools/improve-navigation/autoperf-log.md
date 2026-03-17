@@ -98,3 +98,40 @@
 -   **Min/Max:** 2276ms / 2940ms
 -   **Notes:** ~2x faster than dev mode (5308ms → 2940ms). Tighter variance. The main bundle at 7.4MB is very large — splitting heavy vendor chunks (reanimated, any-ascii, aws-sdk) could significantly reduce initial load.
 
+---
+
+## Findings and Recommendations
+
+### What worked
+
+1. **Route-level code splitting** (Experiment 1): Lazy-loading the 5 drawer navigators via `React.lazy()` created separate production chunks and reduced worst-case TTR by 260ms. The navigators produce chunks of 2-9KB each, loaded on demand.
+
+2. **De-barreling eagerly-loaded imports** (Experiment 2): Replacing the cascading barrel import in `TopLevelDrawer.tsx` (which resolved 109+ wildcard exports through `packages/app/ui/index.tsx` → `@tloncorp/ui`) with direct imports saved 244ms in dev mode.
+
+### What didn't work and why
+
+- **De-barreling lazy-loaded code** (Exp 3): No effect — lazy-loaded navigators' barrel imports only resolve when the navigator mounts, not on initial load.
+- **Lazy-loading small libraries** (Exp 4): react-qr-code is too small; dynamic import overhead offsets savings.
+- **Converting static imports to dynamic in the init chain** (Exp 5): Major regression — browsers fetch static imports in parallel, but dynamic imports serialize into the async init chain.
+- **Splitting react-native-* via manualChunks** (Exp 7): Caused runtime errors — react-native-reanimated has initialization order dependencies that break when split.
+- **Lazy-loading GlobalSearch** (Exp 8): Too lightweight in production bundles (already tree-shaken).
+- **Lazy-loading DraftInputView** (Exp 9): Vite refused to split — the module is also statically imported by other files, so the code stays in the main bundle.
+- **Removing WDYR jsxImportSource** (Exp 10): No effect — WDYR is a no-op when not initialized, even as JSX import source.
+
+### Key learnings
+
+1. **Barrel exports are expensive in dev mode** but not in production (tree-shaking handles it). De-barreling only helps for eagerly-loaded code in the dev critical path.
+2. **Static imports > dynamic imports for the init chain.** Browsers parallelize static import resolution. Converting to dynamic `await import()` serializes loads and delays React render.
+3. **The 7.4MB main bundle is the bottleneck.** It contains react-native-web (238KB), react-native-reanimated (472KB), the editor stack (~500KB), and tightly-coupled app code. These can't be split via `manualChunks` due to initialization dependencies.
+4. **react-native-reanimated generates hundreds of runtime errors on web** (`TypeError: Cannot convert undefined or null to object`). This is wasted CPU time on every page load.
+
+### Recommended next steps (beyond quick-win scope)
+
+1. **Audit react-native-reanimated usage on web.** It's 472KB, generates hundreds of errors, and may not be needed for desktop/web. Replacing its web usage with CSS transitions or a lighter animation library could cut ~500KB from the main bundle.
+
+2. **Refactor the editor import graph.** The TipTap/tentap-editor stack (~500KB+) is statically imported through many paths. Creating a single lazy entry point that ALL consumers use would allow Vite to split it into a separate chunk.
+
+3. **De-barrel `packages/app/ui/index.tsx` systematically.** The 109-line barrel file with `export * from '@tloncorp/ui'` forces resolution of the entire UI package on any import. While this mainly affects dev mode, a systematic de-barreling effort would improve DX and potentially help production tree-shaking.
+
+4. **Consider `any-ascii` alternatives.** At 453KB (171KB gzip), this Unicode transliteration library is one of the largest vendor chunks. If it's only used for specific features, lazy-loading its consumers could defer it.
+
