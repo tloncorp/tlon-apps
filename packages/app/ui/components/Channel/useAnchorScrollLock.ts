@@ -41,6 +41,9 @@ export function useAnchorScrollLock({
   const renderedPostsRef = useRef(new Set<string>());
   const scrollPhaseRef = useRef<'idle' | 'scrolled' | 'done'>('idle');
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const failureRetryCountRef = useRef(0);
+  const userHasScrolledRef = useRef(userHasScrolled);
+  userHasScrolledRef.current = userHasScrolled;
   const readyToDisplayPosts =
     !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
 
@@ -59,11 +62,14 @@ export function useAnchorScrollLock({
     return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
   }, [posts, anchor?.postId]);
 
+  const anchorIndexRef = useRef(anchorIndex);
+  anchorIndexRef.current = anchorIndex;
+
   const handleScrollBeginDrag = useCallback(() => {
     setUserHasScrolled(true);
   }, []);
 
-  const handleScrollToIndexFailed = useCallback(
+  const handleScrollToIndexFailed = useMutableCallback(
     (info: {
       index: number;
       highestMeasuredFrameIndex: number;
@@ -71,10 +77,10 @@ export function useAnchorScrollLock({
     }) => {
       logger.log('scroll to index failed', { info });
 
+      // Cancel the done-timeout — the initial scroll did not reach the target.
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+
       // Best-guess fallback: scroll to estimated offset to get close.
-      // This causes FlatList to render items near the target. When the
-      // anchor post's View lays out, handleItemLayout fires and does
-      // the correction scrollToIndex (phase is still 'scrolled').
       if (
         anchor?.postId === currentAnchorId.current &&
         flatListRef.current &&
@@ -84,8 +90,59 @@ export function useAnchorScrollLock({
         logger.log('doing best guess scroll to offset', offset);
         flatListRef.current.scrollToOffset({ offset, animated: false });
       }
-    },
-    [anchor?.postId, flatListRef, anchorIndex]
+
+      // Schedule a bounded retry. After the fallback offset, FlatList
+      // renders items near the target with better measurement data.
+      if (failureRetryCountRef.current < 3) {
+        failureRetryCountRef.current++;
+        retryTimerRef.current = setTimeout(() => {
+          const idx = anchorIndexRef.current;
+          if (
+            idx !== -1 &&
+            flatListRef.current &&
+            !userHasScrolledRef.current &&
+            anchor?.postId === currentAnchorId.current
+          ) {
+            const retryEffectiveIndex =
+              collectionLayoutType === 'grid'
+                ? Math.floor(idx / columnsCount)
+                : idx;
+            const viewPos = anchor?.type === 'unread' ? 1 : 0.5;
+            logger.log('retrying scroll after failure', {
+              index: retryEffectiveIndex,
+              attempt: failureRetryCountRef.current,
+            });
+            try {
+              const countBefore = failureRetryCountRef.current;
+              flatListRef.current.scrollToIndex({
+                index: retryEffectiveIndex,
+                viewPosition: viewPos,
+                animated: false,
+              });
+              // Only start a done-timeout if onScrollToIndexFailed did not
+              // fire synchronously during the scrollToIndex above.
+              if (failureRetryCountRef.current === countBefore) {
+                retryTimerRef.current = setTimeout(() => {
+                  if (scrollPhaseRef.current === 'scrolled') {
+                    scrollPhaseRef.current = 'done';
+                    setDidScrollToAnchor(true);
+                  }
+                }, 200);
+              }
+            } catch (e) {
+              logger.error('retry scroll after failure failed', e);
+              scrollPhaseRef.current = 'done';
+              setDidScrollToAnchor(true);
+            }
+          }
+        }, 200);
+      } else {
+        // Max retries exhausted — mark complete to unblock the UI.
+        logger.log('max failure retries exhausted');
+        scrollPhaseRef.current = 'done';
+        setDidScrollToAnchor(true);
+      }
+    }
   );
 
   const handleItemLayout = useMutableCallback(
@@ -146,14 +203,20 @@ export function useAnchorScrollLock({
           // again if the anchor post's measured height changes. That
           // re-invocation (phase 'scrolled') does the correction scroll.
           scrollPhaseRef.current = 'scrolled';
-          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-          retryTimerRef.current = setTimeout(() => {
-            // No re-layout happened — first scroll was accurate enough.
-            if (scrollPhaseRef.current === 'scrolled') {
-              scrollPhaseRef.current = 'done';
-              setDidScrollToAnchor(true);
-            }
-          }, 200);
+          // Only start the done-timeout if onScrollToIndexFailed did not
+          // already fire synchronously during scrollToIndex above.
+          // If it did, failureRetryCountRef.current > 0 and the failure
+          // handler already owns retryTimerRef with a retry scheduled.
+          if (failureRetryCountRef.current === 0) {
+            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = setTimeout(() => {
+              // No re-layout happened — first scroll was accurate enough.
+              if (scrollPhaseRef.current === 'scrolled') {
+                scrollPhaseRef.current = 'done';
+                setDidScrollToAnchor(true);
+              }
+            }, 200);
+          }
         }
       }
 
@@ -193,6 +256,7 @@ export function useAnchorScrollLock({
       setDidScrollToAnchor(false);
       renderedPostsRef.current.clear();
       scrollPhaseRef.current = 'idle';
+      failureRetryCountRef.current = 0;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     }
   }, [anchor?.postId]);

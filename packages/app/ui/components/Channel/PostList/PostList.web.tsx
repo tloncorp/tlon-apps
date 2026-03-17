@@ -61,7 +61,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollerRef,
       inverted,
       onScrollCompleted: onInitialScrollCompleted,
-      contentKey: orderedData.length,
+      contentKey: `${orderedData.length}:${orderedData[0]?.post.id ?? ''}:${orderedData[orderedData.length - 1]?.post.id ?? ''}`,
     });
 
     useManualScrollAnchoring({
@@ -602,7 +602,7 @@ function useScrollToAnchorOnMount({
   scrollerRef: React.RefObject<HTMLDivElement>;
   inverted: boolean;
   onScrollCompleted?: () => void;
-  contentKey: number;
+  contentKey: string | number;
 }) {
   const needsInitialScrollRef = React.useRef(true);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
