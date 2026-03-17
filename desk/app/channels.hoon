@@ -18,7 +18,8 @@
 ::  performance, keep warm
 /+  channel-json
 ::
-/%  m-channel-changed-posts   %channel-changed-posts
+/%  m-channel-changed-posts    %channel-changed-posts
+/%  m-channel-changed-posts-1  %channel-changed-posts
 /%  m-channel-heads           %channel-heads
 /%  m-channel-heads-2         %channel-heads-2
 /%  m-channel-heads-3         %channel-heads-3
@@ -27,14 +28,17 @@
 /%  m-channel-post-2          %channel-post-2
 /%  m-channel-post-3          %channel-post-3
 /%  m-channel-post-4          %channel-post-4
+/%  m-channel-post-5          %channel-post-5
 /%  m-channel-posts           %channel-posts
 /%  m-channel-posts-2         %channel-posts-2
 /%  m-channel-posts-3         %channel-posts-3
 /%  m-channel-posts-4         %channel-posts-4
+/%  m-channel-posts-5         %channel-posts-5
 /%  m-channel-replies         %channel-replies
 /%  m-channel-replies-2       %channel-replies-2
 /%  m-channel-replies-3       %channel-replies-3
 /%  m-channel-replies-4       %channel-replies-4
+/%  m-channel-replies-5       %channel-replies-5
 /%  m-channel-reply           %channel-reply
 /%  m-channel-reply-2         %channel-reply-2
 /%  m-channel-response        %channel-response
@@ -44,6 +48,7 @@
 /%  m-channel-said            %channel-said
 /%  m-channel-said-1          %channel-said-1
 /%  m-channel-said-2          %channel-said-2
+/%  m-channel-said-3          %channel-said-3
 /%  m-channel-scan            %channel-scan
 /%  m-channel-scan-2          %channel-scan-2
 /%  m-channel-scan-3          %channel-scan-3
@@ -73,7 +78,8 @@
     :+  ::  marks
         ::
             ::TODO make strict one day (affected by versioning mistake)
-        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
+        :~  :+  %channel-changed-posts    |  -:!>(*vale:m-channel-changed-posts)
+            :+  %channel-changed-posts-1  |  -:!>(*vale:m-channel-changed-posts-1)
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
@@ -83,16 +89,21 @@
             :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
             :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
             :+  %channel-post-4          &  -:!>(*vale:m-channel-post-4)
+            ::TODO  make strict on next upgrade
+            :+  %channel-post-5          |  -:!>(*vale:m-channel-post-5)
             ::TODO make strict one day (affected by versioning mistake)
             :+  %channel-posts           |  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
             ::TODO make strict one day (affected by versioning mistake)
             :+  %channel-posts-4         |  -:!>(*vale:m-channel-posts-4)
+            :+  %channel-posts-5         |  -:!>(*vale:m-channel-posts-5)
             :+  %channel-replies         &  -:!>(*vale:m-channel-replies)
             :+  %channel-replies-2       &  -:!>(*vale:m-channel-replies-2)
             :+  %channel-replies-3       &  -:!>(*vale:m-channel-replies-3)
             :+  %channel-replies-4       &  -:!>(*vale:m-channel-replies-4)
+            ::TODO  make strict on next upgrade
+            :+  %channel-replies-5       |  -:!>(*vale:m-channel-replies-5)
             :+  %channel-reply           &  -:!>(*vale:m-channel-reply)
             :+  %channel-reply-2         &  -:!>(*vale:m-channel-reply-2)
             :+  %channel-response        &  -:!>(*vale:m-channel-response)
@@ -102,6 +113,8 @@
             :+  %channel-said            &  -:!>(*vale:m-channel-said)
             :+  %channel-said-1          &  -:!>(*vale:m-channel-said-1)
             :+  %channel-said-2          &  -:!>(*vale:m-channel-said-2)
+            ::TODO  make strict on next upgrade
+            :+  %channel-said-3          |  -:!>(*vale:m-channel-said-3)
             :+  %channel-scan            &  -:!>(*vale:m-channel-scan)
             :+  %channel-scan-2          &  -:!>(*vale:m-channel-scan-2)
             :+  %channel-scan-3          &  -:!>(*vale:m-channel-scan-3)
@@ -132,27 +145,25 @@
       ::  facts
       ::
       :~  [/ %channel-response %toggle-post ~]
-          [/said %channel-said %channel-denied ~]
           [/unreads %channel-unread-update ~]
         ::
           [/v0 %channel-response %toggle-post ~]
-          [/v0/said %channel-said %channel-denied ~]
           [/v0/unreads %channel-unread-update ~]
         ::
           [/v1 %channel-response-2 %toggle-post ~]
           [/v1/hooks/preview %hook-channel-preview ~]  ::REVIEW
-          [/v1/said %channel-said %channel-denied ~]
           [/v1/unreads %channel-unread-update ~]
         ::
           [/v2 %channel-response-3 ~]
-          [/v2/said %channel-said-1 %channel-denied ~]
-        ::
           [/v3 %channel-response-4 ~]
-          [/v3/said %channel-said-1 %channel-denied ~]
-        ::
-          [/v4/said %channel-said-2 %channel-denied ~]
-        ::
           [/v4 %channel-response-5 ~]
+        ::
+          [/said %channel-said %channel-denied ~]
+          [/v0/said %channel-said %channel-denied ~]
+          [/v1/said %channel-said %channel-denied ~]
+          [/v2/said %channel-said-1 %channel-denied ~]
+          [/v3/said %channel-said-1 %channel-denied ~]
+          [/v4/said %channel-said-2 %channel-denied ~]
           [/v5/said %channel-said-3 %channel-denied ~]
       ==
     ::  scries
@@ -207,9 +218,19 @@
         [/x/v4/$/$/$/posts/post/id/$/replies %channel-replies-4]
         [/x/v4/$/$/$/posts/post/id/$/replies/reply %channel-reply-2]
       ::
-        ::TODO  other v5 scries
+        [/x/v5/channels %channels-5]
+        [/x/v5/said %channel-said-3]
+        [/x/v5/heads %channel-heads-4]
+        [/x/v5/$/$/$/posts %channel-posts-5]
+        [/x/v5/$/$/$/posts/post %channel-post-5]
+        [/x/v5/$/$/$/posts/post/id/$/replies %channel-replies-5]
+        [/x/v5/$/$/$/posts/post/id/$/replies/reply %channel-reply-3]
+      ::
         [/x/v5/changes %channel-changed-posts]
+        [/x/v6/changes %channel-changed-posts-1]
+      ::
         [/x/v5/init-posts %channel-changed-posts]
+        [/x/v6/init-posts %channel-changed-posts-1]
     ==
 ::
 =/  verbose  |
