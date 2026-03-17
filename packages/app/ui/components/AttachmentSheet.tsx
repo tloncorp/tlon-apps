@@ -156,6 +156,7 @@ export default function AttachmentSheet({
   }, [removeAttachment]);
 
   const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
+  const showCameraAction = Platform.OS === 'ios';
   const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
     () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
     [useVideoInMediaPicker]
@@ -404,7 +405,7 @@ export default function AttachmentSheet({
                 : 'Choose a photo from your library',
             action: pickImage,
           },
-          !isWeb && {
+          showCameraAction && {
             title: useVideoInMediaPicker
               ? 'Capture Photo or Video'
               : 'Take a Photo',
@@ -451,6 +452,7 @@ export default function AttachmentSheet({
       createAssetFromClipboard,
       mediaType,
       useVideoInMediaPicker,
+      showCameraAction,
     ]
   );
 
