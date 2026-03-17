@@ -614,11 +614,9 @@ function useScrollToAnchorOnMount({
     }
     timeoutRef.current = setTimeout(() => {
       if (needsInitialScrollRef.current) {
-        needsInitialScrollRef.current = false;
-        const scroller = scrollerRef.current;
-        if (scroller && inverted) {
-          scroller.scrollTo({ top: scroller.scrollHeight });
-        }
+        // Unblock Scroller loading behavior so more content can load
+        // (which may bring in the anchor post), but do NOT abandon the
+        // anchor — the contentKey-driven retry will keep looking.
         onScrollCompleted?.();
       }
     }, 5000);
