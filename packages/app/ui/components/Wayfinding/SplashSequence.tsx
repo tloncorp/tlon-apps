@@ -422,10 +422,12 @@ export function InviteContactsContent(props: {
     props.inviteSystemContacts,
     inviteLink
   );
-  const { data: storeSystemContacts } = store.useSystemContacts();
+  const { data: storeSystemContacts, isPending: isContactsPending } =
+    store.useSystemContacts();
   const systemContacts = props.systemContacts ?? storeSystemContacts;
   const isReady = !!inviteLink;
   const hasContacts = systemContacts && systemContacts.length > 0;
+  const isLoadingContacts = isContactsPending && !props.systemContacts?.length;
 
   const { displayContacts, handleSearch } = useSystemContactSearch(
     systemContacts ?? []
@@ -444,7 +446,9 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      {!hasContacts ? (
+      {isLoadingContacts ? (
+        <LoadingState />
+      ) : !hasContacts ? (
         <ShareInviteLinkEmptyState />
       ) : !isReady ? (
         <LoadingState />
