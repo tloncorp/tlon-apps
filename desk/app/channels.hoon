@@ -19,7 +19,7 @@
 /+  channel-json
 ::
 /%  m-channel-changed-posts    %channel-changed-posts
-/%  m-channel-changed-posts-1  %channel-changed-posts
+/%  m-channel-changed-posts-1  %channel-changed-posts-1
 /%  m-channel-heads           %channel-heads
 /%  m-channel-heads-2         %channel-heads-2
 /%  m-channel-heads-3         %channel-heads-3
@@ -1390,7 +1390,7 @@
   ~>  %spin.['peek']
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %v6) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
     ::
