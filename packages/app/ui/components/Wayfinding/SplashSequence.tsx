@@ -634,6 +634,9 @@ export function InvitePane(props: {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
+  const [fetchedContacts, setFetchedContacts] = useState<
+    db.SystemContact[] | undefined
+  >(undefined);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
   const hasProvidedContacts = !!props.systemContacts?.length;
@@ -647,9 +650,10 @@ export function InvitePane(props: {
     try {
       setIsProcessing(true);
       await storeContext.syncSystemContacts();
-      // Log analytics if no contacts were found
       const syncedContacts = await db.getSystemContacts();
-      if (!syncedContacts || syncedContacts.length === 0) {
+      if (syncedContacts && syncedContacts.length > 0) {
+        setFetchedContacts(syncedContacts);
+      } else {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
         });
@@ -715,7 +719,7 @@ export function InvitePane(props: {
     return (
       <InviteContactsContent
         onComplete={props.onActionPress}
-        systemContacts={props.systemContacts}
+        systemContacts={props.systemContacts ?? fetchedContacts}
         inviteSystemContacts={props.inviteSystemContacts}
       />
     );
