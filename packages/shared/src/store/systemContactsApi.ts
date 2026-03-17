@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import * as db from '../db';
 
 export async function getSystemContacts(): Promise<db.SystemContact[]> {
   // stub for web

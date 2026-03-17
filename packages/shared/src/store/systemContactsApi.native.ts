@@ -1,10 +1,10 @@
+import * as domain from '@tloncorp/api/types/index';
 import * as Contacts from 'expo-contacts';
 import * as Localization from 'expo-localization';
 import * as LibPhone from 'libphonenumber-js';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import * as domain from '../types';
+import * as db from '../db';
+import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('SystemContactsApi', true);
 
@@ -39,7 +39,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
   }
 }
 
-export function parseNativeContacts(
+function parseNativeContacts(
   nativeContacts: Contacts.Contact[]
 ): domain.SystemContact[] {
   const parseCounts = { digitFinds: 0, numberFinds: 0, fallbacks: 0 };
