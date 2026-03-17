@@ -137,11 +137,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await generalChannel.getByTestId('EditChannelButton').first().click();
   await expect(page.getByText('Channel info')).toBeVisible();
 
-  // Navigate to Privacy settings to set channel permissions
-  await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible();
-
-  // Set channel permissions
+  // Set channel permissions (inline on Channel info screen)
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
 
   // Verify "Testing role" appears in the Roles section (as a chip)
@@ -157,11 +153,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(writeToggle).toBeVisible();
   await expect(writeToggle.getByRole('img')).toBeVisible(); // Checkmark icon
 
-  await page.getByText('Save').click();
+  // Click Save in the header to persist permission changes
+  await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId('SavePermissionsButton').click();
   await page.waitForTimeout(2000);
 
-  // After clicking Save on Channel privacy, navigate back to exit any settings screens
-  // The exact navigation state varies, so we navigate back until we can open group settings
+  // Navigate back from Channel info to exit settings screens
   for (let i = 0; i < 3; i++) {
     try {
       const backButton = page.getByTestId('HeaderBackButton').first();
@@ -221,11 +218,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('EditChannelButton').first().click();
   await expect(page.getByText('Channel info')).toBeVisible();
 
-  // Navigate to Privacy settings to modify channel permissions
-  await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible();
-
-  // Remove "Renamed role" from readers by clicking the X on the role chip
+  // Remove "Renamed role" from readers by clicking the X in the inline permission table
   await expect(page.getByText('Renamed role').first()).toBeVisible();
   await page.getByTestId('RemoveRole-Renamed role').click();
   await page.waitForTimeout(500);
@@ -237,10 +230,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
-  await page.getByTestId('ChannelPrivacySaveButton').click();
+  // Click Save in the header to persist permission changes
+  await expect(page.getByTestId('SavePermissionsButton')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId('SavePermissionsButton').click();
   await page.waitForTimeout(2000);
 
-  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // Navigate back to exit any settings screens
   for (let i = 0; i < 3; i++) {
     try {
       const backButton = page.getByTestId('HeaderBackButton').first();

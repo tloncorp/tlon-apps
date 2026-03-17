@@ -21,13 +21,7 @@ test('Members row appears with correct defaults when enabling Custom Permissions
     .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
-  // Navigate to channel permissions
-  await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible({
-    timeout: 5000,
-  });
-
-  // Toggle Custom Permissions on
+  // Toggle Custom Permissions on (inline on channel details)
   const privateToggle = page.getByTestId('PrivateChannelToggle');
   const isEnabled = await privateToggle.getAttribute('aria-checked');
   if (isEnabled !== 'true') {
@@ -107,19 +101,14 @@ test('Members appears in SelectChannelRoles screen', async ({ zodPage }) => {
   await helpers.createGroup(page);
   await helpers.setupMultiChannelGroup(page);
 
-  // Navigate to channel permissions
+  // Navigate to channel details
   await page
     .getByTestId('ChannelHeaderTitle')
     .getByTestId('ScreenHeaderTitle')
     .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
-  await page.getByTestId('ChannelPrivacy').click();
-  await expect(page.getByText('Channel permissions')).toBeVisible({
-    timeout: 5000,
-  });
-
-  // Toggle Custom Permissions on
+  // Toggle Custom Permissions on (inline on channel details)
   const privateToggle = page.getByTestId('PrivateChannelToggle');
   const isEnabled = await privateToggle.getAttribute('aria-checked');
   if (isEnabled !== 'true') {
@@ -127,6 +116,7 @@ test('Members appears in SelectChannelRoles screen', async ({ zodPage }) => {
   }
 
   // Click "Add roles" to open the role selection screen
+  await expect(page.getByText('Add roles')).toBeVisible({ timeout: 5000 });
   await page.getByText('Add roles').click();
   await expect(page.getByText('Select roles')).toBeVisible({ timeout: 5000 });
 

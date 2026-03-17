@@ -16,7 +16,14 @@ import { ChannelDetailsScreenView } from '../top/ChannelDetailsScreen';
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'ChannelInfo'>;
 
 export function ChannelInfoScreen(props: Props) {
-  const { chatType, chatId, groupId } = props.route.params;
+  const {
+    chatType,
+    chatId,
+    groupId,
+    selectedRoleIds,
+    createdRoleId,
+    createdRoleTitle,
+  } = props.route.params;
   const navigation =
     useNavigation<
       NativeStackNavigationProp<GroupSettingsStackParamList, 'ChannelInfo'>
@@ -37,11 +44,27 @@ export function ChannelInfoScreen(props: Props) {
     [navigation]
   );
 
-  const handleEditChannelPrivacy = useCallback(
-    (channelId: string, gId: string) => {
-      navigation.navigate('EditChannelPrivacy', {
-        channelId,
+  const handleSelectRoles = useCallback(
+    (channelId: string, gId: string, currentReaders: string[]) => {
+      navigation.navigate('SelectChannelRoles', {
         groupId: gId,
+        selectedRoleIds: currentReaders,
+        returnScreen: 'ChannelInfo',
+        returnParams: {
+          chatType,
+          chatId,
+          groupId: gId,
+        },
+      });
+    },
+    [navigation, chatType, chatId]
+  );
+
+  const handlePressRole = useCallback(
+    (gId: string, roleId: string) => {
+      navigation.navigate('EditRole', {
+        groupId: gId,
+        roleId,
       });
     },
     [navigation]
@@ -61,8 +84,12 @@ export function ChannelInfoScreen(props: Props) {
         <ChannelDetailsScreenView
           onGoBack={handleGoBack}
           onEditChannelMeta={handleEditChannelMeta}
-          onEditChannelPrivacy={handleEditChannelPrivacy}
+          onSelectRoles={handleSelectRoles}
+          onPressRole={handlePressRole}
           onAfterDeleteChannel={handleAfterDeleteChannel}
+          selectedRoleIds={selectedRoleIds}
+          createdRoleId={createdRoleId}
+          createdRoleTitle={createdRoleTitle}
         />
       </ChatOptionsProvider>
     </ForwardGroupSheetProvider>

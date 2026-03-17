@@ -1,4 +1,9 @@
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import {
+  CommonActions,
+  RouteProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGroup } from '@tloncorp/shared';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
@@ -31,6 +36,7 @@ export function SelectChannelRolesScreen() {
     groupId,
     selectedRoleIds: initialRoleIds,
     createdRoleId,
+    createdRoleTitle,
   } = route.params;
 
   const [selectedRoleIds, setSelectedRoleIds] =
@@ -38,23 +44,32 @@ export function SelectChannelRolesScreen() {
 
   // Auto-select newly created role when returning from AddRole screen
   useEffect(() => {
-    if (createdRoleId && !selectedRoleIds.includes(createdRoleId)) {
-      setSelectedRoleIds((prev) => [...prev, createdRoleId]);
+    if (createdRoleId) {
+      setSelectedRoleIds((prev) =>
+        prev.includes(createdRoleId) ? prev : [...prev, createdRoleId]
+      );
     }
-  }, [createdRoleId, selectedRoleIds]);
+  }, [createdRoleId]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: group } = useGroup({ id: groupId });
 
-  const allRoles = useMemo(
-    () => [
-      ...groupRolesToOptions(group?.roles ?? []).filter(
-        (role) => role.value !== 'admin'
-      ),
-      MEMBER_ROLE_OPTION,
-    ],
-    [group?.roles]
-  );
+  const allRoles = useMemo(() => {
+    const roles = groupRolesToOptions(group?.roles ?? []).filter(
+      (role) => role.value !== 'admin'
+    );
+
+    // Include newly created role immediately, even before group data refreshes
+    if (
+      createdRoleId &&
+      createdRoleTitle &&
+      !roles.some((r) => r.value === createdRoleId)
+    ) {
+      roles.push({ label: createdRoleTitle, value: createdRoleId });
+    }
+
+    return [...roles, MEMBER_ROLE_OPTION];
+  }, [group?.roles, createdRoleId, createdRoleTitle]);
 
   const filteredRoles = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -73,6 +88,26 @@ export function SelectChannelRolesScreen() {
       }
     });
   }, []);
+
+  const allSelected = useMemo(
+    () => allRoles.every((role) => selectedRoleIds.includes(role.value)),
+    [allRoles, selectedRoleIds]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) {
+      // Deselect all (except keep any that aren't in the allRoles list)
+      setSelectedRoleIds((prev) =>
+        prev.filter((id) => !allRoles.some((r) => r.value === id))
+      );
+    } else {
+      setSelectedRoleIds((prev) => {
+        const newIds = new Set(prev);
+        allRoles.forEach((role) => newIds.add(role.value));
+        return Array.from(newIds);
+      });
+    }
+  }, [allRoles, allSelected]);
 
   const handleSave = useCallback(() => {
     // Ensure admin is always included
@@ -96,6 +131,28 @@ export function SelectChannelRolesScreen() {
           ...params.returnParams,
           selectedRoleIds: finalRoleIds,
         });
+        break;
+      case 'ChannelInfo':
+        navigation.navigate(params.returnScreen, {
+          ...params.returnParams,
+          selectedRoleIds: finalRoleIds,
+          createdRoleId: params.createdRoleId,
+          createdRoleTitle: params.createdRoleTitle,
+        });
+        break;
+      case 'ChatDetails':
+        // Navigate across navigators back to RootStack's ChatDetails
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'ChatDetails',
+            params: {
+              ...params.returnParams,
+              selectedRoleIds: finalRoleIds,
+              createdRoleId: params.createdRoleId,
+              createdRoleTitle: params.createdRoleTitle,
+            },
+          })
+        );
         break;
     }
   }, [navigation, selectedRoleIds, route.params]);
@@ -123,13 +180,24 @@ export function SelectChannelRolesScreen() {
         title="Select roles"
         backAction={() => navigation.goBack()}
         rightControls={
-          <ScreenHeader.TextButton
-            onPress={handleSave}
-            color="$positiveActionText"
-            testID="RoleSelectionSaveButton"
-          >
-            Save
-          </ScreenHeader.TextButton>
+          <>
+            {!searchQuery.trim() && (
+              <ScreenHeader.TextButton
+                onPress={handleSelectAll}
+                color="$positiveActionText"
+                testID="SelectAllRoles"
+              >
+                {allSelected ? 'Deselect all' : 'Select all'}
+              </ScreenHeader.TextButton>
+            )}
+            <ScreenHeader.TextButton
+              onPress={handleSave}
+              color="$positiveActionText"
+              testID="RoleSelectionSaveButton"
+            >
+              Save
+            </ScreenHeader.TextButton>
+          </>
         }
       />
       <YStack flex={1} padding="$xl" gap="$xl">
@@ -184,7 +252,11 @@ export function SelectChannelRolesScreen() {
           </YStack>
         </ScrollView>
         <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button onPress={handleCreateRole} label="Create new role" />
+          <Button
+            preset="secondaryOutline"
+            onPress={handleCreateRole}
+            label="Create new role"
+          />
         </YStack>
       </YStack>
     </View>
