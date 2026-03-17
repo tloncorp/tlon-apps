@@ -205,6 +205,7 @@
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
   ^-  [id-post:c (may:c post:v10:cv)]
+  ::TODO mind these
   [id-post ?:(?=(%| -.v-post) v-post [%& (uv-post-4 +.v-post)])]
 ::
 ++  s-posts-1
