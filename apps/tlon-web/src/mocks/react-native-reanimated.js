@@ -7,7 +7,7 @@
  */
 
 import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 // ---------------------------------------------------------------------------
 // Shared values
@@ -41,7 +41,7 @@ export function useSharedValue(initial) {
 // ---------------------------------------------------------------------------
 
 export function useAnimatedStyle(fn) {
-  return fn();
+  return StyleSheet.flatten(fn());
 }
 
 export function useDerivedValue(fn) {
@@ -256,8 +256,7 @@ export function useAnimatedScrollHandler(handler) {
 const AnimatedView = forwardRef((props, ref) => {
   // eslint-disable-next-line no-unused-vars
   const { style, entering, exiting, ...rest } = props;
-  const flatStyle = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
-  return <View ref={ref} style={flatStyle} {...rest} />;
+  return <View ref={ref} style={StyleSheet.flatten(style)} {...rest} />;
 });
 AnimatedView.displayName = 'Animated.View';
 
@@ -270,8 +269,7 @@ function createAnimatedComponent(Component) {
   const Wrapper = forwardRef((props, ref) => {
     // eslint-disable-next-line no-unused-vars
     const { style, entering, exiting, ...rest } = props;
-    const flatStyle = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
-    return <Component ref={ref} style={flatStyle} {...rest} />;
+    return <Component ref={ref} style={StyleSheet.flatten(style)} {...rest} />;
   });
   Wrapper.displayName = `Animated(${Component.displayName || Component.name || 'Component'})`;
   return Wrapper;

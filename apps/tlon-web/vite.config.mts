@@ -104,12 +104,7 @@ export default ({ mode }: { mode: string }) => {
       }) as PluginOption[],
       react({
         babel: {
-          // adding these per instructions here:
-          // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
-          plugins: [
-            '@babel/plugin-proposal-export-namespace-from',
-            'react-native-reanimated/plugin',
-          ],
+          plugins: ['@babel/plugin-proposal-export-namespace-from'],
         },
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
