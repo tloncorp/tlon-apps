@@ -99,7 +99,6 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       ctx.selectedPostId,
       ctx.initialChannelUnread,
     ]);
-
     return (
       <Scroller
         key={scrollerAnchor?.postId}

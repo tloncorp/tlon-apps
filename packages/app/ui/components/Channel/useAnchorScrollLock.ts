@@ -39,7 +39,8 @@ export function useAnchorScrollLock({
   const [didScrollToAnchor, setDidScrollToAnchor] = useState(false);
   const currentAnchorId = useRef<string | undefined>(anchor?.postId);
   const renderedPostsRef = useRef(new Set<string>());
-  const isScrollAttemptActiveRef = useRef(false);
+  const scrollPhaseRef = useRef<'idle' | 'scrolled' | 'done'>('idle');
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const readyToDisplayPosts =
     !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
 
@@ -70,7 +71,10 @@ export function useAnchorScrollLock({
     }) => {
       logger.log('scroll to index failed', { info });
 
-      // If the anchor hasn't changed and we know its index, try to scroll to the estimated position
+      // Best-guess fallback: scroll to estimated offset to get close.
+      // This causes FlatList to render items near the target. When the
+      // anchor post's View lays out, handleItemLayout fires and does
+      // the correction scrollToIndex (phase is still 'scrolled').
       if (
         anchor?.postId === currentAnchorId.current &&
         flatListRef.current &&
@@ -94,41 +98,62 @@ export function useAnchorScrollLock({
         post.id === anchor?.postId &&
         flatListRef.current &&
         anchor?.postId === currentAnchorId.current &&
-        !isScrollAttemptActiveRef.current
+        scrollPhaseRef.current !== 'done'
       ) {
-        logger.log('scrolling to anchor post', { id: post.id, index });
+        const effectiveIndex =
+          collectionLayoutType === 'grid'
+            ? Math.floor(index / columnsCount)
+            : index;
+        const viewPosition = anchor.type === 'unread' ? 1 : 0.5;
+        const isCorrection = scrollPhaseRef.current === 'scrolled';
+
+        logger.log(
+          isCorrection
+            ? 'correction scroll to anchor post'
+            : 'scrolling to anchor post',
+          { id: post.id, index }
+        );
+
+        if (collectionLayoutType === 'grid') {
+          logger.log('Using grid-adjusted index for scrollToIndex:', {
+            originalIndex: index,
+            gridAdjustedIndex: effectiveIndex,
+            columnsCount,
+          });
+        }
 
         try {
-          isScrollAttemptActiveRef.current = true;
-          const shouldAnimateScroll = readyToDisplayPosts;
-
-          if (collectionLayoutType === 'grid') {
-            // Adjust the index for grid layout.
-            // FlatList still conceptually uses a single column layout
-            // with each row in the grid being one logical "item"
-            const gridAdjustedIndex = Math.floor(index / columnsCount);
-            logger.log('Using grid-adjusted index for scrollToIndex:', {
-              originalIndex: index,
-              gridAdjustedIndex,
-              columnsCount,
-            });
-            flatListRef.current.scrollToIndex({
-              index: gridAdjustedIndex,
-              viewPosition: anchor.type === 'unread' ? 1 : 0.5,
-              animated: shouldAnimateScroll,
-            });
-          } else {
-            flatListRef.current.scrollToIndex({
-              index,
-              viewPosition: anchor.type === 'unread' ? 1 : 0.5,
-              animated: shouldAnimateScroll,
-            });
-          }
+          flatListRef.current.scrollToIndex({
+            index: effectiveIndex,
+            viewPosition,
+            animated: false,
+          });
         } catch (e) {
           logger.error('error scrolling to anchor post', e);
-        } finally {
+          scrollPhaseRef.current = 'done';
           setDidScrollToAnchor(true);
-          isScrollAttemptActiveRef.current = false;
+          return;
+        }
+
+        if (isCorrection) {
+          // Correction done — mark complete immediately.
+          scrollPhaseRef.current = 'done';
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          setDidScrollToAnchor(true);
+        } else {
+          // Initial scroll done — allow one re-layout correction.
+          // handleItemLayout is wired to the View's onLayout, so it fires
+          // again if the anchor post's measured height changes. That
+          // re-invocation (phase 'scrolled') does the correction scroll.
+          scrollPhaseRef.current = 'scrolled';
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = setTimeout(() => {
+            // No re-layout happened — first scroll was accurate enough.
+            if (scrollPhaseRef.current === 'scrolled') {
+              scrollPhaseRef.current = 'done';
+              setDidScrollToAnchor(true);
+            }
+          }, 200);
         }
       }
 
@@ -151,6 +176,13 @@ export function useAnchorScrollLock({
     };
   }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
 
+  // Clean up retry timer on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, []);
+
   // Update current anchor ID and reset states when anchor changes
   useEffect(() => {
     if (anchor?.postId !== currentAnchorId.current) {
@@ -158,7 +190,10 @@ export function useAnchorScrollLock({
       currentAnchorId.current = anchor?.postId;
       setUserHasScrolled(false);
       setDidAnchorSearchTimeout(false);
+      setDidScrollToAnchor(false);
       renderedPostsRef.current.clear();
+      scrollPhaseRef.current = 'idle';
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     }
   }, [anchor?.postId]);
 

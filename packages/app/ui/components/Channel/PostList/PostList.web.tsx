@@ -61,6 +61,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollerRef,
       inverted,
       onScrollCompleted: onInitialScrollCompleted,
+      contentKey: orderedData.length,
     });
 
     useManualScrollAnchoring({
@@ -226,7 +227,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
           );
           if (element) {
             element.scrollIntoView({
-              block: 'start',
+              block: 'center',
               behavior: animated ? 'smooth' : 'instant',
             });
           }
@@ -595,39 +596,63 @@ function useScrollToAnchorOnMount({
   scrollerRef,
   inverted,
   onScrollCompleted,
+  contentKey,
 }: {
   anchor: ScrollAnchor | null | undefined;
   scrollerRef: React.RefObject<HTMLDivElement>;
   inverted: boolean;
   onScrollCompleted?: () => void;
+  contentKey: number;
 }) {
   const needsInitialScrollRef = React.useRef(true);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Timeout fallback: give up after 5s if anchor element never appears
+  React.useEffect(() => {
+    if (!anchor?.postId || !needsInitialScrollRef.current) {
+      return;
+    }
+    timeoutRef.current = setTimeout(() => {
+      if (needsInitialScrollRef.current) {
+        needsInitialScrollRef.current = false;
+        const scroller = scrollerRef.current;
+        if (scroller && inverted) {
+          scroller.scrollTo({ top: scroller.scrollHeight });
+        }
+        onScrollCompleted?.();
+      }
+    }, 5000);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [anchor?.postId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Main scroll effect — re-runs when contentKey changes (as new posts render)
   React.useLayoutEffect(() => {
-    if (!needsInitialScrollRef.current) {
-      return;
-    }
+    if (!needsInitialScrollRef.current) return;
     const scroller = scrollerRef.current;
-    if (!scroller) {
-      return;
-    }
+    if (!scroller) return;
+
     if (!anchor) {
       if (inverted) {
         scroller.scrollTo({ top: scroller.scrollHeight });
       }
-    } else {
-      const anchorElement = scroller.querySelector(
-        `[data-postid="${anchor.postId}"]`
-      );
-      if (anchorElement) {
-        anchorElement.scrollIntoView({ block: 'start', behavior: 'instant' });
-      } else {
-        scroller.scrollTo({ top: scroller.scrollHeight });
-      }
+      needsInitialScrollRef.current = false;
+      onScrollCompleted?.();
+      return;
     }
 
-    needsInitialScrollRef.current = false;
-    onScrollCompleted?.();
-  }, [scrollerRef, anchor, inverted, onScrollCompleted]);
+    const anchorElement = scroller.querySelector(
+      `[data-postid="${anchor.postId}"]`
+    );
+    if (anchorElement) {
+      anchorElement.scrollIntoView({ block: 'center', behavior: 'instant' });
+      needsInitialScrollRef.current = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      onScrollCompleted?.();
+    }
+    // else: element not in DOM yet — do nothing, wait for next contentKey change
+  }, [scrollerRef, anchor, inverted, onScrollCompleted, contentKey]);
 }
 
 // Pass this to useDeduplicateInvocationBy().resetDeduplicateInvocation() to

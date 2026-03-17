@@ -430,6 +430,7 @@ export function getDesktopChannelRoute(
       screen: screenName,
       params: {
         channelId,
+        selectedPostId,
         ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
         params: {
