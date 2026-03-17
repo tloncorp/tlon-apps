@@ -301,6 +301,7 @@ export function NotebookPostDetailView({
   return (
     <NotebookPostFrame
       embedded
+      borderTopWidth={post.image ? 1 : 0}
       paddingHorizontal={0}
       paddingTop={post.image ? '$xl' : '$2xl'}
       width="100%"
