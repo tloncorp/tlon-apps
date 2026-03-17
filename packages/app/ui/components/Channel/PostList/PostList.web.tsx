@@ -1,6 +1,7 @@
 import { useMutableCallback } from '@tloncorp/shared';
 import { isEqual, memoize } from 'lodash';
 import * as React from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 import { ScrollAnchor } from '../Scroller';
@@ -48,8 +49,8 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
     },
     forwardedRef
   ) => {
-    const scrollerRef = React.useRef<HTMLDivElement | null>(null);
-    const scrollerContentContainerRef = React.useRef<HTMLDivElement>(null);
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
+    const scrollerContentContainerRef = useRef<HTMLDivElement>(null);
 
     const orderedData = React.useMemo(
       () => (inverted ? [...postsWithNeighbors].reverse() : postsWithNeighbors),
@@ -145,7 +146,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
         side: 'bottom',
       }
     );
-    React.useEffect(() => {
+    useEffect(() => {
       if (insideScrolledToBottomBoundary) {
         onScrolledToBottom?.();
       } else {
@@ -332,7 +333,7 @@ function isElementScrolledNearBottom(
  *   { boundaryRatio: 0.2, side: 'top' }
  * );
  *
- * React.useEffect(() => {
+ * useEffect(() => {
  *   // using `checkIsNearTop()` here avoids running the effect if the scroll
  *   // position has changed since the effect was enqueued
  *   if (checkIsNearTop()) {
@@ -372,7 +373,7 @@ function useScrollBoundary(
   const [insideBoundary, setInsideBoundary] = React.useState(
     () => checkInsideBoundary() ?? false
   );
-  React.useEffect(() => {
+  useEffect(() => {
     if (element == null) {
       return;
     }
@@ -524,7 +525,7 @@ function useManualScrollAnchoring<Data>({
   /** See `ManualScrollAnchorCoordinator.getAnchorItem` */
   getAnchorItem: () => { offset: number; key: string } | null;
 }) {
-  const coordinator = React.useRef(
+  const coordinator = useRef(
     new ManualScrollAnchorCoordinator(
       scrollerRef.current!,
       scrollerContentContainerRef.current!,
@@ -542,7 +543,7 @@ function useManualScrollAnchoring<Data>({
     )
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     const coord = coordinator.current;
     coord.scroller = scrollerRef.current!;
     coord.contentContainer = scrollerContentContainerRef.current!;
@@ -568,7 +569,7 @@ function useStickToScrollStart({
   /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
   maxDistanceForStickToStart?: number;
 }) {
-  const shouldStickToStartRef = React.useRef(false);
+  const shouldStickToStartRef = useRef(false);
 
   const [isAtStart] = useScrollBoundary(scrollerRef.current, {
     isNearBoundary: React.useCallback(
@@ -578,11 +579,11 @@ function useStickToScrollStart({
     side: inverted ? 'bottom' : 'top',
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     shouldStickToStartRef.current = !disable && isAtStart;
   }, [isAtStart, disable]);
 
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!shouldStickToStartRef.current || scroller == null) {
       return;
@@ -604,11 +605,11 @@ function useScrollToAnchorOnMount({
   onScrollCompleted?: () => void;
   contentKey: string | number;
 }) {
-  const needsInitialScrollRef = React.useRef(true);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const needsInitialScrollRef = useRef(true);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Timeout fallback: give up after 5s if anchor element never appears
-  React.useEffect(() => {
+  useEffect(() => {
     if (!anchor?.postId || !needsInitialScrollRef.current) {
       return;
     }
@@ -626,7 +627,7 @@ function useScrollToAnchorOnMount({
   }, [anchor?.postId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Main scroll effect — re-runs when contentKey changes (as new posts render)
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     if (!needsInitialScrollRef.current) return;
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -694,7 +695,7 @@ function useBoundaryCallbacks({
     isNearBoundary: withinViewportRatioOfBoundary(onStartReachedThreshold),
     side: inverted ? 'bottom' : 'top',
   });
-  React.useEffect(() => {
+  useEffect(() => {
     if (getReachedStart() ?? false) {
       onStartReachedGuarded?.();
     } else {
@@ -733,7 +734,7 @@ function useBoundaryCallbacks({
     isNearBoundary: withinViewportRatioOfBoundary(onEndReachedThreshold),
     side: inverted ? 'top' : 'bottom',
   });
-  React.useEffect(() => {
+  useEffect(() => {
     if (getReachedEnd() ?? false) {
       onEndReachedGuarded?.();
     } else {
@@ -772,7 +773,7 @@ function useDeduplicateInvocationBy<Key>(
   shouldSkip: (prev: Key, curr: Key) => boolean,
   callback: ((key: Key) => void) | null
 ): (() => boolean) & { resetDeduplicateInvocation: (key: Key) => void } {
-  const lastKeyRef = React.useRef<[Key] | null>(null);
+  const lastKeyRef = useRef<[Key] | null>(null);
   // @ts-expect-error - resetDeduplicateInvocation is added below; idk how to do this in one step
   const out: (() => boolean) & {
     resetDeduplicateInvocation: (key: Key) => void;
@@ -814,7 +815,7 @@ function useTrackContentRect(element: HTMLElement | null) {
       }),
     [element]
   );
-  React.useEffect(() => {
+  useEffect(() => {
     if (element) {
       resizeObserver.observe(element);
       return () => resizeObserver.unobserve(element);
@@ -826,8 +827,8 @@ function useTrackContentRect(element: HTMLElement | null) {
 // returns a value with a new identity whenever any of the deps' identities change
 function useIdentityHash(...deps: unknown[]): unknown {
   const [hash, newHash] = React.useReducer((x) => x + 1, 0);
-  const prevDepsRef = React.useRef(deps);
-  React.useEffect(() => {
+  const prevDepsRef = useRef(deps);
+  useEffect(() => {
     if (prevDepsRef.current.length !== deps.length) {
       prevDepsRef.current = deps;
       newHash();
