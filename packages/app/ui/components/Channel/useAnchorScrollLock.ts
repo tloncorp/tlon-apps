@@ -15,7 +15,43 @@ import { ScrollAnchor } from './Scroller';
 const logger = createDevLogger('useAnchorScrollLock', false);
 
 /**
- * Hook to manage scroll position and anchor post visibility during post loading
+ * useAnchorScrollLock
+ *
+ * Manages scrolling to an anchor post (selected post or unread marker)
+ * in a virtualized FlatList where the target item may not be measured yet.
+ *
+ * Scroll phase state machine (`scrollPhaseRef`):
+ *
+ *   idle -> scrolled -> done
+ *     \--------------->/
+ *        (error / retry exhaustion)
+ *
+ *   idle:
+ *     No anchor scroll attempted yet. When the anchor item's layout fires,
+ *     `handleItemLayout` performs the initial `scrollToIndex`.
+ *
+ *   scrolled:
+ *     An initial anchor scroll was attempted. We allow one re-layout-based
+ *     correction: if the anchor item's layout fires again, `handleItemLayout`
+ *     performs a correction scroll and transitions to `done`. A 200ms timeout
+ *     also transitions to `done` if no correction layout arrives.
+ *
+ *   done:
+ *     Anchor scroll handling is complete for the current anchor. Further
+ *     `handleItemLayout` invocations do not trigger additional scrolls.
+ *
+ * Failure / retry path (`handleScrollToIndexFailed`):
+ *   If `scrollToIndex` fails because the target index is not yet measurable,
+ *   we first do a best-guess `scrollToOffset`, then retry `scrollToIndex`
+ *   up to a bounded number of times. A retry may itself trigger
+ *   `onScrollToIndexFailed` synchronously, so the code compares
+ *   `failureRetryCountRef` before/after the retry call and avoids replacing
+ *   a newly scheduled retry with the success-path timeout.
+ *
+ * Anchor changes:
+ *   When `anchor.postId` changes, the hook resets its refs/state so a fresh
+ *   anchor-scroll sequence can run. This supports re-navigation to a new
+ *   selected post within the same channel.
  */
 export function useAnchorScrollLock({
   flatListRef,
@@ -34,6 +70,9 @@ export function useAnchorScrollLock({
   collectionLayoutType: string;
   columnsCount: number;
 }) {
+  const MAX_FAILURE_RETRIES = 3;
+  const RETRY_INTERVAL_MS = 200;
+  const SCROLL_COMPLETED_TIMEOUT_MS = 200;
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
   const [didScrollToAnchor, setDidScrollToAnchor] = useState(false);
@@ -93,7 +132,7 @@ export function useAnchorScrollLock({
 
       // Schedule a bounded retry. After the fallback offset, FlatList
       // renders items near the target with better measurement data.
-      if (failureRetryCountRef.current < 3) {
+      if (failureRetryCountRef.current < MAX_FAILURE_RETRIES) {
         failureRetryCountRef.current++;
         retryTimerRef.current = setTimeout(() => {
           const idx = anchorIndexRef.current;
@@ -127,7 +166,7 @@ export function useAnchorScrollLock({
                     scrollPhaseRef.current = 'done';
                     setDidScrollToAnchor(true);
                   }
-                }, 200);
+                }, SCROLL_COMPLETED_TIMEOUT_MS);
               }
             } catch (e) {
               logger.error('retry scroll after failure failed', e);
@@ -135,7 +174,7 @@ export function useAnchorScrollLock({
               setDidScrollToAnchor(true);
             }
           }
-        }, 200);
+        }, RETRY_INTERVAL_MS);
       } else {
         // Max retries exhausted — mark complete to unblock the UI.
         logger.log('max failure retries exhausted');
@@ -215,7 +254,7 @@ export function useAnchorScrollLock({
                 scrollPhaseRef.current = 'done';
                 setDidScrollToAnchor(true);
               }
-            }, 200);
+            }, SCROLL_COMPLETED_TIMEOUT_MS);
           }
         }
       }
