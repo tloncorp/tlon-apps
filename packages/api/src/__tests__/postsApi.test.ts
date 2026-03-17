@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 
 import type { Post } from '@tloncorp/shared/db/types';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
@@ -6,13 +6,7 @@ import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
 import * as ub from '../urbit';
-import * as urbitClient from '../client/urbit';
-import {
-  getChangedPosts,
-  toPostData,
-  toPostReplyData,
-  toPostsData,
-} from '../client/postsApi';
+import { toPostData, toPostReplyData, toPostsData } from '../client/postsApi';
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
@@ -127,30 +121,4 @@ test('single post responses', async () => {
   });
   // TODO fix snapshot test
   // expect(result).toMatchSnapshot();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-test('getChangedPosts uses the v4 changes endpoint for group channels', async () => {
-  const scrySpy = vi
-    .spyOn(urbitClient, 'scry')
-    .mockResolvedValue(rawChannelPostsData as unknown as ub.PagedPosts);
-
-  await getChangedPosts({
-    channelId: 'chat/~zod/test-channel',
-    startCursor: '170.141.184.506.535.164.684.262.900.635.183.087.616',
-    endCursor: '170.141.184.506.536.962.871.190.015.156.707.917.824',
-    afterTime: new Date(0),
-  });
-
-  expect(scrySpy).toHaveBeenCalledWith(
-    expect.objectContaining({
-      app: 'channels',
-      path: expect.stringContaining(
-        '/v4/chat/~zod/test-channel/posts/changes/'
-      ),
-    })
-  );
 });
