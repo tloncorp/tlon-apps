@@ -1412,7 +1412,13 @@ export function toPostReplyData(
     };
   }
 
-  const replyEssay = 'reply-essay' in reply ? reply['reply-essay'] : reply.memo;
+  const replyEssay =
+    'reply-essay' in reply
+      ? reply['reply-essay']
+      : {
+          ...reply.memo,
+          blob: null,
+        };
   const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
@@ -1438,7 +1444,7 @@ export function toPostReplyData(
     replyCount: 0,
     images: getContentImages(id, replyEssay.content),
     syncedAt: Date.now(),
-    blob: 'blob' in replyEssay ? (replyEssay.blob ?? null) : null,
+    blob: replyEssay.blob ?? null,
     ...flags,
   };
 }

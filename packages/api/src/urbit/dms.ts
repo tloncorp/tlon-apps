@@ -7,7 +7,6 @@ import {
   PostEssay,
   PostSeal,
   PostSealDataResponse,
-  Reply,
   ReplyMeta,
   ReplySeal,
 } from './channel';
@@ -41,8 +40,10 @@ export interface WritReplySeal extends ReplySeal {
   time: string;
 }
 
-export interface WritReply extends Reply {
+export interface WritReply {
   seal: WritReplySeal;
+  memo: WritMemo;
+  revision?: string;
 }
 
 export interface WritReplyReferenceResponse {
