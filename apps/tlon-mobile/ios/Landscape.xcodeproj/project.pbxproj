@@ -982,8 +982,6 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
 			);
 			name = "Build JS bundle";
 			outputFileListPaths = (
@@ -992,7 +990,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -f \"$SRCROOT/.xcode.env.local\" ]; then\n  source \"$SRCROOT/.xcode.env.local\"\nelif [ -f \"$SRCROOT/.xcode.env\" ]; then\n  source \"$SRCROOT/.xcode.env\"\nfi\nexport PATH=\"$(dirname \"$NODE_BINARY\"):/opt/homebrew/bin:$PATH\"\npnpm run --filter scripts build\n";
+			shellScript = "export PATH=/opt/homebrew/bin:$PATH\npnpm run --filter scripts build\n";
 		};
 		70DBBFE62B7C60B50021EA96 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
