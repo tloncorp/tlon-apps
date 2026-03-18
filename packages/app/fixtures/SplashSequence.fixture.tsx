@@ -29,7 +29,6 @@ function SplashSequenceFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <SplashSequence
         onCompleted={handleCompleted}
-        systemContacts={initialSystemContacts}
         hostingBotEnabled={hostingBotEnabled}
       />
     </FixtureWrapper>

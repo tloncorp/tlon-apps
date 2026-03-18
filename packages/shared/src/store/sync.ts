@@ -1,15 +1,15 @@
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
+import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '@tloncorp/api';
-import { GetChangedPostsOptions } from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -24,6 +24,7 @@ import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
 import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
+import { getSystemContacts } from './systemContactsApi';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
@@ -479,7 +480,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
@@ -517,7 +518,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     return;
   }
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -1432,8 +1433,7 @@ export const handleChannelsUpdate = async (
       {
         const newPinnedPostId = update.order?.[0];
         if (newPinnedPostId) {
-          const dismissedIds =
-            await db.dismissedPinnedPostBannerIds.getValue();
+          const dismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
           if (dismissedIds.includes(newPinnedPostId)) {
             await db.dismissedPinnedPostBannerIds.setValue(
               dismissedIds.filter((id) => id !== newPinnedPostId)
