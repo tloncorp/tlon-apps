@@ -124,7 +124,13 @@ const Scroller = forwardRef(
       hasNewerPosts?: boolean;
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
-      ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
+      ref?: RefObject<{
+        scrollToIndex: (params: {
+          index: number;
+          animated?: boolean;
+          viewPosition?: number;
+        }) => void;
+      }>;
       isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
@@ -174,8 +180,11 @@ const Scroller = forwardRef(
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: { index: number; animated?: boolean }) =>
-        listRef.current?.scrollToIndex(params),
+      scrollToIndex: (params: {
+        index: number;
+        animated?: boolean;
+        viewPosition?: number;
+      }) => listRef.current?.scrollToIndex(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
       scrollToEnd: (params: { animated?: boolean }) =>

@@ -21,7 +21,11 @@ import Scroller, { ScrollAnchor } from '../Channel/Scroller';
 import { IPostCollectionView } from './shared';
 
 interface ScrollerHandle {
-  scrollToIndex: (params: { index: number; animated?: boolean }) => void;
+  scrollToIndex: (params: {
+    index: number;
+    animated?: boolean;
+    viewPosition?: number;
+  }) => void;
   scrollToStart: (params: { animated?: boolean }) => void;
 }
 
@@ -77,10 +81,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     }, []);
 
     useImperativeHandle(forwardedRef, () => ({
-      scrollToPostAtIndex(index: number) {
+      scrollToPostAtIndex(index: number, viewPosition?: number) {
         scrollerRef.current?.scrollToIndex({
           index,
           animated: false,
+          viewPosition,
         });
       },
       scrollToStart(opts: { animated?: boolean }) {

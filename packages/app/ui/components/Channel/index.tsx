@@ -328,7 +328,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           collectionRef.current
         ) {
           // If the post is already loaded, scroll to it and highlight
-          collectionRef.current?.scrollToPostAtIndex?.(anchorIndex);
+          collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
           collectionRef.current?.highlightPost?.(post.id);
           return;
         }
