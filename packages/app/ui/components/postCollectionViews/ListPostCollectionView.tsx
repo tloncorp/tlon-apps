@@ -7,6 +7,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -62,6 +63,19 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       [ctx.channel]
     );
 
+    const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+    const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+
+    useEffect(() => {
+      return () => {
+        if (highlightTimerRef.current) {
+          clearTimeout(highlightTimerRef.current);
+        }
+      };
+    }, []);
+
     useImperativeHandle(forwardedRef, () => ({
       scrollToPostAtIndex(index: number) {
         scrollerRef.current?.scrollToIndex({
@@ -71,6 +85,13 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       },
       scrollToStart(opts: { animated?: boolean }) {
         scrollerRef.current?.scrollToStart(opts);
+      },
+      highlightPost(postId: string) {
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        setHighlightPostId(postId);
+        highlightTimerRef.current = setTimeout(() => {
+          setHighlightPostId(null);
+        }, 5000);
       },
     }));
     const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
@@ -131,6 +152,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
+        highlightPostId={highlightPostId}
       />
     );
   }

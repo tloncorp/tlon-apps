@@ -99,6 +99,7 @@ const Scroller = forwardRef(
       isLoading,
       onPressScrollToBottom,
       listHeaderComponent,
+      highlightPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -129,6 +130,7 @@ const Scroller = forwardRef(
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
       listHeaderComponent?: React.ReactElement;
+      highlightPostId?: string | null;
     },
     ref
   ) => {
@@ -260,7 +262,8 @@ const Scroller = forwardRef(
           isFirstPostOfDay;
         const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
-          anchor?.type === 'selected' && anchor.postId === post.id;
+          (anchor?.type === 'selected' && anchor.postId === post.id) ||
+          highlightPostId === post.id;
 
         return (
           <ScrollerItem
@@ -305,6 +308,7 @@ const Scroller = forwardRef(
       [
         anchor?.type,
         anchor?.postId,
+        highlightPostId,
         firstUnreadId,
         inverted,
         renderItem,
@@ -372,7 +376,12 @@ const Scroller = forwardRef(
             };
           }
         }
-      }, [insets.bottom, posts?.length, collectionLayoutType, rootVerticalPadding])
+      }, [
+        insets.bottom,
+        posts?.length,
+        collectionLayoutType,
+        rootVerticalPadding,
+      ])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(

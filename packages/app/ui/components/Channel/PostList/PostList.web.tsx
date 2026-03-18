@@ -221,11 +221,12 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
         }
       },
       scrollToIndex: ({ index, animated = true }) => {
-        const item = orderedData[index];
+        const resolvedIndex = inverted ? orderedData.length - 1 - index : index;
+        const item = orderedData[resolvedIndex];
         if (item) {
           const element = scrollerContentContainerRef.current?.querySelector(
             `[data-postid="${item.post.id}"]`
-          );
+          ) as HTMLElement | null;
           if (element) {
             element.scrollIntoView({
               block: 'center',

@@ -11,6 +11,7 @@ import { PostView } from '../Channel/PostView';
 export interface PostCollectionHandle {
   scrollToPostAtIndex?: (index: number) => void;
   scrollToStart?: (opts: { animated?: boolean }) => void;
+  highlightPost?: (postId: string) => void;
 }
 
 export type IPostCollectionView = React.ForwardRefExoticComponent<
