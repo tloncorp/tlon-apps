@@ -5,11 +5,11 @@
 ++  grow
   |%
   ++  noun  action
-  ++  json  (dm-action:enjs:j action)
+  ++  json  (dm-action:v6:enjs:j action)
   --
 ++  grab
   |%
   ++  noun  action:dm:v6:cv
-  ++  json  dm-action:dejs:j
+  ++  json  dm-action:v6:dejs:j
   --
 --
