@@ -202,9 +202,9 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %11
-        dms=(map ship dm:c)
-        clubs=(map id:club:c club:c)
+    $:  %12
+        dms=(map ship dm:v7:cv)
+        clubs=(map id:club:c club:v7:cv)
         pins=(list whom:c)
         sends=(map whom:c (qeu sent-id))
         blocked=(set ship)
@@ -306,14 +306,16 @@
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  ?>  ?=(%11 -.old)
+  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
+  ?>  ?=(%12 -.old)
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-11
+    $%  state-12
+        state-11
         state-10
         state-9
         state-8
@@ -438,8 +440,8 @@
     ==
   +$  state-10
     $:  %10
-        dms=(map ship dm:c)
-        clubs=(map id:club:c club:c)
+        dms=(map ship dm:v6:cv)
+        clubs=(map id:club:c club:v6:cv)
         pins=(list whom:c)
         sends=(map whom:c (qeu sent-id))
         blocked=(set ship)
@@ -448,7 +450,26 @@
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
     ==
-  +$  state-11  current-state
+  +$  state-11
+    $:  %11
+        dms=(map ship dm:v6:cv)
+        clubs=(map id:club:c club:v6:cv)
+        pins=(list whom:c)
+        sends=(map whom:c (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        last-updated=(list [=whom:c =time])  ::  newest first, one-per-whom
+        old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
+        old-pins=(list whom:v2:cv)
+    ==
+  ::
+  +$  state-12  current-state
+  ::
+  ++  state-11-to-12
+    |=  state-11
+    ^-  state-12
+    *state-12
   ::
   ++  state-10-to-11
     |=  state-10
@@ -830,7 +851,7 @@
     ==
   ::
       %chat-dm-action-1
-    =+  !<(=action:dm:c vase)
+    =+  !<(=action:dm:v6:cv vase)
     =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
@@ -841,7 +862,7 @@
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %chat-dm-diff-1
-    =+  !<(=diff:dm:c vase)
+    =+  !<(=diff:dm:v5:cv vase)
     =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
@@ -849,7 +870,7 @@
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
       %chat-club-action-1
-    =+  !<(=action:club:c vase)
+    =+  !<(=action:club:v6:cv vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
