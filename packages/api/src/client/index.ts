@@ -7,7 +7,10 @@ export * from './groupsApi';
 export * from './landscapeApi';
 export * from './postsApi';
 export * from './urbit';
-export { QueryClientProvider, queryClient } from '@tloncorp/shared/store/reactQuery';
+export {
+  QueryClientProvider,
+  queryClient,
+} from '@tloncorp/shared/store/reactQuery';
 export * from './initApi';
 export * from './upload';
 export * from './settingsApi';
@@ -50,6 +53,5 @@ export {
 } from './hostingApi';
 export type { HostingHeartBeatCode } from './hostingApi';
 export * from './apiUtils';
-export * from './systemContactsApi';
 export * from './metagrabApi';
 export * from './changesApi';
