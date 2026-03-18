@@ -76,7 +76,7 @@ export interface ChatMember {
 export interface GroupNavSection {
   id: string;
   groupId?: string | null;
-  sectionId?: string | null;
+  sectionId: string;
   sectionIndex?: number | null;
   title?: string | null;
   description?: string | null;

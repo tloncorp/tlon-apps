@@ -1,7 +1,6 @@
 import { Poke } from '@urbit/http-api';
 
 import type * as db from '../types/models';
-import type { GroupPrivacy } from '../types/models';
 import { createDevLogger } from './logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
@@ -277,8 +276,8 @@ export function requestGroupInvitation(groupId: string) {
 
 export async function updateGroupPrivacy(params: {
   groupId: string;
-  oldPrivacy: GroupPrivacy;
-  newPrivacy: GroupPrivacy;
+  oldPrivacy: db.GroupPrivacy;
+  newPrivacy: db.GroupPrivacy;
 }) {
   // In v8/v9, privacy is a single unified setting that includes secret/private/public
   return poke(
@@ -527,14 +526,13 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  const sectionId = navSection.sectionId ?? navSection.id;
   return await trackedPoke<ub.V1GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
         'a-group': {
           section: {
-            'section-id': sectionId,
+            'section-id': navSection.sectionId,
             'a-section': {
               add: {
                 title: navSection.title ?? '',
@@ -592,14 +590,13 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  const sectionId = navSection.sectionId ?? navSection.id;
   return await poke(
     groupAction4({
       group: {
         flag: groupId,
         'a-group': {
           section: {
-            'section-id': sectionId,
+            'section-id': navSection.sectionId,
             'a-section': {
               edit: {
                 title: navSection.title ?? '',
@@ -757,8 +754,7 @@ export const updateGroupNavigation = async ({
   const sections: Record<string, ub.GroupNavigationSectionData> = {};
 
   for (const section of navSections) {
-    const sectionId = section.sectionId ?? section.id;
-    sections[sectionId] = {
+    sections[section.sectionId] = {
       meta: {
         title: section.title ?? '',
         description: section.description ?? '',
@@ -776,8 +772,7 @@ export const updateGroupNavigation = async ({
     sections,
     order: navSections
       .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
-      .map((s) => s.sectionId ?? s.id)
-      .filter((id): id is string => !!id),
+      .map((s) => s.sectionId),
   };
 
   return await poke(groupNavigationBatchUpdate(groupId, navigation));
