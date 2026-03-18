@@ -1,6 +1,7 @@
 import { Poke } from '@urbit/http-api';
 
 import type * as db from '../types/models';
+import type { GroupPrivacy } from '../types/models';
 import { createDevLogger } from './logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
@@ -276,8 +277,8 @@ export function requestGroupInvitation(groupId: string) {
 
 export async function updateGroupPrivacy(params: {
   groupId: string;
-  oldPrivacy: db.GroupPrivacy;
-  newPrivacy: db.GroupPrivacy;
+  oldPrivacy: GroupPrivacy;
+  newPrivacy: GroupPrivacy;
 }) {
   // In v8/v9, privacy is a single unified setting that includes secret/private/public
   return poke(
