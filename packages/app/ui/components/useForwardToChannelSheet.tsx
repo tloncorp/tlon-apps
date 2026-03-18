@@ -10,7 +10,7 @@ type UseForwardToChannelSheetParams = {
   isOpen: boolean;
   onClose: () => void;
   onForwardToChannel: (channel: db.Channel) => Promise<void>;
-  successMessage: (channelTitle: string) => string;
+  successMessage: (channelTitle: string) => string | null;
   failureMessage: string;
 };
 
@@ -53,10 +53,13 @@ export function useForwardToChannelSheet({
     try {
       await onForwardToChannel(selectedChannel);
       onClose();
-      showToast({
-        message: successMessage(selectedChannelTitle),
-        duration: 1500,
-      });
+      const successText = successMessage(selectedChannelTitle);
+      if (successText) {
+        showToast({
+          message: successText,
+          duration: 1500,
+        });
+      }
     } catch {
       setErrorMessage(failureMessage);
       setTimeout(() => setErrorMessage(null), 1500);
