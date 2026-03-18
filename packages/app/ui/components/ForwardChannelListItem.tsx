@@ -21,14 +21,6 @@ const FORWARD_CHANNEL_AVATAR = {
   badgeRadius: 5,
   iconSizeToken: '$xl',
 } as const;
-const FORWARD_GROUP_ICON_SIZE = getTokenValue(
-  FORWARD_CHANNEL_AVATAR.groupSizeToken,
-  'size'
-);
-const FORWARD_CHANNEL_TYPE_ICON_SIZE = getTokenValue(
-  FORWARD_CHANNEL_AVATAR.iconSizeToken,
-  'size'
-);
 
 function isNonDmGroupChannel(
   channel: db.Channel
@@ -43,6 +35,8 @@ function ForwardGroupChannelIcon({
 }: {
   channel: db.Channel & { group: NonNullable<db.Channel['group']> };
 }) {
+  const groupIconSize = getTokenValue(FORWARD_CHANNEL_AVATAR.groupSizeToken, 'size');
+  const channelTypeIconSize = getTokenValue(FORWARD_CHANNEL_AVATAR.iconSizeToken, 'size');
   return (
     <View
       width={FORWARD_CHANNEL_AVATAR.footprint}
@@ -54,8 +48,8 @@ function ForwardGroupChannelIcon({
         model={channel.group}
         membersLayout="compact"
         size="custom"
-        width={FORWARD_GROUP_ICON_SIZE}
-        height={FORWARD_GROUP_ICON_SIZE}
+        width={groupIconSize}
+        height={groupIconSize}
         position="absolute"
         top={0}
         left={0}
@@ -75,10 +69,7 @@ function ForwardGroupChannelIcon({
       >
         <Icon
           type={getChannelTypeIcon(channel.type) ?? 'Channel'}
-          customSize={[
-            FORWARD_CHANNEL_TYPE_ICON_SIZE,
-            FORWARD_CHANNEL_TYPE_ICON_SIZE,
-          ]}
+          customSize={[channelTypeIconSize, channelTypeIconSize]}
           color="$secondaryText"
         />
       </View>

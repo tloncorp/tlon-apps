@@ -192,6 +192,10 @@ export type GroupTemplateId = (typeof groupTemplates)[number]['id'] | typeof bas
 
 const allTemplates = [...groupTemplates, basicGroupTemplate];
 
+export const defaultTemplateChannelTitles: ReadonlySet<string> = new Set(
+  allTemplates.flatMap((t) => t.channels.map((c) => c.title))
+);
+
 export const groupTemplatesById = allTemplates.reduce(
   (acc, template) => {
     acc[template.id as GroupTemplateId] = template;
