@@ -513,9 +513,27 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
 
+  // Calculate constrained dimensions that respect both maxWidth and maxHeight
+  // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
+  const constrainedSize = useMemo(() => {
+    const aspect = dimensions.aspect;
+    if (!aspect) return null;
+    const maxW =
+      typeof imageProps?.maxWidth === 'number' ? imageProps.maxWidth : null;
+    const maxH =
+      typeof imageProps?.maxHeight === 'number' ? imageProps.maxHeight : null;
+    if (maxW != null && maxH != null) {
+      const width = Math.min(maxW, maxH * aspect);
+      return { width, height: width / aspect };
+    }
+    return null;
+  }, [dimensions.aspect, imageProps?.maxWidth, imageProps?.maxHeight]);
+
   return (
     <Pressable
       overflow="hidden"
+      alignSelf="flex-start"
+      maxWidth="100%"
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
@@ -524,7 +542,10 @@ export function ImageBlock({
         source={{
           uri: block.src,
         }}
-        {...(shouldUseAspectRatio
+        {...(constrainedSize
+          ? { width: constrainedSize.width, height: constrainedSize.height }
+          : { width: dimensions.width ?? '100%' })}
+        {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
         {...(isInsideReference
@@ -546,9 +567,7 @@ export function ImageBlock({
 const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: ContentContext,
-  width: '100%',
-  aspectRatio: 1,
-  backgroundColor: '$secondaryBackground',
+  maxWidth: '100%',
 });
 
 export function RuleBlock({
