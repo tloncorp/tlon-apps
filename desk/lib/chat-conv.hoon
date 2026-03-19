@@ -1,6 +1,109 @@
 /-  c=chat, dv=channels-ver, cv=chat-ver
 /+  ccv=channel-conv
 |%
+++  v7
+  |%
+  ++  chat-heads
+    |%
+    ++  v4
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v4:cv
+      *chat-heads:v4:cv
+    ++  v5
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v5:cv
+      *chat-heads:v5:cv
+    ++  v6
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v6:cv
+      *chat-heads:v6:cv
+    --
+  ++  writ
+    |%
+    ++  v6
+      |=  =writ:v7:cv
+      ^-  writ:v6:cv
+      *writ:v6:cv
+    ++  v5
+      |=  =writ:v7:cv
+      ^-  writ:v5:cv
+      *writ:v5:cv
+    --
+  ++  writs
+    |%
+    ++  v6
+      |=  =writs:v7:cv
+      ^-  writs:v6:cv
+      *writs:v6:cv
+    --
+  ++  paged-writs
+    |%
+    ++  v4
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v4:cv
+      *paged-writs:v4:cv
+    ++  v5
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v5:cv
+      *paged-writs:v5:cv
+    ++  v6
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v6:cv
+      *paged-writs:v6:cv
+    --
+  ++  scam
+    |%
+    ++  v6
+      |=  =scam:v7:cv
+      ^-  scam:v6:cv
+      *scam:v6:cv
+    ++  v5
+      |=  =scam:v7:cv
+      ^-  scam:v5:cv
+      *scam:v5:cv
+    ++  v4
+      |=  =scam:v7:cv
+      ^-  scam:v4:cv
+      *scam:v4:cv
+    --
+  ++  scan
+    |%
+    ++  v6
+      |=  =scan:v7:cv
+      ^-  scan:v6:cv
+      *scan:v6:cv
+    ++  v5
+      |=  =scan:v7:cv
+      ^-  scan:v5:cv
+      *scan:v5:cv
+    ++  v4
+      |=  =scan:v7:cv
+      ^-  scan:v4:cv
+      *scan:v4:cv
+    --
+  ++  response-writs
+    |%
+    ++  v6
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v6:cv
+      *response:writs:v6:cv
+    ++  v5
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v5:cv
+      *response:writs:v5:cv
+    ++  v4
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v4:cv
+      *response:writs:v4:cv
+    --
+  ++  action-club
+    |%
+    ++  v5
+      |=  =action:club:v7:cv
+      ^-  action:club:v5:cv
+      *action:club:v5:cv
+    --
+  --
 ++  v6
   |%
   ++  writ
@@ -19,7 +122,7 @@
       %+  gas:on:writs:v5:cv  ~
       %+  murn
         (tap:on:writs:v6:cv writs)
-      |=  [=time writ=(may:c writ:c)]
+      |=  [=time writ=(may:v6:cv writ:v6:cv)]
       ?:  ?=(%| -.writ)  ~
       `[time (v5:^writ +.writ)]
     --
@@ -57,11 +160,11 @@
       %+  gas:on:replies:v5:cv  ~
       %+  murn
         (tap:on:replies:v6:cv replies)
-      |=  [=time reply=(may:c reply:c)]
+      |=  [=time reply=(may:v6:cv reply:v6:cv)]
       ?:  ?=(%| -.reply)  ~
       `[time +.reply]
     --
-  ++  heads
+  ++  chat-heads
     |%
     ++  v5
       |=  heads=chat-heads:v6:cv
@@ -75,7 +178,7 @@
     ++  v4
       |=  heads=chat-heads:v6:cv
       ^-  chat-heads:v4:cv
-      (v4:heads:^v5 (v5 heads))
+      (v4:chat-heads:^v5 (v5 heads))
     --
   ++  seal
     |%
@@ -133,6 +236,23 @@
       ^-  scan:v4:cv
       (v4:scan:^v5 (v5 scan))
     --
+  ++  dm
+    |%
+    ++  diff
+      |%
+      ++  v7
+        |=  =diff:dm:v6:cv
+        ^-  diff:dm:v7:cv
+        *diff:dm:v7:cv
+      --
+    ++  action
+      |%
+      ++  v7
+        |=  =action:dm:v6:cv
+        ^-  action:dm:v7:cv
+        *action:dm:v7:cv
+      --
+    --
   --
 ++  v5
   |%
@@ -172,7 +292,7 @@
       %+  gas:on:replies:v6:cv  *replies:v6:cv
       %+  turn
         (tap:on:replies:v5:cv replies)
-      |=  [=time =reply:c]
+      |=  [=time =reply:v5:cv]
       [time %& reply]
     --
   ++  paged-writs
@@ -244,7 +364,7 @@
       ^-  scam:v3:cv
       (v3:scam:^v4 (v4 scam))
     --
-  ++  heads
+  ++  chat-heads
     |%
     ++  v4
       |=  heads=chat-heads:v5:cv
@@ -254,7 +374,7 @@
       [whom recency (bind latest v4:writ)]
     ++  v3
       |=  heads=chat-heads:v5:cv
-      (v3:heads:^v4 (v4 heads))
+      (v3:chat-heads:^v4 (v4 heads))
     --
   --
 ++  v4
@@ -430,7 +550,7 @@
       ^-  scam:v3:cv
       scam(scan (v3:scan scan.scam))
     --
-  ++  heads
+  ++  chat-heads
     |%
     ++  v3
       |=  heads=chat-heads:v4:cv
@@ -485,7 +605,7 @@
       :-  p.diff
       ?+    -.q.diff  q.diff
           %add
-        ^-  delta:writs:c
+        ^-  delta:writs:v4:cv
         [%add [memo [%chat kind] ~ ~]:q.diff time.q.diff]
       ::
           %reply
