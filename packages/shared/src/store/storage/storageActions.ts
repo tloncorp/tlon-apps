@@ -28,7 +28,6 @@ type BlobUploadParams = {
   blob: Blob;
   fileName: string;
   mimeType?: string;
-  sourceUri?: string;
 };
 
 type UploadParams =
@@ -69,7 +68,6 @@ async function prepareVideoPosterUpload(
       blob,
       fileName: `video-poster-${Date.now()}.jpg`,
       mimeType: blob.type || 'image/jpeg',
-      sourceUri: posterUri,
     };
   } catch (error) {
     logger.trackError('video poster preparation failed', {
@@ -299,7 +297,7 @@ export const performUpload = async (
         blob: params.blob,
         fileName: params.fileName,
         contentType: params.mimeType || params.blob.type,
-        uploadSource: isWeb ? params.blob : params.sourceUri ?? '',
+        uploadSource: params.blob,
       };
     } else {
       const response = await fetch(params.uri);

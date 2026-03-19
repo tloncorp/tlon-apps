@@ -710,17 +710,9 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   });
 }
 
-export function sanitizePostDataForNetwork({
-  story,
-  metadata,
-  blob,
-}: {
-  story: Story;
-  metadata?: PostMetadata;
-  blob?: string;
-}): { story: Story; metadata?: PostMetadata; blob?: string } {
+export function sanitizePostBlobForNetwork(blob?: string): string | undefined {
   if (!blob) {
-    return { story, metadata, blob };
+    return blob;
   }
 
   let didSanitize = false;
@@ -728,11 +720,11 @@ export function sanitizePostDataForNetwork({
   try {
     parsed = JSON.parse(blob);
   } catch {
-    return { story, metadata, blob };
+    return blob;
   }
 
   if (!Array.isArray(parsed)) {
-    return { story, metadata, blob };
+    return blob;
   }
 
   const sanitizedBlob = JSON.stringify(
@@ -754,11 +746,7 @@ export function sanitizePostDataForNetwork({
     })
   );
 
-  return {
-    story,
-    metadata,
-    blob: didSanitize ? sanitizedBlob : blob,
-  };
+  return didSanitize ? sanitizedBlob : blob;
 }
 
 export function toPostData({
@@ -882,10 +870,7 @@ export function toPostData({
     // likely because the image is already uploaded -> `draft.image` is already
     // a web-accessible URI. If `draft.image` is web-accessible, we can just
     // use it directly.)
-    const localPrefixes = ['file:', 'blob:', 'data:', 'content:'];
-    const isLocal = localPrefixes.some((prefix) => image.startsWith(prefix));
-
-    if (isLocal) {
+    if (isLocalMediaUri(image)) {
       const attachment = attachments.find(
         (a): a is UploadedImageAttachment =>
           a.type === 'image' && a.file.uri === image

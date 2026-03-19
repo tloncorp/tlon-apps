@@ -8,7 +8,7 @@ import {
   PlaintextPreviewConfig,
   getTextContent,
 } from '../lib/postContent';
-import { sanitizePostDataForNetwork } from '../lib/content-helpers';
+import { sanitizePostBlobForNetwork } from '../lib/content-helpers';
 import * as ub from '../urbit';
 import { ContentReference } from '../types/references';
 import {
@@ -153,22 +153,18 @@ export const sendPost = async ({
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
-  const sanitized = sanitizePostDataForNetwork({
-    story: content,
-    blob,
-    metadata,
-  });
+  const sanitizedBlob = sanitizePostBlobForNetwork(blob);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
         essay: {
-          content: sanitized.story,
+          content,
           sent: sentAt,
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: sanitized.blob ?? null,
+          blob: sanitizedBlob ?? null,
         },
         time: null,
       },
@@ -184,17 +180,17 @@ export const sendPost = async ({
   }
 
   const essay = toPostEssay({
-    content: sanitized.story,
-    blob: sanitized.blob,
+    content,
+    blob: sanitizedBlob,
     authorId,
     sentAt,
     channelType,
-    metadata: sanitized.metadata
+    metadata: metadata
       ? {
-          title: sanitized.metadata.title || '',
-          image: sanitized.metadata.image || '',
-          description: sanitized.metadata.description || '',
-          cover: sanitized.metadata.cover || '',
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
         }
       : undefined,
   });
@@ -228,11 +224,7 @@ export const editPost = async ({
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
-  const sanitized = sanitizePostDataForNetwork({
-    story: content,
-    blob,
-    metadata,
-  });
+  const sanitizedBlob = sanitizePostBlobForNetwork(blob);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
@@ -242,7 +234,7 @@ export const editPost = async ({
     logger.log('editing a reply');
     const memo: ub.Memo = {
       author: authorId,
-      content: sanitized.story,
+      content,
       sent: sentAt,
     };
 
@@ -269,17 +261,17 @@ export const editPost = async ({
   logger.log('editing a post');
 
   const essay = toPostEssay({
-    content: sanitized.story,
+    content,
     authorId,
     sentAt,
     channelType,
-    blob: sanitized.blob,
-    metadata: sanitized.metadata
+    blob: sanitizedBlob,
+    metadata: metadata
       ? {
-          title: sanitized.metadata.title || '',
-          image: sanitized.metadata.image || '',
-          description: sanitized.metadata.description || '',
-          cover: sanitized.metadata.cover || '',
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
         }
       : undefined,
   });

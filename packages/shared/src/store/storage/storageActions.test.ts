@@ -91,7 +91,6 @@ describe('performUpload', () => {
         blob: new Blob(['poster-bytes'], { type: 'image/jpeg' }),
         fileName: 'poster.jpg',
         mimeType: 'image/jpeg',
-        sourceUri: 'blob:https://example.com/poster',
       },
       true
     );

@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import {
   appendVideoToPostBlob,
   parsePostBlob,
-  sanitizePostDataForNetwork,
+  sanitizePostBlobForNetwork,
   toPostData,
 } from '../lib/content-helpers';
 import {
@@ -87,7 +87,7 @@ test('toPostData writes video attachments as typed video blob entries', () => {
   ]);
 });
 
-test('sanitizePostDataForNetwork strips local video poster uris from blob payloads', () => {
+test('sanitizePostBlobForNetwork strips local video poster uris from blob payloads', () => {
   const blob = appendVideoToPostBlob(undefined, {
     fileUri: 'https://cdn.example.com/video.mp4',
     mimeType: 'video/mp4',
@@ -96,13 +96,9 @@ test('sanitizePostDataForNetwork strips local video poster uris from blob payloa
     posterUri: 'blob:https://example.com/video-poster',
   });
 
-  const sanitized = sanitizePostDataForNetwork({
-    story: [],
-    metadata: { title: '' },
-    blob,
-  });
+  const sanitized = sanitizePostBlobForNetwork(blob);
 
-  expect(parsePostBlob(sanitized.blob!)).toEqual([
+  expect(parsePostBlob(sanitized!)).toEqual([
     {
       type: 'video',
       version: 1,
