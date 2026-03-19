@@ -33,14 +33,13 @@ import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
-import { ActionGroup, ActionSheet } from './ActionSheet';
+import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
 import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
-import { createAttachmentSheetActionGroups } from './attachmentSheetActions';
 import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
@@ -179,69 +178,60 @@ export default function AttachmentSheet({
     [attachAssets, onAttach]
   );
 
-  const captureMedia = useCallback(
-    ({
-      addPlaceholder,
-      cameraMediaTypes,
-    }: {
-      addPlaceholder: boolean;
-      cameraMediaTypes: ImagePicker.MediaType[];
-    }) => {
-    // Close the sheet immediately
-    onOpenChange(false);
+  const takePicture = useCallback(
+    (cameraMediaTypes: ImagePicker.MediaType[] = pickerMediaTypes) => {
+      // Close the sheet immediately
+      onOpenChange(false);
 
-    // Then initiate the camera after a small delay to ensure sheet is closed
-    setTimeout(async () => {
-      try {
-        if (cameraPermissionStatus?.granted === false) {
-          const permissionResult = await requestCameraPermission();
-          if (!permissionResult.granted) {
-            return;
+      // Then initiate the camera after a small delay to ensure sheet is closed
+      setTimeout(async () => {
+        try {
+          if (cameraPermissionStatus?.granted === false) {
+            const permissionResult = await requestCameraPermission();
+            if (!permissionResult.granted) {
+              return;
+            }
           }
-        }
 
-        // Immediately set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (addPlaceholder && Platform.OS !== 'web') {
-          attachAssets([placeholderUploadIntent]);
-        }
+          // Immediately set the placeholder attachment to show in the UI
+          // skip on web, the browser doesn't like trying to load a file that doesn't exist
+          if (Platform.OS !== 'web') {
+            attachAssets([placeholderUploadIntent]);
+          }
 
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: cameraMediaTypes,
-          allowsEditing: false,
-          quality: 0.5,
-          exif: false,
-        });
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: cameraMediaTypes,
+            allowsEditing: false,
+            quality: 0.5,
+            exif: false,
+          });
 
-        if (!result.canceled) {
-          // Replace the placeholder with the real image data
-          const realAsset = result.assets[0];
+          if (!result.canceled) {
+            // Replace the placeholder with the real image data
+            const realAsset = result.assets[0];
 
-          if (addPlaceholder) {
             removePlaceholderAttachment();
+            await attachNormalizedUploadIntents([
+              imagePickerAssetToUploadIntent(realAsset),
+            ]);
+          } else {
+            // If user canceled, remove the placeholder
+            clearAttachments();
           }
-          await attachNormalizedUploadIntents([
-            imagePickerAssetToUploadIntent(realAsset),
-          ]);
-        } else if (addPlaceholder) {
-          // If user canceled, remove the placeholder
+        } catch (e) {
+          console.error('Error taking picture', e);
+          logger.trackError('Error taking picture', e);
+          // In case of error, remove the placeholder
           clearAttachments();
         }
-      } catch (e) {
-        console.error('Error capturing media', e);
-        logger.trackError('Error capturing media', e);
-        // In case of error, remove the placeholder
-        if (addPlaceholder) {
-          clearAttachments();
-        }
-      }
-    }, 50); // Small delay to ensure the sheet closes first
+      }, 50); // Small delay to ensure the sheet closes first
     },
     [
       attachAssets,
       clearAttachments,
       onOpenChange,
       cameraPermissionStatus,
+      pickerMediaTypes,
       requestCameraPermission,
       placeholderUploadIntent,
       attachNormalizedUploadIntents,
@@ -249,32 +239,8 @@ export default function AttachmentSheet({
     ]
   );
 
-  const takePhotoOrVideo = useCallback(
-    () =>
-      captureMedia({
-        addPlaceholder: true,
-        cameraMediaTypes: pickerMediaTypes,
-      }),
-    [captureMedia, pickerMediaTypes]
-  );
-
-  const takePhoto = useCallback(
-    () =>
-      captureMedia({
-        addPlaceholder: true,
-        cameraMediaTypes: ['images'],
-      }),
-    [captureMedia]
-  );
-
-  const takeVideo = useCallback(
-    () =>
-      captureMedia({
-        addPlaceholder: false,
-        cameraMediaTypes: ['videos'],
-      }),
-    [captureMedia]
-  );
+  const takePhoto = useCallback(() => takePicture(['images']), [takePicture]);
+  const takeVideo = useCallback(() => takePicture(['videos']), [takePicture]);
 
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
@@ -424,22 +390,77 @@ export default function AttachmentSheet({
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
-      createAttachmentSheetActionGroups({
-        createAssetFromClipboard,
-        hasClipboardImage,
-        isWeb,
-        mediaType,
-        onClearAttachments,
-        pickImage,
-        platformOS: Platform.OS,
-        showClearOption,
-        startFilePicker,
-        startRecordingVoiceMemo,
-        takePhoto,
-        takePhotoOrVideo,
-        takeVideo,
-        useVideoInMediaPicker,
-      }),
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: useVideoInMediaPicker
+              ? isWeb
+                ? 'Upload Media'
+                : 'Media Library'
+              : isWeb
+                ? 'Upload an Image'
+                : 'Photo Library',
+            description: isWeb
+              ? useVideoInMediaPicker
+                ? 'Upload an image or video from your computer'
+                : 'Upload an image from your computer'
+              : useVideoInMediaPicker
+                ? 'Choose a photo or video from your library'
+                : 'Choose a photo from your library',
+            action: pickImage,
+          },
+          !isWeb &&
+            !(Platform.OS === 'android' && useVideoInMediaPicker) && {
+              title: useVideoInMediaPicker
+                ? 'Capture Photo or Video'
+                : 'Take a Photo',
+              description: useVideoInMediaPicker
+                ? 'Use your camera to capture a photo or video'
+                : 'Use your camera to take a photo',
+              action: takePicture,
+            },
+          !isWeb &&
+            Platform.OS === 'android' &&
+            useVideoInMediaPicker && {
+              title: 'Capture photo',
+              description: 'Use your camera to capture a photo',
+              action: takePhoto,
+            },
+          !isWeb &&
+            Platform.OS === 'android' &&
+            useVideoInMediaPicker && {
+              title: 'Capture video',
+              description: 'Use your camera to capture a video',
+              action: takeVideo,
+            },
+          !isWeb &&
+            hasClipboardImage && {
+              title: 'Paste from Clipboard',
+              description: 'Use the image currently in your clipboard',
+              action: createAssetFromClipboard,
+            },
+          mediaType === 'all' && {
+            title: 'Upload a File',
+            description: 'Upload files from your device',
+            action: startFilePicker,
+          },
+          mediaType === 'all' &&
+            !isWeb && {
+              title: 'Voice Memo',
+              description: 'Record an audio message',
+              action: startRecordingVoiceMemo,
+            },
+        ],
+        showClearOption && [
+          'negative',
+          {
+            title: 'Clear',
+            description: 'Remove attached media',
+            action: onClearAttachments,
+          },
+        ]
+      ),
     [
       startRecordingVoiceMemo,
       onClearAttachments,
@@ -447,8 +468,8 @@ export default function AttachmentSheet({
       startFilePicker,
       showClearOption,
       takePhoto,
-      takePhotoOrVideo,
       takeVideo,
+      takePicture,
       hasClipboardImage,
       createAssetFromClipboard,
       mediaType,
