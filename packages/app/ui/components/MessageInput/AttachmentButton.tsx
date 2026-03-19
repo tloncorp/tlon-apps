@@ -1,36 +1,36 @@
+import { Attachment } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { Alert } from 'react-native';
 
-import AttachmentSheet from '../AttachmentSheet';
+import { normalizeUploadIntents, pickFile } from '../../../utils/filepicker';
+import { useAttachmentContext } from '../../contexts';
 
 export default function AttachmentButton({
   setShouldBlur,
-  mediaType,
 }: {
   setShouldBlur: (shouldBlur: boolean) => void;
   mediaType: 'image' | 'all';
 }) {
-  const [showInputSelector, setShowInputSelector] = useState(false);
+  const { attachAssets } = useAttachmentContext();
 
-  useEffect(() => {
-    if (showInputSelector) {
-      setShouldBlur(true);
+  const handlePress = useCallback(async () => {
+    setShouldBlur(true);
+
+    const uploadIntents = await pickFile();
+    const { uploadIntents: normalizedUploadIntents, errorMessage } =
+      await normalizeUploadIntents(uploadIntents);
+
+    if (errorMessage) {
+      Alert.alert('Unable to attach', errorMessage);
     }
-  }, [showInputSelector, setShouldBlur]);
+
+    if (normalizedUploadIntents.length > 0) {
+      attachAssets(normalizedUploadIntents);
+    }
+  }, [setShouldBlur, attachAssets]);
 
   return (
-    <>
-      <Button
-        preset="secondary"
-        icon="Add"
-        onPress={() => setShowInputSelector(true)}
-      />
-      <AttachmentSheet
-        isOpen={showInputSelector}
-        onOpenChange={setShowInputSelector}
-        mediaType={mediaType}
-      />
-    </>
+    <Button preset="secondary" icon="Add" onPress={handlePress} />
   );
 }
