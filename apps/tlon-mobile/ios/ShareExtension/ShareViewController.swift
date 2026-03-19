@@ -10,9 +10,20 @@ import Social
 import UIKit
 
 class ShareViewController: UIViewController {
-  let hostAppGroupIdentifier = "group.io.tlon.groups"
-  let shareProtocol = "io.tlon.groups"
-  let sharedKey = "io.tlon.groupsShareKey"
+  var hostAppGroupIdentifier: String {
+    (Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String)
+      ?? "group.io.tlon.groups"
+  }
+
+  var shareProtocol: String {
+    let bundleId = Bundle.main.bundleIdentifier ?? "io.tlon.groups.share-extension"
+    return bundleId.replacingOccurrences(of: ".share-extension", with: "")
+  }
+
+  var sharedKey: String {
+    "\(shareProtocol)ShareKey"
+  }
+
   private let loadingIndicator = UIActivityIndicatorView(style: .large)
   var sharedMedia: [SharedMediaFile] = []
   var sharedWebUrl: [WebUrl] = []

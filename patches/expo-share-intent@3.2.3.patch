@@ -2,10 +2,24 @@ diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/
 index 1234567..89abcde 100644
 --- a/plugin/build/ios/ShareExtensionViewController.swift
 +++ b/plugin/build/ios/ShareExtensionViewController.swift
-@@ -13,6 +13,7 @@
-   let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
-   let shareProtocol = "<SCHEME>"
-   let sharedKey = "<SCHEME>ShareKey"
+@@ -13,6 +13,18 @@
+-  let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
+-  let shareProtocol = "<SCHEME>"
+-  let sharedKey = "<SCHEME>ShareKey"
++  var hostAppGroupIdentifier: String {
++    (Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String)
++      ?? "<GROUPIDENTIFIER>"
++  }
++
++  var shareProtocol: String {
++    let bundleId = Bundle.main.bundleIdentifier ?? "<SCHEME>.share-extension"
++    return bundleId.replacingOccurrences(of: ".share-extension", with: "")
++  }
++
++  var sharedKey: String {
++    "\(shareProtocol)ShareKey"
++  }
++
 +  private let loadingIndicator = UIActivityIndicatorView(style: .large)
    var sharedMedia: [SharedMediaFile] = []
    var sharedWebUrl: [WebUrl] = []
