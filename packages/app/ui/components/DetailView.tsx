@@ -22,6 +22,7 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
+  highlightPostId?: string | null;
   scrollerRef?: React.RefObject<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
@@ -40,6 +41,7 @@ export const DetailView = ({
   onPressDelete,
   setActiveMessage,
   activeMessage,
+  highlightPostId,
   scrollerRef,
 }: DetailViewProps) => {
   const channelType = channel.type;
@@ -97,6 +99,7 @@ export const DetailView = ({
         onPressImage={onPressImage}
         onPressRetry={onPressRetry}
         onPressDelete={onPressDelete}
+        highlightPostId={highlightPostId}
         firstUnreadId={
           initialPostUnread?.count ?? 0 > 0
             ? initialPostUnread?.firstUnreadPostId
