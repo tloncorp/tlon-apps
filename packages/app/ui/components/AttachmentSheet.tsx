@@ -213,15 +213,16 @@ export default function AttachmentSheet({
             // Replace the placeholder with the real image data
             const realAsset = result.assets[0];
 
-          removePlaceholderAttachment();
-          await attachNormalizedUploadIntents([
-            imagePickerAssetToUploadIntent(
-              normalizeImagePickerAssetForUpload(realAsset)
-            ),
-          ]);
-        } else {
-          // If user canceled, remove the placeholder
-          clearAttachments();
+            removePlaceholderAttachment();
+            await attachNormalizedUploadIntents([
+              imagePickerAssetToUploadIntent(
+                normalizeImagePickerAssetForUpload(realAsset)
+              ),
+            ]);
+          } else {
+            // If user canceled, remove the placeholder
+            clearAttachments();
+          }
         } catch (e) {
           console.error('Error taking picture', e);
           logger.trackError('Error taking picture', e);
