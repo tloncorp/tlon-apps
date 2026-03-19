@@ -411,7 +411,7 @@ export default function AttachmentSheet({
             action: pickImage,
           },
           !isWeb &&
-            !(Platform.OS === 'android' && useVideoInMediaPicker) && {
+            Platform.OS !== 'android' && {
               title: useVideoInMediaPicker
                 ? 'Capture Photo or Video'
                 : 'Take a Photo',
@@ -421,8 +421,7 @@ export default function AttachmentSheet({
               action: takePicture,
             },
           !isWeb &&
-            Platform.OS === 'android' &&
-            useVideoInMediaPicker && {
+            Platform.OS === 'android' && {
               title: 'Capture photo',
               description: 'Use your camera to capture a photo',
               action: takePhoto,
