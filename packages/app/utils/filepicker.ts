@@ -26,14 +26,21 @@ function positiveNumberOrUndefined(value: number | null | undefined): number | u
 }
 
 function imagePickerAssetVideoMetadata(
-  asset: Pick<ImagePickerAsset, 'width' | 'height' | 'duration'>
+  asset: Pick<ImagePickerAsset, 'width' | 'height' | 'duration'>,
+  assetFile?: File
 ) {
+  // On web, expo-image-picker's returnMediaData path (which also sets asset.file)
+  // provides duration directly from HTMLVideoElement.duration — already in seconds.
+  // On native, duration is in milliseconds. Use assetFile as the signal.
+  const durationSeconds =
+    asset.duration == null ? undefined
+    : assetFile ? asset.duration        // web: already seconds
+    : asset.duration / 1000;            // native: ms → seconds
+
   return {
     width: positiveNumberOrUndefined(asset.width),
     height: positiveNumberOrUndefined(asset.height),
-    duration: positiveNumberOrUndefined(
-      asset.duration != null ? asset.duration / 1000 : undefined
-    ),
+    duration: positiveNumberOrUndefined(durationSeconds),
   };
 }
 
@@ -67,8 +74,8 @@ export function imagePickerAssetToUploadIntent(
   asset: ImagePickerAsset
 ): Attachment.UploadIntent {
   if (asset.type === 'video') {
-    const video = imagePickerAssetVideoMetadata(asset);
     const assetFile = getAssetFile(asset);
+    const video = imagePickerAssetVideoMetadata(asset, assetFile);
 
     if (assetFile) {
       return {
