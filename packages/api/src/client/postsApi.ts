@@ -8,6 +8,7 @@ import {
   PlaintextPreviewConfig,
   getTextContent,
 } from '../lib/postContent';
+import { sanitizePostDataForNetwork } from '../lib/content-helpers';
 import * as ub from '../urbit';
 import { ContentReference } from '../types/references';
 import {
@@ -152,17 +153,22 @@ export const sendPost = async ({
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
+  const sanitized = sanitizePostDataForNetwork({
+    story: content,
+    blob,
+    metadata,
+  });
 
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
         essay: {
-          content,
+          content: sanitized.story,
           sent: sentAt,
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: blob ?? null,
+          blob: sanitized.blob ?? null,
         },
         time: null,
       },
@@ -178,17 +184,17 @@ export const sendPost = async ({
   }
 
   const essay = toPostEssay({
-    content,
-    blob,
+    content: sanitized.story,
+    blob: sanitized.blob,
     authorId,
     sentAt,
     channelType,
-    metadata: metadata
+    metadata: sanitized.metadata
       ? {
-          title: metadata.title || '',
-          image: metadata.image || '',
-          description: metadata.description || '',
-          cover: metadata.cover || '',
+          title: sanitized.metadata.title || '',
+          image: sanitized.metadata.image || '',
+          description: sanitized.metadata.description || '',
+          cover: sanitized.metadata.cover || '',
         }
       : undefined,
   });
@@ -222,6 +228,11 @@ export const editPost = async ({
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
+  const sanitized = sanitizePostDataForNetwork({
+    story: content,
+    blob,
+    metadata,
+  });
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
@@ -231,7 +242,7 @@ export const editPost = async ({
     logger.log('editing a reply');
     const memo: ub.Memo = {
       author: authorId,
-      content,
+      content: sanitized.story,
       sent: sentAt,
     };
 
@@ -258,17 +269,17 @@ export const editPost = async ({
   logger.log('editing a post');
 
   const essay = toPostEssay({
-    content,
+    content: sanitized.story,
     authorId,
     sentAt,
     channelType,
-    blob,
-    metadata: metadata
+    blob: sanitized.blob,
+    metadata: sanitized.metadata
       ? {
-          title: metadata.title || '',
-          image: metadata.image || '',
-          description: metadata.description || '',
-          cover: metadata.cover || '',
+          title: sanitized.metadata.title || '',
+          image: sanitized.metadata.image || '',
+          description: sanitized.metadata.description || '',
+          cover: sanitized.metadata.cover || '',
         }
       : undefined,
   });

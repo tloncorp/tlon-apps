@@ -604,6 +604,12 @@ export type PostBlobDataEntry =
 
 type PostBlobData = PostBlobDataEntry[];
 
+const LOCAL_URI_PREFIXES = ['file:', 'blob:', 'data:', 'content:'];
+
+function isLocalMediaUri(uri: string | undefined): boolean {
+  return !!uri && LOCAL_URI_PREFIXES.some((prefix) => uri.startsWith(prefix));
+}
+
 export function appendToPostBlob(
   blob: string | undefined,
   entry: PostBlobDataEntry
@@ -702,6 +708,57 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });
     return { type: 'unknown' };
   });
+}
+
+export function sanitizePostDataForNetwork({
+  story,
+  metadata,
+  blob,
+}: {
+  story: Story;
+  metadata?: PostMetadata;
+  blob?: string;
+}): { story: Story; metadata?: PostMetadata; blob?: string } {
+  if (!blob) {
+    return { story, metadata, blob };
+  }
+
+  let didSanitize = false;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(blob);
+  } catch {
+    return { story, metadata, blob };
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { story, metadata, blob };
+  }
+
+  const sanitizedBlob = JSON.stringify(
+    parsed.map((entry) => {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        'type' in entry &&
+        entry.type === 'video' &&
+        'posterUri' in entry &&
+        typeof entry.posterUri === 'string' &&
+        isLocalMediaUri(entry.posterUri)
+      ) {
+        didSanitize = true;
+        const { posterUri: _ignoredPosterUri, ...rest } = entry;
+        return rest;
+      }
+      return entry;
+    })
+  );
+
+  return {
+    story,
+    metadata,
+    blob: didSanitize ? sanitizedBlob : blob,
+  };
 }
 
 export function toPostData({
