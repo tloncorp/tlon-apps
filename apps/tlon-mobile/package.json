@@ -6,6 +6,7 @@
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
     "android": "expo run:android --variant=productionDebug",
     "android:preview": "expo run:android --variant=previewDebug",
+    "android:release:preview": "pnpm exec expo run:android --variant=previewRelease",
     "android:release": "pnpm exec expo run:android --variant=productionRelease",
     "android:update-lockfile": "cd android && ./gradlew app:dependencies --write-locks",
     "bundler": "expo start",
