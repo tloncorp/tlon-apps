@@ -1,6 +1,9 @@
 import { Attachment } from '@tloncorp/shared/domain';
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
+import { normalizeUploadIntents, pickFile } from '../../utils/filepicker';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
@@ -14,14 +17,32 @@ export default function AddGalleryPost({
   setRoute: (route: GalleryRoute) => void;
   onSetMedia: (assets: Attachment.UploadIntent[]) => void;
 }) {
+  const openFilePicker = useCallback(async () => {
+    const uploadIntents = await pickFile();
+    const { uploadIntents: normalizedUploadIntents, errorMessage } =
+      await normalizeUploadIntents(uploadIntents);
+
+    if (errorMessage) {
+      Alert.alert('Unable to attach', errorMessage);
+    }
+
+    if (normalizedUploadIntents.length > 0) {
+      onSetMedia(normalizedUploadIntents);
+    }
+  }, [onSetMedia]);
+
   const actions: Action[] = [
     {
       title: 'Media or File',
       action: () => {
-        setRoute('gallery');
-        setTimeout(() => {
-          setRoute('add-attachment');
-        }, 300);
+        if (isWeb) {
+          void openFilePicker();
+        } else {
+          setRoute('gallery');
+          setTimeout(() => {
+            setRoute('add-attachment');
+          }, 300);
+        }
       },
       testID: 'AddGalleryPostImage',
     },
@@ -64,12 +85,14 @@ export default function AddGalleryPost({
         onOpenChange={onClose}
         actions={actions}
       />
-      <AttachmentSheet
-        isOpen={route === 'add-attachment'}
-        onOpenChange={onClose}
-        onAttach={handleAttachmentSet}
-        mediaType="all"
-      />
+      {!isWeb && (
+        <AttachmentSheet
+          isOpen={route === 'add-attachment'}
+          onOpenChange={onClose}
+          onAttach={handleAttachmentSet}
+          mediaType="all"
+        />
+      )}
     </>
   );
 }
