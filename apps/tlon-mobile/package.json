@@ -7,6 +7,7 @@
     "android": "expo run:android --variant=productionDebug",
     "android:preview": "expo run:android --variant=previewDebug",
     "android:release": "rm -rf android/app/build/generated/assets/createBundleProductionReleaseJsAndAssets && pnpm exec expo run:android --variant=productionRelease",
+    "android:release:preview": "pnpm exec expo run:android --variant=previewRelease",
     "android:update-lockfile": "cd android && ./gradlew app:dependencies --write-locks",
     "bundler": "expo start",
     "clearcache": "expo start -c",
