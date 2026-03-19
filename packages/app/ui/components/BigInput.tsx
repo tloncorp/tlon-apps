@@ -27,8 +27,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
+import { Input, XStack, getTokenValue, isWeb, useTheme } from 'tamagui';
 
+import { pickFile } from '../../utils/filepicker';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
@@ -436,6 +437,23 @@ export function BigInput({
     []
   );
 
+  const IMAGE_MIME_TYPES = ['image/*'];
+
+  // On web, open the file picker directly for header images instead of
+  // showing the AttachmentSheet (which uses expo-image-picker and breaks
+  // in Chrome).
+  const pickHeaderImageWeb = useCallback(async () => {
+    const intents = await pickFile({ mimeTypes: IMAGE_MIME_TYPES });
+    if (intents.length > 0) {
+      const intent = intents[0];
+      if (intent.type === 'file') {
+        setImageUri(URL.createObjectURL(intent.file));
+      } else if (intent.type === 'fileUri') {
+        setImageUri(intent.localUri);
+      }
+    }
+  }, []);
+
   const handleInlineImageSelect = useCallback(
     async (intents: Attachment.UploadIntent[]) => {
       // We only allow image uploads, so we can simplify and only handle images
@@ -510,6 +528,60 @@ export function BigInput({
     [showToast]
   );
 
+  // On web, open the file picker directly for inline images instead of
+  // showing the AttachmentSheet.
+  const pickInlineImageWeb = useCallback(async () => {
+    const intents = await pickFile({ mimeTypes: IMAGE_MIME_TYPES });
+    if (intents.length > 0 && editorRef.current?.editor) {
+      const intent = intents[0];
+      try {
+        await uploadAssetToStorage(intent, true);
+
+        if (!isMountedRef.current) return;
+
+        const intentKey = Attachment.UploadIntent.extractKey(intent);
+        const uploadStates = await waitForUploads([intentKey]);
+
+        if (!isMountedRef.current) return;
+
+        const uploadState = uploadStates[intentKey];
+
+        if (uploadState?.status === 'success' && editorRef.current?.editor) {
+          const savedSelection = inlineImageSelectionRef.current;
+          if (savedSelection) {
+            editorRef.current.editor.focus();
+            editorRef.current.editor.setSelection(
+              savedSelection.from,
+              savedSelection.to
+            );
+          }
+
+          const s3Url = uploadState.remoteUri;
+          (editorRef.current.editor as any).setImage(s3Url);
+          inlineImageSelectionRef.current = null;
+        } else if (isMountedRef.current) {
+          logger.trackError('notebook:inline-image:upload-failure', {
+            uploadState,
+          });
+          showToast({
+            message: 'Failed to upload image. Please try again.',
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        inlineImageSelectionRef.current = null;
+        if (isMountedRef.current) {
+          logger.trackError('notebook:inline-image:upload-error', error);
+          showToast({
+            message:
+              'Error uploading image. Please check your connection and try again.',
+            duration: 3000,
+          });
+        }
+      }
+    }
+  }, [showToast]);
+
   // Update image URI when editing post changes
   useEffect(() => {
     setImageUri(editingPost?.image || null);
@@ -535,8 +607,12 @@ export function BigInput({
             from: editorState.selection.from,
             to: editorState.selection.to,
           };
-          setShouldBlur(true);
-          setShowInlineImageSheet(true);
+          if (isWeb) {
+            void pickInlineImageWeb();
+          } else {
+            setShouldBlur(true);
+            setShowInlineImageSheet(true);
+          }
         },
       active: () => false,
       disabled: () => false,
@@ -563,6 +639,7 @@ export function BigInput({
     handleMarkdownToggle,
     markdownNotebooksEnabled,
     setShouldBlur,
+    pickInlineImageWeb,
   ]);
 
   return (
@@ -602,7 +679,7 @@ export function BigInput({
                       borderRadius="$m"
                     />
                     <TouchableOpacity
-                      onPress={() => setShowAttachmentSheet(true)}
+                      onPress={() => isWeb ? void pickHeaderImageWeb() : setShowAttachmentSheet(true)}
                     >
                       <XStack alignItems="center" gap="$xs">
                         <Icon type="Attachment" size="$m" />
@@ -614,7 +691,7 @@ export function BigInput({
                   </XStack>
                 ) : (
                   <TouchableOpacity
-                    onPress={() => setShowAttachmentSheet(true)}
+                    onPress={() => isWeb ? void pickHeaderImageWeb() : setShowAttachmentSheet(true)}
                   >
                     <XStack alignItems="center" gap="$xs">
                       <Icon type="Attachment" size="$m" />
@@ -785,7 +862,7 @@ export function BigInput({
         </>
       )}
 
-      {channelType === 'notebook' && showAttachmentSheet && (
+      {!isWeb && channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
@@ -796,7 +873,7 @@ export function BigInput({
         />
       )}
 
-      {channelType === 'notebook' && showInlineImageSheet && (
+      {!isWeb && channelType === 'notebook' && showInlineImageSheet && (
         <AttachmentSheet
           isOpen={showInlineImageSheet}
           onOpenChange={setShowInlineImageSheet}
