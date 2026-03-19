@@ -14,13 +14,16 @@ const mimeToExt: Record<string, string> = {
   'image/webp': '.webp',
   'image/heic': '.heic',
   'image/heif': '.heif',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
 };
 
 export function ensureFileExtension(
   filename: string,
   contentType?: string
 ): string {
-  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|webm)$/i.test(filename)) {
     return filename;
   }
 

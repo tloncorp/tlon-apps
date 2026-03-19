@@ -110,3 +110,11 @@ test('inferAllowedVideoMimeType infers from extension', () => {
     })
   ).toBe('video/quicktime');
 });
+
+test('inferAllowedVideoMimeType extracts media type from data URI', () => {
+  expect(
+    inferAllowedVideoMimeType({
+      uri: 'data:video/quicktime;base64,AAAA',
+    })
+  ).toBe('video/quicktime');
+});
