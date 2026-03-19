@@ -3,7 +3,6 @@ import {
   Attachment,
   FinalizedAttachment,
   ImageAttachment,
-  UploadState,
   getMd5,
 } from '@tloncorp/shared';
 import {
@@ -123,10 +122,6 @@ function revokeBlobUri(uri: string) {
   }
 }
 
-function isUploadPending(uploadState: UploadState | undefined): boolean {
-  return uploadState == null || uploadState.status === 'uploading';
-}
-
 export const AttachmentProvider = ({
   initialAttachments,
   uploadAsset,
@@ -141,13 +136,8 @@ export const AttachmentProvider = ({
   initialAttachments?: Attachment[];
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
-  const [leasedPreviewUploadKeys, setLeasedPreviewUploadKeys] = useState<
-    Attachment.UploadIntent.Key[]
-  >([]);
   const stateRef = useRef(state);
-  const leasedPreviewUrisRef = useRef(
-    new Map<Attachment.UploadIntent.Key, string[]>()
-  );
+  const previewUrisToRevokeRef = useRef(new Set<string>());
 
   useEffect(() => {
     stateRef.current = state;
@@ -157,19 +147,18 @@ export const AttachmentProvider = ({
     useMemo(
       () =>
         Array.from(
-          new Set([
-            ...state.flatMap((a) => {
+          new Set(
+            state.flatMap((a) => {
               const x = Attachment.toUploadIntent(a);
               if (x.needsUpload) {
                 return [Attachment.UploadIntent.extractKey(x)];
               } else {
                 return [];
               }
-            }),
-            ...leasedPreviewUploadKeys,
-          ])
+            })
+          )
         ),
-      [leasedPreviewUploadKeys, state]
+      [state]
     )
   );
 
@@ -201,87 +190,26 @@ export const AttachmentProvider = ({
   }, [attachments, uploadAsset, assetUploadStates]);
 
   useEffect(() => {
-    const settledKeys: Attachment.UploadIntent.Key[] = [];
-    leasedPreviewUrisRef.current.forEach((uris, key) => {
-      const uploadState = assetUploadStates[key];
-      if (uploadState?.status === 'success' || uploadState?.status === 'error') {
-        uris.forEach(revokeBlobUri);
-        settledKeys.push(key);
-      }
+    attachments.flatMap(getVideoBlobPreviewUris).forEach((uri) => {
+      previewUrisToRevokeRef.current.add(uri);
     });
-
-    if (settledKeys.length === 0) {
-      return;
-    }
-
-    settledKeys.forEach((key) => {
-      leasedPreviewUrisRef.current.delete(key);
-    });
-    setLeasedPreviewUploadKeys((prev) =>
-      prev.filter((key) => !settledKeys.includes(key))
-    );
-  }, [assetUploadStates]);
+  }, [attachments]);
 
   useEffect(() => {
     return () => {
-      leasedPreviewUrisRef.current.forEach((uris) => {
-        uris.forEach(revokeBlobUri);
-      });
-      leasedPreviewUrisRef.current.clear();
+      previewUrisToRevokeRef.current.forEach(revokeBlobUri);
+      previewUrisToRevokeRef.current.clear();
     };
   }, []);
 
-  const revokeDetachedVideoPreviewUrisSafely = useCallback(
-    (previous: Attachment[], next: Attachment[]) => {
-      const retainedUris = new Set(next.flatMap(getVideoBlobPreviewUris));
-      const nextLeasedKeys = new Set<Attachment.UploadIntent.Key>();
-
-      previous.forEach((attachment) => {
-        const detachedUris = getVideoBlobPreviewUris(attachment).filter(
-          (uri) => !retainedUris.has(uri)
-        );
-        if (detachedUris.length === 0) {
-          return;
-        }
-
-        const uploadIntent = Attachment.toUploadIntent(attachment);
-        if (!uploadIntent.needsUpload) {
-          detachedUris.forEach(revokeBlobUri);
-          return;
-        }
-
-        const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
-        if (isUploadPending(assetUploadStates[uploadKey])) {
-          const existingUris = leasedPreviewUrisRef.current.get(uploadKey) ?? [];
-          leasedPreviewUrisRef.current.set(uploadKey, [
-            ...new Set([...existingUris, ...detachedUris]),
-          ]);
-          nextLeasedKeys.add(uploadKey);
-          return;
-        }
-
-        detachedUris.forEach(revokeBlobUri);
-      });
-
-      if (nextLeasedKeys.size > 0) {
-        setLeasedPreviewUploadKeys((prev) =>
-          Array.from(new Set([...prev, ...nextLeasedKeys]))
-        );
-      }
-    },
-    [assetUploadStates]
-  );
-
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    const previous = stateRef.current;
-    const next = addAttachmentToState(previous, attachment);
+    const next = addAttachmentToState(stateRef.current, attachment);
     if (next.errorMessage) {
       Alert.alert('Unable to attach', next.errorMessage);
     }
     stateRef.current = next.attachments;
     setState(next.attachments);
-    revokeDetachedVideoPreviewUrisSafely(previous, next.attachments);
-  }, [revokeDetachedVideoPreviewUrisSafely]);
+  }, []);
 
   const handleAttachAssets = useCallback(
     (uploadIntents: Attachment.UploadIntent[]) => {
@@ -314,22 +242,19 @@ export const AttachmentProvider = ({
       }
       return true;
     });
-    revokeDetachedVideoPreviewUrisSafely(previousState, nextState);
     stateRef.current = nextState;
     setState(nextState);
-  }, [revokeDetachedVideoPreviewUrisSafely]);
+  }, []);
 
   const handleClearAttachments = useCallback(() => {
-    revokeDetachedVideoPreviewUrisSafely(stateRef.current, []);
     stateRef.current = [];
     setState([]);
-  }, [revokeDetachedVideoPreviewUrisSafely]);
+  }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
-    revokeDetachedVideoPreviewUrisSafely(stateRef.current, attachments);
     stateRef.current = attachments;
     setState(attachments);
-  }, [revokeDetachedVideoPreviewUrisSafely]);
+  }, []);
 
   const handleWaitForUploads = useCallback(
     () => finalizeAttachments(state),
