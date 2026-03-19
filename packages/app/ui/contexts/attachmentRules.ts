@@ -49,21 +49,16 @@ export function normalizeMediaType(
   return mediaType || undefined;
 }
 
-function inferUriMediaType(uri: string | undefined): string | undefined {
-  if (!uri?.trim().toLowerCase().startsWith('data:')) {
-    return undefined;
-  }
-
-  return normalizeMediaType(uri);
-}
-
 export function isLikelyVideoSource({
   mimeType,
   name,
   uri,
 }: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): boolean {
   const normalizedMimeType =
-    normalizeMediaType(mimeType) ?? inferUriMediaType(uri);
+    normalizeMediaType(mimeType) ??
+    (uri?.trim().toLowerCase().startsWith('data:')
+      ? normalizeMediaType(uri)
+      : undefined);
   return (
     (!!normalizedMimeType && normalizedMimeType.startsWith('video/')) ||
     (!!name && VIDEO_EXTENSION_REGEX.test(name)) ||
@@ -77,7 +72,10 @@ export function inferAllowedVideoMimeType({
   uri,
 }: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): string | undefined {
   const normalizedMimeType =
-    normalizeMediaType(mimeType) ?? inferUriMediaType(uri);
+    normalizeMediaType(mimeType) ??
+    (uri?.trim().toLowerCase().startsWith('data:')
+      ? normalizeMediaType(uri)
+      : undefined);
   if (normalizedMimeType) {
     if (VIDEO_MIME_ALLOWLIST.has(normalizedMimeType)) {
       return normalizedMimeType;

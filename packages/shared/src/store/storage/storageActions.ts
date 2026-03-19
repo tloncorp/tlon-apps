@@ -317,7 +317,7 @@ export const performUpload = async (
         blob,
         fileName,
         contentType,
-        uploadSource: isWeb ? blob : params.uri,
+        uploadSource: params.uri,
       };
     }
   })();

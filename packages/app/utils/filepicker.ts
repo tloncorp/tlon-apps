@@ -174,29 +174,21 @@ function inferAssetMimeType(
   );
 }
 
-function inferAssetType(
-  asset: Pick<ImagePickerAsset, 'file' | 'fileName' | 'mimeType' | 'type' | 'uri'>
-): 'image' | 'video' {
-  if (asset.type === 'image' || asset.type === 'video') {
-    return asset.type;
-  }
-
-  const mimeType = inferAssetMimeType(asset);
-  return isLikelyVideoSource({
-    mimeType,
-    name: asset.fileName ?? getAssetFile(asset)?.name ?? undefined,
-    uri: asset.uri,
-  })
-    ? 'video'
-    : 'image';
-}
-
 export function imagePickerAssetToUploadIntent(
   asset: ImagePickerAsset
 ): Attachment.UploadIntent {
   const assetFile = getAssetFile(asset);
   const mimeType = inferAssetMimeType(asset);
-  const assetType = inferAssetType(asset);
+  const assetType =
+    asset.type === 'image' || asset.type === 'video'
+      ? asset.type
+      : isLikelyVideoSource({
+          mimeType,
+          name: asset.fileName ?? assetFile?.name ?? undefined,
+          uri: asset.uri,
+        })
+        ? 'video'
+        : 'image';
 
   if (assetType === 'video') {
     if (assetFile) {
@@ -207,12 +199,9 @@ export function imagePickerAssetToUploadIntent(
           name: asset.fileName ?? assetFile.name,
         }),
         video: {
-          width: positiveNumberOrUndefined(asset.width),
-          height: positiveNumberOrUndefined(asset.height),
-          duration:
-            asset.duration != null
-              ? positiveNumberOrUndefined(asset.duration / 1000)
-              : undefined,
+          width: asset.width ?? undefined,
+          height: asset.height ?? undefined,
+          duration: asset.duration != null ? asset.duration / 1000 : undefined,
         },
       };
     }
@@ -224,12 +213,9 @@ export function imagePickerAssetToUploadIntent(
       size: resolveVideoSize(asset.fileSize ?? undefined, asset.uri) ?? -1,
       mimeType,
       video: {
-        width: positiveNumberOrUndefined(asset.width),
-        height: positiveNumberOrUndefined(asset.height),
-        duration:
-          asset.duration != null
-            ? positiveNumberOrUndefined(asset.duration / 1000)
-            : undefined,
+        width: asset.width ?? undefined,
+        height: asset.height ?? undefined,
+        duration: asset.duration != null ? asset.duration / 1000 : undefined,
       },
     };
   }
