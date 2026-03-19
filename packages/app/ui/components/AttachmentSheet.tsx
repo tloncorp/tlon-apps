@@ -33,13 +33,14 @@ import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
 } from '../utils';
-import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
+import { ActionGroup, ActionSheet } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
 import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
+import { createAttachmentSheetActionGroups } from './attachmentSheetActions';
 import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
@@ -156,7 +157,6 @@ export default function AttachmentSheet({
   }, [removeAttachment]);
 
   const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
-  const showCameraAction = Platform.OS === 'ios';
   const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
     () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
     [useVideoInMediaPicker]
@@ -179,7 +179,14 @@ export default function AttachmentSheet({
     [attachAssets, onAttach]
   );
 
-  const takePicture = useCallback(() => {
+  const captureMedia = useCallback(
+    ({
+      addPlaceholder,
+      cameraMediaTypes,
+    }: {
+      addPlaceholder: boolean;
+      cameraMediaTypes: ImagePicker.MediaType[];
+    }) => {
     // Close the sheet immediately
     onOpenChange(false);
 
@@ -195,12 +202,12 @@ export default function AttachmentSheet({
 
         // Immediately set the placeholder attachment to show in the UI
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (Platform.OS !== 'web') {
+        if (addPlaceholder && Platform.OS !== 'web') {
           attachAssets([placeholderUploadIntent]);
         }
 
         const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: pickerMediaTypes,
+          mediaTypes: cameraMediaTypes,
           allowsEditing: false,
           quality: 0.5,
           exif: false,
@@ -210,32 +217,64 @@ export default function AttachmentSheet({
           // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
 
-          removePlaceholderAttachment();
+          if (addPlaceholder) {
+            removePlaceholderAttachment();
+          }
           await attachNormalizedUploadIntents([
             imagePickerAssetToUploadIntent(realAsset),
           ]);
-        } else {
+        } else if (addPlaceholder) {
           // If user canceled, remove the placeholder
           clearAttachments();
         }
       } catch (e) {
-        console.error('Error taking picture', e);
-        logger.trackError('Error taking picture', e);
+        console.error('Error capturing media', e);
+        logger.trackError('Error capturing media', e);
         // In case of error, remove the placeholder
-        clearAttachments();
+        if (addPlaceholder) {
+          clearAttachments();
+        }
       }
     }, 50); // Small delay to ensure the sheet closes first
-  }, [
-    attachAssets,
-    clearAttachments,
-    onOpenChange,
-    cameraPermissionStatus,
-    pickerMediaTypes,
-    requestCameraPermission,
-    placeholderUploadIntent,
-    attachNormalizedUploadIntents,
-    removePlaceholderAttachment,
-  ]);
+    },
+    [
+      attachAssets,
+      clearAttachments,
+      onOpenChange,
+      cameraPermissionStatus,
+      requestCameraPermission,
+      placeholderUploadIntent,
+      attachNormalizedUploadIntents,
+      removePlaceholderAttachment,
+    ]
+  );
+
+  const takePhotoOrVideo = useCallback(
+    () =>
+      captureMedia({
+        addPlaceholder: true,
+        cameraMediaTypes: pickerMediaTypes,
+      }),
+    [captureMedia, pickerMediaTypes]
+  );
+
+  const takePhoto = useCallback(
+    () =>
+      captureMedia({
+        addPlaceholder: true,
+        cameraMediaTypes: ['images'],
+      }),
+    [captureMedia]
+  );
+
+  const takeVideo = useCallback(
+    () =>
+      captureMedia({
+        addPlaceholder: false,
+        cameraMediaTypes: ['videos'],
+      }),
+    [captureMedia]
+  );
 
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
@@ -385,74 +424,35 @@ export default function AttachmentSheet({
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
-      createActionGroups(
-        [
-          'neutral',
-          {
-            title: useVideoInMediaPicker
-              ? isWeb
-                ? 'Upload Media'
-                : 'Media Library'
-              : isWeb
-                ? 'Upload an Image'
-                : 'Photo Library',
-            description: isWeb
-              ? useVideoInMediaPicker
-                ? 'Upload an image or video from your computer'
-                : 'Upload an image from your computer'
-              : useVideoInMediaPicker
-                ? 'Choose a photo or video from your library'
-                : 'Choose a photo from your library',
-            action: pickImage,
-          },
-          showCameraAction && {
-            title: useVideoInMediaPicker
-              ? 'Capture Photo or Video'
-              : 'Take a Photo',
-            description: useVideoInMediaPicker
-              ? 'Use your camera to capture a photo or video'
-              : 'Use your camera to take a photo',
-            action: takePicture,
-          },
-          !isWeb &&
-            hasClipboardImage && {
-              title: 'Paste from Clipboard',
-              description: 'Use the image currently in your clipboard',
-              action: createAssetFromClipboard,
-            },
-          mediaType === 'all' && {
-            title: 'Upload a File',
-            description: 'Upload files from your device',
-            action: startFilePicker,
-          },
-          mediaType === 'all' &&
-            !isWeb && {
-              title: 'Voice Memo',
-              description: 'Record an audio message',
-              action: startRecordingVoiceMemo,
-            },
-        ],
-        showClearOption && [
-          'negative',
-          {
-            title: 'Clear',
-            description: 'Remove attached media',
-            action: onClearAttachments,
-          },
-        ]
-      ),
+      createAttachmentSheetActionGroups({
+        createAssetFromClipboard,
+        hasClipboardImage,
+        isWeb,
+        mediaType,
+        onClearAttachments,
+        pickImage,
+        platformOS: Platform.OS,
+        showClearOption,
+        startFilePicker,
+        startRecordingVoiceMemo,
+        takePhoto,
+        takePhotoOrVideo,
+        takeVideo,
+        useVideoInMediaPicker,
+      }),
     [
       startRecordingVoiceMemo,
       onClearAttachments,
       pickImage,
       startFilePicker,
       showClearOption,
-      takePicture,
+      takePhoto,
+      takePhotoOrVideo,
+      takeVideo,
       hasClipboardImage,
       createAssetFromClipboard,
       mediaType,
       useVideoInMediaPicker,
-      showCameraAction,
     ]
   );
 
