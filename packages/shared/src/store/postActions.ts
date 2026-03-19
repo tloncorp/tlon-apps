@@ -8,7 +8,6 @@ import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
 import * as Transcription from '../transcription';
-import { sanitizePostBlobForNetwork } from './postBlob';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -324,7 +323,7 @@ async function _sendPost({
           channelId: channel.id,
           authorId,
           content: finalizedPostData.content,
-          blob: sanitizePostBlobForNetwork(finalizedPostData.blob),
+          blob: finalizedPostData.blob,
           metadata: finalizedPostData.metadata,
           sentAt: cachePost.sentAt,
         });
@@ -632,7 +631,7 @@ async function _editPost({
         postId: finalized.editTargetPostId,
         authorId: postBeforeEdit.authorId,
         sentAt: postBeforeEdit.sentAt,
-        blob: sanitizePostBlobForNetwork(postBeforeEdit.blob ?? undefined), // NB: blob is not editable - so you can't e.g. change or remove a file attachment
+        blob: postBeforeEdit.blob ?? undefined, // NB: blob is not editable - so you can't e.g. change or remove a file attachment
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,

@@ -28,6 +28,9 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
+import {
+  normalizeImagePickerAssetForUpload,
+} from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -210,14 +213,15 @@ export default function AttachmentSheet({
             // Replace the placeholder with the real image data
             const realAsset = result.assets[0];
 
-            removePlaceholderAttachment();
-            await attachNormalizedUploadIntents([
-              imagePickerAssetToUploadIntent(realAsset),
-            ]);
-          } else {
-            // If user canceled, remove the placeholder
-            clearAttachments();
-          }
+          removePlaceholderAttachment();
+          await attachNormalizedUploadIntents([
+            imagePickerAssetToUploadIntent(
+              normalizeImagePickerAssetForUpload(realAsset)
+            ),
+          ]);
+        } else {
+          // If user canceled, remove the placeholder
+          clearAttachments();
         } catch (e) {
           console.error('Error taking picture', e);
           logger.trackError('Error taking picture', e);
@@ -325,10 +329,12 @@ export default function AttachmentSheet({
 
         if (!result.canceled) {
           const realAsset = result.assets[0];
+          const normalizedAsset =
+            normalizeImagePickerAssetForUpload(realAsset);
 
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents([
-              imagePickerAssetToUploadIntent(realAsset),
+              imagePickerAssetToUploadIntent(normalizedAsset),
             ]);
 
           // Remove placeholder before attaching the selected media so validation

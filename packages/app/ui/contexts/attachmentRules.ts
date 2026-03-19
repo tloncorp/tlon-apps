@@ -25,42 +25,13 @@ type VideoCandidate = {
   size?: number;
 };
 
-export function normalizeMediaType(
-  value: string | null | undefined
-): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const trimmedValue = value.trim().toLowerCase();
-  const withoutDataPrefix = trimmedValue.startsWith('data:')
-    ? trimmedValue.slice('data:'.length)
-    : trimmedValue;
-  const semicolonIndex = withoutDataPrefix.indexOf(';');
-  const commaIndex = withoutDataPrefix.indexOf(',');
-  const endIndex = [semicolonIndex, commaIndex]
-    .filter((index) => index >= 0)
-    .sort((a, b) => a - b)[0];
-  const mediaType =
-    endIndex == null
-      ? withoutDataPrefix
-      : withoutDataPrefix.slice(0, endIndex);
-
-  return mediaType || undefined;
-}
-
 export function isLikelyVideoSource({
   mimeType,
   name,
   uri,
 }: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): boolean {
-  const normalizedMimeType =
-    normalizeMediaType(mimeType) ??
-    (uri?.trim().toLowerCase().startsWith('data:')
-      ? normalizeMediaType(uri)
-      : undefined);
   return (
-    (!!normalizedMimeType && normalizedMimeType.startsWith('video/')) ||
+    (!!mimeType && mimeType.toLowerCase().startsWith('video/')) ||
     (!!name && VIDEO_EXTENSION_REGEX.test(name)) ||
     (!!uri && VIDEO_EXTENSION_REGEX.test(uri))
   );
@@ -71,12 +42,8 @@ export function inferAllowedVideoMimeType({
   name,
   uri,
 }: Pick<VideoCandidate, 'mimeType' | 'name' | 'uri'>): string | undefined {
-  const normalizedMimeType =
-    normalizeMediaType(mimeType) ??
-    (uri?.trim().toLowerCase().startsWith('data:')
-      ? normalizeMediaType(uri)
-      : undefined);
-  if (normalizedMimeType) {
+  if (mimeType) {
+    const normalizedMimeType = mimeType.toLowerCase();
     if (VIDEO_MIME_ALLOWLIST.has(normalizedMimeType)) {
       return normalizedMimeType;
     }

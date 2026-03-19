@@ -1,5 +1,6 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
+
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
@@ -37,11 +38,13 @@ function makeAsset(
   } as ImagePickerAsset;
 }
 
-test('infers video upload intent when image picker asset type is missing', () => {
+test('builds a video upload intent from a normalized picker asset', () => {
   const uploadIntent = imagePickerAssetToUploadIntent(
     makeAsset({
       fileName: 'clip.MOV',
       fileSize: 4096,
+      mimeType: 'video/quicktime',
+      type: 'video',
       uri: 'blob:https://example.com/clip.MOV',
       width: 1920,
       height: 1080,
@@ -63,59 +66,42 @@ test('infers video upload intent when image picker asset type is missing', () =>
   });
 });
 
-test('uses the web File for video upload intents when image picker provides one', () => {
-  const file = new File(['video-bytes'], 'clip.mp4', { type: 'video/mp4' });
-
+test('drops non-positive picker video metadata during upload intent conversion', () => {
   const uploadIntent = imagePickerAssetToUploadIntent(
     makeAsset({
-      file,
       fileName: 'clip.mp4',
       fileSize: 4096,
-      mimeType: undefined,
-      uri: 'data:video/mp4;base64,AAAA',
-      width: 1920,
-      height: 1080,
-      duration: 2500,
+      mimeType: 'video/mp4',
+      type: 'video',
+      width: 0,
+      height: -5,
+      duration: 0,
+      uri: 'blob:https://example.com/clip.mp4',
     })
   );
 
   expect(uploadIntent).toEqual({
-    type: 'file',
-    file,
+    type: 'fileUri',
+    localUri: 'blob:https://example.com/clip.mp4',
+    name: 'clip.mp4',
+    size: 4096,
+    mimeType: 'video/mp4',
     video: {
-      width: 1920,
-      height: 1080,
-      duration: 2.5,
+      width: undefined,
+      height: undefined,
+      duration: undefined,
     },
   });
 });
 
-test('infers image mime type from data uri when image picker asset type is missing', () => {
-  const uploadIntent = imagePickerAssetToUploadIntent(
-    makeAsset({
-      fileName: undefined,
-      mimeType: undefined,
-      uri: 'data:image/png;base64,AAAA',
-    })
-  );
-
-  expect(uploadIntent).toMatchObject({
-    type: 'image',
-    asset: expect.objectContaining({
-      mimeType: 'image/png',
-      uri: 'data:image/png;base64,AAAA',
-    }),
-  });
-});
-
-test('normalizeUploadIntent keeps data-uri quicktime videos with inferred size', async () => {
+test('normalizeUploadIntent keeps supported quicktime videos with known size', async () => {
   vi.mocked(getVideoPreviewData).mockResolvedValueOnce({});
 
   const result = await normalizeUploadIntent({
     type: 'fileUri',
     localUri: 'data:video/quicktime;base64,AAAA',
     name: undefined,
-    size: -1,
+    size: 3,
     mimeType: 'video/quicktime',
     video: {
       width: 640,

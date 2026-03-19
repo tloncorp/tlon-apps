@@ -2,13 +2,7 @@ import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import {
-  inferAllowedVideoMimeType,
-  isLikelyVideoSource,
-  normalizeMediaType,
-  VIDEO_VALIDATION_ERROR,
-  validateVideoSource,
-} from '../ui/contexts/attachmentRules';
+import { isLikelyVideoSource, VIDEO_VALIDATION_ERROR, validateVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import { getFileSize } from './files';
 
@@ -16,18 +10,6 @@ type UploadIntentVideoMetadata = Exclude<
   Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
   false | undefined
 >;
-
-const IMAGE_EXTENSION_TO_MIME = {
-  gif: 'image/gif',
-  heic: 'image/heic',
-  heif: 'image/heif',
-  jpeg: 'image/jpeg',
-  jpg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-} as const;
-
-const FILE_EXTENSION_REGEX = /\.([a-z0-9]+)(?:\?.*)?$/i;
 
 function getAssetFile(asset: Pick<ImagePickerAsset, 'file'>): File | undefined {
   if (typeof File === 'undefined') {
@@ -37,71 +19,22 @@ function getAssetFile(asset: Pick<ImagePickerAsset, 'file'>): File | undefined {
   return asset.file instanceof File ? asset.file : undefined;
 }
 
-function normalizeAssetFile(
-  file: File,
-  {
-    mimeType,
-    name,
-  }: {
-    mimeType?: string;
-    name?: string;
-  }
-): File {
-  const normalizedName = name ?? file.name;
-  const normalizedMimeType = mimeType ?? file.type;
-
-  if (normalizedName === file.name && normalizedMimeType === file.type) {
-    return file;
-  }
-
-  return new File([file], normalizedName, {
-    type: normalizedMimeType,
-    lastModified: file.lastModified,
-  });
-}
-
 function positiveNumberOrUndefined(value: number | null | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
     : undefined;
 }
 
-function getDataUriSize(uri: string): number | undefined {
-  const trimmedUri = uri.trim();
-  if (!trimmedUri.toLowerCase().startsWith('data:')) {
-    return undefined;
-  }
-
-  const commaIndex = trimmedUri.indexOf(',');
-  if (commaIndex < 0) {
-    return undefined;
-  }
-
-  const metadata = trimmedUri.slice(5, commaIndex).toLowerCase();
-  const payload = trimmedUri.slice(commaIndex + 1);
-
-  if (metadata.includes(';base64')) {
-    const normalizedPayload = payload.replace(/\s+/g, '');
-    if (!normalizedPayload) {
-      return 0;
-    }
-
-    const paddingLength = normalizedPayload.endsWith('==')
-      ? 2
-      : normalizedPayload.endsWith('=')
-        ? 1
-        : 0;
-    const size =
-      Math.floor((normalizedPayload.length * 3) / 4) - paddingLength;
-
-    return size >= 0 ? size : undefined;
-  }
-
-  try {
-    return new TextEncoder().encode(decodeURIComponent(payload)).length;
-  } catch {
-    return undefined;
-  }
+function imagePickerAssetVideoMetadata(
+  asset: Pick<ImagePickerAsset, 'width' | 'height' | 'duration'>
+) {
+  return {
+    width: positiveNumberOrUndefined(asset.width),
+    height: positiveNumberOrUndefined(asset.height),
+    duration: positiveNumberOrUndefined(
+      asset.duration != null ? asset.duration / 1000 : undefined
+    ),
+  };
 }
 
 function resolveVideoSize(
@@ -118,10 +51,6 @@ function resolveVideoSize(
   if (typeof statSize === 'number' && statSize >= 0) {
     return statSize;
   }
-  const dataUriSize = getDataUriSize(uri);
-  if (typeof dataUriSize === 'number' && dataUriSize >= 0) {
-    return dataUriSize;
-  }
   return undefined;
 }
 
@@ -134,75 +63,18 @@ function asVideoMetadata(
   return metadata && typeof metadata === 'object' ? metadata : undefined;
 }
 
-function inferImageMimeType({
-  file,
-  fileName,
-  uri,
-}: Pick<ImagePickerAsset, 'file' | 'fileName' | 'uri'>): string | undefined {
-  const candidate = getAssetFile({ file })?.name ?? fileName ?? uri;
-  const extension = candidate?.match(FILE_EXTENSION_REGEX)?.[1]?.toLowerCase();
-  if (!extension) {
-    return undefined;
-  }
-
-  return IMAGE_EXTENSION_TO_MIME[
-    extension as keyof typeof IMAGE_EXTENSION_TO_MIME
-  ];
-}
-
-function inferAssetMimeType(
-  asset: Pick<ImagePickerAsset, 'file' | 'fileName' | 'mimeType' | 'uri'>
-): string | undefined {
-  const assetFile = getAssetFile(asset);
-  if (assetFile?.type) {
-    return normalizeMediaType(assetFile.type) ?? assetFile.type.toLowerCase();
-  }
-
-  if (asset.mimeType) {
-    return normalizeMediaType(asset.mimeType) ?? asset.mimeType.toLowerCase();
-  }
-
-  const uriMediaType = normalizeMediaType(asset.uri);
-  return (
-    inferAllowedVideoMimeType({
-      mimeType: uriMediaType,
-      name: asset.fileName ?? assetFile?.name ?? undefined,
-      uri: asset.uri,
-    }) ??
-    (uriMediaType?.startsWith('image/') ? uriMediaType : undefined) ??
-    inferImageMimeType(asset)
-  );
-}
-
 export function imagePickerAssetToUploadIntent(
   asset: ImagePickerAsset
 ): Attachment.UploadIntent {
-  const assetFile = getAssetFile(asset);
-  const mimeType = inferAssetMimeType(asset);
-  const assetType =
-    asset.type === 'image' || asset.type === 'video'
-      ? asset.type
-      : isLikelyVideoSource({
-          mimeType,
-          name: asset.fileName ?? assetFile?.name ?? undefined,
-          uri: asset.uri,
-        })
-        ? 'video'
-        : 'image';
+  if (asset.type === 'video') {
+    const video = imagePickerAssetVideoMetadata(asset);
+    const assetFile = getAssetFile(asset);
 
-  if (assetType === 'video') {
     if (assetFile) {
       return {
         type: 'file',
-        file: normalizeAssetFile(assetFile, {
-          mimeType,
-          name: asset.fileName ?? assetFile.name,
-        }),
-        video: {
-          width: asset.width ?? undefined,
-          height: asset.height ?? undefined,
-          duration: asset.duration != null ? asset.duration / 1000 : undefined,
-        },
+        file: assetFile,
+        video,
       };
     }
 
@@ -211,19 +83,16 @@ export function imagePickerAssetToUploadIntent(
       localUri: asset.uri,
       name: asset.fileName ?? undefined,
       size: resolveVideoSize(asset.fileSize ?? undefined, asset.uri) ?? -1,
-      mimeType,
-      video: {
-        width: asset.width ?? undefined,
-        height: asset.height ?? undefined,
-        duration: asset.duration != null ? asset.duration / 1000 : undefined,
-      },
+      mimeType: asset.mimeType ?? undefined,
+      video,
     };
   }
+
   return {
     type: 'image',
     asset: {
       ...asset,
-      mimeType,
+      mimeType: asset.mimeType ?? undefined,
     },
   };
 }
