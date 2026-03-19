@@ -66,6 +66,33 @@ test('builds a video upload intent from a normalized picker asset', () => {
   });
 });
 
+test('uses web File and treats duration as seconds when image picker provides a File object', () => {
+  const file = new File(['video-bytes'], 'clip.mp4', { type: 'video/mp4' });
+
+  const uploadIntent = imagePickerAssetToUploadIntent(
+    makeAsset({
+      file,
+      fileName: 'clip.mp4',
+      type: 'video',
+      uri: 'data:video/mp4;base64,AAAA',
+      width: 1920,
+      height: 1080,
+      // Web: expo provides seconds from HTMLVideoElement.duration, not milliseconds
+      duration: 7.0,
+    })
+  );
+
+  expect(uploadIntent).toEqual({
+    type: 'file',
+    file,
+    video: {
+      width: 1920,
+      height: 1080,
+      duration: 7.0,
+    },
+  });
+});
+
 test('drops non-positive picker video metadata during upload intent conversion', () => {
   const uploadIntent = imagePickerAssetToUploadIntent(
     makeAsset({
