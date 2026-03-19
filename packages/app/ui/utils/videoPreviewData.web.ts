@@ -1,8 +1,8 @@
 import { VideoPreviewData, VideoPreviewSource } from './videoPreviewTypes';
 
 const POSTER_CAPTURE_TIME_SECONDS = 0.1;
-const SEEK_TIMEOUT_MS = 2000;
-const MEDIA_EVENT_TIMEOUT_MS = 4000;
+const SEEK_TIMEOUT_MS = 1000;
+const MEDIA_EVENT_TIMEOUT_MS = 1500;
 
 export async function getVideoPreviewData(
   source: VideoPreviewSource
@@ -42,7 +42,6 @@ export async function getVideoPreviewData(
 function loadMetadata(video: HTMLVideoElement, uri: string): Promise<boolean> {
   const didLoadMetadata = waitForVideoEvent(video, 'loadedmetadata');
   video.src = uri;
-  video.load();
   return didLoadMetadata;
 }
 
