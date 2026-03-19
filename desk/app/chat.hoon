@@ -854,9 +854,8 @@
   ::TODO %chat-club-action-2
   ::
       %chat-dm-action-1
-    cor
-    :: =+  !<(old-action=action:dm:v6:cv vase)
-    :: $(+< chat-dm-action-2+!>((v7:action:dm:v6:cc old-action)))
+    =+  !<(old-action=action:dm:v6:cv vase)
+    ^$(+< chat-dm-action-2+!>((v7:action:dm:v6:cc old-action)))
     :: =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
     :: ::  don't allow anyone else to proxy through us
     :: ?.  =(src.bowl our.bowl)
@@ -867,9 +866,8 @@
     :: di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %chat-dm-diff-1
-    cor
-    :: =+  !<(old-diff=diff:dm:v6:cv vase)
-    :: $(+< chat-dm-diff-2+!>((v7:diff:dm:v6:cc old-diff)))
+    =+  !<(old-diff=diff:dm:v6:cv vase)
+    ^$(+< chat-dm-diff-2+!>((v7:diff:dm:v6:cc old-diff)))
     :: =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
     :: di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
@@ -877,12 +875,16 @@
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
       %chat-club-action-1
-    cor
+    =+  !<(old-action=action:club:v6:cv vase)
+    ^$(+< chat-club-action-2+!>((v7:action-club:v6:cc old-action)))
     :: =+  !<(=action:club:v6:cv vase)
     :: =/  cu  (cu-abed p.action)
     :: cu-abet:(cu-diff:cu q.action)
   ::
-      %chat-dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
+        %chat-dm-archive
+      ?>  from-self
+      di-abet:di-archive:(di-abed:di-core !<(ship vase))
+    ::
       %chat-migrate-server  ?>(from-self server:migrate)
       %chat-migrate         ?>(from-self client:migrate)
   ::
@@ -1236,9 +1238,9 @@
     =+  since=(slav %da i.t.t.t.path)
     =;  changes=(map whom:c (unit writs:c))
       ?+  t.t.t.t.path  [~ ~]
-          ~  
+          ~
         ?-    ver
-            %v3  
+            %v3
           =/  changes-6
             (~(run by changes) (curr bind v6:writs:v7:cc))
           ``chat-changed-writs+!>(changes-6)
@@ -1302,7 +1304,7 @@
       ==
     =;  changes=(map whom:c (unit writs:c))
       ?-    ver
-          %v3  
+          %v3
         =/  changes-6
           (~(run by changes) (curr bind v6:writs:v7:cc))
         ``chat-changed-writs+!>(changes-6)

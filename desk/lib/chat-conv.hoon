@@ -325,6 +325,13 @@
     --
   ++  action-club
     |%
+    ++  v7
+      |=  =action:club:v6:cv
+      ^-  action:club:v7:cv
+      =*  delta  q.q.action
+      ?:  ?=(%writ -.delta)
+        action(diff.q.q (v7:diff-writs:v6 diff.delta))
+      action
     ++  v5
       |=  =action:club:v6:cv
       ^-  action:club:v5:cv
