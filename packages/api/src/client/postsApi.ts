@@ -8,7 +8,6 @@ import {
   PlaintextPreviewConfig,
   getTextContent,
 } from '../lib/postContent';
-import { sanitizePostBlobForNetwork } from '../lib/content-helpers';
 import * as ub from '../urbit';
 import { ContentReference } from '../types/references';
 import {
@@ -153,7 +152,6 @@ export const sendPost = async ({
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
-  const sanitizedBlob = sanitizePostBlobForNetwork(blob);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
@@ -164,7 +162,7 @@ export const sendPost = async ({
           author: authorId,
           kind: '/chat',
           meta: null,
-          blob: sanitizedBlob ?? null,
+          blob: blob ?? null,
         },
         time: null,
       },
@@ -181,7 +179,7 @@ export const sendPost = async ({
 
   const essay = toPostEssay({
     content,
-    blob: sanitizedBlob,
+    blob,
     authorId,
     sentAt,
     channelType,
@@ -224,7 +222,6 @@ export const editPost = async ({
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
-  const sanitizedBlob = sanitizePostBlobForNetwork(blob);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
@@ -265,7 +262,7 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
-    blob: sanitizedBlob,
+    blob,
     metadata: metadata
       ? {
           title: metadata.title || '',

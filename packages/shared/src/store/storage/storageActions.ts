@@ -24,74 +24,24 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
-type BlobUploadParams = {
-  blob: Blob;
-  fileName: string;
-  mimeType?: string;
-};
-
-type UploadParams =
-  | BlobUploadParams
-  | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
-  | File;
-
-function isBlobUploadParams(params: UploadParams): params is BlobUploadParams {
-  return 'blob' in params;
-}
-
-async function prepareVideoPosterUpload(
+async function uploadVideoPoster(
   posterUri: string | undefined,
   isWeb: boolean
-): Promise<string | UploadParams | undefined> {
+): Promise<string | undefined> {
   if (!posterUri) {
     return undefined;
   }
   if (Attachment.isRemoteUri(posterUri)) {
     return posterUri;
   }
-
-  if (!isWeb) {
-    return {
-      uri: posterUri,
-      mimeType: 'image/jpeg',
-    };
-  }
-
   try {
-    const response = await fetch(posterUri);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch poster from ${posterUri}`);
-    }
-
-    const blob = await response.blob();
-    return {
-      blob,
-      fileName: `video-poster-${Date.now()}.jpg`,
-      mimeType: blob.type || 'image/jpeg',
-    };
-  } catch (error) {
-    logger.trackError('video poster preparation failed', {
-      error,
-      message: error instanceof Error ? error.message : String(error),
-      posterUri,
-      isWeb,
-    });
-    return undefined;
-  }
-}
-
-async function uploadVideoPoster(
-  poster: string | UploadParams | undefined,
-  isWeb: boolean
-): Promise<string | undefined> {
-  if (!poster) {
-    return undefined;
-  }
-  if (typeof poster === 'string') {
-    return poster;
-  }
-  try {
-    return await performUpload(poster, isWeb);
+    return await performUpload(
+      {
+        uri: posterUri,
+        mimeType: 'image/jpeg',
+      },
+      isWeb
+    );
   } catch (error) {
     logger.trackError('video poster upload failed', {
       error,
@@ -166,10 +116,6 @@ async function uploadAssetWithLifecycle(
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
   const { isVideo, posterUri: localPosterUri } =
     Attachment.UploadIntent.getVideoUploadMetadata(uploadIntent);
-  const preparedPosterUploadPromise =
-    isVideo && localPosterUri
-      ? prepareVideoPosterUpload(localPosterUri, isWeb)
-      : undefined;
   callbacks.willUpload?.();
 
   setUploadState(uploadKey, {
@@ -184,11 +130,8 @@ async function uploadAssetWithLifecycle(
   }
   try {
     const remoteUri = await performUpload(await callbacks.prepareAsset(), isWeb);
-    const preparedPosterUpload = preparedPosterUploadPromise
-      ? await preparedPosterUploadPromise
-      : undefined;
     const posterUri = isVideo
-      ? await uploadVideoPoster(preparedPosterUpload, isWeb)
+      ? await uploadVideoPoster(localPosterUri, isWeb)
       : undefined;
     logger.crumb('upload succeeded');
     logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
@@ -269,10 +212,12 @@ async function uploadImageAsset(
 }
 
 export const performUpload = async (
-  params: UploadParams,
+  params:
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | File,
   isWeb = false
 ) => {
-  if (!(params instanceof File) && !isBlobUploadParams(params)) {
+  if (!(params instanceof File)) {
     logger.log('performing upload', params.uri, 'isWeb', isWeb);
   }
   const [config, credentials] = await Promise.all([
@@ -284,20 +229,13 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const { blob, fileName, contentType, uploadSource } = await (async () => {
+  const { blob, fileName, contentType, sourceUri } = await (async () => {
     if (params instanceof File) {
       return {
         blob: params,
         fileName: params.name,
         contentType: params.type,
-        uploadSource: isWeb ? params : '',
-      };
-    } else if (isBlobUploadParams(params)) {
-      return {
-        blob: params.blob,
-        fileName: params.fileName,
-        contentType: params.mimeType || params.blob.type,
-        uploadSource: params.blob,
+        sourceUri: URL.createObjectURL(params),
       };
     } else {
       const response = await fetch(params.uri);
@@ -317,7 +255,7 @@ export const performUpload = async (
         blob,
         fileName,
         contentType,
-        uploadSource: params.uri,
+        sourceUri: params.uri,
       };
     }
   })();
@@ -337,7 +275,7 @@ export const performUpload = async (
     });
     await uploadFile(
       uploadUrl,
-      uploadSource,
+      sourceUri,
       {
         'Cache-Control': 'public, max-age=3600',
         'Content-Type': contentType,
@@ -381,7 +319,7 @@ export const performUpload = async (
 
     await uploadFile(
       signedUrl,
-      uploadSource,
+      sourceUri,
       isDigitalOcean ? headers : undefined,
       isWeb
     );
@@ -396,7 +334,7 @@ export const performUpload = async (
 
 async function uploadFile(
   presignedUrl: string,
-  assetUri: string | Blob,
+  assetUri: string,
   headers?: Record<string, string>,
   isWeb = false
 ) {
@@ -405,10 +343,8 @@ async function uploadFile(
   if (isWeb) {
     let body: Blob | string = assetUri;
 
-    if (assetUri instanceof Blob) {
-      body = assetUri;
-    } else if (assetUri.startsWith('data:')) {
-      // If assetUri is a base64 string, convert it to a Blob
+    // If assetUri is a base64 string, convert it to a Blob
+    if (assetUri.startsWith('data:')) {
       const arr = assetUri.split(',');
       const mimeMatch = arr[0].match(/:(.*?);/);
       const mime =
@@ -441,10 +377,6 @@ async function uploadFile(
     }
     return response;
   } else {
-    if (assetUri instanceof Blob) {
-      throw new Error('blob uploads are only supported on web');
-    }
-
     const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
       httpMethod: 'PUT',
       headers,
