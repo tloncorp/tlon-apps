@@ -305,7 +305,7 @@ PODS:
     - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
-  - ExpoSpeechTranscriber (0.1.9):
+  - ExpoSpeechRecognition (3.1.1):
     - ExpoModulesCore
   - ExpoSplashScreen (0.29.24):
     - ExpoModulesCore
@@ -2530,7 +2530,7 @@ DEPENDENCIES:
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
   - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
-  - ExpoSpeechTranscriber (from `../../../node_modules/expo-speech-transcriber/ios`)
+  - ExpoSpeechRecognition (from `../../../node_modules/expo-speech-recognition/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - ExpoVideo (from `../../../node_modules/expo-video/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
@@ -2741,8 +2741,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-sensors/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
-  ExpoSpeechTranscriber:
-    :path: "../../../node_modules/expo-speech-transcriber/ios"
+  ExpoSpeechRecognition:
+    :path: "../../../node_modules/expo-speech-recognition/ios"
   ExpoSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
   ExpoVideo:
@@ -2968,7 +2968,7 @@ SPEC CHECKSUMS:
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
   ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
-  ExpoSpeechTranscriber: 429160b0766c7f2ec6122988e2d22e1c19b53e06
+  ExpoSpeechRecognition: 46c21b61638bcf3478066886b52579b2f9f56ab5
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
   ExpoVideo: 10e69b9c0652aba5c2edee2c572090e0412bd7ce
   EXTaskManager: 0dcaa9b4b058b435f4e5bff4919c863f4f46badc
