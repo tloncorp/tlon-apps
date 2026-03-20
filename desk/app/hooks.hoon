@@ -65,11 +65,6 @@
 ++  init-state
   ^-  current-state
   [%0 *(map hook-id:h hook-def:h) *(map hitch-id:h hitch:h) *(map run-id:h run-log:h) *(map run-id:h pending-run:h) *(map path firehose-sub:h) [100 50 1.024]]
-++  scry-path
-  |=  [=dude:gall =path]
-  %+  welp
-  /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
-  path
 ++  is-local  =(src.bowl our.bowl)
 ++  hook-visible
   |=  def=hook-def:h
@@ -90,21 +85,6 @@
   ?:  (hook-visible def)
     (~(put by acc) hid def)
   acc
-++  channel-nests
-  ^-  (list nest:c)
-  ?.  .^(? %gu (scry-path %channels-server /$))
-    ~
-  =/  channels=v-channels:c
-    .^(=v-channels:c %gx (scry-path %channels-server /v0/v-channels/noun))
-  ~(tap in ~(key by channels))
-++  channel-watch-wire
-  |=  nest=nest:c
-  ^-  path
-  /firehose/channels/[kind.nest]/[name.nest]
-++  channel-watch-path
-  |=  nest=nest:c
-  ^-  path
-  /[kind.nest]/[name.nest]/updates
 ++  load
   |=  old=vase
   ^+  cor
@@ -117,18 +97,11 @@
   start-watches
 ++  start-watches
   ^+  cor
-  =.  cor  watch-channel-firehoses
+  ::  %channels on /v3 is the firehose: gives channel-response-4
+  ::  facts (r-channels:c) for all channel events
+  =.  cor  (watch-firehose %channels /firehose/channels [our.bowl %channels] /v3)
+  ::  groups agent for group-level config changes
   (watch-firehose %groups /firehose/groups [our.bowl %groups] /v1/groups)
-++  watch-channel-firehoses
-  ^+  cor
-  =/  nests=(list nest:c)  channel-nests
-  |-
-  ^+  cor
-  ?~  nests
-    cor
-  =.  cor
-    (watch-firehose %channels (channel-watch-wire i.nests) [our.bowl %channels-server] (channel-watch-path i.nests))
-  $(nests t.nests)
 ++  safe-watch
   |=  [=wire =dock =path]
   ^+  cor
@@ -257,7 +230,7 @@
         =.  cor  (set-firehose-live pole |)
         (rewatch pole)
       %fact
-        (ingest-firehose source.pole pole cage.sign)
+        (ingest-firehose source.pole cage.sign)
       ==
   ==
 ++  rewatch
@@ -266,68 +239,34 @@
   ?~  sub=(~(get by firehoses.state) wire)
     cor
   (safe-watch wire dock.u.sub path.u.sub)
-++  channel-nest-from-wire
-  |=  wire=path
-  ^-  (unit nest:c)
-  ?+  wire  ~
-      [%firehose %channels kind=@ name=@ ~]
-    `[kind.wire our.bowl name.wire]
-  ==
-++  normalize-channel-reply
-  |=  [nest=nest:c post-id=@da reply-id=@da u-reply=u-reply:c at=@da]
-  ^-  (unit firehose-event:h)
-  ?-  -.u-reply
-    %set
-      ?:  ?=(%| -.reply.u-reply)
-        `[%channels %reply-del `[%channels nest] !>([nest post-id reply-id u-reply]) at]
-      ?:  =(0 rev.u.reply.u-reply)
-        `[%channels %reply-add `[%channels nest] !>([nest post-id reply-id u-reply]) at]
-      `[%channels %reply-edit `[%channels nest] !>([nest post-id reply-id u-reply]) at]
-    %reacts
-      `[%channels %reply-react `[%channels nest] !>([nest post-id reply-id u-reply]) at]
-  ==
-++  normalize-channel-post
-  |=  [nest=nest:c post-id=@da u-post=u-post:c at=@da]
-  ^-  (unit firehose-event:h)
-  ?-  -.u-post
-    %set
-      ?:  ?=(%| -.post.u-post)
-        `[%channels %del `[%channels nest] !>([nest post-id u-post]) at]
-      ?:  =(0 rev.u.post.u-post)
-        `[%channels %add `[%channels nest] !>([nest post-id u-post]) at]
-      `[%channels %edit `[%channels nest] !>([nest post-id u-post]) at]
-    %reacts
-      `[%channels %react `[%channels nest] !>([nest post-id u-post]) at]
-    %essay
-      `[%channels %edit `[%channels nest] !>([nest post-id u-post]) at]
-    %reply
-      (normalize-channel-reply nest post-id id.u-post u-reply.u-post at)
-  ==
+::  normalize channel-response-4 (r-channels:c) from /v3 firehose
+::
 ++  normalize-channels
-  |=  [wire=path cage=cage]
+  |=  cage=cage
   ^-  (unit firehose-event:h)
-  ?.  =(%channel-update p.cage)
+  ?.  =(%channel-response-4 p.cage)
     ~
-  ?~  nest=(channel-nest-from-wire wire)
-    ~
-  =+  !<(=update:c q.cage)
-  ?-  -.u-channel.update
-    %create
-      `[%channels %create `[%channels u.nest] !>([u.nest u-channel.update]) time.update]
-    %post
-      (normalize-channel-post u.nest id.u-channel.update u-post.u-channel.update time.update)
-    %order  ~
-    %view  ~
-    %sort  ~
-    %perm  ~
-    %meta  ~
-  ==
+  =/  rc=r-channels:c  !<(=r-channels:c q.cage)
+  =/  =nest:c  nest.rc
+  =/  res=term
+    ?+  -.r-channel.rc  -.r-channel.rc
+        %post
+      ?-  -.r-post.r-channel.rc
+        %set     ?:  ?=(%| -.post.r-post.r-channel.rc)  %del
+                 ?:  =(0 rev.u.post.r-post.r-channel.rc)  %add
+                 %edit
+        %reply   %reply
+        %reacts  %react
+        %essay   %edit
+      ==
+    ==
+  `[%channels res `[%channels nest] q.cage now.bowl]
 ++  normalize-firehose
-  |=  [source=firehose-source:h wire=path cage=cage]
+  |=  [source=firehose-source:h cage=cage]
   ^-  (unit firehose-event:h)
   ?-  source
     %channels
-      (normalize-channels wire cage)
+      (normalize-channels cage)
     %groups
       `[%groups p.cage ~ q.cage now.bowl]
     %contacts
@@ -342,9 +281,9 @@
       `[%command p.cage ~ q.cage now.bowl]
   ==
 ++  ingest-firehose
-  |=  [source=firehose-source:h wire=path cage=cage]
+  |=  [source=firehose-source:h cage=cage]
   ^+  cor
-  ?~  event=(normalize-firehose source wire cage)
+  ?~  event=(normalize-firehose source cage)
     cor
   (dispatch-firehose u.event)
 ++  dispatch-firehose
