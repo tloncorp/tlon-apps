@@ -12,7 +12,7 @@
 ?:  ?=(%| -.compiled)
   %-  pure:m
   !>(`hook-output:h`[[%error 'hook compilation failed' `p.compiled] state.input ~])
-=/  gate  [p.p.compiled .*(q:subject:utils q.p.compiled)]
+=/  gate  [p.compiled .*(q:subject:utils q.compiled)]
 %-  pure:m
 !>(!<(=hook-output:h (slam gate !>([event.input config.input state.input])))
 )

@@ -337,6 +337,8 @@
   ==
 +$  firehose-sub
   $:  source=firehose-source
+      wire=path
+      dock=[ship term]
       path=path
       live=?
   ==
@@ -362,7 +364,7 @@
       [%enable-hitch id=hitch-id]
       [%disable-hitch id=hitch-id]
       [%run id=hitch-id req-id=req-id args=(unit vase)]
-      [%run-chain req-id=req-id hitches=(list hitch-id) event=vase]
+      [%run-chain req-id=req-id caller=term hitches=(list hitch-id) event=vase]
       [%test-run id=hitch-id event=vase]
   ==
 +$  hook-state-0
@@ -371,7 +373,7 @@
       hitches=(map hitch-id hitch)
       runs=(map run-id run-log)
       pending=(map run-id pending-run)
-      firehoses=(map firehose-source firehose-sub)
+      firehoses=(map path firehose-sub)
       limits=log-limits
   ==
 --
