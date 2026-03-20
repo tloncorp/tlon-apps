@@ -981,9 +981,6 @@ importers:
       '@urbit/aura':
         specifier: ^3.0.0
         version: 3.0.0
-      '@urbit/http-api':
-        specifier: 3.2.0-dev
-        version: 3.2.0-dev
       '@urbit/nockjs':
         specifier: ^1.6.0
         version: 1.6.0
@@ -1002,9 +999,6 @@ importers:
       emoji-regex:
         specifier: ^10.4.0
         version: 10.4.0
-      expo-image-picker:
-        specifier: ~16.0.6
-        version: 16.0.6(expo@52.0.47(patch_hash=kyxotken6ewmuhlwsddooas3xy)(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))
       exponential-backoff:
         specifier: ^3.1.1
         version: 3.1.2
@@ -1017,15 +1011,9 @@ importers:
       sorted-btree:
         specifier: ^1.8.1
         version: 1.8.1
-      tamagui:
-        specifier: ~1.126.12
-        version: 1.126.12(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react-native@0.76.9(@babel/core@7.28.4)(@babel/preset-env@7.28.3(@babel/core@7.28.4))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
       validator:
         specifier: ^13.7.0
         version: 13.7.0
-      zustand:
-        specifier: ^3.7.2
-        version: 3.7.2(react@18.3.1)
 
   packages/app:
     dependencies:

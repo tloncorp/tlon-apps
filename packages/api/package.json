@@ -26,20 +26,16 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.190.0",
     "@urbit/aura": "^3.0.0",
-    "@urbit/http-api": "3.2.0-dev",
     "@urbit/nockjs": "^1.6.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",
     "buffer": "^5.7.1",
     "date-fns": "^2.30.0",
     "emoji-regex": "^10.4.0",
-    "expo-image-picker": "~16.0.6",
     "exponential-backoff": "^3.1.1",
     "libphonenumber-js": "^1.11.18",
     "lodash": "^4.17.21",
     "sorted-btree": "^1.8.1",
-    "tamagui": "~1.126.12",
-    "validator": "^13.7.0",
-    "zustand": "^3.7.2"
+    "validator": "^13.7.0"
   }
 }
