@@ -1,5 +1,5 @@
 /-  h=hooks, c=channels
-/+  default-agent, hk=hooks, utils=channel-utils
+/+  default-agent, hk=hooks, utils=channel-utils, strandio
 =>
   |%
   +$  card  card:agent:gall
@@ -363,17 +363,15 @@
     =/  output=hook-output:h
       [[%error 'hook not compiled' ~] !>(~) ~]
     (complete-run rid [rid hid trig now.bowl kind] run output &)
-  ::  slam the cached compiled gate synchronously — no thread needed
-  ::  mule catches crashes so a bad hook can't take down the agent
+  ::  build inline strand from cached compiled gate, run via %lard
+  ::  this avoids recompiling the hook source on every execution
   =/  gate  [p.u.compiled.u.def .*(q:subject:utils q.u.compiled.u.def)]
-  =/  result=(each vase tang)
-    (mule |.((slam gate !>([event config.u.hit state.u.hit]))))
-  ?:  ?=(%| -.result)
-    =/  output=hook-output:h
-      [[%error 'hook execution crashed' `p.result] !>(~) ~]
-    (complete-run rid [rid hid trig now.bowl kind] run output &)
-  =/  output=hook-output:h  !<(=hook-output:h p.result)
-  (complete-run rid [rid hid trig now.bowl kind] run output |)
+  =/  =shed:khan
+    =/  m  (strand:rand ,vase)
+    ^-  form:m
+    %-  pure:m
+    (slam gate !>([event config.u.hit state.u.hit]))
+  (emit %pass /run/(scot %uv rid) %arvo %k %lard q.byk.bowl shed)
 ++  fresh-run-id
   ^-  run-id:h
   =/  base=run-id:h  (end 7 eny.bowl)
@@ -385,9 +383,26 @@
   |=  [=(pole knot) =sign-arvo]
   ^+  cor
   ?+  pole  cor
+      [%run rid=@ ~]
+    (finish-run (slav %uv rid.pole) sign-arvo)
       [%cron hid=@ name=@ ~]
     (dispatch-hitch (slav %uv hid.pole) [%cron `(slav %tas name.pole)] !>(~) [%run ~])
   ==
+++  finish-run
+  |=  [rid=run-id:h =sign-arvo]
+  ^+  cor
+  ?~  pending-run=(~(get by pending.state) rid)
+    cor
+  ?~  run=(~(get by runs.state) rid)
+    cor
+  ?>  ?=([%khan %arow *] sign-arvo)
+  =/  =(avow:khan cage)  p.sign-arvo
+  ?:  ?=(%| -.avow)
+    =/  output=hook-output:h
+      [[%error 'thread crashed' `p.avow] !>(~) ~]
+    (complete-run rid u.pending-run u.run output &)
+  =/  output=hook-output:h  !<(=hook-output:h q.p.avow)
+  (complete-run rid u.pending-run u.run output |)
 ++  response-path
   |=  [caller=term rid=req-id:h]
   ^-  path
