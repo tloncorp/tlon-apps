@@ -157,7 +157,7 @@ ${run_click} $pier <<EOF
 EOF
 
 echo "Awaiting desk update..."
-sleep 3
+sleep 10
 while ! curl -s "http://localhost:$http_port"
 do
   sleep 3
