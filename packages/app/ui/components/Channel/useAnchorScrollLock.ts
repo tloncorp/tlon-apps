@@ -105,6 +105,16 @@ export function useAnchorScrollLock({
   const anchorIndexRef = useRef(anchorIndex);
   anchorIndexRef.current = anchorIndex;
 
+  // For grid layouts, FlatList indexes by row, not by item. Centralize
+  // the raw-item-index → row-index conversion to avoid inconsistencies.
+  const getEffectiveIndex = useCallback(
+    (rawIndex: number) =>
+      collectionLayoutType === 'grid'
+        ? Math.floor(rawIndex / columnsCount)
+        : rawIndex,
+    [collectionLayoutType, columnsCount]
+  );
+
   const handleScrollBeginDrag = useCallback(() => {
     setUserHasScrolled(true);
   }, []);
@@ -126,7 +136,7 @@ export function useAnchorScrollLock({
         flatListRef.current &&
         anchorIndex !== -1
       ) {
-        const offset = anchorIndex * info.averageItemLength;
+        const offset = getEffectiveIndex(anchorIndex) * info.averageItemLength;
         logger.log('doing best guess scroll to offset', offset);
         flatListRef.current.scrollToOffset({ offset, animated: false });
       }
@@ -143,10 +153,7 @@ export function useAnchorScrollLock({
             !userHasScrolledRef.current &&
             anchor?.postId === currentAnchorId.current
           ) {
-            const retryEffectiveIndex =
-              collectionLayoutType === 'grid'
-                ? Math.floor(idx / columnsCount)
-                : idx;
+            const retryEffectiveIndex = getEffectiveIndex(idx);
             const viewPos = anchor?.type === 'unread' ? 1 : 0.5;
             logger.log('retrying scroll after failure', {
               index: retryEffectiveIndex,
@@ -197,10 +204,7 @@ export function useAnchorScrollLock({
         anchor?.postId === currentAnchorId.current &&
         scrollPhaseRef.current !== 'done'
       ) {
-        const effectiveIndex =
-          collectionLayoutType === 'grid'
-            ? Math.floor(index / columnsCount)
-            : index;
+        const effectiveIndex = getEffectiveIndex(index);
         const viewPosition = anchor.type === 'unread' ? 1 : 0.5;
         const isCorrection = scrollPhaseRef.current === 'scrolled';
 

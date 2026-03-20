@@ -2,7 +2,7 @@ import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 
 import { TimeoutError } from '../client';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../client/logger';
 import { desig } from '../urbit';
 import { readArrayBufferFromBlob } from '../lib/blob';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
