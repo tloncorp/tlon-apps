@@ -69,4 +69,27 @@
   %+  ex-equal
     !>(notes-cag)
     !>(noun+!>(*(map @ud note:notes)))
+
+++  test-update-note-revision-conflict
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  *  b  (do-init dap notes-agent)
+  ;<  =bowl:gall  b  get-bowl
+  :: notebook id=1, root folder id=2, note id=3
+  ;<  *  b  (do-poke %notes-action !>([%create-notebook 'Demo']))
+  ;<  *  b  (do-poke %notes-action !>([%create-note 1 2 'N1' 'body-v1']))
+  :: first update succeeds: revision 1 -> 2
+  ;<  *  b  (do-poke %notes-action !>([%update-note 3 'body-v2' 1]))
+  :: stale expected-revision should fail
+  ;<  ~  b
+    (ex-fail (do-poke %notes-action !>([%update-note 3 'body-v3' 1])))
+  ;<  peek=(unit (unit cage))  b  (get-peek /x/note/3)
+  =/  cag  (need (need peek))
+  =/  expected-note=note:notes
+    [3 1 2 'N1' 'body-v2' 2 src.bowl now.bowl]
+  %+  ex-equal
+    !>(cag)
+    !>(noun+!>(expected-note))
 --
