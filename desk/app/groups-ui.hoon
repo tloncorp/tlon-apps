@@ -177,6 +177,11 @@
     =+  .^(chat=chat-heads:v6:cv (scry %gx %chat %v3 %heads (snoc since.pole %chat-heads-3)))
     ``ui-heads-3+!>(`mixed-heads-3:u`[chan chat])
   ::
+      [%x %v4 %heads since=?(~ [u=@ ~])]
+    =+  .^(chan=channel-heads:v10:dv (scry %gx %channels %v5 %heads (snoc since.pole %channel-heads-4)))
+    =+  .^(chat=chat-heads:v7:cv (scry %gx %chat %v4 %heads (snoc since.pole %chat-heads-4)))
+    ``ui-heads-4+!>(`mixed-heads-4:u`[chan chat])
+  ::
       [%x %v2 %init ~]
     =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:v1:dv] (scry %gx %channels /v2/init/noun))

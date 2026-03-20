@@ -1548,7 +1548,7 @@
   ::
     ::  /x/v/heads: get the latest post in each channel
     ::
-      [%x ver=?(%v2 %v3 %v4) %heads since=?(~ [u=@ ~])]
+      [%x ver=?(%v2 %v3 %v4 %v5) %heads since=?(~ [u=@ ~])]
     (heads since.pole ver.pole)
   ==
 ::  +changes: return changes in channels since specified time

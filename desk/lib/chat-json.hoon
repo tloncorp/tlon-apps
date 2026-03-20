@@ -1254,6 +1254,108 @@
         show/id
     ==
   ::
+  ++  v7
+    =,  v6
+    |%
+    ++  club-action
+      ^-  $-(json action:club:v7:cv)
+      %-  ot
+      :~  id/(se %uv)
+          diff/club-diff
+      ==
+    ::
+    ++  club-diff
+      ^-  $-(json diff:club:v7:cv)
+      %-  ot
+      :~  uid/(se %uv)
+          delta/club-delta
+      ==
+    ++  club-delta
+      %-  of
+      :~
+        writ/writs-diff
+        meta/meta
+      ::
+        :-  %team
+        %-  ot
+        :~  ship/(se %p)
+            ok/bo
+        ==
+      ::
+        :-  %hive
+        %-  ot
+        :~  by/(se %p)
+            for/(se %p)
+            add/bo
+        ==
+      ==
+    ::
+    ++  dm-action
+      ^-  $-(json action:dm:v7:cv)
+      %-  ot
+      :~  ship/ship
+          diff/writs-diff
+      ==
+    ++  essay
+      ^-  $-(json essay:v7:cv)
+      %+  cu
+        |=  $:  =story:d  =author:v7:cv  =time
+                kind=[%chat path]  meta=(unit data:^^meta)
+                blob=(unit @t)
+            ==
+        `essay:v7:cv`[[story author time] kind meta blob]
+      %-  ot
+      :~  content/story:dejs:sj
+          author/author:v9:dejs:dj
+          sent/di
+          :-  %kind
+          (cu |=(=path ?>(?=([%chat *] path) path)) pa)
+          ::
+          meta/(mu meta)
+          blob/(mu so)
+      ==
+    ++  writs-diff
+      ^-  $-(json diff:writs:v7:cv)
+      %-  ot
+      :~  id/id
+          delta/writs-delta
+      ==
+    ++  writs-delta
+      ^-  $-(json delta:writs:v7:cv)
+      %-  of
+      :~  del/ul
+          add-react/add-react
+          del-react/author:v9:dejs:dj
+          reply/reply-delta
+      ::
+        :-  %add
+        ^-  $-(json [=essay:v7:cv time=(unit time)])
+        %-  ot
+        :~  essay/essay
+            time/(mu (se %ud))
+        ==
+      ==
+    ::
+    ++  reply-delta
+      ^-  $-(json [id:v7:cv (unit reply-meta:v7:cv) delta:replies:v7:cv])
+      %-  ot
+      :~  id/id
+          meta/ul
+          :-  %delta
+          %-  of
+          :~  del/ul
+              add-react/add-react
+              del-react/author:v9:dejs:dj
+          ::
+            :-  %add
+            ^-  $-(json [=reply-essay:d time=(unit time)])
+            %-  ot
+            :~  reply-essay/reply-essay:v10:dejs:dj
+                time/(mu (se %ud))
+            ==
+          ==
+      ==
+    --
   ++  v6  v5
   ::
   ++  v5
