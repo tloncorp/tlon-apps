@@ -1,15 +1,15 @@
-/-  scribe
+/-  notes
 /+  default-agent, dbug
 ^-  agent:gall
 |%
 +$  card  card:agent:gall
 ::  TODO: add versioned state migration strategy before shipping.
-+$  current-state  state:scribe
++$  current-state  state:notes
 ::
 ++  role-for
   |=  [=current-state notebook-id=@ud who=ship]
-  ^-  (unit role:scribe)
-  =/  members=(unit notebook-members:scribe)
+  ^-  (unit role:notes)
+  =/  members=(unit notebook-members:notes)
     (~(get by members.current-state) notebook-id)
   ?~  members
     ~
@@ -25,7 +25,7 @@
 ++  can-edit
   |=  [=current-state notebook-id=@ud who=ship]
   ^-  ?
-  =/  r=(unit role:scribe)
+  =/  r=(unit role:notes)
     (role-for current-state notebook-id who)
   ?~  r
     %.n
@@ -43,49 +43,49 @@
     def   ~(. (default-agent this %|) bowl)
 ++  on-init
   ^-  (quip card _this)
-  =/  empty  *(map @ud notebook:scribe)
-  =/  empty-notes  *(map @ud note:scribe)
-  =/  empty-members  *(map @ud notebook-members:scribe)
+  =/  empty  *(map @ud notebook:notes)
+  =/  empty-notes  *(map @ud note:notes)
+  =/  empty-members  *(map @ud notebook-members:notes)
   `this(state [%0 empty empty-notes empty-members 0])
 ::
 ++  on-save  !>(state)
 ++  on-load
   |=  =vase
   ^-  (quip card _this)
-  `this(state !<(state:scribe vase))
+  `this(state !<(state:notes vase))
 ::
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
   ?+  mark  (on-poke:def mark vase)
-      %scribe-action
-    =/  act=action:scribe  !<(action:scribe vase)
+      %notes-action
+    =/  act=action:notes  !<(action:notes vase)
     ?-    -.act
         %create-notebook
       =/  notebook-id=@ud  +(next-id.state)
-      =/  new-notebook=notebook:scribe
+      =/  new-notebook=notebook:notes
         [notebook-id title.act src.bowl now.bowl]
-      =/  members=notebook-members:scribe
-        (~(put by *(map ship role:scribe)) src.bowl %owner)
+      =/  members=notebook-members:notes
+        (~(put by *(map ship role:notes)) src.bowl %owner)
       =/  next-notebooks
         (~(put by notebooks.state) notebook-id new-notebook)
       =/  next-members
         (~(put by members.state) notebook-id members)
-      =/  next-state=state:scribe
+      =/  next-state=state:notes
         [%0 next-notebooks notes.state next-members notebook-id]
       :-  ~
       this(state next-state)
     ::
         %set-role
-      =/  actor-role=(unit role:scribe)
+      =/  actor-role=(unit role:notes)
         (role-for state notebook-id.act src.bowl)
       ?~  actor-role
-        ~|('scribe ACL: actor is not a notebook member' !!)
+        ~|('notes ACL: actor is not a notebook member' !!)
       ?.  =(%owner u.actor-role)
-        ~|('scribe ACL: only owner may set roles (TODO: owner-transfer flow)' !!)
-      =/  existing=notebook-members:scribe
-        (~(gut by members.state notebook-id.act *(map ship role:scribe)))
-      =/  target-members=notebook-members:scribe
+        ~|('notes ACL: only owner may set roles (TODO: owner-transfer flow)' !!)
+      =/  existing=notebook-members:notes
+        (~(gut by members.state notebook-id.act *(map ship role:notes)))
+      =/  target-members=notebook-members:notes
         (~(put by existing) who.act role.act)
       =/  next-members
         (~(put by members.state) notebook-id.act target-members)
@@ -93,26 +93,26 @@
     ::
         %create-note
       ?.  (can-edit state notebook-id.act src.bowl)
-        ~|('scribe ACL: not allowed to create note in notebook' !!)
+        ~|('notes ACL: not allowed to create note in notebook' !!)
       =/  note-id=@ud  +(next-id.state)
-      =/  new-note=note:scribe
+      =/  new-note=note:notes
         [note-id notebook-id.act title.act body-md.act 1 src.bowl now.bowl]
       =/  next-notes
         (~(put by notes.state) note-id new-note)
-      =/  next-state=state:scribe
+      =/  next-state=state:notes
         state(notes next-notes, next-id note-id)
       `this(state next-state)
     ::
         %update-note
-      =/  old=(unit note:scribe)
+      =/  old=(unit note:notes)
         (~(get by notes.state) note-id.act)
       ?~  old
-        ~|('scribe: note not found' !!)
+        ~|('notes: note not found' !!)
       ?.  (can-edit state notebook-id.u.old src.bowl)
-        ~|('scribe ACL: not allowed to update note' !!)
+        ~|('notes ACL: not allowed to update note' !!)
       ?.  =(revision.u.old expected-revision.act)
-        ~|('scribe: revision conflict (TODO return structured conflict payload)' !!)
-      =/  next-note=note:scribe
+        ~|('notes: revision conflict (TODO return structured conflict payload)' !!)
+      =/  next-note=note:notes
         u.old(body-md body-md.act, revision +(revision.u.old), updated-by src.bowl, updated-at now.bowl)
       =/  next-notes
         (~(put by notes.state) note-id.act next-note)
@@ -137,7 +137,7 @@
   ?+  path  (on-watch:def path)
       [%events @ud ~]
     ?.  (can-view state i.t.path src.bowl)
-      ~|('scribe ACL: not allowed to watch notebook events' !!)
+      ~|('notes ACL: not allowed to watch notebook events' !!)
     `this
   ==
 ::

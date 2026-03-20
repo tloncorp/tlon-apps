@@ -1,9 +1,9 @@
-/-  scribe
-|_  =event:scribe
+/-  notes
+|_  =event:notes
 ++  grad  %noun
 ++  grab
   |%
-  ++  noun  event:scribe
+  ++  noun  event:notes
   --
 ++  grow
   |%

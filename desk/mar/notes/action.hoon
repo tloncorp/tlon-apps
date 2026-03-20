@@ -1,9 +1,9 @@
-/-  scribe
-|_  =action:scribe
+/-  notes
+|_  =action:notes
 ++  grad  %noun
 ++  grab
   |%
-  ++  noun  action:scribe
+  ++  noun  action:notes
   --
 ++  grow
   |%

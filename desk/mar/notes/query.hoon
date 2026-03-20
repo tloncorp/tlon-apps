@@ -1,9 +1,9 @@
-/-  scribe
-|_  =query:scribe
+/-  notes
+|_  =query:notes
 ++  grad  %noun
 ++  grab
   |%
-  ++  noun  query:scribe
+  ++  noun  query:notes
   --
 ++  grow
   |%
