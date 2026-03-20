@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -614,7 +615,11 @@ function SinglePostView({
   }, []);
 
   // Keep chatThreadHandleRef in sync (chat threads only).
-  if (chatThreadHandleRef) {
+  // useLayoutEffect ensures the ref is populated before paint so
+  // handleRefPress can read it synchronously during the same frame.
+  useLayoutEffect(() => {
+    if (!chatThreadHandleRef) return;
+
     if (isChatChannel && posts) {
       chatThreadHandleRef.current = {
         posts,
@@ -630,20 +635,20 @@ function SinglePostView({
     } else {
       chatThreadHandleRef.current = null;
     }
-  }
 
-  // Cleanup: clear stale handle and pending highlight timer on unmount.
-  useEffect(() => {
-    const handleRef = chatThreadHandleRef;
     return () => {
-      if (handleRef) {
-        handleRef.current = null;
-      }
+      chatThreadHandleRef.current = null;
+    };
+  }, [chatThreadHandleRef, isChatChannel, posts, highlightPost]);
+
+  // Clear pending highlight timer on unmount.
+  useEffect(() => {
+    return () => {
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current);
       }
     };
-  }, [chatThreadHandleRef]);
+  }, []);
 
   // Compute a ScrollAnchor from selectedPostId for chat threads.
   // This wires into useAnchorScrollLock via Scroller, giving us retry/recovery
