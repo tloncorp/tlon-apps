@@ -1,4 +1,4 @@
-/-  d=channels
+/-  dv=channels-ver
 /-  meta
 |%
 ::
@@ -7,9 +7,9 @@
 ::  $writ: a chat message
 +$  writ   [seal essay]
 ::  $reply: a chat reply
-+$  reply   [reply-seal memo:d]
++$  reply   [reply-seal reply-essay:v10:dv]
 ::  $react: either an emoji identifier like :wave: or a URL for custom
-+$  react   react:d
++$  react   react:v9:dv
 ::  $scam: bounded search results
 +$  scam
   $:  last=(unit time)  ::  last (top-level) msg (local) id that was searched
@@ -40,6 +40,10 @@
   |$  [data]
   ::NOTE  not +each, avoids p= faces for better ergonomics
   $%([%& data] [%| tombstone])
+++  mind
+  |*  [a=(may) b=gate]
+  ?:  ?=(%| -.a)  a
+  &+(b +.a)
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -57,8 +61,8 @@
       =replies
       =reply-meta
   ==
-+$  author  author:d
-+$  reply-meta  reply-meta:d
++$  author  author:v9:dv
++$  reply-meta  reply-meta:v9:dv
 ::
 ::  $reply-seal: chat reply metadata
 +$  reply-seal
@@ -76,7 +80,7 @@
 ::  .blob: custom payload
 ::
 +$  essay
-  $:  memo:d
+  $:  memo:v9:dv
       kind=[%chat path]
       meta=(unit data:meta)
       blob=(unit @t)
@@ -152,13 +156,13 @@
   ++  on
     ((^on time (may reply)) lte)
   +$  delta
-    $%  [%add =memo:d time=(unit time)]
+    $%  [%add =reply-essay:v10:dv time=(unit time)]
         [%del ~]
         [%add-react =author =react]
         [%del-react =author]
     ==
   +$  response-delta
-    $%  [%add =memo:d =time]
+    $%  [%add =reply-essay:v10:dv =time]
         [%del ~]
         [%add-react =author =react]
         [%del-react =author]

@@ -6,7 +6,7 @@
       channel=channel-10
       =activity:a
       pins=(list whom)
-      chat=chat-3
+      chat=chat-2
       profile=?
   ==
 +$  init-6
@@ -78,8 +78,7 @@
 +$  mixed-heads  [chan=channel-heads:v7:dv chat=chat-heads:v3:cv]
 +$  mixed-heads-2  [chan=channel-heads:v8:dv chat=chat-heads:v5:cv]
 +$  mixed-heads-3  [chan=channel-heads:v9:dv chat=chat-heads:v6:cv]
-::TODO bump chat types here
-+$  mixed-heads-4  [chan=channel-heads:v10:dv chat=chat-heads:v6:cv]
++$  mixed-heads-4  [chan=channel-heads:v10:dv chat=chat-heads:v7:cv]
 +$  channel-10
   $:  =channels:v10:dv
       hidden-posts=(set id-post:dv)
@@ -91,15 +90,6 @@
 +$  channel-0
   $:  =channels:v1:dv
       hidden-posts=(set id-post:dv)
-  ==
-::TODO bump chat types
-+$  chat-3
-  $:  dms=(set ship)
-      invited=(set ship)
-      clubs=(map id:club:v3:cv crew:club:v3:cv)
-      blocked=(set ship)
-      blocked-by=(set ship)
-      hidden-messages=(set id:v3:cv)
   ==
 +$  chat-2
   $:  dms=(set ship)
