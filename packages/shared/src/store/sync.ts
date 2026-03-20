@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
@@ -29,7 +30,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Update the last activity timestamp when we receive new data
 export function updateLastActivityTime() {
@@ -308,7 +309,7 @@ export const syncLatestChanges = async ({
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return api.fetchChangesSince(syncFrom);
+    return fetchChangesSince(syncFrom);
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
