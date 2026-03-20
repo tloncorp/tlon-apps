@@ -42,7 +42,7 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Spinner, Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import { Spinner, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -65,9 +65,9 @@ function MediaViewerModal({
 
 function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
   return (
-    <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+    <View padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
       <Icon type={icon} size="$l" color="$white" />
-    </Stack>
+    </View>
   );
 }
 
