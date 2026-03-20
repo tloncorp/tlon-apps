@@ -40,6 +40,10 @@
   |$  [data]
   ::NOTE  not +each, avoids p= faces for better ergonomics
   $%([%& data] [%| tombstone])
+++  mind
+  |*  [a=(may) b=gate]
+  ?:  ?=(%| -.a)  a
+  &+(b +.a)
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::

@@ -1,4 +1,4 @@
-/-  c=chat, dv=channels-ver, cv=chat-ver
+/-  c=chat, cv=chat-ver, dv=channels-ver
 /+  ccv=channel-conv
 |%
 ++  v7
@@ -218,6 +218,10 @@
       |=  =writ:v6:cv
       ^-  writ:v5:cv
       [(v5:seal -.writ) +.writ]
+    ++  v7
+      |=  =writ:v6:cv
+      ^-  writ:v7:cv
+      [(v7:seal -.writ) +.writ]
     --
   ++  writs
     |%
@@ -269,6 +273,16 @@
       |=  [=time reply=(may:v6:cv reply:v6:cv)]
       ?:  ?=(%| -.reply)  ~
       `[time +.reply]
+    ++  v7
+      |=  =replies:v6:cv
+      ^-  replies:v7:cv
+      %+  run:on:replies:v6:cv  replies
+      |=  reply=(may:v6:cv reply:v6:cv)
+      ^-  (may:v7:cv reply:v7:cv)
+      ?:  ?=(%| -.reply)  reply
+      =*  reply-seal  +<.reply
+      =*  reply-memo  +>.reply
+      &+[reply-seal [reply-memo ~]]
     --
   ++  delta-replies
     |%
@@ -320,6 +334,16 @@
           time.seal
           reacts.seal
           (v5:replies replies.seal)
+          reply-meta.seal
+      ==
+    ++  v7
+      |=  =seal:v6:cv
+      ^-  seal:v7:cv
+      :*  id.seal
+          seq.seal
+          time.seal
+          reacts.seal
+          (v7:replies replies.seal)
           reply-meta.seal
       ==
     --
@@ -374,7 +398,18 @@
       (v4:scan:^v5 (v5 scan))
     --
   ++  dm
-    |%
+    |^  dm
+    ++  dm
+      |%
+      ++  v7
+        |=  dm:v6:cv
+        ^-  dm:v7:cv
+        :*  (v7:^pact pact)
+            remark
+            net
+            pin
+        ==
+      --
     ++  diff
       |%
       ++  v7
@@ -389,6 +424,31 @@
         ^-  action:dm:v7:cv
         [p.action (v7:diff-writs:v6 q.action)]
       --
+    --
+  ++  club
+    |^  club
+    ++  club
+      |%
+      ++  v7
+        |=  club:v6:cv
+        ^-  club:v7:cv
+        :*  heard
+            remark
+            (v7:^pact pact)
+            crew
+        ==
+      --
+    --
+  ++  pact
+    |%
+    ++  v7
+      |=  pact:v6:cv
+      ^-  pact:v7:cv
+      :*  num
+          (run:on:writs:v6:cv wit (curr mind:v6:cv v7:writ))
+          dex
+          upd
+      ==
     --
   --
 ++  v5

@@ -476,9 +476,13 @@
   +$  state-12  current-state
   ::
   ++  state-11-to-12
-    |=  state-11
+    |=  =state-11
     ^-  state-12
-    *state-12
+    %=  state-11
+      -  %12
+      dms    (~(run by dms.state-11) v7:dm:v6:cc)
+      clubs  (~(run by clubs.state-11) v7:club:v6:cc)
+    ==
   ::
   ++  state-10-to-11
     |=  state-10
