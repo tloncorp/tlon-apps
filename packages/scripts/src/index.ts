@@ -1,5 +1,5 @@
-import { parseContactUpdateEvent } from '@tloncorp/api';
-import { getTextContent } from '@tloncorp/shared/logic';
+import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
+import { getTextContent } from '@tloncorp/api/lib/postContent';
 import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,

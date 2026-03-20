@@ -1,5 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { QueryClientProvider, queryClient } from '@tloncorp/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

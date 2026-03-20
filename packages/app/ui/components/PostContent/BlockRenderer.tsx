@@ -221,7 +221,12 @@ export function ReferenceBlock({
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
-export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
+export function VoiceMemoBlock({
+  block,
+  ...props
+}: { block: cn.VoiceMemoBlockData } & ComponentProps<
+  typeof Reference.Frame
+>) {
   const { togglePlayback, progress, status, isThisSourceLoaded } =
     useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 
@@ -244,7 +249,7 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
   }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
   return (
-    <Reference.Frame>
+    <Reference.Frame {...props}>
       <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
