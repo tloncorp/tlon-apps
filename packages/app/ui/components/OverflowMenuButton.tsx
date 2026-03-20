@@ -7,7 +7,7 @@ import { TamaguiElement, View, isWeb } from 'tamagui';
  * Minimal overflow trigger button for use in popovers/menus.
  * Just the button - positioning is handled by the parent.
  */
-export const OverflowTriggerButton = forwardRef<
+export const OverflowTriggerButton: React.FC<ComponentProps<typeof Button.Frame>> = forwardRef<
   TamaguiElement,
   ComponentProps<typeof Button.Frame>
 >(function OverflowTriggerButton(props, ref) {

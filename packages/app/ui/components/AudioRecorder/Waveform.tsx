@@ -93,7 +93,8 @@ export function Waveform({
   }, [visualRange, values]);
 
   return (
-    <sk.Canvas {...passedProps} style={style} onLayout={onLayout}>
+    <View onLayout={onLayout} style={style}>
+    <sk.Canvas {...passedProps} style={{flex: 1}}>
       {layout &&
         valuesWithPadding.map((value, index) => {
           const [min, max] = effectiveVisualRange;
@@ -120,6 +121,7 @@ export function Waveform({
           );
         })}
     </sk.Canvas>
+    </View>
   );
 }
 

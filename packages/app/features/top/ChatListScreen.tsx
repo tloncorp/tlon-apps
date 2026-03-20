@@ -127,7 +127,7 @@ export function ChatListScreenView({
   }, [syncLoadingSubtitle, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
-  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionAttempts = useRef(0);
 
   useEffect(() => {

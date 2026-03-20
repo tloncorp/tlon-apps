@@ -479,7 +479,7 @@ function useTimer({
     }
 
     // Wait for the next aligned tick (setTimeout), then schedule regular ticks (setInterval).
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const remainder = (Date.now() - start.getTime()) % intervalMs;
     const nextTickTime = (intervalMs - remainder) % intervalMs;
     const timeoutId = setTimeout(() => {

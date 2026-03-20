@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  typescript: 5.4.5
+  typescript: ~5.9.2
   '@10play/tentap-editor': 0.5.21
   '@tiptap/suggestion': 2.6.0
   '@tiptap/extension-mention': 2.6.0
@@ -88,10 +88,10 @@ importers:
         version: 4.3.0(prettier@3.2.5)
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.7.1
-        version: 7.7.1(@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)
+        version: 7.7.1(@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.9.3))(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^7.7.1
-        version: 7.7.1(eslint@8.57.0)(typescript@5.4.5)
+        version: 7.7.1(eslint@8.57.0)(typescript@5.9.3)
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
@@ -112,7 +112,7 @@ importers:
         version: 6.1.1(patch_hash=y5kop5rmmd7jprmzzewk4whiie)
       tsup:
         specifier: ^8.0.1
-        version: 8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.4.35)(typescript@5.4.5)
+        version: 8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.4.35)(typescript@5.9.3)
       vitest:
         specifier: ^1.2.2
         version: 1.5.0(@types/node@20.19.31)(jsdom@23.2.0)(lightningcss@1.31.1)(terser@5.46.0)
@@ -151,8 +151,8 @@ importers:
         specifier: ^26.0.10
         version: 26.0.10(electron-builder-squirrel-windows@25.1.8(dmg-builder@26.0.10))
       typescript:
-        specifier: 5.4.5
-        version: 5.4.5
+        specifier: ~5.9.2
+        version: 5.9.3
       wait-on:
         specifier: ^7.2.0
         version: 7.2.0
@@ -534,7 +534,7 @@ importers:
         version: 6.2.2
       react-native-svg-transformer:
         specifier: ^1.3.0
-        version: 1.3.0(react-native-svg@15.12.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(typescript@5.4.5)
+        version: 1.3.0(react-native-svg@15.12.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3)
       react-test-renderer:
         specifier: 18.2.0
         version: 18.2.0(react@19.1.0)
@@ -798,7 +798,7 @@ importers:
         version: 0.16.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       vite-plugin-svgr:
         specifier: ^4.2.0
-        version: 4.2.0(rollup@4.13.0)(typescript@5.4.5)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0))
+        version: 4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0))
       workbox-precaching:
         specifier: ^6.5.4
         version: 6.6.0
@@ -913,7 +913,7 @@ importers:
         version: 15.2.0
       msw:
         specifier: ^0.44.2
-        version: 0.44.2(encoding@0.1.13)(typescript@5.4.5)
+        version: 0.44.2(encoding@0.1.13)(typescript@5.9.3)
       node-fetch:
         specifier: ^2.6.12
         version: 2.7.0(encoding@0.1.13)
@@ -943,7 +943,7 @@ importers:
         version: 3.0.4
       tsc-files:
         specifier: ^1.1.4
-        version: 1.1.4(typescript@5.4.5)
+        version: 1.1.4(typescript@5.9.3)
       vite:
         specifier: ^5.1.6
         version: 5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)
@@ -1083,10 +1083,10 @@ importers:
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.7.4
-        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.9.3))(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^6.7.4
-        version: 6.21.0(eslint@8.57.0)(typescript@5.4.5)
+        version: 6.21.0(eslint@8.57.0)(typescript@5.9.3)
       '@vitejs/plugin-react':
         specifier: ^4.2.1
         version: 4.2.1(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0))
@@ -1097,8 +1097,8 @@ importers:
         specifier: ^5.0.0
         version: 5.1.3(@types/eslint@9.6.1)(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5)
       typescript:
-        specifier: 5.4.5
-        version: 5.4.5
+        specifier: ~5.9.2
+        version: 5.9.3
       vite:
         specifier: ^5.1.6
         version: 5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)
@@ -1222,8 +1222,8 @@ importers:
         specifier: 0.28.0
         version: 0.28.0
       typescript:
-        specifier: 5.4.5
-        version: 5.4.5
+        specifier: ~5.9.2
+        version: 5.9.3
       vitest:
         specifier: ^1.4.0
         version: 1.5.0(@types/node@20.19.31)(jsdom@23.2.0)(lightningcss@1.31.1)(terser@5.46.0)
@@ -7488,7 +7488,7 @@ packages:
     resolution: {integrity: sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==}
     engines: {node: '>=14'}
     peerDependencies:
-      typescript: 5.4.5
+      typescript: ~5.9.2
     peerDependenciesMeta:
       typescript:
         optional: true
@@ -10557,7 +10557,7 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
     peerDependencies:
-      typescript: 5.4.5
+      typescript: ~5.9.2
     peerDependenciesMeta:
       typescript:
         optional: true
@@ -12746,7 +12746,7 @@ packages:
     resolution: {integrity: sha512-UQMIo7pb8WRomKR1/+MFVLTroIvDVtMX3K6OUir8ynLyzB8Jeriont2bTAtmNPa1ekAgN7YPDyf6V+ygrdU+eQ==}
     engines: {node: '>=16'}
     peerDependencies:
-      typescript: 5.4.5
+      typescript: ~5.9.2
 
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
@@ -12755,7 +12755,7 @@ packages:
     resolution: {integrity: sha512-RePsRsOLru3BPpnf237y1Xe1oCGta8rmSYzM76kYo5tLGsv5R2r3s64yapYorGTPuuLyfS9NVbh9ydzmvNie2w==}
     hasBin: true
     peerDependencies:
-      typescript: 5.4.5
+      typescript: ~5.9.2
 
   tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
@@ -12771,7 +12771,7 @@ packages:
       '@microsoft/api-extractor': ^7.36.0
       '@swc/core': ^1
       postcss: ^8.4.12
-      typescript: 5.4.5
+      typescript: ~5.9.2
     peerDependenciesMeta:
       '@microsoft/api-extractor':
         optional: true
@@ -12857,8 +12857,8 @@ packages:
     resolution: {integrity: sha512-3KS2b+kL7fsuk/eJZ7EQdnEmQoaho/r6KUef7hxvltNA5DR8NAUM+8wJMbJyZ4G9/7i3v5zPBIMN5aybAh2/Jg==}
     engines: {node: '>= 0.4'}
 
-  typescript@5.4.5:
-    resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -18771,12 +18771,12 @@ snapshots:
       '@svgr/babel-plugin-transform-react-native-svg': 8.1.0(@babel/core@7.29.0)
       '@svgr/babel-plugin-transform-svg-component': 8.0.0(@babel/core@7.29.0)
 
-  '@svgr/core@8.1.0(typescript@5.4.5)':
+  '@svgr/core@8.1.0(typescript@5.9.3)':
     dependencies:
       '@babel/core': 7.29.0
       '@svgr/babel-preset': 8.1.0(@babel/core@7.29.0)
       camelcase: 6.3.0
-      cosmiconfig: 8.3.6(typescript@5.4.5)
+      cosmiconfig: 8.3.6(typescript@5.9.3)
       snake-case: 3.0.4
     transitivePeerDependencies:
       - supports-color
@@ -18787,20 +18787,20 @@ snapshots:
       '@babel/types': 7.29.0
       entities: 4.5.0
 
-  '@svgr/plugin-jsx@8.1.0(@svgr/core@8.1.0(typescript@5.4.5))':
+  '@svgr/plugin-jsx@8.1.0(@svgr/core@8.1.0(typescript@5.9.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@svgr/babel-preset': 8.1.0(@babel/core@7.29.0)
-      '@svgr/core': 8.1.0(typescript@5.4.5)
+      '@svgr/core': 8.1.0(typescript@5.9.3)
       '@svgr/hast-util-to-babel-ast': 8.0.0
       svg-parser: 2.0.4
     transitivePeerDependencies:
       - supports-color
 
-  '@svgr/plugin-svgo@8.1.0(@svgr/core@8.1.0(typescript@5.4.5))(typescript@5.4.5)':
+  '@svgr/plugin-svgo@8.1.0(@svgr/core@8.1.0(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
-      '@svgr/core': 8.1.0(typescript@5.4.5)
-      cosmiconfig: 8.3.6(typescript@5.4.5)
+      '@svgr/core': 8.1.0(typescript@5.9.3)
+      cosmiconfig: 8.3.6(typescript@5.9.3)
       deepmerge: 4.3.1
       svgo: 3.2.0
     transitivePeerDependencies:
@@ -19142,7 +19142,7 @@ snapshots:
       fs-extra: 11.3.3
       lodash.debounce: 4.0.8
       oxc-transform: 0.112.0
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - '@swc/helpers'
       - supports-color
@@ -21591,13 +21591,13 @@ snapshots:
       '@types/node': 20.19.31
     optional: true
 
-  '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.9.3))(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.10.0
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/parser': 6.21.0(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/scope-manager': 6.21.0
-      '@typescript-eslint/type-utils': 6.21.0(eslint@8.57.0)(typescript@5.4.5)
-      '@typescript-eslint/utils': 6.21.0(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/type-utils': 6.21.0(eslint@8.57.0)(typescript@5.9.3)
+      '@typescript-eslint/utils': 6.21.0(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 6.21.0
       debug: 4.4.3
       eslint: 8.57.0
@@ -21605,19 +21605,19 @@ snapshots:
       ignore: 5.3.1
       natural-compare: 1.4.0
       semver: 7.7.3
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/eslint-plugin@7.7.1(@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/eslint-plugin@7.7.1(@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.9.3))(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.10.0
-      '@typescript-eslint/parser': 7.7.1(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/parser': 7.7.1(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/scope-manager': 7.7.1
-      '@typescript-eslint/type-utils': 7.7.1(eslint@8.57.0)(typescript@5.4.5)
-      '@typescript-eslint/utils': 7.7.1(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/type-utils': 7.7.1(eslint@8.57.0)(typescript@5.9.3)
+      '@typescript-eslint/utils': 7.7.1(eslint@8.57.0)(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 7.7.1
       debug: 4.4.3
       eslint: 8.57.0
@@ -21625,35 +21625,35 @@ snapshots:
       ignore: 5.3.1
       natural-compare: 1.4.0
       semver: 7.7.3
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/parser@6.21.0(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 6.21.0
       '@typescript-eslint/types': 6.21.0
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 6.21.0
       debug: 4.4.3
       eslint: 8.57.0
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/parser@7.7.1(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 7.7.1
       '@typescript-eslint/types': 7.7.1
-      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 7.7.1
       debug: 4.4.3
       eslint: 8.57.0
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -21667,27 +21667,27 @@ snapshots:
       '@typescript-eslint/types': 7.7.1
       '@typescript-eslint/visitor-keys': 7.7.1
 
-  '@typescript-eslint/type-utils@6.21.0(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/type-utils@6.21.0(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.4.5)
-      '@typescript-eslint/utils': 6.21.0(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.3)
+      '@typescript-eslint/utils': 6.21.0(eslint@8.57.0)(typescript@5.9.3)
       debug: 4.4.3
       eslint: 8.57.0
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/type-utils@7.7.1(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/type-utils@7.7.1(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.4.5)
-      '@typescript-eslint/utils': 7.7.1(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.9.3)
+      '@typescript-eslint/utils': 7.7.1(eslint@8.57.0)(typescript@5.9.3)
       debug: 4.4.3
       eslint: 8.57.0
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -21695,7 +21695,7 @@ snapshots:
 
   '@typescript-eslint/types@7.7.1': {}
 
-  '@typescript-eslint/typescript-estree@6.21.0(typescript@5.4.5)':
+  '@typescript-eslint/typescript-estree@6.21.0(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 6.21.0
       '@typescript-eslint/visitor-keys': 6.21.0
@@ -21704,13 +21704,13 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.3
       semver: 7.7.3
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/typescript-estree@7.7.1(typescript@5.4.5)':
+  '@typescript-eslint/typescript-estree@7.7.1(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 7.7.1
       '@typescript-eslint/visitor-keys': 7.7.1
@@ -21719,34 +21719,34 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.4
       semver: 7.7.3
-      ts-api-utils: 1.3.0(typescript@5.4.5)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@6.21.0(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/utils@6.21.0(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/eslint-utils': 4.4.0(eslint@8.57.0)
       '@types/json-schema': 7.0.15
       '@types/semver': 7.5.8
       '@typescript-eslint/scope-manager': 6.21.0
       '@typescript-eslint/types': 6.21.0
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.3)
       eslint: 8.57.0
       semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@typescript-eslint/utils@7.7.1(eslint@8.57.0)(typescript@5.4.5)':
+  '@typescript-eslint/utils@7.7.1(eslint@8.57.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/eslint-utils': 4.4.0(eslint@8.57.0)
       '@types/json-schema': 7.0.15
       '@types/semver': 7.5.8
       '@typescript-eslint/scope-manager': 7.7.1
       '@typescript-eslint/types': 7.7.1
-      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.4.5)
+      '@typescript-eslint/typescript-estree': 7.7.1(typescript@5.9.3)
       eslint: 8.57.0
       semver: 7.7.3
     transitivePeerDependencies:
@@ -23228,7 +23228,7 @@ snapshots:
   config-file-ts@0.2.8-rc1:
     dependencies:
       glob: 10.4.5
-      typescript: 5.4.5
+      typescript: 5.9.3
 
   connect@3.7.0:
     dependencies:
@@ -23283,14 +23283,14 @@ snapshots:
       yaml: 1.10.2
     optional: true
 
-  cosmiconfig@8.3.6(typescript@5.4.5):
+  cosmiconfig@8.3.6(typescript@5.9.3):
     dependencies:
       import-fresh: 3.3.1
       js-yaml: 4.1.1
       parse-json: 5.2.0
       path-type: 4.0.0
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
 
   crc-32@1.2.2: {}
 
@@ -27190,7 +27190,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  msw@0.44.2(encoding@0.1.13)(typescript@5.4.5):
+  msw@0.44.2(encoding@0.1.13)(typescript@5.9.3):
     dependencies:
       '@mswjs/cookies': 0.2.2
       '@mswjs/interceptors': 0.17.3
@@ -27213,7 +27213,7 @@ snapshots:
       type-fest: 1.4.0
       yargs: 17.7.2
     optionalDependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -28293,11 +28293,11 @@ snapshots:
 
   react-native-sse@1.2.1: {}
 
-  react-native-svg-transformer@1.3.0(react-native-svg@15.12.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(typescript@5.4.5):
+  react-native-svg-transformer@1.3.0(react-native-svg@15.12.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3):
     dependencies:
-      '@svgr/core': 8.1.0(typescript@5.4.5)
-      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.4.5))
-      '@svgr/plugin-svgo': 8.1.0(@svgr/core@8.1.0(typescript@5.4.5))(typescript@5.4.5)
+      '@svgr/core': 8.1.0(typescript@5.9.3)
+      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))
+      '@svgr/plugin-svgo': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))(typescript@5.9.3)
       path-dirname: 1.0.2
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)
       react-native-svg: 15.12.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -29796,21 +29796,21 @@ snapshots:
     dependencies:
       utf8-byte-length: 1.0.5
 
-  ts-api-utils@1.3.0(typescript@5.4.5):
+  ts-api-utils@1.3.0(typescript@5.9.3):
     dependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
 
   ts-interface-checker@0.1.13: {}
 
-  tsc-files@1.1.4(typescript@5.4.5):
+  tsc-files@1.1.4(typescript@5.9.3):
     dependencies:
-      typescript: 5.4.5
+      typescript: 5.9.3
 
   tslib@1.14.1: {}
 
   tslib@2.8.1: {}
 
-  tsup@8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.4.35)(typescript@5.4.5):
+  tsup@8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.4.35)(typescript@5.9.3):
     dependencies:
       bundle-require: 4.0.2(esbuild@0.19.12)
       cac: 6.7.14
@@ -29829,7 +29829,7 @@ snapshots:
     optionalDependencies:
       '@swc/core': 1.15.11(@swc/helpers@0.5.18)
       postcss: 8.4.35
-      typescript: 5.4.5
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
       - ts-node
@@ -29904,7 +29904,7 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typescript@5.4.5: {}
+  typescript@5.9.3: {}
 
   ua-parser-js@0.7.37: {}
 
@@ -30164,11 +30164,11 @@ snapshots:
       rollup: 4.13.0
       vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)
 
-  vite-plugin-svgr@4.2.0(rollup@4.13.0)(typescript@5.4.5)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)):
+  vite-plugin-svgr@4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)):
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.13.0)
-      '@svgr/core': 8.1.0(typescript@5.4.5)
-      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.4.5))
+      '@svgr/core': 8.1.0(typescript@5.9.3)
+      '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))
       vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.31.1)(terser@5.46.0)
     transitivePeerDependencies:
       - rollup
