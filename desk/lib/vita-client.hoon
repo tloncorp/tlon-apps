@@ -6,7 +6,7 @@
 ::   from somewhere that indicates real user activity
 ::
 :: on %log-activity, we check if we already poked :~parent/vita today.
-:: if so, ignore. if not, poke :~parent/vita with 
+:: if so, ignore. if not, poke :~parent/vita with
 ::
 :: on init, vita-client can be set to be enabled / disabled by default.
 :: on init, vita-client is configured with its parent @p
@@ -81,14 +81,16 @@
     ++  on-load
       |=  ole=vase
       ^-  (quip card _this)
-      ?.  ?=([[%vita-client *] *] q.ole)
-        =.  config  init
-        =^  cards   inner   (on-load:ag ole)
-        [cards this]
-      =+  !<([[%vita-client old=state-0] ile=vase] ole)
-      =.  state  old
-      =^  cards  inner  (on-load:ag ile)
-      [cards this]
+      ~&  %todo-vita-client
+      [~ this]
+      :: ?.  ?=([[%vita-client *] *] q.ole)
+      ::   =.  config  init
+      ::   =^  cards   inner   (on-load:ag ole)
+      ::   [cards this]
+      :: =+  !<([[%vita-client old=state-0] ile=vase] ole)
+      :: =.  state  old
+      :: =^  cards  inner  (on-load:ag ile)
+      :: [cards this]
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
