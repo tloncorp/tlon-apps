@@ -1,17 +1,17 @@
 diff --git a/android/build.gradle b/android/build.gradle
-index 3f037e0d84068f841de5bda969a96bc3dd712f0c..9ae797cb9f0fa1ff0ee3f5db44858d3e671b5dfb 100644
+index 856c83d894f06318264dedf4514db452609c63f5..patch 100644
 --- a/android/build.gradle
 +++ b/android/build.gradle
-@@ -19,6 +19,7 @@ android {
+@@ -15,6 +15,7 @@
  }
- 
+
  dependencies {
 +  compileOnly "com.facebook.react:react-android"
    implementation project(':unimodules-app-loader')
    api "androidx.core:core:1.0.0"
  }
 diff --git a/android/src/main/java/expo/modules/taskManager/TaskService.java b/android/src/main/java/expo/modules/taskManager/TaskService.java
-index 2b6c2fa60a8c52dda8a41641d416563db6e15725..be8307d35bc3d1337f21c39f243acf174a0dda04 100644
+index 2b6c2fa60a8c52dda8a41641d416563db6e15725..patch 100644
 --- a/android/src/main/java/expo/modules/taskManager/TaskService.java
 +++ b/android/src/main/java/expo/modules/taskManager/TaskService.java
 @@ -24,7 +24,16 @@ import java.util.List;
@@ -99,7 +99,7 @@ index 2b6c2fa60a8c52dda8a41641d416563db6e15725..be8307d35bc3d1337f21c39f243acf17
 +      if (reactContext != null) {
 +        invokeStartHeadlessTask(reactContext, appScopeKey);
 +      } else {
-+        // App was killed — context not ready yet. Listen for creation and start then.
++        // App was killed - context not ready yet. Listen for creation and start then.
 +        waitForReactContextAndStartTask(context, appScopeKey);
 +      }
 +    } catch (Exception e) {
@@ -179,13 +179,11 @@ index 2b6c2fa60a8c52dda8a41641d416563db6e15725..be8307d35bc3d1337f21c39f243acf17
 +  }
  }
 diff --git a/src/TaskManager.ts b/src/TaskManager.ts
-index 5ec995fbb089ad9ee4cf134f76bfc78688e648bf..3f1133c32966d7dde38a66f19d270f596df10180 100644
+index 88aa2d996d1b42d7677523a177fa99f5a1cf1706..patch 100644
 --- a/src/TaskManager.ts
 +++ b/src/TaskManager.ts
-@@ -1,9 +1,16 @@
- import { isRunningInExpoGo } from 'expo';
+@@ -1,5 +1,13 @@
  import { LegacyEventEmitter, UnavailabilityError } from 'expo-modules-core';
--import { Platform } from 'react-native';
 +import { AppRegistry, Platform } from 'react-native';
  
  import ExpoTaskManager from './ExpoTaskManager';
@@ -198,5 +196,3 @@ index 5ec995fbb089ad9ee4cf134f76bfc78688e648bf..3f1133c32966d7dde38a66f19d270f59
 +}
 +
  // @needsAudit @docsMissing
- /**
-  * Error object that can be received through [`TaskManagerTaskBody`](#taskmanagertaskbody) when the
