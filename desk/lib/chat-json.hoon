@@ -162,6 +162,229 @@
         meta/(meta met.cr)
         net/s/net.cr
     ==
+  ++  v7
+    =,  v6
+    |%
+    ++  writs-diff
+      |=  =diff:writs:v7:cv
+      %-  pairs
+      :~  id/(id p.diff)
+          delta/(writs-delta q.diff)
+      ==
+    ::
+    ++  writs-delta
+      |=  =delta:writs:v7:cv
+      %+  frond  -.delta
+      ?-  -.delta
+        %del       ~
+        %add-react  (add-react +.delta)
+        %del-react  (author:v9:enjs:dj author.delta)
+        %reply      (reply-delta +.delta)
+      ::
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            time+?~(time.delta ~ (time-id u.time.delta))
+        ==
+      ==
+    ::
+    ++  writs-response
+      |=  [=whom:v7:cv =response:writs:v7:cv]
+      %-  pairs
+      :~  whom/s/(^whom whom)
+          id/(id id.response)
+          response/(response-delta response.response)
+      ==
+    ::
+    ++  response-delta
+      |=  delta=response-delta:writs:v7:cv
+      %+  frond  -.delta
+      ?-  -.delta
+          %del       ~
+          %add-react  (add-react [author react]:delta)
+          %del-react  (author:v9:enjs:dj author.delta)
+          %reply     (reply-response-delta +.delta)
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            seq+(numb seq.delta)
+            time+(time-id time.delta)
+        ==
+      ==
+    ::
+    ++  reply-delta
+      |=  [i=id:c meta=(unit reply-meta:v7:cv) =delta:replies:v7:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  reply-essay+(reply-essay:v10:enjs:dj reply-essay.delta)
+                time+?~(time.delta ~ (time-id u.time.delta))
+            ==
+          ==
+      ==
+    ::
+    ++  reply-response-delta
+      |=  [i=id:c meta=(unit reply-meta:v7:cv) delta=response-delta:replies:v7:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  reply-essay+(reply-essay:v10:enjs:dj reply-essay.delta)
+                time+(time-id time.delta)
+            ==
+          ==
+      ==
+    ::
+    ++  dm-action
+      |=  =action:dm:v7:cv
+      %-  pairs
+      :~  ship+(ship p.action)
+          diff+(writs-diff q.action)
+      ==
+    ::
+    ++  writ-list
+      |=  w=(list writ:v7:cv)
+      ^-  json
+      a+(turn w writ)
+    ::
+    ++  writs
+      |=  =writs:v7:cv
+      ^-  json
+      %-  pairs
+      %+  turn  (tap:on:writs:v7:cv writs)
+      |=  [key=@da w=(may:v7:cv writ:v7:cv)]
+      [(scot %ud key) (may writ w)]
+    ::
+    ++  writ
+      |=  =writ:v7:cv
+      %-  pairs
+      :~  seal+(seal -.writ)
+          essay+(essay:v9:enjs:dj +.writ)
+          type+s+%post
+      ==
+    ::
+    ++  chat-heads
+      |=  heads=chat-heads:v7:cv
+      :-  %a
+      %+  turn  heads
+      |=  [=whom:v7:cv recency=^time latest=(unit writ:v7:cv)]
+      %-  pairs
+      :~  whom+s+(^whom whom)
+          recency+(time recency)
+          latest+?~(latest ~ (writ u.latest))
+      ==
+    ::
+    ++  paged-writs
+      |=  pw=paged-writs:v7:cv
+      %-  pairs
+      :~  writs+(writs writs.pw)
+          newer+?~(newer.pw ~ (time-id u.newer.pw))
+          older+?~(older.pw ~ (time-id u.older.pw))
+          newest+(numb newest.pw)
+          total+(numb total.pw)
+      ==
+    ::
+    ++  seal
+      |=  =seal:v7:cv
+      %-  pairs
+      :~  id+(id id.seal)
+          seq+(numb seq.seal)
+          time+(time-id time.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
+      ==
+    ::
+    ++  replies
+      |=  =replies:v7:cv
+      %-  pairs
+      %+  turn  (tap:on:replies:v7:cv replies)
+      |=  [key=@da q=(may:v7:cv reply:v7:cv)]
+      [(scot %ud key) (may reply q)]
+    ::
+    ++  reply
+      |=  =reply:v7:cv
+      %-  pairs
+      :~  seal+(reply-seal -.reply)
+          reply-essay+(reply-essay:v10:enjs:dj +.reply)
+      ==
+    ::
+    ++  reference
+      |=  =reference:v7:cv
+      %+  frond  -.reference
+      ?-    -.reference
+          %writ  (may writ writ.reference)
+          %reply
+        %-  pairs
+        :~  id-note+(id id.reference)
+            reply+(may reply reply.reference)
+        ==
+      ==
+    ::
+    ++  club-action
+      |=  a=action:club:v7:cv
+      ^-  json
+      %-  pairs
+      :~  id/s/(scot %uv p.a)
+          diff/(club-diff q.a)
+      ==
+    ::
+    ++  club-diff
+      |=  d=diff:club:v7:cv
+      ^-  json
+      %-  pairs
+      :~  uid/s/(scot %uv p.d)
+          delta/(club-delta q.d)
+      ==
+    ::
+    ++  club-delta
+      |=  d=delta:club:v7:cv
+      %+  frond  -.d
+      ?-  -.d
+          %writ  (writs-diff diff.d)
+      ::
+          %meta  (meta meta.d)
+      ::
+          %team
+        %-  pairs
+        :~  ship/(ship ship.d)
+            ok/b/ok.d
+        ==
+      ::
+          %hive
+        %-  pairs
+        :~  by/(ship by.d)
+            for/(ship for.d)
+            add/b/add.d
+        ==
+      ::
+          %init
+        %-  pairs
+        :~  team/a/(turn ~(tap in team.d) ship)
+            hive/a/(turn ~(tap in hive.d) ship)
+            meta/(meta met.d)
+        ==
+      ==
+    --
   ++  v6
     |%
     ++  writs-diff

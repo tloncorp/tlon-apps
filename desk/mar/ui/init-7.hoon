@@ -20,7 +20,6 @@
         :~  channels/(channels:v10:enjs:dj channels.channel.init)
             hidden-posts/(hidden-posts:v10:enjs:dj hidden-posts.channel.init)
         ==
-      ::TODO migrate chat types here
         :-  %chat
         %-  pairs
         :~  clubs/(clubs:enjs:cj clubs.chat.init)

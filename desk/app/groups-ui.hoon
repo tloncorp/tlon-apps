@@ -265,7 +265,6 @@
       [%x %v7 %init ~]
     =+  .^([=groups-ui:v9:gv =foreigns:v8:gv] (scry %gx %groups /v3/init/noun))
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
-    ::TODO bump chat types here
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -328,8 +327,7 @@
       [%x %v8 %changes since=@ ~]
     =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
     =+  .^(channels=json (scry %gx %channels /v6/changes/[since.pole]/json))
-    ::TODO bump chat
-    =+  .^(chat=json (scry %gx %chat /v3/changes/[since.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v4/changes/[since.pole]/json))
     =+  .^(groups=json (scry %gx %groups /v2/changes/[since.pole]/json))
     =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
     :^  ~  ~  %json
@@ -353,8 +351,7 @@
   ::
       [%x %v6 %init-posts channels=@ context=@ ~]
     =+  .^(channels=json (scry %gx %channels /v6/init-posts/[channels.pole]/[context.pole]/json))
-    ::TODO bump chat
-    =+  .^(chat=json (scry %gx %chat /v3/init-posts/[channels.pole]/[context.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v4/init-posts/[channels.pole]/[context.pole]/json))
     :^  ~  ~  %json
     !>  %-  pairs:enjs:format
     :~  'channels'^channels

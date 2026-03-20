@@ -6,7 +6,7 @@
       channel=channel-10
       =activity:a
       pins=(list whom)
-      chat=chat-3
+      chat=chat-2
       profile=?
   ==
 +$  init-6
@@ -91,15 +91,6 @@
 +$  channel-0
   $:  =channels:v1:dv
       hidden-posts=(set id-post:dv)
-  ==
-::TODO bump chat types
-+$  chat-3
-  $:  dms=(set ship)
-      invited=(set ship)
-      clubs=(map id:club:v3:cv crew:club:v3:cv)
-      blocked=(set ship)
-      blocked-by=(set ship)
-      hidden-messages=(set id:v3:cv)
   ==
 +$  chat-2
   $:  dms=(set ship)
