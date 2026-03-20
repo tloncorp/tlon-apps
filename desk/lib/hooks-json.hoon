@@ -208,7 +208,7 @@
     :~  id/id
         origin/origin
     ==
-  ++  schedule
+++  schedule
     |=  j=json
     ?+  j  !!
         [%s *]  ((se %dr) j)
@@ -220,5 +220,29 @@
           repeat/(se %dr)
       ==
     ==
+  --
+::
+++  enjs-v2
+  =,  enjs:format
+  |%
+  ++  noun
+    |=  noun=*
+    s+(scot %uw `@uw`(jam noun))
+  ++  hook-def  noun
+  ++  hitch  noun
+  ++  trigger  noun
+  ++  run-log  noun
+  ++  hook-state  noun
+  --
+::
+++  dejs-v2
+  =,  dejs:format
+  |%
+  ++  hook-id  (se %uv)
+  ++  hitch-id  (se %uv)
+  ++  run-id  (se %uv)
+  ++  noun
+    |=  j=json
+    (cue ((se %uw) j))
   --
 --

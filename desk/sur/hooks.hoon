@@ -186,4 +186,192 @@
       order=(list id-hook)
       crons=(list [id-hook job])
   ==
+::
+::  %hooks v2 prototype types
+::
++$  hook-id  @uv
++$  hitch-id  @uv
++$  run-id  @uv
++$  req-id  @uv
++$  version  [major=@ud minor=@ud patch=@ud]
++$  hook-meta
+  $:  desc=@t
+      author=@p
+      icon=(unit @t)
+      tags=(list @tas)
+  ==
++$  visibility
+  $%  [%private ~]
+      [%ships ships=(set @p)]
+      [%public ~]
+  ==
++$  hook-preview
+  $:  id=hook-id
+      name=@t
+      meta=hook-meta
+      version=version
+  ==
++$  config-schema  (list config-field)
++$  config-field
+  $:  name=@tas
+      type=field-type
+      desc=@t
+      default=(unit @t)
+  ==
++$  field-type
+  $%  [%text ~]
+      [%number ~]
+      [%boolean ~]
+      [%ship ~]
+      [%nest ~]
+      [%flag ~]
+      [%duration ~]
+      [%list type=field-type]
+  ==
++$  hook-def
+  $:  id=hook-id
+      name=@t
+      meta=hook-meta
+      src=@t
+      version=version
+      schema=config-schema
+      =visibility
+  ==
++$  trigger
+  $%  [%channels type=term nest=(unit nest)]
+      [%groups type=term flag=(unit flag:g)]
+      [%contacts type=term]
+      [%activity type=term]
+      [%cron id=(unit @tas)]
+      [%webhook id=(unit @tas)]
+      [%command id=(unit @tas)]
+  ==
++$  hitch
+  $:  id=hitch-id
+      hook-id=hook-id
+      triggers=(list trigger)
+      config=vase
+      state=vase
+      enabled=?
+  ==
++$  hitch-patch
+  $:  triggers=(unit (list trigger))
+      config=(unit vase)
+      state=(unit vase)
+      enabled=(unit ?)
+  ==
++$  firehose-source
+  ?(%channels %groups %contacts %activity %cron %webhook %command)
++$  resource-filter
+  $%  [%channels nest]
+      [%groups flag:g]
+      [%id @tas]
+  ==
++$  firehose-event
+  $:  source=firehose-source
+      type=term
+      resource=(unit resource-filter)
+      body=vase
+      at=@da
+  ==
++$  log-level  ?(%debug %info %warn %error)
++$  log-entry
+  $:  at=@da
+      level=log-level
+      msg=@t
+  ==
++$  result
+  $%  [%success out=(unit vase)]
+      [%error msg=@t stack=(unit tang)]
+  ==
++$  hook-output
+  $:  =result
+      state=vase
+      logs=(list log-entry)
+  ==
++$  thread-status
+  $?  %pending
+      %running
+      %done
+      %crashed
+  ==
++$  run-log
+  $:  id=run-id
+      hitch-id=hitch-id
+      started-at=@da
+      ended-at=(unit @da)
+      trigger=trigger
+      input=vase
+      status=thread-status
+      output=(unit hook-output)
+      logs=(list log-entry)
+  ==
++$  log-limits
+  $:  max-entries-per-run=@ud
+      max-runs-per-hitch=@ud
+      max-msg-length=@ud
+  ==
++$  effect
+  $%  [%channels action=vase]
+      [%groups action=vase]
+      [%contacts action=vase]
+      [%activity action=vase]
+      [%dm action=vase]
+      [%club action=vase]
+      [%command cmd=@tas args=(unit vase)]
+  ==
++$  chain-response
+  $%  [%pass event=vase]
+      [%stop error=@t]
+  ==
++$  thread-input
+  $:  event=vase
+      config=vase
+      state=vase
+      hook=hook-def
+      hitch-id=hitch-id
+  ==
++$  invocation-response
+  $%  [%run run=run-log]
+      [%chain req-id=req-id result=result]
+  ==
++$  firehose-sub
+  $:  source=firehose-source
+      path=path
+      live=?
+  ==
++$  pending-kind
+  $%  [%run req-id=(unit req-id)]
+      [%chain req-id=req-id caller=term remaining=(list hitch-id) event=vase]
+      [%test ~]
+  ==
++$  pending-run
+  $:  id=run-id
+      hitch-id=hitch-id
+      trigger=trigger
+      started-at=@da
+      kind=pending-kind
+  ==
++$  hook-action
+  $%  [%add-hook hook=hook-def]
+      [%remove-hook id=hook-id]
+      [%update-hook id=hook-id hook=hook-def]
+      [%add-hitch hitch=hitch]
+      [%remove-hitch id=hitch-id]
+      [%update-hitch id=hitch-id patch=hitch-patch]
+      [%enable-hitch id=hitch-id]
+      [%disable-hitch id=hitch-id]
+      [%run id=hitch-id req-id=req-id args=(unit vase)]
+      [%run-chain req-id=req-id hitches=(list hitch-id) event=vase]
+      [%test-run id=hitch-id event=vase]
+  ==
++$  hook-state-0
+  $:  %0
+      hooks=(map hook-id hook-def)
+      hitches=(map hitch-id hitch)
+      runs=(map run-id run-log)
+      pending=(map run-id pending-run)
+      firehoses=(map firehose-source firehose-sub)
+      limits=log-limits
+  ==
 --
