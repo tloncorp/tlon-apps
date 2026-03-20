@@ -43,6 +43,7 @@ import {
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
 import { DraftInputView } from './Channel/DraftInputView';
+import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -599,9 +600,7 @@ function SinglePostView({
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
 
   // --- Chat-thread highlight + fast-path handle ---
-  const [highlightPostId, setHighlightPostId] = useState<string | null>(
-    isChatChannel && selectedPostId ? selectedPostId : null
-  );
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const highlightPost = useCallback((postId: string) => {
@@ -646,46 +645,23 @@ function SinglePostView({
     };
   }, [chatThreadHandleRef]);
 
-  // Scroll to selectedPostId once the post is available in the thread.
-  // Uses a string ref (not boolean) so the effect re-fires when
-  // selectedPostId changes to a new value on the same mounted screen.
-  const lastHandledSelectedPostId = useRef<string | null>(null);
-
-  // Reset when selectedPostId is cleared (e.g. params update with no selection).
-  useEffect(() => {
-    if (!selectedPostId) {
-      lastHandledSelectedPostId.current = null;
+  // Compute a ScrollAnchor from selectedPostId for chat threads.
+  // This wires into useAnchorScrollLock via Scroller, giving us retry/recovery
+  // for unmeasured items instead of a one-shot scrollToIndex.
+  const threadAnchor: ScrollAnchor | null = useMemo(() => {
+    if (isChatChannel && selectedPostId) {
+      return { type: 'selected', postId: selectedPostId };
     }
-  }, [selectedPostId]);
+    return null;
+  }, [isChatChannel, selectedPostId]);
 
-  // Reset when the thread changes (same mounted screen, different parent post).
+  // Trigger the 5s temporary highlight when selectedPostId changes.
+  // Scrolling is handled by the anchor via useAnchorScrollLock.
   useEffect(() => {
-    lastHandledSelectedPostId.current = null;
-  }, [parentPost.id]);
-
-  useEffect(() => {
-    if (
-      !isChatChannel ||
-      !selectedPostId ||
-      !posts ||
-      lastHandledSelectedPostId.current === selectedPostId
-    ) {
-      return;
-    }
-    const index = posts.findIndex((p) => p.id === selectedPostId);
-    if (index !== -1) {
-      lastHandledSelectedPostId.current = selectedPostId;
-      // Allow the list to render before scrolling.
-      requestAnimationFrame(() => {
-        scrollerRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      });
+    if (isChatChannel && selectedPostId) {
       highlightPost(selectedPostId);
     }
-  }, [isChatChannel, selectedPostId, posts, highlightPost]);
+  }, [isChatChannel, selectedPostId, highlightPost]);
 
   const containingProperties: Partial<
     React.ComponentPropsWithoutRef<typeof View>
@@ -774,6 +750,7 @@ function SinglePostView({
           post={parentPost}
           channel={channel}
           initialPostUnread={initialThreadUnread}
+          anchor={threadAnchor}
           onPressImage={handleGoToImage}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
