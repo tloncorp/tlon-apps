@@ -54,7 +54,7 @@ if (posthog) {
         sentryLogger.capture(event, data);
       }
     },
-    flush: async () => client.flush(),
+    flush: async () => posthog.flush(),
   };
 
   useDebugStore.getState().initializeErrorLogger(compositeLogger);

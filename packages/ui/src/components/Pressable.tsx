@@ -117,7 +117,7 @@ const Pressable = forwardRef<any, PressableProps>(
     // are attached.
     const disabled = propDisabled || !hasInteractionHandler;
 
-    const style = useMemo<StackProps['style']>(
+    const style = useMemo<ViewProps['style']>(
       () => [
         propStyle,
         // @ts-expect-error - we're trying to fit the Pressable
