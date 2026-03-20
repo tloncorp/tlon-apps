@@ -82,10 +82,12 @@
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
             :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
+            ::TODO make strict
             :+  %chat-scam-3          &  -:!>(*vale:m-chat-scam-3)
             :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
             :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
             :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
+            ::TODO make strict
             :+  %chat-scan-3          &  -:!>(*vale:m-chat-scan-3)
             :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
             :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
@@ -93,7 +95,8 @@
             :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
             :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
             :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
-            :+  %chat-writ-3          &  -:!>(*vale:m-chat-writ-3)
+            ::TODO make strict
+            :+  %chat-writ-3          |  -:!>(*vale:m-chat-writ-3)
             :+  %clubs                &  -:!>(*vale:m-clubs)
             :+  %epic                 &  -:!>(*vale:m-epic)
             :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
@@ -102,7 +105,8 @@
             :+  %writ-response        &  -:!>(*vale:m-writ-response)
             :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
             :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
-            :+  %writ-response-3      &  -:!>(*vale:m-writ-response-3)
+            ::TODO make strict
+            :+  %writ-response-3      |  -:!>(*vale:m-writ-response-3)
         ==
       ::  facts
       ::
@@ -124,9 +128,9 @@
           [/v2/clubs %chat-club-action-1 ~]
           [/v2/dm/$ %writ-response-2 ~]
         ::
-          [/v3 %chat-club-action-1 %writ-response-3 %ships ~]
+          [/v3 %chat-club-action-2 %writ-response-3 %ships ~]
           [/v3/club/$ %writ-response-3 ~]
-          [/v3/clubs %chat-club-action-1 ~]
+          [/v3/clubs %chat-club-action-2 ~]
           [/v3/dm/$ %writ-response-3 ~]
       ==
     ::  scries
@@ -169,7 +173,7 @@
         [/x/v2/dm/$/writs/writ %chat-writ-2]
         [/x/v2/heads %chat-heads-2]
       ::
-        [/x/v3/changes/$ %chat-changed-writs]
+        [/x/v3/changes/$ %chat-changed-writs-1]
         [/x/v3/club/$/search %chat-scan-3]
         [/x/v3/club/$/search/bounded %chat-scam-3]
         [/x/v3/club/$/writs %chat-paged-writs-3]
@@ -179,13 +183,13 @@
         [/x/v3/dm/$/writs %chat-paged-writs-3]
         [/x/v3/dm/$/writs/writ %chat-writ-3]
         [/x/v3/heads %chat-heads-3]
-        [/x/v3/init-posts %chat-changed-writs]
+        [/x/v3/init-posts %chat-changed-writs-1]
     ==
 ::
 %-  %-  agent:neg
     :+  |
-      [~.chat-dms^%1 ~ ~]
-    [%chat^[~.chat-dms^%1 ~ ~] ~ ~]
+      [~.chat-dms^%2 ~ ~]
+    [%chat^[~.chat-dms^%2 ~ ~] ~ ~]
 %-  agent:dbug
 %^  verb  |  %warn
 ::
