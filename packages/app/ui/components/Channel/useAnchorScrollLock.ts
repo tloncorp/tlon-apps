@@ -92,6 +92,7 @@ export function useAnchorScrollLock({
       showPostsTimeoutRef.current = setTimeout(() => {
         logger.log('posts are ready for display');
         setDidAnchorSearchTimeout(true);
+        showPostsTimeoutRef.current = null;
       }, 2000);
     }
   }, [posts?.length, readyToDisplayPosts]);
@@ -282,10 +283,12 @@ export function useAnchorScrollLock({
     };
   }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
 
-  // Clean up retry timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      if (showPostsTimeoutRef.current)
+        clearTimeout(showPostsTimeoutRef.current);
     };
   }, []);
 
@@ -301,6 +304,10 @@ export function useAnchorScrollLock({
       scrollPhaseRef.current = 'idle';
       failureRetryCountRef.current = 0;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      if (showPostsTimeoutRef.current) {
+        clearTimeout(showPostsTimeoutRef.current);
+        showPostsTimeoutRef.current = null;
+      }
     }
   }, [anchor?.postId]);
 
