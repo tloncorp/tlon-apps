@@ -14,7 +14,11 @@ export interface PostWithNeighbors {
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;
-  scrollToIndex: (opts: { index: number; animated?: boolean }) => void;
+  scrollToIndex: (opts: {
+    index: number;
+    animated?: boolean;
+    viewPosition?: number;
+  }) => void;
 }
 
 export type PostListComponentProps = {

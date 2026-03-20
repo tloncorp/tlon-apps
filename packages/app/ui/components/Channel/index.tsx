@@ -1,5 +1,10 @@
-import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useIsFocused } from '@react-navigation/native';
+import {
+  ChannelContentConfiguration,
+  isDmChannelId,
+  isGroupDmChannelId,
+} from '@tloncorp/api';
+import { JSONContent } from '@tloncorp/api/urbit';
 import {
   Attachment,
   DraftInputId,
@@ -11,15 +16,9 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
-import {
-  ChannelContentConfiguration,
-  isDmChannelId,
-  isGroupDmChannelId,
-} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { JSONContent } from '@tloncorp/api/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -39,6 +38,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useIsUserActive } from '../../../hooks/useUserActivity';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -56,7 +56,6 @@ import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
-import { PinnedPostBanner } from './PinnedPostBanner';
 import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
 import {
   ConnectedPostView,
@@ -65,6 +64,7 @@ import {
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
+import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 
@@ -235,7 +235,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           goToChannelDetails(channel.groupId, channel.id);
         }
       }
-    }, [goToChannelDetails, channel.groupId, channel.id, group?.channels?.length]);
+    }, [
+      goToChannelDetails,
+      channel.groupId,
+      channel.id,
+      group?.channels?.length,
+    ]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -322,8 +327,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           anchorIndex !== -1 &&
           collectionRef.current
         ) {
-          // If the post is already loaded, scroll to it
-          collectionRef.current?.scrollToPostAtIndex?.(anchorIndex);
+          // If the post is already loaded, scroll to it and highlight
+          collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
+          collectionRef.current?.highlightPost?.(post.id);
           return;
         }
 
@@ -476,9 +482,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const shouldShowPinnedPostBanner = useMemo(() => {
       if (!pinnedPostId) return false;
       if (!isNotebookOrGallery) return true;
-      return (
-        editingPost == null && draftInputPresentationMode !== 'fullscreen'
-      );
+      return editingPost == null && draftInputPresentationMode !== 'fullscreen';
     }, [
       pinnedPostId,
       isNotebookOrGallery,

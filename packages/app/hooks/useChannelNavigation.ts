@@ -25,20 +25,12 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
       if (channel.type === 'chat') {
-        if (channel.id === channelId) {
-          navigation.navigate('Channel', {
-            channelId: channel.id,
-            selectedPostId: post.id,
-            groupId: channel.groupId ?? undefined,
-          });
-        } else {
-          navigateToChannel(channel, post.id);
-        }
+        navigateToChannel(channel, post.id);
       } else {
         navigateToPost(post);
       }
     },
-    [navigation, channelId, navigateToChannel, navigateToPost]
+    [navigateToChannel, navigateToPost]
   );
 
   const navigateToImage = useCallback(
