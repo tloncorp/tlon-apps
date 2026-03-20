@@ -1,15 +1,16 @@
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '../api';
-import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -24,6 +25,7 @@ import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
 import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
+import { getSystemContacts } from './systemContactsApi';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
@@ -307,7 +309,7 @@ export const syncLatestChanges = async ({
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return api.fetchChangesSince(syncFrom);
+    return fetchChangesSince(syncFrom);
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
@@ -454,6 +456,9 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const result = await syncQueue.add('settings', ctx, () => api.getSettings());
   logger.log('got settings from api', result);
   await db.insertSettings(result.settings);
+  await db.dismissedPinnedPostBannerIds.setValue(
+    result.dismissedPinnedPostBannerIds
+  );
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -476,7 +481,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
@@ -514,7 +519,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     return;
   }
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -1380,6 +1385,17 @@ export const handleSettingsUpdate = async (
         ctx
       );
       break;
+    case 'dismissPinnedPostBanner':
+      await db.dismissedPinnedPostBannerIds.setValue((current) => {
+        if (update.dismissed) {
+          if (current.includes(update.postId)) {
+            return current;
+          }
+          return [...current, update.postId];
+        }
+        return current.filter((postId) => postId !== update.postId);
+      });
+      break;
   }
 };
 
@@ -1413,6 +1429,22 @@ export const handleChannelsUpdate = async (
         },
         ctx
       );
+      // When a post is pinned (or re-pinned), clear its dismissal so the
+      // banner shows again.
+      {
+        const newPinnedPostId = update.order?.[0];
+        if (newPinnedPostId) {
+          const dismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
+          if (dismissedIds.includes(newPinnedPostId)) {
+            await db.dismissedPinnedPostBannerIds.setValue(
+              dismissedIds.filter((id) => id !== newPinnedPostId)
+            );
+            const settingKey =
+              api.getDismissedPinnedPostBannerKey(newPinnedPostId);
+            api.setSetting(settingKey, false).catch(() => {});
+          }
+        }
+      }
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);

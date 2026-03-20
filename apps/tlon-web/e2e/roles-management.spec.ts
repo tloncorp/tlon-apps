@@ -135,7 +135,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   const generalChannel = page.getByTestId(/^ChannelItem-General-/);
   await expect(generalChannel).toBeVisible({ timeout: 5000 });
   await generalChannel.getByTestId('EditChannelButton').first().click();
-  await expect(page.getByText('Channel settings')).toBeVisible();
+  await expect(page.getByText('Channel info')).toBeVisible();
+
+  // Navigate to Privacy settings to set channel permissions
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
 
   // Set channel permissions
   await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
@@ -156,9 +160,23 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
 
-  // Navigate back to group settings
-  await helpers.navigateBack(page);
-  await expect(page.getByText('Group Info')).toBeVisible();
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // The exact navigation state varies, so we navigate back until we can open group settings
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').first();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
+      break;
+    }
+  }
+
+  // Open group settings to get to Group Info
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
 
   // Attempt to delete role that still has members/channels assigned
   await page.getByTestId('GroupRoles').click();
@@ -201,6 +219,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Remove role from channel permissions
   await page.getByTestId('GroupChannels').click();
   await page.getByTestId('EditChannelButton').first().click();
+  await expect(page.getByText('Channel info')).toBeVisible();
+
+  // Navigate to Privacy settings to modify channel permissions
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
 
   // Remove "Renamed role" from readers by clicking the X on the role chip
   await expect(page.getByText('Renamed role').first()).toBeVisible();
@@ -214,17 +237,28 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByTestId('ReadToggle-Renamed role')).not.toBeVisible();
   await expect(page.getByTestId('WriteToggle-Renamed role')).not.toBeVisible();
 
-  await page.getByTestId('ChannelSettingsSaveButton').click();
+  await page.getByTestId('ChannelPrivacySaveButton').click();
   await page.waitForTimeout(2000);
 
-  // Navigate back with complex fallback logic
-  await helpers.navigateBack(page);
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').first();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
+      break;
+    }
+  }
 
   // Delete the role (should now be possible)
   await page.waitForTimeout(300);
   await helpers.openGroupSettings(page);
   await page.waitForTimeout(300);
-  await expect(page.getByText('Roles')).toBeVisible();
+  // Use testID selector instead of text to avoid matching multiple "Roles" elements
+  await expect(page.getByTestId('GroupRoles')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
   await expect(page.getByText('Renamed role')).toBeVisible();
   await page.getByText('Renamed role').click();
@@ -241,4 +275,159 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Verify role count is back to 2 (Admin + virtual Members role)
   await helpers.verifyElementCount(page, 'GroupRoles', 2);
+});
+
+test('should persist role permissions after save and reopen', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(page);
+
+  // Handle welcome message if present
+  if (await page.getByText('Welcome to your group!').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  }
+
+  // Navigate back to Home and verify group creation
+  if (await page.getByTestId('HomeNavIcon').isVisible()) {
+    await helpers.navigateBack(page);
+  } else {
+    await helpers.navigateBack(page, 1);
+  }
+
+  if (await page.getByText('Home').isVisible()) {
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await page.getByText('Untitled group').first().click();
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+  }
+
+  // Open group settings and create a role
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupRoles').click();
+
+  await helpers.createRole(page, 'Writer role', 'Role with write access');
+
+  await helpers.navigateBack(page);
+
+  // Navigate to Channels and open the General channel's info screen
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupChannels').click();
+
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible();
+  const generalChannel = page.getByTestId(/^ChannelItem-General-/);
+  await expect(generalChannel).toBeVisible({ timeout: 5000 });
+  await generalChannel.getByTestId('EditChannelButton').first().click();
+  await expect(
+    page
+      .getByTestId('ChatDetailsHeader')
+      .getByText('Channel info', { exact: true })
+      .first()
+  ).toBeVisible();
+
+  // Navigate to channel permissions screen
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
+
+  // Set permissions: keep Members selected, add "Writer role" with read+write
+  await helpers.setChannelPermissions(
+    page,
+    ['Writer role'],
+    ['Writer role'],
+    true // keepMembers — exercises the Members + specific role code path
+  );
+
+  // Verify Members is still visible in the permission table
+  await expect(
+    page.getByText('Members', { exact: true }).first()
+  ).toBeVisible();
+
+  // Uncheck write for Members (so Members = read-only, Writer role = read+write)
+  const membersWriteToggle = page.getByTestId('WriteToggle-Members');
+  await expect(membersWriteToggle).toBeVisible();
+  await membersWriteToggle.click();
+
+  // Verify Writer role has write enabled
+  const writerRoleWriteToggle = page.getByTestId('WriteToggle-Writer role');
+  await expect(writerRoleWriteToggle).toBeVisible();
+  await expect(writerRoleWriteToggle.getByRole('img')).toBeVisible();
+
+  // Save
+  await page.getByTestId('ChannelPrivacySaveButton').click();
+  await page.waitForTimeout(2000);
+
+  // Navigate to channel info to re-open permissions and verify persistence
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupChannels').click();
+  await expect(page.getByText('Sort', { exact: true })).toBeVisible();
+  const generalChannelReopen = page.getByTestId(/^ChannelItem-General-/);
+  await expect(generalChannelReopen).toBeVisible({ timeout: 5000 });
+  await generalChannelReopen.getByTestId('EditChannelButton').first().click();
+  await expect(
+    page
+      .getByTestId('ChatDetailsHeader')
+      .getByText('Channel info', { exact: true })
+      .first()
+  ).toBeVisible();
+  await page.getByTestId('ChannelPrivacy').click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
+
+  // Verify "Writer role" is still visible in the permission table
+  await expect(
+    page.getByText('Writer role', { exact: true }).first()
+  ).toBeVisible();
+
+  // Verify Members is still visible
+  await expect(
+    page.getByText('Members', { exact: true }).first()
+  ).toBeVisible();
+
+  // Verify "Writer role" still has write permission (checkmark visible)
+  const writerRoleWriteToggleAfter = page.getByTestId(
+    'WriteToggle-Writer role'
+  );
+  await expect(writerRoleWriteToggleAfter).toBeVisible();
+  await expect(writerRoleWriteToggleAfter.getByRole('img')).toBeVisible();
+
+  // Verify "Writer role" has read permission
+  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
+
+  // Verify Members write is still unchecked (read-only) after reopen
+  const membersWriteToggleAfter = page.getByTestId('WriteToggle-Members');
+  await expect(membersWriteToggleAfter).toBeVisible();
+  await expect(membersWriteToggleAfter.getByRole('img')).not.toBeVisible();
+
+  // Verify writer-only roles survive opening and saving from the role picker
+  await page.getByText('Add roles').click();
+  await expect(page.getByText('Select roles')).toBeVisible();
+  // "Writer role" should be pre-selected in the picker
+  await page.getByTestId('RoleSelectionSaveButton').click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
+
+  // Verify "Writer role" is still present after saving from picker without changes
+  await expect(
+    page.getByText('Writer role', { exact: true }).first()
+  ).toBeVisible();
+  await expect(page.getByTestId('WriteToggle-Writer role')).toBeVisible();
+  await expect(
+    page.getByTestId('WriteToggle-Writer role').getByRole('img')
+  ).toBeVisible();
+
+  // Verify unchecking write doesn't cause the role to vanish from the table
+  await page.getByTestId('WriteToggle-Writer role').click();
+  // Role should still be visible in the table as read-only
+  await expect(
+    page.getByText('Writer role', { exact: true }).first()
+  ).toBeVisible();
+  await expect(page.getByTestId('ReadToggle-Writer role')).toBeVisible();
+  // Write toggle should no longer have a checkmark
+  await expect(
+    page.getByTestId('WriteToggle-Writer role').getByRole('img')
+  ).not.toBeVisible();
 });

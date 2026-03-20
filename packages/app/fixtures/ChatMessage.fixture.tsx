@@ -6,7 +6,8 @@ import {
   plaintextPreviewOf,
 } from '@tloncorp/shared/logic';
 import { RawText, Text } from '@tloncorp/ui';
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useMemo } from 'react';
+import { useSelect, useValue } from 'react-cosmos/client';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,6 +20,7 @@ import {
   View,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
+import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 import {
@@ -29,6 +31,7 @@ import {
   postWithCode,
   postWithDeleted,
   postWithEmoji,
+  postWithFileUpload,
   postWithGalleryReference,
   postWithGroupReference,
   postWithHidden,
@@ -37,9 +40,12 @@ import {
   postWithList,
   postWithMention,
   postWithNotebookReference,
+  postWithOptimisticIncompleteFileUpload,
   postWithSingleEmoji,
   postWithText,
   postWithVideo,
+  postWithVoiceMemo,
+  postWithVoiceMemoWithoutTranscription,
   useChannel,
   useGroup,
   usePostReference,
@@ -171,24 +177,26 @@ function ChatMessageFixtureWrapper({
       innerBackgroundColor={backgroundColor}
       backgroundColor={backgroundColor}
     >
-      <AppDataContextProvider contacts={Object.values(exampleContacts)}>
-        {/* @ts-expect-error don't care */}
-        <RequestsProvider
-          useChannel={useChannel}
-          useGroup={useGroup}
-          usePostReference={usePostReference}
-        >
-          <ScrollView
-            flex={1}
-            contentContainerStyle={{
-              paddingTop: insets.top,
-              paddingHorizontal: '$m',
-            }}
+      <NowPlayingProvider>
+        <AppDataContextProvider contacts={Object.values(exampleContacts)}>
+          {/* @ts-expect-error don't care */}
+          <RequestsProvider
+            useChannel={useChannel}
+            useGroup={useGroup}
+            usePostReference={usePostReference}
           >
-            {children}
-          </ScrollView>
-        </RequestsProvider>
-      </AppDataContextProvider>
+            <ScrollView
+              flex={1}
+              contentContainerStyle={{
+                paddingTop: insets.top,
+                paddingHorizontal: '$m',
+              }}
+            >
+              {children}
+            </ScrollView>
+          </RequestsProvider>
+        </AppDataContextProvider>
+      </NowPlayingProvider>
     </FixtureWrapper>
   );
 }
@@ -337,28 +345,72 @@ const PostSpecimen = ({
 const SearchHighlightFixture = () => {
   const searchPost = makePost(
     exampleContacts.mark,
-    [content.verse.inline('This is a message with some text that contains search terms like hello and world.')],
+    [
+      content.verse.inline(
+        'This is a message with some text that contains search terms like hello and world.'
+      ),
+    ],
     { replyCount: 0 }
   );
-  
+
   return (
     <ChatMessageFixtureWrapper>
       <View gap="$xl">
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "hello"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="hello" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "hello"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="hello"
+          />
         </View>
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "world"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="world" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "world"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="world"
+          />
         </View>
         <View>
-          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">Search query: "message text"</Text>
-          <ChatMessage post={searchPost} showAuthor={true} showReplies={true} searchQuery="message text" />
+          <Text size="$label/m" color="$tertiaryText" marginBottom="$s">
+            Search query: "message text"
+          </Text>
+          <ChatMessage
+            post={searchPost}
+            showAuthor={true}
+            showReplies={true}
+            searchQuery="message text"
+          />
         </View>
       </View>
     </ChatMessageFixtureWrapper>
   );
+};
+
+const FileUploadFixture = () => {
+  const [uploadState] = useSelect('Upload state', {
+    options: ['uploading', 'completed'],
+    defaultValue: 'completed',
+  });
+
+  const post = useMemo(() => {
+    switch (uploadState) {
+      case 'uploading':
+        return postWithOptimisticIncompleteFileUpload;
+
+      case 'completed':
+        return postWithFileUpload;
+    }
+  }, [uploadState]);
+
+  return <SinglePostFixture post={post} />;
 };
 
 export default {
@@ -385,6 +437,7 @@ export default {
   ),
   MessageStates: <PostVariantsFixture post={postWithText} />,
   SearchHighlight: <SearchHighlightFixture />,
+  File: <FileUploadFixture />,
   Image: <SinglePostFixture post={postWithImage} />,
   Video: <SinglePostFixture post={postWithVideo} />,
   Text: <SinglePostFixture post={postWithText} />,
@@ -400,5 +453,16 @@ export default {
   Emoji: <SinglePostFixture post={postWithEmoji} />,
   SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
   Deleted: <SinglePostFixture post={postWithDeleted} />,
+  VoiceMemo() {
+    const [hasTranscription] = useValue('Has transcription', {
+      defaultValue: true,
+    });
+    const post = useMemo(() => {
+      return hasTranscription
+        ? postWithVoiceMemo
+        : postWithVoiceMemoWithoutTranscription;
+    }, [hasTranscription]);
+    return <SinglePostFixture post={post} />;
+  },
   Hidden: <SinglePostFixture post={postWithHidden} />,
 };

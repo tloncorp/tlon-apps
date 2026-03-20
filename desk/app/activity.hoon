@@ -970,9 +970,11 @@
     [[reads updates] cor]
   =*  source  i.sources
   =*  continue  $(sources t.sources)
-  ::  we +got:by here because we don't want reading random sources to
-  ::  inject themselves into the activity summary.
-  =/  =index:a  (~(got by indices) source)
+  ::  avoid crashing if we don't have the source yet.
+  ::  this can happen when messaging someone for the first time.
+  ::
+  ?~  dex=(~(get by indices) source)  continue
+  =*  index  u.dex
   ?-  -.action
       %event  ~&("read %event unsupported" !!)
       %item   ~&("read %item unsupported" !!)

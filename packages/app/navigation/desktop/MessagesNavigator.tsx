@@ -17,7 +17,7 @@ import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { MessagesEmptyState } from '../../features/top/DesktopEmptyStates';
-import ImageViewerScreen from '../../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
@@ -134,8 +134,8 @@ function ChannelStack(
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
-          name="ImageViewer"
-          component={ImageViewerScreen}
+          name="MediaViewer"
+          component={MediaViewerScreen}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

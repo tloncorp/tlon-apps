@@ -1,9 +1,11 @@
+import {
+  EventMapForEmitter,
+  TypedEventEmitter,
+} from '@tloncorp/api/lib/EventEmitter';
 import { useCallback, useEffect, useState } from 'react';
 
-import { EventEmitter, EventMapForEmitter } from './EventEmitter';
-
 export function useEventEmitter<
-  Emitter extends EventEmitter,
+  Emitter extends TypedEventEmitter,
   E extends keyof EventMapForEmitter<Emitter>,
   State,
 >(

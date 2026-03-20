@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
@@ -382,7 +382,10 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
   const handleAvatarPress = useCallback(() => {
     if (contact?.avatarImage) {
-      navigation.navigate('ImageViewer', { uri: contact.avatarImage });
+      navigation.navigate('MediaViewer', {
+        mediaType: 'image',
+        uri: contact.avatarImage,
+      });
       triggerHaptic('baseButtonClick');
     }
   }, [navigation, contact?.avatarImage]);

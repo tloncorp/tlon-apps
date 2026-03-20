@@ -40,8 +40,10 @@ export type RootStackParamList = {
     authorId: string;
     groupId?: string;
   };
-  ImageViewer: {
+  MediaViewer: {
+    mediaType: 'image' | 'video';
     uri?: string;
+    posterUri?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
@@ -86,10 +88,12 @@ export type RootStackParamList = {
   ChatDetails: {
     chatType: 'group' | 'channel';
     chatId: string;
+    groupId?: string;
   };
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;
+    groupId?: string;
   };
 };
 
@@ -158,7 +162,7 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
-  ImageViewer: RootStackParamList['ImageViewer'];
+  MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
@@ -170,7 +174,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
-  | 'ImageViewer'
+  | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
   | 'ChannelMembers'
@@ -179,11 +183,52 @@ export type DesktopChannelStackParamList = Pick<
   | 'InviteUsers'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
+/**
+ * Screens that SelectChannelRoles can navigate back to with selected roles.
+ * Using a discriminated union so TypeScript can verify params match the screen.
+ */
+export type RoleSelectionReturn =
+  | {
+      returnScreen: 'CreateChannelPermissions';
+      returnParams: {
+        groupId: string;
+        channelTitle: string;
+        channelType: 'chat' | 'notebook' | 'gallery';
+      };
+    }
+  | {
+      returnScreen: 'EditChannelPrivacy';
+      returnParams: {
+        channelId: string;
+        groupId: string;
+        fromChatDetails?: boolean;
+      };
+    };
+
 export type GroupSettingsStackParamList = {
-  EditChannel: {
+  // Use 'ChannelInfo' instead of 'ChannelDetails' to avoid navigation conflicts.
+  // HomeDrawer also has a 'ChatDetails' screen, and React Navigation can get
+  // confused when navigating to a screen name that exists in multiple navigators.
+  // The component rendered is ChannelDetailsScreenView, but the route is named
+  // 'ChannelInfo' to disambiguate at the navigation layer.
+  ChannelInfo: {
+    chatType: 'group' | 'channel';
+    chatId: string;
+    groupId: string;
+    fromChatDetails?: boolean;
+  };
+  EditChannelMeta: {
     channelId: string;
     groupId: string;
     fromChatDetails?: boolean;
+    fromChannelInfo?: boolean;
+  };
+  EditChannelPrivacy: {
+    channelId: string;
+    groupId: string;
+    fromChatDetails?: boolean;
+    createdRoleId?: string;
+    selectedRoleIds?: string[];
   };
   GroupMeta: {
     groupId: string;
@@ -197,6 +242,7 @@ export type GroupSettingsStackParamList = {
   ManageChannels: {
     groupId: string;
     fromChatDetails?: boolean;
+    createdRoleId?: string;
   };
   Privacy: {
     groupId: string;
@@ -216,17 +262,30 @@ export type GroupSettingsStackParamList = {
     groupId: string;
     selectedMembers?: string[];
     fromChatDetails?: boolean;
+    returnScreen?: keyof GroupSettingsStackParamList;
+    returnParams?: Record<string, unknown>;
   };
   SelectRoleMembers: {
     groupId: string;
     roleId?: string;
     selectedMembers: string[];
     onSave: (selectedMembers: string[]) => void;
-    fromChatDetails?: boolean;
   };
+  CreateChannelPermissions: {
+    groupId: string;
+    channelTitle: string;
+    channelType: 'chat' | 'notebook' | 'gallery';
+    createdRoleId?: string;
+    selectedRoleIds?: string[];
+  };
+  SelectChannelRoles: {
+    groupId: string;
+    selectedRoleIds: string[];
+    createdRoleId?: string;
+  } & RoleSelectionReturn;
   ChatVolume: {
     chatType: 'group' | 'channel';
     chatId: string;
-    fromChatDetails?: boolean;
+    groupId?: string;
   };
 };

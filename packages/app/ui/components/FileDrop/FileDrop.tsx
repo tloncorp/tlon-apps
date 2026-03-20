@@ -3,7 +3,8 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { View } from 'tamagui';
 
-import { useFeatureFlag } from '../../../lib/featureFlags';
+import { isLikelyVideoSource } from '../../contexts/attachmentRules';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
@@ -27,6 +28,15 @@ export const FileDrop: FileDropComponent = ({
                 },
               };
             }
+            if (
+              isLikelyVideoSource({
+                mimeType: file.type,
+                name: file.name,
+              })
+            ) {
+              const video = await getVideoPreviewData({ file });
+              return Attachment.UploadIntent.fromFile(file, { video });
+            }
             return Attachment.UploadIntent.fromFile(file);
           })
         )
@@ -35,11 +45,9 @@ export const FileDrop: FileDropComponent = ({
     [onAssetsDropped]
   );
 
-  const [canUploadFiles] = useFeatureFlag('fileUpload');
   const { getInputProps, getRootProps } = useDropzone({
     onDrop: handleDrop,
     noClick: true,
-    accept: canUploadFiles ? undefined : { 'image/*': [] },
   });
 
   return (

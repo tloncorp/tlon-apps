@@ -29,17 +29,13 @@ export const getMobileLinkingConfig = (
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
-          ImageViewer: 'image-viewer/:postId',
+          MediaViewer: 'media-viewer/:mediaType',
           ChatDetails: {
             path: 'chat-details/:chatType/:chatId',
             parse: parsePathParams('chatType', 'chatId'),
           },
           GroupSettings: {
             screens: {
-              EditChannel: {
-                path: 'group/:groupId/channels/:channelId/edit',
-                parse: parsePathParams('groupId', 'channelId'),
-              },
               GroupMeta: {
                 path: 'group/:groupId/meta',
                 parse: parsePathParams('groupId'),
@@ -59,6 +55,14 @@ export const getMobileLinkingConfig = (
               GroupRoles: {
                 path: 'group/:groupId/roles',
                 parse: parsePathParams('groupId'),
+              },
+              EditChannelMeta: {
+                path: 'group/:groupId/channel/:channelId/edit-meta',
+                parse: parsePathParams('groupId', 'channelId'),
+              },
+              EditChannelPrivacy: {
+                path: 'group/:groupId/channel/:channelId/edit-privacy',
+                parse: parsePathParams('groupId', 'channelId'),
               },
             },
           },
@@ -143,7 +147,7 @@ export const getDesktopLinkingConfig = (
                   GroupSettings: {},
                   ChannelSearch: {},
                   Post: postScreenConfig(mode),
-                  ImageViewer: {},
+                  MediaViewer: {},
                 },
               },
             },

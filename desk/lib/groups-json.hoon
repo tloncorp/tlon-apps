@@ -259,6 +259,33 @@
       ==
     --
   ::
+  ++  v10
+    =,  v8
+    |%
+    ::
+    ++  foreigns
+      |=  =foreigns:v10:gv
+      ^-  json
+      %-  pairs
+      %+  turn  ~(tap by foreigns)
+      |=  [=flag:gv =foreign:v10:gv]
+      [(print-flag flag) (^foreign foreign)]
+    ::
+    ++  foreign
+      |=  foreign:v10:gv
+      ^-  json
+      %-  pairs
+      :~  :-  %invites
+          ?~  invites  ~
+          a+(turn invites invite)
+        ::
+          lookup+?~(lookup ~ s+u.lookup)
+          preview+?~(preview ~ (^preview u.preview))
+          progress+?~(progress ~ s+u.progress)
+          token+?~(token ~ (^token u.token))
+      ==
+    --
+  ::
   ++  v8
     =,  v7
     |%

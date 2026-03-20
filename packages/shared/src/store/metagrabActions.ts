@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { getFallbackLinkMetadata, getLinkMetadata } from '../api';
+import {
+  getFallbackLinkMetadata,
+  getLinkMetadata,
+} from '@tloncorp/api/client/metagrabApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import {

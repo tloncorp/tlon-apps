@@ -1,8 +1,25 @@
-import { AppDataContextProvider } from '../../ui';
-import AttachmentSheet from '../../ui/components/AttachmentSheet';
+import { Button } from '@tloncorp/ui';
+import { useState } from 'react';
 
-export default (
-  <AppDataContextProvider contacts={[]}>
-    <AttachmentSheet onOpenChange={() => {}} isOpen={true} mediaType="all" />
-  </AppDataContextProvider>
-);
+import AttachmentSheet from '../../ui/components/AttachmentSheet';
+import { FixtureWrapper } from '../FixtureWrapper';
+
+export default function AttachmentSheetFixture() {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <FixtureWrapper>
+      <Button
+        label={isOpen ? '(Sheet is open)' : 'Open Sheet'}
+        onPress={() => {
+          setIsOpen((x) => !x);
+        }}
+      />
+      <AttachmentSheet
+        onOpenChange={setIsOpen}
+        isOpen={isOpen}
+        mediaType="all"
+      />
+    </FixtureWrapper>
+  );
+}

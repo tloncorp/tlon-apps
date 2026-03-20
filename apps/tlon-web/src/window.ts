@@ -1,5 +1,5 @@
 import type { NativeWebViewOptions } from '@tloncorp/shared';
-import { Rope } from '@tloncorp/shared/urbit/hark';
+import { Rope } from '@tloncorp/api/urbit/hark';
 
 declare global {
   interface Window {

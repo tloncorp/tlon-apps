@@ -1,7 +1,8 @@
-import * as api from '../../api';
-import { StorageConfiguration, StorageCredentials, scry } from '../../api';
+import * as api from '@tloncorp/api';
+import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api';
+import * as db from '../../db';
 import { createDevLogger } from '../../debug';
-import { desig } from '../../urbit';
+import { desig } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('storage utils', false);
 
@@ -13,13 +14,16 @@ const mimeToExt: Record<string, string> = {
   'image/webp': '.webp',
   'image/heic': '.heic',
   'image/heif': '.heif',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
 };
 
 export function ensureFileExtension(
   filename: string,
   contentType?: string
 ): string {
-  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|webm)$/i.test(filename)) {
     return filename;
   }
 
@@ -69,6 +73,23 @@ export const hasCustomS3Creds = (
   );
 };
 
+export async function getObjectStorageMethod(): Promise<
+  'hosting' | 'custom-s3' | null
+> {
+  const [config, credentials] = await Promise.all([
+    db.storageConfiguration.getValue(),
+    db.storageCredentials.getValue(),
+  ]);
+
+  if (hasHostingUploadCreds(config, credentials)) {
+    return 'hosting';
+  } else if (hasCustomS3Creds(config, credentials)) {
+    return 'custom-s3';
+  } else {
+    return null;
+  }
+}
+
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
 
 export interface MemexUploadParams {
@@ -103,8 +124,10 @@ export const getMemexUpload = async (
     body: JSON.stringify(uploadParams),
   });
 
-  if (response.status !== 200) {
-    logger.log(`Bad response from memex`, response.status);
+  if (!response.ok) {
+    logger.trackError('Bad response from memex', {
+      status: response.status,
+    });
     throw new Error('Bad response from memex');
   }
 
@@ -117,8 +140,66 @@ export const getMemexUpload = async (
       uploadUrl: data.url,
     };
   } else {
-    logger.log(`Invalid response from memex upload`, data);
+    logger.trackError('Invalid response from memex upload', { data });
     throw new Error('Invalid response from memex upload');
+  }
+};
+
+export interface StorageInfoResponse {
+  availableBytes: number;
+  totalBytes: number;
+  usedBytes: number;
+}
+
+export namespace StorageInfoResponse {
+  export function validate(obj: unknown): obj is StorageInfoResponse {
+    return (
+      obj != null &&
+      typeof obj === 'object' &&
+      'availableBytes' in obj &&
+      'totalBytes' in obj &&
+      'usedBytes' in obj &&
+      typeof obj.availableBytes === 'number' &&
+      typeof obj.totalBytes === 'number' &&
+      typeof obj.usedBytes === 'number'
+    );
+  }
+}
+
+export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
+  const currentUser = api.getCurrentUserId();
+  const token = await scry<string>({
+    app: 'genuine',
+    path: '/secret',
+  }).catch((e) => {
+    throw new Error('Failed to get secret', { cause: e });
+  });
+
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/storage-info`;
+  const response = await fetch(`${endpoint}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-landscape-token': token,
+    },
+  });
+
+  if (!response.ok) {
+    logger.trackError('Bad response status for storage quota', {
+      status: response.status,
+    });
+    throw new Error('Expected ok response from memex, got ' + response.status);
+  }
+
+  const data: { url?: string; filePath?: string } | null =
+    await response.json();
+
+  if (StorageInfoResponse.validate(data)) {
+    logger.trackEvent('Successfully retrieved storage quota info');
+    return data;
+  } else {
+    logger.trackError('Invalid response data for storage quota', { data });
+    throw new Error('Invalid response');
   }
 };
 

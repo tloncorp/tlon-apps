@@ -75,7 +75,7 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       log   ~(. logs [our.bowl /logs])
-      cor   ~(. +> [bowl ~])
+      cor   ~(. +> [bowl ~ ~])
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
@@ -128,11 +128,13 @@
     [cards this]
   --
 ::
-|_  [=bowl:gall cards=(list card)]
-++  abet  [(flop cards) state]
+|_  [=bowl:gall cards=(list card) cards-late=(list card)]
+++  abet  [(weld (flop cards) (flop cards-late)) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
+++  emit-late  |=(=card cor(cards-late [card cards-late]))
+++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
@@ -1623,8 +1625,10 @@
     $(effects t.effects)
   ?-  -.effect
       %channels
-    =/  =cage  channel-action+!>(a-channels.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    ::  Run channel effects after normal cards in the same event so the
+    ::  originating post update has time to commit/propagate first.
+    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`a-channels.effect)
+    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
     =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)

@@ -238,12 +238,11 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-  const headerLoadingSubtitle =
-    showSpinner
-      ? loadingSubtitle
-      : connectionStatus !== 'Connected'
-        ? subtitleText
-        : null;
+  const headerLoadingSubtitle = showSpinner
+    ? loadingSubtitle
+    : connectionStatus !== 'Connected'
+      ? subtitleText
+      : null;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -344,7 +343,7 @@ export function ChannelHeader({
             <ScreenHeader.IconButton
               onPress={goToEdit}
               testID="ChannelHeaderEditButton"
-              type="Draw"
+              type="Settings"
             />
           )}
         </>
