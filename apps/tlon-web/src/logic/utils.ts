@@ -830,7 +830,9 @@ const groups = [
 ];
 const chat = [
   'chat-dm-action',
+  'chat-dm-action-2',
   'chat-club-action-0',
+  'chat-club-action-2',
   'chat-dm-archive',
   'chat-dm-unarchive',
   'chat-dm-rsvp',

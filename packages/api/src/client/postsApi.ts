@@ -59,7 +59,7 @@ export function chatAction(
   if (whomIsDm(whom)) {
     const action: Poke<DmAction> = {
       app: 'chat',
-      mark: 'chat-dm-action-1',
+      mark: 'chat-dm-action-2',
       json: {
         ship: whom,
         diff: {
@@ -74,11 +74,11 @@ export function chatAction(
   const diff: WritDiff = { id, delta };
   const action: Poke<ClubAction> = {
     app: 'chat',
-    mark: 'chat-club-action-1',
+    mark: 'chat-club-action-2',
     json: {
       id: whom,
       diff: {
-        uid: '0v3',
+        uid: '0v4',
         delta: { writ: diff },
       },
     },
@@ -310,10 +310,11 @@ export const sendReply = async ({
         meta: null,
         delta: {
           add: {
-            memo: {
+            'reply-essay': {
               content,
               author: authorId,
               sent: sentAt,
+              blob: blob ?? null,
             },
             time: null,
           },
@@ -360,8 +361,8 @@ export const getSequencedChannelPosts = async (
   const app = type === 'channel' ? 'channels' : 'chat';
   const endpoint = formatScryPath(
     ...[
-      type === 'dm' ? 'v3/dm' : null,
-      type === 'club' ? 'v3/club' : null,
+      type === 'dm' ? 'v4/dm' : null,
+      type === 'club' ? 'v4/club' : null,
       type === 'channel' ? 'v5' : null,
     ],
     options.channelId,
@@ -449,8 +450,8 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'v3/dm' : null,
-      type === 'club' ? 'v3/club' : null,
+      type === 'dm' ? 'v4/dm' : null,
+      type === 'club' ? 'v4/club' : null,
       type === 'channel' ? 'v5' : null,
     ],
     channelId,
@@ -571,7 +572,7 @@ export const getLatestPosts = async ({
     const { channels, dms } = await scry<ub.CombinedHeads>({
       app: 'groups-ui',
       path: formatScryPath(
-        'v3/heads',
+        'v4/heads',
         afterCursor ? formatCursor(afterCursor) : null,
         count
       ),
@@ -1095,10 +1096,10 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v2/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v4/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v4/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
     path = `/v5/${channelId}/posts/post/${postId}`;
@@ -1416,7 +1417,11 @@ export function toPostReplyData(
     'reply-essay' in reply
       ? reply['reply-essay']
       : {
-          ...reply.memo,
+          ...(
+            reply as ub.WritReply & {
+              memo: Omit<ub.ReplyEssay, 'blob'>;
+            }
+          ).memo,
           blob: null,
         };
   const [content, flags] = toPostContent(replyEssay.content);
