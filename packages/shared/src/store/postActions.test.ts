@@ -86,7 +86,7 @@ describe('sendPost', () => {
     expect(scry).toHaveBeenLastCalledWith(
       expect.objectContaining({
         app: 'chat',
-        path: `/v3/dm/${TEST_CHANNEL}/writs/newest/20/light`,
+        path: `/v4/dm/${TEST_CHANNEL}/writs/newest/20/light`,
       })
     );
   });
@@ -105,7 +105,7 @@ describe('sendPost', () => {
 
     let failPoke: (reason?: unknown) => void = () => {};
     const mockedPoke = vi.mocked(poke).mockImplementation(async (payload) => {
-      if (payload.app !== 'chat' || payload.mark !== 'chat-dm-action-1') {
+      if (payload.app !== 'chat' || payload.mark !== 'chat-dm-action-2') {
         // probably safe to just return here, but raising an error for now in caution
         throw new Error('Unrecognized poke');
       }
@@ -134,7 +134,7 @@ describe('sendPost', () => {
 
     expect(mockedPoke).toHaveBeenCalledTimes(1);
     expect(mockedPoke).toHaveBeenLastCalledWith(
-      expect.objectContaining({ mark: 'chat-dm-action-1' })
+      expect.objectContaining({ mark: 'chat-dm-action-2' })
     );
     mockedPoke.mockClear();
     expect(await fetchLatestPostFromDb()).toMatchObject({
@@ -562,7 +562,7 @@ describe('finalizeAndSendPost', () => {
     expect(poke).toHaveBeenCalledWith(
       expect.objectContaining({
         app: 'channels',
-        mark: 'channel-action-1',
+        mark: 'channel-action-2',
         json: expect.objectContaining({
           channel: expect.objectContaining({
             action: {
@@ -574,6 +574,7 @@ describe('finalizeAndSendPost', () => {
                       content: toPostData({ ...draft, attachments: [] }).story,
                       author: api.getCurrentUserId(),
                       sent: expect.any(Number),
+                      blob: null,
                     },
                   },
                 },

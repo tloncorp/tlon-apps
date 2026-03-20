@@ -125,10 +125,6 @@ export const MessageInputContainer = memo(
       theme.secondaryBackground
     );
 
-    // replies don't support `post.blob` on the API, which limits what we can upload
-    // https://github.com/tloncorp/tlon-apps/blob/70a0eb9147e187e2643ccc162a15dfc80a09dd85/packages/api/src/urbit/channel.ts#L266-L268
-    const supportsBlob = useDraftInputContext()?.replyToPost == null;
-
     return (
       <YStack
         width="100%"
@@ -177,7 +173,7 @@ export const MessageInputContainer = memo(
               <AttachmentButtonContainer>
                 <AttachmentButton
                   setShouldBlur={setShouldBlur}
-                  mediaType={supportsBlob ? 'all' : 'image'}
+                  mediaType="all"
                 />
               </AttachmentButtonContainer>
             ) : null}
