@@ -79,7 +79,7 @@ export const updateDMMeta = async ({
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
     multiDmAction(channelId, { meta: fromClientMeta(meta) }),
-    { app: 'chat', path: '/' },
+    { app: 'chat', path: '/v4' },
     (event) => {
       if (!('diff' in event)) {
         return false;
