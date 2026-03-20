@@ -1,5 +1,5 @@
 /-  h=hooks, c=channels
-/+  default-agent, hk=hooks
+/+  default-agent, hk=hooks, utils=channel-utils
 =>
   |%
   +$  card  card:agent:gall
@@ -85,11 +85,31 @@
   ?:  (hook-visible def)
     (~(put by acc) hid def)
   acc
+::  compile hook source, caching the result on the hook-def
+::
+++  compile-hook
+  |=  def=hook-def:h
+  ^-  hook-def:h
+  =/  result=(each vase tang)  (compile:utils src.def)
+  ?:  ?=(%| -.result)
+    def(compiled ~)
+  def(compiled `p.result)
+::  recompile all hooks (needed after load since vases don't
+::  survive upgrades)
+::
+++  recompile-all
+  ^+  cor
+  =.  hooks.state
+    %+  roll  ~(tap by hooks.state)
+    |=  [[hid=hook-id:h def=hook-def:h] acc=(map hook-id:h hook-def:h)]
+    (~(put by acc) hid (compile-hook def))
+  cor
 ++  load
   |=  old=vase
   ^+  cor
   =.  state  !<(=hook-state-0:h old)
   =.  cor  recover-orphaned-runs
+  =.  cor  recompile-all
   start-watches
 ++  init
   ^+  cor
@@ -130,13 +150,15 @@
   =+  !<(=hook-action:h vase)
   ?-  -.action
     %add-hook
-      =.  hooks.state  (~(put by hooks.state) id.hook.action hook.action)
+      =/  def=hook-def:h  (compile-hook hook.action)
+      =.  hooks.state  (~(put by hooks.state) id.def def)
       (notify-hooks)
     %remove-hook
       =.  hooks.state  (~(del by hooks.state) id.action)
       (notify-hooks)
     %update-hook
-      =.  hooks.state  (~(put by hooks.state) id.action hook.action)
+      =/  def=hook-def:h  (compile-hook hook.action)
+      =.  hooks.state  (~(put by hooks.state) id.action def)
       (notify-hooks)
     %add-hitch
       =.  hitches.state  (~(put by hitches.state) id.hitch.action hitch.action)
@@ -336,11 +358,22 @@
   =.  pending.state
     (~(put by pending.state) rid [rid hid trig now.bowl kind])
   =.  cor  notify-runs
-  =/  input=thread-input:h
-    [event config.u.hit state.u.hit def hid]
-  =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %hooks-run %noun !>(input)]
-  (emit %pass /run/(scot %uv rid) %arvo %k %fard fard)
+  ?~  compiled.u.def
+    ::  hook failed to compile, mark run as crashed immediately
+    =/  output=hook-output:h
+      [[%error 'hook not compiled' ~] !>(~) ~]
+    (complete-run rid [rid hid trig now.bowl kind] run output &)
+  ::  slam the cached compiled gate synchronously — no thread needed
+  ::  mule catches crashes so a bad hook can't take down the agent
+  =/  gate  [p.u.compiled.u.def .*(q:subject:utils q.u.compiled.u.def)]
+  =/  result=(each vase tang)
+    (mule |.((slam gate !>([event config.u.hit state.u.hit]))))
+  ?:  ?=(%| -.result)
+    =/  output=hook-output:h
+      [[%error 'hook execution crashed' `p.result] !>(~) ~]
+    (complete-run rid [rid hid trig now.bowl kind] run output &)
+  =/  output=hook-output:h  !<(=hook-output:h p.result)
+  (complete-run rid [rid hid trig now.bowl kind] run output |)
 ++  fresh-run-id
   ^-  run-id:h
   =/  base=run-id:h  (end 7 eny.bowl)
@@ -352,27 +385,9 @@
   |=  [=(pole knot) =sign-arvo]
   ^+  cor
   ?+  pole  cor
-      [%run rid=@ ~]
-    (finish-run (slav %uv rid.pole) sign-arvo)
       [%cron hid=@ name=@ ~]
     (dispatch-hitch (slav %uv hid.pole) [%cron `(slav %tas name.pole)] !>(~) [%run ~])
   ==
-++  finish-run
-  |=  [rid=run-id:h =sign-arvo]
-  ^+  cor
-  ?~  pending-run=(~(get by pending.state) rid)
-    cor
-  ?~  run=(~(get by runs.state) rid)
-    cor
-  ?>  ?=([%khan %arow *] sign-arvo)
-  =/  =(avow:khan cage)  p.sign-arvo
-  ?:  ?=(%| -.avow)
-    =/  output=hook-output:h
-      [[%error 'thread crashed' `p.avow] !>(~) ~]
-    (complete-run rid u.pending-run u.run output &)
-  =/  =cage  p.avow
-  =/  output=hook-output:h  !<(=hook-output:h q.cage)
-  (complete-run rid u.pending-run u.run output |)
 ++  response-path
   |=  [caller=term rid=req-id:h]
   ^-  path

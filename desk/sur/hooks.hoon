@@ -233,6 +233,7 @@
       name=@t
       meta=hook-meta
       src=@t
+      compiled=(unit vase)
       version=version
       schema=config-schema
       =visibility
