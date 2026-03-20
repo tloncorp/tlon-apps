@@ -128,10 +128,15 @@
           [/v2/clubs %chat-club-action-1 ~]
           [/v2/dm/$ %writ-response-2 ~]
         ::
-          [/v3 %chat-club-action-2 %writ-response-3 %ships ~]
+          [/v3 %chat-club-action-1 %writ-response-3 %ships ~]
           [/v3/club/$ %writ-response-3 ~]
-          [/v3/clubs %chat-club-action-2 ~]
+          [/v3/clubs %chat-club-action-1 ~]
           [/v3/dm/$ %writ-response-3 ~]
+        ::
+          [/v4 %chat-club-action-2 %writ-response-4 %ships ~]
+          [/v4/club/$ %writ-response-4 ~]
+          [/v4/clubs %chat-club-action-2 ~]
+          [/v4/dm/$ %writ-response-4 ~]
       ==
     ::  scries
     ::
