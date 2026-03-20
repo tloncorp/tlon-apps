@@ -19,7 +19,7 @@ import { useStore } from '../../ui/contexts/storeContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
-  const { postId, channelId, authorId } = props.route.params;
+  const { postId, channelId, authorId, selectedPostId } = props.route.params;
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
   const { data: post, isLoading } = store.usePostWithThreadUnreads({
@@ -44,6 +44,7 @@ export default function PostScreen(props: Props) {
             post={post}
             channelId={channelId}
             authorId={authorId}
+            selectedPostId={selectedPostId}
           />
         )}
       </AttachmentProvider>
@@ -54,10 +55,12 @@ export default function PostScreen(props: Props) {
 function PostScreenContent({
   post,
   channelId,
+  selectedPostId,
 }: {
   post: db.Post;
   authorId: string;
   channelId: string;
+  selectedPostId?: string | null;
 }) {
   const postId = post.id;
   const navigation = useNavigation();
@@ -143,6 +146,7 @@ function PostScreenContent({
       onGroupAction={performGroupAction}
       goToDm={handleGoToDm}
       negotiationMatch={negotiationStatus.matchedOrPending}
+      selectedPostId={selectedPostId}
       // NB: If we're showing posts in a carousel, all carousel items share the
       // same editingPost.
       editingPost={editingPost}
