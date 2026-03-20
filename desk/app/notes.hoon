@@ -73,8 +73,10 @@
         (~(put by members.state) notebook-id members)
       =/  next-state=state:notes
         [%0 next-notebooks notes.state next-members notebook-id]
-      :-  ~
-      this(state next-state)
+      =/  ev=event:notes
+        [%notebook-created notebook-id src.bowl]
+      :_  this(state next-state)
+      ~[[%give %fact ~[/events/(scot %ud notebook-id)] %notes-event !>(ev)]]
     ::
         %set-role
       =/  actor-role=(unit role:notes)
@@ -89,7 +91,10 @@
         (~(put by existing) who.act role.act)
       =/  next-members
         (~(put by members.state) notebook-id.act target-members)
-      `this(state state(members next-members))
+      =/  ev=event:notes
+        [%role-changed notebook-id.act who.act role.act src.bowl]
+      :_  this(state state(members next-members))
+      ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
     ::
         %create-note
       ?.  (can-edit state notebook-id.act src.bowl)
@@ -101,7 +106,10 @@
         (~(put by notes.state) note-id new-note)
       =/  next-state=state:notes
         state(notes next-notes, next-id note-id)
-      `this(state next-state)
+      =/  ev=event:notes
+        [%note-created note-id notebook-id.act src.bowl]
+      :_  this(state next-state)
+      ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
     ::
         %update-note
       =/  old=(unit note:notes)
@@ -116,7 +124,10 @@
         u.old(body-md body-md.act, revision +(revision.u.old), updated-by src.bowl, updated-at now.bowl)
       =/  next-notes
         (~(put by notes.state) note-id.act next-note)
-      `this(state state(notes next-notes))
+      =/  ev=event:notes
+        [%note-updated note-id.act notebook-id.u.old revision.next-note src.bowl]
+      :_  this(state state(notes next-notes))
+      ~[[%give %fact ~[/events/(scot %ud notebook-id.u.old)] %notes-event !>(ev)]]
     ==
   ==
 ::
@@ -129,6 +140,26 @@
   ::
       [%x %notes ~]
     ``noun+!>(notes.state)
+  ::
+      [%x %notebook @ud ~]
+    =/  nid=@ud  i.t.path
+    ?.  (can-view state nid src.bowl)
+      [~ ~]
+    =/  nb=(unit notebook:notes)
+      (~(get by notebooks.state) nid)
+    ?~  nb
+      [~ ~]
+    ``noun+!>(u.nb)
+  ::
+      [%x %note @ud ~]
+    =/  note-id=@ud  i.t.path
+    =/  n=(unit note:notes)
+      (~(get by notes.state) note-id)
+    ?~  n
+      [~ ~]
+    ?.  (can-view state notebook-id.u.n src.bowl)
+      [~ ~]
+    ``noun+!>(u.n)
   ==
 ::
 ++  on-watch
