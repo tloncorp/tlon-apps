@@ -849,21 +849,26 @@
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
-  ::TODO %chat-dm-action-2
-  ::TODO %chat-dm-diff-2
-  ::TODO %chat-club-action-2
+  ::
+      %chat-dm-action-2
+    =+  !<(=action:dm:v7:cv vase)
+    =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
+    ::  don't allow anyone else to proxy through us
+    ?.  =(src.bowl our.bowl)
+      ~|("%dm-action poke failed: only allowed from self" !!)
+    ::  don't proxy to self, creates an infinite loop
+    ?:  =(p.action our.bowl)
+      di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
+    di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
+  ::
+      %chat-dm-diff-2
+    =+  !<(=diff:dm:v7:cv vase)
+    =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
+    di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-dm-action-1
     =+  !<(old-action=action:dm:v6:cv vase)
     ^$(+< chat-dm-action-2+!>((v7:action:dm:v6:cc old-action)))
-    :: =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
-    :: ::  don't allow anyone else to proxy through us
-    :: ?.  =(src.bowl our.bowl)
-    ::   ~|("%dm-action poke failed: only allowed from self" !!)
-    :: ::  don't proxy to self, creates an infinite loop
-    :: ?:  =(p.action our.bowl)
-    ::   di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
-    :: di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %chat-dm-diff-1
     =+  !<(old-diff=diff:dm:v6:cv vase)
@@ -874,12 +879,14 @@
       %chat-club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
+      %chat-club-action-2
+    =+  !<(=action:club:v7:cv vase)
+    =/  cu  (cu-abed p.action)
+    cu-abet:(cu-diff:cu q.action)
+  ::
       %chat-club-action-1
     =+  !<(old-action=action:club:v6:cv vase)
     ^$(+< chat-club-action-2+!>((v7:action-club:v6:cc old-action)))
-    :: =+  !<(=action:club:v6:cv vase)
-    :: =/  cu  (cu-abed p.action)
-    :: cu-abet:(cu-diff:cu q.action)
   ::
         %chat-dm-archive
       ?>  from-self
