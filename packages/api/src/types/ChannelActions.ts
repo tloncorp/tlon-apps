@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import type * as db from './models';
 
 export type Id =
   | 'debugJson'

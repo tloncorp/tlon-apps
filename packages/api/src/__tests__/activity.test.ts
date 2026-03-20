@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import type { ActivityEvent } from '@tloncorp/shared/db/types';
+import type { ActivityEvent } from '../types/models';
 import dmFeed from './fixtures/activityDmFeed.json';
 import dmReplyFeed from './fixtures/activityDmReplyFeed.json';
 import initActivityFeeds from './fixtures/activityInitFeeds.json';
