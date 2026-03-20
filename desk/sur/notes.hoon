@@ -42,6 +42,7 @@
       [%delete-folder notebook-id=@ud folder-id=@ud recursive=?]
       [%create-note notebook-id=@ud folder-id=@ud title=@t body-md=@t]
       [%move-note note-id=@ud notebook-id=@ud folder-id=@ud]
+      [%delete-note note-id=@ud notebook-id=@ud]
       [%update-note note-id=@ud body-md=@t expected-revision=@ud]
   ==
 
@@ -72,6 +73,7 @@
       [%folder-deleted folder-id=@ud notebook-id=@ud actor=ship]
       [%note-created note-id=@ud notebook-id=@ud actor=ship]
       [%note-moved note-id=@ud notebook-id=@ud folder-id=@ud actor=ship]
+      [%note-deleted note-id=@ud notebook-id=@ud actor=ship]
       [%note-updated note-id=@ud notebook-id=@ud revision=@ud actor=ship]
   ==
 

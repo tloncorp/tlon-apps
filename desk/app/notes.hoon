@@ -63,6 +63,61 @@
   ?:  &((=(notebook-id q notebook-id) =(folder-id q folder-id)))
     [~ q]
   ~
+
+++  folder-children-ids
+  |=  [=current-state notebook-id=@ud parent-id=@ud]
+  ^-  (list @ud)
+  %-  murn
+  ~(tap by folders.current-state)
+  |=  [[@ud folder:notes] ?]
+  ?~  parent-folder-id.q
+    ~
+  ?:  &((=(notebook-id q notebook-id) =(u.parent-folder-id.q parent-id)))
+    [~ p]
+  ~
+
+++  subtree-folder-ids
+  |=  [=current-state notebook-id=@ud root-id=@ud]
+  ^-  (set @ud)
+  =|  seen=(set @ud)
+  =|  todo=(list @ud)
+  =.  todo  ~[root-id]
+  |-
+  ?~  todo
+    seen
+  =/  cur=@ud  i.todo
+  =.  todo  t.todo
+  ?:  (~(has in seen) cur)
+    $(seen seen, todo todo)
+  =/  kids=(list @ud)
+    (folder-children-ids current-state notebook-id cur)
+  =.  seen  (~(put in seen) cur)
+  =.  todo  (weld kids todo)
+  $(seen seen, todo todo)
+
+++  note-ids-in-folder-set
+  |=  [=current-state folder-ids=(set @ud)]
+  ^-  (list @ud)
+  %-  murn
+  ~(tap by notes.current-state)
+  |=  [[@ud note:notes] ?]
+  ?:  (~(has in folder-ids) folder-id.q)
+    [~ p]
+  ~
+
+++  del-many-folders
+  |=  [folders-map=(map @ud folder:notes) ids=(list @ud)]
+  ^-  (map @ud folder:notes)
+  ?~  ids
+    folders-map
+  $(ids t.ids, folders-map (~(del by folders-map) i.ids))
+
+++  del-many-notes
+  |=  [notes-map=(map @ud note:notes) ids=(list @ud)]
+  ^-  (map @ud note:notes)
+  ?~  ids
+    notes-map
+  $(ids t.ids, notes-map (~(del by notes-map) i.ids))
 --
 =|  current-state
 =*  state  -
@@ -190,6 +245,10 @@
       ~|('notes: new parent folder not found' !!)
     ?.  =(notebook-id.u.parent notebook-id.act)
       ~|('notes: new parent folder notebook mismatch' !!)
+    =/  subtree=(set @ud)
+      (subtree-folder-ids state notebook-id.act folder-id.act)
+    ?:  (~(has in subtree) new-parent-folder-id.act)
+      ~|('notes: cannot move folder into its own descendant' !!)
     =/  next-folder=folder:notes
       u.old(parent-folder-id `new-parent-folder-id.act, updated-at now.bowl)
     =/  next-folders
@@ -210,28 +269,27 @@
       ~|('notes: folder notebook mismatch' !!)
     ?~  parent-folder-id.u.old
       ~|('notes: cannot delete root folder' !!)
-    =/  subfolders=(list folder:notes)
-      %-  murn
-      ~(tap by folders.state)
-      |=  [[@ud folder:notes] ?]
-      ?~  parent-folder-id.q
-        ~
-      ?:  =(u.parent-folder-id.q folder-id.act)
-        [~ q]
-      ~
-    ?:  ?&(!recursive.act !=(0 (lent subfolders)))
-      ~|('notes: folder has child folders (set recursive %.y once recursive delete exists)' !!)
-    =/  notes-in=(list note:notes)
-      (all-notes-in-folder state notebook-id.act folder-id.act)
-    ?:  ?&(!recursive.act !=(0 (lent notes-in)))
-      ~|('notes: folder has notes (set recursive %.y once recursive delete exists)' !!)
-    ?.  recursive.act
-      ~|('notes: recursive delete not implemented yet' !!)
-    =/  next-folders
-      (~(del by folders.state) folder-id.act)
+    =/  subtree=(set @ud)
+      (subtree-folder-ids state notebook-id.act folder-id.act)
+    =/  subtree-list=(list @ud)
+      ~(tap in subtree)
+    =/  note-ids=(list @ud)
+      (note-ids-in-folder-set state subtree)
+    ?:  ?&(!recursive.act !=(1 (lent subtree-list)))
+      ~|('notes: folder has descendants (set recursive %.y)' !!)
+    ?:  ?&(!recursive.act !=(0 (lent note-ids)))
+      ~|('notes: folder has notes (set recursive %.y)' !!)
+    =/  next-folders=(map @ud folder:notes)
+      ?.  recursive.act
+        (~(del by folders.state) folder-id.act)
+      (del-many-folders folders.state subtree-list)
+    =/  next-notes=(map @ud note:notes)
+      ?.  recursive.act
+        notes.state
+      (del-many-notes notes.state note-ids)
     =/  ev=event:notes
       [%folder-deleted folder-id.act notebook-id.act src.bowl]
-    :_  this(state state(folders next-folders))
+    :_  this(state state(folders next-folders, notes next-notes))
     ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
   ::
       %create-note
@@ -276,6 +334,22 @@
       (~(put by notes.state) note-id.act next-note)
     =/  ev=event:notes
       [%note-moved note-id.act notebook-id.act folder-id.act src.bowl]
+    :_  this(state state(notes next-notes))
+    ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
+  ::
+      %delete-note
+    =/  old=(unit note:notes)
+      (~(get by notes.state) note-id.act)
+    ?~  old
+      ~|('notes: note not found' !!)
+    ?.  (can-edit state notebook-id.u.old src.bowl)
+      ~|('notes ACL: not allowed to delete note' !!)
+    ?.  =(notebook-id.u.old notebook-id.act)
+      ~|('notes: notebook mismatch' !!)
+    =/  next-notes
+      (~(del by notes.state) note-id.act)
+    =/  ev=event:notes
+      [%note-deleted note-id.act notebook-id.act src.bowl]
     :_  this(state state(notes next-notes))
     ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
   ::
