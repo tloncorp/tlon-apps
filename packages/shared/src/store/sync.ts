@@ -30,7 +30,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', true);
+const logger = createDevLogger('sync', false);
 
 // Update the last activity timestamp when we receive new data
 export function updateLastActivityTime() {
