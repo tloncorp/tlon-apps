@@ -153,6 +153,87 @@
     :_  this(state state(folders next-folders, next-id folder-id))
     ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
   ::
+      %rename-folder
+    ?.  (can-edit state notebook-id.act src.bowl)
+      ~|('notes ACL: not allowed to rename folder in notebook' !!)
+    =/  old=(unit folder:notes)
+      (~(get by folders.state) folder-id.act)
+    ?~  old
+      ~|('notes: folder not found' !!)
+    ?.  =(notebook-id.u.old notebook-id.act)
+      ~|('notes: folder notebook mismatch' !!)
+    =/  next-folder=folder:notes
+      u.old(name name.act, updated-at now.bowl)
+    =/  next-folders
+      (~(put by folders.state) folder-id.act next-folder)
+    =/  ev=event:notes
+      [%folder-renamed folder-id.act notebook-id.act src.bowl]
+    :_  this(state state(folders next-folders))
+    ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
+  ::
+      %move-folder
+    ?.  (can-edit state notebook-id.act src.bowl)
+      ~|('notes ACL: not allowed to move folder in notebook' !!)
+    =/  old=(unit folder:notes)
+      (~(get by folders.state) folder-id.act)
+    ?~  old
+      ~|('notes: folder not found' !!)
+    ?.  =(notebook-id.u.old notebook-id.act)
+      ~|('notes: folder notebook mismatch' !!)
+    ?~  parent-folder-id.u.old
+      ~|('notes: cannot move root folder' !!)
+    ?.  !=(folder-id.act new-parent-folder-id.act)
+      ~|('notes: cannot move folder into itself' !!)
+    =/  parent=(unit folder:notes)
+      (~(get by folders.state) new-parent-folder-id.act)
+    ?~  parent
+      ~|('notes: new parent folder not found' !!)
+    ?.  =(notebook-id.u.parent notebook-id.act)
+      ~|('notes: new parent folder notebook mismatch' !!)
+    =/  next-folder=folder:notes
+      u.old(parent-folder-id `new-parent-folder-id.act, updated-at now.bowl)
+    =/  next-folders
+      (~(put by folders.state) folder-id.act next-folder)
+    =/  ev=event:notes
+      [%folder-moved folder-id.act notebook-id.act src.bowl]
+    :_  this(state state(folders next-folders))
+    ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
+  ::
+      %delete-folder
+    ?.  (can-edit state notebook-id.act src.bowl)
+      ~|('notes ACL: not allowed to delete folder in notebook' !!)
+    =/  old=(unit folder:notes)
+      (~(get by folders.state) folder-id.act)
+    ?~  old
+      ~|('notes: folder not found' !!)
+    ?.  =(notebook-id.u.old notebook-id.act)
+      ~|('notes: folder notebook mismatch' !!)
+    ?~  parent-folder-id.u.old
+      ~|('notes: cannot delete root folder' !!)
+    =/  subfolders=(list folder:notes)
+      %-  murn
+      ~(tap by folders.state)
+      |=  [[@ud folder:notes] ?]
+      ?~  parent-folder-id.q
+        ~
+      ?:  =(u.parent-folder-id.q folder-id.act)
+        [~ q]
+      ~
+    ?:  ?&(!recursive.act !=(0 (lent subfolders)))
+      ~|('notes: folder has child folders (set recursive %.y once recursive delete exists)' !!)
+    =/  notes-in=(list note:notes)
+      (all-notes-in-folder state notebook-id.act folder-id.act)
+    ?:  ?&(!recursive.act !=(0 (lent notes-in)))
+      ~|('notes: folder has notes (set recursive %.y once recursive delete exists)' !!)
+    ?.  recursive.act
+      ~|('notes: recursive delete not implemented yet' !!)
+    =/  next-folders
+      (~(del by folders.state) folder-id.act)
+    =/  ev=event:notes
+      [%folder-deleted folder-id.act notebook-id.act src.bowl]
+    :_  this(state state(folders next-folders))
+    ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
+  ::
       %create-note
     ?.  (can-edit state notebook-id.act src.bowl)
       ~|('notes ACL: not allowed to create note in notebook' !!)
@@ -172,6 +253,30 @@
     =/  ev=event:notes
       [%note-created note-id notebook-id.act src.bowl]
     :_  this(state next-state)
+    ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
+  ::
+      %move-note
+    =/  old=(unit note:notes)
+      (~(get by notes.state) note-id.act)
+    ?~  old
+      ~|('notes: note not found' !!)
+    ?.  (can-edit state notebook-id.u.old src.bowl)
+      ~|('notes ACL: not allowed to move note' !!)
+    ?.  =(notebook-id.u.old notebook-id.act)
+      ~|('notes: notebook mismatch' !!)
+    =/  target=(unit folder:notes)
+      (~(get by folders.state) folder-id.act)
+    ?~  target
+      ~|('notes: target folder not found' !!)
+    ?.  =(notebook-id.u.target notebook-id.act)
+      ~|('notes: target folder notebook mismatch' !!)
+    =/  next-note=note:notes
+      u.old(folder-id folder-id.act, updated-by src.bowl, updated-at now.bowl)
+    =/  next-notes
+      (~(put by notes.state) note-id.act next-note)
+    =/  ev=event:notes
+      [%note-moved note-id.act notebook-id.act folder-id.act src.bowl]
+    :_  this(state state(notes next-notes))
     ~[[%give %fact ~[/events/(scot %ud notebook-id.act)] %notes-event !>(ev)]]
   ::
       %update-note
