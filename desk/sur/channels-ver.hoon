@@ -29,6 +29,7 @@
   |$  [data]
   [rev=@ud data]
 ::
+++  v10  c
 ++  v9
   =,  v8
   |%
@@ -232,6 +233,12 @@
       |$  [data]
       ::NOTE  not +each, avoids p= faces for better ergonomics
       $%([%& data] [%| tombstone])
+    ::  +mind: bind for $may. mind the gap.
+    ::
+    ++  mind
+      |*  [a=(may) b=gate]
+      ?:  ?=(%| -.a)  a
+      &+(b +.a)
     +$  tombstone
       $:  id=?(id-post id-reply)  ::NOTE  the same type, how convenient!
           =author

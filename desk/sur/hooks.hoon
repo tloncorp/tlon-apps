@@ -125,7 +125,7 @@
 ::  $on-reply: a hook event that fires when replies are interacted with
 +$  on-reply
   $%  [%add parent=v-post reply=v-reply]
-      [%edit parent=v-post original=v-reply =memo]
+      [%edit parent=v-post original=v-reply =reply-essay]
       [%del parent=v-post original=v-reply]
       [%react parent=v-post reply=v-reply =ship react=(unit react)]
   ==

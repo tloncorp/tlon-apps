@@ -1,6 +1,6 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json, dj=channel-json, aj=activity-json
-|_  init=init-5:u
+|_  init=init-7:u
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
     =,  enjs:format
     ^-  ^json
     %-  pairs
-    :~  groups/(groups-ui:v7:enjs:gj groups.init)
+    :~  groups/(groups-ui:v9:enjs:gj groups.init)
         foreigns/(foreigns:v8:enjs:gj foreigns.init)
         activity/(activity:enjs:aj activity.init |)
         pins/a/(turn pins.init whom:enjs:gj)
@@ -17,10 +17,9 @@
       ::
         :-  %channel
         %-  pairs
-        :~  channels/(channels:v8:enjs:dj channels.channel.init)
-            hidden-posts/(hidden-posts:v9:enjs:dj hidden-posts.channel.init)
+        :~  channels/(channels:v10:enjs:dj channels.channel.init)
+            hidden-posts/(hidden-posts:v10:enjs:dj hidden-posts.channel.init)
         ==
-      ::
         :-  %chat
         %-  pairs
         :~  clubs/(clubs:enjs:cj clubs.chat.init)
@@ -34,6 +33,6 @@
   --
 ++  grab
   |%
-  ++  noun  init-5:u
+  ++  noun  init-7:u
   --
 --

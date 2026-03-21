@@ -1,14 +1,14 @@
 /-  cv=channels-ver
 /+  j=channel-json
-|_  =reply:v8:cv
+|_  =post:v10:cv
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  reply
-  ++  json  (reply:v8:enjs:j reply)
+  ++  noun  post
+  ++  json  (post:v10:enjs:j post)
   --
 ++  grab
   |%
-  ++  noun  reply:v8:cv
+  ++  noun  post:v10:cv
   --
 --
