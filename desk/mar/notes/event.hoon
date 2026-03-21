@@ -1,4 +1,5 @@
 /-  notes
+/+  notes-json
 |_  =event:notes
 ++  grad  %noun
 ++  grab
@@ -8,5 +9,6 @@
 ++  grow
   |%
   ++  noun  event
+  ++  json  (event:enjs:notes-json event)
   --
 --
