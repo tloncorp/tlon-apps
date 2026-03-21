@@ -25,8 +25,8 @@
     "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
-    "test": "npm rebuild && pnpm run -r test run -u",
-    "test:ci": "npm rebuild && pnpm run -r test run",
+    "test": "pnpm rebuild && pnpm run -r test run -u",
+    "test:ci": "pnpm rebuild && pnpm run -r test run",
     "lint:all": "pnpm -r lint"
   },
   "dependencies": {
