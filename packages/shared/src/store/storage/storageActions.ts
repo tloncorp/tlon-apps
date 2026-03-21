@@ -4,7 +4,7 @@ import { render, da } from '@urbit/aura';
 //REVIEW  why doesn't this work here?
 // import { desig } from '@tloncorp/api/urbit';
 import { desig } from '@tloncorp/api/urbit';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import { RNFile, getCurrentUserId } from '@tloncorp/api';
