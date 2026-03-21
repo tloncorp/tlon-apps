@@ -1,5 +1,5 @@
 import { createAudioPlayer } from 'expo-audio';
-import { File } from 'expo-file-system/next';
+import { File } from 'expo-file-system';
 
 export function getMimeType(uri: string): string | null {
   return new File(uri).type;

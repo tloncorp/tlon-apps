@@ -8,16 +8,13 @@ import {
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system/legacy';
-import {
-  VideoView,
-  useVideoPlayer,
-} from 'expo-video';
+import * as MediaLibrary from 'expo-media-library';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
 } from 'expo-video';
-import * as MediaLibrary from 'expo-media-library';
 import {
   ElementRef,
   PropsWithChildren,
@@ -57,7 +54,11 @@ function MediaViewerModal({
   dismiss?: () => void;
 }>) {
   if (isWeb) {
-    return <Modal animationType="none" onRequestClose={dismiss}>{children}</Modal>;
+    return (
+      <Modal animationType="none" onRequestClose={dismiss}>
+        {children}
+      </Modal>
+    );
   }
 
   return <>{children}</>;
@@ -105,10 +106,7 @@ function VideoViewer({
   const [showOverlay, setShowOverlay] = useState(true);
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
-  const videoSource = useMemo(
-    () => (uri ? { uri } : null),
-    [uri]
-  );
+  const videoSource = useMemo(() => (uri ? { uri } : null), [uri]);
   const player = useVideoPlayer(isWeb ? null : videoSource);
   const hasStartedPlaybackRef = useRef(false);
   const hasTrackedPlaybackStartRef = useRef(false);
@@ -340,12 +338,7 @@ function VideoViewer({
       <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
 
       {showOverlay ? (
-        <Pressable
-          onPress={goBack}
-          position="absolute"
-          top={top}
-          right="$xl"
-        >
+        <Pressable onPress={goBack} position="absolute" top={top} right="$xl">
           <OverlayIconButton icon="Close" />
         </Pressable>
       ) : null}
@@ -505,7 +498,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri, 
+            props.uri,
             localUri
           );
 
