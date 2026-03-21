@@ -20,7 +20,7 @@
   ;<  peek=(unit (unit cage))  b  (get-peek /x/notebook/1)
   =/  cag  (need (need peek))
   =/  expected-notebook=notebook:notes
-    [1 'Demo' src.bowl now.bowl]
+    [1 'Demo' src.bowl now.bowl now.bowl]
   ;<  ~  b
     %+  ex-equal
       !>(cag)
@@ -88,8 +88,63 @@
   ;<  peek=(unit (unit cage))  b  (get-peek /x/note/3)
   =/  cag  (need (need peek))
   =/  expected-note=note:notes
-    [3 1 2 'N1' 'body-v2' 2 src.bowl now.bowl]
+    [3 1 2 'N1' ~ 'body-v2' src.bowl now.bowl src.bowl now.bowl 2]
   %+  ex-equal
     !>(cag)
+    !>(noun+!>(expected-note))
+
+++  test-rename-and-membership-actions
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  *  b  (do-init dap notes-agent)
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (do-poke %notes-action !>([%create-notebook 'Demo']))
+  ;<  caz=(list card)  b
+    (do-poke %notes-action !>([%rename-notebook 1 'Drafts']))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/events/1] %notes-event !>([%notebook-renamed 1 src.bowl]))
+    ==
+  ;<  caz=(list card)  b
+    (do-poke %notes-action !>([%invite-member 1 ~bus %viewer]))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/events/1] %notes-event !>([%member-invited 1 ~bus %viewer src.bowl]))
+    ==
+  ;<  caz=(list card)  b
+    (do-poke %notes-action !>([%set-role 1 ~bus %editor]))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/events/1] %notes-event !>([%role-changed 1 ~bus %editor src.bowl]))
+    ==
+  ;<  caz=(list card)  b
+    (do-poke %notes-action !>([%remove-member 1 ~bus]))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/events/1] %notes-event !>([%member-removed 1 ~bus src.bowl]))
+    ==
+  ;<  *  b  (do-poke %notes-action !>([%create-note 1 2 'N1' 'body']))
+  ;<  caz=(list card)  b
+    (do-poke %notes-action !>([%rename-note 1 3 'Renamed']))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/events/1] %notes-event !>([%note-renamed 3 1 src.bowl]))
+    ==
+  ;<  peek=(unit (unit cage))  b  (get-peek /x/notebook/1)
+  =/  notebook-cag  (need (need peek))
+  =/  expected-notebook=notebook:notes
+    [1 'Drafts' src.bowl now.bowl now.bowl]
+  ;<  ~  b
+    %+  ex-equal
+      !>(notebook-cag)
+      !>(noun+!>(expected-notebook))
+  ;<  peek=(unit (unit cage))  b  (get-peek /x/note/3)
+  =/  note-cag  (need (need peek))
+  =/  expected-note=note:notes
+    [3 1 2 'Renamed' ~ 'body' src.bowl now.bowl src.bowl now.bowl 1]
+  %+  ex-equal
+    !>(note-cag)
     !>(noun+!>(expected-note))
 --
