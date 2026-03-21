@@ -188,6 +188,9 @@ export default ({ mode }: { mode: string }) => {
         : 3000;
 
   return defineConfig({
+    // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
+    // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
+    envPrefix: ['VITE_', 'TAMAGUI_'],
     base: base(mode),
     server: {
       host: 'localhost',
