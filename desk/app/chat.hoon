@@ -937,12 +937,12 @@
     =+  !<(old-action=action:club:v6:cv vase)
     ^$(+< chat-club-action-2+!>((v7:action-club:v6:cc old-action)))
   ::
-        %chat-dm-archive
-      ?>  from-self
-      di-abet:di-archive:(di-abed:di-core !<(ship vase))
-    ::
-      %chat-migrate-server  ?>(from-self server:migrate)
-      %chat-migrate         ?>(from-self client:migrate)
+      %chat-dm-archive
+    ?>  from-self
+    di-abet:di-archive:(di-abed:di-core !<(ship vase))
+  ::
+    %chat-migrate-server  ?>(from-self server:migrate)
+    %chat-migrate         ?>(from-self client:migrate)
   ::
       %chat-migrate-refs
     ?>  from-self
