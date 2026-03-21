@@ -78,9 +78,10 @@
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
             :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
             ::TODO make strict
-            :+  %chat-club-action-2   |  -:!>(*vale:m-chat-club-action-1)
+            :+  %chat-club-action-2   |  -:!>(*vale:m-chat-club-action-2)
             :+  %chat-dm-action       &  -:!>(*vale:m-chat-dm-action)
             :+  %chat-dm-action-1     &  -:!>(*vale:m-chat-dm-action-1)
+            ::TODO make strict
             :+  %chat-dm-action-2     |  -:!>(*vale:m-chat-dm-action-2)
             :+  %chat-dm-diff         &  -:!>(*vale:m-chat-dm-diff)
             :+  %chat-dm-diff-1       &  -:!>(*vale:m-chat-dm-diff-1)
@@ -129,7 +130,7 @@
             :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
             :+  %writ-response-3      &  -:!>(*vale:m-writ-response-3)
             ::TODO make strict
-            :+  %writ-response-4      |  -:!>(*vale:m-writ-response-3)
+            :+  %writ-response-4      |  -:!>(*vale:m-writ-response-4)
         ==
       ::  facts
       ::
