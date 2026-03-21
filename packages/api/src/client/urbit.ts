@@ -11,7 +11,7 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
-import { preSig } from '../urbit/utils';
+import { preSig } from '../urbit';
 import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
 import { AnalyticsEvent } from '../types/analytics';
 import * as Hosting from '../types/hosting';
