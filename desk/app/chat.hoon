@@ -13,30 +13,38 @@
 /+  chat-json
 ::
 /%  m-chat-blocked-by      %chat-blocked-by
-/%  m-chat-changed-writs   %chat-changed-writs
+/%  m-chat-changed-writs     %chat-changed-writs
+/%  m-chat-changed-writs-1   %chat-changed-writs-1
 /%  m-chat-club-action     %chat-club-action
 /%  m-chat-club-action-0   %chat-club-action-0
 /%  m-chat-club-action-1   %chat-club-action-1
+/%  m-chat-club-action-2   %chat-club-action-2
 /%  m-chat-dm-action       %chat-dm-action
 /%  m-chat-dm-action-1     %chat-dm-action-1
+/%  m-chat-dm-action-2     %chat-dm-action-2
 /%  m-chat-dm-diff         %chat-dm-diff
 /%  m-chat-dm-diff-1       %chat-dm-diff-1
+/%  m-chat-dm-diff-2       %chat-dm-diff-2
 /%  m-chat-heads           %chat-heads
 /%  m-chat-heads-1         %chat-heads-1
 /%  m-chat-heads-2         %chat-heads-2
 /%  m-chat-heads-3         %chat-heads-3
+/%  m-chat-heads-4         %chat-heads-4
 /%  m-chat-paged-writs     %chat-paged-writs
 /%  m-chat-paged-writs-1   %chat-paged-writs-1
 /%  m-chat-paged-writs-2   %chat-paged-writs-2
 /%  m-chat-paged-writs-3   %chat-paged-writs-3
+/%  m-chat-paged-writs-4   %chat-paged-writs-4
 /%  m-chat-scam            %chat-scam
 /%  m-chat-scam-1          %chat-scam-1
 /%  m-chat-scam-2          %chat-scam-2
 /%  m-chat-scam-3          %chat-scam-3
+/%  m-chat-scam-4          %chat-scam-4
 /%  m-chat-scan            %chat-scan
 /%  m-chat-scan-1          %chat-scan-1
 /%  m-chat-scan-2          %chat-scan-2
 /%  m-chat-scan-3          %chat-scan-3
+/%  m-chat-scan-4          %chat-scan-4
 /%  m-chat-toggle-message  %chat-toggle-message
 /%  m-chat-unblocked-by    %chat-unblocked-by
 /%  m-chat-unread-update   %chat-unread-update
@@ -44,6 +52,7 @@
 /%  m-chat-writ-1          %chat-writ-1
 /%  m-chat-writ-2          %chat-writ-2
 /%  m-chat-writ-3          %chat-writ-3
+/%  m-chat-writ-4          %chat-writ-4
 /%  m-clubs                %clubs
 /%  m-epic                 %epic
 /%  m-hidden-messages      %hidden-messages
@@ -53,6 +62,7 @@
 /%  m-writ-response-1      %writ-response-1
 /%  m-writ-response-2      %writ-response-2
 /%  m-writ-response-3      %writ-response-3
+/%  m-writ-response-4      %writ-response-4
 ::
 /*  desk-bill  %bill  /desk/bill  ::  keep warm
 ::
@@ -60,43 +70,55 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            :+  %chat-changed-writs    &  -:!>(*vale:m-chat-changed-writs)
             ::TODO make strict
-            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)
+            :+  %chat-changed-writs-1  |  -:!>(*vale:m-chat-changed-writs-1)
             ::TODO make strict one day (affected by versioning mistake)
             :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
             :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
+            ::TODO make strict
+            :+  %chat-club-action-2   |  -:!>(*vale:m-chat-club-action-1)
             :+  %chat-dm-action       &  -:!>(*vale:m-chat-dm-action)
             :+  %chat-dm-action-1     &  -:!>(*vale:m-chat-dm-action-1)
+            :+  %chat-dm-action-2     |  -:!>(*vale:m-chat-dm-action-2)
             :+  %chat-dm-diff         &  -:!>(*vale:m-chat-dm-diff)
             :+  %chat-dm-diff-1       &  -:!>(*vale:m-chat-dm-diff-1)
+            ::TODO make strict
+            :+  %chat-dm-diff-2       |  -:!>(*vale:m-chat-dm-diff-2)
             :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
             :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
             :+  %chat-heads-2         &  -:!>(*vale:m-chat-heads-2)
             :+  %chat-heads-3         &  -:!>(*vale:m-chat-heads-3)
+            ::TODO make strict
+            :+  %chat-heads-4         |  -:!>(*vale:m-chat-heads-4)
             :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
             :+  %chat-paged-writs-1   &  -:!>(*vale:m-chat-paged-writs-1)
             :+  %chat-paged-writs-2   &  -:!>(*vale:m-chat-paged-writs-2)
+            :+  %chat-paged-writs-3   &  -:!>(*vale:m-chat-paged-writs-3)
             ::TODO make strict
-            :+  %chat-paged-writs-3   |  -:!>(*vale:m-chat-paged-writs-3)
+            :+  %chat-paged-writs-4   |  -:!>(*vale:m-chat-paged-writs-4)
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
             :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
-            ::TODO make strict
             :+  %chat-scam-3          &  -:!>(*vale:m-chat-scam-3)
+            ::TODO make strict
+            :+  %chat-scam-4          |  -:!>(*vale:m-chat-scam-4)
             :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
             :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
             :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
-            ::TODO make strict
             :+  %chat-scan-3          &  -:!>(*vale:m-chat-scan-3)
+            ::TODO make strict
+            :+  %chat-scan-4          |  -:!>(*vale:m-chat-scan-4)
             :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
             :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
             :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
             :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
             :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
             :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
+            :+  %chat-writ-3          &  -:!>(*vale:m-chat-writ-3)
             ::TODO make strict
-            :+  %chat-writ-3          |  -:!>(*vale:m-chat-writ-3)
+            :+  %chat-writ-4          |  -:!>(*vale:m-chat-writ-4)
             :+  %clubs                &  -:!>(*vale:m-clubs)
             :+  %epic                 &  -:!>(*vale:m-epic)
             :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
@@ -105,8 +127,9 @@
             :+  %writ-response        &  -:!>(*vale:m-writ-response)
             :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
             :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
+            :+  %writ-response-3      &  -:!>(*vale:m-writ-response-3)
             ::TODO make strict
-            :+  %writ-response-3      |  -:!>(*vale:m-writ-response-3)
+            :+  %writ-response-4      |  -:!>(*vale:m-writ-response-3)
         ==
       ::  facts
       ::
@@ -1097,7 +1120,7 @@
   ::  catch-all
   ::
       ~  ?>(from-self cor)
-      [?(%v1 %v2 %v3) ~]  ?>(from-self cor)
+      [?(%v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
   ::
       [%clubs ~]  ?>(from-self cor)
       [%v1 %clubs ~]  ?>(from-self cor)
@@ -1990,7 +2013,7 @@
         =,  p.diff.q.diff
         /(scot %uv p.diff)/(scot %p p)/(scot %ud q)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  chat-club-action-1+!>(`action:club:c`[id diff])
+      =/  =cage  chat-club-action-2+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
     ++  gossip
@@ -2312,7 +2335,7 @@
           %v1  chat-scam-1+!>((v4:scam:v7:cc scam))
           %v2  chat-scam-2+!>((v5:scam:v7:cc scam))
           %v3  chat-scam-3+!>((v6:scam:v7:cc scam))
-          %v4  chat-scam-3+!>(`scam:v7:cv`scam)
+          %v4  chat-scam-4+!>(`scam:v7:cv`scam)
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:cu-pact
@@ -2334,7 +2357,7 @@
           %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
           %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
           %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-3+!>(`scan:v7:cv`scan)
+          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
         ==
       %^    text:hits-bound:search:cu-pact
           (slav %ud skip.pole)
@@ -2349,7 +2372,7 @@
           %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
           %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
           %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-3+!>(`scan:v7:cv`scan)
+          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
         ==
       %^    mention:hits-bound:search:cu-pact
           (slav %ud skip.pole)
@@ -2920,7 +2943,7 @@
           %v1  chat-scam-1+!>((v4:scam:v7:cc scam))
           %v2  chat-scam-2+!>((v5:scam:v7:cc scam))
           %v3  chat-scam-3+!>((v6:scam:v7:cc scam))
-          %v4  chat-scam-3+!>(`scam:v7:cv`scam)
+          %v4  chat-scam-4+!>(`scam:v7:cv`scam)
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:di-pact
@@ -2942,7 +2965,7 @@
           %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
           %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
           %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-3+!>(`scan:v7:cv`scan)
+          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
         ==
       %^    text:hits-bound:search:di-pact
           (slav %ud skip.pole)
@@ -2957,7 +2980,7 @@
           %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
           %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
           %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-3+!>(`scan:v7:cv`scan)
+          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
         ==
       %^    mention:hits-bound:search:di-pact
           (slav %ud skip.pole)
@@ -3002,7 +3025,7 @@
       ~>  %spin.['proxy']
       ::NOTE  static wire important for ordering guarantees and preventing flow
       ::      proliferation, see also +di-proxy
-      (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
+      (poke-them /proxy/diff chat-dm-diff-2+!>(diff))
     --
   --
 ::  a bug caused us to hear one last gossip about a club we left. this
