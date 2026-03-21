@@ -160,13 +160,20 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
 
-  // After clicking Save on Channel privacy, navigate back until we reach the group channels view
-  for (let i = 0; i < 5; i++) {
-    if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible({ timeout: 500 }).catch(() => false)) {
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // The exact navigation state varies, so we navigate back until we can open group settings
+  // In React Navigation v7, all stacked screens are in the DOM, so use .last() to target
+  // the topmost screen's back button
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').last();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
       break;
     }
-    await helpers.navigateBack(page);
-    await page.waitForTimeout(300);
   }
 
   // Open group settings to get to Group Info
@@ -235,13 +242,20 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('ChannelPrivacySaveButton').click();
   await page.waitForTimeout(2000);
 
-  // After clicking Save on Channel privacy, navigate back until we reach the group channels view
-  for (let i = 0; i < 5; i++) {
-    if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible({ timeout: 500 }).catch(() => false)) {
+  // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // The exact navigation state varies, so we navigate back until we can open group settings
+  // In React Navigation v7, all stacked screens are in the DOM, so use .last() to target
+  // the topmost screen's back button
+  for (let i = 0; i < 3; i++) {
+    try {
+      const backButton = page.getByTestId('HeaderBackButton').last();
+      if (await backButton.isVisible({ timeout: 500 })) {
+        await backButton.click();
+        await page.waitForTimeout(300);
+      }
+    } catch {
       break;
     }
-    await helpers.navigateBack(page);
-    await page.waitForTimeout(300);
   }
 
   // Delete the role (should now be possible)
