@@ -12,8 +12,7 @@ import {
   useState,
 } from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Circle, Stack, ZStack, useTheme } from 'tamagui';
-import { View } from 'tamagui';
+import { Circle, View, ZStack, useTheme } from 'tamagui';
 
 import {
   useAttachmentContext,
@@ -156,14 +155,14 @@ export function EditablePofileImages({
             ) : null}
 
             {coverIsUploading && (
-              <Stack
+              <View
                 flex={1}
                 width="100%"
                 justifyContent="center"
                 alignItems="center"
               >
                 <LoadingSpinner size="small" color="white" />
-              </Stack>
+              </View>
             )}
             <EditableImageIndicator
               position="absolute"

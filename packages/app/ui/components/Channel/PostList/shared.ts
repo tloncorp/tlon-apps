@@ -47,7 +47,7 @@ export type PostListComponentProps = {
   onStartReached?: () => void;
   onStartReachedThreshold?: number;
   postsWithNeighbors: PostWithNeighbors[];
-  renderEmptyComponent?: () => JSX.Element;
+  renderEmptyComponent?: () => React.ReactElement;
   renderItem: (opts: {
     item: PostWithNeighbors;
     index: number;

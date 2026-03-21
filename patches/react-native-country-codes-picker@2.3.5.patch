@@ -1,7 +1,18 @@
 diff --git a/index.tsx b/index.tsx
-index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..a8e1090becb2cc30171c5527cf2d6002f4ee776a 100644
+index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..052bdd97615e27a17da23b1ceafdf6e4a19a657a 100644
 --- a/index.tsx
 +++ b/index.tsx
+@@ -58,8 +58,8 @@ interface Props {
+ 
+     onBackdropPress?: (...args: any) => any,
+     pickerButtonOnPress: (item: CountryItem) => any,
+-    itemTemplate?: (props: ItemTemplateProps) => JSX.Element,
+-    ListHeaderComponent?: (props: ListHeaderComponentProps) => JSX.Element,
++    itemTemplate?: (props: ItemTemplateProps) => React.ReactElement,
++    ListHeaderComponent?: (props: ListHeaderComponentProps) => React.ReactElement,
+     onRequestClose?: (...args: any) => any,
+ 
+     lang: string,
 @@ -268,7 +268,8 @@ export const CountryPicker = ({
                          }}
                      >
@@ -12,3 +23,14 @@ index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..a8e1090becb2cc30171c5527cf2d6002
                              value={searchValue}
                              onChangeText={setSearchValue}
                              placeholder={inputPlaceholder || 'Search your country'}
+@@ -339,8 +340,8 @@ interface CountryListProps {
+     popularCountries?: string[],
+     showOnly?: string[],
+ 
+-    ListHeaderComponent?: (props: ListHeaderComponentProps) => JSX.Element,
+-    itemTemplate?: (props: ItemTemplateProps) => JSX.Element,
++    ListHeaderComponent?: (props: ListHeaderComponentProps) => React.ReactElement,
++    itemTemplate?: (props: ItemTemplateProps) => React.ReactElement,
+     pickerButtonOnPress: (item: CountryItem) => any,
+ 
+     style?: Style,

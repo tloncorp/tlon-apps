@@ -24,19 +24,15 @@ export type OnboardingProperties = {
   inviteType?: 'user' | 'group';
 };
 
-export let posthog: PostHog | undefined;
-
-export const posthogAsync =
+export const posthog: PostHog | undefined =
   process.env.NODE_ENV === 'test' && !process.env.POST_HOG_IN_DEV
     ? undefined
-    : PostHog.initAsync(POST_HOG_API_KEY, {
+    : new PostHog(POST_HOG_API_KEY, {
         host: 'https://data-bridge-v1.vercel.app/ingest',
-        enable: true,
       });
 
-posthogAsync?.then((client) => {
-  posthog = client;
-  const distinctId = client.getDistinctId();
+if (posthog) {
+  const distinctId = posthog.getDistinctId();
 
   crashlytics().setAttribute('analyticsId', distinctId);
 
@@ -45,7 +41,7 @@ posthogAsync?.then((client) => {
   const compositeLogger = {
     capture: (event: string, data: Record<string, unknown>) => {
       // Always send to PostHog (analytics + errors)
-      client.capture(event, data);
+      posthog.capture(event, data as Record<string, any>);
 
       // Only send errors to Sentry (not general analytics events)
       // Until logging is refactored to consistently use 'app_error',
@@ -58,11 +54,11 @@ posthogAsync?.then((client) => {
         sentryLogger.capture(event, data);
       }
     },
-    flush: async () => client.flush(),
+    flush: async () => posthog.flush(),
   };
 
   useDebugStore.getState().initializeErrorLogger(compositeLogger);
-  posthog?.register({
+  posthog.register({
     gitHash: GIT_HASH,
   });
 
@@ -76,7 +72,7 @@ posthogAsync?.then((client) => {
     const UrbitModule = TurboModuleRegistry.get('UrbitModule');
     (UrbitModule as UrbitModuleSpec)?.setPostHogApiKey(POST_HOG_API_KEY);
   }
-});
+}
 
 const capture = (event: string, properties?: { [key: string]: any }) => {
   if (!posthog) {

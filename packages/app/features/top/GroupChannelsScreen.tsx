@@ -43,8 +43,10 @@ export function GroupChannelsScreenContent({
   const handleGoToGroupMembers = useCallback(() => {
     if (group) {
       navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     }
   }, [group, navigation]);

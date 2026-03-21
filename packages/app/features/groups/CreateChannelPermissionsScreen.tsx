@@ -13,7 +13,6 @@ import {
   PermissionActionButtons,
   processFinalPermissions,
 } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
-import { MEMBERS_MARKER } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
@@ -40,8 +39,8 @@ export function CreateChannelPermissionsScreen() {
       title: channelTitle,
       description: '',
       isPrivate: true,
-      readers: selectedRoleIds ?? ['admin', MEMBERS_MARKER],
-      writers: ['admin', MEMBERS_MARKER],
+      readers: selectedRoleIds ?? ['admin'],
+      writers: ['admin'],
     },
   });
 
@@ -61,20 +60,13 @@ export function CreateChannelPermissionsScreen() {
   useEffect(() => {
     if (!selectedRoleIds) return;
     form.setValue('readers', selectedRoleIds);
-    const currentWriters = form.getValues('writers');
-    form.setValue(
-      'writers',
-      currentWriters.filter((w) => selectedRoleIds.includes(w))
-    );
   }, [selectedRoleIds, form]);
 
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
-    const currentWriters = form.getValues('writers');
-    const allRoleIds = [...new Set([...currentReaders, ...currentWriters])];
     navigation.navigate('SelectChannelRoles', {
       groupId,
-      selectedRoleIds: allRoleIds,
+      selectedRoleIds: currentReaders,
       returnScreen: 'CreateChannelPermissions',
       returnParams: {
         groupId,
@@ -104,7 +96,8 @@ export function CreateChannelPermissionsScreen() {
       writers: finalWriters,
     });
 
-    navigation.navigate('ManageChannels', { groupId });
+    // Navigate back to channel list
+    navigation.navigate('ManageChannels', { groupId }, { pop: true });
   }, [navigation, groupId, form, channelTitle, channelType]);
 
   if (!group) {

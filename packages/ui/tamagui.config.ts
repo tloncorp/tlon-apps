@@ -14,6 +14,14 @@ export const animations = createAnimations({
     mass: 1,
     stiffness: 300,
   },
+  medium: {
+    type: 'timing',
+    duration: 350,
+  },
+  slow: {
+    type: 'timing',
+    duration: 500,
+  },
 });
 
 const rawMeasures = {
@@ -546,6 +554,11 @@ export const config =
         media,
         settings: {
           defaultFont: 'body',
+          // Tamagui v2 expands flex: 1 to flex-grow: 1, flex-shrink: 1, flex-basis: 0 instead of flex-grow: 1, flex-shrink: 1, flex-basis: auto,
+          // this brings back the v1 behavior that we rely on.
+          styleCompat: 'legacy',
+          // This is also to match v1 default styles.
+          defaultPosition: 'relative',
           allowedStyleValues: {
             space: 'somewhat-strict',
             size: 'somewhat-strict',
@@ -562,6 +575,8 @@ export const config =
         media,
         settings: {
           defaultFont: 'body',
+          styleCompat: 'legacy',
+          defaultPosition: 'relative',
           allowedStyleValues: {
             space: 'somewhat-strict',
             size: 'somewhat-strict',

@@ -1,5 +1,5 @@
 import { createAudioPlayer } from 'expo-audio';
-import { File } from 'expo-file-system/next';
+import { File } from 'expo-file-system';
 
 export function getMimeType(uri: string): string | null {
   return new File(uri).type;
@@ -17,7 +17,7 @@ export async function getAudioFileDurationSeconds(
   // Even though soundPlayer.duration is accessible at this point, it is 0
   // until the player has loaded the file.
   // Wait for the load, erroring on timeout:
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   return new Promise<number | null>((resolve, reject) => {
     soundPlayer.addListener('playbackStatusUpdate', (status) => {
       if (status.isLoaded) {

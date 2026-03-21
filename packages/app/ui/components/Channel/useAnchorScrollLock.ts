@@ -26,7 +26,7 @@ export function useAnchorScrollLock({
   collectionLayoutType,
   columnsCount,
 }: {
-  flatListRef: RefObject<FlatList<db.Post>>;
+  flatListRef: RefObject<FlatList<db.Post> | null>;
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
@@ -43,7 +43,7 @@ export function useAnchorScrollLock({
   const readyToDisplayPosts =
     !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
 
-  const showPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const showPostsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (posts?.length && !showPostsTimeoutRef.current && !readyToDisplayPosts) {
       showPostsTimeoutRef.current = setTimeout(() => {

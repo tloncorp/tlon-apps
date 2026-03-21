@@ -37,7 +37,7 @@
     "vitest": "^1.0.4"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
+    "react": "^19.1.0",
     "@10play/tentap-editor": "~0.5.21"
   }
 }

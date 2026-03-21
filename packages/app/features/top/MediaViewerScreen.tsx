@@ -7,19 +7,14 @@ import {
   ensureFileExtension,
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import {
-  VideoView,
-} from 'expo-video/build/VideoView';
-import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
-} from 'expo-video/build/VideoPlayerEvents.types';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+} from 'expo-video';
 import {
   ElementRef,
   PropsWithChildren,
@@ -44,7 +39,7 @@ import {
 } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Spinner, Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
+import { Spinner, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -59,7 +54,11 @@ function MediaViewerModal({
   dismiss?: () => void;
 }>) {
   if (isWeb) {
-    return <Modal animationType="none" onRequestClose={dismiss}>{children}</Modal>;
+    return (
+      <Modal animationType="none" onRequestClose={dismiss}>
+        {children}
+      </Modal>
+    );
   }
 
   return <>{children}</>;
@@ -67,9 +66,9 @@ function MediaViewerModal({
 
 function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
   return (
-    <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+    <View padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
       <Icon type={icon} size="$l" color="$white" />
-    </Stack>
+    </View>
   );
 }
 
@@ -107,10 +106,7 @@ function VideoViewer({
   const [showOverlay, setShowOverlay] = useState(true);
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
-  const videoSource = useMemo(
-    () => (uri ? { uri } : null),
-    [uri]
-  );
+  const videoSource = useMemo(() => (uri ? { uri } : null), [uri]);
   const player = useVideoPlayer(isWeb ? null : videoSource);
   const hasStartedPlaybackRef = useRef(false);
   const hasTrackedPlaybackStartRef = useRef(false);
@@ -342,12 +338,7 @@ function VideoViewer({
       <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
 
       {showOverlay ? (
-        <Pressable
-          onPress={goBack}
-          position="absolute"
-          top={top}
-          right="$xl"
-        >
+        <Pressable onPress={goBack} position="absolute" top={top} right="$xl">
           <OverlayIconButton icon="Close" />
         </Pressable>
       ) : null}
@@ -507,7 +498,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri, 
+            props.uri,
             localUri
           );
 
@@ -656,26 +647,26 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
                 onPress={handleDownloadImage}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => props.goBack()}
                 activeOpacity={0.8}
               >
-                <Stack
+                <View
                   padding="$m"
                   backgroundColor="$darkOverlay"
                   borderRadius="$l"
                 >
                   <Icon type="Close" size="$l" color="$white" />
-                </Stack>
+                </View>
               </TouchableOpacity>
             </XStack>
           </YStack>
