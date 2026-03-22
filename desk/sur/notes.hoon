@@ -86,6 +86,17 @@
       [%move-note note-id=@ud notebook-id=@ud folder-id=@ud]
       [%delete-note note-id=@ud notebook-id=@ud]
       [%update-note note-id=@ud body-md=@t expected-revision=@ud]
+      [%batch-import notebook-id=@ud folder-id=@ud notes=(list [title=@t body-md=@t])]
+      $:  %batch-import-tree
+          notebook-id=@ud
+          parent-folder-id=@ud
+          tree=(list import-node)
+      ==
+  ==
+::
++$  import-node
+  $%  [%folder name=@t children=(list import-node)]
+      [%note title=@t body-md=@t]
   ==
 ::
 +$  query

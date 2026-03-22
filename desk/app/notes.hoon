@@ -2,6 +2,7 @@
 ::
 /-  notes
 /+  default-agent, dbug, verb, notes-json
+/=  index  /lib/notes-ui
 |%
 +$  card  card:agent:gall
 +$  state-0  state-0:notes
@@ -25,7 +26,9 @@
     hc    ~(. +> [bowl state])
 ++  on-init
   ^-  (quip card _this)
-  `this
+  :_  this
+  :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
+  ==
 ::
 ++  on-save
   ^-  vase
@@ -36,12 +39,26 @@
   ^-  (quip card _this)
   =/  s=state-0:notes  !<(state-0:notes old)
   :_  this(state [notebooks.s folders.s notes.s members.s next-id.s])
-  ~
+  :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
+  ==
 ::
 ++  on-poke
   |=  [poke-mark=term poke-vase=vase]
   ^-  (quip card _this)
   ?+  poke-mark  (on-poke:def poke-mark poke-vase)
+      %handle-http-request
+    =/  req  !<([eyre-id=@ta =inbound-request:eyre] poke-vase)
+    =/  data=octs  [(met 3 index) index]
+    =/  headers=(list [key=@t value=@t])
+      :~  ['content-type' 'text/html']
+      ==
+    =/  =response-header:http  [200 headers]
+    :_  this
+    :~  [%give %fact [/http-response/[eyre-id.req]]~ %http-response-header !>(response-header)]
+        [%give %fact [/http-response/[eyre-id.req]]~ %http-response-data !>(`data)]
+        [%give %kick [/http-response/[eyre-id.req]]~ ~]
+    ==
+  ::
       %notes-action
     ?>  =(our src):bowl
     =/  act=action:notes
@@ -299,6 +316,91 @@
         state(notes (~(put by notes.state) note-id.act new-nt))
       :_  this(state (touch-notebook:hc next notebook-id.nt))
       (event-cards:hc [%note-updated note-id.act notebook-id.nt revision.new-nt src.bowl])
+    ::
+        %batch-import
+      ?>  (can-edit:hc notebook-id.act src.bowl)
+      =|  cards=(list card)
+      =/  items=(list [title=@t body-md=@t])  notes.act
+      |-
+      ?~  items
+        [cards this]
+      =/  nid=@ud  next-id.state
+      =/  nt=note:notes
+        :*  nid
+            notebook-id.act
+            folder-id.act
+            title.i.items
+            ~
+            body-md.i.items
+            src.bowl
+            now.bowl
+            src.bowl
+            now.bowl
+            1
+        ==
+      =.  state
+        %_  state
+          notes    (~(put by notes.state) nid nt)
+          next-id  +(next-id.state)
+        ==
+      =.  state  (touch-notebook:hc state notebook-id.act)
+      =.  cards
+        %+  weld  cards
+        (event-cards:hc [%note-created nid notebook-id.act src.bowl])
+      $(items t.items)
+    ::
+        %batch-import-tree
+      ?>  (can-edit:hc notebook-id.act src.bowl)
+      =|  cards=(list card)
+      =/  items=(list import-node:notes)  tree.act
+      =|  stack=(list [remaining=(list import-node:notes) folder-id=@ud])
+      =/  fid=@ud  parent-folder-id.act
+      |-
+      ?~  items
+        ?~  stack
+          [cards this]
+        $(items remaining.i.stack, fid folder-id.i.stack, stack t.stack)
+      ?-  -.i.items
+          %note
+        =/  nid=@ud  next-id.state
+        =/  nt=note:notes
+          :*  nid
+              notebook-id.act
+              fid
+              title.i.items
+              ~
+              body-md.i.items
+              src.bowl
+              now.bowl
+              src.bowl
+              now.bowl
+              1
+          ==
+        =.  state
+          %_  state
+            notes    (~(put by notes.state) nid nt)
+            next-id  +(next-id.state)
+          ==
+        =.  cards
+          %+  weld  cards
+          (event-cards:hc [%note-created nid notebook-id.act src.bowl])
+        $(items t.items)
+      ::
+          %folder
+        =/  new-fid=@ud  next-id.state
+        =/  nf=folder:notes
+          [new-fid notebook-id.act name.i.items `fid src.bowl now.bowl now.bowl]
+        =.  state
+          %_  state
+            folders  (~(put by folders.state) new-fid nf)
+            next-id  +(next-id.state)
+          ==
+        =.  cards
+          %+  weld  cards
+          (event-cards:hc [%folder-created new-fid notebook-id.act src.bowl])
+        ::  push current remaining onto stack, descend into children
+        $(items children.i.items, stack [[t.items fid] stack], fid new-fid)
+      ==
     ==
   ==
 ::
@@ -306,6 +408,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  ~
+    ::  /x/ui - serve the frontend
+      [%x %ui ~]
+    ``html+!>(index)
     ::  /x/notebooks - list all notebooks
       [%x %notebooks ~]
     =/  nbs=(list json)
@@ -371,13 +476,21 @@
   |=  =path
   ^-  (quip card _this)
   ?+  path  (on-watch:def path)
+      [%http-response *]
+    `this
+  ::
       [%events ~]
     ?>  =(our src):bowl
     `this
   ==
 ::
 ++  on-agent  on-agent:def
-++  on-arvo   on-arvo:def
+++  on-arvo
+  |=  [wir=wire sig=sign-arvo]
+  ^-  (quip card _this)
+  ?+  sig  (on-arvo:def wir sig)
+    [%eyre %bound *]  `this
+  ==
 ++  on-leave  on-leave:def
 ++  on-fail   on-fail:def
 --

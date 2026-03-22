@@ -227,6 +227,28 @@
         %'update-note'
       :-  %update-note
       ((ot ~[['noteId' ni] ['bodyMd' so] ['expectedRevision' ni]]) val)
+    ::
+        %'batch-import'
+      :-  %batch-import
+      =+  ^=  raw
+        %.  val
+        (ot ~[['notebookId' ni] ['folderId' ni] ['notes' (ar (ot ~[['title' so] ['bodyMd' so]]))]])
+      raw
+    ::
+        %'batch-import-tree'
+      :-  %batch-import-tree
+      %.  val
+      (ot ~[['notebookId' ni] ['parentFolderId' ni] ['tree' (ar import-node)]])
     ==
+  ::
+  ++  import-node
+    |=  jon=json
+    ^-  import-node:notes
+    ?>  ?=([%o *] jon)
+    ?:  (~(has by p.jon) 'children')
+      :-  %folder
+      ((ot ~[['name' so] ['children' (ar import-node)]]) jon)
+    :-  %note
+    ((ot ~[['title' so] ['bodyMd' so]]) jon)
   --
 --
