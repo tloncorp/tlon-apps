@@ -19,11 +19,6 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./api": {
-      "source": "./src/index.ts",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
     "./api/*": "./src/client/*.ts",
     "./client": "./src/client/index.ts",
     "./client/*": "./src/client/*.ts",
