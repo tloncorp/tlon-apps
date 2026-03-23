@@ -11,8 +11,10 @@ import { BaseDb, logger, useMigrations as useMigrationsBase } from './baseDb';
 import { TRIGGER_SETUP } from './triggers';
 import migrate from './webMigrator';
 
-const ENABLE_DB_FILE_LOAD = true;
-const ENABLE_DB_FILE_SAVE = true;
+const IS_SECURE_CONTEXT =
+  typeof globalThis !== 'undefined' && globalThis.isSecureContext !== false;
+const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
+const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
