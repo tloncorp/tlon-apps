@@ -49,7 +49,7 @@ export function createMentionRoleOptions(
     title: role.title || role.id,
     subtitle: role.description,
     type: 'group',
-    priority: 4,
+    priority: 7,
   }));
 
   const all: MentionOption = {
@@ -57,7 +57,7 @@ export function createMentionRoleOptions(
     title: 'All',
     subtitle: 'All members in this channel',
     type: 'group',
-    priority: 5,
+    priority: 8,
   };
   return [...roles, all];
 }
