@@ -212,7 +212,6 @@ const ChatMessage = ({
         {!hideOverflowMenu && isHovered && !showAuthor && (
           <SentTimeText
             sentAt={post.sentAt}
-            showFullDate
             color="$tertiaryText"
             position="absolute"
             top={12}

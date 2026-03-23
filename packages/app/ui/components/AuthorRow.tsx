@@ -170,7 +170,7 @@ export function ChatAuthorRow({
         {showSentAt && <SentTimeText sentAt={sent} paddingTop="$xs" />}
         {isBot && <Badge type="neutral" size="micro" text="Bot" />}
         {showEditedIndicator && (
-          <Text size="$label/m" color="$secondaryText">
+          <Text size="$label/m" color="$secondaryText" paddingTop="$xs">
             Edited
           </Text>
         )}
