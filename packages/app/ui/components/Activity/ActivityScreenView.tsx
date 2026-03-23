@@ -262,7 +262,7 @@ export function ActivityScreenContent({
     [onGroupAction]
   );
 
-  const handleMarkAllRead = useCallback(async () => {
+  const markAllRead = useCallback(async () => {
     console.log('Marking all activity as read');
     await setBadgeCountAsync(0);
     await markAllRead();
@@ -312,7 +312,7 @@ export function ActivityScreenContent({
             <ActivityHeader
               activeTab={activeTab}
               onTabPress={onPressTab}
-              markAllRead={handleMarkAllRead}
+              markAllRead={markAllRead}
               subtitle={subtitle}
               loadingSubtitle={loadingSubtitle}
             />
