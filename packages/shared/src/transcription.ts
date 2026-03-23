@@ -169,17 +169,23 @@ async function requestDownloadLocaleIfNeeded(opts: {
   if (opts.autoDenyDownload) {
     return { result: DownloadLocaleResult.denied };
   }
-  const result =
-    await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
-      locale: opts.locale,
-    });
-  switch (result.status) {
-    case 'download_success':
-      return { result: DownloadLocaleResult.downloaded };
-    case 'opened_dialog':
-      return { result: DownloadLocaleResult.openedDialog };
-    case 'download_canceled':
-      return { result: DownloadLocaleResult.denied };
+  try {
+    const result =
+      await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+        locale: opts.locale,
+      });
+    switch (result.status) {
+      case 'download_success':
+        return { result: DownloadLocaleResult.downloaded };
+      case 'opened_dialog':
+        return { result: DownloadLocaleResult.openedDialog };
+      case 'download_canceled':
+        return { result: DownloadLocaleResult.denied };
+    }
+  } catch {
+    // if user cancels the initial dialog, the library surprisingly throws an error.
+    // convert to a `deny`.
+    return { result: DownloadLocaleResult.denied };
   }
 }
 
