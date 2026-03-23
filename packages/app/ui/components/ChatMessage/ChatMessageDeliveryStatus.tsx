@@ -22,19 +22,19 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
         left={2}
         top={4}
         type="ChevronRight"
+        color={status === 'enqueued' ? '$tertiaryText' : '$primaryText'}
+        customSize={[16, 16]}
+      />
+      <Icon
+        position="absolute"
+        left={8}
+        top={4}
+        type="ChevronRight"
         color={
           status === 'pending' || status === 'enqueued'
             ? '$tertiaryText'
             : '$primaryText'
         }
-        customSize={[16, 16]}
-      />
-      <Icon
-        color={status === 'enqueued' ? '$tertiaryText' : '$primaryText'}
-        position="absolute"
-        left={8}
-        top={4}
-        type="ChevronRight"
         customSize={[16, 16]}
       />
     </XStack>
