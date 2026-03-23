@@ -74,6 +74,7 @@ const ChatMessage = ({
 
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
+  const [showHiddenContent, setShowHiddenContent] = useState(false);
 
   const isNotice = post.type === 'notice';
 
@@ -148,13 +149,13 @@ const ChatMessage = ({
     return (
       <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
     );
-  } else if (post.hidden) {
+  } else if (post.hidden && !showHiddenContent) {
     return (
       <PostErrorMessage
         testID="MessageHidden"
         message="Message hidden or flagged."
         actionLabel="Show anyway"
-        onAction={handleShowAnyway}
+        onAction={() => setShowHiddenContent(true)}
       />
     );
   } else if (isAuthorBlocked && !showBlockedContent) {

@@ -45,7 +45,12 @@ export const ChatMessageReplySummary = React.memo(
     const content = (
       <XStack gap="$m" alignItems="center">
         {deliveryFailed && (
-          <Pressable onPress={onPressRetry}>
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation();
+              onPressRetry?.();
+            }}
+          >
             <XStack gap="$xs" alignItems="center">
               <Icon type="Redo" size="$s" color="$negativeActionText" />
               <Text size="$label/m" color="$negativeActionText">

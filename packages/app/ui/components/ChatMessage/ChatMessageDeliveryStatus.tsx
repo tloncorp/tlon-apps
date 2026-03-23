@@ -40,4 +40,3 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
     </XStack>
   );
 });
-3;
