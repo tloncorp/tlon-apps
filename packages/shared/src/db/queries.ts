@@ -805,12 +805,16 @@ export const getMentionCandidates = createReadQuery(
         membershipType: $chatMembers.membershipType,
         joinedAt: $chatMembers.joinedAt,
         isBlocked: $contacts.isBlocked,
-        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        // Priority: nickname matches rank higher than ship-id-only matches
+        // Within each match type: channel members > contacts > others
         priority: sql<number>`
           CASE 
-            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
-            WHEN ${$contacts.isContact} = true THEN 2
-            ELSE 3
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$contacts.isContact} = true THEN 2
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} THEN 3
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 4
+            WHEN ${$contacts.isContact} = true THEN 5
+            ELSE 6
           END
         `.as('priority'),
       })
