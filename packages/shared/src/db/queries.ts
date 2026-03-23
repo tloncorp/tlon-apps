@@ -782,7 +782,7 @@ export const getMentionCandidates = createReadQuery(
   async (
     {
       chatId,
-      limit = 4,
+      limit = 8,
       query,
     }: { chatId: string; limit?: number; query: string },
     ctx: QueryCtx
@@ -790,7 +790,7 @@ export const getMentionCandidates = createReadQuery(
     if (!(query = query.trim())) return [];
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
-    const searchTerm = `${query.toLowerCase()}%`;
+    const searchTerm = `%${query.toLowerCase()}%`;
 
     const $candidates = ctx.db
       .select({
@@ -854,7 +854,7 @@ export const getMentionCandidates = createReadQuery(
         .from($candidates)
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
-        .orderBy(sql`priority ASC`)
+        .orderBy(sql`priority ASC, ${$candidates.nickname} ASC`)
         .limit(limit)
     );
   },
