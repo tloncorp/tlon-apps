@@ -124,24 +124,12 @@ export const transcribeAudioFileWithGlobalCache = memoize(
   (uri) => getMd5(uri) ?? uri
 );
 
-enum DownloadLocaleResult {
-  denied, // locale is necessary, but user denied permission to download locale
-  unavailable, // locale is necessary, but not available for download (probably can't transcribe)
-  notNeeded, // can transcribe without downloading
-  downloaded, // finished download of locale
-  openedDialog, // user was presented with dialog to download locale and we don't have access to the result
-}
-
-function willFailTranscription(localeResult: DownloadLocaleResult) {
-  switch (localeResult) {
-    case DownloadLocaleResult.denied:
-    case DownloadLocaleResult.unavailable:
-      return true;
-    case DownloadLocaleResult.notNeeded:
-    case DownloadLocaleResult.downloaded:
-    case DownloadLocaleResult.openedDialog:
-      return false;
+async function isLocaleReady(locale: string): Promise<boolean> {
+  if (Platform.OS !== 'android') {
+    return true;
   }
+  const locales = await ExpoSpeechRecognitionModule.getSupportedLocales({});
+  return locales.installedLocales.includes(locale);
 }
 
 async function requestDownloadLocaleIfNeeded(opts: {
@@ -149,43 +137,28 @@ async function requestDownloadLocaleIfNeeded(opts: {
   /** when true, if the locale isn't available, we'll skip asking user to
    * download locale and just return `denied` */
   autoDenyDownload?: boolean;
-}): Promise<{
-  result: DownloadLocaleResult;
-}> {
-  if (Platform.OS !== 'android') {
-    return { result: DownloadLocaleResult.notNeeded };
-  }
+}) {
   if (!ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()) {
-    return { result: DownloadLocaleResult.unavailable };
+    return;
   }
-  const { locales, installedLocales } =
-    await ExpoSpeechRecognitionModule.getSupportedLocales({});
-  if (installedLocales.includes(opts.locale)) {
-    return { result: DownloadLocaleResult.notNeeded };
+  if (await isLocaleReady(opts.locale)) {
+    return;
   }
+  const { locales } = await ExpoSpeechRecognitionModule.getSupportedLocales({});
   if (!locales.includes(opts.locale)) {
-    return { result: DownloadLocaleResult.unavailable };
+    return;
   }
   if (opts.autoDenyDownload) {
-    return { result: DownloadLocaleResult.denied };
+    return;
   }
   try {
-    const result =
-      await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
-        locale: opts.locale,
-      });
-    switch (result.status) {
-      case 'download_success':
-        return { result: DownloadLocaleResult.downloaded };
-      case 'opened_dialog':
-        return { result: DownloadLocaleResult.openedDialog };
-      case 'download_canceled':
-        return { result: DownloadLocaleResult.denied };
-    }
+    await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+      locale: opts.locale,
+    });
   } catch {
     // if user cancels the initial dialog, the library surprisingly throws an error.
-    // convert to a `deny`.
-    return { result: DownloadLocaleResult.denied };
+    // we don't want to raise in this case.
+    return;
   }
 }
 
@@ -198,9 +171,8 @@ export async function setupTranscriptionIfNeeded(): Promise<
   | {
       canTranscribe: false;
       status: 'missing-locale';
-      result: DownloadLocaleResult;
     }
-  | { canTranscribe: true; status: 'ready'; result: DownloadLocaleResult }
+  | { canTranscribe: true; status: 'ready' }
 > {
   const deviceLocale = getDefaultLocaleCode();
 
@@ -222,22 +194,22 @@ export async function setupTranscriptionIfNeeded(): Promise<
     return false;
   })();
 
-  const localeSetup = await requestDownloadLocaleIfNeeded({
+  requestDownloadLocaleIfNeeded({
     locale: deviceLocale,
     autoDenyDownload: alreadyPrompted,
   });
 
-  if (willFailTranscription(localeSetup.result)) {
+  const missingLocale = !(await isLocaleReady(deviceLocale));
+
+  if (missingLocale) {
     return {
       canTranscribe: false,
       status: 'missing-locale',
-      result: localeSetup.result,
     };
   }
 
   return {
     canTranscribe: true,
     status: 'ready',
-    result: localeSetup.result,
   };
 }
