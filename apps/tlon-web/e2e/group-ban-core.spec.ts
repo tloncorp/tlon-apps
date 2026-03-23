@@ -19,7 +19,7 @@ test('should allow banning and unbanning users in public groups', async ({
   await expect(zodPage.getByText('Group info')).toBeVisible();
 
   // Invite ~ten
-  await zodPage.getByText('Invite people').click();
+  await helpers.openInvitePeople(zodPage);
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
   await zodPage.waitForTimeout(1000);
   await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
@@ -96,7 +96,7 @@ test('should allow banning and unbanning users in public groups', async ({
   await helpers.openGroupSettings(zodPage);
 
   // Re-invite ~ten to the group (now that they've been unbanned)
-  await zodPage.getByText('Invite people').click();
+  await helpers.openInvitePeople(zodPage);
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
   await zodPage.waitForTimeout(1000);
   await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();

@@ -21,7 +21,11 @@ import {
   useToast,
 } from '@tloncorp/ui';
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -162,6 +166,7 @@ export function BigInput({
   editingPost,
   setShowBigInput,
   clearDraft,
+  setShouldBlur,
   ...props
 }: MessageInputProps & {
   channelId: string;
@@ -183,6 +188,9 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
+  const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
+    null
+  );
   const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -459,9 +467,19 @@ export function BigInput({
           const uploadState = uploadStates[asset.uri];
 
           if (uploadState?.status === 'success' && editorRef.current?.editor) {
+            const savedSelection = inlineImageSelectionRef.current;
+            if (savedSelection) {
+              editorRef.current.editor.focus();
+              editorRef.current.editor.setSelection(
+                savedSelection.from,
+                savedSelection.to
+              );
+            }
+
             // Insert the S3 URL into the editor
             const s3Url = uploadState.remoteUri;
             (editorRef.current.editor as any).setImage(s3Url);
+            inlineImageSelectionRef.current = null;
           } else if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-failure', {
               uploadState,
@@ -472,6 +490,7 @@ export function BigInput({
             });
           }
         } catch (error) {
+          inlineImageSelectionRef.current = null;
           if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-error', error);
             showToast({
@@ -509,7 +528,16 @@ export function BigInput({
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
-      onPress: () => () => setShowInlineImageSheet(true),
+      onPress:
+        ({ editorState }) =>
+        () => {
+          inlineImageSelectionRef.current = {
+            from: editorState.selection.from,
+            to: editorState.selection.to,
+          };
+          setShouldBlur(true);
+          setShowInlineImageSheet(true);
+        },
       active: () => false,
       disabled: () => false,
       icon: 'Camera',
@@ -530,7 +558,12 @@ export function BigInput({
       items.unshift(markdownToggle);
     }
     return items;
-  }, [isMarkdownMode, handleMarkdownToggle, markdownNotebooksEnabled]);
+  }, [
+    isMarkdownMode,
+    handleMarkdownToggle,
+    markdownNotebooksEnabled,
+    setShouldBlur,
+  ]);
 
   return (
     <KeyboardAvoidingView
@@ -656,6 +689,7 @@ export function BigInput({
               channelId={channelId}
               channelType={channelType}
               editingPost={editingPost}
+              setShouldBlur={setShouldBlur}
               {...props}
               clearDraft={clearDraft}
               frameless={true}

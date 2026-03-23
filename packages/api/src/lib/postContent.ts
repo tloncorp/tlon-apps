@@ -1,4 +1,4 @@
-import * as api from '../client';
+import type * as api from '../client';
 import { formatUd } from '../client/apiUtils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';

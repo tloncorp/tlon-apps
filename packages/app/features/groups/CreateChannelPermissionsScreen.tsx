@@ -70,9 +70,11 @@ export function CreateChannelPermissionsScreen() {
 
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
+    const currentWriters = form.getValues('writers');
+    const allRoleIds = [...new Set([...currentReaders, ...currentWriters])];
     navigation.navigate('SelectChannelRoles', {
       groupId,
-      selectedRoleIds: currentReaders,
+      selectedRoleIds: allRoleIds,
       returnScreen: 'CreateChannelPermissions',
       returnParams: {
         groupId,

@@ -1,8 +1,7 @@
-import { Poke } from '@urbit/http-api';
-
-import * as db from '@tloncorp/shared/db';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type { Poke } from '../http-api';
+import type * as db from '../types/models';
+import type { GroupPrivacy } from '../types/models';
+import { createDevLogger } from './logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';
@@ -1919,6 +1918,9 @@ function toClientChannelFromPreview({
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
 
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupChannelId(id);
+
   return {
     id,
     groupId,
@@ -1928,6 +1930,7 @@ function toClientChannelFromPreview({
     coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
+    currentUserIsHost: hostUserId === currentUserId,
   };
 }
 

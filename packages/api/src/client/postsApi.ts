@@ -1,8 +1,8 @@
 import { da, render } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type { Poke } from '../http-api';
+import type * as db from '../types/models';
+import { createDevLogger } from './logger';
 import { IMAGE_URL_REGEX } from '../lib/utils';
 import {
   PlaintextPreviewConfig,
@@ -615,7 +615,7 @@ export const getChangedPosts = async ({
   const response = await scry<ub.PagedPosts>({
     app: 'channels',
     path: formatScryPath(
-      `v1/${channelId}/posts/changes`,
+      `v4/${channelId}/posts/changes`,
       formatCursor(startCursor),
       formatCursor(endCursor),
       render('da', da.fromUnix(afterTime.valueOf()))

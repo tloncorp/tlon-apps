@@ -1,5 +1,5 @@
 import { syncSince } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
+import { queryClient } from '@tloncorp/shared';
 import Constants from 'expo-constants';
 import { registerDevMenuItems } from 'expo-dev-menu';
 import { Alert, DevSettings } from 'react-native';
@@ -74,7 +74,7 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
             text: 'Overwrite and reset queries (faster, may cause issues)',
             onPress: async () => {
               await overwriteDatabase();
-              api.queryClient.resetQueries();
+              queryClient.resetQueries();
             },
           },
           { text: 'Cancel', style: 'cancel' },

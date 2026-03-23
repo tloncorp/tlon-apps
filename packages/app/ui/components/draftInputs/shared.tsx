@@ -1,8 +1,14 @@
+import { JSONContent } from '@tloncorp/api/urbit';
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import { JSONContent } from '@tloncorp/api/urbit';
-import { Dispatch, SetStateAction } from 'react';
+import {
+  Dispatch,
+  PropsWithChildren,
+  SetStateAction,
+  createContext,
+  useContext,
+} from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';
 
@@ -62,4 +68,16 @@ export interface DraftInputContext {
     content: JSONContent,
     draftType?: GalleryDraftType
   ) => Promise<void>;
+  replyToPost?: { id: string };
+}
+
+const context = createContext<DraftInputContext | null>(null);
+export function useDraftInputContext() {
+  return useContext(context);
+}
+export function DraftInputContextProvider({
+  children,
+  value,
+}: PropsWithChildren<{ value: DraftInputContext }>) {
+  return <context.Provider value={value}>{children}</context.Provider>;
 }

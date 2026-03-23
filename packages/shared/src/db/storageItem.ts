@@ -1,7 +1,7 @@
 import { QueryKey, useQuery } from '@tanstack/react-query';
 
-import { queryClient } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
+import { queryClient } from '../store/reactQuery';
 import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
 

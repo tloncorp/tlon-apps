@@ -9,6 +9,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
+import { clamp } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -20,11 +21,11 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Linking, Platform } from 'react-native';
+import { ActivityIndicator, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
-import { DUMMY_WAVEFORM_VALUES, Waveform } from '../AudioRecorder/Waveform';
+import { useNowPlayingController } from '../../contexts/nowPlaying';
+import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
@@ -36,6 +37,10 @@ import { HighlightedCode } from '../HighlightedCode';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+const DUMMY_WAVEFORM_VALUES = [
+  1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
+];
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
@@ -216,11 +221,35 @@ export function ReferenceBlock({
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
-export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
-  const { openExternalLink } = useNavigation();
+export function VoiceMemoBlock({
+  block,
+  ...props
+}: { block: cn.VoiceMemoBlockData } & ComponentProps<
+  typeof Reference.Frame
+>) {
+  const { togglePlayback, progress, status, isThisSourceLoaded } =
+    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+
+  const candlePlaybackPosition = useMemo(() => {
+    const candleCount = block.voiceMemo.waveformPreview
+      ? block.voiceMemo.waveformPreview.length
+      : DUMMY_WAVEFORM_VALUES.length;
+    if (
+      progress?.loadState !== 'loaded' ||
+      !isThisSourceLoaded ||
+      progress.duration === 0
+    ) {
+      return 0;
+    }
+    return clamp(
+      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      0,
+      candleCount - 1
+    );
+  }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
   return (
-    <Reference.Frame>
+    <Reference.Frame {...props}>
       <Reference.Header alignItems="center">
         <Reference.Title>
           <Reference.TitleText>Voice Memo</Reference.TitleText>
@@ -248,23 +277,34 @@ export function VoiceMemoBlock({ block }: { block: cn.VoiceMemoBlockData }) {
             cursor="pointer"
             hoverStyle={{ backgroundColor: '$positiveBackground' }}
             pressStyle={{ opacity: 0.5 }}
-            onPress={() => {
-              openExternalLink(block.voiceMemo.fileUri);
-            }}
+            onPress={togglePlayback}
           >
-            <Icon type="Play" color="$primaryText" />
+            {(() => {
+              switch (status) {
+                case null:
+                  return <Icon type={'Play'} color="$primaryText" />;
+                case 'loading':
+                  return <ActivityIndicator />;
+                case 'playing':
+                  return <Icon type={'Stop'} color="$primaryText" />;
+                case 'paused':
+                  return <Icon type={'Play'} color="$primaryText" />;
+              }
+            })()}
           </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
             <Waveform
               candleWidth={3}
               candleSpacing={1}
-              candlePlaybackPosition={0}
+              candlePlaybackPosition={candlePlaybackPosition}
               values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-              style={{ width: '100%', height: 22 }}
+              style={{ flex: 1, height: 22 }}
             />
             {block.voiceMemo.duration != null && (
               <Text size="$label/s" color="$secondaryText">
-                {makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+                {progress?.loadState === 'loaded'
+                  ? makePrettyTimeFromMs(progress.currentTime * 1000)
+                  : makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
               </Text>
             )}
           </XStack>
