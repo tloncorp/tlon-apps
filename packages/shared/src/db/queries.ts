@@ -858,7 +858,7 @@ export const getMentionCandidates = createReadQuery(
         .from($candidates)
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
-        .orderBy(sql`priority ASC, ${$candidates.nickname} ASC`)
+        .orderBy(sql`priority ASC`, ascNullsLast($candidates.nickname))
         .limit(limit)
     );
   },

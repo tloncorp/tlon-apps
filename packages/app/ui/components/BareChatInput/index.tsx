@@ -346,8 +346,9 @@ export default function BareChatInput({
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
         const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
+        const adjustedCursorPos = cursorPos != null ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length)) : undefined;
         setControlledText(textWithoutRefs);
-        handleMention(oldText, textWithoutRefs, cursorPos);
+        handleMention(oldText, textWithoutRefs, adjustedCursorPos);
 
         const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);

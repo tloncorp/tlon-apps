@@ -126,6 +126,7 @@ export const useMentions = ({
   const handleMention = (oldText: string, newText: string, explicitCursorPosition?: number) => {
     // Use explicit cursor position when available (web), fall back to diff-based heuristic
     let cursorPosition: number;
+    let firstDiffIndex: number | null = null;
     if (explicitCursorPosition != null) {
       cursorPosition = explicitCursorPosition;
     } else {
@@ -133,6 +134,7 @@ export const useMentions = ({
       if (oldText.length !== newText.length) {
         for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
           if (oldText[i] !== newText[i]) {
+            firstDiffIndex = i;
             cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
             break;
           }
@@ -222,7 +224,9 @@ export const useMentions = ({
     // Update mention positions when text changes
     if (mentions.length > 0) {
       const delta = newText.length - oldText.length;
-      const editPosition = cursorPosition - (delta > 0 ? delta : 0);
+      const editPosition = explicitCursorPosition != null
+        ? cursorPosition - (delta > 0 ? delta : 0)
+        : (firstDiffIndex ?? cursorPosition);
       const updatedMentions = mentions
         .map((mention) => {
           if (mention.start >= editPosition) {
