@@ -1,16 +1,19 @@
 import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
 import {
-  e2eAssertTableState,
-  e2eDropTable,
-  type E2eCorruptibleTable,
+  ensureDbReady,
+  REQUIRED_SENTINEL_TABLES,
 } from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger } from '@tloncorp/shared';
-import { Alert, Linking } from 'react-native';
+import { client } from '@tloncorp/shared/db/client';
+import { sql } from 'drizzle-orm';
 import { useEffect, useRef } from 'react';
+import { Alert, Linking } from 'react-native';
 
 const logger = createDevLogger('e2eDbCommands', false);
 const E2E_DB_HOST = 'e2e';
 const E2E_DB_PATH = '/db';
+
+type E2eCorruptibleTable = (typeof REQUIRED_SENTINEL_TABLES)[number];
 const CORRUPTIBLE_TABLES = new Set<E2eCorruptibleTable>([
   'groups',
   'channels',
@@ -47,6 +50,32 @@ function parseE2eDbCommand(url: string): E2eDbCommand | null {
     return { op, table: table as E2eCorruptibleTable };
   } catch {
     return null;
+  }
+}
+
+async function e2eDropTable(tableName: E2eCorruptibleTable) {
+  await ensureDbReady();
+  await client.run(sql.raw(`DROP TABLE IF EXISTS "${tableName}"`));
+}
+
+async function e2eAssertTableState(
+  tableName: E2eCorruptibleTable,
+  expectedState: 'present' | 'missing'
+) {
+  await ensureDbReady();
+
+  let isPresent = true;
+  try {
+    await client.run(sql.raw(`SELECT 1 FROM "${tableName}" LIMIT 1`));
+  } catch {
+    isPresent = false;
+  }
+
+  const shouldBePresent = expectedState === 'present';
+  if (isPresent !== shouldBePresent) {
+    throw new Error(
+      `e2eAssertTableState: expected "${tableName}" to be ${expectedState}, but it was ${isPresent ? 'present' : 'missing'}`
+    );
   }
 }
 
