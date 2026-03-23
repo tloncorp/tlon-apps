@@ -194,9 +194,11 @@ export async function setupTranscriptionIfNeeded(): Promise<
     return false;
   })();
 
-  requestDownloadLocaleIfNeeded({
+  void requestDownloadLocaleIfNeeded({
     locale: deviceLocale,
     autoDenyDownload: alreadyPrompted,
+  }).catch((err) => {
+    console.error('Error requesting locale download', err);
   });
 
   const missingLocale = !(await isLocaleReady(deviceLocale));
