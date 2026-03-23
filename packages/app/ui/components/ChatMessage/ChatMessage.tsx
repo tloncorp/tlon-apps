@@ -18,6 +18,7 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
+import { SentTimeText } from '../SentTimeText';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
@@ -184,6 +185,12 @@ const ChatMessage = ({
       pressStyle="unset"
       cursor="default"
       testID="Post"
+      {...(!isWeb
+        ? {}
+        : {
+            borderRadius: '$m',
+            backgroundColor: isHovered ? '$secondaryBackground' : 'transparent',
+          })}
     >
       <YStack key={post.id}>
         {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
@@ -202,6 +209,17 @@ const ChatMessage = ({
             showEditedIndicator={!!post.isEdited}
           />
         ) : null}
+
+        {!hideOverflowMenu && isHovered && !showAuthor && (
+          <SentTimeText
+            sentAt={post.sentAt}
+            showFullDate
+            color="$tertiaryText"
+            position="absolute"
+            top={12}
+            left={5}
+          />
+        )}
 
         {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
           <View
@@ -265,7 +283,7 @@ const ChatMessage = ({
         ) : null}
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-        <View position="absolute" top={8} right={12}>
+        <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
