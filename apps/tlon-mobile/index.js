@@ -4,13 +4,12 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
 import {
@@ -20,6 +19,7 @@ import {
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
+import { useDbReady } from './src/hooks/useDbReady';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -72,43 +72,7 @@ function useJsHeartbeat(enabled) {
 }
 
 function MainInner(props) {
-  const [isDbReady, setIsDbReady] = useState(false);
-  const [dbInitError, setDbInitError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const MAX_ATTEMPTS = 3;
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    async function checkDb() {
-      let lastError = null;
-
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-          await ensureDbReady();
-          if (!cancelled) {
-            setIsDbReady(true);
-          }
-          return;
-        } catch (error) {
-          lastError = error;
-          if (attempt < MAX_ATTEMPTS && !cancelled) {
-            await wait(500 * attempt);
-          }
-        }
-      }
-
-      if (!cancelled) {
-        setDbInitError(lastError);
-      }
-    }
-
-    checkDb();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { dbInitError, isDbReady } = useDbReady();
 
   if (dbInitError) {
     throw dbInitError;
