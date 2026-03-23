@@ -11,7 +11,6 @@ import type {
   GroupMemberInvite,
   GroupJoinStatus,
   GroupPrivacy,
-  GroupRankBan,
 } from './groups';
 import type { Post, ThreadUnreadState } from './post';
 
@@ -176,9 +175,10 @@ export interface Group extends WithId {
   volumeSettings?: VolumeSettings | null;
   flaggedPosts?: any[] | null;
   bannedMembers?: any[] | null;
+  // Kept for tlon-skill compatibility, though current group hydration appears
+  // to fold invited members into `members` with `status: 'invited'` instead.
   pendingMembers?: GroupMemberInvite[] | null;
   joinRequests?: any[] | null;
-  bannedRanks?: GroupRankBan[] | null;
 }
 
 export interface Channel extends WithId {
