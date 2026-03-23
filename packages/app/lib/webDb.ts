@@ -42,12 +42,7 @@ export class WebDb extends BaseDb {
       // :memory: databases), SQLocal's processor.postMessage is async and
       // queries can race ahead of initialization without this.
       const sqlocal = await new Promise<SQLocalDrizzle>((resolve, reject) => {
-        let instance: SQLocalDrizzle;
-        const timeout = setTimeout(() => {
-          instance?.destroy();
-          reject(new Error('SQLocal init timed out'));
-        }, 15000);
-        instance = new SQLocalDrizzle({
+        const instance = new SQLocalDrizzle({
           databasePath: ':memory:',
           verbose: false,
           onConnect: () => {
@@ -55,6 +50,10 @@ export class WebDb extends BaseDb {
             resolve(instance);
           },
         });
+        const timeout = setTimeout(() => {
+          instance.destroy();
+          reject(new Error('SQLocal init timed out'));
+        }, 15000);
       });
       this.sqlocal = sqlocal;
 
