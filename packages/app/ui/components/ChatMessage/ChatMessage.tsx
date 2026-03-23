@@ -185,12 +185,10 @@ const ChatMessage = ({
       pressStyle="unset"
       cursor="default"
       testID="Post"
-      {...(!isWeb
-        ? {}
-        : {
-            borderRadius: '$m',
-            backgroundColor: isHovered ? '$secondaryBackground' : 'transparent',
-          })}
+      borderRadius={'$m'}
+      backgroundColor={
+        isWeb && isHovered ? '$secondaryBackground' : 'transparent'
+      }
     >
       <YStack key={post.id}>
         {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
