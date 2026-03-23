@@ -16,6 +16,18 @@ const IS_SECURE_CONTEXT =
 const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
 const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 
+// crypto.randomUUID() is only available in secure contexts. Polyfill it
+// for plain HTTP so that SQLocal (which uses it internally) can function.
+if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+  crypto.randomUUID = () =>
+    '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c: string) =>
+      (
+        +c ^
+        (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))
+      ).toString(16)
+    ) as `${string}-${string}-${string}-${string}-${string}`;
+}
+
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
 
@@ -25,12 +37,29 @@ export class WebDb extends BaseDb {
       return;
     }
     try {
-      this.sqlocal = new SQLocalDrizzle({
-        databasePath: ':memory:',
-        verbose: false,
+      // Await the onConnect callback to ensure the WASM driver is fully
+      // initialized before sending any queries. In non-worker mode (used for
+      // :memory: databases), SQLocal's processor.postMessage is async and
+      // queries can race ahead of initialization without this.
+      const sqlocal = await new Promise<SQLocalDrizzle>((resolve, reject) => {
+        const instance = new SQLocalDrizzle({
+          databasePath: ':memory:',
+          verbose: false,
+          onConnect: () => {
+            clearTimeout(timeout);
+            resolve(instance);
+          },
+        });
+        const timeout = setTimeout(() => {
+          instance.destroy();
+          reject(new Error('SQLocal init timed out'));
+        }, 15000);
       });
-      const { driver } = this.sqlocal;
+      this.sqlocal = sqlocal;
+
+      const { driver } = sqlocal;
       this.client = drizzle(driver, { schema });
+      setClient(this.client);
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the
@@ -74,8 +103,6 @@ export class WebDb extends BaseDb {
       await this.sqlocal.createCallbackFunction('processChanges', async () =>
         this.processChanges()
       );
-
-      setClient(this.client);
 
       const dbInfo = await this.sqlocal.getDatabaseInfo();
       logger.log('SQLite database opened:', dbInfo);
