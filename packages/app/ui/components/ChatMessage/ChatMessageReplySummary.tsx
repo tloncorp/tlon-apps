@@ -44,6 +44,16 @@ export const ChatMessageReplySummary = React.memo(
 
     const content = (
       <XStack gap="$m" alignItems="center">
+        {deliveryFailed && (
+          <Pressable onPress={onPressRetry}>
+            <XStack gap="$xs" alignItems="center">
+              <Icon type="Redo" size="$s" color="$negativeActionText" />
+              <Text size="$label/m" color="$negativeActionText">
+                Send failed, {isWindowNarrow ? 'tap' : 'click'} to retry
+              </Text>
+            </XStack>
+          </Pressable>
+        )}
         {hasReplies && <AvatarPreviewStack contactIds={replyContactIds} />}
         {hasReplies && (
           <Text
@@ -71,16 +81,6 @@ export const ChatMessageReplySummary = React.memo(
           <Text size="$label/m" paddingTop={1} color="$tertiaryText">
             Edited
           </Text>
-        )}
-        {deliveryFailed && (
-          <Pressable onPress={onPressRetry}>
-            <XStack gap="$xs" alignItems="center">
-              <Icon type="Redo" size="$s" color="$negativeActionText" />
-              <Text size="$label/m" color="$negativeActionText">
-                Send failed, {isWindowNarrow ? 'tap' : 'click'} to retry
-              </Text>
-            </XStack>
-          </Pressable>
         )}
       </XStack>
     );
