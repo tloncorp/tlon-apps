@@ -12,5 +12,21 @@ export {
   signUpHostingUser,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
-export type { AppTheme, AppThemeName } from './urbit';
+export type {
+  AppTheme,
+  AppThemeName,
+  Story,
+  Memo,
+  PostEssay,
+  Author,
+  BotProfile,
+  Ship,
+  Response as ChannelResponse,
+  PostResponse,
+  ReplyResponse,
+  WritResponse,
+  WritResponseDelta,
+  WritDelta,
+  WritDiff,
+} from './urbit';
 export * from './client';
