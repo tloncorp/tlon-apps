@@ -186,6 +186,7 @@ const ChatMessage = ({
       cursor="default"
       testID="Post"
       borderRadius={'$m'}
+      overflow="hidden"
       backgroundColor={
         isWeb && isHovered ? '$secondaryBackground' : 'transparent'
       }
