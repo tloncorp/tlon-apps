@@ -1,6 +1,5 @@
-import { ThemeName } from 'tamagui';
-
 import {
+  AppThemeName,
   StorageConfiguration,
   StorageCredentials,
   StorageService,
@@ -184,7 +183,7 @@ export const lastVisitedChannelId = (groupId: string) => {
   });
 };
 
-export const themeSettings = createStorageItem<ThemeName | null>({
+export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',
   defaultValue: null,
 });

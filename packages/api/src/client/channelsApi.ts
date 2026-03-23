@@ -1,8 +1,8 @@
 import { render, da } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type { Poke } from '../http-api';
+import type * as db from '../types/models';
+import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';

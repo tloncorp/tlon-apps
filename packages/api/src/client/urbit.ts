@@ -1,7 +1,7 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from '@tloncorp/shared/debug';
+import { createDevLogger, escapeLog, runIfDev } from './logger';
 import { getConstants } from '../types/constants';
 import {
   AuthError,

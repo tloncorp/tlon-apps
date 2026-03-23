@@ -1,8 +1,7 @@
-import { Poke } from '@urbit/http-api';
-
-import * as db from '@tloncorp/shared/db';
-import { GroupPrivacy } from '@tloncorp/shared/db/schema';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type { Poke } from '../http-api';
+import type * as db from '../types/models';
+import type { GroupPrivacy } from '../types/models';
+import { createDevLogger } from './logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';

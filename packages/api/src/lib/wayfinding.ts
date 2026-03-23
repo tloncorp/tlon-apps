@@ -1,4 +1,4 @@
-import type * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/models';
 import { PersonalGroupNames, PersonalGroupSlugs } from '../types/wayfinding';
 import { getChannelKindFromType } from '../urbit';
 
