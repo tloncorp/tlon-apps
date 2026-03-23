@@ -533,16 +533,17 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
             return;
           }
 
-          text.push(`~${child.attrs.id}`);
+          const id = child.attrs.id;
+          const mentionText = id.startsWith('~') ? id : `~${id}`;
+          const mentionStartIndex = text.join('').length;
 
-          const mentionStartIndex = text.join('').lastIndexOf('~');
-          const mentionEndIndex = mentionStartIndex + child.attrs.id.length + 1;
+          text.push(mentionText);
 
           mentions.push({
-            id: child.attrs!.id,
-            display: `~${child.attrs!.id}`,
+            id,
+            display: mentionText,
             start: mentionStartIndex,
-            end: mentionEndIndex,
+            end: mentionStartIndex + mentionText.length,
           });
         }
       });
