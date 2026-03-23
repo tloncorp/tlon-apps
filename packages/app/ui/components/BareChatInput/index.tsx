@@ -345,8 +345,9 @@ export default function BareChatInput({
       if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
+        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
         setControlledText(textWithoutRefs);
-        handleMention(oldText, textWithoutRefs);
+        handleMention(oldText, textWithoutRefs, cursorPos);
 
         const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
@@ -363,8 +364,9 @@ export default function BareChatInput({
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally
+        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
         setControlledText(newText);
-        handleMention(oldText, newText);
+        handleMention(oldText, newText, cursorPos);
 
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
