@@ -12,6 +12,14 @@ export {
   signUpHostingUser,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
+export { AuthError, Urbit } from './http-api';
+export type { ChannelStatus, Poke, PokeHandlers, Scry } from './http-api';
+export type {
+  Contact,
+  Group,
+  Channel,
+  Post,
+} from './types/models';
 export type {
   AppTheme,
   AppThemeName,
@@ -28,5 +36,21 @@ export type {
   WritResponseDelta,
   WritDelta,
   WritDiff,
+} from './urbit';
+export type {
+  AppReference,
+  ChannelReference,
+  ContentReference,
+  GroupReference,
+} from './types/references';
+export {
+  checkNest,
+  desig,
+  getChannelType,
+  getTextContent,
+  nestToFlag,
+  preSig,
+  whomIsDm,
+  whomIsMultiDm,
 } from './urbit';
 export * from './client';

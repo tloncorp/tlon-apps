@@ -8,8 +8,10 @@
 import type { ChannelContentConfiguration } from '../client/channelContentConfig';
 import type { ExtendedEventType, NotificationLevel } from '../urbit';
 import type {
+  GroupMemberInvite,
   GroupJoinStatus,
   GroupPrivacy,
+  GroupRankBan,
 } from './groups';
 import type { Post, ThreadUnreadState } from './post';
 
@@ -174,7 +176,9 @@ export interface Group extends WithId {
   volumeSettings?: VolumeSettings | null;
   flaggedPosts?: any[] | null;
   bannedMembers?: any[] | null;
+  pendingMembers?: GroupMemberInvite[] | null;
   joinRequests?: any[] | null;
+  bannedRanks?: GroupRankBan[] | null;
 }
 
 export interface Channel extends WithId {
