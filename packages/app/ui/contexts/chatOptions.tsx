@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { whichPin, doPin } from '@tloncorp/shared/logic';
-import { SyncPriority, leaveGroup, leaveGroupChannel, markChannelRead, markGroupRead, pinChannel, pinGroup, respondToDMInvite, setChannelVolumeLevel, setGroupVolumeLevel, syncGroup, unpinItem, useChannel, useGroup } from '@tloncorp/shared/store';
+import { SyncPriority, leaveGroup as storeLeaveGroup, leaveGroupChannel, markChannelRead as storeMarkChannelRead, markGroupRead as storeMarkGroupRead, pinChannel, pinGroup, respondToDMInvite, setChannelVolumeLevel, setGroupVolumeLevel, syncGroup as storeSyncGroup, unpinItem, useChannel, useGroup } from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -201,11 +201,11 @@ export const ChatOptionsProvider = ({
   });
 
   useEffect(() => {
-    async function syncGroup() {
+    async function doSyncGroup() {
       if (!groupId) return;
 
       try {
-        await syncGroup(groupId, {
+        await storeSyncGroup(groupId, {
           priority: SyncPriority.Low,
         });
       } catch (error) {
@@ -213,7 +213,7 @@ export const ChatOptionsProvider = ({
       }
     }
 
-    syncGroup();
+    doSyncGroup();
   }, [groupId]);
 
   const togglePinned = useCallback(async () => {
@@ -264,9 +264,9 @@ export const ChatOptionsProvider = ({
     [channel, chat, group]
   );
 
-  const leaveGroup = useCallback(async () => {
+  const handleLeaveGroup = useCallback(async () => {
     if (groupId) {
-      await leaveGroup(groupId);
+      await storeLeaveGroup(groupId);
     }
     navigateOnLeave?.();
     closeSheet();
@@ -308,17 +308,17 @@ export const ChatOptionsProvider = ({
     setLeaveChannelDialogOpen(true);
   }, [channelTitle, channel]);
 
-  const markGroupRead = useCallback(() => {
+  const handleMarkGroupRead = useCallback(() => {
     if (groupId) {
-      markGroupRead(groupId, true);
+      storeMarkGroupRead(groupId, true);
     }
     closeSheet();
   }, [closeSheet, groupId]);
 
-  const markChannelRead = useCallback(
+  const handleMarkChannelRead = useCallback(
     ({ includeThreads }: { includeThreads?: boolean } = {}) => {
       if (channelId) {
-        markChannelRead({
+        storeMarkChannelRead({
           id: channelId,
           groupId: groupId,
           includeThreads,
@@ -422,8 +422,8 @@ export const ChatOptionsProvider = ({
       useGroup,
       group,
       channel,
-      markGroupRead,
-      markChannelRead,
+      markGroupRead: handleMarkGroupRead,
+      markChannelRead: handleMarkChannelRead,
       onPressGroupMeta: handlePressGroupMeta,
       onPressChannelTemplate: handlePressChannelTemplate,
       onPressGroupMembers: handlePressGroupMembers,
@@ -432,7 +432,7 @@ export const ChatOptionsProvider = ({
       onPressGroupPrivacy: handlePressGroupPrivacy,
       onPressRoles: handlePressGroupRoles,
       onPressChatDetails: handlePressChatDetails,
-      leaveGroup,
+      leaveGroup: handleLeaveGroup,
       leaveChannel,
       togglePinned,
       updateVolume,
@@ -446,8 +446,8 @@ export const ChatOptionsProvider = ({
       useGroup,
       group,
       channel,
-      markGroupRead,
-      markChannelRead,
+      handleMarkGroupRead,
+      handleMarkChannelRead,
       handlePressGroupMeta,
       handlePressChannelTemplate,
       handlePressGroupMembers,
@@ -456,7 +456,7 @@ export const ChatOptionsProvider = ({
       handlePressGroupPrivacy,
       handlePressGroupRoles,
       handlePressChatDetails,
-      leaveGroup,
+      handleLeaveGroup,
       leaveChannel,
       togglePinned,
       updateVolume,
