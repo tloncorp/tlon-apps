@@ -37,19 +37,19 @@ function BaseInteractableChatRow({
     'left' | 'right' | null
   >(null);
 
-  const isMuted = useMemo(() => {
+  const isMutedVal = useMemo(() => {
     return isMuted(model.volumeSettings?.level, model.type);
   }, [model]);
 
   // prevent color flicker when unmuting
-  const [mutedState, setMutedState] = useState(isMuted);
+  const [mutedState, setMutedState] = useState(isMutedVal);
   useEffect(() => {
-    if (mutedState === false && isMuted === true) {
-      setTimeout(() => setMutedState(isMuted), 500);
+    if (mutedState === false && isMutedVal === true) {
+      setTimeout(() => setMutedState(isMutedVal), 500);
     } else {
-      setMutedState(isMuted);
+      setMutedState(isMutedVal);
     }
-  }, [isMuted, mutedState]);
+  }, [isMutedVal, mutedState]);
 
   const handleAction = useMutableCallback(
     async (actionId: 'pin' | 'mute' | 'markRead') => {
@@ -59,7 +59,7 @@ function BaseInteractableChatRow({
           model.pin ? unpinItem(model.pin) : pinChat(model);
           break;
         case 'mute':
-          isMuted ? unmuteChat(model) : muteChat(model);
+          isMutedVal ? unmuteChat(model) : muteChat(model);
           break;
         case 'markRead':
           if (model.type === 'group') {

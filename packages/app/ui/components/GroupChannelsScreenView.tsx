@@ -83,7 +83,7 @@ export const GroupChannelsScreenView = React.memo(
       }
     }, [group, navigateToChatDetails]);
 
-    const isPersonalGroup = useMemo(() => {
+    const isPersonalGroupVal = useMemo(() => {
       return isPersonalGroup(group, userId);
     }, [group, userId]);
 
@@ -311,7 +311,7 @@ export const GroupChannelsScreenView = React.memo(
             </>
           }
         />
-        {isPersonalGroup && group && (
+        {isPersonalGroupVal && group && (
           <WayfindingNotice.GroupChannels group={group} />
         )}
         {group && group.joinStatus === 'joining' ? (

@@ -429,7 +429,6 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
-  const queryClient = queryClient;
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -457,7 +456,7 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
     queryClient.invalidateQueries({
       queryKey: [['contact', props.userId]],
     });
-  }, [props, queryClient]);
+  }, [props]);
 
   const handleToggleContact = useCallback(() => {
     if (props.contact && props.contact.isContact) {

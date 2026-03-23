@@ -35,7 +35,7 @@ export function ConnectedPostView({
     };
   }, [ctx.collectionConfiguration]);
 
-  const editPost = useCallback<
+  const handleEditPost = useCallback<
     Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
   >(async (post, content) => {
     await editPost({
@@ -53,7 +53,7 @@ export function ConnectedPostView({
       isHighlighted: ctx.selectedPostId === livePost.id,
       onPressRetry: () => ctx.onPressRetrySend(livePost),
       onPressDelete: () => ctx.onPressDelete(livePost),
-      editPost,
+      editPost: handleEditPost,
 
       // TODO: more props to get parity with BaseScrollerItem
 
@@ -62,7 +62,7 @@ export function ConnectedPostView({
       showAuthor: standardConfig?.showAuthor,
       showReplies: standardConfig?.showReplies,
     }),
-    [ctx, livePost, overrides, standardConfig, editPost]
+    [ctx, livePost, overrides, standardConfig, handleEditPost]
   );
 
   return <PostView {...postProps} />;

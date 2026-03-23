@@ -40,18 +40,18 @@ export function MetaEditorScreenView({
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
-  const isGroup = !!chat && isGroup(chat);
-  const hostStatus = useShipConnectionStatus(isGroup ? chat.hostUserId : '', {
-    enabled: isGroup,
+  const isGroupVal = !!chat && isGroup(chat);
+  const hostStatus = useShipConnectionStatus(isGroupVal ? chat.hostUserId : '', {
+    enabled: isGroupVal,
   });
 
-  const label = isGroup ? 'group' : 'channel';
+  const label = isGroupVal ? 'group' : 'channel';
 
-  const isPersonalGroup = useMemo(() => {
-    if (isGroup) {
+  const isPersonalGroupVal = useMemo(() => {
+    if (isGroupVal) {
       return isPersonalGroup(chat, currentUserId);
     }
-  }, [chat, currentUserId, isGroup]);
+  }, [chat, currentUserId, isGroupVal]);
 
   const {
     control,
@@ -64,7 +64,7 @@ export function MetaEditorScreenView({
 
   const disabled =
     !isValid ||
-    (isGroup && (!hostStatus.complete || hostStatus.status !== 'yes'));
+    (isGroupVal && (!hostStatus.complete || hostStatus.status !== 'yes'));
 
   useEffect(() => {
     if (!modelLoaded && chat) {
@@ -107,7 +107,7 @@ export function MetaEditorScreenView({
             paddingBottom: insets.bottom,
           }}
         >
-          {isPersonalGroup && <WayfindingNotice.CustomizeGroup />}
+          {isPersonalGroupVal && <WayfindingNotice.CustomizeGroup />}
           <FormFrame paddingBottom={'$2xl'} flex={1} backgroundType="secondary">
             <ControlledTextField
               name="title"

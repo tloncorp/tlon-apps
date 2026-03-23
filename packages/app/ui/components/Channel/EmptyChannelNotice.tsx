@@ -27,7 +27,7 @@ export function EmptyChannelNotice({
   const group = useGroup(channel.groupId ?? '');
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
-  const isDefaultPersonalChannel = useMemo(() => {
+  const isDefaultPersonal = useMemo(() => {
     return isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
 
@@ -37,7 +37,7 @@ export function EmptyChannelNotice({
       : 'posts';
   }, [channel?.type]);
 
-  if (isDefaultPersonalChannel) {
+  if (isDefaultPersonal) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
   }
 

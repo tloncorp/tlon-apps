@@ -715,7 +715,7 @@ const BaseScrollerItem = ({
     }
   }, [dividerType, post, unreadCount, showDayDivider]);
 
-  const editPost = useCallback<
+  const handleEditPost = useCallback<
     Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
   >(async (post, content) => {
     await editPost({
@@ -736,7 +736,7 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
-          editPost={editPost}
+          editPost={handleEditPost}
           isHighlighted={isSelected}
           displayDebugMode={displayDebugMode}
           post={post}

@@ -32,9 +32,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
-  const hostingBotEnabled = hostingBotEnabled.useValue();
+  const hostingBotEnabledVal = hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = isHostedUser && hostingBotEnabled;
+  const botEnabled = isHostedUser && hostingBotEnabledVal;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {

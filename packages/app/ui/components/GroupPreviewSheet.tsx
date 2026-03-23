@@ -145,7 +145,7 @@ export function GroupPreviewPane({
     onActionComplete('other', group);
   }, [group, onActionComplete]);
 
-  const joinGroup = useCallback(() => {
+  const handleJoinGroup = useCallback(() => {
     joinGroup(group);
     setIsJoining(true);
   }, [group]);
@@ -216,7 +216,7 @@ export function GroupPreviewPane({
         respondToInvite,
         requestInvite,
         rescindInvite,
-        joinGroup,
+        joinGroup: handleJoinGroup,
         goToGroup,
         cancelJoin,
       }),
@@ -225,7 +225,7 @@ export function GroupPreviewPane({
       respondToInvite,
       requestInvite,
       rescindInvite,
-      joinGroup,
+      handleJoinGroup,
       goToGroup,
       cancelJoin,
     ]

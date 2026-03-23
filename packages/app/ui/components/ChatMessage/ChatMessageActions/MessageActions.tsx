@@ -311,7 +311,7 @@ export function useDisplaySpecForChannelActionId(
 ): {
   label: string;
 } {
-  const isMuted = isMuted(post.volumeSettings?.level, 'thread');
+  const isMutedVal = isMuted(post.volumeSettings?.level, 'thread');
   const postTerm = useMemo(() => {
     return ['dm', 'groupDm', 'chat'].includes(channel?.type)
       ? 'message'
@@ -358,7 +358,7 @@ export function useDisplaySpecForChannelActionId(
         };
 
       case 'muteThread':
-        return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
+        return { label: isMutedVal ? 'Unmute thread' : 'Mute thread' };
 
       case 'quote':
         return { label: 'Quote' };
@@ -400,7 +400,7 @@ export function useDisplaySpecForChannelActionId(
     post.hidden,
     currentUserId,
     currentUserIsAdmin,
-    isMuted,
+    isMutedVal,
     channel?.type,
   ]);
 }
