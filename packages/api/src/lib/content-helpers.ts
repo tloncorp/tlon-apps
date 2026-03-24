@@ -638,6 +638,23 @@ export type PostBlobDataEntry =
         /** local preview URI (optional in v1) */
         posterUri?: string;
       }
+    >
+  | BuildPostBlobDataEntry<
+      'chart',
+      { version: 1 },
+      {
+        chartType: 'line' | 'bar' | 'pie' | 'area' | 'sparkline';
+        title?: string;
+        series: Array<{
+          label: string;
+          values: number[];
+          color?: string;
+        }>;
+        xLabels?: string[];
+        yLabel?: string;
+        /** render height hint in logical pixels */
+        height?: number;
+      }
     >;
 
 type PostBlobData = PostBlobDataEntry[];
@@ -718,6 +735,34 @@ export function appendVideoToPostBlob(
   });
 }
 
+export function appendChartToPostBlob(
+  blob: string | undefined,
+  opts: {
+    chartType: 'line' | 'bar' | 'pie' | 'area' | 'sparkline';
+    title?: string;
+    series: Array<{
+      label: string;
+      values: number[];
+      color?: string;
+    }>;
+    xLabels?: string[];
+    yLabel?: string;
+    /** render height hint in logical pixels */
+    height?: number;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'chart',
+    version: 1,
+    chartType: opts.chartType,
+    title: opts.title,
+    series: opts.series,
+    xLabels: opts.xLabels,
+    yLabel: opts.yLabel,
+    height: opts.height,
+  });
+}
+
 /** Client-side parsed representation of PostBlob data */
 export type ClientPostBlobData = Array<PostBlobDataEntry | { type: 'unknown' }>;
 
@@ -735,6 +780,9 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return entry;
     }
     if (entry.type === 'video' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'chart' && entry.version === 1) {
       return entry;
     }
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });

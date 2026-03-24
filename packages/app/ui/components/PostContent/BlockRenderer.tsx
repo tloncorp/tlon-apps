@@ -345,6 +345,228 @@ function VoiceMemoTranscription({ transcription }: { transcription: string }) {
   );
 }
 
+const DEFAULT_CHART_COLORS = [
+  '#4C9AFF',
+  '#F5A623',
+  '#7B61FF',
+  '#36B37E',
+  '#FF5630',
+  '#00B8D9',
+];
+
+export function ChartBlock({
+  block,
+  ...props
+}: { block: cn.ChartBlockData } & ComponentProps<typeof Reference.Frame>) {
+  const chartHeight = block.height ?? 200;
+
+  const allValues = block.series.flatMap((s) => s.values);
+  const maxVal = Math.max(...allValues, 0);
+  const minVal = Math.min(...allValues, 0);
+  const range = maxVal - minVal || 1;
+
+  const seriesColors = block.series.map(
+    (s, i) => s.color ?? DEFAULT_CHART_COLORS[i % DEFAULT_CHART_COLORS.length]
+  );
+
+  const renderBarChart = () => {
+    const maxLen = Math.max(...block.series.map((s) => s.values.length));
+    if (maxLen === 0) return null;
+    const groupCount = maxLen;
+    const barCount = block.series.length;
+
+    return (
+      <XStack flex={1} alignItems="flex-end" gap={2} height={chartHeight}>
+        {Array.from({ length: groupCount }).map((_, gi) => (
+          <XStack key={gi} flex={1} alignItems="flex-end" gap={1}>
+            {block.series.map((s, si) => {
+              const val = s.values[gi] ?? 0;
+              const pct = range > 0 ? ((val - Math.min(minVal, 0)) / range) * 100 : 0;
+              return (
+                <View
+                  key={si}
+                  flex={1}
+                  height={`${Math.max(pct, 1)}%`}
+                  backgroundColor={seriesColors[si]}
+                  borderTopLeftRadius={2}
+                  borderTopRightRadius={2}
+                />
+              );
+            })}
+          </XStack>
+        ))}
+      </XStack>
+    );
+  };
+
+  const renderLineOrArea = () => {
+    const maxLen = Math.max(...block.series.map((s) => s.values.length));
+    if (maxLen === 0) return null;
+
+    return (
+      <YStack flex={1} height={chartHeight}>
+        {block.series.map((s, si) => (
+          <XStack
+            key={si}
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            alignItems="flex-end"
+            gap={1}
+          >
+            {s.values.map((val, vi) => {
+              const pct =
+                range > 0
+                  ? ((val - Math.min(minVal, 0)) / range) * 100
+                  : 0;
+              return (
+                <View
+                  key={vi}
+                  flex={1}
+                  height={`${Math.max(pct, 1)}%`}
+                  backgroundColor={seriesColors[si]}
+                  opacity={block.chartType === 'area' ? 0.4 : 1}
+                  borderTopLeftRadius={1}
+                  borderTopRightRadius={1}
+                />
+              );
+            })}
+          </XStack>
+        ))}
+      </YStack>
+    );
+  };
+
+  const renderPie = () => {
+    const values = block.series[0]?.values ?? [];
+    const total = values.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
+
+    return (
+      <YStack gap="$s" paddingVertical="$m">
+        {values.map((val, i) => {
+          const pct = (Math.max(val, 0) / total) * 100;
+          const label = block.xLabels?.[i] ?? block.series[0]?.label ?? `${i}`;
+          const color =
+            DEFAULT_CHART_COLORS[i % DEFAULT_CHART_COLORS.length];
+          return (
+            <XStack key={i} alignItems="center" gap="$m">
+              <View
+                width={12}
+                height={12}
+                borderRadius={6}
+                backgroundColor={color}
+              />
+              <Text size="$label/s" color="$secondaryText" flex={1}>
+                {label}
+              </Text>
+              <Text size="$label/s" color="$primaryText">
+                {pct.toFixed(1)}%
+              </Text>
+            </XStack>
+          );
+        })}
+      </YStack>
+    );
+  };
+
+  const renderSparkline = () => {
+    const maxLen = Math.max(...block.series.map((s) => s.values.length));
+    if (maxLen === 0) return null;
+    const s = block.series[0];
+    if (!s) return null;
+
+    return (
+      <XStack alignItems="flex-end" gap={1} height={chartHeight}>
+        {s.values.map((val, vi) => {
+          const pct =
+            range > 0 ? ((val - Math.min(minVal, 0)) / range) * 100 : 0;
+          return (
+            <View
+              key={vi}
+              flex={1}
+              height={`${Math.max(pct, 1)}%`}
+              backgroundColor={seriesColors[0]}
+              borderTopLeftRadius={1}
+              borderTopRightRadius={1}
+            />
+          );
+        })}
+      </XStack>
+    );
+  };
+
+  const renderChart = () => {
+    switch (block.chartType) {
+      case 'bar':
+        return renderBarChart();
+      case 'line':
+      case 'area':
+        return renderLineOrArea();
+      case 'pie':
+        return renderPie();
+      case 'sparkline':
+        return renderSparkline();
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Reference.Frame {...props}>
+      <Reference.Header>
+        <Reference.Title>
+          <Reference.TitleText>
+            {block.title ?? `${block.chartType.charAt(0).toUpperCase()}${block.chartType.slice(1)} Chart`}
+          </Reference.TitleText>
+        </Reference.Title>
+      </Reference.Header>
+      <Reference.Body flexDirection="column" padding="$l" gap="$m">
+        {block.yLabel && (
+          <Text size="$label/s" color="$tertiaryText">
+            {block.yLabel}
+          </Text>
+        )}
+        {renderChart()}
+        {block.xLabels && block.chartType !== 'pie' && (
+          <XStack>
+            {block.xLabels.map((label, i) => (
+              <Text
+                key={i}
+                flex={1}
+                size="$label/s"
+                color="$tertiaryText"
+                textAlign="center"
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            ))}
+          </XStack>
+        )}
+        {block.series.length > 1 && (
+          <XStack gap="$l" flexWrap="wrap">
+            {block.series.map((s, i) => (
+              <XStack key={i} alignItems="center" gap="$s">
+                <View
+                  width={8}
+                  height={8}
+                  borderRadius={4}
+                  backgroundColor={seriesColors[i]}
+                />
+                <Text size="$label/s" color="$secondaryText">
+                  {s.label}
+                </Text>
+              </XStack>
+            ))}
+          </XStack>
+        )}
+      </Reference.Body>
+    </Reference.Frame>
+  );
+}
+
 export function FileUploadBlock({
   block,
   ...passedProps
@@ -656,6 +878,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  chart: ChartBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -678,6 +901,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  chart: BlockSettings<typeof ChartBlock>;
 };
 
 interface BlockRendererContextValue {

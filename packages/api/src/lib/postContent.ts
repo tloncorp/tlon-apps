@@ -147,6 +147,20 @@ export type ListData = {
   children?: ListData[];
 };
 
+export type ChartBlockData = {
+  type: 'chart';
+  chartType: 'line' | 'bar' | 'pie' | 'area' | 'sparkline';
+  title?: string;
+  series: Array<{
+    label: string;
+    values: number[];
+    color?: string;
+  }>;
+  xLabels?: string[];
+  yLabel?: string;
+  height?: number;
+};
+
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
@@ -160,7 +174,8 @@ export type BlockData =
   | HeaderBlockData
   | RuleBlockData
   | ListBlockData
-  | BigEmojiBlockData;
+  | BigEmojiBlockData
+  | ChartBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -253,6 +268,8 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'chart':
+          return `[Chart: ${block.title || block.chartType}]`;
       }
     })
     .join(config.blockSeparator)
@@ -381,6 +398,19 @@ export function convertContent(
             alt: entry.name ?? 'video',
             duration: entry.duration,
             posterUri: entry.posterUri,
+          });
+          break;
+        }
+
+        case 'chart': {
+          out.push({
+            type: 'chart',
+            chartType: entry.chartType,
+            title: entry.title,
+            series: entry.series,
+            xLabels: entry.xLabels,
+            yLabel: entry.yLabel,
+            height: entry.height,
           });
           break;
         }
