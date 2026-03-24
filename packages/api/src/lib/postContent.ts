@@ -362,16 +362,16 @@ export function convertContent(
             out.push({
               type: 'image',
               src: entry.fileUri,
-              height: 0,
-              width: 0,
+              height: entry.height ?? 0,
+              width: entry.width ?? 0,
               alt: entry.name ?? 'image',
             });
           } else if (mime.startsWith('video/')) {
             out.push({
               type: 'video',
               src: entry.fileUri,
-              height: 0,
-              width: 0,
+              height: entry.height ?? 0,
+              width: entry.width ?? 0,
               alt: entry.name ?? 'video',
             });
           } else if (mime.startsWith('audio/')) {

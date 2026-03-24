@@ -604,6 +604,10 @@ export type PostBlobDataEntry =
         name?: string;
         /** in bytes */
         size: number;
+        /** in pixels (resolved for image/video mime types) */
+        width?: number;
+        /** in pixels (resolved for image/video mime types) */
+        height?: number;
       }
     >
   | BuildPostBlobDataEntry<
