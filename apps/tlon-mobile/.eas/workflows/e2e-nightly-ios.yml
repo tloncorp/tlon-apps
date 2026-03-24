@@ -28,11 +28,6 @@ jobs:
     needs: [build_ios_for_e2e, tests_started]
     type: maestro-cloud
     environment: production
-    env:
-      URL: ${{ env.MAESTRO_URL }}
-      CODE: ${{ env.MAESTRO_CODE }}
-      EMAIL: ${{ env.MAESTRO_EMAIL }}
-      PASSWORD: ${{ env.MAESTRO_PASSWORD }}
     params:
       build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
       maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
