@@ -79,12 +79,13 @@
 ++  del-presence
   |=  [=places key]
   ^+  places
-  ::TODO  could clean up empty maps
-  %+  ~(put by places)  context
-  =+  tos=(~(gut by places) context *topics)
-  %+  ~(put by tos)  topic
-  =+  pes=(~(gut by tos) topic *people)
-  (~(del by pes) ship)
+  =/  tos  (~(gut by places) context *topics)
+  =/  pes  (~(gut by tos) topic *people)
+  =.  pes  (~(del by pes) ship)
+  =.  tos  ?:  =(~ pes)  (~(del by tos) topic)
+           (~(put by tos) topic pes)
+  ?:  =(~ tos)  (~(del by places) context)
+  (~(put by places) context tos)
 ::
 ++  give-update
   |=  [subs=(jug context ship) upd=update-1]
