@@ -24,11 +24,13 @@
 ::    by the time we receive them. if it's in the future, treat it as now.
 ::
 ::TODO  subscribe to chat and channels agents for contexts we care about,
-::      instead of scrying during load
+::      instead of scrying during load (making sure to not sub to channels
+::      that we ourselves host)
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
 /-  *presence
+/+  dbug, verb
 ::
 |%
 ::NOTE  .want contains a [ship context] pair, because for ease-of-use we
@@ -152,6 +154,9 @@
 ::
 =|  state-0
 =*  state  -
+::
+%-  agent:dbug
+%^  verb  &  %warn
 ::
 ^-  agent:gall
 |_  =bowl:gall
