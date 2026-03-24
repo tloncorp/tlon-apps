@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  res
-  ++  json  (response-1:dejs:j res)
+  ++  json  (response-1:enjs:j res)
   --
 ++  grab
   |%

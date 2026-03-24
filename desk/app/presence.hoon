@@ -361,7 +361,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  ~
-      [%v1 %init ~]
+      [%x %v1 %init ~]
     ``presence-response-1+!>(`response-1`[%init places])
   ==
 --
