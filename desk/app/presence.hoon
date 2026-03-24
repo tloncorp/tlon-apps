@@ -240,7 +240,7 @@
   |=  =path
   ^-  (quip card _this)
   ?+  path  !!
-      [%v0 ~]
+      [%v1 ~]
     ?>  =(src our):bowl
     :_  this
     [%give %fact ~ %presence-response-1 !>(`response-1`[%init places])]~
@@ -356,5 +356,8 @@
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
-  ~  ::TODO
+  ?+  path  ~
+      [%v1 %init ~]
+    ``presence-response-1+!>(`response-1`[%init places])
+  ==
 --
