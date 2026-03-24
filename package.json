@@ -3,6 +3,7 @@
   "name": "tlon-apps",
   "type": "module",
   "scripts": {
+    "build:api": "pnpm --filter '@tloncorp/api' build",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
@@ -10,7 +11,7 @@
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
     "build:apps": "pnpm run build:mobile && pnpm run build:web",
-    "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
+    "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
     "cosmos:native": "cosmos-native",
