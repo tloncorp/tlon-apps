@@ -345,13 +345,14 @@ function VoiceMemoTranscription({ transcription }: { transcription: string }) {
   );
 }
 
+// Ochre-aligned chart palette
 const DEFAULT_CHART_COLORS = [
-  '#4C9AFF',
-  '#F5A623',
-  '#7B61FF',
-  '#36B37E',
-  '#FF5630',
-  '#00B8D9',
+  '#3B80E8', // Ochre positive blue
+  '#E8913B', // Warm amber
+  '#7B61FF', // Muted purple
+  '#36B37E', // Soft green
+  '#E22A2A', // Ochre negative red
+  '#00B8D9', // Teal
 ];
 
 export function ChartBlock({
