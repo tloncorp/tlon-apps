@@ -56,7 +56,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
-    cacheBustTest: undefined,
   },
   ios: {
     runtimeVersion: '4.0.2',
