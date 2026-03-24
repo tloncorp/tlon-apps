@@ -897,63 +897,65 @@ export default function BareChatInput({
       >
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <TextInput
-          testID="MessageInput"
-          ref={inputRef}
-          value={isWeb ? controlledText : undefined}
-          onChangeText={handleTextChange}
-          onChange={isWeb ? adjustTextInputSize : undefined}
-          onLayout={isWeb ? adjustTextInputSize : undefined}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
-          onKeyPress={handleKeyPress}
-          multiline
-          placeholder={placeholder}
-          {...(!isWeb ? placeholderTextColor : {})}
-          style={{
-            backgroundColor: 'transparent',
-            minHeight: initialHeight,
-            height: isWeb ? inputHeight : undefined,
-            maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-            paddingHorizontal: getTokenValue('$l', 'space'),
-            paddingTop: getTokenValue('$l', 'space'),
-            paddingBottom: getTokenValue('$l', 'space'),
-            fontSize: getFontSize('$m'),
-            verticalAlign: 'middle',
-            letterSpacing: -0.032,
-            color: inputTextColor,
-            ...(isWeb ? placeholderTextColor : {}),
-            ...(isWeb ? { outlineStyle: 'none' } : {}),
-          }}
-          // Hack to prevent @p's getting squiggled on web
-          spellCheck={!mentions.length}
-        >
-          {isWeb ? undefined : (
-            <TextWithMentions
-              text={controlledText}
-              mentions={mentions}
-              textColor="$primaryText"
-            />
-          )}
-        </TextInput>
-        {isWeb && !!controlledText && mentions.length > 0 && (
-          <View height={inputHeight} position="absolute" pointerEvents="none">
-            <RawText
-              paddingHorizontal="$l"
-              paddingTop={getTokenValue('$m', 'space') + 3}
-              fontSize="$m"
-              lineHeight={getFontSize('$m') * 1.2}
-              letterSpacing={-0.032}
-              color="$primaryText"
-            >
+        <View position="relative">
+          <TextInput
+            testID="MessageInput"
+            ref={inputRef}
+            value={isWeb ? controlledText : undefined}
+            onChangeText={handleTextChange}
+            onChange={isWeb ? adjustTextInputSize : undefined}
+            onLayout={isWeb ? adjustTextInputSize : undefined}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            onKeyPress={handleKeyPress}
+            multiline
+            placeholder={placeholder}
+            {...(!isWeb ? placeholderTextColor : {})}
+            style={{
+              backgroundColor: 'transparent',
+              minHeight: initialHeight,
+              height: isWeb ? inputHeight : undefined,
+              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+              paddingHorizontal: getTokenValue('$l', 'space'),
+              paddingTop: getTokenValue('$l', 'space'),
+              paddingBottom: getTokenValue('$l', 'space'),
+              fontSize: getFontSize('$m'),
+              verticalAlign: 'middle',
+              letterSpacing: -0.032,
+              color: inputTextColor,
+              ...(isWeb ? placeholderTextColor : {}),
+              ...(isWeb ? { outlineStyle: 'none' } : {}),
+            }}
+            // Hack to prevent @p's getting squiggled on web
+            spellCheck={!mentions.length}
+          >
+            {isWeb ? undefined : (
               <TextWithMentions
                 text={controlledText}
                 mentions={mentions}
-                textColor="transparent"
+                textColor="$primaryText"
               />
-            </RawText>
-          </View>
-        )}
+            )}
+          </TextInput>
+          {isWeb && !!controlledText && mentions.length > 0 && (
+            <View height={inputHeight} position="absolute" top={0} left={0} right={0} pointerEvents="none">
+              <RawText
+                paddingHorizontal="$l"
+                paddingTop={getTokenValue('$m', 'space') + 3}
+                fontSize="$m"
+                lineHeight={getFontSize('$m') * 1.2}
+                letterSpacing={-0.032}
+                color="$primaryText"
+              >
+                <TextWithMentions
+                  text={controlledText}
+                  mentions={mentions}
+                  textColor="transparent"
+                />
+              </RawText>
+            </View>
+          )}
+        </View>
       </YStack>
     </MessageInputContainer>
   );
