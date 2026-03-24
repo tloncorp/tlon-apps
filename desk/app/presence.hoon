@@ -9,9 +9,9 @@
 ::    presence is considered "owned" by the host of the context, in the
 ::    same way that channel contents and group metadata are.
 ::    dms are an exception here too: when poking ourselves with an action,
-::    we put the counterparty in the context, but when poking the counterparty,
-::    we put ourselves in the context, because that's the context _from their
-::    perspective_.
+::    we put the counterparty in the context, but when subscribing to the
+::    counterparty, we put ourselves in the context, because that's the
+::    context _from their perspective_.
 ::
 ::    we use personalized subscription paths so that two parties can
 ::    communicate presence to each other in a public channel without
@@ -185,22 +185,15 @@
     ?:  ?=(%nuke -.act)
       ::TODO  response?
       [~ this(places (~(del by places) context))]
-    =/  =key     ?-(-.act %set key.act, %clear key.act)
-    =^  host=@p  context.key
-      ?.  ?=([%dm @ ~] context.key)
-        [(context-host context.key our.bowl) context.key]
-      ::  from the counterparty's perspective, it's _their_ dm with _us_,
-      ::  so update the context path we send accordingly
-      ::
-      [(slav %p i.t.context.key) /dm/(scot %p our.bowl)]
-    ?<  =(our.bowl host)
     =;  =cage
-      [[%pass [%action context.key] %agent [host dap.bowl] %poke cage]~ this]
+      =/  =key     ?-(-.act %set key.act, %clear key.act)
+      =/  host=@p  (context-host context.key our.bowl)
+      [[%pass [%context context.key] %agent [host dap.bowl] %poke cage]~ this]
     :-  %presence-command-1
     !>  ^-  command-1
     ?-  -.act
-      %set    act(key key, timeout [now.bowl timeout.act])
-      %clear  act(key key)
+      %set    act(timeout [now.bowl timeout.act])
+      %clear  act
     ==
   ::
       %presence-command-1
@@ -212,7 +205,7 @@
     ::  and it's a presence for the sender
     ::
     ?>  =(our.bowl (context-host context.key our.bowl))
-    ?>  |(!?=([%dm *] context.key) =(/dm/(scot %p src.bowl) context.key))
+    ?>  |(!?=([%dm *] context.key) =(our src):bowl)
     ?>  =(src.bowl ship.key)
     ?-  -.cmd
         %set
