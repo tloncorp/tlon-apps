@@ -59,7 +59,6 @@ export class WebDb extends BaseDb {
 
       const { driver } = sqlocal;
       this.client = drizzle(driver, { schema });
-      setClient(this.client);
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the
@@ -103,6 +102,8 @@ export class WebDb extends BaseDb {
       await this.sqlocal.createCallbackFunction('processChanges', async () =>
         this.processChanges()
       );
+
+      setClient(this.client);
 
       const dbInfo = await this.sqlocal.getDatabaseInfo();
       logger.log('SQLite database opened:', dbInfo);
