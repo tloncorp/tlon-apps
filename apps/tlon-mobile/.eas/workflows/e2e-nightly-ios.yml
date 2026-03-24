@@ -42,7 +42,7 @@ jobs:
       BUILD_STATUS: ${{ after.build_ios_for_e2e.status }}
       MAESTRO_STATUS: ${{ after.maestro_nightly.status }}
       STARTED_AT_EPOCH_SECONDS:
-        ${{ after.tests_started.outputs.started_at_epoch_seconds }}
+        ${{ after.tests_started.outputs.started_at_epoch_seconds || '0' }}
       FAILED_FLOWS_COUNT:
         ${{ after.maestro_nightly.outputs.failed_flows_count || 0 }}
       SUCCESSFUL_FLOWS_COUNT:
