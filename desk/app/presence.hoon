@@ -216,7 +216,7 @@
       =/  end=@da
         %+  add  since.timing.cmd
         (fall timeout.timing.cmd (default-timeout topic.key.cmd))
-      ?:  (gte end now.bowl)
+      ?:  (gth now.bowl end)
         ::TODO  maybe delete existing one at key?
         [~ this]
       ::TODO  accept and respect disclosure set
@@ -301,11 +301,16 @@
         =/  end=@da
           %+  add  since.timing.upd
           (fall timeout.timing.upd (default-timeout topic.key.upd))
-        ?:  (gte end now.bowl)
+        ?:  (gth now.bowl end)
           ::TODO  maybe delete existing one at key?
           [~ this]
         :_  this(places (put-presence places +.upd))
-        [(give-response %here +.upd)]~
+        :~  (give-response %here +.upd)
+            :+  %pass
+              ::TODO  +key-wire
+              [%expire (scot %p ship.key.upd) topic.key.upd context.key.upd]
+            [%arvo %b %wait end]
+        ==
       ::
           %clear
         ::TODO  no-op if we didn't have it anyway
@@ -340,6 +345,7 @@
     =*  topic    i.t.t.wire
     =*  context  t.t.t.wire
     =*  key      [context ship topic]
+    ::TODO  no-op if we didn't have it anyway
     =.  places   (del-presence places key)
     [[(give-response %gone key)]~ this]
   ==
