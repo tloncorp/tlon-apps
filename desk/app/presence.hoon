@@ -25,8 +25,10 @@
 ::
 ::TODO  subscribe to chat and channels agents for contexts we care about,
 ::      instead of scrying during load
-::TODO  marks and conversions
+::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
+::
+/-  *presence
 ::
 |%
 ::NOTE  .want contains a [ship context] pair, because for ease-of-use we
@@ -41,38 +43,6 @@
       want=(set [ship context])  ::  desired outgoing subs
       subs=(jug context ship)    ::  real incoming subs
       ::TODO  wack=(set ship)    ::  waiting for acks (load prevention)
-  ==
-::
-+$  places    (map context topics)
-+$  topics    (map topic people)
-+$  people    (map ship [timing display])
-::
-+$  context   path  ::  nest path or other
-+$  topic     ?(%typing %computing %other)
-+$  key       [=context =ship =topic]
-+$  timing    [since=@da timeout=(unit @dr)]
-+$  display   [symbol=(unit @t) text=(unit @t) blob=(unit @t)]
-::
-+$  action-1  ::  from client to local agent
-  $%  [%set disclose=(set ship) =key timeout=(unit @dr) =display]
-      [%clear =key]
-      [%nuke =context]
-  ==
-::
-+$  command-1  ::  from anyone to context host
-  $%  [%set disclose=(set ship) =key =timing =display]
-      [%clear =key]  ::  clear early
-  ==
-::
-+$  update-1  ::  context host to subscribers
-  $%  [%set =key =timing =display]
-      [%clear =key]
-  ==
-::
-+$  response-1  ::  local agent to client
-  $%  [%all places]
-      [%here =key =timing =display]
-      [%gone =key]
   ==
 ::
 +$  card  card:agent:gall
@@ -273,7 +243,7 @@
       [%v0 ~]
     ?>  =(src our):bowl
     :_  this
-    [%give %fact ~ %presence-response-1 !>(`response-1`[%all places])]~
+    [%give %fact ~ %presence-response-1 !>(`response-1`[%init places])]~
   ::
       [%context @ *]
     ::  context watch paths must be properly personalized
