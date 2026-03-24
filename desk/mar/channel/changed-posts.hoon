@@ -1,6 +1,6 @@
-/-  c=channels
+/-  c=channels, cv=channels-ver
 /+  j=channel-json
-|_  changes=(map nest:c (unit posts:c))
+|_  changes=(map nest:c (unit posts:v9:cv))
 ++  grad  %noun
 ++  grow
   |%
@@ -9,12 +9,12 @@
     %-  pairs:enjs:format
     =,  enjs:j
     %+  turn  ~(tap by changes)
-    |=  [=nest:c posts=(unit posts:c)]
+    |=  [=nest:c posts=(unit posts:v9:cv)]
     :-  (nest-cord nest)
-    ?~(posts ~ (^posts u.posts))
+    ?~(posts ~ (posts:v9 u.posts))
   --
 ++  grab
   |%
-  ++  noun  (map nest:c (unit posts:c))
+  ++  noun  (map nest:c (unit posts:v9:cv))
   --
 --

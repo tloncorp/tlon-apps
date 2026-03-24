@@ -5,11 +5,11 @@
 ++  grow
   |%
   ++  noun  action
-  ++  json  (club-action:enjs:j action)
+  ++  json  (club-action:v6:enjs:j action)
   --
 ++  grab
   |%
   ++  noun  action:club:v6:cv
-  ++  json  club-action:dejs:j
+  ++  json  club-action:v6:dejs:j
   --
 --

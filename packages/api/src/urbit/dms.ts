@@ -3,11 +3,10 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import {
-  Memo,
   PostEssay,
   PostSeal,
   PostSealDataResponse,
-  Reply,
+  ReplyEssay,
   ReplyMeta,
   ReplySeal,
 } from './channel';
@@ -35,14 +34,16 @@ export type WritLike = Writ | WritTombstone;
 
 export type WritEssay = PostEssay;
 
-export type WritMemo = Memo;
+export type WritMemo = ReplyEssay;
 
 export interface WritReplySeal extends ReplySeal {
   time: string;
 }
 
-export interface WritReply extends Reply {
+export interface WritReply {
   seal: WritReplySeal;
+  'reply-essay': WritMemo;
+  revision?: string;
 }
 
 export interface WritReplyReferenceResponse {
@@ -83,7 +84,7 @@ export interface WritDeltaDelReact {
 
 export interface ReplyDeltaAdd {
   add: {
-    memo: WritMemo;
+    'reply-essay': WritMemo;
     time: string | null;
   };
 }
