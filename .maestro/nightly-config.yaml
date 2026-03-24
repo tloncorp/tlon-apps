@@ -1,6 +1,7 @@
 flows:
   - '03-signup.yaml'
   - '04-db-recovery.yaml'
+  - '05-sync-methods.yaml'
 
 baselineBranch: develop
 

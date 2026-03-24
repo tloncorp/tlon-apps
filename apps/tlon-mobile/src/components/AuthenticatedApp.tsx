@@ -17,6 +17,7 @@ import {
   markPushNotifTapMeasurementAbandoned,
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -33,6 +34,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
+import { AutomatedTestSyncScreen } from './AutomatedTestSyncScreen';
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
@@ -137,6 +139,7 @@ function AuthenticatedApp() {
   return (
     <ZStack flex={1}>
       <RootStack />
+      {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
     </ZStack>
   );
