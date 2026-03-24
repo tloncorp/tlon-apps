@@ -161,6 +161,21 @@ export function getCanonicalPostId(inputId: string) {
   return id;
 }
 
+export type AuthorProfile = Pick<ub.BotProfile, 'nickname' | 'avatar'>;
+
+export function toAuthor(
+  authorId: string,
+  botProfile?: AuthorProfile
+): ub.Author {
+  return botProfile
+    ? {
+        ship: authorId,
+        nickname: botProfile.nickname ?? null,
+        avatar: botProfile.avatar ?? null,
+      }
+    : authorId;
+}
+
 export function toPostEssay({
   content,
   authorId,
@@ -168,6 +183,7 @@ export function toPostEssay({
   channelType,
   blob,
   metadata,
+  botProfile,
 }: {
   content: ub.Story;
   authorId: string;
@@ -175,6 +191,7 @@ export function toPostEssay({
   channelType: db.ChannelType;
   blob?: string;
   metadata?: ub.Metadata;
+  botProfile?: AuthorProfile;
 }): ub.PostEssay {
   const essay: ub.PostEssay = {
     content,
@@ -185,7 +202,7 @@ export function toPostEssay({
         : channelType === 'gallery'
           ? '/heap'
           : '/chat',
-    author: authorId,
+    author: toAuthor(authorId, botProfile),
     blob: blob || null,
     meta: metadata || null,
   };

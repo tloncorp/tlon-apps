@@ -1,6 +1,6 @@
 import type { ChannelType, PostMetadata } from '../types/models';
 import { createDevLogger } from '../client/logger';
-import isURL from 'validator/lib/isURL';
+import isURL from 'validator/lib/isURL.js';
 
 import {
   FinalizedAttachment,
