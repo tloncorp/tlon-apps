@@ -32,7 +32,6 @@ jobs:
       build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
       maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
       flows: "../../.maestro"
-      maestro_config: "../../.maestro/nightly-config.yaml"
       name: nightly-develop-ios
 
   notify_webhook:

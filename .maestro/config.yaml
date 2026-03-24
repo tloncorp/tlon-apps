@@ -1,7 +1,8 @@
 appId: io.tlon.groups
 
 flows:
-  - '00-start.yaml'
+  - '03-signup.yaml'
+  - '04-db-recovery.yaml'
 
 baselineBranch: develop
 
