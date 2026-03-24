@@ -1067,10 +1067,8 @@
 ::
 ++  inflate-io
   ^+  cor
-  ::
   =.  cor  (watch-contacts |)
   =.  cor  (watch-channels |)
-  ::
   =.  cor
     %+  roll
       ~(tap by groups)
@@ -1123,7 +1121,6 @@
     [%v1 %groups ~]  ?>(from-self cor)
   ::
       [ver=?(%v0 %v1) %channels app=@ ship=@ name=@ %preview ~]
-    ?>  from-self
     =/  ship=@p  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (watch-channel-preview ver.pole nest)
@@ -1180,14 +1177,12 @@
   =/  se-core  (se-abed:se-core flag)
   ?:  (se-is-banned:se-core src.bowl)  ~
   `[flag se-preview:se-core]
-::  +watch-channel-preview: handle channels preview request
+::  +watch-channel-preview: handle channel preview request
 ::
 ++  watch-channel-preview
   |=  [ver=?(%v0 %v1) =nest:g]
   ^+  cor
   ?.  =(p.q.nest our.bowl)
-    ::  route request to channel host
-    ~&  watch-route-chan-preview+nest
     (emil (pass-preview-channel nest))
   =+  flag=(~(got by channels-index) nest)
   go-abet:(go-watch-channel-preview:(go-abed:go-core flag) ver nest)
