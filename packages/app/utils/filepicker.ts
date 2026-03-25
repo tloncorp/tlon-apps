@@ -123,10 +123,17 @@ export async function normalizeUploadIntent(
 
   // Promote audio/* files to voicememo so they render with the audio player
   // instead of a generic file download card.
-  if (mimeType?.startsWith('audio/') && !isFileIntent) {
+  if (mimeType?.startsWith('audio/')) {
+    const localUri = isFileIntent
+      ? URL.createObjectURL(uploadIntent.file)
+      : uploadIntent.localUri;
     return {
       uploadIntent: {
-        ...uploadIntent,
+        type: 'fileUri',
+        localUri,
+        name,
+        size: size ?? -1,
+        mimeType,
         voiceMemo: {
           duration: undefined,
           transcription: undefined,
