@@ -181,9 +181,27 @@ const sleep = (ms: number) =>
 
 const getShipProcess = (ship: ShipName) => shipProcesses[ship];
 
-const isShipProcessAlive = (ship: ShipName) => {
+const getShipLauncherState = (ship: ShipName) => {
   const proc = getShipProcess(ship);
-  return !!proc && proc.exitCode === null && !proc.killed;
+  return {
+    pid: proc?.pid ?? null,
+    exitCode: proc?.exitCode ?? null,
+    signalCode: proc?.signalCode ?? null,
+    killed: proc?.killed ?? null,
+  };
+};
+
+const hasShipLauncherFailure = (ship: ShipName) => {
+  const proc = getShipProcess(ship);
+  if (!proc) {
+    return false;
+  }
+
+  if (proc.signalCode) {
+    return true;
+  }
+
+  return proc.exitCode !== null && proc.exitCode !== 0;
 };
 
 const getErrorCode = (error: unknown): string | undefined => {
@@ -222,10 +240,13 @@ const isRetryableShipError = (error: unknown) => {
 
 const getRetryDetails = (error: unknown, ship: ShipName) => {
   const code = getErrorCode(error) || 'UNKNOWN';
-  const shipAlive = isShipProcessAlive(ship);
-  return shipAlive
-    ? `Last error code: ${code}.`
-    : `The Urbit process for ~${ship} is no longer running.`;
+  const launcherState = getShipLauncherState(ship);
+
+  if (launcherState.signalCode || launcherState.exitCode) {
+    return `Last error code: ${code}. Launcher state: ${JSON.stringify(launcherState)}.`;
+  }
+
+  return `Last error code: ${code}.`;
 };
 
 const fetchForShip = async (
@@ -242,10 +263,7 @@ const fetchForShip = async (
     try {
       return await fetch(url, options);
     } catch (error) {
-      const shouldRetry =
-        isRetryableShipError(error) &&
-        attempt < maxAttempts &&
-        isShipProcessAlive(ship);
+      const shouldRetry = isRetryableShipError(error) && attempt < maxAttempts;
 
       if (shouldRetry) {
         const delayMs = initialDelayMs * attempt;
@@ -937,33 +955,24 @@ const assertShipHealthy = async (
   context: string,
   options: { maxAttempts?: number } = {}
 ) => {
-  if (!isShipProcessAlive(ship)) {
-    const proc = getShipProcess(ship);
-    console.error(`[Ship State (${ship})]:`, {
-      pid: proc?.pid ?? null,
-      exitCode: proc?.exitCode ?? null,
-      signalCode: proc?.signalCode ?? null,
-      killed: proc?.killed ?? null,
-      context,
-    });
-    throw new ShipUnavailableError(
+  try {
+    await makeRequestWithCookies(
       ship,
-      context,
       `http://localhost:${ships[ship].httpPort}/~/scry/hood/kiln/pikes.json`,
       {
-        details: `The Urbit process for ~${ship} exited before the health check ran.`,
+        context,
+        maxAttempts: options.maxAttempts ?? 3,
       }
     );
-  }
-
-  await makeRequestWithCookies(
-    ship,
-    `http://localhost:${ships[ship].httpPort}/~/scry/hood/kiln/pikes.json`,
-    {
-      context,
-      maxAttempts: options.maxAttempts ?? 3,
+  } catch (error) {
+    if (error instanceof ShipUnavailableError) {
+      console.error(`[Ship State (${ship})]:`, {
+        ...getShipLauncherState(ship),
+        context,
+      });
     }
-  );
+    throw error;
+  }
 };
 
 const getStartHashes = async () => {
@@ -1003,7 +1012,10 @@ const checkGroupsAppHealth = async (ship: Ship): Promise<boolean> => {
     JSON.parse(response); // Verify it's valid JSON
     return true;
   } catch (error) {
-    if (error instanceof ShipUnavailableError && !isShipProcessAlive(ship.ship as ShipName)) {
+    if (
+      error instanceof ShipUnavailableError &&
+      hasShipLauncherFailure(ship.ship as ShipName)
+    ) {
       throw error;
     }
     return false;
@@ -1047,7 +1059,7 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
       } catch (error) {
         if (
           error instanceof ShipUnavailableError &&
-          !isShipProcessAlive(ship.ship as ShipName)
+          hasShipLauncherFailure(ship.ship as ShipName)
         ) {
           throw error;
         }
