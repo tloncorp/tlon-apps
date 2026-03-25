@@ -1,29 +1,197 @@
 diff --git a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-index d015c8f6686660cc295287f254f2323326028030..f083f2a2d92147c99dad09010c89b9b418511d35 100644
+index d015c8f6686660cc295287f254f2323326028030..69d0242dace6eb8defb658334febac6f378cf103 100644
 --- a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
 +++ b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-@@ -94,6 +94,9 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
-       case "useHtmlNormalizer":
-         mViewManager.setUseHtmlNormalizer(view, value == null ? false : (boolean) value);
+@@ -64,6 +64,18 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
+       case "contextMenuItems":
+         mViewManager.setContextMenuItems(view, (ReadableArray) value);
          break;
 +      case "textShortcuts":
 +        mViewManager.setTextShortcuts(view, (ReadableArray) value);
 +        break;
-       default:
-         super.setProperty(view, propName, value);
-     }
++      case "returnKeyType":
++        mViewManager.setReturnKeyType(view, value == null ? null : (String) value);
++        break;
++      case "returnKeyLabel":
++        mViewManager.setReturnKeyLabel(view, value == null ? null : (String) value);
++        break;
++      case "submitBehavior":
++        mViewManager.setSubmitBehavior(view, value == null ? null : (String) value);
++        break;
+       case "color":
+         mViewManager.setColor(view, ColorPropConverter.getColor(value, view.getContext()));
+         break;
 diff --git a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-index ddc5617f00fa70a693893eba2d6d66ebf7a209bf..2452d1097622df91d9fd309613dc871b372cdc4d 100644
+index ddc5617f00fa70a693893eba2d6d66ebf7a209bf..417d21db99f477c0448768903946c01c78ac1f80 100644
 --- a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
 +++ b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-@@ -39,6 +39,7 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
-   void setIsOnChangeTextSet(T view, boolean value);
-   void setAndroidExperimentalSynchronousEvents(T view, boolean value);
-   void setUseHtmlNormalizer(T view, boolean value);
+@@ -29,6 +29,10 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
+   void setScrollEnabled(T view, boolean value);
+   void setLinkRegex(T view, @Nullable ReadableMap value);
+   void setContextMenuItems(T view, @Nullable ReadableArray value);
 +  void setTextShortcuts(T view, @Nullable ReadableArray value);
-   void focus(T view);
-   void blur(T view);
-   void setValue(T view, String text);
++  void setReturnKeyType(T view, @Nullable String value);
++  void setReturnKeyLabel(T view, @Nullable String value);
++  void setSubmitBehavior(T view, @Nullable String value);
+   void setColor(T view, @Nullable Integer value);
+   void setFontSize(T view, float value);
+   void setLineHeight(T view, float value);
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
+index 6e04a8c7979b5a99891eb2183186282e7ef77304..735f74509c12aa9696dd9527ffda7fcd0f7290a9 100644
+--- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
++++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
+@@ -422,4 +422,13 @@ payload.setProperty(runtime, "selectionEnd", event.selectionEnd);
+   });
+ }
+ 
++
++void EnrichedTextInputViewEventEmitter::onSubmitEditing(OnSubmitEditing event) const {
++  dispatchEvent("submitEditing", [event=std::move(event)](jsi::Runtime &runtime) {
++    auto payload = jsi::Object(runtime);
++    payload.setProperty(runtime, "text", event.text);
++    return payload;
++  });
++}
++
+ } // namespace facebook::react
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
+index 857faaac4627a29f8fdf012882566d0bb29e5b1c..aa9bfabb9b3c803dc52e80ab0b50f04afba0418c 100644
+--- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
++++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
+@@ -356,6 +356,10 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     int selectionEnd;
+     OnContextMenuItemPressStyleState styleState;
+     };
++
++  struct OnSubmitEditing {
++      std::string text;
++    };
+   void onInputFocus(OnInputFocus value) const;
+ 
+   void onInputBlur(OnInputBlur value) const;
+@@ -381,5 +385,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+   void onPasteImages(OnPasteImages value) const;
+ 
+   void onContextMenuItemPress(OnContextMenuItemPress value) const;
++
++  void onSubmitEditing(OnSubmitEditing value) const;
+ };
+ } // namespace facebook::react
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
+index 04b33f9dee23bca335195747572315a548dd7471..436463345ad735dc3993263dbf249cb1c2b31833 100644
+--- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
++++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
+@@ -33,6 +33,10 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+     scrollEnabled(convertRawProp(context, rawProps, "scrollEnabled", sourceProps.scrollEnabled, {false})),
+     linkRegex(convertRawProp(context, rawProps, "linkRegex", sourceProps.linkRegex, {})),
+     contextMenuItems(convertRawProp(context, rawProps, "contextMenuItems", sourceProps.contextMenuItems, {})),
++    textShortcuts(convertRawProp(context, rawProps, "textShortcuts", sourceProps.textShortcuts, {})),
++    returnKeyType(convertRawProp(context, rawProps, "returnKeyType", sourceProps.returnKeyType, {})),
++    returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
++    submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
+     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
+     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
+     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
+@@ -112,6 +116,22 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+     result["contextMenuItems"] = toDynamic(contextMenuItems);
+   }
+     
++  if (textShortcuts != oldProps->textShortcuts) {
++    result["textShortcuts"] = toDynamic(textShortcuts);
++  }
++    
++  if (returnKeyType != oldProps->returnKeyType) {
++    result["returnKeyType"] = returnKeyType;
++  }
++    
++  if (returnKeyLabel != oldProps->returnKeyLabel) {
++    result["returnKeyLabel"] = returnKeyLabel;
++  }
++    
++  if (submitBehavior != oldProps->submitBehavior) {
++    result["submitBehavior"] = submitBehavior;
++  }
++    
+   if (color != oldProps->color) {
+     result["color"] = *color;
+   }
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
+index 3ca484d56e83977d053cc3273e13fc2802641e00..4474c019ccc9d8f9699b71ae53207bfe03d0510f 100644
+--- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
++++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
+@@ -789,6 +789,61 @@ static inline void fromRawValue(const PropsParserContext& context, const RawValu
+   }
+ }
+ 
++
++struct EnrichedTextInputViewTextShortcutsStruct {
++  std::string trigger{};
++  std::string style{};
++  std::string type{};
++
++#ifdef RN_SERIALIZABLE_STATE
++  bool operator==(const EnrichedTextInputViewTextShortcutsStruct&) const = default;
++
++  folly::dynamic toDynamic() const {
++    folly::dynamic result = folly::dynamic::object();
++    result["trigger"] = trigger;
++    result["style"] = style;
++    result["type"] = type;
++    return result;
++  }
++#endif
++};
++
++static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, EnrichedTextInputViewTextShortcutsStruct &result) {
++  auto map = (std::unordered_map<std::string, RawValue>)value;
++
++  auto tmp_trigger = map.find("trigger");
++  if (tmp_trigger != map.end()) {
++    fromRawValue(context, tmp_trigger->second, result.trigger);
++  }
++  auto tmp_style = map.find("style");
++  if (tmp_style != map.end()) {
++    fromRawValue(context, tmp_style->second, result.style);
++  }
++  auto tmp_type = map.find("type");
++  if (tmp_type != map.end()) {
++    fromRawValue(context, tmp_type->second, result.type);
++  }
++}
++
++static inline std::string toString(const EnrichedTextInputViewTextShortcutsStruct &value) {
++  return "[Object EnrichedTextInputViewTextShortcutsStruct]";
++}
++
++#ifdef RN_SERIALIZABLE_STATE
++static inline folly::dynamic toDynamic(const EnrichedTextInputViewTextShortcutsStruct &value) {
++  return value.toDynamic();
++}
++#endif
++
++static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, std::vector<EnrichedTextInputViewTextShortcutsStruct> &result) {
++  auto items = (std::vector<RawValue>)value;
++  for (const auto &item : items) {
++    EnrichedTextInputViewTextShortcutsStruct newItem;
++    fromRawValue(context, item, newItem);
++    result.emplace_back(newItem);
++  }
++}
++
+ class EnrichedTextInputViewProps final : public ViewProps {
+  public:
+   EnrichedTextInputViewProps() = default;
+@@ -809,6 +864,10 @@ class EnrichedTextInputViewProps final : public ViewProps {
+   bool scrollEnabled{false};
+   EnrichedTextInputViewLinkRegexStruct linkRegex{};
+   std::vector<EnrichedTextInputViewContextMenuItemsStruct> contextMenuItems{};
++  std::vector<EnrichedTextInputViewTextShortcutsStruct> textShortcuts{};
++  std::string returnKeyType{};
++  std::string returnKeyLabel{};
++  std::string submitBehavior{};
+   SharedColor color{};
+   Float fontSize{0.0};
+   Float lineHeight{0.0};
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
 index 851e290cce3902e6a7acf28a7b763c2bed4644b0..bf6d4bbac444e2b076e8e3c703b109503ebc9c39 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
@@ -572,6 +740,168 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
        [cbLStyle handleBackspaceInRange:range replacementText:text] ||
        [cbLStyle handleNewlinesInRange:range replacementText:text] ||
        [bqStyle handleBackspaceInRange:range replacementText:text] ||
+diff --git a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
+index 6e04a8c7979b5a99891eb2183186282e7ef77304..735f74509c12aa9696dd9527ffda7fcd0f7290a9 100644
+--- a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
++++ b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
+@@ -422,4 +422,13 @@ payload.setProperty(runtime, "selectionEnd", event.selectionEnd);
+   });
+ }
+ 
++
++void EnrichedTextInputViewEventEmitter::onSubmitEditing(OnSubmitEditing event) const {
++  dispatchEvent("submitEditing", [event=std::move(event)](jsi::Runtime &runtime) {
++    auto payload = jsi::Object(runtime);
++    payload.setProperty(runtime, "text", event.text);
++    return payload;
++  });
++}
++
+ } // namespace facebook::react
+diff --git a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
+index 857faaac4627a29f8fdf012882566d0bb29e5b1c..aa9bfabb9b3c803dc52e80ab0b50f04afba0418c 100644
+--- a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
++++ b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
+@@ -356,6 +356,10 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     int selectionEnd;
+     OnContextMenuItemPressStyleState styleState;
+     };
++
++  struct OnSubmitEditing {
++      std::string text;
++    };
+   void onInputFocus(OnInputFocus value) const;
+ 
+   void onInputBlur(OnInputBlur value) const;
+@@ -381,5 +385,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+   void onPasteImages(OnPasteImages value) const;
+ 
+   void onContextMenuItemPress(OnContextMenuItemPress value) const;
++
++  void onSubmitEditing(OnSubmitEditing value) const;
+ };
+ } // namespace facebook::react
+diff --git a/ios/generated/ReactNativeEnrichedSpec/Props.cpp b/ios/generated/ReactNativeEnrichedSpec/Props.cpp
+index 04b33f9dee23bca335195747572315a548dd7471..436463345ad735dc3993263dbf249cb1c2b31833 100644
+--- a/ios/generated/ReactNativeEnrichedSpec/Props.cpp
++++ b/ios/generated/ReactNativeEnrichedSpec/Props.cpp
+@@ -33,6 +33,10 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+     scrollEnabled(convertRawProp(context, rawProps, "scrollEnabled", sourceProps.scrollEnabled, {false})),
+     linkRegex(convertRawProp(context, rawProps, "linkRegex", sourceProps.linkRegex, {})),
+     contextMenuItems(convertRawProp(context, rawProps, "contextMenuItems", sourceProps.contextMenuItems, {})),
++    textShortcuts(convertRawProp(context, rawProps, "textShortcuts", sourceProps.textShortcuts, {})),
++    returnKeyType(convertRawProp(context, rawProps, "returnKeyType", sourceProps.returnKeyType, {})),
++    returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
++    submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
+     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
+     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
+     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
+@@ -112,6 +116,22 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+     result["contextMenuItems"] = toDynamic(contextMenuItems);
+   }
+     
++  if (textShortcuts != oldProps->textShortcuts) {
++    result["textShortcuts"] = toDynamic(textShortcuts);
++  }
++    
++  if (returnKeyType != oldProps->returnKeyType) {
++    result["returnKeyType"] = returnKeyType;
++  }
++    
++  if (returnKeyLabel != oldProps->returnKeyLabel) {
++    result["returnKeyLabel"] = returnKeyLabel;
++  }
++    
++  if (submitBehavior != oldProps->submitBehavior) {
++    result["submitBehavior"] = submitBehavior;
++  }
++    
+   if (color != oldProps->color) {
+     result["color"] = *color;
+   }
+diff --git a/ios/generated/ReactNativeEnrichedSpec/Props.h b/ios/generated/ReactNativeEnrichedSpec/Props.h
+index 3ca484d56e83977d053cc3273e13fc2802641e00..9cd4ccff23a4966b8876e9bc859cd28e7a5b1120 100644
+--- a/ios/generated/ReactNativeEnrichedSpec/Props.h
++++ b/ios/generated/ReactNativeEnrichedSpec/Props.h
+@@ -789,6 +789,67 @@ static inline void fromRawValue(const PropsParserContext& context, const RawValu
+   }
+ }
+ 
++
++struct EnrichedTextInputViewTextShortcutsStruct {
++  std::string trigger{};
++  std::string style{};
++  std::string type{};
++
++  bool operator==(const EnrichedTextInputViewTextShortcutsStruct& other) const {
++    return trigger == other.trigger && style == other.style && type == other.type;
++  }
++  bool operator!=(const EnrichedTextInputViewTextShortcutsStruct& other) const {
++    return !(*this == other);
++  }
++
++#ifdef RN_SERIALIZABLE_STATE
++
++  folly::dynamic toDynamic() const {
++    folly::dynamic result = folly::dynamic::object();
++    result["trigger"] = trigger;
++    result["style"] = style;
++    result["type"] = type;
++    return result;
++  }
++#endif
++};
++
++static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, EnrichedTextInputViewTextShortcutsStruct &result) {
++  auto map = (std::unordered_map<std::string, RawValue>)value;
++
++  auto tmp_trigger = map.find("trigger");
++  if (tmp_trigger != map.end()) {
++    fromRawValue(context, tmp_trigger->second, result.trigger);
++  }
++  auto tmp_style = map.find("style");
++  if (tmp_style != map.end()) {
++    fromRawValue(context, tmp_style->second, result.style);
++  }
++  auto tmp_type = map.find("type");
++  if (tmp_type != map.end()) {
++    fromRawValue(context, tmp_type->second, result.type);
++  }
++}
++
++static inline std::string toString(const EnrichedTextInputViewTextShortcutsStruct &value) {
++  return "[Object EnrichedTextInputViewTextShortcutsStruct]";
++}
++
++#ifdef RN_SERIALIZABLE_STATE
++static inline folly::dynamic toDynamic(const EnrichedTextInputViewTextShortcutsStruct &value) {
++  return value.toDynamic();
++}
++#endif
++
++static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, std::vector<EnrichedTextInputViewTextShortcutsStruct> &result) {
++  auto items = (std::vector<RawValue>)value;
++  for (const auto &item : items) {
++    EnrichedTextInputViewTextShortcutsStruct newItem;
++    fromRawValue(context, item, newItem);
++    result.emplace_back(newItem);
++  }
++}
++
+ class EnrichedTextInputViewProps final : public ViewProps {
+  public:
+   EnrichedTextInputViewProps() = default;
+@@ -809,6 +870,10 @@ class EnrichedTextInputViewProps final : public ViewProps {
+   bool scrollEnabled{false};
+   EnrichedTextInputViewLinkRegexStruct linkRegex{};
+   std::vector<EnrichedTextInputViewContextMenuItemsStruct> contextMenuItems{};
++  std::vector<EnrichedTextInputViewTextShortcutsStruct> textShortcuts{};
++  std::string returnKeyType{};
++  std::string returnKeyLabel{};
++  std::string submitBehavior{};
+   SharedColor color{};
+   Float fontSize{0.0};
+   Float lineHeight{0.0};
 diff --git a/lib/module/EnrichedTextInput.js b/lib/module/EnrichedTextInput.js
 index da75a301a91297902caf3bb2590cc17ce73b05e2..5ba54135f4ec909f5fe1233ef7bf0ee6b6418dbd 100644
 --- a/lib/module/EnrichedTextInput.js
