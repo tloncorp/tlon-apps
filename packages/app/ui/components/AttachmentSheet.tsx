@@ -384,7 +384,11 @@ export default function AttachmentSheet({
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const { uploadIntents } = await pickFile();
+    const { uploadIntents, errorMessage } = await pickFile();
+    if (errorMessage) {
+      Alert.alert('Unable to attach', errorMessage);
+      return;
+    }
     await attachNormalizedUploadIntents(uploadIntents);
   }, [attachNormalizedUploadIntents, onOpenChange]);
 
