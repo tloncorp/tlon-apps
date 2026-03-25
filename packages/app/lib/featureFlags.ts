@@ -26,6 +26,11 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
+  enrichedInput: {
+    default: false,
+    label: 'Use EnrichedTextInput (native rich text) instead of TipTap webview',
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }
