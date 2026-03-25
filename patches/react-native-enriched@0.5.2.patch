@@ -246,7 +246,7 @@ index c2eb4a97e6c9470c68937ec03238ba6bc871f74b..83caed1ec3f7867434d7d194be584899
  - (CGSize)measureSize:(CGFloat)maxWidth;
  - (void)emitOnLinkDetectedEvent:(NSString *)text
 diff --git a/ios/EnrichedTextInputView.mm b/ios/EnrichedTextInputView.mm
-index 5e81c9f26df463cdada4da2bb51f83fa6225760e..62f66fa58cc08a11a6a42ebcb1730b52b820e98e 100644
+index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f2ca2580e 100644
 --- a/ios/EnrichedTextInputView.mm
 +++ b/ios/EnrichedTextInputView.mm
 @@ -9,6 +9,7 @@
@@ -265,9 +265,9 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..62f66fa58cc08a11a6a42ebcb1730b52
 +  if (newViewProps.textShortcuts != oldViewProps.textShortcuts) {
 +    NSMutableArray *shortcuts = [NSMutableArray new];
 +    for (const auto &item : newViewProps.textShortcuts) {
-+      NSString *type = item.type.has_value()
-+          ? [NSString fromCppString:item.type.value()]
-+          : @"block";
++      NSString *type = item.type.empty()
++          ? @"block"
++          : [NSString fromCppString:item.type];
 +      [shortcuts addObject:@{
 +        @"trigger" : [NSString fromCppString:item.trigger],
 +        @"style" : [NSString fromCppString:item.style],
