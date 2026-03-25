@@ -9,6 +9,7 @@ import {
 } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import { getFileSize } from './files';
+import { imageSize } from './images';
 
 type UploadIntentVideoMetadata = Exclude<
   Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
@@ -93,6 +94,32 @@ export async function normalizeUploadIntent(
         uri: uploadIntent.localUri,
         size: resolveVideoSize(uploadIntent.size, uploadIntent.localUri),
       };
+
+  // Promote image/* files to ImageUploadIntent so they go through the
+  // standard image pipeline and get proper dimensions.
+  if (mimeType?.startsWith('image/')) {
+    try {
+      const localUri = isFileIntent
+        ? URL.createObjectURL(uploadIntent.file)
+        : uploadIntent.localUri;
+      const [width, height] = await imageSize(localUri);
+      return {
+        uploadIntent: {
+          type: 'image',
+          asset: {
+            uri: localUri,
+            width,
+            height,
+            fileSize: size,
+            mimeType,
+          },
+        },
+        errorMessage: null,
+      };
+    } catch {
+      // If we can't resolve dimensions, fall through and keep as file
+    }
+  }
 
   if (!isLikelyVideoSource({ mimeType, name, uri })) {
     return { uploadIntent, errorMessage: null };
