@@ -206,6 +206,22 @@ validate_shard_outputs() {
     return 0
 }
 
+stop_running_shards() {
+    local skip_shard="${1:-}"
+
+    for shard in $(seq 1 $TOTAL_SHARDS); do
+        if [ -n "$skip_shard" ] && [ "$shard" = "$skip_shard" ]; then
+            continue
+        fi
+
+        local container_name="${CONTAINER_NAME}-shard-${shard}"
+        if $CONTAINER_CMD ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
+            echo -e "${YELLOW}Stopping shard $shard after failure in shard $skip_shard${NC}"
+            $CONTAINER_CMD stop $container_name 2>/dev/null || true
+        fi
+    done
+}
+
 # Function to run a single shard
 run_shard() {
     local shard=$1
@@ -437,6 +453,7 @@ else
     check_count=0
     max_checks=360  # 30 minutes maximum (360 * 5 seconds)
     failed_early=""
+    failed_fast=false
 
     while [ "$all_done" = false ] && [ $check_count -lt $max_checks ]; do
         all_done=true
@@ -458,11 +475,19 @@ else
                             $CONTAINER_CMD logs --tail 20 $container_name 2>&1 || true
                             echo "---"
                             failed_early="$failed_early $shard"
+                            append_failed_shard $shard
+                            failed_fast=true
+                            stop_running_shards $shard
+                            break
                         fi
                     fi
                 fi
             fi
         done
+
+        if [ "$failed_fast" = true ]; then
+            break
+        fi
 
         if [ "$all_done" = false ]; then
             sleep 5
@@ -489,7 +514,11 @@ else
     fi
 
     echo ""
-    echo -e "${GREEN}All shards completed!${NC}"
+    if [ "$failed_fast" = true ]; then
+        echo -e "${RED}Stopped remaining shards after the first failure${NC}"
+    else
+        echo -e "${GREEN}All shards completed!${NC}"
+    fi
 
     # Capture container logs for all shards (for debugging)
     echo -e "${BLUE}Capturing container logs...${NC}"
@@ -501,6 +530,22 @@ else
             $CONTAINER_CMD logs $container_name > "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/logs/shard-${shard}.log" 2>&1 || true
         fi
     done
+
+    if [ "$failed_fast" = true ]; then
+        echo -e "${YELLOW}Skipping report merge because a shard failed early${NC}"
+
+        echo -e "${YELLOW}Cleaning up containers...${NC}"
+        for shard in $(seq 1 $TOTAL_SHARDS); do
+            container_name="${CONTAINER_NAME}-shard-${shard}"
+            $CONTAINER_CMD stop $container_name 2>/dev/null || true
+            $CONTAINER_CMD rm -f $container_name 2>/dev/null || true
+        done
+
+        echo -e "${YELLOW}Cleaning up dangling Docker cache...${NC}"
+        $CONTAINER_CMD builder prune -f > /dev/null 2>&1 || true
+        echo -e "${GREEN}Docker cleanup complete${NC}"
+        exit 1
+    fi
 
     # Check for failures
     failed_shards=""
