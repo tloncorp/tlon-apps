@@ -30,7 +30,7 @@ export interface InitData {
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    path: '/v7/init',
+    path: '/v6/init',
   });
 
   logger.crumb('got init data from api');

@@ -43,7 +43,7 @@ export function PostContentRenderer({
   }, [post.content, post.blob]);
 
   return (
-    <BlockRendererProvider>
+    <BlockRendererProvider settings={{ chess: { postId: post.id, channelId: post.channelId ?? undefined } }}>
       <InlineRendererProvider value={undefined}>
         <ContentRenderer content={content} {...props} />
       </InlineRendererProvider>
@@ -87,14 +87,19 @@ export function createContentRenderer({
   inlineRenderers?: Partial<InlineRendererConfig>;
 }) {
   return React.memo(function ContentRendererWrapper({
+    extraBlockSettings,
     ...props
   }: ContentRendererProps & {
     content: PostContent;
+    extraBlockSettings?: Partial<DefaultRendererProps>;
   }) {
+    const mergedSettings = extraBlockSettings
+      ? { ...blockSettings, ...extraBlockSettings }
+      : blockSettings;
     return (
       <BlockRendererProvider
         renderers={blockRenderers}
-        settings={blockSettings}
+        settings={mergedSettings}
       >
         <InlineRendererProvider value={inlineRenderers}>
           <ContentRenderer {...props} />

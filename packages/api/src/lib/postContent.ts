@@ -1,3 +1,13 @@
+/**
+ * A2UI Blob Spec — Agent-to-UI output components for Tlon channels.
+ *
+ * These types define the structured blob format that AI agents use to communicate
+ * rich data (charts, tables, etc.) inside Tlon. The primary author is an agent;
+ * the reader may be human or another agent.
+ *
+ * Design principle: agents control style and data density. 'rich' = default (full
+ * expressiveness); 'simple' = agent choosing human-skimmable output.
+ */
 import type * as api from '../client';
 import { formatUd } from '../client/apiUtils';
 import type { ContentReference } from '../types/references';
@@ -147,6 +157,11 @@ export type ListData = {
   children?: ListData[];
 };
 
+/**
+ * A2UI Chart Block — agent output component.
+ * Agents emit this to communicate data visually inside Tlon channels.
+ * style: 'rich' (default) = full expressiveness; 'simple' = minimal for human skimmability.
+ */
 export type ChartBlockData = {
   type: 'chart';
   chartType: 'line' | 'bar' | 'pie' | 'area' | 'sparkline';
@@ -159,6 +174,35 @@ export type ChartBlockData = {
   xLabels?: string[];
   yLabel?: string;
   height?: number;
+  /** Agent-controlled style. 'rich' = full data density (default); 'simple' = human-skimmable */
+  style?: 'simple' | 'rich';
+};
+
+/**
+ * A2UI Table Block — agent output component.
+ * Agents emit this to communicate structured data inside Tlon channels.
+ * style: 'rich' (default) = proportional bars + color coding; 'simple' = plain rows for humans.
+ */
+export type TableBlockData = {
+  type: 'table';
+  title?: string;
+  columns: string[];
+  rows: (string | number)[][];
+  /** Agent-controlled style. 'rich' = full data density (default); 'simple' = human-skimmable */
+  style?: 'simple' | 'rich';
+};
+
+export type ChessBlockData = {
+  type: 'chess';
+  version: 1;
+  fen: string;
+  players?: { white: string; black: string };
+  turn?: 'white' | 'black';
+  status?: 'active' | 'check' | 'checkmate' | 'stalemate' | 'draw';
+  lastMove?: string | null;
+  moveHistory?: string[];
+  style?: 'simple' | 'rich';
+  theme?: 'blue' | 'slate' | 'green' | 'purple';
 };
 
 export type BlockData =
@@ -175,7 +219,9 @@ export type BlockData =
   | RuleBlockData
   | ListBlockData
   | BigEmojiBlockData
-  | ChartBlockData;
+  | ChartBlockData
+  | TableBlockData
+  | ChessBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -270,6 +316,8 @@ export function plaintextPreviewOf(
           return block.emoji;
         case 'chart':
           return `[Chart: ${block.title || block.chartType}]`;
+        case 'chess':
+          return `[Chess: ${block.turn ?? 'white'} to move]`;
       }
     })
     .join(config.blockSeparator)
@@ -411,6 +459,32 @@ export function convertContent(
             xLabels: entry.xLabels,
             yLabel: entry.yLabel,
             height: entry.height,
+          });
+          break;
+        }
+
+        case 'table': {
+          out.push({
+            type: 'table',
+            title: entry.title,
+            columns: entry.columns,
+            rows: entry.rows,
+          });
+          break;
+        }
+
+        case 'chess': {
+          out.push({
+            type: 'chess',
+            version: 1,
+            fen: entry.fen,
+            players: entry.players,
+            turn: entry.turn,
+            status: entry.status,
+            lastMove: entry.lastMove,
+            moveHistory: entry.moveHistory,
+            style: entry.style,
+            theme: (entry as any).theme,
           });
           break;
         }

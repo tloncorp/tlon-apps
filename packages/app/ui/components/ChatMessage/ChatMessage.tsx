@@ -277,6 +277,7 @@ const ChatMessage = ({
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}
               searchQuery={searchQuery}
+              extraBlockSettings={{ chess: { postId: post.id, channelId: post.channelId ?? undefined } }}
             />
           )}
         </View>

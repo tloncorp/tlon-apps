@@ -639,6 +639,20 @@ export type PostBlobDataEntry =
         posterUri?: string;
       }
     >
+  | (BuildPostBlobDataEntry<
+      'table',
+      { version: 1 },
+      {
+        title?: string;
+        columns: string[];
+        rows: (string | number)[][];
+      }
+    > | {
+      type: 'table';
+      title?: string;
+      columns: string[];
+      rows: (string | number)[][];
+    })
   | BuildPostBlobDataEntry<
       'chart',
       { version: 1 },
@@ -654,6 +668,19 @@ export type PostBlobDataEntry =
         yLabel?: string;
         /** render height hint in logical pixels */
         height?: number;
+      }
+    >
+  | BuildPostBlobDataEntry<
+      'chess',
+      { version: 1 },
+      {
+        fen: string;
+        players?: { white: string; black: string };
+        turn?: 'white' | 'black';
+        status?: 'active' | 'check' | 'checkmate' | 'stalemate' | 'draw';
+        lastMove?: string | null;
+        moveHistory?: string[];
+        style?: 'simple' | 'rich';
       }
     >;
 
@@ -783,6 +810,12 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return entry;
     }
     if (entry.type === 'chart' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'table') {
+      return entry;
+    }
+    if (entry.type === 'chess' && entry.version === 1) {
       return entry;
     }
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });

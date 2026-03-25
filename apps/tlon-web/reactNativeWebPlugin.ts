@@ -85,6 +85,15 @@ const reactNativeWeb =
             replacement: '@10play/react-native-web-webview/shim',
           },
           {
+            find: 'react-native-svg',
+            replacement: fileURLToPath(
+              new URL(
+                '../../node_modules/react-native-svg/src/ReactNativeSVG.web.ts',
+                import.meta.url
+              )
+            ),
+          },
+          {
             find: 'react-native-gesture-handler/ReanimatedSwipeable',
             replacement: fileURLToPath(
               new URL(

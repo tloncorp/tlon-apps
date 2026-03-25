@@ -128,7 +128,7 @@ export const createChannel = async ({
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'create' in event.response && event.nest === id;
     },
@@ -153,7 +153,7 @@ export async function updateChannelMeta(
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'meta' in event.response;
     }
@@ -180,7 +180,7 @@ export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
   subscribe(
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
       logger.log('channels received event', rawEvent);
       eventHandler(toChannelsUpdate(rawEvent));
@@ -433,7 +433,7 @@ export const createNewGroupDefaultChannel = async ({
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       const { response, nest } = event;
       return (
@@ -536,7 +536,7 @@ export const leaveChannel = async (channelId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
     },
@@ -558,7 +558,7 @@ export const joinChannel = async (channelId: string, groupId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    { app: 'channels', path: '/v2' },
     (event) => {
       return 'join' in event.response && event.nest === channelId;
     },
