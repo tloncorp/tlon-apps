@@ -1,6 +1,9 @@
 import { Attachment } from '@tloncorp/shared/domain';
 import { useCallback } from 'react';
+import { isWeb } from 'tamagui';
 
+import { normalizeUploadIntents, pickFile } from '../../utils/filepicker';
+import { useAttachmentContext } from '../contexts';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
@@ -14,15 +17,30 @@ export default function AddGalleryPost({
   setRoute: (route: GalleryRoute) => void;
   onSetMedia: (assets: Attachment.UploadIntent[]) => void;
 }) {
+  const { attachAssets } = useAttachmentContext();
+
+  const openWebFilePicker = useCallback(async () => {
+    setRoute('gallery');
+    const uploadIntents = await pickFile();
+    const { uploadIntents: normalized } =
+      await normalizeUploadIntents(uploadIntents);
+    if (normalized.length > 0) {
+      attachAssets(normalized);
+      onSetMedia(normalized);
+    }
+  }, [setRoute, attachAssets, onSetMedia]);
+
   const actions: Action[] = [
     {
       title: 'Media or File',
-      action: () => {
-        setRoute('gallery');
-        setTimeout(() => {
-          setRoute('add-attachment');
-        }, 300);
-      },
+      action: isWeb
+        ? openWebFilePicker
+        : () => {
+            setRoute('gallery');
+            setTimeout(() => {
+              setRoute('add-attachment');
+            }, 300);
+          },
       testID: 'AddGalleryPostImage',
     },
     {
@@ -64,12 +82,16 @@ export default function AddGalleryPost({
         onOpenChange={onClose}
         actions={actions}
       />
-      <AttachmentSheet
-        isOpen={route === 'add-attachment'}
-        onOpenChange={onClose}
-        onAttach={handleAttachmentSet}
-        mediaType="all"
-      />
+      {/* On web, "Media or File" opens the system file picker directly,
+          so AttachmentSheet is only needed on mobile. */}
+      {!isWeb && (
+        <AttachmentSheet
+          isOpen={route === 'add-attachment'}
+          onOpenChange={onClose}
+          onAttach={handleAttachmentSet}
+          mediaType="all"
+        />
+      )}
     </>
   );
 }
