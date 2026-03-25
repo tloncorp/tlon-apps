@@ -4,6 +4,8 @@
     "composite": false,
     "declaration": false,
     "incremental": false,
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "noEmit": false,
     "outDir": "./rube/dist",
     "rootDir": "./rube"
