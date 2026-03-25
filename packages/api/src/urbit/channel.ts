@@ -166,7 +166,7 @@ export type PageMap = BTree<BigInteger, Post | null>;
 
 export interface Reply {
   seal: ReplySeal;
-  memo: Memo;
+  'reply-essay': ReplyEssay;
   revision?: string;
 }
 
@@ -174,6 +174,10 @@ export interface Memo {
   content: Story;
   author: Author;
   sent: number;
+}
+
+export interface ReplyEssay extends Memo {
+  blob: string | null;
 }
 
 export type ReplyMap = BTree<BigInteger, Reply>;
@@ -264,13 +268,13 @@ export interface CreateDiff {
 }
 
 export interface ReplyActionAdd {
-  add: Memo;
+  add: ReplyEssay;
 }
 
 export interface ReplyActionEdit {
   edit: {
     id: string;
-    memo: Memo;
+    'reply-essay': ReplyEssay;
   };
 }
 
@@ -291,7 +295,7 @@ export type SortMode = 'alpha' | 'time' | 'arranged';
 
 export interface PendingMessages {
   posts: Record<string, PostEssay>;
-  replies: Record<string, Record<string, Memo>>;
+  replies: Record<string, Record<string, ReplyEssay>>;
 }
 
 export type JSONValue = number | string | boolean;
@@ -425,7 +429,7 @@ export type PendingResponse =
       reply: {
         top: string;
         meta: ReplyMeta;
-        memo: Memo;
+        'reply-essay': ReplyEssay;
       };
     };
 
@@ -569,10 +573,11 @@ export const emptyReply: Reply = {
     reacts: {},
   },
   revision: '0',
-  memo: {
+  'reply-essay': {
     author: '',
     content: [],
     sent: 0,
+    blob: null,
   },
 };
 
