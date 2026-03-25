@@ -1120,7 +1120,7 @@
   ::
     [%v1 %groups ~]  ?>(from-self cor)
   ::
-      [ver=?(%v0 %v1) %channels app=@ ship=@ name=@ %preview ~]
+      [ver=%v1 %channels app=@ ship=@ name=@ %preview ~]
     =/  ship=@p  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (watch-channel-preview ver.pole nest)
@@ -1175,12 +1175,12 @@
 ::  +watch-channel-preview: handle channel preview request
 ::
 ++  watch-channel-preview
-  |=  [ver=?(%v0 %v1) =nest:g]
+  |=  [ver=%v1 =nest:g]
   ^+  cor
   ?.  =(p.q.nest our.bowl)
     (emil (pass-preview-channel nest))
   =+  flag=(~(got by channels-index) nest)
-  go-abet:(go-watch-channel-preview:(go-abed:go-core flag) ver nest)
+  (go-watch-channel-preview:(go-abed:go-core flag) ver nest)
 ::
 ++  pass-preview-channel
   |=  =nest:g
@@ -1495,24 +1495,27 @@
   ^+  cor
   ?+    -.sign  ~|(take-channel-preview+-.sign !!)
       %kick
-    =/  path-0=path
-      /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
     =/  path-1=path
       /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-    (emit %give %kick ~[path-0 path-1] ~)
+    (emit %give %kick ~[path-1] ~)
   ::
       %watch-ack
     ?~  p.sign  cor
     (fail:l %watch-ack 'failed channel preview request' u.p.sign)
   ::
       %fact
-    =+  !<(=channel-preview:g q.cage.sign)
-    (give-channel-preview channel-preview)
+    ::  we use the same subscription path for client and agent subscriptions.
+    ::  here we only process the most recent mark coming from the
+    ::  channel host. 
+    ::
+    ?.  =(p.cage.sign %channel-preview-1)  cor
+    =+  !<(=channel-preview:v7:gv q.cage.sign)
+    (give-channel-preview %v1 channel-preview)
   ==
 ::  +give-channel-preview: give channel preview to subscribers
 ::
 ++  give-channel-preview
-  |=  =channel-preview:g
+  |=  [ver=?(%v1) =channel-preview:g]
   ^+  cor
   =*  nest  nest.channel-preview
   ::  v1
@@ -3714,27 +3717,19 @@
   ::  +go-watch-channel-preview: handle channel preview request
   ::
   ++  go-watch-channel-preview
-    |=  [ver=?(%v0 %v1) =nest:g]
+    |=  [ver=?(%v1) =nest:g]
     ?<  (go-is-banned src.bowl)
     =*  ship  p.q.nest
     ?>  =(ship our.bowl)
     =+  chan=(~(get by channels.group) nest)
     ?~  chan  ~|(go-watch-bad-channel-preview+nest !!)
-    ::TODO verify this: if a ship has permissions to read
-    ::     a channel, this implies she can also preview a (secret) group.
-    ::
     ?>  (go-can-read src.bowl u.chan)
     =/  =channel-preview:g
       :*  nest
           meta.u.chan
           go-preview
       ==
-    ?.  =(src.bowl our.bowl)
-      ::  handle a proxy request
-      ::
-      =.  go-core  (emit %give %fact ~ group-channel-preview+!>(channel-preview))
-      (emit %give %kick ~ ~)
-    (give-channel-preview channel-preview)
+    (give-channel-preview ver channel-preview)
   ::  +go-agent: handle group response
   ::
   ::  when adding a new response, always consider
