@@ -18,7 +18,7 @@
         :-  %channel
         %-  pairs
         :~  channels/(channels:v1:enjs:dj channels.channel.init)
-            hidden-posts/(hidden-posts:enjs:dj hidden-posts.channel.init)
+            hidden-posts/(hidden-posts:v9:enjs:dj hidden-posts.channel.init)
         ==
       ::
         :-  %chat
