@@ -1,0 +1,52 @@
+appId: io.tlon.groups
+---
+- tapOn: 'Have an account? Log in'
+- runFlow:
+    when:
+      visible:
+        id: 'log-in-with-email'
+    commands:
+      - tapOn:
+          id: 'log-in-with-email'
+- runFlow:
+    when:
+      visible: 'Log in with email'
+    commands:
+      - tapOn:
+          text: .*Log in with email.*
+          retryTapIfNoChange: true
+- assertVisible:
+    id: 'email-input'
+- assertVisible:
+    id: 'or-use-password'
+- tapOn:
+    id: 'or-use-password'
+
+# Enter email
+- assertVisible:
+    id: 'email-input-legacy'
+- tapOn:
+    id: 'email-input-legacy'
+- inputText: ${MAESTRO_EMAIL}
+
+# Enter invalid password
+- tapOn:
+    id: 'password-input-legacy'
+- inputText: ${MAESTRO_PASSWORD}
+
+- tapOn: 'Submit'
+
+# Dismiss password save prompt
+- runFlow:
+    when:
+      visible: 'Not now'
+    commands:
+      - tapOn: 'Not now'
+# Wait if we encounter the ship-restarting screen
+- runFlow:
+    when:
+      visible: 'Notify me when.*'
+    commands:
+      - extendedWaitUntil:
+          notVisible: 'Notify me when.*'
+          timeout: 600000 # 10 minutes
