@@ -1479,14 +1479,14 @@
     ::  deprecated
     [%helm *]  cor
   ::
-    ::  deprecated
-    [%chan app=@ ship=@ name=@ rest=*]
-  ::  we got a sign on this old-style channel preview wire,
-  ::  likely indicating the last breath of a lingering preview sub.
-  ::  we could clean up but probably don't need to. no-op.
-  ::
-  ~&  [%groups-stale-preview `wire`pole -.sign]
-  (~(tell l ~) %info 'sign on old wire' >[wire=`wire`pole sign=-.sign]< ~)
+      ::  deprecated
+      [%chan app=@ ship=@ name=@ rest=*]
+    ::  we got a sign on this old-style channel preview wire,
+    ::  likely indicating the last breath of a lingering preview sub.
+    ::  we could clean up but probably don't need to. no-op.
+    ::
+    ~&  [%groups-stale-preview `wire`pole -.sign]
+    (~(tell l ~) %info 'sign on old wire' >[wire=`wire`pole sign=-.sign]< ~)
   ==
 ::  +take-channel-preview: handel channels preview response
 ::
@@ -3707,13 +3707,6 @@
       [%section section-id %set order.section]
     %+  go-send-command:go-core  /command/section-order
     [%section-order order.a-navigation]
-  ::  +go-watch: handle group watch request
-  ::
-  ++  go-watch
-    |=  [ver=?(%v0 %v1) =(pole knot)]
-    ~>  %spin.['go-watch']
-    ^+  go-core
-    ~|(go-watch-bad-path+pole !!)
   ::  +go-watch-channel-preview: handle channel preview request
   ::
   ++  go-watch-channel-preview
@@ -3729,6 +3722,11 @@
           meta.u.chan
           go-preview
       ==
+    ::NOTE we send out the fact on a subscription path,
+    ::     rather than to present subscriber. however, given
+    ::     that we always clean up the subscription by kicking,
+    ::     these are equivalent.
+    ::
     (give-channel-preview ver channel-preview)
   ::  +go-agent: handle group response
   ::
