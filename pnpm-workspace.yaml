@@ -42,6 +42,7 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
+  'react-native-enriched@0.5.2': patches/react-native-enriched@0.5.2.patch
 
 allowUnusedPatches: false
 
