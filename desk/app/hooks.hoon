@@ -1,5 +1,5 @@
 /-  h=hooks, c=channels
-/+  default-agent, hk=hooks, utils=channel-utils, strandio
+/+  default-agent, hk=hooks, strandio
 =>
   |%
   +$  card  card:agent:gall
@@ -16,7 +16,7 @@
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
-      abet:(init:cor)
+      abet:init:cor
     [cards this]
   ++  on-save  !>(state)
   ++  on-load
@@ -90,7 +90,7 @@
 ++  compile-hook
   |=  def=hook-def:h
   ^-  hook-def:h
-  =/  result=(each vase tang)  (compile:utils src.def)
+  =/  result=(each vase tang)  (compile-hook:hk src.def)
   ?:  ?=(%| -.result)
     def(compiled ~)
   def(compiled `p.result)
@@ -147,31 +147,31 @@
   ^+  cor
   ?>  =(src.bowl our.bowl)
   ?>  =(mark %noun)
-  =+  !<(=hook-action:h vase)
+  =+  action=!<(hook-action:h vase)
   ?-  -.action
     %add-hook
       =/  def=hook-def:h  (compile-hook hook.action)
       =.  hooks.state  (~(put by hooks.state) id.def def)
-      (notify-hooks)
+      notify-hooks
     %remove-hook
       =.  hooks.state  (~(del by hooks.state) id.action)
-      (notify-hooks)
+      notify-hooks
     %update-hook
       =/  def=hook-def:h  (compile-hook hook.action)
       =.  hooks.state  (~(put by hooks.state) id.action def)
-      (notify-hooks)
+      notify-hooks
     %add-hitch
       =.  hitches.state  (~(put by hitches.state) id.hitch.action hitch.action)
-      (notify-hitches)
+      notify-hitches
     %remove-hitch
       =.  hitches.state  (~(del by hitches.state) id.action)
-      (notify-hitches)
+      notify-hitches
     %update-hitch
       ?~  hit=(~(get by hitches.state) id.action)
         cor
       =.  hitches.state
         (~(put by hitches.state) id.action (apply-hitch-patch:hk u.hit patch.action))
-      (notify-hitches)
+      notify-hitches
     %enable-hitch
       (set-hitch-enabled id.action &)
     %disable-hitch
@@ -190,7 +190,7 @@
     cor
   =.  hitches.state
     (~(put by hitches.state) id u.hit(enabled enabled))
-  (notify-hitches)
+  notify-hitches
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -244,15 +244,16 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+  pole  cor
-      [%firehose source=@ *]
-    ?-  -.sign
+      [%firehose *]
+    =/  src  ;;(firehose-source:h (snag 1 `(list @ta)`pole))
+    ?+  -.sign  cor
       %watch-ack
         (set-firehose-live pole &)
       %kick
         =.  cor  (set-firehose-live pole |)
         (rewatch pole)
       %fact
-        (ingest-firehose source.pole cage.sign)
+        (ingest-firehose src cage.sign)
       ==
   ==
 ++  rewatch
@@ -275,8 +276,7 @@
         %post
       ?-  -.r-post.r-channel.rc
         %set     ?:  ?=(%| -.post.r-post.r-channel.rc)  %del
-                 ?:  =(0 rev.u.post.r-post.r-channel.rc)  %add
-                 %edit
+                 %add
         %reply   %reply
         %reacts  %react
         %essay   %edit
@@ -323,7 +323,9 @@
   ^-  (unit trigger:h)
   ?~  trigs
     ~
-  ?:(trigger-matches:hk i.trigs event `i.trigs $(trigs t.trigs))
+  ?.  (trigger-matches:hk i.trigs event)
+    $(trigs t.trigs)
+  `i.trigs
 ++  dispatch-manual-run
   |=  [hid=hitch-id:h kind=pending-kind:h event=vase]
   ^+  cor
@@ -342,7 +344,7 @@
     cor
   ?~  def=(~(get by hooks.state) hook-id.u.hit)
     cor
-  =/  rid=run-id:h  (fresh-run-id)
+  =/  rid  fresh-run-id
   =/  run=run-log:h
     :*  rid
         hid
@@ -365,7 +367,7 @@
     (complete-run rid [rid hid trig now.bowl kind] run output &)
   ::  build inline strand from cached compiled gate, run via %lard
   ::  this avoids recompiling the hook source on every execution
-  =/  gate  [p.u.compiled.u.def .*(q:subject:utils q.u.compiled.u.def)]
+  =/  gate  [p.u.compiled.u.def .*(q:hk-subject:hk q.u.compiled.u.def)]
   =/  =shed:khan
     =/  m  (strand:rand ,vase)
     ^-  form:m
@@ -421,7 +423,7 @@
   =/  ordered=(list [run-id:h run-log:h])
     %+  sort
       %+  skim  ~(tap by runs.state)
-      |=  [[rid=run-id:h run=run-log:h] ?]
+      |=  [rid=run-id:h run=run-log:h]
       =(hid hitch-id.run)
     |=  [[* a=run-log:h] [* b=run-log:h]]
     (gth started-at.a started-at.b)

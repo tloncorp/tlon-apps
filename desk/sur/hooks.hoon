@@ -1,4 +1,4 @@
-/-  *channels, g=groups, gv=groups-ver, a=activity, ch=chat, co=contacts, m=meta
+/-  c=channels, g=groups, gv=groups-ver, a=activity, ch=chat, co=contacts, m=meta
 |%
 ::  $id-hook: a unique identifier for a hook
 +$  id-hook  @uv
@@ -23,17 +23,17 @@
       src=@t
       compiled=(unit vase)
       state=vase
-      config=(map nest config)
+      config=(map nest:c config)
   ==
 ::  $hooks: collection of hooks, the order they should be run in, hooks
 ::          running on a schedule, and any hooks waiting to run
 ++  hooks
   $:  hooks=(map id-hook hook)
-      order=(map nest (list id-hook))
+      order=(map nest:c (list id-hook))
       crons=(map id-hook cron)
       waiting=(map id-wait [=origin waiting-hook])
   ==
-+$  origin  $@(~ nest)
++$  origin  $@(~ nest:c)
 +$  cron  (map origin job)
 +$  job
   $:  =id-hook
@@ -57,8 +57,8 @@
   $%  [%add name=@t src=@t]
       [%edit id=id-hook name=(unit @t) src=(unit @t) meta=(unit data:m)]
       [%del id=id-hook]
-      [%order =nest seq=(list id-hook)]
-      [%config id=id-hook =nest =config]
+      [%order =nest:c seq=(list id-hook)]
+      [%config id=id-hook =nest:c =config]
       [%cron id=id-hook =origin schedule=$@(@dr schedule) =config]
       [%rest id=id-hook =origin]
   ==
@@ -67,8 +67,8 @@
 +$  response
   $%  [%set id=id-hook name=@t src=@t meta=data:m error=(unit tang)]
       [%gone id=id-hook]
-      [%order =nest seq=(list id-hook)]
-      [%config id=id-hook =nest =config]
+      [%order =nest:c seq=(list id-hook)]
+      [%config id=id-hook =nest:c =config]
       [%cron id=id-hook =origin schedule=$@(@dr schedule) =config]
       [%rest id=id-hook =origin]
   ==
@@ -88,9 +88,9 @@
 ::TODO  this type should source versioned types from other
 ::      agents.
 +$  bowl
-  $:  channel=(unit [=nest v-channel])
+  $:  channel=(unit [=nest:c v-channel:c])
       group=(unit group:v9:gv)
-      channels=v-channels
+      channels=v-channels:c
       =hook
       =config
       now=time
@@ -116,18 +116,18 @@
 ::
 ::  $on-post: a hook event that fires when posts are interacted with
 +$  on-post
-  $%  [%add post=v-post]
-      [%edit original=v-post =essay]
-      [%del original=v-post]
-      [%react post=v-post =ship react=(unit react)]
+  $%  [%add post=v-post:c]
+      [%edit original=v-post:c =essay:c]
+      [%del original=v-post:c]
+      [%react post=v-post:c =ship react=(unit react:c)]
   ==
 ::
 ::  $on-reply: a hook event that fires when replies are interacted with
 +$  on-reply
-  $%  [%add parent=v-post reply=v-reply]
-      [%edit parent=v-post original=v-reply =memo]
-      [%del parent=v-post original=v-reply]
-      [%react parent=v-post reply=v-reply =ship react=(unit react)]
+  $%  [%add parent=v-post:c reply=v-reply:c]
+      [%edit parent=v-post:c original=v-reply:c =memo:c]
+      [%del parent=v-post:c original=v-reply:c]
+      [%react parent=v-post:c reply=v-reply:c =ship react=(unit react:c)]
   ==
 ::
 ::  $args: the arguments passed to a hook
@@ -167,9 +167,9 @@
 ::
 ::  $effect: an effect that a hook can have, limited to agents in
 ::           the %groups desk. %wait is a special effect that will wake
-::           up the same hook at a later time.
+::           up the same hook at a later time.  (v1 hooks)
 +$  effect
-  $%  [%channels =a-channels]
+  $%  [%channels =a-channels:c]
       [%groups =a-groups:v7:gv]
       [%activity =action:a]
       [%dm =action:dm:ch]
@@ -181,7 +181,7 @@
 +$  channel-preview  (list [name=@t meta=data:m])
 ::
 +$  template
-  $:  from=nest
+  $:  from=nest:c
       hooks=(map id-hook hook)
       order=(list id-hook)
       crons=(list [id-hook job])
@@ -219,6 +219,7 @@
       default=(unit @t)
   ==
 +$  field-type
+  $~  [%text ~]
   $%  [%text ~]
       [%number ~]
       [%boolean ~]
@@ -239,7 +240,7 @@
       =visibility
   ==
 +$  trigger
-  $%  [%channels type=term nest=(unit nest)]
+  $%  [%channels type=term nest=(unit nest:c)]
       [%groups type=term flag=(unit flag:g)]
       [%contacts type=term]
       [%activity type=term]
@@ -264,7 +265,7 @@
 +$  firehose-source
   ?(%channels %groups %contacts %activity %cron %webhook %command)
 +$  resource-filter
-  $%  [%channels nest]
+  $%  [%channels nest:c]
       [%groups flag:g]
       [%id @tas]
   ==
@@ -311,15 +312,6 @@
   $:  max-entries-per-run=@ud
       max-runs-per-hitch=@ud
       max-msg-length=@ud
-  ==
-+$  effect
-  $%  [%channels action=vase]
-      [%groups action=vase]
-      [%contacts action=vase]
-      [%activity action=vase]
-      [%dm action=vase]
-      [%club action=vase]
-      [%command cmd=@tas args=(unit vase)]
   ==
 +$  chain-response
   $%  [%pass event=vase]

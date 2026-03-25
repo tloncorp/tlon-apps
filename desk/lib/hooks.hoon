@@ -1,10 +1,18 @@
 /-  h=hooks
-/+  cu=channel-utils
 |%
+++  hk-subject  ^~(!>(..compile-hook))
+::
 ++  compile-hook
   |=  src=@t
   ^-  (each vase tang)
-  (compile:cu src)
+  =/  tonk=(each vase tang)
+    =/  vex=(like hoon)  ((full vest) [0 0] (trip src))
+    ?~  q.vex  |+~[leaf+"\{{<p.p.vex>} {<q.p.vex>}}" 'syntax error']
+    %-  mule
+    |.((~(mint ut p:hk-subject) %noun p.u.q.vex))
+  ?:  ?=(%| -.tonk)
+    |+p.tonk
+  &+[-:!>(*$-(vase vase)) q.p.tonk]
 ++  trigger-source
   |=  trig=trigger:h
   ^-  firehose-source:h
@@ -22,7 +30,7 @@
   ^-  ?
   ?~  expected  &
   ?~  actual  |
-  =((u.expected) (u.actual))
+  =(u.expected u.actual)
 ++  trigger-matches
   |=  [trig=trigger:h event=firehose-event:h]
   ^-  ?
@@ -30,9 +38,13 @@
     |
   ?-  -.trig
     %channels
-      &((=(type.trig type.event)) (same-resource ?~(nest.trig ~ `[%channels u.nest.trig]) resource.event))
+      ?&  =(type.trig type.event)
+          (same-resource ?~(nest.trig ~ `[%channels u.nest.trig]) resource.event)
+      ==
     %groups
-      &((=(type.trig type.event)) (same-resource ?~(flag.trig ~ `[%groups u.flag.trig]) resource.event))
+      ?&  =(type.trig type.event)
+          (same-resource ?~(flag.trig ~ `[%groups u.flag.trig]) resource.event)
+      ==
     %contacts
       =(type.trig type.event)
     %activity
@@ -87,27 +99,27 @@
       [%| msg.result.output]
   ==
 ++  effect-mark
-  |=  effect=effect:h
+  |=  eff=effect:h
   ^-  term
-  ?-  -.effect
+  ?-  -.eff
     %channels  %noun
     %groups  %noun
     %contacts  %noun
     %activity  %noun
     %dm  %noun
     %club  %noun
-    %command  %noun
+    %wait  %noun
   ==
 ++  effect-payload
-  |=  effect=effect:h
+  |=  eff=effect:h
   ^-  vase
-  ?-  -.effect
-    %channels  action.effect
-    %groups  action.effect
-    %contacts  action.effect
-    %activity  action.effect
-    %dm  action.effect
-    %club  action.effect
-    %command  !>([cmd.effect args.effect])
+  ?-  -.eff
+    %channels  !>(a-channels.eff)
+    %groups  !>(a-groups.eff)
+    %contacts  !>(action.eff)
+    %activity  !>(action.eff)
+    %dm  !>(action.eff)
+    %club  !>(action.eff)
+    %wait  !>(+.eff)
   ==
 --
