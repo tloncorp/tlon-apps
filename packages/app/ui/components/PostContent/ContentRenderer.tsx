@@ -42,8 +42,14 @@ export function PostContentRenderer({
     return content;
   }, [post.content, post.blob]);
 
+  // Settings for interactive blocks that need post context
+  const blockSettings = useMemo(() => ({
+    chess: { postId: post.id, channelId: post.channelId ?? undefined },
+    a2ui: { postId: post.id, channelId: post.channelId ?? undefined },
+  }), [post.id, post.channelId]);
+
   return (
-    <BlockRendererProvider>
+    <BlockRendererProvider settings={blockSettings}>
       <InlineRendererProvider value={undefined}>
         <ContentRenderer content={content} {...props} />
       </InlineRendererProvider>

@@ -147,6 +147,104 @@ export type ListData = {
   children?: ListData[];
 };
 
+// ── Chart Block Types ────────────────────────────────────────────────────
+
+export type ChartBlockData = {
+  type: 'chart';
+  version: number;
+  chartType: 'bar' | 'line' | 'area' | 'pie' | 'sparkline';
+  title?: string;
+  series: Array<{
+    label: string;
+    values: number[];
+    color?: string;
+  }>;
+  xLabels?: string[];
+  yLabel?: string;
+  height?: number;
+};
+
+// ── Table Block Types ────────────────────────────────────────────────────
+
+export type TableBlockData = {
+  type: 'table';
+  version: number;
+  title?: string;
+  columns: string[];
+  rows: Array<Array<string | number>>;
+  style?: 'simple' | 'rich';
+};
+
+// ── Chess Block Types ────────────────────────────────────────────────────
+
+export type ChessBlockData = {
+  type: 'chess';
+  version: number;
+  fen: string;
+  players?: { white: string; black: string };
+  turn?: 'white' | 'black';
+  status?: 'active' | 'check' | 'checkmate' | 'stalemate' | 'draw';
+  lastMove?: string;
+  moveHistory?: string[];
+  theme?: 'blue' | 'slate' | 'green' | 'purple';
+};
+
+// ── A2UI Block Types ─────────────────────────────────────────────────────
+
+export type A2UIComponentType =
+  | 'text'
+  | 'button'
+  | 'image'
+  | 'stack'
+  | 'row'
+  | 'divider'
+  | 'spacer'
+  | 'progress'
+  | 'badge'
+  | 'card'
+  | 'list'
+  | 'chart'
+  | 'table';
+
+export type A2UIComponent = {
+  type: A2UIComponentType;
+  id?: string;
+  text?: string;
+  textRef?: string;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  weight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  action?: string;
+  actionPayload?: Record<string, unknown>;
+  src?: string;
+  srcRef?: string;
+  aspectRatio?: number;
+  children?: A2UIComponent[];
+  gap?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
+  value?: number;
+  valueRef?: string;
+  max?: number;
+  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error';
+  items?: A2UIComponent[];
+  itemsRef?: string;
+  columns?: string[];
+  rows?: Array<Array<string | number>>;
+  rowsRef?: string;
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'sparkline';
+  series?: Array<{ label: string; values: number[]; color?: string }>;
+  seriesRef?: string;
+};
+
+export type A2UIBlockData = {
+  type: 'a2ui';
+  version: number;
+  root: A2UIComponent;
+  data?: Record<string, unknown>;
+  title?: string;
+};
+
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
@@ -160,7 +258,11 @@ export type BlockData =
   | HeaderBlockData
   | RuleBlockData
   | ListBlockData
-  | BigEmojiBlockData;
+  | BigEmojiBlockData
+  | ChartBlockData
+  | TableBlockData
+  | ChessBlockData
+  | A2UIBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -253,6 +355,14 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'chart':
+          return `(Chart: ${block.title ?? block.chartType})`;
+        case 'table':
+          return `(Table: ${block.title ?? 'Data'})`;
+        case 'chess':
+          return '(Chess Game)';
+        case 'a2ui':
+          return `(Interactive: ${block.title ?? 'Component'})`;
       }
     })
     .join(config.blockSeparator)
@@ -381,6 +491,58 @@ export function convertContent(
             alt: entry.name ?? 'video',
             duration: entry.duration,
             posterUri: entry.posterUri,
+          });
+          break;
+        }
+
+        case 'chart': {
+          out.push({
+            type: 'chart',
+            version: entry.version,
+            chartType: entry.chartType,
+            title: entry.title,
+            series: entry.series,
+            xLabels: entry.xLabels,
+            yLabel: entry.yLabel,
+            height: entry.height,
+          });
+          break;
+        }
+
+        case 'table': {
+          out.push({
+            type: 'table',
+            version: entry.version,
+            title: entry.title,
+            columns: entry.columns,
+            rows: entry.rows,
+            style: entry.style,
+          });
+          break;
+        }
+
+        case 'chess': {
+          out.push({
+            type: 'chess',
+            version: entry.version,
+            fen: entry.fen,
+            players: entry.players,
+            turn: entry.turn,
+            status: entry.status,
+            lastMove: entry.lastMove,
+            moveHistory: entry.moveHistory,
+            theme: entry.theme,
+          });
+          break;
+        }
+
+        case 'a2ui': {
+          out.push({
+            type: 'a2ui',
+            version: entry.version,
+            root: entry.root as A2UIComponent,
+            data: entry.data,
+            title: entry.title,
           });
           break;
         }
