@@ -2,7 +2,7 @@ import { Button } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { isWeb } from 'tamagui';
 
-import { pickAndNormalizeFile } from '../../../utils/filepicker';
+import { pickFile } from '../../../utils/filepicker';
 import { useAttachmentContext } from '../../contexts';
 import AttachmentSheet from '../AttachmentSheet';
 
@@ -27,9 +27,9 @@ export default function AttachmentButton({
     if (isWeb) {
       const acceptedTypes =
         mediaType === 'image' ? ['image/*'] : undefined;
-      const normalized = await pickAndNormalizeFile(acceptedTypes);
-      if (normalized.length > 0) {
-        attachAssets(normalized);
+      const { uploadIntents } = await pickFile(acceptedTypes);
+      if (uploadIntents.length > 0) {
+        attachAssets(uploadIntents);
       }
       return;
     }

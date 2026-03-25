@@ -202,21 +202,9 @@ export async function normalizeUploadIntents(
   };
 }
 
-/**
- * Opens the system file picker, normalizes the results (promoting images,
- * video, and audio to proper attachment types), and returns the final intents.
- */
-export async function pickAndNormalizeFile(
-  acceptedTypes?: string[]
-): Promise<Attachment.UploadIntent[]> {
-  const raw = await pickFile(acceptedTypes);
-  const { uploadIntents } = await normalizeUploadIntents(raw);
-  return uploadIntents;
-}
-
 export async function pickFile(
   acceptedTypes: string[] = ['*/*']
-): Promise<Attachment.UploadIntent[]> {
+): Promise<{ uploadIntents: Attachment.UploadIntent[]; errorMessage: string | null }> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
     multiple: false,
@@ -224,10 +212,10 @@ export async function pickFile(
   });
 
   if (results.assets == null) {
-    return [];
+    return { uploadIntents: [], errorMessage: null };
   }
 
-  return results.assets?.map(
+  const raw: Attachment.UploadIntent[] = results.assets.map(
     (res): Attachment.UploadIntent =>
       res.file == null
         ? {
@@ -242,4 +230,6 @@ export async function pickFile(
             file: res.file,
           }
   );
+
+  return normalizeUploadIntents(raw);
 }

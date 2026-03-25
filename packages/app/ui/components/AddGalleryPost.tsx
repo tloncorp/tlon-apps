@@ -2,7 +2,7 @@ import { Attachment } from '@tloncorp/shared/domain';
 import { useCallback } from 'react';
 import { isWeb } from 'tamagui';
 
-import { pickAndNormalizeFile } from '../../utils/filepicker';
+import { pickFile } from '../../utils/filepicker';
 import { useAttachmentContext } from '../contexts';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
@@ -21,10 +21,10 @@ export default function AddGalleryPost({
 
   const openWebFilePicker = useCallback(async () => {
     setRoute('gallery');
-    const normalized = await pickAndNormalizeFile();
-    if (normalized.length > 0) {
-      attachAssets(normalized);
-      onSetMedia(normalized);
+    const { uploadIntents } = await pickFile();
+    if (uploadIntents.length > 0) {
+      attachAssets(uploadIntents);
+      onSetMedia(uploadIntents);
     }
   }, [setRoute, attachAssets, onSetMedia]);
 
