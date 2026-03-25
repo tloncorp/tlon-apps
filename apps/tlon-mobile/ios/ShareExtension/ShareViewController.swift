@@ -25,8 +25,6 @@ class ShareViewController: UIViewController {
   }
 
   private let loadingIndicator = UIActivityIndicatorView(style: .large)
-  private let shareIntentDirectoryName = "ShareIntent"
-  private let shareIntentFileTTL: TimeInterval = 7 * 24 * 60 * 60
   var sharedMedia: [SharedMediaFile] = []
   var sharedWebUrl: [WebUrl] = []
   var sharedText: [String] = []
@@ -53,7 +51,6 @@ class ShareViewController: UIViewController {
         dismissWithError(message: "No content found")
         return
       }
-      purgeExpiredSharedFiles()
       for (index, attachment) in (attachments).enumerated() {
         if attachment.hasItemConformingToTypeIdentifier(imageContentType) {
           await handleImages(content: content, attachment: attachment, index: index)
@@ -172,31 +169,15 @@ class ShareViewController: UIViewController {
         Task { @MainActor in
 
           var url: URL? = nil
-          var fileName = "screenshot.png"
           if let dataURL = item as? URL {
-            fileName = self.getFileName(from: dataURL, type: .image)
-            let fileExtension = self.getExtension(from: dataURL, type: .image)
-            if let newPath = self.getShareIntentFilePath(fileExtension: fileExtension),
-              self.copyFile(at: dataURL, to: newPath)
-            {
-              url = newPath
-            }
+            url = dataURL
           } else if let imageData = item as? UIImage {
             url = self.saveScreenshot(imageData)
           }
 
-          guard let url else {
-            NSLog("[ERROR] Cannot persist image content !\(String(describing: content))")
-            self.dismissWithError(
-              message: "Cannot persist image content \(String(describing: content))")
-            return
-          }
-
-          let fileExtension = self.getExtension(from: url, type: .image)
-
           var pixelWidth: Int? = nil
           var pixelHeight: Int? = nil
-          if let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) {
+          if let imageSource = CGImageSourceCreateWithURL(url! as CFURL, nil) {
             if let imageProperties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil)
               as Dictionary?
             {
@@ -216,13 +197,24 @@ class ShareViewController: UIViewController {
             }
           }
 
-          let fileSize = self.getFileSize(from: url)
-          let mimeType = url.mimeType(ext: fileExtension)
-          self.sharedMedia.append(
-            SharedMediaFile(
-              path: url.absoluteString, thumbnail: nil, fileName: fileName,
-              fileSize: fileSize, width: pixelWidth, height: pixelHeight, duration: nil,
-              mimeType: mimeType, type: .image))
+          // Always copy
+          let fileName = self.getFileName(from: url!, type: .image)
+          let fileExtension = self.getExtension(from: url!, type: .image)
+          let fileSize = self.getFileSize(from: url!)
+          let mimeType = url!.mimeType(ext: fileExtension)
+          let newName = "\(UUID().uuidString).\(fileExtension)"
+          let newPath = FileManager.default
+            .containerURL(
+              forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)!
+            .appendingPathComponent(newName)
+          let copied = self.copyFile(at: url!, to: newPath)
+          if copied {
+            self.sharedMedia.append(
+              SharedMediaFile(
+                path: newPath.absoluteString, thumbnail: nil, fileName: fileName,
+                fileSize: fileSize, width: pixelWidth, height: pixelHeight, duration: nil,
+                mimeType: mimeType, type: .image))
+          }
 
           // If this is the last item, save imagesData in userDefaults and redirect to host app
           if index == (content.attachments?.count)! - 1 {
@@ -241,18 +233,20 @@ class ShareViewController: UIViewController {
     }
   }
 
+  private func documentDirectoryPath() -> URL? {
+    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+    return path.first
+  }
+
   private func saveScreenshot(_ image: UIImage) -> URL? {
+    var screenshotURL: URL? = nil
     if let screenshotData = image.pngData(),
-      let screenshotPath = getShareIntentFilePath(fileExtension: "png")
+      let screenshotPath = documentDirectoryPath()?.appendingPathComponent("screenshot.png")
     {
-      do {
-        try screenshotData.write(to: screenshotPath)
-        return screenshotPath
-      } catch {
-        NSLog("Cannot write screenshot at \(screenshotPath): \(error)")
-      }
+      try? screenshotData.write(to: screenshotPath)
+      screenshotURL = screenshotPath
     }
-    return nil
+    return screenshotURL
   }
 
   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
@@ -267,9 +261,13 @@ class ShareViewController: UIViewController {
           let fileExtension = self.getExtension(from: url, type: .video)
           let fileSize = self.getFileSize(from: url)
           let mimeType = url.mimeType(ext: fileExtension)
-          if let newPath = self.getShareIntentFilePath(fileExtension: fileExtension),
-            self.copyFile(at: url, to: newPath)
-          {
+          let newName = "\(UUID().uuidString).\(fileExtension)"
+          let newPath = FileManager.default
+            .containerURL(
+              forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)!
+            .appendingPathComponent(newName)
+          let copied = self.copyFile(at: url, to: newPath)
+          if copied {
             guard
               let sharedFile = self.getSharedMediaFile(
                 forVideo: newPath, fileName: fileName, fileSize: fileSize, mimeType: mimeType)
@@ -334,9 +332,13 @@ class ShareViewController: UIViewController {
     let fileExtension = self.getExtension(from: url, type: .file)
     let fileSize = self.getFileSize(from: url)
     let mimeType = url.mimeType(ext: fileExtension)
-    if let newPath = self.getShareIntentFilePath(fileExtension: fileExtension),
-      self.copyFile(at: url, to: newPath)
-    {
+    let newName = "\(UUID().uuidString).\(fileExtension)"
+    let newPath = FileManager.default
+      .containerURL(
+        forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)!
+      .appendingPathComponent(newName)
+    let copied = self.copyFile(at: url, to: newPath)
+    if copied {
       self.sharedMedia.append(
         SharedMediaFile(
           path: newPath.absoluteString, thumbnail: nil, fileName: fileName,
@@ -405,64 +407,6 @@ class ShareViewController: UIViewController {
       loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
     ])
     loadingIndicator.startAnimating()
-  }
-
-  private func getShareIntentDirectoryPath() -> URL? {
-    guard
-      let containerURL = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)
-    else {
-      NSLog("[ERROR] Cannot resolve app group container for \(self.hostAppGroupIdentifier)")
-      return nil
-    }
-
-    let directoryURL = containerURL.appendingPathComponent(
-      self.shareIntentDirectoryName, isDirectory: true)
-    do {
-      try FileManager.default.createDirectory(
-        at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-      return directoryURL
-    } catch {
-      NSLog("[ERROR] Cannot create share intent directory at \(directoryURL): \(error)")
-      return nil
-    }
-  }
-
-  private func getShareIntentFilePath(fileExtension: String) -> URL? {
-    guard let directoryURL = getShareIntentDirectoryPath() else {
-      return nil
-    }
-    return directoryURL.appendingPathComponent("\(UUID().uuidString).\(fileExtension)")
-  }
-
-  private func purgeExpiredSharedFiles() {
-    guard let directoryURL = getShareIntentDirectoryPath() else {
-      return
-    }
-
-    let expirationDate = Date().addingTimeInterval(-self.shareIntentFileTTL)
-    do {
-      let fileURLs = try FileManager.default.contentsOfDirectory(
-        at: directoryURL,
-        includingPropertiesForKeys: [.isRegularFileKey, .contentModificationDateKey, .creationDateKey],
-        options: [.skipsHiddenFiles])
-
-      for fileURL in fileURLs {
-        let resourceValues = try fileURL.resourceValues(forKeys: [
-          .isRegularFileKey, .contentModificationDateKey, .creationDateKey,
-        ])
-        guard resourceValues.isRegularFile == true else {
-          continue
-        }
-
-        let modifiedAt = resourceValues.contentModificationDate ?? resourceValues.creationDate
-        if let modifiedAt, modifiedAt < expirationDate {
-          try FileManager.default.removeItem(at: fileURL)
-        }
-      }
-    } catch {
-      NSLog("[ERROR] Cannot purge share intent files at \(directoryURL): \(error)")
-    }
   }
 
   func getExtension(from url: URL, type: SharedMediaType) -> String {
@@ -562,10 +506,10 @@ class ShareViewController: UIViewController {
   private func getThumbnailPath(for url: URL) -> URL {
     let fileName = Data(url.lastPathComponent.utf8).base64EncodedString().replacingOccurrences(
       of: "==", with: "")
-    if let directoryURL = getShareIntentDirectoryPath() {
-      return directoryURL.appendingPathComponent("\(fileName).thumb.jpg")
-    }
-    return url.deletingPathExtension().appendingPathExtension("thumb.jpg")
+    let path = FileManager.default
+      .containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)!
+      .appendingPathComponent("\(fileName).jpg")
+    return path
   }
 
   class WebUrl: Codable {
