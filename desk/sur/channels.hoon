@@ -189,11 +189,18 @@
 ::
 +$  plan
   (pair time (unit time))
-::
+::  $conn-ok: positive subscription status
++$  conn-ok  ?(%watch %suspend %done)
+::  $conn-error: failed subscription status
++$  conn-error  ?(%not-found %not-authorized %forbidden %fail)
+::  $conn: subscription status
++$  conn
+  $~  &+%done
+  (each conn-ok conn-error)
 ::  $net: subscriber-only state
 ::
-+$  net  [p=ship load=_|]
-::
++$  net  
+  [p=ship load=_| cons=(map wire conn)]
 ::  $unreads: a map of channel unread information, for clients
 ::  $unread: unread data for a specific channel, for clients
 ::    recency:   time of most recent message
@@ -390,6 +397,7 @@
       [%create =perm]
       [%join group=flag:gv]
       [%leave ~]
+      [%connection =wire =conn]
       a-remark
   ==
 ::

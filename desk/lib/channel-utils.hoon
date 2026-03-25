@@ -49,7 +49,7 @@
   ?.  full  base
   %_  base
     posts  (uv-posts posts.channel)
-    net  net.channel
+    net  [p load]:net.channel
     remark  remark.channel
   ==
 ::
@@ -73,19 +73,19 @@
   ?.  full  base
   %_  base
     posts   (uv-posts-2 posts.channel)
-    net     net.channel
+    net     [p load]:net.channel
     remark  remark.channel
   ==
 ::
 ++  uv-channels-3
   |=  [=v-channels:c full=?]
   ~>  %spin.['libcu-uv-channels-3']
-  ^-  channels:c
+  ^-  channels:v9:cv
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
-  ^-  channel:c
+  ^-  channel:v9:cv
   =/  base
-    %*  .  *channel:c
+    %*  .  *channel:v9:cv
       count    count.channel
       meta     +.meta.channel
       perm     +.perm.channel
@@ -97,7 +97,31 @@
   ?.  full  base
   %_  base
     posts   (uv-posts-3 posts.channel)
-    net     net.channel
+    net     [p load]:net.channel
+    remark  remark.channel
+  ==
+::
+++  uv-channels-4
+  |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-4']
+  ^-  channels:v10:cv
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:v10:cv
+  =/  base
+    %*  .  *channel:v10:cv
+      count    count.channel
+      meta     +.meta.channel
+      perm     +.perm.channel
+      view     +.view.channel
+      sort     +.sort.channel
+      order    +.order.channel
+      pending  pending.channel
+      net      net.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts   (uv-posts-3 posts.channel)
     remark  remark.channel
   ==
 ::
@@ -742,21 +766,21 @@
 ++  drop-bad-links
   |%
   ++  channel
-    |=  chan=v-channel:c
+    |=  chan=v-channel:v9:cv
     ~>  %spin.['libcu-channel']
     ^+  chan
     %_  chan
         posts
-      %+  run:on-v-posts:c
+      %+  run:on-v-posts:v9:cv
         posts.chan
-      |=  post=(may:c v-post:c)
+      |=  post=(may:c v-post:v9:cv)
       ?.  ?=(%& -.post)  post
       post(+>+ (essay +>+.post))
     ::
         log
-      %+  run:log-on:c
+      %+  run:log-on:v9:cv
         log.chan
-      |=  upd=u-channel:c
+      |=  upd=u-channel:v9:cv
       ?.  ?=([%post * ?([%set %& *] [%essay *])] upd)  upd
       ?-  -.u-post.upd
         %set    upd(+>+.post.u-post (essay +>+.post.u-post.upd))

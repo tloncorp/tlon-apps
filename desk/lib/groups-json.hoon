@@ -60,6 +60,121 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
+  ++  v11
+    =,  v10
+    |%
+    ++  groups-ui
+      |=  gs=groups-ui:v11:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group-ui:v11:gv]
+      [(print-flag f) (group-ui gr)]
+    ++  group-ui
+      |=  =group-ui:v11:gv
+      =,  group.group-ui
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+        ::
+          init+b+init.group-ui
+          member-count+(numb member-count.group-ui)
+          conn+(conn conn.group-ui)
+      ==
+    ++  conn
+      |=  =conn:v11:gv
+      ?:  ?=(%& -.conn)
+        (frond ok+s+p.conn)
+      (frond error+s+p.conn)
+    ++  r-groups
+      |=  =r-groups:v11:gv
+      ^-  json
+      %-  pairs
+      :~  'flag'^(flag flag.r-groups)
+          'r-group'^(r-group r-group.r-groups)
+      ==
+    ++  r-group
+      |=  =r-group:v11:gv
+      ^-  json
+      %+  frond  -.r-group
+      ?-    -.r-group
+        %create  (group group.r-group)
+        %meta    (meta meta.r-group)
+        %entry   (r-entry r-entry.r-group)
+      ::
+          %seat
+        %-  pairs
+        :~  'ships'^(ships ships.r-group)
+            'r-seat'^(r-seat r-seat.r-group)
+        ==
+      ::
+          %role
+        %-  pairs
+        :~  'roles'^(roles roles.r-group)
+            'r-role'^(r-role r-role.r-group)
+        ==
+      ::
+          %channel
+        %-  pairs
+        :~  'nest'^(nest nest.r-group)
+            'r-channel'^(r-channel r-channel.r-group)
+        ==
+      ::
+          %section
+        %-  pairs
+        :~  'section-id'^s+section-id.r-group
+            'r-section'^(r-section r-section.r-group)
+        ==
+      ::
+          %section-order
+        (frond 'section-order' a+(turn order.r-group (lead %s)))
+      ::
+        %flag-content  (flag-content +.r-group)
+        %delete  ~
+        %connection  (frond 'connection' (conn conn.r-group))
+      ==
+    --
+  ::
+  ++  v10
+    =,  v9
+    |%
+    ::
+    ++  foreigns
+      |=  =foreigns:v10:gv
+      ^-  json
+      %-  pairs
+      %+  turn  ~(tap by foreigns)
+      |=  [=flag:gv =foreign:v10:gv]
+      [(print-flag flag) (^foreign foreign)]
+    ::
+    ++  foreign
+      |=  foreign:v10:gv
+      ^-  json
+      %-  pairs
+      :~  :-  %invites
+          ?~  invites  ~
+          a+(turn invites invite)
+        ::
+          lookup+?~(lookup ~ s+u.lookup)
+          preview+?~(preview ~ (^preview u.preview))
+          progress+?~(progress ~ s+u.progress)
+          token+?~(token ~ (^token u.token))
+      ==
+    --
+  ::
   ++  v9
     =,  v8
     |%
@@ -209,7 +324,7 @@
             'r-section'^(r-section r-section.r-group)
         ==
       ::
-          %section-order  
+          %section-order
         (frond 'section-order' a+(turn order.r-group (lead %s)))
       ::
         %flag-content  (flag-content +.r-group)
@@ -256,33 +371,6 @@
       ::
           %set
         (frond 'set' a+(turn order.r-section nest))
-      ==
-    --
-  ::
-  ++  v10
-    =,  v8
-    |%
-    ::
-    ++  foreigns
-      |=  =foreigns:v10:gv
-      ^-  json
-      %-  pairs
-      %+  turn  ~(tap by foreigns)
-      |=  [=flag:gv =foreign:v10:gv]
-      [(print-flag flag) (^foreign foreign)]
-    ::
-    ++  foreign
-      |=  foreign:v10:gv
-      ^-  json
-      %-  pairs
-      :~  :-  %invites
-          ?~  invites  ~
-          a+(turn invites invite)
-        ::
-          lookup+?~(lookup ~ s+u.lookup)
-          preview+?~(preview ~ (^preview u.preview))
-          progress+?~(progress ~ s+u.progress)
-          token+?~(token ~ (^token u.token))
       ==
     --
   ::
