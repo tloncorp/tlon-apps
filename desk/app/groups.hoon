@@ -1125,11 +1125,6 @@
     =/  =nest:g  [app.pole ship name.pole]
     (watch-channel-preview ver.pole nest)
   ::
-      ::  deprecated
-      [%chan app=@ ship=@ name=@ rest=*]
-    ?>  ?=(~ rest.pole)
-    $(pole [%v0 %channels app ship name %preview rest]:pole)
-  ::
     ::  deprecated
     [%groups %ui ~]  ?>(from-self cor)
   ::
@@ -1511,7 +1506,7 @@
     (fail:l %watch-ack 'failed channel preview request' u.p.sign)
   ::
       %fact
-    =+  !<(=channel-preview:v7:gv q.cage.sign)
+    =+  !<(=channel-preview:g q.cage.sign)
     (give-channel-preview channel-preview)
   ==
 ::  +give-channel-preview: give channel preview to subscribers
@@ -1520,14 +1515,6 @@
   |=  =channel-preview:g
   ^+  cor
   =*  nest  nest.channel-preview
-  ::  v0
-  ::
-  =/  preview-2
-    (v2:channel-preview:v7:gc channel-preview)
-  =/  path-0=path
-    /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-  =.  cor  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
-  =.  cor  (emit %give %kick ~[path-0] ~)
   ::  v1
   ::
   =/  preview-7=channel-preview:v7:gv  channel-preview
@@ -3737,18 +3724,17 @@
     ::     a channel, this implies she can also preview a (secret) group.
     ::
     ?>  (go-can-read src.bowl u.chan)
-    =/  =channel-preview:v7:gv
+    =/  =channel-preview:g
       :*  nest
           meta.u.chan
           go-preview
       ==
-    ::  this is an unusual case where we version the fact passed
-    ::  between agent instances, because the same facts are then
-    ::  transmitted to the client.
-    ::
-    =/  preview-7=channel-preview:v7:gv  channel-preview
-    =.  go-core  (emit %give %fact ~ channel-preview-1+!>(preview-7))
-    (emit %give %kick ~ ~)
+    ?.  =(src.bowl our.bowl)
+      ::  handle a proxy request
+      ::
+      =.  go-core  (emit %give %fact ~ group-channel-preview+!>(channel-preview))
+      (emit %give %kick ~ ~)
+    (give-channel-preview channel-preview)
   ::  +go-agent: handle group response
   ::
   ::  when adding a new response, always consider
