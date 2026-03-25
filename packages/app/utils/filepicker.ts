@@ -98,8 +98,9 @@ export async function normalizeUploadIntent(
   // Promote image/* files to ImageUploadIntent so they go through the
   // standard image pipeline and get proper dimensions.
   if (mimeType?.startsWith('image/')) {
+    let localUri: string | undefined;
     try {
-      const localUri = isFileIntent
+      localUri = isFileIntent
         ? URL.createObjectURL(uploadIntent.file)
         : uploadIntent.localUri;
       const [width, height] = await imageSize(localUri);
@@ -117,7 +118,11 @@ export async function normalizeUploadIntent(
         errorMessage: null,
       };
     } catch {
-      // If we can't resolve dimensions, fall through and keep as file
+      // If we can't resolve dimensions, fall through and keep as file.
+      // Revoke the blob URL we created so it doesn't leak.
+      if (isFileIntent && localUri) {
+        URL.revokeObjectURL(localUri);
+      }
     }
   }
 
