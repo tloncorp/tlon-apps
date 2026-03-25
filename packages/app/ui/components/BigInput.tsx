@@ -1,8 +1,10 @@
 import {
   Attachment,
   createDevLogger,
+  htmlToStory,
   markdownToStory,
   storyToContent,
+  storyToHtml,
   storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
@@ -194,6 +196,8 @@ export function BigInput({
   const enrichedEditorRef = useRef<EnrichedNoteInputRef>(null);
   const [enrichedEditorState, setEnrichedEditorState] =
     useState<TlonBridgeState | null>(null);
+  const [enrichedHtml, setEnrichedHtml] = useState('');
+  const [enrichedInitialHtml, setEnrichedInitialHtml] = useState<string | undefined>(undefined);
   const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
     null
   );
@@ -248,16 +252,11 @@ export function BigInput({
     setHasImageChanges(imageUri !== editingPost?.image);
   }, [title, imageUri, editingPost]);
 
-  // True when the send path should convert markdownContent→Story
-  // (either actual markdown mode or enriched editor which also stores plain text)
-  const useMarkdownSendPath = isMarkdownMode || enrichedInputEnabled;
-
-  // Update isEmpty state when using markdown content (markdown mode or enriched)
+  // Update isEmpty state when in Markdown mode
   useEffect(() => {
-    if (useMarkdownSendPath) {
+    if (isMarkdownMode) {
       const markdownIsEmpty = !markdownContent || markdownContent.trim() === '';
       setIsEmpty(markdownIsEmpty);
-      // Also update hasContentChanges for editing mode
       if (editingPost?.content) {
         const originalContent = editingPost.content as { story?: any };
         const hasOriginalContent =
@@ -267,7 +266,37 @@ export function BigInput({
         setHasContentChanges(!markdownIsEmpty);
       }
     }
-  }, [useMarkdownSendPath, markdownContent, editingPost?.content]);
+  }, [isMarkdownMode, markdownContent, editingPost?.content]);
+
+  // Update isEmpty state when using enriched editor
+  useEffect(() => {
+    if (enrichedInputEnabled) {
+      // Strip tags for a rough empty check
+      const textOnly = enrichedHtml.replace(/<[^>]*>/g, '').trim();
+      const htmlIsEmpty = !textOnly;
+      setIsEmpty(htmlIsEmpty);
+      if (editingPost?.content) {
+        const originalContent = editingPost.content as { story?: any };
+        const hasOriginalContent =
+          originalContent.story && Array.isArray(originalContent.story);
+        setHasContentChanges(hasOriginalContent ? !htmlIsEmpty : false);
+      } else {
+        setHasContentChanges(!htmlIsEmpty);
+      }
+    }
+  }, [enrichedInputEnabled, enrichedHtml, editingPost?.content]);
+
+  // Load initial HTML content when editing an existing post with enriched editor
+  useEffect(() => {
+    if (enrichedInputEnabled && editingPost?.content) {
+      const postContent = editingPost.content as { story?: any };
+      if (postContent.story && Array.isArray(postContent.story)) {
+        const html = storyToHtml(postContent.story);
+        setEnrichedInitialHtml(html);
+        setEnrichedHtml(html);
+      }
+    }
+  }, [enrichedInputEnabled, editingPost?.id]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
@@ -298,8 +327,22 @@ export function BigInput({
 
     let content: (Inline | Block)[];
 
-    if (useMarkdownSendPath) {
-      // Convert Markdown/plain text content to Story, then extract inlines and blocks
+    if (enrichedInputEnabled) {
+      // Enriched editor: convert HTML to Story
+      try {
+        const story = htmlToStory(enrichedHtml);
+        content = storyToContent(story);
+      } catch (error) {
+        logger.error('Failed to convert HTML for send:', error);
+        showToast({
+          message: 'Failed to process content',
+          duration: 2000,
+        });
+        setIsSending(false);
+        return;
+      }
+    } else if (isMarkdownMode) {
+      // Convert Markdown content to Story, then extract inlines and blocks
       try {
         const story = markdownToStory(markdownContent);
         content = storyToContent(story);
@@ -405,7 +448,9 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
-    useMarkdownSendPath,
+    enrichedInputEnabled,
+    enrichedHtml,
+    isMarkdownMode,
     markdownContent,
     showToast,
   ]);
@@ -801,8 +846,8 @@ export function BigInput({
           ) : enrichedInputEnabled ? (
             <EnrichedNoteInput
               ref={enrichedEditorRef}
-              value={markdownContent}
-              onChangeText={setMarkdownContent}
+              initialHtml={enrichedInitialHtml}
+              onChangeHtml={setEnrichedHtml}
               onEditorStateChange={setEnrichedEditorState}
               onPasteImages={handlePasteImages}
               placeholder="Write your note..."

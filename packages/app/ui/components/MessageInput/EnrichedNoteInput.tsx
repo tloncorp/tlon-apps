@@ -40,14 +40,14 @@ export interface PastedImage {
 }
 
 export interface EnrichedNoteInputProps {
-  /** Markdown / plain text value for draft persistence */
-  value?: string;
-  /** Called with plain-text content on every change */
-  onChangeText?: (text: string) => void;
+  /** Called with HTML content on every change */
+  onChangeHtml?: (html: string) => void;
   /** Called with reactive TlonBridgeState whenever editor state changes */
   onEditorStateChange?: (state: TlonBridgeState) => void;
   /** Called when images are pasted from the clipboard */
   onPasteImages?: (images: PastedImage[]) => void;
+  /** Initial HTML content to set when mounting */
+  initialHtml?: string;
   placeholder?: string;
   testID?: string;
   style?: ViewStyle | TextStyle;
@@ -100,14 +100,14 @@ function mapToTlonBridgeState(
  * Thin wrapper around Software Mansion's `EnrichedTextInput` that exposes
  * a TlonEditorBridge-compatible adapter so BigInput's InputToolbar works.
  *
- * Content strategy (spike-level):
- * - `onChangeText` emits plain text for draft storage
- * - The send path in BigInput converts markdown→Story (same as markdown mode)
- * - Full HTML→Story conversion is a follow-up
+ * Content strategy:
+ * - `onChangeHtml` emits HTML on every change for the send/draft path
+ * - BigInput converts HTML↔Story via htmlToStory/storyToHtml
+ * - `initialHtml` sets initial content when editing existing posts
  */
 export const EnrichedNoteInput = memo(
   forwardRef<EnrichedNoteInputRef, EnrichedNoteInputProps>(
-    ({ value: _value, onChangeText, onEditorStateChange, onPasteImages, placeholder, testID, style }, ref) => {
+    ({ onChangeHtml, onEditorStateChange, onPasteImages, initialHtml, placeholder, testID, style }, ref) => {
       const enrichedRef = useRef<EnrichedTextInputInstance>(null);
       const tamagui = useTheme();
       const isDark = useIsDarkTheme();
@@ -178,12 +178,12 @@ export const EnrichedNoteInput = memo(
         text: '',
       });
 
-      // EnrichedTextInput's onChangeText gives NativeSyntheticEvent — unwrap it
-      const handleChangeText = useCallback(
+      // onChangeHtml gives NativeSyntheticEvent — unwrap and forward
+      const handleChangeHtml = useCallback(
         (e: NativeSyntheticEvent<{ value: string }>) => {
-          onChangeText?.(e.nativeEvent.value);
+          onChangeHtml?.(e.nativeEvent.value);
         },
-        [onChangeText]
+        [onChangeHtml]
       );
 
       const handleChangeState = useCallback(
@@ -264,8 +264,9 @@ export const EnrichedNoteInput = memo(
               }
             },
 
-            // --- Stubs for methods the toolbar checks but we can't provide ---
-            setContent: noop,
+            // --- Content methods ---
+            setContent: (html: string) => enrichedRef.current?.setValue(html),
+            getHTML: () => enrichedRef.current?.getHTML() ?? Promise.resolve(''),
             getJSON: () => Promise.resolve({}),
             setSelection: noop,
             undo: noop,
@@ -289,8 +290,9 @@ export const EnrichedNoteInput = memo(
           testID={testID}
           placeholder={placeholder}
           placeholderTextColor={tamagui.tertiaryText.val}
+          defaultValue={initialHtml}
           htmlStyle={htmlStyle}
-          onChangeText={handleChangeText}
+          onChangeHtml={handleChangeHtml}
           onChangeState={handleChangeState}
           onChangeSelection={handleChangeSelection}
           onPasteImages={handlePasteImages}

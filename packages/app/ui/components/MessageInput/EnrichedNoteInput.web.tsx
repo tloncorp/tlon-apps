@@ -9,12 +9,12 @@ import type { EnrichedNoteInputProps, EnrichedNoteInputRef } from './EnrichedNot
  */
 export const EnrichedNoteInput = memo(
   forwardRef<EnrichedNoteInputRef, EnrichedNoteInputProps>(
-    ({ value, onChangeText, onEditorStateChange: _onEditorStateChange, onPasteImages: _onPasteImages, placeholder, testID, style }, ref) => {
+    ({ initialHtml, onChangeHtml, onEditorStateChange: _onEditorStateChange, onPasteImages: _onPasteImages, placeholder, testID, style }, ref) => {
       return (
         <TextArea
           testID={testID}
-          value={value}
-          onChangeText={onChangeText}
+          defaultValue={initialHtml}
+          onChangeText={onChangeHtml}
           placeholder={placeholder}
           style={style as any}
           borderWidth={0}
