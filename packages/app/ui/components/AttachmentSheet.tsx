@@ -393,23 +393,29 @@ export default function AttachmentSheet({
       createActionGroups(
         [
           'neutral',
-          {
-            title: useVideoInMediaPicker
-              ? isWeb
-                ? 'Upload Media'
-                : 'Media Library'
-              : isWeb
-                ? 'Upload an Image'
-                : 'Photo Library',
-            description: isWeb
-              ? useVideoInMediaPicker
-                ? 'Upload an image or video from your computer'
-                : 'Upload an image from your computer'
-              : useVideoInMediaPicker
-                ? 'Choose a photo or video from your library'
-                : 'Choose a photo from your library',
-            action: pickImage,
-          },
+          // On web, use a single file picker for everything — normalizeUploadIntents
+          // promotes image/video/audio files to the correct attachment type.
+          isWeb
+            ? mediaType === 'all'
+              ? {
+                  title: 'Upload a File',
+                  description: 'Upload files from your computer',
+                  action: startFilePicker,
+                }
+              : {
+                  title: 'Upload an Image',
+                  description: 'Upload an image from your computer',
+                  action: pickImage,
+                }
+            : {
+                title: useVideoInMediaPicker
+                  ? 'Media Library'
+                  : 'Photo Library',
+                description: useVideoInMediaPicker
+                  ? 'Choose a photo or video from your library'
+                  : 'Choose a photo from your library',
+                action: pickImage,
+              },
           !isWeb &&
             Platform.OS !== 'android' && {
               title: useVideoInMediaPicker
@@ -439,11 +445,12 @@ export default function AttachmentSheet({
               description: 'Use the image currently in your clipboard',
               action: createAssetFromClipboard,
             },
-          mediaType === 'all' && {
-            title: 'Upload a File',
-            description: 'Upload files from your device',
-            action: startFilePicker,
-          },
+          !isWeb &&
+            mediaType === 'all' && {
+              title: 'Upload a File',
+              description: 'Upload files from your device',
+              action: startFilePicker,
+            },
           mediaType === 'all' &&
             !isWeb && {
               title: 'Voice Memo',
