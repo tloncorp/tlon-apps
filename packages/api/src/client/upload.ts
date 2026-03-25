@@ -1,6 +1,6 @@
 import type { S3Client } from '@aws-sdk/client-s3';
-import * as ImagePicker from 'expo-image-picker';
-import type { GetState, SetState } from 'zustand';
+
+import type { ImageAsset } from '../types/attachment';
 
 export type RNFile = {
   blob: Blob;
@@ -11,7 +11,7 @@ export type RNFile = {
   width?: number;
 };
 
-export type MessageAttachments = ImagePicker.ImagePickerAsset[];
+export type MessageAttachments = ImageAsset[];
 
 export interface FileStoreFile {
   key: string;
@@ -129,6 +129,13 @@ export interface StorageState {
   start: () => Promise<void>;
   getCredentials: () => Promise<StorageCredentials> | undefined;
   getConfiguration: () => Promise<StorageConfiguration> | undefined;
-  set: SetState<StorageState>;
-  get: GetState<StorageState>;
+  set: StorageStateSetter<StorageState>;
+  get: StorageStateGetter<StorageState>;
 }
+
+export type StorageStateGetter<T> = () => T;
+
+export type StorageStateSetter<T> = (
+  partial: T | Partial<T> | ((state: T) => T | Partial<T>),
+  replace?: boolean
+) => void;

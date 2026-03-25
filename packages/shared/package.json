@@ -85,8 +85,8 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
+    "expo-speech-recognition": "*",
     "@react-native-async-storage/async-storage": "*",
-    "expo-speech-transcriber": "*",
     "expo-file-system": "*",
     "@tanstack/react-query": "^5.32.1",
     "@tiptap/core": "^2.6.6",
