@@ -207,7 +207,9 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
-  const [enrichedInputEnabled] = useFeatureFlag('enrichedInput');
+  const [enrichedInputFlag] = useFeatureFlag('enrichedInput');
+  // react-native-enriched is native-only — always use TipTap on web
+  const enrichedInputEnabled = enrichedInputFlag && Platform.OS !== 'web';
   const {
     isMarkdownMode,
     markdownContent,
