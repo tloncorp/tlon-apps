@@ -113,7 +113,6 @@
         [/v1/groups %group-response-1 ~]
         [/groups/ui %group-action-3 ~]
       ::
-        [/chan/$/$/$ %channel-preview ~]
         [/v1/channels/$/$/$/preview %channel-preview-1 ~]
       ::
         [/gangs/index/$ %group-previews ~]
