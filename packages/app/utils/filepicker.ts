@@ -8,7 +8,7 @@ import {
   validateVideoSource,
 } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
-import { getFileSize } from './files';
+import { getAudioFileDurationSeconds, getFileSize } from './files';
 import { imageSize } from './images';
 
 type UploadIntentVideoMetadata = Exclude<
@@ -127,6 +127,8 @@ export async function normalizeUploadIntent(
     const localUri = isFileIntent
       ? URL.createObjectURL(uploadIntent.file)
       : uploadIntent.localUri;
+    const duration =
+      (await getAudioFileDurationSeconds(localUri)) ?? undefined;
     return {
       uploadIntent: {
         type: 'fileUri',
@@ -135,7 +137,7 @@ export async function normalizeUploadIntent(
         size: size ?? -1,
         mimeType,
         voiceMemo: {
-          duration: undefined,
+          duration,
           transcription: undefined,
           waveformPreview: undefined,
         },
