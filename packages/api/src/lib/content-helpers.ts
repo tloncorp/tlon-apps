@@ -604,10 +604,6 @@ export type PostBlobDataEntry =
         name?: string;
         /** in bytes */
         size: number;
-        /** in pixels (resolved for image/video mime types) */
-        width?: number;
-        /** in pixels (resolved for image/video mime types) */
-        height?: number;
       }
     >
   | BuildPostBlobDataEntry<
@@ -800,12 +796,39 @@ export function toPostData({
                   decodeURI: true,
                 })) ??
             undefined;
-          blob = appendFileUploadToPostBlob(blob, {
-            fileUri: UploadedFileAttachment.uri(attachment),
-            name,
-            mimeType: attachment.type,
-            size: attachment.size,
-          });
+          const fileUri = UploadedFileAttachment.uri(attachment);
+          const mime = attachment.mimeType?.toLowerCase() ?? '';
+          if (mime.startsWith('image/')) {
+            blocks.push({
+              image: {
+                src: fileUri,
+                height: 0,
+                width: 0,
+                alt: name ?? 'image',
+              },
+            });
+          } else if (mime.startsWith('video/')) {
+            blob = appendVideoToPostBlob(blob, {
+              fileUri,
+              name,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+            });
+          } else if (mime.startsWith('audio/')) {
+            blob = appendToPostBlob(blob, {
+              type: 'voicememo',
+              version: 1,
+              fileUri,
+              size: attachment.size,
+            });
+          } else {
+            blob = appendFileUploadToPostBlob(blob, {
+              fileUri,
+              name,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+            });
+          }
           break;
         }
 

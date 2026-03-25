@@ -357,39 +357,10 @@ export function convertContent(
     for (const entry of blobData) {
       switch (entry.type) {
         case 'file': {
-          const mime = entry.mimeType?.toLowerCase() ?? '';
-          if (mime.startsWith('image/')) {
-            out.push({
-              type: 'image',
-              src: entry.fileUri,
-              height: entry.height ?? 0,
-              width: entry.width ?? 0,
-              alt: entry.name ?? 'image',
-            });
-          } else if (mime.startsWith('video/')) {
-            out.push({
-              type: 'video',
-              src: entry.fileUri,
-              height: entry.height ?? 0,
-              width: entry.width ?? 0,
-              alt: entry.name ?? 'video',
-            });
-          } else if (mime.startsWith('audio/')) {
-            out.push({
-              type: 'voicememo',
-              voiceMemo: {
-                type: 'voicememo',
-                version: 1,
-                fileUri: entry.fileUri,
-                size: entry.size,
-              },
-            });
-          } else {
-            out.push({
-              type: 'file',
-              file: entry,
-            });
-          }
+          out.push({
+            type: 'file',
+            file: entry,
+          });
           break;
         }
 
