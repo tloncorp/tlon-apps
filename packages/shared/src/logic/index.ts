@@ -8,6 +8,7 @@ export * from './tiptap';
 export * from '@tloncorp/api/lib/hosting';
 export * from '@tloncorp/api/lib/noun';
 export * from '@tloncorp/api/client/markdown';
+export * from './html';
 export * from '@tloncorp/api/lib/pinning';
 export * from '@tloncorp/api/client/activity';
 export * from '@tloncorp/api/client/branch';
