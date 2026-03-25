@@ -5,6 +5,7 @@ import React from 'react';
 import { YStack, styled } from 'tamagui';
 
 import {
+  A2UIPostContext,
   BlockRenderer,
   BlockRendererConfig,
   BlockRendererProvider,
@@ -49,11 +50,13 @@ export function PostContentRenderer({
   }), [post.id, post.channelId]);
 
   return (
-    <BlockRendererProvider settings={blockSettings}>
-      <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
-      </InlineRendererProvider>
-    </BlockRendererProvider>
+    <A2UIPostContext.Provider value={{ postId: post.id, channelId: post.channelId ?? undefined }}>
+      <BlockRendererProvider settings={blockSettings}>
+        <InlineRendererProvider value={undefined}>
+          <ContentRenderer content={content} {...props} />
+        </InlineRendererProvider>
+      </BlockRendererProvider>
+    </A2UIPostContext.Provider>
   );
 }
 

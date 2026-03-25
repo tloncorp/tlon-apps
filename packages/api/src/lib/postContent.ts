@@ -243,6 +243,7 @@ export type A2UIBlockData = {
   root: A2UIComponent;
   data?: Record<string, unknown>;
   title?: string;
+  icon?: string;
 };
 
 export type BlockData =
@@ -537,12 +538,71 @@ export function convertContent(
         }
 
         case 'a2ui': {
+          // Convert flat adjacency list to nested component tree
+          const rawEntry = entry as any;
+          let rootComponent: A2UIComponent;
+
+          if (typeof rawEntry.root === 'string' && Array.isArray(rawEntry.components)) {
+            // Flat format: root is a string ID, components is an array of {id, component}
+            const compMap = new Map<string, any>();
+            for (const c of rawEntry.components) {
+              compMap.set(c.id, c.component);
+            }
+
+            const buildTree = (id: string): A2UIComponent => {
+              const raw = compMap.get(id);
+              if (!raw) return { type: 'text', text: `[missing: ${id}]` };
+
+              // Component is like { Column: { children: [...] } } or { Text: { text: "..." } }
+              const [typeName, props] = Object.entries(raw)[0] as [string, any];
+              const typeMap: Record<string, A2UIComponentType> = {
+                Column: 'stack', Row: 'row', Text: 'text', Button: 'button',
+                Image: 'image', Divider: 'divider', Spacer: 'spacer',
+                Progress: 'progress', Badge: 'badge', Card: 'card',
+                List: 'list', Chart: 'chart', Table: 'table', Stack: 'stack',
+                Icon: 'badge',
+              };
+              const compType = typeMap[typeName] ?? 'text';
+
+              const result: A2UIComponent = { type: compType, ...props };
+
+              // Recursively build children
+              if (Array.isArray(props?.children)) {
+                result.children = props.children.map((childId: string) =>
+                  typeof childId === 'string' && compMap.has(childId)
+                    ? buildTree(childId)
+                    : typeof childId === 'object' ? childId : { type: 'text', text: String(childId) }
+                );
+              }
+
+              // Map Button props
+              if (typeName === 'Button') {
+                result.text = props?.label ?? props?.text;
+                result.action = props?.action;
+                result.variant = props?.preset === 'primary' ? 'primary' : props?.preset === 'secondary' ? 'secondary' : 'default';
+              }
+
+              // Map Text props
+              if (typeName === 'Text') {
+                result.size = props?.usageHint === 'title' ? 'lg' : props?.usageHint === 'body' ? 'md' : props?.size;
+              }
+
+              return result;
+            };
+
+            rootComponent = buildTree(rawEntry.root);
+          } else {
+            // Already nested format
+            rootComponent = rawEntry.root as A2UIComponent;
+          }
+
           out.push({
             type: 'a2ui',
             version: entry.version,
-            root: entry.root as A2UIComponent,
-            data: entry.data,
-            title: entry.title,
+            root: rootComponent,
+            data: (entry as any).data,
+            title: (entry as any).title,
+            icon: (entry as any).icon,
           });
           break;
         }

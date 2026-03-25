@@ -1,0 +1,10 @@
+:~
+  title+'A2UI'
+  info+'Universal mini-app backend for interactive blobs'
+  color+0x3a.80e8
+  version+[0 1 0]
+  website+'https://tlon.io'
+  license+'MIT'
+  base+'a2ui'
+  glob-http+['https://bootstrap.urbit.org/glob-0v0.glob' 0v0]
+==

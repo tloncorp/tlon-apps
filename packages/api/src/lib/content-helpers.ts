@@ -679,9 +679,11 @@ export type PostBlobDataEntry =
       'a2ui',
       { version: 1 },
       {
-        root: Record<string, unknown>;
+        root: string | Record<string, unknown>;
+        components?: Array<{ id: string; component: Record<string, unknown> }>;
         data?: Record<string, unknown>;
         title?: string;
+        icon?: string;
       }
     >;
 

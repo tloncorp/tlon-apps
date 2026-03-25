@@ -380,6 +380,8 @@ const CHART_COLORS = [
 const CHART_SVG_WIDTH = 320;
 const GRID_COLOR = '#E5E5E5';
 const CHART_PADDING = { top: 8, right: 8, bottom: 4, left: 28 };
+// Ochre system font stack — must be set explicitly on all SVG text elements
+const SVG_FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', 'Segoe UI', system-ui, sans-serif";
 
 function chartIcon(type: string): string {
   if (type === 'pie') return '\uD83E\uDD67';
@@ -426,6 +428,7 @@ function GridLines({
                 fontSize={8}
                 fill="#AAAAAA"
                 textAnchor="start"
+                fontFamily={SVG_FONT}
               >
                 {label}
               </SvgText>
@@ -615,40 +618,66 @@ function SparklineSvg({ block }: { block: cn.ChartBlockData }) {
 }
 
 function PieChart({ block }: { block: cn.ChartBlockData }) {
-  const values = block.series[0]?.values ?? [];
-  const total = values.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
+  // Each series = one slice (label + values[0])
+  const slices = block.series.map((s, i) => ({
+    label: s.label,
+    value: Math.max(s.values[0] ?? 0, 0),
+    color: s.color ?? CHART_COLORS[i % CHART_COLORS.length],
+  }));
+  const total = slices.reduce((a, s) => a + s.value, 0) || 1;
+
+  // SVG pie chart
+  const size = 180;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size * 0.38;
+  const innerR = r * 0.55; // donut
+
+  let angle = -Math.PI / 2; // start at top
+  const paths = slices.map((s) => {
+    const pct = s.value / total;
+    const sweep = pct * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(angle);
+    const y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(angle + sweep);
+    const y2 = cy + r * Math.sin(angle + sweep);
+    const ix1 = cx + innerR * Math.cos(angle);
+    const iy1 = cy + innerR * Math.sin(angle);
+    const ix2 = cx + innerR * Math.cos(angle + sweep);
+    const iy2 = cy + innerR * Math.sin(angle + sweep);
+    const large = sweep > Math.PI ? 1 : 0;
+    const d = `M ${ix1} ${iy1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`;
+    const result = { d, color: s.color, pct, label: s.label, value: s.value };
+    angle += sweep;
+    return result;
+  });
+
+  // Top slices for legend (show all)
+  const sorted = [...slices].sort((a, b) => b.value - a.value);
 
   return (
-    <YStack gap="$s" paddingVertical="$m">
-      {values.map((val, i) => {
-        const pct = (Math.max(val, 0) / total) * 100;
-        const label = block.xLabels?.[i] ?? block.series[0]?.label ?? `${i}`;
-        const color = CHART_COLORS[i % CHART_COLORS.length];
-        return (
-          <XStack key={i} alignItems="center" gap="$m">
-            <View
-              width={10}
-              height={10}
-              borderRadius={5}
-              backgroundColor={color}
-            />
-            <Text size="$label/s" color="$secondaryText" flex={1}>
-              {label}
-            </Text>
-            <View flex={1} height={4} borderRadius={2} backgroundColor={GRID_COLOR} marginHorizontal="$m">
-              <View
-                height={4}
-                borderRadius={2}
-                backgroundColor={color}
-                width={`${pct}%`}
-              />
-            </View>
-            <Text size="$label/s" color="$primaryText" width={45} textAlign="right">
-              {pct.toFixed(1)}%
-            </Text>
-          </XStack>
-        );
-      })}
+    <YStack gap="$s">
+      {/* SVG Donut */}
+      <XStack justifyContent="center">
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {paths.map((p, i) => (
+            <Path key={i} d={p.d} fill={p.color} />
+          ))}
+        </Svg>
+      </XStack>
+      {/* Legend */}
+      <YStack gap={3}>
+        {sorted.slice(0, 8).map((s, i) => {
+          const pct = (s.value / total * 100).toFixed(1);
+          return (
+            <XStack key={i} alignItems="center" gap="$s">
+              <View width={8} height={8} borderRadius={4} backgroundColor={s.color} />
+              <Text size="$label/s" color="$secondaryText" flex={1}>{s.label}</Text>
+              <Text size="$label/s" color="$primaryText">{pct}%</Text>
+            </XStack>
+          );
+        })}
+      </YStack>
     </YStack>
   );
 }
@@ -729,7 +758,7 @@ export function ChartBlock({
         </XStack>
       )}
 
-      {block.series.length > 1 && (
+      {block.series.length > 1 && block.chartType !== 'pie' && (
         <XStack gap="$m" flexWrap="wrap" paddingTop="$s">
           {block.series.map((s, i) => (
             <XStack key={i} alignItems="center" gap="$s">
@@ -776,7 +805,7 @@ export function TableBlock({
       </Reference.Header>
 
       {/* Column headers */}
-      <XStack borderBottomWidth={1} borderBottomColor="$border" paddingBottom="$s" marginBottom="$xs">
+      <XStack borderBottomWidth={1} borderBottomColor="$border" paddingVertical="$s" marginBottom="$xs">
         {block.columns.map((col, i) => (
           <View key={i} style={{ flex: i === 0 ? 2 : 1 }}>
             <Text size="$label/s" color="$tertiaryText" numberOfLines={1}>
@@ -812,7 +841,6 @@ export function TableBlock({
                       <Text size="$label/m" color="$primaryText" fontWeight="500" numberOfLines={1}>
                         {String(cell)}
                       </Text>
-
                     </XStack>
                   ) : isNumeric ? (
                     <YStack gap={2}>
@@ -1182,40 +1210,32 @@ export function ChessBlock({
     resetState();
     if (postId && channelId) {
       try {
-        // Post move as a top-level message with game reference
-        const ship = channelId.split('/')[1] ?? currentUser ?? '~malmur-halmex';
+        const ship = currentUser?.replace('~', '') ?? 'malmur-halmex';
         const ts = Date.now();
         const body = JSON.stringify([{
-          id: ts, action: 'poke', ship: ship.replace('~',''),
-          app: 'channels', mark: 'channel-action-1',
+          id: ts,
+          action: 'poke',
+          ship,
+          app: 'a2ui',
+          mark: 'json',
           json: {
-            channel: {
-              nest: channelId,
-              action: {
-                post: {
-                  add: {
-                    content: [{ inline: [`move:${move}`] }],
-                    sent: ts,
-                    kind: '/chat',
-                    author: ship,
-                    blob: null,
-                    meta: { title: '', image: '', description: '', cover: '' },
-                  }
-                }
-              }
-            }
-          }
+            postId: postId,
+            channelId: channelId,
+            action: move,
+            blobType: 'chess',
+            payload: '',
+          },
         }]);
-        const resp = await fetch(`/~/channel/chess-move-${ts}`, {
+        const resp = await fetch(`/~/channel/a2ui-move-${ts}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body,
         });
         if (resp.ok) {
-          console.log('[chess] move sent:', move);
+          console.log('[chess] move sent via a2ui:', move);
         } else {
           const text = await resp.text();
-          throw new Error(`HTTP ${resp.status}: ${text.slice(0,100)}`);
+          throw new Error(`HTTP ${resp.status}: ${text.slice(0, 100)}`);
         }
       } catch (e) {
         console.error('[chess] Failed to send move:', e);
@@ -1449,7 +1469,8 @@ export function ChessBlock({
                   {/* File labels */}
                   {CHESS_FILES.map((f, i) => (
                     <SvgText key={`file-${i}`} x={i * sq + sq - 3} y={boardSize - 2} fontSize={sq * 0.18}
-                      fill={(7 + i) % 2 === 0 ? theme.dark : theme.light} textAnchor="end" fontWeight="600">
+                      fill={(7 + i) % 2 === 0 ? theme.dark : theme.light} textAnchor="end" fontWeight="600"
+                      fontFamily={SVG_FONT}>
                       {f}
                     </SvgText>
                   ))}
@@ -1457,7 +1478,8 @@ export function ChessBlock({
                   {/* Rank labels */}
                   {Array.from({ length: 8 }, (_, r) => (
                     <SvgText key={`rank-${r}`} x={3} y={r * sq + sq * 0.22} fontSize={sq * 0.18}
-                      fill={CHESS_COORD_COLOR} textAnchor="start" fontWeight="600">
+                      fill={CHESS_COORD_COLOR} textAnchor="start" fontWeight="600"
+                      fontFamily={SVG_FONT}>
                       {String(8 - r)}
                     </SvgText>
                   ))}
@@ -1476,17 +1498,17 @@ export function ChessBlock({
                         // White: dark shadow layer + light fill layer for clear contrast
                         return (
                           <React.Fragment key={`p-${r}-${c}`}>
-                            <SvgText x={x + 0.8} y={y + 0.8} fontSize={fontSize} textAnchor="middle" fill="#333333" opacity={0.6}>
+                            <SvgText x={x + 0.8} y={y + 0.8} fontSize={fontSize} textAnchor="middle" fill="#333333" opacity={0.6} fontFamily={SVG_FONT}>
                               {unicode}
                             </SvgText>
-                            <SvgText x={x} y={y} fontSize={fontSize} textAnchor="middle" fill="#F5EDD0">
+                            <SvgText x={x} y={y} fontSize={fontSize} textAnchor="middle" fill="#F5EDD0" fontFamily={SVG_FONT}>
                               {unicode}
                             </SvgText>
                           </React.Fragment>
                         );
                       }
                       return (
-                        <SvgText key={`p-${r}-${c}`} x={x} y={y} fontSize={fontSize} textAnchor="middle" fill="#1A1818">
+                        <SvgText key={`p-${r}-${c}`} x={x} y={y} fontSize={fontSize} textAnchor="middle" fill="#1A1818" fontFamily={SVG_FONT}>
                           {unicode}
                         </SvgText>
                       );
@@ -1621,36 +1643,85 @@ function fontWeightFromHint(hint?: string): 400 | 500 | 600 | 700 {
   }
 }
 
-// Helper: map gap hint to pixel value
-function gapFromHint(hint?: string): number {
+// Helper: map gap hint to Ochre token string
+function gapFromHint(hint?: string): string {
   switch (hint) {
-    case 'none': return 0;
-    case 'xs': return 4;
-    case 'sm': return 8;
-    case 'lg': return 16;
-    default: return 12;
+    case 'none': return '$0';
+    case 'xs': return '$xs';
+    case 'sm': return '$s';
+    case 'md': return '$m';
+    case 'lg': return '$l';
+    default: return '$s';
   }
 }
 
-// Helper: map padding hint to pixel value
-function paddingFromHint(hint?: string): number {
+// Helper: map padding hint to Ochre token string
+function paddingFromHint(hint?: string): string {
   switch (hint) {
-    case 'none': return 0;
-    case 'xs': return 4;
-    case 'sm': return 8;
-    case 'lg': return 16;
-    default: return 12;
+    case 'none': return '$0';
+    case 'xs': return '$xs';
+    case 'sm': return '$s';
+    case 'md': return '$m';
+    case 'lg': return '$l';
+    default: return '$0';
   }
 }
+
+// Context for passing postId/channelId to interactive blocks
+// (needed because nested BlockRendererProviders can clobber settings)
+export const A2UIPostContext = React.createContext<{ postId?: string; channelId?: string }>({});
 
 export function A2UIBlock({
   block,
-  postId,
-  channelId,
+  postId: propPostId,
+  channelId: propChannelId,
   ...props
 }: { block: cn.A2UIBlockData; postId?: string; channelId?: string } & ComponentProps<typeof Reference.Frame>) {
+  const ctx = React.useContext(A2UIPostContext);
+  const postId = propPostId || ctx.postId;
+  const channelId = propChannelId || ctx.channelId;
   const currentUser = useCurrentUserId();
-  
+  const [selectedAction, setSelectedAction] = useState<string | null>(null);
+
+  const handleAction = useCallback(async (action: string, label: string) => {
+    console.log('[a2ui] handleAction called:', { action, label, postId, channelId });
+    if (!postId || !channelId) {
+      console.warn('[a2ui] Missing postId or channelId, proceeding anyway for optimistic UI');
+    }
+    setSelectedAction(label);
+    try {
+      const ship = currentUser?.replace('~', '') ?? 'malmur-halmex';
+      const ts = Date.now();
+      const body = JSON.stringify([{
+        id: ts,
+        action: 'poke',
+        ship,
+        app: 'a2ui',
+        mark: 'json',
+        json: {
+          postId: postId,
+          channelId: channelId,
+          action: action,
+          blobType: 'a2ui',
+          payload: '',
+        },
+      }]);
+      const resp = await fetch(`/~/channel/a2ui-action-${ts}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${text.slice(0, 100)}`);
+      }
+      console.log('[a2ui] action poked:', action);
+    } catch (e) {
+      console.error('[a2ui] Failed to poke action:', e);
+      setSelectedAction(null);
+    }
+  }, [postId, channelId, currentUser]);
+
   // Recursive component renderer
   const renderComponent = useCallback((comp: cn.A2UIComponent, key: string | number): React.ReactNode => {
     const data = block.data;
@@ -1673,55 +1744,45 @@ export function A2UIBlock({
       }
       
       case 'button': {
-        const text = resolveText(comp, data);
+        const label = resolveText(comp, data) ?? 'Button';
+        if (selectedAction === label) {
+          return (
+            <XStack key={key} alignItems="center" gap="$xs" paddingVertical="$xs">
+              <Text size="$label/m" color="$positiveActionText" fontWeight="600">✅ {label}</Text>
+            </XStack>
+          );
+        }
+        if (selectedAction) return null;
+        const preset = (comp as any).preset ?? comp.variant ?? 'secondary';
+        const isPrimary = preset === 'primary';
+        // Match showcase: primary = solid blue, secondary = tertiary bg + border, height 36, radius 10
         return (
-          <Button
+          <Pressable
             key={key}
-            label={text ?? 'Button'}
-            preset={comp.variant === 'primary' ? 'primary' : 'secondaryOutline'}
-            onPress={async () => {
-              if (!comp.action || !postId || !channelId) return;
-              console.log('[a2ui] button action:', comp.action, comp.actionPayload);
-              // Send action as a message
-              try {
-                const ship = channelId.split('/')[1] ?? currentUser ?? '~malmur-halmex';
-                const ts = Date.now();
-                const actionMsg = JSON.stringify({
-                  action: comp.action,
-                  payload: comp.actionPayload ?? {},
-                  postId,
-                });
-                const body = JSON.stringify([{
-                  id: ts, action: 'poke', ship: ship.replace('~',''),
-                  app: 'channels', mark: 'channel-action-1',
-                  json: {
-                    channel: {
-                      nest: channelId,
-                      action: {
-                        post: {
-                          add: {
-                            content: [{ inline: [`a2ui-action:${actionMsg}`] }],
-                            sent: ts,
-                            kind: '/chat',
-                            author: ship,
-                            blob: null,
-                            meta: { title: '', image: '', description: '', cover: '' },
-                          }
-                        }
-                      }
-                    }
-                  }
-                }]);
-                await fetch(`/~/channel/a2ui-action-${ts}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body,
-                });
-              } catch (e) {
-                console.error('[a2ui] action failed:', e);
-              }
+            onPress={() => {
+              if (comp.action) handleAction(comp.action, label);
             }}
-          />
+            style={({ pressed }: { pressed: boolean }) => ({ opacity: pressed ? 0.75 : 1, flex: 0 })}
+          >
+            <XStack
+              height={36}
+              paddingHorizontal={14}
+              borderRadius={10}
+              borderWidth={isPrimary ? 0 : 1}
+              borderColor="$activeBorder"
+              backgroundColor={isPrimary ? '#4E91F5' : '$secondaryBackground'}
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Text
+                fontSize={13}
+                fontWeight="500"
+                color={isPrimary ? '#FFFFFF' : '$primaryText'}
+              >
+                {label}
+              </Text>
+            </XStack>
+          </Pressable>
         );
       }
       
@@ -1746,18 +1807,20 @@ export function A2UIBlock({
           </YStack>
         );
       
-      case 'row':
+      case 'row': {
+        const justify = (comp as any).justify === 'between' ? 'space-between' : 'flex-start';
         return (
-          <XStack key={key} gap={gapFromHint(comp.gap)} padding={paddingFromHint(comp.padding)} alignItems="center">
+          <XStack key={key} gap={gapFromHint(comp.gap)} padding={paddingFromHint(comp.padding)} alignItems="center" flexWrap="wrap" justifyContent={justify}>
             {comp.children?.map((child, i) => renderComponent(child, i))}
           </XStack>
         );
+      }
       
       case 'divider':
-        return <View key={key} height={1} backgroundColor="$border" width="100%" />;
+        return <View key={key} height={1} backgroundColor="$border" width="100%" marginVertical={2} />;
       
       case 'spacer':
-        return <View key={key} height={comp.size === 'lg' ? 24 : comp.size === 'sm' ? 8 : 16} />;
+        return <View key={key} height={comp.size === 'lg' ? 16 : comp.size === 'sm' ? 4 : 8} />;
       
       case 'progress': {
         const value = comp.value ?? (comp.valueRef ? Number(resolveDataRef(data, comp.valueRef)) : 0);
@@ -1772,20 +1835,24 @@ export function A2UIBlock({
       
       case 'badge': {
         const text = resolveText(comp, data);
-        const bgColor = comp.variant === 'success' ? '#36B37E'
-          : comp.variant === 'warning' ? '#E8913B'
-          : comp.variant === 'error' ? '#E22A2A'
-          : comp.variant === 'primary' ? '#3B80E8'
-          : '#EEEEEE';
+        // Match showcase: pill shape (radius 100), tinted bg + matching text color
+        const variantStyles: Record<string, { bg: string; fg: string }> = {
+          success: { bg: '#1B3D2A', fg: '#3FB950' },   // tint-green + green
+          warning: { bg: '#3D3520', fg: '#E3B341' },   // tint-yellow + yellow
+          error:   { bg: '#4B2525', fg: '#E96A6A' },   // tint-red + red
+          primary: { bg: '#143A5E', fg: '#4E91F5' },   // tint-blue + blue
+          default: { bg: '#333333', fg: '#B3B3B3' },   // badge-bg + secondary text
+        };
+        const style = variantStyles[comp.variant ?? 'default'] ?? variantStyles.default;
         return (
           <View
             key={key}
-            backgroundColor={bgColor}
-            paddingHorizontal="$m"
-            paddingVertical="$xs"
-            borderRadius={12}
+            backgroundColor={style.bg}
+            paddingHorizontal={10}
+            paddingVertical={4}
+            borderRadius={100}
           >
-            <Text size="$label/s" color={comp.variant ? '#FFFFFF' : '$primaryText'}>
+            <Text fontSize={12} fontWeight="600" color={style.fg}>
               {text ?? 'Badge'}
             </Text>
           </View>
@@ -1800,7 +1867,7 @@ export function A2UIBlock({
             borderRadius="$m"
             padding="$m"
             borderWidth={1}
-            borderColor="$border"
+            borderColor="$activeBorder"
           >
             {comp.children?.map((child, i) => renderComponent(child, i))}
           </View>
@@ -1846,22 +1913,39 @@ export function A2UIBlock({
       default:
         return null;
     }
-  }, [block.data, postId, channelId, currentUser]);
+  }, [block.data, postId, channelId, currentUser, selectedAction, handleAction]);
 
+
+  const icon = block.icon;
   return (
-    <Reference.Frame padding="$l" {...props}>
+    <YStack
+      borderRadius="$s"
+      borderWidth={1}
+      borderColor="$activeBorder"
+      backgroundColor="$secondaryBackground"
+      overflow="hidden"
+      {...props}
+    >
       {block.title && (
-        <Reference.Header>
-          <Reference.Title>
-            <Text>🧩 </Text>
-            <Reference.TitleText>{block.title}</Reference.TitleText>
-          </Reference.Title>
-        </Reference.Header>
+        <XStack
+          paddingHorizontal="$l"
+          paddingTop="$m"
+          paddingBottom="$s"
+          borderBottomWidth={1}
+          borderBottomColor="$border"
+          alignItems="center"
+          gap="$xs"
+        >
+          {icon && <Text size="$label/m">{icon}</Text>}
+          <Text size="$label/m" color="$tertiaryText" fontWeight="500">
+            {block.title}
+          </Text>
+        </XStack>
       )}
-      <YStack gap="$m">
+      <YStack padding="$l" gap="$s">
         {renderComponent(block.root, 'root')}
       </YStack>
-    </Reference.Frame>
+    </YStack>
   );
 }
 
