@@ -318,6 +318,7 @@ async function _sendPost({
           parentAuthor: parentPost.authorId,
           authorId,
           content: finalizedPostData.content,
+          blob: finalizedPostData.blob,
           sentAt: cachePost.sentAt,
         });
       } else {

@@ -4,7 +4,8 @@
 ::  https://ship/spider/groups/group-create-thread/group-create/group-ui-2
 ::
 /-  spider
-/-  g=groups, gv=groups-ver, gt=groups-thread, c=channels, meta
+/-  g=groups, gv=groups-ver, gt=groups-thread, c=channels, cv=channels-ver,
+    meta
 /+  io=strandio
 ::  keep warm
 /=  in-mark  /mar/group/create-thread
@@ -65,7 +66,7 @@
   ;<  exists=?  bind:n
     (scry:io ? (weld /gu/channels/v1 nest-path))
   ?.  exists
-    =/  =create-channel:c
+    =/  =create-channel:v9:cv
       =,  create-channel
       :*  kind.channel-id
           name.channel-id
@@ -76,7 +77,7 @@
           ~
           ~
       ==
-    =/  =a-channels:c  [%create create-channel]
+    =/  =a-channels:v9:cv  [%create create-channel]
     ;<  ~  bind:n
       (poke:io [our.bowl %channels] channel-action-1+!>(a-channels))
     $(channels t.channels)
