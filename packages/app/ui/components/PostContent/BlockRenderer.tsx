@@ -515,6 +515,7 @@ export function ImageBlock({
 
   // Calculate constrained dimensions that respect both maxWidth and maxHeight
   // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
+  // Dimensions are applied to the Pressable wrapper so ContentImage fills it.
   const constrainedSize = useMemo(() => {
     const aspect = dimensions.aspect;
     if (!aspect) return null;
@@ -529,21 +530,35 @@ export function ImageBlock({
     return null;
   }, [dimensions.aspect, imageProps?.maxWidth, imageProps?.maxHeight]);
 
+  // When using constrained sizing, strip maxWidth/maxHeight from imageProps
+  // so they don't override responsive sizing on narrow viewports.
+  const {
+    maxWidth: _imageMaxWidth,
+    maxHeight: _imageMaxHeight,
+    ...remainingImageProps
+  } = imageProps ?? {};
+
   return (
     <Pressable
       overflow="hidden"
-      alignSelf="flex-start"
-      maxWidth="100%"
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(constrainedSize
+        ? {
+            alignSelf: 'flex-start' as const,
+            width: constrainedSize.width,
+            height: constrainedSize.height,
+            maxWidth: '100%',
+          }
+        : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
         {...(constrainedSize
-          ? { width: constrainedSize.width, height: constrainedSize.height }
+          ? { width: '100%', height: '100%' }
           : { width: dimensions.width ?? '100%' })}
         {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
@@ -558,7 +573,7 @@ export function ImageBlock({
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
-        {...imageProps}
+        {...(constrainedSize ? remainingImageProps : imageProps)}
       />
     </Pressable>
   );
@@ -567,7 +582,7 @@ export function ImageBlock({
 const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: ContentContext,
-  maxWidth: '100%',
+  width: '100%',
 });
 
 export function RuleBlock({
