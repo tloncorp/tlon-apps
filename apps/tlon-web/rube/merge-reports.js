@@ -268,7 +268,7 @@ export default {
 
     fs.writeFileSync(path.join(mergedReportDir, 'index.html'), indexContent);
     logWarning('Created fallback index for individual shard reports');
-    return true;
+    return false;
   }
 }
 
