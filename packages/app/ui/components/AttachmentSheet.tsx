@@ -404,15 +404,16 @@ export default function AttachmentSheet({
               : 'Choose a photo from your library',
             action: pickImage,
           },
-          Platform.OS !== 'android' && {
-            title: useVideoInMediaPicker
-              ? 'Capture Photo or Video'
-              : 'Take a Photo',
-            description: useVideoInMediaPicker
-              ? 'Use your camera to capture a photo or video'
-              : 'Use your camera to take a photo',
-            action: takePicture,
-          },
+          !isWeb &&
+            Platform.OS !== 'android' && {
+              title: useVideoInMediaPicker
+                ? 'Capture Photo or Video'
+                : 'Take a Photo',
+              description: useVideoInMediaPicker
+                ? 'Use your camera to capture a photo or video'
+                : 'Use your camera to take a photo',
+              action: takePicture,
+            },
           Platform.OS === 'android' && {
             title: 'Capture photo',
             description: 'Use your camera to capture a photo',
@@ -424,21 +425,23 @@ export default function AttachmentSheet({
               description: 'Use your camera to capture a video',
               action: takeVideo,
             },
-          hasClipboardImage && {
-            title: 'Paste from Clipboard',
-            description: 'Use the image currently in your clipboard',
-            action: createAssetFromClipboard,
-          },
+          !isWeb &&
+            hasClipboardImage && {
+              title: 'Paste from Clipboard',
+              description: 'Use the image currently in your clipboard',
+              action: createAssetFromClipboard,
+            },
           mediaType === 'all' && {
             title: 'Upload a File',
             description: 'Upload files from your device',
             action: startFilePicker,
           },
-          mediaType === 'all' && {
-            title: 'Voice Memo',
-            description: 'Record an audio message',
-            action: startRecordingVoiceMemo,
-          },
+          mediaType === 'all' &&
+            !isWeb && {
+              title: 'Voice Memo',
+              description: 'Record an audio message',
+              action: startRecordingVoiceMemo,
+            },
         ],
         showClearOption && [
           'negative',
