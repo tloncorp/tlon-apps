@@ -143,6 +143,10 @@ export class Urbit {
       'Content-Type': 'application/json',
     };
 
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
+
     return {
       credentials: isBrowser ? 'include' : undefined,
       accept: '*',
@@ -285,9 +289,14 @@ export class Urbit {
    *
    */
   async getOurName(): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
     const nameResp = await this.fetchFn(`${this.url}/~/name`, {
       method: 'get',
       credentials: 'include',
+      headers,
     });
     const name = await nameResp.text();
     this.our = name;
@@ -317,18 +326,21 @@ export class Urbit {
       if (this.verbose) {
         console.log('Received authentication response', response);
       }
-      if (response.status >= 200 && response.status < 300) {
+      if (response.status < 200 || response.status >= 300) {
         throw new Error('Login failed with status ' + response.status);
       }
       const cookie = response.headers.get('set-cookie');
       if (!this.nodeId && cookie) {
-        this.nodeId = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)?.[1];
+        this.nodeId = new RegExp(/urbauth-(~[\w-]+)/).exec(cookie)?.[1];
       }
       if (!isBrowser) {
-        this.cookie = cookie || undefined;
+        // In the Node request path we reuse this value as a `Cookie` header.
+        // `set-cookie` includes attributes like `Path` and `Max-Age`, but
+        // subsequent `Cookie` headers should only send the `key=value` pair.
+        this.cookie = cookie?.split(';')[0].trim() || undefined;
       }
-      this.getShipName();
-      this.getOurName();
+      await this.getShipName();
+      await this.getOurName();
     });
   }
 

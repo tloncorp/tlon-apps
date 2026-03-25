@@ -8,6 +8,7 @@
 import type { ChannelContentConfiguration } from '../client/channelContentConfig';
 import type { ExtendedEventType, NotificationLevel } from '../urbit';
 import type {
+  GroupMemberInvite,
   GroupJoinStatus,
   GroupPrivacy,
 } from './groups';
@@ -174,6 +175,9 @@ export interface Group extends WithId {
   volumeSettings?: VolumeSettings | null;
   flaggedPosts?: any[] | null;
   bannedMembers?: any[] | null;
+  // Kept for tlon-skill compatibility, though current group hydration appears
+  // to fold invited members into `members` with `status: 'invited'` instead.
+  pendingMembers?: GroupMemberInvite[] | null;
   joinRequests?: any[] | null;
 }
 

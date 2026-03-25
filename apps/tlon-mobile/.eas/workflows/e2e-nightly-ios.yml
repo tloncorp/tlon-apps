@@ -1,0 +1,128 @@
+name: e2e-nightly-ios
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+
+jobs:
+  build_ios_for_e2e:
+    type: build
+    environment: production
+    params:
+      platform: ios
+      profile: e2e
+
+  tests_started:
+    needs: [build_ios_for_e2e]
+    outputs:
+      started_at_epoch_seconds:
+        ${{ steps.capture_start.outputs.started_at_epoch_seconds }}
+    steps:
+      - id: capture_start
+        name: Capture start time
+        run: |
+          set-output started_at_epoch_seconds "$(date +%s)"
+
+  maestro_nightly:
+    needs: [build_ios_for_e2e, tests_started]
+    type: maestro-cloud
+    environment: production
+    params:
+      build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
+      maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
+      flows: "../../.maestro"
+      name: nightly-develop-ios
+
+  notify_webhook:
+    name: Alert
+    after: [build_ios_for_e2e, tests_started, maestro_nightly]
+    if: ${{ always() }}
+    env:
+      BUILD_STATUS: ${{ after.build_ios_for_e2e.status }}
+      MAESTRO_STATUS: ${{ after.maestro_nightly.status }}
+      STARTED_AT_EPOCH_SECONDS:
+        ${{ after.tests_started.outputs.started_at_epoch_seconds || '0' }}
+      FAILED_FLOWS_COUNT:
+        ${{ after.maestro_nightly.outputs.failed_flows_count || 0 }}
+      SUCCESSFUL_FLOWS_COUNT:
+        ${{ after.maestro_nightly.outputs.successful_flows_count || 0 }}
+      TOTAL_FLOWS_COUNT:
+        ${{ after.maestro_nightly.outputs.total_flows_count || 0 }}
+      FAILED_FLOW_NAMES_JSON:
+        ${{ after.maestro_nightly.outputs.failed_flow_names_json || '[]' }}
+      MAESTRO_CLOUD_URL:
+        ${{ after.maestro_nightly.outputs.maestro_cloud_url || workflow.url }}
+    steps:
+      - name: Send alert
+        run: |
+          PAYLOAD=$(node <<'NODE'
+          const buildStatus = process.env.BUILD_STATUS || 'unknown';
+          const maestroStatus = process.env.MAESTRO_STATUS || 'unknown';
+          const startedAt = Number(process.env.STARTED_AT_EPOCH_SECONDS || '0');
+          const failedFlows = JSON.parse(process.env.FAILED_FLOW_NAMES_JSON || '[]');
+          const failedCount = process.env.FAILED_FLOWS_COUNT || '0';
+          const successfulCount = process.env.SUCCESSFUL_FLOWS_COUNT || '0';
+          const totalCount = process.env.TOTAL_FLOWS_COUNT || '0';
+          const resultsUrl = process.env.MAESTRO_CLOUD_URL;
+          const elapsedSeconds = startedAt > 0 ? Math.max(0, Math.round(Date.now() / 1000) - startedAt) : null;
+
+          function formatDuration(totalSeconds) {
+            if (totalSeconds === null) {
+              return null;
+            }
+
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+              return `${hours}h ${minutes}m ${seconds}s`;
+            }
+
+            if (minutes > 0) {
+              return `${minutes}m ${seconds}s`;
+            }
+
+            return `${seconds}s`;
+          }
+
+          const duration = formatDuration(elapsedSeconds);
+
+          let summary;
+          if (buildStatus !== 'success') {
+            summary = `❌ Nightly iOS E2E build failed before tests ran${duration ? ` after ${duration}` : ''}`;
+          } else if (maestroStatus !== 'success' && Number(totalCount) === 0) {
+            summary = `❌ Nightly iOS E2E run failed before Maestro results were available${duration ? ` after ${duration}` : ''}`;
+          } else if (Number(failedCount) > 0) {
+            const failedNames = failedFlows.length ? ` (${failedFlows.join(', ')})` : '';
+            summary = `❌ Nightly iOS E2E finished with failures: ${successfulCount}/${totalCount} passed, ${failedCount} failed${duration ? ` in ${duration}` : ''}${failedNames}`;
+          } else {
+            summary = `✅ Nightly iOS E2E passed: ${successfulCount}/${totalCount} flows completed${duration ? ` in ${duration}` : ''}`;
+          }
+
+          process.stdout.write(
+            JSON.stringify({
+              apiKey: process.env.MAESTRO_ALERT_BOT_API_KEY,
+              content: [
+                {
+                  inline: [
+                    summary,
+                    ' (',
+                    {
+                      link: {
+                        href: resultsUrl,
+                        content: 'results',
+                      },
+                    },
+                    ')',
+                  ],
+                },
+              ],
+            }),
+          );
+          NODE
+          )
+
+          curl -X POST "${MAESTRO_SERVERLESS_INFRA_API}/sendAlertBotMessage" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD"
