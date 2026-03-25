@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --outfile=build/bundle.js",
+    "build": "esbuild src/index.ts --bundle --conditions=source --format=iife --global-name=tlon --outfile=build/bundle.js",
     "test": "vitest --passWithNoTests"
   },
   "keywords": [],
