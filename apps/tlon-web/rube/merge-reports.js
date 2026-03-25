@@ -45,21 +45,48 @@ function logWarning(message) {
   log(`⚠ ${message}`, colors.yellow);
 }
 
-// Check if shard reports exist
-function checkShardReports() {
-  const missingShards = [];
-  const existingShards = [];
+function inspectShardOutputs() {
+  const validShards = [];
+  const invalidShards = [];
 
   for (let shard = 1; shard <= TOTAL_SHARDS; shard++) {
+    const shardResultsDir = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}`);
+    const junitPath = path.join(shardResultsDir, 'junit.xml');
     const shardReportDir = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}-report`);
-    if (fs.existsSync(shardReportDir)) {
-      existingShards.push(shard);
+    const errors = [];
+    let blobReportCount = 0;
+
+    if (!fs.existsSync(shardResultsDir)) {
+      errors.push(`missing shard results directory (${shardResultsDir})`);
+    }
+
+    if (!fs.existsSync(junitPath)) {
+      errors.push(`missing JUnit report (${junitPath})`);
+    }
+
+    if (!fs.existsSync(shardReportDir)) {
+      errors.push(`missing Playwright report directory (${shardReportDir})`);
     } else {
-      missingShards.push(shard);
+      blobReportCount = fs
+        .readdirSync(shardReportDir)
+        .filter((file) => file.endsWith('.zip')).length;
+
+      if (blobReportCount === 0) {
+        errors.push(`missing Playwright blob report zips (${shardReportDir})`);
+      }
+    }
+
+    if (errors.length === 0) {
+      validShards.push(shard);
+    } else {
+      invalidShards.push({
+        shard,
+        errors,
+      });
     }
   }
 
-  return { existingShards, missingShards };
+  return { validShards, invalidShards };
 }
 
 // Merge JUnit XML reports
@@ -162,6 +189,12 @@ function mergeHTMLReports(existingShards) {
           fs.copyFileSync(src, dest);
         }
       }
+    }
+
+    const blobFiles = fs.readdirSync(blobDir).filter((file) => file.endsWith('.zip'));
+    if (blobFiles.length === 0) {
+      logError(`No Playwright blob report zips found in ${blobDir}`);
+      return false;
     }
 
     // Generate HTML report from merged blobs
@@ -287,28 +320,32 @@ function copyTestArtifacts(existingShards) {
 async function main() {
   log('\n=== Playwright Report Merger ===\n', colors.bright + colors.blue);
 
-  // Check which shards have reports
-  const { existingShards, missingShards } = checkShardReports();
+  // Check which shards produced complete outputs
+  const { validShards, invalidShards } = inspectShardOutputs();
 
-  if (existingShards.length === 0) {
-    logError('No shard reports found!');
+  if (validShards.length === 0) {
+    logError('No shards produced complete test output.');
     process.exit(1);
   }
 
-  logInfo(`Found reports for shards: ${existingShards.join(', ')}`);
+  logInfo(`Found complete reports for shards: ${validShards.join(', ')}`);
 
-  if (missingShards.length > 0) {
-    logWarning(`Missing reports for shards: ${missingShards.join(', ')}`);
+  if (invalidShards.length > 0) {
+    for (const { shard, errors } of invalidShards) {
+      for (const error of errors) {
+        logError(`Shard ${shard}: ${error}`);
+      }
+    }
   }
 
   // Merge JUnit reports
-  const junitStats = mergeJUnitReports(existingShards);
+  const junitStats = mergeJUnitReports(validShards);
 
   // Validate merged blob reports
-  mergeHTMLReports(existingShards);
+  const htmlMerged = mergeHTMLReports(validShards);
 
   // Copy test artifacts
-  copyTestArtifacts(existingShards);
+  copyTestArtifacts(validShards);
 
   // Print summary
   log('\n=== Merge Summary ===\n', colors.bright + colors.green);
@@ -325,6 +362,21 @@ async function main() {
   log(`  npx playwright show-report ${RESULTS_DIR}/merged-report`, colors.bright);
 
   // Exit with error if there were test failures
+  if (invalidShards.length > 0) {
+    logError('\nMissing shard output detected. Failing merge.');
+    process.exit(1);
+  }
+
+  if (!junitStats) {
+    logError('\nNo JUnit results were merged. Failing merge.');
+    process.exit(1);
+  }
+
+  if (!htmlMerged) {
+    logError('\nNo Playwright blob reports were merged. Failing merge.');
+    process.exit(1);
+  }
+
   if (junitStats && (junitStats.totalFailures > 0 || junitStats.totalErrors > 0)) {
     logError('\nTests failed! Check the report for details.');
     process.exit(1);

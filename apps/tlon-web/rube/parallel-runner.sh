@@ -168,6 +168,44 @@ check_port() {
     fi
 }
 
+append_failed_shard() {
+    local shard=$1
+    if [[ " $failed_shards " != *" $shard "* ]]; then
+        failed_shards="$failed_shards $shard"
+    fi
+}
+
+validate_shard_outputs() {
+    local shard=$1
+    local shard_results_dir="$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}"
+    local junit_path="$shard_results_dir/junit.xml"
+    local shard_report_dir="$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-${shard}-report"
+    local blob_count=0
+    local validation_failed=false
+
+    if [ ! -f "$junit_path" ]; then
+        echo -e "${RED}Shard $shard is missing JUnit output: $junit_path${NC}"
+        validation_failed=true
+    fi
+
+    if [ ! -d "$shard_report_dir" ]; then
+        echo -e "${RED}Shard $shard is missing Playwright report directory: $shard_report_dir${NC}"
+        validation_failed=true
+    else
+        blob_count=$(find "$shard_report_dir" -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')
+        if [ "$blob_count" -eq 0 ]; then
+            echo -e "${RED}Shard $shard is missing Playwright blob report zips in: $shard_report_dir${NC}"
+            validation_failed=true
+        fi
+    fi
+
+    if [ "$validation_failed" = true ]; then
+        return 1
+    fi
+
+    return 0
+}
+
 # Function to run a single shard
 run_shard() {
     local shard=$1
@@ -311,7 +349,12 @@ run_shard() {
             "${env_vars[@]}" \
             "${volumes[@]}" \
             $IMAGE_NAME \
-            "bash -c 'cd /workspace/apps/tlon-web && export RUBE_WORKSPACE=/tmp/rube-workspace && mkdir -p \$RUBE_WORKSPACE && pnpm e2e:shard 2>&1 | tee /workspace/apps/tlon-web/test-results/shard-${shard}.log'"
+            "cd /workspace/apps/tlon-web || exit 1
+export RUBE_WORKSPACE=/tmp/rube-workspace
+mkdir -p \$RUBE_WORKSPACE || exit 1
+set -o pipefail
+pnpm e2e:shard 2>&1 | tee /workspace/apps/tlon-web/test-results/shard-${shard}.log
+exit \${PIPESTATUS[0]}"
     else
         # Background mode for parallel execution
         # Run container in detached mode
@@ -319,15 +362,16 @@ run_shard() {
 
         # Build the command to run in the container
         # Note: image has ENTRYPOINT ["/bin/bash", "-c"] so we pass the entire command as a string
-        local container_cmd="cd /workspace/apps/tlon-web && \
-export RUBE_WORKSPACE=/tmp/rube-workspace && \
-mkdir -p \$RUBE_WORKSPACE && \
-echo 'Starting shard ${shard} tests...' && \
-df -h /tmp && \
-echo \"Workspace: \$RUBE_WORKSPACE\" && \
-node ./rube/dist/index.js 2>&1 | tee test-results/shard-${shard}.log; \
-exit_code=\$?; \
-echo \"Shard ${shard} finished with exit code: \$exit_code\"; \
+        local container_cmd="cd /workspace/apps/tlon-web || exit 1
+export RUBE_WORKSPACE=/tmp/rube-workspace
+mkdir -p \$RUBE_WORKSPACE || exit 1
+echo 'Starting shard ${shard} tests...'
+df -h /tmp
+echo \"Workspace: \$RUBE_WORKSPACE\"
+set -o pipefail
+node ./rube/dist/index.js 2>&1 | tee test-results/shard-${shard}.log
+exit_code=\${PIPESTATUS[0]}
+echo \"Shard ${shard} finished with exit code: \$exit_code\"
 exit \$exit_code"
 
         # Run container with the command directly
@@ -469,7 +513,7 @@ else
 
             # Show container logs if failed
             if [ "$exit_code" != "0" ]; then
-                failed_shards="$failed_shards $shard"
+                append_failed_shard $shard
                 echo -e "${RED}Shard $shard failed with exit code $exit_code${NC}"
                 echo "Last 10 lines of logs:"
                 $CONTAINER_CMD logs --tail 10 $container_name 2>&1 || true
@@ -477,7 +521,11 @@ else
             fi
         else
             echo -e "${YELLOW}Warning: Container $container_name not found${NC}"
-            failed_shards="$failed_shards $shard"
+            append_failed_shard $shard
+        fi
+
+        if ! validate_shard_outputs $shard; then
+            append_failed_shard $shard
         fi
     done
 
@@ -488,7 +536,10 @@ else
     # Merge test results
     echo -e "${BLUE}Merging test results...${NC}"
     cd "$PROJECT_ROOT/apps/tlon-web"
-    TOTAL_SHARDS=$TOTAL_SHARDS node rube/merge-reports.js
+    merge_failed=false
+    if ! TOTAL_SHARDS=$TOTAL_SHARDS node rube/merge-reports.js; then
+        merge_failed=true
+    fi
 
     echo -e "${GREEN}Test execution complete!${NC}"
 
@@ -506,7 +557,7 @@ else
     echo -e "${GREEN}Docker cleanup complete${NC}"
 
     # Exit with failure if any shards failed
-    if [ -n "$failed_shards" ]; then
+    if [ -n "$failed_shards" ] || [ "$merge_failed" = true ]; then
         exit 1
     fi
 fi
