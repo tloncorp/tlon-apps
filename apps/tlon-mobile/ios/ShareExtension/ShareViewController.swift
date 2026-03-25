@@ -234,8 +234,7 @@ class ShareViewController: UIViewController {
   }
 
   private func documentDirectoryPath() -> URL? {
-    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-    return path.first
+    return FileManager.default.temporaryDirectory
   }
 
   private func saveScreenshot(_ image: UIImage) -> URL? {
