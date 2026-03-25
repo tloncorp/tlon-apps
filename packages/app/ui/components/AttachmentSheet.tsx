@@ -393,20 +393,15 @@ export default function AttachmentSheet({
       createActionGroups(
         [
           'neutral',
-          // On web, use a single file picker for everything — normalizeUploadIntents
-          // promotes image/video/audio files to the correct attachment type.
+          // On web with mediaType='all', the sheet is never opened — AttachmentButton
+          // skips straight to the file picker. The sheet is only used on web for
+          // mediaType='image' (e.g. replies).
           isWeb
-            ? mediaType === 'all'
-              ? {
-                  title: 'Upload a File',
-                  description: 'Upload files from your computer',
-                  action: startFilePicker,
-                }
-              : {
-                  title: 'Upload an Image',
-                  description: 'Upload an image from your computer',
-                  action: pickImage,
-                }
+            ? {
+                title: 'Upload an Image',
+                description: 'Upload an image from your computer',
+                action: pickImage,
+              }
             : {
                 title: useVideoInMediaPicker
                   ? 'Media Library'
