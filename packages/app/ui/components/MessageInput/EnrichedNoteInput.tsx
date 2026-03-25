@@ -186,10 +186,12 @@ export const EnrichedNoteInput = memo(
         [onChangeHtml]
       );
 
-      // Markdown-like text shortcuts — handled natively via textShortcuts prop.
-      // All shortcuts (including list ones) go through the configurable API.
+      // Text shortcuts — all handled natively via textShortcuts prop.
+      // Block shortcuts trigger at the start of a paragraph.
+      // Inline shortcuts trigger when a closing delimiter wraps text.
       const nativeTextShortcuts = useMemo(
         () => [
+          // Block shortcuts
           { trigger: '# ', style: 'h1' },
           { trigger: '## ', style: 'h2' },
           { trigger: '### ', style: 'h3' },
@@ -202,6 +204,11 @@ export const EnrichedNoteInput = memo(
           { trigger: '* ', style: 'unordered_list' },
           { trigger: '1.', style: 'ordered_list' },
           { trigger: '[] ', style: 'checkbox_list' },
+          // Inline shortcuts
+          { trigger: '`', style: 'inline_code', type: 'inline' as const },
+          { trigger: '**', style: 'bold', type: 'inline' as const },
+          { trigger: '*', style: 'italic', type: 'inline' as const },
+          { trigger: '~~', style: 'strikethrough', type: 'inline' as const },
         ],
         []
       );

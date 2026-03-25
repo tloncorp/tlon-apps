@@ -25,22 +25,23 @@ index ddc5617f00fa70a693893eba2d6d66ebf7a209bf..2452d1097622df91d9fd309613dc871b
    void blur(T view);
    void setValue(T view, String text);
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
-index 851e290cce3902e6a7acf28a7b763c2bed4644b0..d7abec0b8e4cbd307cf94948d6c94222f2b77c09 100644
+index 851e290cce3902e6a7acf28a7b763c2bed4644b0..bf6d4bbac444e2b076e8e3c703b109503ebc9c39 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
 +++ b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
-@@ -102,6 +102,7 @@ class EnrichedTextInputView : AppCompatEditText {
+@@ -102,6 +102,8 @@ class EnrichedTextInputView : AppCompatEditText {
    var shouldEmitOnChangeText: Boolean = false
    var experimentalSynchronousEvents: Boolean = false
    var useHtmlNormalizer: Boolean = false
-+  var textShortcuts: List<Pair<String, String>> = emptyList()
++  // Triple: (trigger, style, type) where type is "block" or "inline"
++  var textShortcuts: List<Triple<String, String, String>> = emptyList()
  
    var fontSize: Float? = null
    private var lineHeight: Float? = null
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
-index 1ba1279b1411c1a0df5079201f8cf0fc66371b4a..1b96b603eea778345dcf4ac93167dec064a762dc 100644
+index 1ba1279b1411c1a0df5079201f8cf0fc66371b4a..aca9408dfb5fdadbfce8aba4dbfc758474aeffaa 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
 +++ b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
-@@ -281,6 +281,22 @@ class EnrichedTextInputViewManager :
+@@ -281,6 +281,23 @@ class EnrichedTextInputViewManager :
      view?.useHtmlNormalizer = value
    }
  
@@ -48,13 +49,14 @@ index 1ba1279b1411c1a0df5079201f8cf0fc66371b4a..1b96b603eea778345dcf4ac93167dec0
 +    view: EnrichedTextInputView?,
 +    value: ReadableArray?,
 +  ) {
-+    val shortcuts = mutableListOf<Pair<String, String>>()
++    val shortcuts = mutableListOf<Triple<String, String, String>>()
 +    if (value != null) {
 +      for (i in 0 until value.size()) {
 +        val map = value.getMap(i) ?: continue
 +        val trigger = map.getString("trigger") ?: continue
 +        val style = map.getString("style") ?: continue
-+        shortcuts.add(Pair(trigger, style))
++        val type = map.getString("type") ?: "block"
++        shortcuts.add(Triple(trigger, style, type))
 +      }
 +    }
 +    view?.textShortcuts = shortcuts
@@ -79,10 +81,10 @@ index f680cd5d96d1f73277c17c38567883c3fb44d15f..9e0f33fe96ca854dea4c0e5fb73815e2
      )
  
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt b/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
-index 01801239e5b5d2a83ed0f346e3d85147a69348b3..1b6b75f867e927511c4902c639ff229e9dfe2ec3 100644
+index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc10d847d8 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
 +++ b/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
-@@ -239,6 +239,64 @@ class ListStyles(
+@@ -239,6 +239,138 @@ class ListStyles(
      }
    }
  
@@ -105,7 +107,19 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..1b6b75f867e927511c4902c639ff229e
 +  }
 +
 +  /**
-+   * Handle configurable text shortcuts. Checks if the text at the start of the
++   * Maps an inline shortcut style name to its EnrichedSpans constant.
++   */
++  private fun resolveInlineStyleName(name: String): String? = when (name) {
++    "bold" -> EnrichedSpans.BOLD
++    "italic" -> EnrichedSpans.ITALIC
++    "underline" -> EnrichedSpans.UNDERLINE
++    "strikethrough" -> EnrichedSpans.STRIKETHROUGH
++    "inline_code" -> EnrichedSpans.INLINE_CODE
++    else -> null
++  }
++
++  /**
++   * Handle configurable block text shortcuts. Checks if the text at the start of the
 +   * current paragraph matches any configured trigger, and if so, removes the
 +   * trigger text and applies the corresponding style.
 +   */
@@ -122,7 +136,8 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..1b6b75f867e927511c4902c639ff229e
 +    val (start, end) = s.getParagraphBounds(cursorPosition)
 +    val paragraphText = s.substring(start, end)
 +
-+    for ((trigger, styleName) in shortcuts) {
++    for ((trigger, styleName, type) in shortcuts) {
++      if (type == "inline") continue // handled by handleInlineShortcuts
 +      if (trigger.isEmpty()) continue
 +      if (!paragraphText.startsWith(trigger)) continue
 +
@@ -144,14 +159,76 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..1b6b75f867e927511c4902c639ff229e
 +    }
 +  }
 +
++  /**
++   * Handle configurable inline text shortcuts. When a closing delimiter is typed,
++   * scans backwards for the opening delimiter. If found with text between,
++   * applies the inline style and removes both delimiters.
++   */
++  private fun handleInlineShortcuts(
++    s: Editable,
++    endCursorPosition: Int,
++    previousTextLength: Int,
++  ) {
++    val shortcuts = view.textShortcuts
++    if (shortcuts.isEmpty()) return
++    if (previousTextLength >= s.length) return // only on insertion
++
++    val cursorPosition = endCursorPosition.coerceAtMost(s.length)
++    val text = s.toString()
++    val (paraStart, _) = s.getParagraphBounds(cursorPosition)
++
++    for ((trigger, styleName, type) in shortcuts) {
++      if (type != "inline") continue
++      if (trigger.isEmpty()) continue
++
++      val resolvedStyle = resolveInlineStyleName(styleName) ?: continue
++
++      // Check if text ending at cursor matches the closing delimiter
++      if (cursorPosition < trigger.length) continue
++      val closingDelim = text.substring(cursorPosition - trigger.length, cursorPosition)
++      if (closingDelim != trigger) continue
++
++      val closeDelimStart = cursorPosition - trigger.length
++
++      // Scan backwards for opening delimiter (must be in same paragraph, with content between)
++      val searchEnd = closeDelimStart
++      val searchText = text.substring(paraStart, searchEnd)
++      val openIdx = searchText.lastIndexOf(trigger)
++      if (openIdx < 0) continue
++
++      val openAbsolute = paraStart + openIdx
++      val contentStart = openAbsolute + trigger.length
++      val contentEnd = closeDelimStart
++      if (contentEnd <= contentStart) continue
++
++      // Remove closing delimiter first (higher index)
++      s.delete(closeDelimStart, cursorPosition)
++      // Remove opening delimiter
++      s.delete(openAbsolute, openAbsolute + trigger.length)
++
++      // Calculate adjusted content range after deletions
++      val adjustedStart = openAbsolute
++      val adjustedEnd = contentEnd - trigger.length
++
++      // Apply inline style to the content
++      view.setCustomSelection(adjustedStart, adjustedEnd)
++      view.inlineStyles?.toggleStyle(resolvedStyle)
++
++      // Move cursor to end of styled text
++      view.setCustomSelection(adjustedEnd, adjustedEnd)
++      return
++    }
++  }
++
    fun afterTextChanged(
      s: Editable,
      endCursorPosition: Int,
-@@ -247,6 +305,7 @@ class ListStyles(
+@@ -247,6 +379,8 @@ class ListStyles(
      handleAfterTextChanged(s, EnrichedSpans.ORDERED_LIST, endCursorPosition, previousTextLength)
      handleAfterTextChanged(s, EnrichedSpans.UNORDERED_LIST, endCursorPosition, previousTextLength)
      handleAfterTextChanged(s, EnrichedSpans.CHECKBOX_LIST, endCursorPosition, previousTextLength)
 +    handleConfigurableShortcuts(s, endCursorPosition, previousTextLength)
++    handleInlineShortcuts(s, endCursorPosition, previousTextLength)
    }
  
    fun getStyleRange(): Pair<Int, Int> = view.selection?.getParagraphSelection() ?: Pair(0, 0)
@@ -169,7 +246,7 @@ index c2eb4a97e6c9470c68937ec03238ba6bc871f74b..83caed1ec3f7867434d7d194be584899
  - (CGSize)measureSize:(CGFloat)maxWidth;
  - (void)emitOnLinkDetectedEvent:(NSString *)text
 diff --git a/ios/EnrichedTextInputView.mm b/ios/EnrichedTextInputView.mm
-index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aece7e3e6d0 100644
+index 5e81c9f26df463cdada4da2bb51f83fa6225760e..62f66fa58cc08a11a6a42ebcb1730b52b820e98e 100644
 --- a/ios/EnrichedTextInputView.mm
 +++ b/ios/EnrichedTextInputView.mm
 @@ -9,6 +9,7 @@
@@ -180,7 +257,7 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aec
  #import "ZeroWidthSpaceUtils.h"
  #import <React/RCTConversions.h>
  #import <ReactNativeEnriched/EnrichedTextInputViewComponentDescriptor.h>
-@@ -761,6 +762,18 @@ - (void)updateProps:(Props::Shared const &)props
+@@ -761,6 +762,22 @@ - (void)updateProps:(Props::Shared const &)props
      useHtmlNormalizer = newViewProps.useHtmlNormalizer;
    }
  
@@ -188,9 +265,13 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aec
 +  if (newViewProps.textShortcuts != oldViewProps.textShortcuts) {
 +    NSMutableArray *shortcuts = [NSMutableArray new];
 +    for (const auto &item : newViewProps.textShortcuts) {
++      NSString *type = item.type.has_value()
++          ? [NSString fromCppString:item.type.value()]
++          : @"block";
 +      [shortcuts addObject:@{
 +        @"trigger" : [NSString fromCppString:item.trigger],
-+        @"style" : [NSString fromCppString:item.style]
++        @"style" : [NSString fromCppString:item.style],
++        @"type" : type
 +      }];
 +    }
 +    textShortcuts = shortcuts;
@@ -199,7 +280,7 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aec
    // default value - must be set before placeholder to make sure it correctly
    // shows on first mount
    if (newViewProps.defaultValue != oldViewProps.defaultValue) {
-@@ -1966,6 +1979,117 @@ - (void)handleKeyPressInRange:(NSString *)text range:(NSRange)range {
+@@ -1966,6 +1983,269 @@ - (void)handleKeyPressInRange:(NSString *)text range:(NSRange)range {
    }
  }
  
@@ -243,6 +324,11 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aec
 +  NSRange paragraphRange = [fullText paragraphRangeForRange:range];
 +
 +  for (NSDictionary *shortcut in textShortcuts) {
++    NSString *shortcutType = shortcut[@"type"];
++    if ([shortcutType isEqualToString:@"inline"]) {
++      continue; // handled by tryHandlingInlineShortcutInRange
++    }
++
 +    NSString *trigger = shortcut[@"trigger"];
 +    NSString *styleName = shortcut[@"style"];
 +    if (trigger == nil || styleName == nil || trigger.length == 0) {
@@ -314,15 +400,163 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aec
 +  return NO;
 +}
 +
++/**
++ * Maps an inline shortcut style name to its native StyleType enum value.
++ */
+++ (NSNumber *_Nullable)inlineStyleTypeForName:(NSString *)name {
++  static NSDictionary<NSString *, NSNumber *> *map = nil;
++  static dispatch_once_t onceToken;
++  dispatch_once(&onceToken, ^{
++    map = @{
++      @"bold" : @(Bold),
++      @"italic" : @(Italic),
++      @"underline" : @(Underline),
++      @"strikethrough" : @(Strikethrough),
++      @"inline_code" : @(InlineCode),
++    };
++  });
++  return map[name];
++}
++
++/**
++ * Handler for inline text shortcuts (e.g. `code`, **bold**, *italic*).
++ * When the closing delimiter is typed, scans backwards for the opening
++ * delimiter. If found with text between, applies the inline style and
++ * removes both delimiters.
++ */
++- (BOOL)tryHandlingInlineShortcutInRange:(NSRange)range
++                         replacementText:(NSString *)text {
++  if (textShortcuts == nil || textShortcuts.count == 0) {
++    return NO;
++  }
++
++  NSString *fullText = textView.textStorage.string;
++
++  for (NSDictionary *shortcut in textShortcuts) {
++    NSString *shortcutType = shortcut[@"type"];
++    if (![shortcutType isEqualToString:@"inline"]) {
++      continue;
++    }
++
++    NSString *trigger = shortcut[@"trigger"];
++    NSString *styleName = shortcut[@"style"];
++    if (trigger == nil || styleName == nil || trigger.length == 0) {
++      continue;
++    }
++
++    // Check if the inserted text completes the closing delimiter
++    // For multi-char delimiters (like "**"), the last char is being inserted
++    // and the rest should be right before the cursor
++    NSString *lastTriggerChar =
++        [trigger substringFromIndex:trigger.length - 1];
++    if (![text isEqualToString:lastTriggerChar]) {
++      continue;
++    }
++
++    // Check if chars before cursor match the rest of the closing delimiter
++    NSInteger delimPrefixLen = trigger.length - 1;
++    if (delimPrefixLen > 0) {
++      if ((NSInteger)range.location < delimPrefixLen) {
++        continue;
++      }
++      NSString *beforeCursor =
++          [fullText substringWithRange:NSMakeRange(range.location - delimPrefixLen,
++                                                   delimPrefixLen)];
++      if (![beforeCursor isEqualToString:
++              [trigger substringToIndex:delimPrefixLen]]) {
++        continue;
++      }
++    }
++
++    // The closing delimiter position (start of closing delimiter in text)
++    NSInteger closeDelimStart = range.location - delimPrefixLen;
++
++    // Now scan backwards from closeDelimStart to find the opening delimiter
++    // Must have at least one character between the delimiters
++    NSInteger searchStart = closeDelimStart - 1;
++    if (searchStart < (NSInteger)trigger.length) {
++      continue;
++    }
++
++    // Find the opening delimiter by scanning backwards
++    NSRange searchRange = NSMakeRange(0, closeDelimStart);
++    NSRange openRange = [fullText rangeOfString:trigger
++                                        options:NSBackwardsSearch
++                                          range:searchRange];
++    if (openRange.location == NSNotFound) {
++      continue;
++    }
++
++    // Must have content between the delimiters
++    NSInteger contentStart = openRange.location + trigger.length;
++    NSInteger contentEnd = closeDelimStart;
++    if (contentEnd <= contentStart) {
++      continue;
++    }
++
++    // Must be on the same paragraph
++    NSRange paragraphRange = [fullText paragraphRangeForRange:range];
++    if (openRange.location < paragraphRange.location) {
++      continue;
++    }
++
++    // Resolve the inline style type
++    NSNumber *styleType =
++        [EnrichedTextInputView inlineStyleTypeForName:styleName];
++    if (styleType == nil) {
++      continue;
++    }
++
++    blockEmitting = YES;
++
++    // Remove the closing delimiter prefix (chars before cursor that are part of delimiter)
++    if (delimPrefixLen > 0) {
++      [TextInsertionUtils
++              replaceText:@""
++                       at:NSMakeRange(closeDelimStart, delimPrefixLen)
++       additionalAttributes:nullptr
++                    input:self
++            withSelection:NO];
++      // Adjust contentEnd after removal
++      contentEnd -= delimPrefixLen;
++    }
++
++    // Remove the opening delimiter
++    [TextInsertionUtils
++            replaceText:@""
++                     at:openRange
++     additionalAttributes:nullptr
++                  input:self
++          withSelection:NO];
++    // Adjust content positions after removal
++    contentStart -= trigger.length;
++    contentEnd -= trigger.length;
++
++    blockEmitting = NO;
++
++    // Select the content range and apply the inline style
++    textView.selectedRange = NSMakeRange(contentStart, contentEnd - contentStart);
++    [self toggleRegularStyle:(StyleType)[styleType integerValue]];
++
++    // Move cursor to end of styled text
++    textView.selectedRange = NSMakeRange(contentEnd, 0);
++
++    return YES;
++  }
++
++  return NO;
++}
++
  - (bool)textView:(UITextView *)textView
      shouldChangeTextInRange:(NSRange)range
              replacementText:(NSString *)text {
-@@ -1986,14 +2110,18 @@ - (bool)textView:(UITextView *)textView
+@@ -1986,14 +2266,19 @@ - (bool)textView:(UITextView *)textView
    H5Style *h5Style = stylesDict[@([H5Style getStyleType])];
    H6Style *h6Style = stylesDict[@([H6Style getStyleType])];
  
-+  // Check configurable text shortcuts (e.g. "# " → h1, "> " → blockquote)
-+  if ([self tryHandlingTextShortcutInRange:range replacementText:text]) {
++  // Check configurable text shortcuts (block: "# " → h1, inline: `code` → inline_code)
++  if ([self tryHandlingTextShortcutInRange:range replacementText:text] ||
++      [self tryHandlingInlineShortcutInRange:range replacementText:text]) {
 +    [self anyTextMayHaveBeenModified];
 +    return NO;
 +  }
@@ -359,10 +593,10 @@ index da75a301a91297902caf3bb2590cc17ce73b05e2..5ba54135f4ec909f5fe1233ef7bf0ee6
    });
  };
 diff --git a/lib/typescript/src/EnrichedTextInput.d.ts b/lib/typescript/src/EnrichedTextInput.d.ts
-index d3b12ecfef2f746f906b83e464c6eb874a8585e6..edf08c5a97eaadedfba0d5b1513474121090c3b7 100644
+index d3b12ecfef2f746f906b83e464c6eb874a8585e6..f0381a58bd89751d2403fc87e83ffbef56077930 100644
 --- a/lib/typescript/src/EnrichedTextInput.d.ts
 +++ b/lib/typescript/src/EnrichedTextInput.d.ts
-@@ -77,6 +77,14 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -77,6 +77,15 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
      onKeyPress?: (e: NativeSyntheticEvent<OnKeyPressEvent>) => void;
      onPasteImages?: (e: NativeSyntheticEvent<OnPasteImagesEvent>) => void;
      contextMenuItems?: ContextMenuItem[];
@@ -373,38 +607,38 @@ index d3b12ecfef2f746f906b83e464c6eb874a8585e6..edf08c5a97eaadedfba0d5b151347412
 +    textShortcuts?: Array<{
 +        trigger: string;
 +        style: string;
++        type?: 'block' | 'inline';
 +    }>;
      /**
       * If true, Android will use experimental synchronous events.
       * This will prevent from input flickering when updating component size.
 diff --git a/src/EnrichedTextInput.tsx b/src/EnrichedTextInput.tsx
-index ed6063eacef9cd9e871a58579dd532b6725a082f..c0d5ee17f5bec511d9333479ba09cbfc3221f9d6 100644
+index ed6063eacef9cd9e871a58579dd532b6725a082f..3a286cc9bb1fa455addeff3355be9f32380a115f 100644
 --- a/src/EnrichedTextInput.tsx
 +++ b/src/EnrichedTextInput.tsx
-@@ -128,6 +128,22 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -128,6 +128,21 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
    onKeyPress?: (e: NativeSyntheticEvent<OnKeyPressEvent>) => void;
    onPasteImages?: (e: NativeSyntheticEvent<OnPasteImagesEvent>) => void;
    contextMenuItems?: ContextMenuItem[];
 +  /**
-+   * Configure markdown-like text shortcuts that auto-convert typed prefixes
-+   * into block styles. For example, typing "# " at the start of a line
-+   * converts the line to an H1 heading.
++   * Configure text shortcuts that auto-convert typed patterns into styles.
 +   *
-+   * Each shortcut maps a `trigger` string to a `style` name:
-+   * - trigger: the text pattern to match at the start of a paragraph (e.g. "# ", "> ")
-+   * - style: the style to apply. One of:
-+   *   "h1", "h2", "h3", "h4", "h5", "h6",
-+   *   "blockquote", "codeblock",
-+   *   "unordered_list", "ordered_list", "checkbox_list"
++   * Two types of shortcuts are supported:
 +   *
-+   * Built-in shortcuts ("- " for unordered list, "1." for ordered list)
-+   * are always active regardless of this prop.
++   * **Block shortcuts** (type: 'block', default):
++   * Trigger at the start of a paragraph. E.g. typing "# " converts the line to H1.
++   * - style: "h1"-"h6", "blockquote", "codeblock", "unordered_list", "ordered_list", "checkbox_list"
++   *
++   * **Inline shortcuts** (type: 'inline'):
++   * Trigger when a closing delimiter is typed around text. E.g. typing `code` applies inline code.
++   * The trigger is the delimiter string (e.g. "`", "**", "*", "~~").
++   * - style: "bold", "italic", "strikethrough", "inline_code"
 +   */
-+  textShortcuts?: Array<{ trigger: string; style: string }>;
++  textShortcuts?: Array<{ trigger: string; style: string; type?: 'block' | 'inline' }>;
    /**
     * If true, Android will use experimental synchronous events.
     * This will prevent from input flickering when updating component size.
-@@ -186,6 +202,7 @@ export const EnrichedTextInput = ({
+@@ -186,6 +201,7 @@ export const EnrichedTextInput = ({
    onChangeSelection,
    onKeyPress,
    contextMenuItems,
@@ -412,7 +646,7 @@ index ed6063eacef9cd9e871a58579dd532b6725a082f..c0d5ee17f5bec511d9333479ba09cbfc
    androidExperimentalSynchronousEvents = false,
    useHtmlNormalizer = false,
    scrollEnabled = true,
-@@ -460,6 +477,7 @@ export const EnrichedTextInput = ({
+@@ -460,6 +476,7 @@ export const EnrichedTextInput = ({
        }
        useHtmlNormalizer={useHtmlNormalizer}
        scrollEnabled={scrollEnabled}
@@ -421,7 +655,7 @@ index ed6063eacef9cd9e871a58579dd532b6725a082f..c0d5ee17f5bec511d9333479ba09cbfc
      />
    );
 diff --git a/src/spec/EnrichedTextInputNativeComponent.ts b/src/spec/EnrichedTextInputNativeComponent.ts
-index 8bf5186aa4414485703ca3b86eca53803584911d..fa89da7a95518cd6d3d19db4648157516dd3b0ed 100644
+index 8bf5186aa4414485703ca3b86eca53803584911d..4780083b85d3161743f8b667899aa821da32643b 100644
 --- a/src/spec/EnrichedTextInputNativeComponent.ts
 +++ b/src/spec/EnrichedTextInputNativeComponent.ts
 @@ -385,6 +385,9 @@ export interface NativeProps extends ViewProps {
@@ -429,7 +663,7 @@ index 8bf5186aa4414485703ca3b86eca53803584911d..fa89da7a95518cd6d3d19db464815751
    fontStyle?: string;
  
 +  // Configurable text shortcuts that auto-convert typed prefixes into block styles
-+  textShortcuts: ReadonlyArray<Readonly<{ trigger: string; style: string }>>;
++  textShortcuts: ReadonlyArray<Readonly<{ trigger: string; style: string; type?: string }>>;
 +
    // Used for onChangeHtml event performance optimization
    isOnChangeHtmlSet: boolean;
