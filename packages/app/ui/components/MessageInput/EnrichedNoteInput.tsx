@@ -187,8 +187,7 @@ export const EnrichedNoteInput = memo(
       );
 
       // Markdown-like text shortcuts — handled natively via textShortcuts prop.
-      // Built-in: "- " → unordered list, "1." → ordered list
-      // Configured below: headings, blockquote, code block, checkbox list
+      // All shortcuts (including list ones) go through the configurable API.
       const nativeTextShortcuts = useMemo(
         () => [
           { trigger: '# ', style: 'h1' },
@@ -199,8 +198,10 @@ export const EnrichedNoteInput = memo(
           { trigger: '###### ', style: 'h6' },
           { trigger: '> ', style: 'blockquote' },
           { trigger: '```', style: 'codeblock' },
-          { trigger: '[] ', style: 'checkbox_list' },
+          { trigger: '- ', style: 'unordered_list' },
           { trigger: '* ', style: 'unordered_list' },
+          { trigger: '1.', style: 'ordered_list' },
+          { trigger: '[] ', style: 'checkbox_list' },
         ],
         []
       );

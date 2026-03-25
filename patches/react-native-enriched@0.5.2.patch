@@ -63,6 +63,21 @@ index 1ba1279b1411c1a0df5079201f8cf0fc66371b4a..1b96b603eea778345dcf4ac93167dec0
    override fun focus(view: EnrichedTextInputView?) {
      view?.requestFocusProgrammatically()
    }
+diff --git a/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedSpans.kt b/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedSpans.kt
+index f680cd5d96d1f73277c17c38567883c3fb44d15f..9e0f33fe96ca854dea4c0e5fb73815e262b01ebb 100644
+--- a/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedSpans.kt
++++ b/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedSpans.kt
+@@ -78,8 +78,8 @@ object EnrichedSpans {
+ 
+   val listSpans: Map<String, ListSpanConfig> =
+     mapOf(
+-      UNORDERED_LIST to ListSpanConfig(EnrichedInputUnorderedListSpan::class.java, "- "),
+-      ORDERED_LIST to ListSpanConfig(EnrichedInputOrderedListSpan::class.java, "1. "),
++      UNORDERED_LIST to ListSpanConfig(EnrichedInputUnorderedListSpan::class.java, null),
++      ORDERED_LIST to ListSpanConfig(EnrichedInputOrderedListSpan::class.java, null),
+       CHECKBOX_LIST to ListSpanConfig(EnrichedInputCheckboxListSpan::class.java, null),
+     )
+ 
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt b/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
 index 01801239e5b5d2a83ed0f346e3d85147a69348b3..1b6b75f867e927511c4902c639ff229e9dfe2ec3 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
@@ -154,7 +169,7 @@ index c2eb4a97e6c9470c68937ec03238ba6bc871f74b..83caed1ec3f7867434d7d194be584899
  - (CGSize)measureSize:(CGFloat)maxWidth;
  - (void)emitOnLinkDetectedEvent:(NSString *)text
 diff --git a/ios/EnrichedTextInputView.mm b/ios/EnrichedTextInputView.mm
-index 5e81c9f26df463cdada4da2bb51f83fa6225760e..aa3f22361e676798534406d66863e6d80dc2c173 100644
+index 5e81c9f26df463cdada4da2bb51f83fa6225760e..e25d5c5182fa2a6f4af3720b625d3aece7e3e6d0 100644
 --- a/ios/EnrichedTextInputView.mm
 +++ b/ios/EnrichedTextInputView.mm
 @@ -9,6 +9,7 @@
@@ -302,7 +317,7 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..aa3f22361e676798534406d66863e6d8
  - (bool)textView:(UITextView *)textView
      shouldChangeTextInRange:(NSRange)range
              replacementText:(NSString *)text {
-@@ -1986,6 +2110,12 @@ - (bool)textView:(UITextView *)textView
+@@ -1986,14 +2110,18 @@ - (bool)textView:(UITextView *)textView
    H5Style *h5Style = stylesDict[@([H5Style getStyleType])];
    H6Style *h6Style = stylesDict[@([H6Style getStyleType])];
  
@@ -315,6 +330,14 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..aa3f22361e676798534406d66863e6d8
    // some of the changes these checks do could interfere with later checks and
    // cause a crash so here I rely on short circuiting evaluation of the logical
    // expression either way it's not possible to have two of them come off at the
+   // same time
+   if ([uStyle handleBackspaceInRange:range replacementText:text] ||
+-      [uStyle tryHandlingListShorcutInRange:range replacementText:text] ||
+       [oStyle handleBackspaceInRange:range replacementText:text] ||
+-      [oStyle tryHandlingListShorcutInRange:range replacementText:text] ||
+       [cbLStyle handleBackspaceInRange:range replacementText:text] ||
+       [cbLStyle handleNewlinesInRange:range replacementText:text] ||
+       [bqStyle handleBackspaceInRange:range replacementText:text] ||
 diff --git a/lib/module/EnrichedTextInput.js b/lib/module/EnrichedTextInput.js
 index da75a301a91297902caf3bb2590cc17ce73b05e2..5ba54135f4ec909f5fe1233ef7bf0ee6b6418dbd 100644
 --- a/lib/module/EnrichedTextInput.js
