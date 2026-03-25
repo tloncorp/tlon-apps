@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-const BASE_URL = 'https://localhost:8080';
+const BASE_URL = process.env.URBIT_URL || 'http://localhost:8080';
 const LOGIN_URL = `${BASE_URL}/~/login`;
 const PRIMARY_POSTS_URL =
   `${BASE_URL}/~/scry/channels/v4/chat/~malmur-halmex/jrob6ssh-general/posts/newest/20/outline.json`;
@@ -15,7 +15,7 @@ const FALLBACK_POSTS_URL =
 const CREATE_POST_URL =
   `${BASE_URL}/v1/channel/chat/~malmur-halmex/jrob6ssh-general/posts`;
 const COOKIE_NAME = 'urbauth-~malmur-halmex';
-const PASSWORD = '';
+const PASSWORD = process.env.URBIT_CODE || '';
 const POLL_INTERVAL_MS = 5000;
 const MAX_TRACKED_IDS = 1000;
 const MAX_CACHED_MESSAGES = 500;

@@ -1,15 +1,14 @@
 const https = require('https');
 const { parseFen, applyMove, getRandomMove, getGameStatus } = require('./chess-utils.cjs');
 
-const BASE = 'localhost:8080';
-const PASSWORD = '';
+const BASE = process.env.URBIT_HOST || 'localhost:8080';
+const PASSWORD = process.env.URBIT_CODE || '';
 const NEST = 'chat/~malmur-halmex/jrob6ssh-general';
-const SCRY_PATH = `/~/scry/channels/v4/${NEST}/posts/newest/10/outline.json`;
-const POLL_MS = 5000;
+const CHANNEL_SCRY = `/~/scry/channels/v4/${NEST}/posts/newest/10/outline.json`;
+const CHANNEL_NAME = `chess-agent-${Date.now()}`;
 
 let cookie = null;
-let lastSeenId = null;
-let initialized = false;
+let eventId = 0;
 
 function req(method, path, body) {
   return new Promise((resolve, reject) => {
@@ -39,7 +38,6 @@ async function login() {
 async function scry(path) {
   const r = await req('GET', path);
   if (r.status === 307) {
-    // Follow redirect
     const loc = r.headers.location;
     if (loc) {
       const r2 = await req('GET', loc);
@@ -51,7 +49,6 @@ async function scry(path) {
 }
 
 function findChessBlob(posts) {
-  // Find the most recent chess blob post
   const entries = Object.entries(posts).sort((a,b) => b[0].localeCompare(a[0]));
   for (const [id, post] of entries) {
     const blob = post?.essay?.blob;
@@ -69,7 +66,7 @@ async function postChessBlob(chess) {
   const ts = Date.now();
   const blob = JSON.stringify([chess]);
   const body = JSON.stringify([{
-    id: 1, action: 'poke', ship: 'malmur-halmex',
+    id: ++eventId, action: 'poke', ship: 'malmur-halmex',
     app: 'channels', mark: 'channel-action-1',
     json: { channel: { nest: NEST, action: { post: { add: {
       content: [{ inline: [`♟ ${chess.turn === 'white' ? "White" : "Black"}'s turn — ${chess.moveHistory.slice(-1)[0] || 'start'}`] }],
@@ -77,106 +74,197 @@ async function postChessBlob(chess) {
       blob, meta: { title: '', image: '', description: '', cover: '' }
     }}}}}
   }]);
-  const r = await req('PUT', `/~/channel/chess-resp-${ts}`, body);
+  const r = await req('PUT', `/~/channel/${CHANNEL_NAME}`, body);
   console.log(`[post] chess blob posted: ${r.status}`);
 }
 
-async function poll() {
-  if (!cookie) await login();
-  const data = await scry(SCRY_PATH);
-  const posts = data?.posts || {};
-  const entries = Object.entries(posts).sort((a,b) => a[0].localeCompare(b[0]));
-  
-  if (!initialized) {
-    if (entries.length) lastSeenId = entries[entries.length - 1][0];
-    initialized = true;
-    console.log(`[poll] primed with ${entries.length} posts, last: ${lastSeenId?.slice(0,25)}...`);
+async function processAction(act) {
+  const userMove = act.action.toLowerCase();
+  if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(userMove)) {
+    console.log(`[move] ignoring non-move action: ${userMove}`);
+    return;
+  }
+  console.log(`[move] detected: ${userMove} from ${act.ship} (id ${act.id})`);
+
+  // Find the current chess game from channel posts
+  const channelData = await scry(CHANNEL_SCRY);
+  const posts = channelData?.posts || {};
+  const game = findChessBlob(posts);
+  if (!game) { console.log('[move] no chess blob found'); return; }
+
+  // Apply user's move
+  const afterUser = applyMove(game.chess.fen, userMove);
+  const history = [...(game.chess.moveHistory || []), userMove];
+
+  let statusAfterUser = getGameStatus(afterUser);
+  console.log(`[move] status after user move: ${statusAfterUser}`);
+
+  // If game is over, post final state
+  if (statusAfterUser === 'checkmate' || statusAfterUser === 'stalemate') {
+    const state = parseFen(afterUser);
+    await postChessBlob({
+      type: 'chess', version: 1,
+      fen: afterUser,
+      players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
+      turn: state.turn === 'w' ? 'white' : 'black',
+      status: statusAfterUser,
+      lastMove: userMove,
+      moveHistory: history,
+      theme: game.chess.theme || 'blue',
+    });
+    console.log(`[move] game over: ${statusAfterUser}`);
     return;
   }
 
-  // Find new posts since lastSeenId
-  const newPosts = entries.filter(([id]) => !lastSeenId || id > lastSeenId);
-  if (newPosts.length) {
-    lastSeenId = newPosts[newPosts.length - 1][0];
-    console.log(`[poll] ${newPosts.length} new posts`);
+  // Agent responds with random move
+  const agentMove = getRandomMove(afterUser);
+  let finalFen = afterUser;
+  let finalStatus = statusAfterUser;
+
+  if (agentMove) {
+    finalFen = applyMove(afterUser, agentMove);
+    history.push(agentMove);
+    finalStatus = getGameStatus(finalFen);
+    console.log(`[move] agent responds: ${agentMove}, status: ${finalStatus}`);
+  } else {
+    console.log(`[move] agent has no legal moves`);
   }
 
-  for (const [id, post] of newPosts) {
-    const content = post?.essay?.content;
-    const text = content?.map(b => b?.inline?.join?.('') || '').join('') || '';
-    const moveMatch = text.match(/^move:([a-h][1-8][a-h][1-8][qrbn]?)/i);
-    if (!moveMatch) continue;
+  const state = parseFen(finalFen);
+  await postChessBlob({
+    type: 'chess', version: 1,
+    fen: finalFen,
+    players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
+    turn: state.turn === 'w' ? 'white' : 'black',
+    status: finalStatus,
+    lastMove: agentMove || userMove,
+    moveHistory: history,
+    theme: game.chess.theme || 'blue',
+  });
+}
 
-    const userMove = moveMatch[1].toLowerCase();
-    console.log(`[move] detected: ${userMove} in post ${id.slice(0,25)}...`);
+function subscribeToActions() {
+  // Send subscribe action via channel API
+  const subBody = JSON.stringify([{
+    id: ++eventId, action: 'subscribe', ship: 'malmur-halmex',
+    app: 'a2ui', path: '/actions'
+  }]);
 
-    // Find the current chess game
-    const game = findChessBlob(posts);
-    if (!game) { console.log('[move] no chess blob found'); continue; }
-
-    try {
-      // Apply user's move
-      const afterUser = applyMove(game.chess.fen, userMove);
-      const history = [...(game.chess.moveHistory || []), userMove];
-
-      // Check game status after user's move
-      let statusAfterUser = getGameStatus(afterUser);
-      console.log(`[move] status after user move: ${statusAfterUser}`);
-
-      // If game is over (checkmate or stalemate), don't generate agent response
-      if (statusAfterUser === 'checkmate' || statusAfterUser === 'stalemate') {
-        const state = parseFen(afterUser);
-        await postChessBlob({
-          type: 'chess', version: 1,
-          fen: afterUser,
-          players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
-          turn: state.turn === 'w' ? 'white' : 'black',
-          status: statusAfterUser,
-          lastMove: userMove,
-          moveHistory: history,
-          theme: game.chess.theme || 'blue',
-        });
-        console.log(`[move] game over: ${statusAfterUser}`);
-        return;
-      }
-
-      // Agent responds with random move
-      const agentMove = getRandomMove(afterUser);
-      let finalFen = afterUser;
-      let finalStatus = statusAfterUser;
-
-      if (agentMove) {
-        finalFen = applyMove(afterUser, agentMove);
-        history.push(agentMove);
-        finalStatus = getGameStatus(finalFen);
-        console.log(`[move] agent responds: ${agentMove}, status: ${finalStatus}`);
-      } else {
-        // No legal moves for agent (shouldn't happen if statusAfterUser was 'check' or 'active')
-        console.log(`[move] agent has no legal moves`);
-      }
-
-      const state = parseFen(finalFen);
-      await postChessBlob({
-        type: 'chess', version: 1,
-        fen: finalFen,
-        players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
-        turn: state.turn === 'w' ? 'white' : 'black',
-        status: finalStatus,
-        lastMove: agentMove || userMove,
-        moveHistory: history,
-        theme: game.chess.theme || 'blue',
-      });
-    } catch (e) {
-      console.error(`[move] error processing ${userMove}:`, e.message);
+  const opts = {
+    hostname: BASE, port: 443,
+    path: `/~/channel/${CHANNEL_NAME}`,
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: `urbauth-~malmur-halmex=${cookie}`
     }
+  };
+
+  const r = https.request(opts, res => {
+    console.log(`[sub] subscribe sent: ${res.statusCode}`);
+  });
+  r.write(subBody);
+  r.end();
+
+  // Open SSE stream to receive events
+  const sseOpts = {
+    hostname: BASE, port: 443,
+    path: `/~/channel/${CHANNEL_NAME}`,
+    method: 'GET',
+    headers: {
+      Cookie: `urbauth-~malmur-halmex=${cookie}`,
+      Accept: 'text/event-stream'
+    }
+  };
+
+  const stream = https.request(sseOpts, res => {
+    console.log(`[sse] connected: ${res.statusCode}`);
+    let buffer = '';
+
+    res.on('data', chunk => {
+      buffer += chunk.toString();
+      // Parse SSE events
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop(); // keep incomplete chunk
+
+      for (const part of parts) {
+        if (!part.trim()) continue;
+        const lines = part.split('\n');
+        let id = null;
+        let data = '';
+        for (const line of lines) {
+          if (line.startsWith('id:')) id = line.slice(3).trim();
+          if (line.startsWith('data:')) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+
+        try {
+          const evt = JSON.parse(data);
+          // Ack the event
+          if (id) ackEvent(parseInt(id));
+
+          if (evt.ok) {
+            console.log('[sse] subscription confirmed');
+            continue;
+          }
+
+          // Diff event from subscription — contains the action JSON
+          const json = evt?.json;
+          if (json && json.blobType === 'chess') {
+            console.log(`[sse] chess action received: ${json.action} from ${json.ship}`);
+            processAction(json).catch(e => console.error('[move] error:', e.message));
+          }
+        } catch (e) {
+          // not JSON or parse error, skip
+        }
+      }
+    });
+
+    res.on('end', () => {
+      console.log('[sse] stream ended, reconnecting in 3s...');
+      setTimeout(start, 3000);
+    });
+
+    res.on('error', e => {
+      console.error('[sse] stream error:', e.message);
+      setTimeout(start, 3000);
+    });
+  });
+
+  stream.on('error', e => {
+    console.error('[sse] request error:', e.message);
+    setTimeout(start, 3000);
+  });
+
+  stream.end();
+}
+
+function ackEvent(id) {
+  const body = JSON.stringify([{ id: ++eventId, action: 'ack', 'event-id': id }]);
+  const r = https.request({
+    hostname: BASE, port: 443,
+    path: `/~/channel/${CHANNEL_NAME}`,
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: `urbauth-~malmur-halmex=${cookie}`
+    }
+  });
+  r.write(body);
+  r.end();
+}
+
+async function start() {
+  try {
+    if (!cookie) await login();
+    console.log('[agent] subscribing to %a2ui /actions...');
+    subscribeToActions();
+  } catch (e) {
+    console.error('[start] error:', e.message);
+    cookie = null;
+    setTimeout(start, 5000);
   }
 }
 
-(async () => {
-  console.log('[agent] chess agent v2 starting');
-  while (true) {
-    try { await poll(); }
-    catch (e) { console.error('[poll] error:', e.message); cookie = null; }
-    await new Promise(r => setTimeout(r, POLL_MS));
-  }
-})();
+console.log('[agent] chess agent v2 starting (a2ui subscription mode)');
+start();
