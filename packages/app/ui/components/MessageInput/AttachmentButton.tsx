@@ -27,7 +27,9 @@ export default function AttachmentButton({
     // normalizeUploadIntents promotes images/video/audio to the correct
     // attachment type automatically.
     if (isWeb) {
-      const uploadIntents = await pickFile();
+      const acceptedTypes =
+        mediaType === 'image' ? ['image/*'] : undefined;
+      const uploadIntents = await pickFile(acceptedTypes);
       const { uploadIntents: normalized } =
         await normalizeUploadIntents(uploadIntents);
       if (normalized.length > 0) {

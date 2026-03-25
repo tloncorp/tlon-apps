@@ -202,11 +202,13 @@ export async function normalizeUploadIntents(
   };
 }
 
-export async function pickFile(): Promise<Attachment.UploadIntent[]> {
+export async function pickFile(
+  acceptedTypes: string[] = ['*/*']
+): Promise<Attachment.UploadIntent[]> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
     multiple: false,
-    type: ['*/*'],
+    type: acceptedTypes,
   });
 
   if (results.assets == null) {
