@@ -938,6 +938,14 @@ const assertShipHealthy = async (
   options: { maxAttempts?: number } = {}
 ) => {
   if (!isShipProcessAlive(ship)) {
+    const proc = getShipProcess(ship);
+    console.error(`[Ship State (${ship})]:`, {
+      pid: proc?.pid ?? null,
+      exitCode: proc?.exitCode ?? null,
+      signalCode: proc?.signalCode ?? null,
+      killed: proc?.killed ?? null,
+      context,
+    });
     throw new ShipUnavailableError(
       ship,
       context,
