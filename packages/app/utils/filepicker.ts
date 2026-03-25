@@ -121,6 +121,22 @@ export async function normalizeUploadIntent(
     }
   }
 
+  // Promote audio/* files to voicememo so they render with the audio player
+  // instead of a generic file download card.
+  if (mimeType?.startsWith('audio/') && !isFileIntent) {
+    return {
+      uploadIntent: {
+        ...uploadIntent,
+        voiceMemo: {
+          duration: undefined,
+          transcription: undefined,
+          waveformPreview: undefined,
+        },
+      },
+      errorMessage: null,
+    };
+  }
+
   if (!isLikelyVideoSource({ mimeType, name, uri })) {
     return { uploadIntent, errorMessage: null };
   }
