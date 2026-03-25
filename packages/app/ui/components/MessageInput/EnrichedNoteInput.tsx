@@ -3,6 +3,7 @@ import {
   type EnrichedTextInputInstance,
   type OnChangeSelectionEvent,
   type OnChangeStateEvent,
+  type OnChangeTextEvent,
   type OnPasteImagesEvent,
 } from 'react-native-enriched';
 import {
@@ -186,6 +187,112 @@ export const EnrichedNoteInput = memo(
         [onChangeHtml]
       );
 
+      // Track previous text to detect what was just typed
+      const prevTextRef = useRef('');
+
+      // Markdown-like shortcuts: detect patterns at the start of a line
+      // when the user types a trigger character (space after prefix, or
+      // backtick sequences). The pattern is detected by comparing the
+      // new text with the previous text.
+      const handleChangeText = useCallback(
+        (e: NativeSyntheticEvent<OnChangeTextEvent>) => {
+          const text = e.nativeEvent.value;
+          const prev = prevTextRef.current;
+          prevTextRef.current = text;
+
+          // Only process if text grew (not deletions)
+          if (text.length <= prev.length) return;
+
+          const sel = selectionRef.current;
+          const cursorPos = sel.end;
+
+          // Find the start of the current line
+          const beforeCursor = text.slice(0, cursorPos);
+          const lineStart = beforeCursor.lastIndexOf('\n') + 1;
+          const lineText = beforeCursor.slice(lineStart);
+
+          // Check for markdown shortcuts — trigger on space after prefix
+          // or on specific character patterns
+          type Shortcut = {
+            pattern: RegExp;
+            action: (match: RegExpMatchArray) => void;
+            /** Number of characters to delete (the trigger pattern) */
+            deleteCount: (match: RegExpMatchArray) => number;
+          };
+
+          const shortcuts: Shortcut[] = [
+            // # Heading 1 through ###### Heading 6
+            {
+              pattern: /^(#{1,6}) $/,
+              action: (m) => {
+                const level = m[1].length;
+                const toggleMap: Record<number, () => void> = {
+                  1: () => enrichedRef.current?.toggleH1(),
+                  2: () => enrichedRef.current?.toggleH2(),
+                  3: () => enrichedRef.current?.toggleH3(),
+                  4: () => enrichedRef.current?.toggleH4(),
+                  5: () => enrichedRef.current?.toggleH5(),
+                  6: () => enrichedRef.current?.toggleH6(),
+                };
+                toggleMap[level]?.();
+              },
+              deleteCount: (m) => m[0].length,
+            },
+            // > Blockquote
+            {
+              pattern: /^> $/,
+              action: () => enrichedRef.current?.toggleBlockQuote(),
+              deleteCount: (m) => m[0].length,
+            },
+            // ``` Code block (trigger on third backtick)
+            {
+              pattern: /^```$/,
+              action: () => enrichedRef.current?.toggleCodeBlock(),
+              deleteCount: (m) => m[0].length,
+            },
+            // 1. Ordered list
+            {
+              pattern: /^1\. $/,
+              action: () => enrichedRef.current?.toggleOrderedList(),
+              deleteCount: (m) => m[0].length,
+            },
+            // - or * Unordered list (enriched may handle - natively, but
+            // adding * as well for consistency)
+            {
+              pattern: /^\* $/,
+              action: () => enrichedRef.current?.toggleUnorderedList(),
+              deleteCount: (m) => m[0].length,
+            },
+            // [] or [ ] Task list
+            {
+              pattern: /^\[[ ]?\] $/,
+              action: () => enrichedRef.current?.toggleCheckboxList(false),
+              deleteCount: (m) => m[0].length,
+            },
+          ];
+
+          for (const shortcut of shortcuts) {
+            const match = lineText.match(shortcut.pattern);
+            if (match) {
+              const deleteCount = shortcut.deleteCount(match);
+              // Select the trigger text so the toggle replaces it
+              enrichedRef.current?.setSelection(
+                cursorPos - deleteCount,
+                cursorPos
+              );
+              // Apply the formatting — this converts the current line
+              // to the target block type. We use a microtask to ensure
+              // the selection is applied before the toggle.
+              queueMicrotask(() => {
+                shortcut.action(match);
+              });
+              break;
+            }
+          }
+        },
+        []
+      );
+
       const handleChangeState = useCallback(
         (e: NativeSyntheticEvent<OnChangeStateEvent>) => {
           const nativeState = e.nativeEvent;
@@ -292,6 +399,7 @@ export const EnrichedNoteInput = memo(
           placeholderTextColor={tamagui.tertiaryText.val}
           defaultValue={initialHtml}
           htmlStyle={htmlStyle}
+          onChangeText={handleChangeText}
           onChangeHtml={handleChangeHtml}
           onChangeState={handleChangeState}
           onChangeSelection={handleChangeSelection}
