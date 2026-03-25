@@ -569,8 +569,16 @@ const bootShip = (
     });
   }
 
-  urbitProcess.on('close', (code) => {
-    console.log(`Urbit process exited with code ${code}`);
+  urbitProcess.on('exit', (code, signal) => {
+    console.log(
+      `[Urbit EXIT (${ship})]: code=${code ?? 'null'} signal=${signal ?? 'null'}`
+    );
+  });
+
+  urbitProcess.on('close', (code, signal) => {
+    console.log(
+      `[Urbit CLOSE (${ship})]: code=${code ?? 'null'} signal=${signal ?? 'null'}`
+    );
   });
 
   urbitProcess.on('error', (err) => {
