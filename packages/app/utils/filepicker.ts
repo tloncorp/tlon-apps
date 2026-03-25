@@ -202,6 +202,18 @@ export async function normalizeUploadIntents(
   };
 }
 
+/**
+ * Opens the system file picker, normalizes the results (promoting images,
+ * video, and audio to proper attachment types), and returns the final intents.
+ */
+export async function pickAndNormalizeFile(
+  acceptedTypes?: string[]
+): Promise<Attachment.UploadIntent[]> {
+  const raw = await pickFile(acceptedTypes);
+  const { uploadIntents } = await normalizeUploadIntents(raw);
+  return uploadIntents;
+}
+
 export async function pickFile(
   acceptedTypes: string[] = ['*/*']
 ): Promise<Attachment.UploadIntent[]> {

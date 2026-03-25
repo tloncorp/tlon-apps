@@ -2,7 +2,7 @@ import { Button } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { isWeb } from 'tamagui';
 
-import { normalizeUploadIntents, pickFile } from '../../../utils/filepicker';
+import { pickAndNormalizeFile } from '../../../utils/filepicker';
 import { useAttachmentContext } from '../../contexts';
 import AttachmentSheet from '../AttachmentSheet';
 
@@ -24,14 +24,10 @@ export default function AttachmentButton({
 
   const handlePress = async () => {
     // On web, skip the sheet and go straight to the system file picker.
-    // normalizeUploadIntents promotes images/video/audio to the correct
-    // attachment type automatically.
     if (isWeb) {
       const acceptedTypes =
         mediaType === 'image' ? ['image/*'] : undefined;
-      const uploadIntents = await pickFile(acceptedTypes);
-      const { uploadIntents: normalized } =
-        await normalizeUploadIntents(uploadIntents);
+      const normalized = await pickAndNormalizeFile(acceptedTypes);
       if (normalized.length > 0) {
         attachAssets(normalized);
       }
