@@ -23,10 +23,10 @@ export default function AttachmentButton({
   }, [showInputSelector, setShouldBlur]);
 
   const handlePress = async () => {
-    // On web with full attachment support, skip the sheet and go straight to
-    // the file picker — normalizeUploadIntents promotes images/video/audio to
-    // the correct attachment type automatically.
-    if (isWeb && mediaType === 'all') {
+    // On web, skip the sheet and go straight to the system file picker.
+    // normalizeUploadIntents promotes images/video/audio to the correct
+    // attachment type automatically.
+    if (isWeb) {
       const uploadIntents = await pickFile();
       const { uploadIntents: normalized } =
         await normalizeUploadIntents(uploadIntents);

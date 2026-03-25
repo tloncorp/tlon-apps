@@ -393,65 +393,52 @@ export default function AttachmentSheet({
       createActionGroups(
         [
           'neutral',
-          // On web with mediaType='all', the sheet is never opened — AttachmentButton
-          // skips straight to the file picker. The sheet is only used on web for
-          // mediaType='image' (e.g. replies).
-          isWeb
-            ? {
-                title: 'Upload an Image',
-                description: 'Upload an image from your computer',
-                action: pickImage,
-              }
-            : {
-                title: useVideoInMediaPicker
-                  ? 'Media Library'
-                  : 'Photo Library',
-                description: useVideoInMediaPicker
-                  ? 'Choose a photo or video from your library'
-                  : 'Choose a photo from your library',
-                action: pickImage,
-              },
-          !isWeb &&
-            Platform.OS !== 'android' && {
-              title: useVideoInMediaPicker
-                ? 'Capture Photo or Video'
-                : 'Take a Photo',
-              description: useVideoInMediaPicker
-                ? 'Use your camera to capture a photo or video'
-                : 'Use your camera to take a photo',
-              action: takePicture,
-            },
-          !isWeb &&
-            Platform.OS === 'android' && {
-              title: 'Capture photo',
-              description: 'Use your camera to capture a photo',
-              action: takePhoto,
-            },
-          !isWeb &&
-            Platform.OS === 'android' &&
+          // The sheet is only shown on mobile — on web, AttachmentButton
+          // skips straight to the system file picker.
+          {
+            title: useVideoInMediaPicker
+              ? 'Media Library'
+              : 'Photo Library',
+            description: useVideoInMediaPicker
+              ? 'Choose a photo or video from your library'
+              : 'Choose a photo from your library',
+            action: pickImage,
+          },
+          Platform.OS !== 'android' && {
+            title: useVideoInMediaPicker
+              ? 'Capture Photo or Video'
+              : 'Take a Photo',
+            description: useVideoInMediaPicker
+              ? 'Use your camera to capture a photo or video'
+              : 'Use your camera to take a photo',
+            action: takePicture,
+          },
+          Platform.OS === 'android' && {
+            title: 'Capture photo',
+            description: 'Use your camera to capture a photo',
+            action: takePhoto,
+          },
+          Platform.OS === 'android' &&
             useVideoInMediaPicker && {
               title: 'Capture video',
               description: 'Use your camera to capture a video',
               action: takeVideo,
             },
-          !isWeb &&
-            hasClipboardImage && {
-              title: 'Paste from Clipboard',
-              description: 'Use the image currently in your clipboard',
-              action: createAssetFromClipboard,
-            },
-          !isWeb &&
-            mediaType === 'all' && {
-              title: 'Upload a File',
-              description: 'Upload files from your device',
-              action: startFilePicker,
-            },
-          mediaType === 'all' &&
-            !isWeb && {
-              title: 'Voice Memo',
-              description: 'Record an audio message',
-              action: startRecordingVoiceMemo,
-            },
+          hasClipboardImage && {
+            title: 'Paste from Clipboard',
+            description: 'Use the image currently in your clipboard',
+            action: createAssetFromClipboard,
+          },
+          mediaType === 'all' && {
+            title: 'Upload a File',
+            description: 'Upload files from your device',
+            action: startFilePicker,
+          },
+          mediaType === 'all' && {
+            title: 'Voice Memo',
+            description: 'Record an audio message',
+            action: startRecordingVoiceMemo,
+          },
         ],
         showClearOption && [
           'negative',
