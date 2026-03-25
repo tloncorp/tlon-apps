@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/api",
-  "version": "0.0.2-alpha.3",
+  "version": "0.0.2-alpha.4",
   "type": "module",
   "files": [
     "dist",
