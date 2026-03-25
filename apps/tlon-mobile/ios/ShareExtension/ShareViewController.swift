@@ -415,23 +415,14 @@ class ShareViewController: UIViewController {
     if parts.count > 1 {
       ex = parts.last
     }
-    if ex == nil {
-      switch type {
-      case .image:
-        ex = "PNG"
-      case .video:
-        ex = "MP4"
-      case .file:
-        ex = "TXT"
-      }
-    }
-    return ex ?? "Unknown"
+    return ex ?? ""
   }
 
   func getFileName(from url: URL, type: SharedMediaType) -> String {
     var name = url.lastPathComponent
     if name == "" {
-      name = UUID().uuidString + "." + getExtension(from: url, type: type)
+      let fileExtension = getExtension(from: url, type: type)
+      name = fileExtension.isEmpty ? UUID().uuidString : "\(UUID().uuidString).\(fileExtension)"
     }
     return name
   }
