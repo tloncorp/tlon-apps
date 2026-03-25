@@ -106,11 +106,8 @@ export interface NounPoke {
  * Description of a scry request
  */
 export interface Scry {
-  /** {@inheritDoc GallAgent} */
   app: GallAgent;
-  /** {@inheritDoc Path} */
   path: Path;
-  /** {@inheritDoc Timeout} */
   timeout?: number;
 }
 

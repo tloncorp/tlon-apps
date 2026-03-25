@@ -16,23 +16,70 @@
   "exports": {
     ".": {
       "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.js"
     },
-    "./api/*": "./src/client/*.ts",
-    "./client": "./src/client/index.ts",
-    "./client/*": "./src/client/*.ts",
-    "./lib/utilityTypes": "./src/lib/utilityTypes.d.ts",
-    "./lib/*": "./src/lib/*.ts",
-    "./urbit": "./src/urbit/index.ts",
-    "./urbit/*": "./src/urbit/*.ts",
-    "./http-api": "./src/http-api/index.ts",
-    "./http-api/*": "./src/http-api/*.ts",
-    "./types/*": "./src/types/*.ts",
-    "./package.json": "./package.json"
+    "./api": {
+      "source": "./src/client/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "source": "./src/client/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./urbit": {
+      "source": "./src/urbit/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./http-api": {
+      "source": "./src/http-api/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "source": "./src/types/index.ts",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./types/*": {
+      "source": "./src/types/*.ts",
+      "types": "./dist/types/*.d.ts"
+    },
+    "./lib/utilityTypes": {
+      "types": "./src/lib/utilityTypes.d.ts",
+      "default": "./src/lib/utilityTypes.d.ts"
+    },
+    "./package.json": "./package.json",
+    "./api/*": {
+      "source": "./src/client/*.ts",
+      "types": "./dist/client/*.d.ts"
+    },
+    "./client/*": {
+      "source": "./src/client/*.ts",
+      "types": "./dist/client/*.d.ts"
+    },
+    "./lib/*": {
+      "source": "./src/lib/*.ts",
+      "types": "./dist/lib/*.d.ts"
+    },
+    "./urbit/*": {
+      "source": "./src/urbit/*.ts",
+      "types": "./dist/urbit/*.d.ts"
+    },
+    "./http-api/*": {
+      "source": "./src/http-api/*.ts",
+      "types": "./dist/http-api/*.d.ts"
+    }
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist-types && vite build && tsc -p tsconfig.build.json && cp -R dist-types/. dist/ && api-extractor run --local && rm -rf dist-types",
     "lint": "eslint src/",
     "prepare": "pnpm build",
     "tsc": "tsc --noEmit"
@@ -55,5 +102,8 @@
     "lodash": "^4.17.21",
     "sorted-btree": "^1.8.1",
     "validator": "^13.7.0"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.52.11"
   }
 }
