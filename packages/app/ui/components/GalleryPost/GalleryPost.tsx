@@ -29,6 +29,7 @@ import { View, XStack, styled } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import {
   useChannelContext,
   useCurrentUserId,
@@ -379,6 +380,7 @@ export function GalleryPostDetailView({
         navigation.navigate('MediaViewer', {
           mediaType: 'image',
           uri: src,
+          viewerId: getPostImageViewerId(post.id, src),
         });
       } catch (error) {
         logger.log('Navigation error:', error);
@@ -422,6 +424,7 @@ export function GalleryPostDetailView({
           post={post}
           size="$l"
           onPressImage={handlePressImage}
+          getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
           testID="GalleryPostContent"
           isPreview={false}
         />
@@ -474,6 +477,7 @@ export function GalleryContentRenderer({
 }: {
   post: db.Post;
   onPressImage?: (src: string) => void;
+  getImageViewerId?: (src: string) => string | undefined;
   size?: '$s' | '$l';
   isPreview?: boolean;
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {

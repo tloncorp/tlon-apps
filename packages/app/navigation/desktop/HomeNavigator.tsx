@@ -23,6 +23,7 @@ import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
+import { mediaViewerScreenOptions } from '../utils';
 import { HomeDrawerParamList } from '../types';
 import { HomeSidebar } from './HomeSidebar';
 
@@ -199,6 +200,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="MediaViewer"
           component={MediaViewerScreen}
+          options={mediaViewerScreenOptions}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

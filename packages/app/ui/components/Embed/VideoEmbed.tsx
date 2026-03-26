@@ -5,11 +5,12 @@ import {
   createDevLogger,
   makePrettyDurationFromSeconds,
 } from '@tloncorp/shared';
-import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
+import { GestureTrigger, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
+import { getVideoViewerId } from '../../../utils/mediaViewer';
 
 type VideoEmbedProps = ComponentProps<typeof View> & {
   video: {
@@ -148,6 +149,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
     alignSelf: alignSelfProp,
     aspectRatio,
   });
+  const viewerId = getVideoViewerId(video.src, video.posterUri);
   const shouldFillMedia = layout.fillMedia || explicitHeight != null;
   const mediaSizeProps = shouldFillMedia
     ? { height: '100%' as const }
@@ -161,14 +163,16 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       mediaType: 'video',
       uri: video.src,
       posterUri: video.posterUri,
+      viewerId,
     });
   }, [
     navigation,
     video.posterUri,
     video.src,
+    viewerId,
   ]);
 
-  return (
+  const content = (
     <Pressable
       onPress={handlePress}
       group="button"
@@ -206,4 +210,10 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       <VideoOverlay durationLabel={durationLabel} />
     </Pressable>
   );
+
+  if (!viewerId) {
+    return content;
+  }
+
+  return <GestureTrigger id={viewerId}>{content}</GestureTrigger>;
 }
