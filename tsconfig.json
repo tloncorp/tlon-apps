@@ -10,7 +10,7 @@
     "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "bundler",
-    "customConditions": ["source"],
+    "customConditions": ["tlon-source"],
     "noEmitOnError": false,
     "noImplicitAny": true,
     "noImplicitReturns": false,
