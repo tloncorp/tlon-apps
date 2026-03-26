@@ -208,7 +208,7 @@ function nodesToInlines(nodes: HtmlNode[]): Inline[] {
       }
 
       case 'mention': {
-        // Native enriched mention tag: <mention text="display" indicator="@" id="~zod">
+        // <mention text="display" indicator="~" id="~zod">
         const id = node.attrs?.id ?? '';
         const shipName = id.startsWith('~') ? id.slice(1) : id;
         if (shipName) {
@@ -217,20 +217,10 @@ function nodesToInlines(nodes: HtmlNode[]): Inline[] {
         break;
       }
 
-      case 'span': {
-        // Check for mention data attribute (from storyToHtml output)
-        const mentionId = node.attrs?.['data-mention'];
-        if (mentionId) {
-          const shipName = mentionId.startsWith('~')
-            ? mentionId.slice(1)
-            : mentionId;
-          inlines.push({ ship: shipName });
-        } else {
-          // Regular span — pass through children
-          inlines.push(...nodesToInlines(children));
-        }
+      case 'span':
+        // Pass through — just process children
+        inlines.push(...nodesToInlines(children));
         break;
-      }
 
       default:
         // Unknown inline tag — process children
