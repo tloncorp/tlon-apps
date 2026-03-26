@@ -174,7 +174,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       group="button"
       borderRadius="$m"
       overflow="hidden"
-      backgroundColor="$secondaryBackground"
+      backgroundColor={video.posterUri ? 'transparent' : '$secondaryBackground'}
       alignSelf={layout.alignSelf}
       maxWidth={maxWidth}
       width={layout.width}
@@ -192,7 +192,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
           source={{ uri: video.posterUri }}
           width="100%"
           {...mediaSizeProps}
-          backgroundColor="$secondaryBackground"
+          backgroundColor="transparent"
           contentFit={contentFit}
           alt={video.alt}
         />
