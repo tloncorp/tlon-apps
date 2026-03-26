@@ -1235,7 +1235,7 @@
   ++  grab-post
     |=  [=bowl:gall ref=cite:ci]
     ~>  %spin.['libcu-grab-post']
-    ^-  (unit [=nest:gv =post:c])
+    ^-  (unit [=nest:gv =post:v10:cv])
     ?~  point=(ref-to-pointer ref)
       ~
     =,  u.point
@@ -1243,14 +1243,14 @@
     =/  base=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      /v4/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+      /v5/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
     ?.  .^(? %gu base)  ~
     :+  ~  nest
     ::TODO  we don't want to pin this to an old version, but
     ::      awkward that this can't be type-checked at compile time...
-    .^  post:c  %gx
+    .^  post:v10:cv  %gx
       %+  weld  base
-      /posts/post/(scot %ud p.plan)/channel-post-4
+      /posts/post/(scot %ud p.plan)/channel-post-5
     ==
   ::
   ++  from-post
