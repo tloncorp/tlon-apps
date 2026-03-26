@@ -1,6 +1,7 @@
 import {
   Attachment,
   createDevLogger,
+  extractContentTypesFromPost,
   htmlToStory,
   markdownToStory,
   storyToContent,
@@ -219,9 +220,8 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
-  const [enrichedInputFlag] = useFeatureFlag('enrichedInput');
-  // react-native-enriched is native-only — always use TipTap on web
-  const enrichedInputEnabled = enrichedInputFlag && Platform.OS !== 'web';
+  // TODO: restore feature flag gating before merging
+  const enrichedInputEnabled = Platform.OS !== 'web';
   const {
     isMarkdownMode,
     markdownContent,
@@ -364,11 +364,15 @@ export function BigInput({
   // Load initial HTML content when editing an existing post with enriched editor
   useEffect(() => {
     if (enrichedInputEnabled && editingPost?.content) {
-      const postContent = editingPost.content as { story?: any };
-      if (postContent.story && Array.isArray(postContent.story)) {
-        const html = storyToHtml(postContent.story);
+      try {
+        const { inlines, blocks } = extractContentTypesFromPost(editingPost);
+        // Reconstruct Story from flat inlines + blocks, then convert to HTML
+        const story = constructStory([...inlines, ...blocks]);
+        const html = storyToHtml(story);
         setEnrichedInitialHtml(html);
         setEnrichedHtml(html);
+      } catch (e) {
+        logger.error('Failed to load post content into enriched editor', e);
       }
     }
   }, [enrichedInputEnabled, editingPost?.id]);
