@@ -1,4 +1,3 @@
-import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AnalyticsEvent,
@@ -6,20 +5,27 @@ import {
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+import {
+  GestureMediaViewer,
+  Icon,
+  Image,
+  Pressable,
+  Text,
+} from '@tloncorp/ui';
+// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
+// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
+import {
+  VideoView,
+} from 'expo-video/build/VideoView';
 import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
 } from 'expo-video/build/VideoPlayerEvents.types';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import { VideoView } from 'expo-video/build/VideoView';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import {
-  ElementRef,
   PropsWithChildren,
   useCallback,
   useEffect,
@@ -29,18 +35,11 @@ import {
 } from 'react';
 import {
   Alert,
-  Dimensions,
   Linking,
   Modal,
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import {
-  Directions,
-  Gesture,
-  GestureDetector,
-} from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
@@ -350,41 +349,24 @@ function VideoViewer({
 }
 
 function ImageViewer(props: { uri?: string; goBack: () => void }) {
-  const zoomableRef = useRef<ElementRef<typeof Zoomable>>(null);
   const [showOverlay, setShowOverlay] = useState(true);
-  const [maxPanPointers, setMaxPanPointers] = useState(2);
   const { top } = useSafeAreaInsets();
+  const items = useMemo(
+    () =>
+      props.uri
+        ? [
+            {
+              type: 'image' as const,
+              uri: props.uri,
+            },
+          ]
+        : [],
+    [props.uri]
+  );
 
-  // We can't observe the zoom on `react-native-image-zoom`, so we have to
-  // track it manually.
-  // Call `setIsAtMinZoom` whenever you think user switches between zoomed all
-  // the way out / zoomed in by some amount.
-  const [isAtMinZoom, setIsAtMinZoom] = useState(true);
-
-  function onSingleTap() {
-    setShowOverlay(!showOverlay);
-  }
-
-  function handlePinchEnd(event: { scale: number }) {
-    setIsAtMinZoom(event.scale <= 1);
-    if (event.scale > 1) {
-      setMaxPanPointers(1);
-    } else {
-      setMaxPanPointers(2);
-      triggerHaptic('zoomable');
-    }
-  }
-
-  function onDoubleTap(doubleTapType: string) {
-    if (doubleTapType === 'ZOOM_IN') {
-      setMaxPanPointers(1);
-    } else {
-      setMaxPanPointers(2);
-      zoomableRef.current?.reset();
-      setIsAtMinZoom(true);
-      triggerHaptic('zoomable');
-    }
-  }
+  useEffect(() => {
+    setShowOverlay(true);
+  }, [props.uri]);
 
   const handleDownloadImage = async () => {
     if (isWeb) {
@@ -582,139 +564,109 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
     }
   };
 
-  return (
-    <ImageViewerContainer
-      dismiss={props.goBack}
-      dismissGestureEnabled={isAtMinZoom}
-    >
-      <ZStack
-        flex={1}
-        backgroundColor="$black"
-        paddingTop={top}
-        data-testid="image-viewer"
-      >
-        <View flex={1}>
-          {isWeb ? (
-            <View
-              flex={1}
-              height="100%"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Image
-                source={{
-                  uri: props.uri,
-                }}
-                data-testid="image"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  aspectRatio:
-                    Dimensions.get('window').width /
-                    (Dimensions.get('window').height - top),
-                }}
-                contentFit="contain"
-              />
-            </View>
-          ) : (
-            <ImageZoom
-              ref={zoomableRef}
-              uri={props.uri}
-              style={{ flex: 1 }}
-              isDoubleTapEnabled
-              isSingleTapEnabled
-              isPanEnabled
-              width={Dimensions.get('window').width}
-              maxPanPointers={maxPanPointers}
-              minScale={0.1}
-              onPinchEnd={handlePinchEnd}
-              onDoubleTap={onDoubleTap}
-              onSingleTap={onSingleTap}
-            />
-          )}
-        </View>
-
-        {/* overlay */}
-        {showOverlay ? (
-          <YStack
-            position="absolute"
-            width="100%"
-            padding="$xl"
-            paddingTop={isWeb ? 16 : top}
-          >
-            <XStack
-              justifyContent={isWeb ? 'flex-end' : 'space-between'}
-              gap="$m"
-            >
-              <TouchableOpacity
-                onPress={handleDownloadImage}
-                activeOpacity={0.8}
-              >
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
-                >
-                  <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => props.goBack()}
-                activeOpacity={0.8}
-              >
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
-                >
-                  <Icon type="Close" size="$l" color="$white" />
-                </Stack>
-              </TouchableOpacity>
-            </XStack>
-          </YStack>
-        ) : null}
-      </ZStack>
-    </ImageViewerContainer>
-  );
-}
-
-function ImageViewerContainer({
-  dismiss,
-  dismissGestureEnabled,
-  children,
-}: PropsWithChildren<{
-  dismissGestureEnabled: boolean;
-  dismiss?: () => void;
-}>) {
-  const dismissGesture = useMemo(
-    () =>
-      Gesture.Fling()
-        .enabled(dismiss != null && dismissGestureEnabled && !isWeb)
-        .direction(Directions.DOWN)
-        .onEnd((_event, success) => {
-          if (success && dismiss != null) {
-            runOnJS(dismiss)();
-          }
-        }),
-    [dismiss, dismissGestureEnabled]
-  );
-
-  // on web, we wrap in a modal to escape the drawer navigators
-  if (isWeb) {
+  if (!props.uri) {
     return (
-      <Modal animationType="none" onRequestClose={dismiss}>
-        {children}
-      </Modal>
+      <MediaViewerModal dismiss={props.goBack}>
+        <ZStack
+          flex={1}
+          backgroundColor="$black"
+          paddingTop={top}
+          data-testid="image-viewer"
+        >
+          <View flex={1} justifyContent="center" alignItems="center">
+            <Text color="$white">Unable to load image.</Text>
+          </View>
+          {showOverlay ? (
+            <YStack
+              position="absolute"
+              width="100%"
+              padding="$xl"
+              paddingTop={isWeb ? 16 : top}
+            >
+              <XStack justifyContent="flex-end" gap="$m">
+                <TouchableOpacity
+                  onPress={() => props.goBack()}
+                  activeOpacity={0.8}
+                >
+                  <Stack
+                    padding="$m"
+                    backgroundColor="$darkOverlay"
+                    borderRadius="$l"
+                  >
+                    <Icon type="Close" size="$l" color="$white" />
+                  </Stack>
+                </TouchableOpacity>
+              </XStack>
+            </YStack>
+          ) : null}
+        </ZStack>
+      </MediaViewerModal>
     );
   }
 
-  if (!dismissGesture) {
-    console.error('ImageViewerContainer requires a dismissGesture on mobile');
-    return null;
-  }
+  return (
+    <GestureMediaViewer
+      items={items}
+      onDismiss={props.goBack}
+      onDismissStart={() => {
+        setShowOverlay(false);
+      }}
+      enableSwipeGesture={false}
+      enableDismissGesture={!isWeb}
+      renderContainer={(children, helpers) => (
+        <MediaViewerModal dismiss={helpers.dismiss}>
+          <ZStack
+            flex={1}
+            backgroundColor="$black"
+            paddingTop={top}
+            data-testid="image-viewer"
+          >
+            {children}
 
-  return <GestureDetector gesture={dismissGesture}>{children}</GestureDetector>;
+            {showOverlay ? (
+              <YStack
+                position="absolute"
+                width="100%"
+                padding="$xl"
+                paddingTop={isWeb ? 16 : top}
+              >
+                <XStack
+                  justifyContent={isWeb ? 'flex-end' : 'space-between'}
+                  gap="$m"
+                >
+                  <TouchableOpacity
+                    onPress={handleDownloadImage}
+                    activeOpacity={0.8}
+                  >
+                    <Stack
+                      padding="$m"
+                      backgroundColor="$darkOverlay"
+                      borderRadius="$l"
+                    >
+                      <Icon type="ArrowDown" size="$l" color="$white" />
+                    </Stack>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={helpers.dismiss}
+                    activeOpacity={0.8}
+                  >
+                    <Stack
+                      padding="$m"
+                      backgroundColor="$darkOverlay"
+                      borderRadius="$l"
+                    >
+                      <Icon type="Close" size="$l" color="$white" />
+                    </Stack>
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
+            ) : null}
+          </ZStack>
+        </MediaViewerModal>
+      )}
+    />
+  );
 }
 
 export default function MediaViewerScreen(props: Props) {

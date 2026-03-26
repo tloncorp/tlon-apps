@@ -93,7 +93,7 @@ function defaultKeyExtractor(item: GestureMediaViewerItem, index: number) {
 function renderDefaultItem(item: GestureMediaViewerItem) {
   if (item.type === 'image') {
     return (
-      <View flex={1}>
+      <View style={StyleSheet.absoluteFill}>
         <Image
           source={{ uri: item.uri }}
           contentFit="contain"
@@ -104,7 +104,7 @@ function renderDefaultItem(item: GestureMediaViewerItem) {
   }
 
   return (
-    <View flex={1} backgroundColor="$black">
+    <View style={StyleSheet.absoluteFill} backgroundColor="$black">
       {item.posterUri ? (
         <Image
           source={{ uri: item.posterUri }}
