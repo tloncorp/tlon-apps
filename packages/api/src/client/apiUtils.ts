@@ -249,7 +249,7 @@ export function deriveFullWritReply({
 }): ub.WritReply {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
-    : da.fromUnix(delta.add.memo.sent).toString();
+    : da.fromUnix(delta.add['reply-essay'].sent).toString();
 
   const seal: ub.WritReplySeal = {
     id,
@@ -257,7 +257,7 @@ export function deriveFullWritReply({
     'parent-id': parentId,
     reacts: {},
   };
-  const memo = delta.add.memo;
+  const replyEssay = delta.add['reply-essay'];
 
-  return { seal, memo };
+  return { seal, 'reply-essay': replyEssay };
 }
