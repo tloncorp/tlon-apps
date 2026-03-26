@@ -34,9 +34,9 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
+import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
 import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
-import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
@@ -59,6 +59,8 @@ function AuthenticatedApp() {
   useSyncAppBadge();
   const checkForCachedChanges = useCachedChanges();
   const { poorUxReportModal } = usePoorUxShakeReport();
+
+  console.log('contrived');
 
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
