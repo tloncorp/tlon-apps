@@ -162,6 +162,34 @@ function boardToFen(board, turn, castling, enPassant, halfMove, fullMove) {
   ].join(' ');
 }
 
+function boardToPlacement(board) {
+  validateBoard(board);
+
+  return board.map((row) => {
+    let emptyCount = 0;
+    let rank = '';
+
+    for (const square of row) {
+      if (square == null) {
+        emptyCount += 1;
+        continue;
+      }
+
+      if (emptyCount > 0) {
+        rank += String(emptyCount);
+        emptyCount = 0;
+      }
+      rank += square;
+    }
+
+    if (emptyCount > 0) {
+      rank += String(emptyCount);
+    }
+
+    return rank;
+  }).join('/');
+}
+
 function addRayMoves(state, row, col, directions, moves) {
   const board = state.board;
   const sourcePiece = board[row][col];
@@ -360,7 +388,11 @@ function getLegalMovesFromState(state, square) {
 }
 
 function getLegalMoves(fen, square) {
-  return getLegalMovesFromState(parseFen(fen), square);
+  const normalizedSquare = square.trim().toLowerCase();
+  const state = parseFen(fen);
+  return getAllLegalMoves(state)
+    .filter((move) => move.startsWith(normalizedSquare))
+    .map((move) => move.slice(2, 4));
 }
 
 function updateCastlingRights(castling, piece, fromSquare, toSquare, capturedPiece) {
@@ -429,20 +461,29 @@ function applyMove(fen, uci) {
   const fromSquare = uci.slice(0, 2).toLowerCase();
   const toSquare = uci.slice(2, 4).toLowerCase();
   const promotion = uci.length === 5 ? uci[4].toLowerCase() : '';
+  const { row: fromRow, col: fromCol } = squareToCoords(fromSquare);
+  const { row: toRow, col: toCol } = squareToCoords(toSquare);
+  const piece = state.board[fromRow][fromCol];
 
   if (promotion && !PROMOTION_PIECES.includes(promotion)) {
     throw new Error(`Invalid promotion piece: ${promotion}`);
   }
 
-  const legalMoves = getLegalMovesFromState(state, fromSquare);
-  if (!legalMoves.includes(toSquare)) {
+  if (piece == null) {
+    throw new Error(`No piece on ${fromSquare}`);
+  }
+
+  const normalizedUci =
+    piece.toLowerCase() === 'p' && (toRow === 0 || toRow === 7)
+      ? `${fromSquare}${toSquare}${promotion || 'q'}`
+      : `${fromSquare}${toSquare}`;
+
+  const legalMoves = getAllLegalMoves(state);
+  if (!legalMoves.includes(normalizedUci)) {
     throw new Error(`Illegal move: ${uci}`);
   }
 
-  const { row: fromRow, col: fromCol } = squareToCoords(fromSquare);
-  const { row: toRow, col: toCol } = squareToCoords(toSquare);
   const board = cloneBoard(state.board);
-  const piece = board[fromRow][fromCol];
   const targetPiece = state.board[toRow][toCol];
 
   let capture = targetPiece != null;
@@ -756,6 +797,48 @@ function moveWouldLeaveInCheck(state, fromSquare, toSquare) {
   return isSquareAttacked(newBoard, kingPos.row, kingPos.col, opponentIsWhite);
 }
 
+function canCaptureEnPassant(state) {
+  if (state.enPassant === '-') {
+    return false;
+  }
+
+  const { row: targetRow, col: targetCol } = squareToCoords(state.enPassant);
+  const pawnRow = targetRow + (state.turn === 'w' ? 1 : -1);
+  const pawn = state.turn === 'w' ? 'P' : 'p';
+
+  if (!inBounds(pawnRow, targetCol)) {
+    return false;
+  }
+
+  for (const fromCol of [targetCol - 1, targetCol + 1]) {
+    if (!inBounds(pawnRow, fromCol)) {
+      continue;
+    }
+
+    if (state.board[pawnRow][fromCol] !== pawn) {
+      continue;
+    }
+
+    const fromSquare = coordsToSquare(pawnRow, fromCol);
+    if (!moveWouldLeaveInCheck(state, fromSquare, state.enPassant)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getPositionKey(position) {
+  const state = typeof position === 'string' ? parseFen(position) : position;
+
+  return [
+    boardToPlacement(state.board),
+    state.turn,
+    normalizeCastling(state.castling),
+    canCaptureEnPassant(state) ? state.enPassant : '-',
+  ].join(' ');
+}
+
 /**
  * Get all truly legal moves for the current position (filtering out moves that leave king in check)
  * @param {object} state - parsed FEN state
@@ -830,16 +913,66 @@ function isStalemate(fen) {
   return legalMoves.length === 0;
 }
 
+function hasInsufficientMaterial(state) {
+  const nonKings = [];
+
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      const piece = state.board[row][col];
+      if (!piece || piece.toLowerCase() === 'k') {
+        continue;
+      }
+
+      const normalized = piece.toLowerCase();
+      if (normalized === 'p' || normalized === 'q' || normalized === 'r') {
+        return false;
+      }
+
+      nonKings.push({
+        piece: normalized,
+        squareColor: (row + col) % 2,
+      });
+    }
+  }
+
+  if (nonKings.length === 0) {
+    return true;
+  }
+
+  if (
+    nonKings.length === 1 &&
+    (nonKings[0].piece === 'b' || nonKings[0].piece === 'n')
+  ) {
+    return true;
+  }
+
+  return (
+    nonKings.length === 2 &&
+    nonKings[0].piece === 'b' &&
+    nonKings[1].piece === 'b' &&
+    nonKings[0].squareColor === nonKings[1].squareColor
+  );
+}
+
 /**
  * Get the game status for a position
  * @param {string} fen
- * @returns {'active' | 'check' | 'checkmate' | 'stalemate'}
+ * @param {{ positionHistory?: string[] }} [options]
+ * @returns {'active' | 'check' | 'checkmate' | 'stalemate' | 'draw'}
  */
-function getGameStatus(fen) {
+function getGameStatus(fen, options = {}) {
   const state = parseFen(fen);
   const inCheck = isInCheck(fen);
   const legalMoves = getAllLegalMoves(state);
   const hasLegalMoves = legalMoves.length > 0;
+  const positionKey = getPositionKey(state);
+  const occurrences = Array.isArray(options.positionHistory)
+    ? options.positionHistory.filter((entry) => entry === positionKey).length
+    : 0;
+
+  if (occurrences >= 3 || state.halfMove >= 100 || hasInsufficientMaterial(state)) {
+    return 'draw';
+  }
 
   if (inCheck && !hasLegalMoves) {
     return 'checkmate';
@@ -861,7 +994,9 @@ module.exports = {
   boardToFen,
   applyMove,
   getLegalMoves,
+  getAllLegalMoves,
   getRandomMove,
+  getPositionKey,
   isInCheck,
   isCheckmate,
   isStalemate,

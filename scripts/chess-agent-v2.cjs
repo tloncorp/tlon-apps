@@ -1,5 +1,11 @@
 const https = require('https');
-const { parseFen, applyMove, getRandomMove, getGameStatus } = require('./chess-utils.cjs');
+const {
+  parseFen,
+  applyMove,
+  getPositionKey,
+  getRandomMove,
+  getGameStatus,
+} = require('./chess-utils.cjs');
 
 const BASE = process.env.URBIT_HOST || 'localhost:8080';
 const PASSWORD = process.env.URBIT_CODE || '';
@@ -9,6 +15,38 @@ const CHANNEL_NAME = `chess-agent-${Date.now()}`;
 
 let cookie = null;
 let eventId = 0;
+
+function isTerminalStatus(status) {
+  return status === 'checkmate' || status === 'stalemate' || status === 'draw';
+}
+
+function normalizePlayerMove(state, move) {
+  const fromSquare = move.slice(0, 2);
+  const toSquare = move.slice(2, 4);
+  const fromCol = fromSquare.charCodeAt(0) - 97;
+  const fromRow = 8 - Number(fromSquare[1]);
+  const toRow = 8 - Number(toSquare[1]);
+  const piece = state.board[fromRow]?.[fromCol];
+
+  if (piece && piece.toLowerCase() === 'p' && (toRow === 0 || toRow === 7)) {
+    return `${fromSquare}${toSquare}${move[4]?.toLowerCase() || 'q'}`;
+  }
+
+  return move;
+}
+
+function normalizePositionHistory(fen, positionHistory) {
+  const history = Array.isArray(positionHistory)
+    ? positionHistory.filter((entry) => typeof entry === 'string' && entry.trim())
+    : [];
+  const currentPosition = getPositionKey(fen);
+
+  if (history.length === 0 || history[history.length - 1] !== currentPosition) {
+    history.push(currentPosition);
+  }
+
+  return history;
+}
 
 function req(method, path, body) {
   return new Promise((resolve, reject) => {
@@ -56,7 +94,9 @@ function findChessBlob(posts) {
       try {
         const parsed = JSON.parse(blob);
         if (Array.isArray(parsed) && parsed[0]?.type === 'chess') return { id, chess: parsed[0], post };
-      } catch {}
+      } catch (error) {
+        continue;
+      }
     }
   }
   return null;
@@ -93,14 +133,23 @@ async function processAction(act) {
   if (!game) { console.log('[move] no chess blob found'); return; }
 
   // Apply user's move
+  const currentState = parseFen(game.chess.fen);
+  const normalizedUserMove = normalizePlayerMove(currentState, userMove);
   const afterUser = applyMove(game.chess.fen, userMove);
-  const history = [...(game.chess.moveHistory || []), userMove];
+  const history = [...(game.chess.moveHistory || []), normalizedUserMove];
+  const positionHistory = normalizePositionHistory(
+    game.chess.fen,
+    game.chess.positionHistory
+  );
+  const afterUserPositionHistory = positionHistory.concat(getPositionKey(afterUser));
 
-  let statusAfterUser = getGameStatus(afterUser);
+  let statusAfterUser = getGameStatus(afterUser, {
+    positionHistory: afterUserPositionHistory,
+  });
   console.log(`[move] status after user move: ${statusAfterUser}`);
 
   // If game is over, post final state
-  if (statusAfterUser === 'checkmate' || statusAfterUser === 'stalemate') {
+  if (isTerminalStatus(statusAfterUser)) {
     const state = parseFen(afterUser);
     await postChessBlob({
       type: 'chess', version: 1,
@@ -108,8 +157,9 @@ async function processAction(act) {
       players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
       turn: state.turn === 'w' ? 'white' : 'black',
       status: statusAfterUser,
-      lastMove: userMove,
+      lastMove: normalizedUserMove,
       moveHistory: history,
+      positionHistory: afterUserPositionHistory,
       theme: game.chess.theme || 'blue',
     });
     console.log(`[move] game over: ${statusAfterUser}`);
@@ -120,11 +170,15 @@ async function processAction(act) {
   const agentMove = getRandomMove(afterUser);
   let finalFen = afterUser;
   let finalStatus = statusAfterUser;
+  let finalPositionHistory = afterUserPositionHistory;
 
   if (agentMove) {
     finalFen = applyMove(afterUser, agentMove);
     history.push(agentMove);
-    finalStatus = getGameStatus(finalFen);
+    finalPositionHistory = afterUserPositionHistory.concat(getPositionKey(finalFen));
+    finalStatus = getGameStatus(finalFen, {
+      positionHistory: finalPositionHistory,
+    });
     console.log(`[move] agent responds: ${agentMove}, status: ${finalStatus}`);
   } else {
     console.log(`[move] agent has no legal moves`);
@@ -137,8 +191,9 @@ async function processAction(act) {
     players: game.chess.players || { white: '~malmur-halmex', black: '~sitrul-nacwyl' },
     turn: state.turn === 'w' ? 'white' : 'black',
     status: finalStatus,
-    lastMove: agentMove || userMove,
+    lastMove: agentMove || normalizedUserMove,
     moveHistory: history,
+    positionHistory: finalPositionHistory,
     theme: game.chess.theme || 'blue',
   });
 }

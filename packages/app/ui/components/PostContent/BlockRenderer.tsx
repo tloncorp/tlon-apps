@@ -934,129 +934,541 @@ function squareToAlgebraic(row: number, col: number): string {
   return `${CHESS_FILES[col]}${8 - row}`;
 }
 
-/** Apply a move to a FEN string and return the updated FEN (best-effort, handles basic moves + castling) */
-function applyMoveFen(fen: string, from: [number, number], to: [number, number]): string {
-  const rows = fen.split(' ')[0].split('/');
-  const board: (string | null)[][] = rows.map(rank => {
-    const row: (string | null)[] = [];
-    for (const ch of rank) {
-      if (ch >= '1' && ch <= '8') { for (let i = 0; i < Number(ch); i++) row.push(null); }
-      else row.push(ch);
-    }
-    return row;
-  });
-  const piece = board[from[0]][from[1]];
-  if (!piece) return fen;
-  // Castling: king moves 2 squares
-  if (piece === 'K' && from[0] === 7 && from[1] === 4) {
-    if (to[1] === 6) { board[7][5] = board[7][7]; board[7][7] = null; }
-    if (to[1] === 2) { board[7][3] = board[7][0]; board[7][0] = null; }
-  }
-  if (piece === 'k' && from[0] === 0 && from[1] === 4) {
-    if (to[1] === 6) { board[0][5] = board[0][7]; board[0][7] = null; }
-    if (to[1] === 2) { board[0][3] = board[0][0]; board[0][0] = null; }
-  }
-  board[from[0]][from[1]] = null;
-  // Pawn promotion → queen
-  let placed = piece;
-  if (piece === 'P' && to[0] === 0) placed = 'Q';
-  if (piece === 'p' && to[0] === 7) placed = 'q';
-  board[to[0]][to[1]] = placed;
-  // Rebuild FEN position
-  const newPos = board.map(row => {
-    let s = ''; let e = 0;
-    for (const sq of row) { if (sq == null) { e++; } else { if (e) { s += e; e = 0; } s += sq; } }
-    if (e) s += e;
-    return s;
-  }).join('/');
-  const parts = fen.split(' ');
-  parts[0] = newPos;
-  parts[1] = parts[1] === 'w' ? 'b' : 'w';
-  return parts.join(' ');
+interface ChessFenState {
+  board: (string | null)[][];
+  turn: 'w' | 'b';
+  castling: string;
+  enPassant: string;
+  halfMove: number;
+  fullMove: number;
 }
 
-/** Chess legal move computation (no check detection, MVP) */
 const CHESS_LEGAL_FILES = 'abcdefgh';
-function fenToBoard(fen: string): (string | null)[][] {
-  return fen.split(' ')[0].split('/').map(rank => {
-    const row: (string | null)[] = [];
-    for (const ch of rank) {
-      if (ch >= '1' && ch <= '8') { for (let i = 0; i < Number(ch); i++) row.push(null); }
-      else row.push(ch);
-    }
-    return row;
-  });
+
+function normalizeCastlingRights(castling: string): string {
+  const rights = ['K', 'Q', 'k', 'q'].filter((right) =>
+    castling?.includes(right)
+  );
+  return rights.join('') || '-';
 }
-function isWhite(p: string) { return p === p.toUpperCase(); }
-function inBounds(r: number, c: number) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
-function getEnPassantTarget(fen: string): [number, number] | null {
-  const ep = fen.split(' ')[3];
-  if (!ep || ep === '-') return null;
-  const col = CHESS_LEGAL_FILES.indexOf(ep[0]);
-  const row = 8 - Number(ep[1]);
+
+function parseChessFenState(fen: string): ChessFenState {
+  const parts = fen.trim().split(/\s+/);
+  const turn = parts[1] === 'b' ? 'b' : 'w';
+  const halfMove = Number.parseInt(parts[4] ?? '0', 10);
+  const fullMove = Number.parseInt(parts[5] ?? '1', 10);
+
+  return {
+    board: parseFen(fen),
+    turn,
+    castling: normalizeCastlingRights(parts[2] ?? '-'),
+    enPassant: parts[3] ?? '-',
+    halfMove: Number.isNaN(halfMove) ? 0 : halfMove,
+    fullMove: Number.isNaN(fullMove) ? 1 : fullMove,
+  };
+}
+
+function boardToPlacement(board: (string | null)[][]): string {
+  return board
+    .map((row) => {
+      let placement = '';
+      let emptyCount = 0;
+
+      for (const square of row) {
+        if (square == null) {
+          emptyCount += 1;
+          continue;
+        }
+
+        if (emptyCount > 0) {
+          placement += String(emptyCount);
+          emptyCount = 0;
+        }
+        placement += square;
+      }
+
+      if (emptyCount > 0) {
+        placement += String(emptyCount);
+      }
+
+      return placement;
+    })
+    .join('/');
+}
+
+function buildFenFromState(state: ChessFenState): string {
+  return [
+    boardToPlacement(state.board),
+    state.turn,
+    normalizeCastlingRights(state.castling),
+    state.enPassant || '-',
+    String(state.halfMove),
+    String(state.fullMove),
+  ].join(' ');
+}
+
+function cloneChessBoard(board: (string | null)[][]): (string | null)[][] {
+  return board.map((row) => row.slice());
+}
+
+function isWhite(piece: string) {
+  return piece === piece.toUpperCase();
+}
+
+function inBounds(row: number, col: number) {
+  return row >= 0 && row < 8 && col >= 0 && col < 8;
+}
+
+function getEnPassantTarget(state: ChessFenState): [number, number] | null {
+  if (!state.enPassant || state.enPassant === '-') return null;
+  const col = CHESS_LEGAL_FILES.indexOf(state.enPassant[0]);
+  const row = 8 - Number(state.enPassant[1]);
   return inBounds(row, col) ? [row, col] : null;
 }
-function getCastlingRights(fen: string) { return fen.split(' ')[2] ?? '-'; }
-function getLegalMovesForPiece(fen: string, row: number, col: number): [number, number][] {
-  const board = fenToBoard(fen);
-  const piece = board[row][col];
-  if (!piece) return [];
-  const white = isWhite(piece);
-  const moves: [number, number][] = [];
-  const addRay = (dr: number, dc: number) => {
-    let r = row + dr, c = col + dc;
-    while (inBounds(r, c)) {
-      const t = board[r][c];
-      if (t == null) { moves.push([r, c]); }
-      else { if (isWhite(t) !== white) moves.push([r, c]); break; }
-      r += dr; c += dc;
-    }
+
+function updateCastlingRights(
+  castling: string,
+  piece: string,
+  fromSquare: string,
+  toSquare: string,
+  capturedPiece: string | null
+): string {
+  let rights = normalizeCastlingRights(castling);
+  if (rights === '-') {
+    rights = '';
+  }
+
+  const removeRight = (right: string) => {
+    rights = rights.replace(right, '');
   };
-  const p = piece.toLowerCase();
-  if (p === 'r') { [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => addRay(dr,dc)); }
-  else if (p === 'b') { [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc]) => addRay(dr,dc)); }
-  else if (p === 'q') { [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc]) => addRay(dr,dc)); }
-  else if (p === 'n') {
-    [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,dc]) => {
-      const r = row+dr, c = col+dc;
-      if (inBounds(r,c)) { const t = board[r][c]; if (!t || isWhite(t) !== white) moves.push([r,c]); }
-    });
-  } else if (p === 'k') {
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      if (!dr && !dc) continue;
-      const r = row+dr, c = col+dc;
-      if (inBounds(r,c)) { const t = board[r][c]; if (!t || isWhite(t) !== white) moves.push([r,c]); }
-    }
-    // Castling
-    const cr = getCastlingRights(fen);
-    const homeRow = white ? 7 : 0;
-    if (row === homeRow && col === 4) {
-      if (white && cr.includes('K') && !board[homeRow][5] && !board[homeRow][6] && board[homeRow][7] === 'R')
-        moves.push([homeRow, 6]);
-      if (white && cr.includes('Q') && !board[homeRow][1] && !board[homeRow][2] && !board[homeRow][3] && board[homeRow][0] === 'R')
-        moves.push([homeRow, 2]);
-      if (!white && cr.includes('k') && !board[homeRow][5] && !board[homeRow][6] && board[homeRow][7] === 'r')
-        moves.push([homeRow, 6]);
-      if (!white && cr.includes('q') && !board[homeRow][1] && !board[homeRow][2] && !board[homeRow][3] && board[homeRow][0] === 'r')
-        moves.push([homeRow, 2]);
-    }
-  } else if (p === 'p') {
-    const dir = white ? -1 : 1;
-    const startRow = white ? 6 : 1;
-    if (inBounds(row+dir, col) && !board[row+dir][col]) {
-      moves.push([row+dir, col]);
-      if (row === startRow && !board[row+dir*2][col]) moves.push([row+dir*2, col]);
-    }
-    const ep = getEnPassantTarget(fen);
-    for (const dc of [-1, 1]) {
-      const r = row+dir, c = col+dc;
-      if (!inBounds(r,c)) continue;
-      const t = board[r][c];
-      if (t && isWhite(t) !== white) moves.push([r,c]);
-      else if (!t && ep && ep[0] === r && ep[1] === c) moves.push([r,c]);
+
+  switch (piece) {
+    case 'K':
+      removeRight('K');
+      removeRight('Q');
+      break;
+    case 'k':
+      removeRight('k');
+      removeRight('q');
+      break;
+    case 'R':
+      if (fromSquare === 'a1') removeRight('Q');
+      if (fromSquare === 'h1') removeRight('K');
+      break;
+    case 'r':
+      if (fromSquare === 'a8') removeRight('q');
+      if (fromSquare === 'h8') removeRight('k');
+      break;
+    default:
+      break;
+  }
+
+  switch (capturedPiece) {
+    case 'R':
+      if (toSquare === 'a1') removeRight('Q');
+      if (toSquare === 'h1') removeRight('K');
+      break;
+    case 'r':
+      if (toSquare === 'a8') removeRight('q');
+      if (toSquare === 'h8') removeRight('k');
+      break;
+    default:
+      break;
+  }
+
+  return rights || '-';
+}
+
+function applyMoveToBoard(
+  board: (string | null)[][],
+  from: [number, number],
+  to: [number, number],
+  enPassantTarget: [number, number] | null
+) {
+  const nextBoard = cloneChessBoard(board);
+  const piece = nextBoard[from[0]]?.[from[1]];
+  if (!piece) {
+    return {
+      board: nextBoard,
+      capturedPiece: null as string | null,
+      didCapture: false,
+    };
+  }
+
+  const targetPiece = nextBoard[to[0]][to[1]];
+  let capturedPiece = targetPiece;
+  let didCapture = targetPiece != null;
+
+  if (
+    piece.toLowerCase() === 'p' &&
+    from[1] !== to[1] &&
+    targetPiece == null &&
+    enPassantTarget &&
+    enPassantTarget[0] === to[0] &&
+    enPassantTarget[1] === to[1]
+  ) {
+    const direction = isWhite(piece) ? -1 : 1;
+    const capturedRow = to[0] - direction;
+    capturedPiece = nextBoard[capturedRow][to[1]];
+    nextBoard[capturedRow][to[1]] = null;
+    didCapture = capturedPiece != null;
+  }
+
+  if (piece.toLowerCase() === 'k' && Math.abs(to[1] - from[1]) === 2) {
+    if (to[1] === 6) {
+      nextBoard[to[0]][5] = nextBoard[to[0]][7];
+      nextBoard[to[0]][7] = null;
+    } else if (to[1] === 2) {
+      nextBoard[to[0]][3] = nextBoard[to[0]][0];
+      nextBoard[to[0]][0] = null;
     }
   }
-  return moves;
+
+  nextBoard[from[0]][from[1]] = null;
+
+  let placedPiece = piece;
+  if (piece === 'P' && to[0] === 0) placedPiece = 'Q';
+  if (piece === 'p' && to[0] === 7) placedPiece = 'q';
+  nextBoard[to[0]][to[1]] = placedPiece;
+
+  return { board: nextBoard, capturedPiece, didCapture };
+}
+
+function findKing(
+  board: (string | null)[][],
+  white: boolean
+): { row: number; col: number } | null {
+  const king = white ? 'K' : 'k';
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      if (board[row][col] === king) {
+        return { row, col };
+      }
+    }
+  }
+  return null;
+}
+
+function isSquareAttacked(
+  board: (string | null)[][],
+  targetRow: number,
+  targetCol: number,
+  byWhite: boolean
+): boolean {
+  const knightDeltas = [
+    [-2, -1],
+    [-2, 1],
+    [-1, -2],
+    [-1, 2],
+    [1, -2],
+    [1, 2],
+    [2, -1],
+    [2, 1],
+  ];
+
+  for (const [dr, dc] of knightDeltas) {
+    const row = targetRow + dr;
+    const col = targetCol + dc;
+    if (!inBounds(row, col)) continue;
+    const piece = board[row][col];
+    if (piece && piece.toLowerCase() === 'n' && isWhite(piece) === byWhite) {
+      return true;
+    }
+  }
+
+  const pawnDirection = byWhite ? 1 : -1;
+  for (const dc of [-1, 1]) {
+    const row = targetRow + pawnDirection;
+    const col = targetCol + dc;
+    if (!inBounds(row, col)) continue;
+    const piece = board[row][col];
+    if (piece && piece.toLowerCase() === 'p' && isWhite(piece) === byWhite) {
+      return true;
+    }
+  }
+
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      const row = targetRow + dr;
+      const col = targetCol + dc;
+      if (!inBounds(row, col)) continue;
+      const piece = board[row][col];
+      if (piece && piece.toLowerCase() === 'k' && isWhite(piece) === byWhite) {
+        return true;
+      }
+    }
+  }
+
+  const rookDirections = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ];
+  for (const [dr, dc] of rookDirections) {
+    let row = targetRow + dr;
+    let col = targetCol + dc;
+    while (inBounds(row, col)) {
+      const piece = board[row][col];
+      if (piece) {
+        if (isWhite(piece) === byWhite) {
+          const normalized = piece.toLowerCase();
+          if (normalized === 'r' || normalized === 'q') {
+            return true;
+          }
+        }
+        break;
+      }
+      row += dr;
+      col += dc;
+    }
+  }
+
+  const bishopDirections = [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ];
+  for (const [dr, dc] of bishopDirections) {
+    let row = targetRow + dr;
+    let col = targetCol + dc;
+    while (inBounds(row, col)) {
+      const piece = board[row][col];
+      if (piece) {
+        if (isWhite(piece) === byWhite) {
+          const normalized = piece.toLowerCase();
+          if (normalized === 'b' || normalized === 'q') {
+            return true;
+          }
+        }
+        break;
+      }
+      row += dr;
+      col += dc;
+    }
+  }
+
+  return false;
+}
+
+function moveWouldLeaveInCheck(
+  state: ChessFenState,
+  from: [number, number],
+  to: [number, number]
+): boolean {
+  const piece = state.board[from[0]][from[1]];
+  if (!piece) return false;
+
+  const movingWhite = state.turn === 'w';
+  const opponentIsWhite = !movingWhite;
+
+  if (piece.toLowerCase() === 'k' && Math.abs(to[1] - from[1]) === 2) {
+    if (isSquareAttacked(state.board, from[0], from[1], opponentIsWhite)) {
+      return true;
+    }
+
+    const throughCol = from[1] + (to[1] > from[1] ? 1 : -1);
+    if (isSquareAttacked(state.board, from[0], throughCol, opponentIsWhite)) {
+      return true;
+    }
+  }
+
+  const { board } = applyMoveToBoard(
+    state.board,
+    from,
+    to,
+    getEnPassantTarget(state)
+  );
+  const kingPosition = findKing(board, movingWhite);
+  if (!kingPosition) {
+    return true;
+  }
+
+  return isSquareAttacked(
+    board,
+    kingPosition.row,
+    kingPosition.col,
+    opponentIsWhite
+  );
+}
+
+/** Apply a move to a FEN string and return the updated FEN for optimistic UI */
+function applyMoveFen(fen: string, from: [number, number], to: [number, number]): string {
+  const state = parseChessFenState(fen);
+  const piece = state.board[from[0]]?.[from[1]];
+  if (!piece) return fen;
+
+  const fromSquare = squareToAlgebraic(from[0], from[1]);
+  const toSquare = squareToAlgebraic(to[0], to[1]);
+  const { board, capturedPiece, didCapture } = applyMoveToBoard(
+    state.board,
+    from,
+    to,
+    getEnPassantTarget(state)
+  );
+
+  return buildFenFromState({
+    board,
+    turn: state.turn === 'w' ? 'b' : 'w',
+    castling: updateCastlingRights(
+      state.castling,
+      piece,
+      fromSquare,
+      toSquare,
+      capturedPiece
+    ),
+    enPassant:
+      piece.toLowerCase() === 'p' && Math.abs(to[0] - from[0]) === 2
+        ? squareToAlgebraic((from[0] + to[0]) / 2, from[1])
+        : '-',
+    halfMove: piece.toLowerCase() === 'p' || didCapture ? 0 : state.halfMove + 1,
+    fullMove: state.fullMove + (state.turn === 'b' ? 1 : 0),
+  });
+}
+
+/** Chess legal move computation with king-safety filtering */
+function getLegalMovesForPiece(fen: string, row: number, col: number): [number, number][] {
+  const state = parseChessFenState(fen);
+  const board = state.board;
+  const piece = board[row][col];
+  if (!piece) return [];
+
+  const white = isWhite(piece);
+  const pieceTurn = white ? 'w' : 'b';
+  if (pieceTurn !== state.turn) return [];
+
+  const moves: [number, number][] = [];
+  const addRay = (dr: number, dc: number) => {
+    let nextRow = row + dr;
+    let nextCol = col + dc;
+    while (inBounds(nextRow, nextCol)) {
+      const target = board[nextRow][nextCol];
+      if (target == null) {
+        moves.push([nextRow, nextCol]);
+      } else {
+        if (isWhite(target) !== white) moves.push([nextRow, nextCol]);
+        break;
+      }
+      nextRow += dr;
+      nextCol += dc;
+    }
+  };
+
+  const normalizedPiece = piece.toLowerCase();
+  if (normalizedPiece === 'r') {
+    [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dr, dc]) =>
+      addRay(dr, dc)
+    );
+  } else if (normalizedPiece === 'b') {
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([dr, dc]) =>
+      addRay(dr, dc)
+    );
+  } else if (normalizedPiece === 'q') {
+    [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(
+      ([dr, dc]) => addRay(dr, dc)
+    );
+  } else if (normalizedPiece === 'n') {
+    [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]].forEach(
+      ([dr, dc]) => {
+        const nextRow = row + dr;
+        const nextCol = col + dc;
+        if (!inBounds(nextRow, nextCol)) return;
+        const target = board[nextRow][nextCol];
+        if (!target || isWhite(target) !== white) {
+          moves.push([nextRow, nextCol]);
+        }
+      }
+    );
+  } else if (normalizedPiece === 'k') {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nextRow = row + dr;
+        const nextCol = col + dc;
+        if (!inBounds(nextRow, nextCol)) continue;
+        const target = board[nextRow][nextCol];
+        if (!target || isWhite(target) !== white) {
+          moves.push([nextRow, nextCol]);
+        }
+      }
+    }
+
+    const homeRow = white ? 7 : 0;
+    if (row === homeRow && col === 4) {
+      if (
+        white &&
+        state.castling.includes('K') &&
+        !board[homeRow][5] &&
+        !board[homeRow][6] &&
+        board[homeRow][7] === 'R'
+      ) {
+        moves.push([homeRow, 6]);
+      }
+      if (
+        white &&
+        state.castling.includes('Q') &&
+        !board[homeRow][1] &&
+        !board[homeRow][2] &&
+        !board[homeRow][3] &&
+        board[homeRow][0] === 'R'
+      ) {
+        moves.push([homeRow, 2]);
+      }
+      if (
+        !white &&
+        state.castling.includes('k') &&
+        !board[homeRow][5] &&
+        !board[homeRow][6] &&
+        board[homeRow][7] === 'r'
+      ) {
+        moves.push([homeRow, 6]);
+      }
+      if (
+        !white &&
+        state.castling.includes('q') &&
+        !board[homeRow][1] &&
+        !board[homeRow][2] &&
+        !board[homeRow][3] &&
+        board[homeRow][0] === 'r'
+      ) {
+        moves.push([homeRow, 2]);
+      }
+    }
+  } else if (normalizedPiece === 'p') {
+    const direction = white ? -1 : 1;
+    const startRow = white ? 6 : 1;
+    if (inBounds(row + direction, col) && !board[row + direction][col]) {
+      moves.push([row + direction, col]);
+      if (row === startRow && !board[row + direction * 2][col]) {
+        moves.push([row + direction * 2, col]);
+      }
+    }
+
+    const enPassantTarget = getEnPassantTarget(state);
+    for (const dc of [-1, 1]) {
+      const nextRow = row + direction;
+      const nextCol = col + dc;
+      if (!inBounds(nextRow, nextCol)) continue;
+      const target = board[nextRow][nextCol];
+      if (target && isWhite(target) !== white) {
+        moves.push([nextRow, nextCol]);
+      } else if (
+        !target &&
+        enPassantTarget &&
+        enPassantTarget[0] === nextRow &&
+        enPassantTarget[1] === nextCol
+      ) {
+        moves.push([nextRow, nextCol]);
+      }
+    }
+  }
+
+  return moves.filter(
+    ([targetRow, targetCol]) =>
+      !moveWouldLeaveInCheck(state, [row, col], [targetRow, targetCol])
+  );
 }
 
 // On native: wrap board in GestureDetector + Animated.View for drag-to-move
@@ -1121,6 +1533,7 @@ export function ChessBlock({
 
   const sq = boardSize / 8;
   const activeFen = optimisticFen ?? block.fen;
+  const activeTurn = activeFen.split(' ')[1] === 'b' ? 'black' : 'white';
   const board = useMemo(() => parseFen(activeFen), [activeFen]);
   // Visual board: apply staged move so piece snaps to target square before confirm
   // Also hide the piece being dragged
@@ -1146,9 +1559,12 @@ export function ChessBlock({
   const myColor = block.players?.white === currentUser ? 'white'
     : block.players?.black === currentUser ? 'black'
     : null;
+  const isPlayableStatus = !block.status
+    || block.status === 'active'
+    || block.status === 'check';
   const isMyTurn = myColor != null
-    && block.turn === myColor
-    && block.status === 'active';
+    && activeTurn === myColor
+    && isPlayableStatus;
   // Only allow moving your own pieces
   const canMovePiece = useCallback((piece: string | null) => {
     if (!piece || !myColor) return false;
@@ -1200,6 +1616,12 @@ export function ChessBlock({
     if (!staged) { resetState(); return; }
     const move = `${squareToAlgebraic(staged.from[0], staged.from[1])}${squareToAlgebraic(staged.to[0], staged.to[1])}`;
     console.log('[chess] handleDone', { move, postId, channelId });
+    if (postId && channelId && !currentUser) {
+      console.error('[chess] Cannot send move: currentUser is not set');
+      resetState();
+      setOptimisticFen(null);
+      return;
+    }
     // Apply optimistically so board updates immediately
     try {
       const newFen = applyMoveFen(activeFen, staged.from, staged.to);
@@ -1210,7 +1632,7 @@ export function ChessBlock({
     resetState();
     if (postId && channelId) {
       try {
-        const ship = currentUser?.replace('~', '') ?? 'malmur-halmex';
+        const ship = currentUser.replace('~', '');
         const ts = Date.now();
         const body = JSON.stringify([{
           id: ts,
@@ -1350,7 +1772,7 @@ export function ChessBlock({
     : block.status === 'checkmate' ? '🏁 Checkmate'
     : block.status === 'stalemate' ? '🤝 Stalemate'
     : block.status === 'draw' ? '🤝 Draw'
-    : block.turn ? `${block.turn === 'white' ? '⬜' : '⬛'} ${block.turn}'s move`
+    : activeTurn ? `${activeTurn === 'white' ? '⬜' : '⬛'} ${activeTurn}'s move`
     : null;
 
   // Render a chess piece as a Text element (for drag overlay)
@@ -1552,7 +1974,7 @@ export function ChessBlock({
                     }}
                   >
                     <Text size="$label/s" color="$tertiaryText">
-                      Waiting for {block.players?.[block.turn === 'white' ? 'white' : 'black'] ?? 'opponent'}…
+                      Waiting for {block.players?.[activeTurn] ?? 'opponent'}…
                     </Text>
                   </View>
                 )}
@@ -1688,9 +2110,14 @@ export function A2UIBlock({
     if (!postId || !channelId) {
       console.warn('[a2ui] Missing postId or channelId, proceeding anyway for optimistic UI');
     }
+    if (!currentUser) {
+      console.error('[a2ui] Cannot send action: currentUser is not set');
+      setSelectedAction(null);
+      return;
+    }
     setSelectedAction(label);
     try {
-      const ship = currentUser?.replace('~', '') ?? 'malmur-halmex';
+      const ship = currentUser.replace('~', '');
       const ts = Date.now();
       const body = JSON.stringify([{
         id: ts,

@@ -30,9 +30,30 @@ const __dirname = path.dirname(__filename);
 const {
   parseFen,
   applyMove,
-  getLegalMoves,
+  getAllLegalMoves,
+  getGameStatus,
+  getPositionKey,
   getRandomMove,
-} = loadCommonJsModule(path.join(__dirname, 'chess-utils.js'));
+} = loadCommonJsModule(path.join(__dirname, 'chess-utils.cjs'));
+
+function normalizePlayerMove(state, move) {
+  const fromSquare = move.slice(0, 2);
+  const toSquare = move.slice(2, 4);
+  const fromCol = fromSquare.charCodeAt(0) - 97;
+  const fromRow = 8 - Number(fromSquare[1]);
+  const toRow = 8 - Number(toSquare[1]);
+  const piece = state.board[fromRow]?.[fromCol];
+
+  if (
+    piece &&
+    piece.toLowerCase() === 'p' &&
+    (toRow === 0 || toRow === 7)
+  ) {
+    return `${fromSquare}${toSquare}${move[4]?.toLowerCase() || 'q'}`;
+  }
+
+  return move;
+}
 
 function loadCommonJsModule(filename) {
   const source = fs.readFileSync(filename, 'utf8');
@@ -46,6 +67,23 @@ function loadCommonJsModule(filename) {
 
   evaluate(module.exports, localRequire, module, filename, path.dirname(filename));
   return module.exports;
+}
+
+function isTerminalStatus(status) {
+  return status === 'checkmate' || status === 'stalemate' || status === 'draw';
+}
+
+function normalizePositionHistory(fen, positionHistory) {
+  const history = Array.isArray(positionHistory)
+    ? positionHistory.filter((entry) => typeof entry === 'string' && entry.trim())
+    : [];
+  const currentPosition = getPositionKey(fen);
+
+  if (history.length === 0 || history[history.length - 1] !== currentPosition) {
+    history.push(currentPosition);
+  }
+
+  return history;
 }
 
 function sleep(ms) {
@@ -513,6 +551,9 @@ function findChessBlockInNode(node) {
       status: node.status,
       lastMove: node.lastMove ?? null,
       moveHistory: Array.isArray(node.moveHistory) ? node.moveHistory.slice() : [],
+      positionHistory: Array.isArray(node.positionHistory)
+        ? node.positionHistory.slice()
+        : [],
       theme: node.theme ?? 'blue',
     };
   }
@@ -629,7 +670,14 @@ function isNewMessage(state, message) {
   return !state.processedIds.has(message.id);
 }
 
-function buildChessPostBody(fen, templateBlock, moveHistory, lastMove) {
+function buildChessPostBody(
+  fen,
+  templateBlock,
+  moveHistory,
+  lastMove,
+  status,
+  positionHistory
+) {
   const state = parseFen(fen);
   return {
     content: [
@@ -643,9 +691,10 @@ function buildChessPostBody(fen, templateBlock, moveHistory, lastMove) {
                 fen,
                 players: templateBlock.players ?? DEFAULT_PLAYERS,
                 turn: state.turn === 'w' ? 'white' : 'black',
-                status: 'active',
+                status,
                 lastMove,
                 moveHistory,
+                positionHistory,
                 theme: templateBlock.theme ?? 'blue',
               },
             },
@@ -696,36 +745,56 @@ async function handleMoveMessage(state, message) {
   console.log(`[move] detected ${move} in reply ${message.id} to chess post ${parentMessage.id}`);
 
   try {
-    const fromSquare = move.slice(0, 2);
-    const toSquare = move.slice(2, 4);
-    const legalTargets = getLegalMoves(chessBlock.fen, fromSquare);
+    const gameState = parseFen(chessBlock.fen);
+    const normalizedMove = normalizePlayerMove(gameState, move);
+    const legalMoves = getAllLegalMoves(gameState);
 
-    if (!legalTargets.includes(toSquare)) {
+    if (!legalMoves.includes(normalizedMove)) {
       throw new Error(`Illegal move ${move} for FEN ${chessBlock.fen}`);
-    }
-
-    const afterPlayerMove = applyMove(chessBlock.fen, move);
-    let responseMove = null;
-    let finalFen = afterPlayerMove;
-
-    responseMove = getRandomMove(afterPlayerMove);
-    if (responseMove) {
-      finalFen = applyMove(afterPlayerMove, responseMove);
     }
 
     const moveHistory = Array.isArray(chessBlock.moveHistory)
       ? chessBlock.moveHistory.slice()
       : [];
-    moveHistory.push(move);
-    if (responseMove) {
-      moveHistory.push(responseMove);
+    const positionHistory = normalizePositionHistory(
+      chessBlock.fen,
+      chessBlock.positionHistory
+    );
+
+    moveHistory.push(normalizedMove);
+    const afterPlayerMove = applyMove(chessBlock.fen, move);
+    const afterPlayerPositionHistory = positionHistory.concat(
+      getPositionKey(afterPlayerMove)
+    );
+    const statusAfterUser = getGameStatus(afterPlayerMove, {
+      positionHistory: afterPlayerPositionHistory,
+    });
+    let responseMove = null;
+    let finalFen = afterPlayerMove;
+    let finalStatus = statusAfterUser;
+    let finalPositionHistory = afterPlayerPositionHistory;
+
+    if (!isTerminalStatus(statusAfterUser)) {
+      responseMove = getRandomMove(afterPlayerMove);
+      if (responseMove) {
+        finalFen = applyMove(afterPlayerMove, responseMove);
+        moveHistory.push(responseMove);
+        finalPositionHistory = afterPlayerPositionHistory.concat(
+          getPositionKey(finalFen)
+        );
+        finalStatus = getGameStatus(finalFen, {
+          positionHistory: finalPositionHistory,
+        });
+      }
     }
 
     const body = buildChessPostBody(
       finalFen,
       chessBlock,
       moveHistory,
-      responseMove ?? move
+      responseMove ?? normalizedMove,
+      finalStatus,
+      finalPositionHistory
     );
 
     const response = await postChessBlob(state, body);
@@ -782,7 +851,7 @@ async function main() {
     lastSeenSortValue: null,
   };
 
-  while (true) {
+  for (;;) {
     try {
       if (!state.cookie) {
         await login(state);
