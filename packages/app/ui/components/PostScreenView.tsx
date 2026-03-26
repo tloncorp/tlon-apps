@@ -182,7 +182,7 @@ export function PostScreenView({
   channel: db.Channel;
   parentPost: db.Post | null;
   goBack?: () => void;
-  handleGoToImage?: (post: db.Post, uri?: string) => void;
+  handleGoToImage?: (post: db.Post, uri: string) => void;
   handleGoToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
@@ -530,7 +530,7 @@ function SinglePostView({
   editingPost?: db.Post;
   goBack?: () => void;
   group: db.Group | null;
-  handleGoToImage?: (post: db.Post, uri?: string) => void;
+  handleGoToImage?: (post: db.Post, uri: string) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;

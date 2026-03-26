@@ -75,7 +75,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   );
 
   const navigateToImage = useCallback(
-    (post: db.Post, uri?: string) => {
+    (post: db.Post, uri: string) => {
       navigation.navigate('MediaViewer', {
         mediaType: 'image',
         uri,
