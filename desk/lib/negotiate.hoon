@@ -849,13 +849,22 @@
       =/  =cage  !:
         :-  mark
         !>  ^-  egg-any:gall
-        =+  !<(=egg-any:gall vase)
-        ?>  ?=(%live +<.egg-any)
-        %_  egg-any
-          +.old-state  [-:!>(**) q:(slot 7 +.old-state.egg-any)]
-          bitt         (inner-bitt:up bitt.egg-any)
-          boat         (inner-boat:up boat.egg-any want)
-          boar         (~(run by boat.egg-any) |=(* *@))
+        =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+        ?>  ?=(%live -.egg)
+        :-  %20
+        ^-  egg:gall
+        =*  vos  +.old-state.egg
+        %=  egg
+          +.old-state  :-  -:!>(**)  ::NOTE  hack
+                       ::  strip carefully, versions 0 and 1 will have
+                       ::  double-vased state containing an h136 vase
+                       ::
+                       =+  !<([%negotiate [v=@ *]] (slot 2 vos))
+                       ?:  (gte v 2)  q:(slot 3 vos)
+                       q:!<(vase:h136 (slot 3 vos))
+          bitt         (inner-bitt:up bitt.egg)
+          boat         (inner-boat:up boat.egg want)
+          boar         (~(run by boat.egg) |=(* *@))
         ==
       =^  cards  inner  (on-poke:og cage)  !:
       =^  cards  state  (play-cards:up cards)

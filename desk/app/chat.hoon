@@ -907,71 +907,68 @@
     action(diff.q.q (v3:diff-writs:v2:cc diff.q.q.action))
   ::
       %egg-any
-    =+  !<(=egg-any:gall vase)
-    ?-  -.egg-any
-        ?(%15 %16)
-      ?.  ?=(%live +<.egg-any)
-        ~&  [dap.bowl %egg-any-not-live]
-        cor
-      =/  bak=_cor
-        (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
-      ::  restore previous data, doing a "deep merge" where possible.
-      ::  in doing so we must take care around sequence numbers.
-      ::  to keep that logic simple, we merge the message lists and
-      ::  re-number all the messages in sequence.
-      ::
-      =.  dms
-        %+  roll  ~(tap by dms:bak)
-        |=  [[=ship =dm:c] =_dms]
-        %+  ~(put by dms)  ship
-        ?.  (~(has by dms) ship)
-          dm
-        =/  hav  (~(got by dms) ship)
-        =/  [num=@ud wit=writs:c]
-          %^  (dip:on:writs:c ,@ud)
-              (uni:on:writs:c wit.pact.dm wit.pact.hav)
-            0
-          |=  [n=@ud k=time v=(may:c writ:c)]
-          ^-  [(unit (may:c writ:c)) ? @ud]
-          :_  [| +(n)]
-          :-  ~
-          ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
-        :*  :^    num
-                wit
-              (~(uni by dex.pact.dm) dex.pact.hav)
-            ::NOTE  if we renumbered message above, arguably this should
-            ::      also add new upd entries for all those posts, but we
-            ::      assume (for now) that /changes consistency across exports
-            ::      isn't strictly necessary
-            (uni:updated-on:c upd.pact.dm upd.pact.hav)
-          ::
-            remark.hav
-            net.hav
-            |(pin.hav pin.dm)
-        ==
-      =.  clubs
-        %+  roll  ~(tap by clubs:bak)
-        |=  [[=id:club:c =club:c] =_clubs]
-        %+  ~(put by clubs)  id
-        ?.  (~(has by clubs) id)
-          club
-        =/  hav  (~(got by clubs) id)
-        :*  (~(uni in heard.club) heard.hav)
-            remark.hav
-          ::
-            :^    (max num.pact.club num.pact.hav)
-                (uni:on:writs:c wit.pact.club wit.pact.hav)
-              (~(uni by dex.pact.club) dex.pact.hav)
-            (uni:updated-on:c upd.pact.club upd.pact.hav)
-          ::
-            crew.hav
-        ==
-      =.  pins             pins:bak
-      =.  blocked          (~(uni in blocked:bak) blocked)
-      =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
-      =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+    ?.  ?=(%live -.egg)
+      ~&  [dap.bowl %egg-not-live]
       cor
-    ==
+    =/  bak=_cor
+      (load -:!>(*[versioned-state:load @ud]) q.old-state.egg)
+    ::  restore previous data, doing a "deep merge" where possible.
+    ::  in doing so we must take care around sequence numbers.
+    ::  to keep that logic simple, we merge the message lists and
+    ::  re-number all the messages in sequence.
+    ::
+    =.  dms
+      %+  roll  ~(tap by dms:bak)
+      |=  [[=ship =dm:c] =_dms]
+      %+  ~(put by dms)  ship
+      ?.  (~(has by dms) ship)
+        dm
+      =/  hav  (~(got by dms) ship)
+      =/  [num=@ud wit=writs:c]
+        %^  (dip:on:writs:c ,@ud)
+            (uni:on:writs:c wit.pact.dm wit.pact.hav)
+          0
+        |=  [n=@ud k=time v=(may:c writ:c)]
+        ^-  [(unit (may:c writ:c)) ? @ud]
+        :_  [| +(n)]
+        :-  ~
+        ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
+      :*  :^    num
+              wit
+            (~(uni by dex.pact.dm) dex.pact.hav)
+          ::NOTE  if we renumbered message above, arguably this should
+          ::      also add new upd entries for all those posts, but we
+          ::      assume (for now) that /changes consistency across exports
+          ::      isn't strictly necessary
+          (uni:updated-on:c upd.pact.dm upd.pact.hav)
+        ::
+          remark.hav
+          net.hav
+          |(pin.hav pin.dm)
+      ==
+    =.  clubs
+      %+  roll  ~(tap by clubs:bak)
+      |=  [[=id:club:c =club:c] =_clubs]
+      %+  ~(put by clubs)  id
+      ?.  (~(has by clubs) id)
+        club
+      =/  hav  (~(got by clubs) id)
+      :*  (~(uni in heard.club) heard.hav)
+          remark.hav
+        ::
+          :^    (max num.pact.club num.pact.hav)
+              (uni:on:writs:c wit.pact.club wit.pact.hav)
+            (~(uni by dex.pact.club) dex.pact.hav)
+          (uni:updated-on:c upd.pact.club upd.pact.hav)
+        ::
+          crew.hav
+      ==
+    =.  pins             pins:bak
+    =.  blocked          (~(uni in blocked:bak) blocked)
+    =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
+    =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+    cor
   ==
   ++  pin
     |=  ps=(list whom:c)
