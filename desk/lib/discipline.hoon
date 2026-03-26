@@ -297,11 +297,15 @@
     =/  =cage  !:
       :-  mark
       !>  ^-  egg-any:gall
-      =+  !<(=egg-any:gall vase)
-      ?>  ?=(%live +<.egg-any)
-      %_  egg-any
-        +.old-state  (slot 3 +.old-state.egg-any)
-      ==
+      =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+      ?>  ?=(%live -.egg)
+      :-  %20
+      ?.  ?=([%0 *] ->.q.old-state.egg)
+        egg(+.old-state (slot 3 +.old-state.egg))
+      ::  version 0 had double-vased agent state, unpack that carefully
+      ::
+      =-  egg(+.old-state -)
+      (next-vase:h136 !<(vase:h136 (slot 3 +.old-state.egg)))
     =^  cards  inner  (on-poke:og cage)  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]

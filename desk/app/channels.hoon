@@ -1105,21 +1105,19 @@
   ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
-  ?-  -.egg-any
-      ?(%15 %16)
-    ?.  ?=(%live +<.egg-any)
-      ~&  [dap.bowl %egg-any-not-live]
-      cor
-    =/  bak
-      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-    ::  restore as much data as we can. we don't restart subscriptions here,
-    ::  we wait for the groups agent to tell us which ones to re-join.
-    ::
-    =.  v-channels    (~(uni by v-channels:bak) v-channels)
-    =.  voc           (~(uni by voc:bak) voc)
-    =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
-    (emil (prod-next:imp [our dap]:bowl))
-  ==
+  =/  =egg:gall  (latest:egg-aid:gall egg-any)
+  ?.  ?=(%live -.egg)
+    ~&  [dap.bowl %egg-not-live]
+    cor
+  =/  bak
+    (load -:!>(*versioned-state:load) +>.old-state.egg)
+  ::  restore as much data as we can. we don't restart subscriptions here,
+  ::  we wait for the groups agent to tell us which ones to re-join.
+  ::
+  =.  v-channels    (~(uni by v-channels:bak) v-channels)
+  =.  voc           (~(uni by voc:bak) voc)
+  =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
+  (emil (prod-next:imp [our dap]:bowl))
 ++  watch
   |=  =(pole knot)
   ~>  %spin.['watch']
