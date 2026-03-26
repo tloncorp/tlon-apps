@@ -113,6 +113,15 @@ describe('storyToHtml', () => {
     );
   });
 
+  it('converts ship mentions with data-mention attribute', () => {
+    const story: Story = [
+      { inline: ['hello ', { ship: 'zod' }, ' welcome'] },
+    ];
+    expect(storyToHtml(story)).toBe(
+      '<p>hello <span data-mention="~zod">~zod</span> welcome</p>'
+    );
+  });
+
   it('converts horizontal rules', () => {
     const story: Story = [{ block: { rule: null } }];
     expect(storyToHtml(story)).toBe('<hr>');
@@ -233,6 +242,24 @@ describe('htmlToStory', () => {
     ]);
   });
 
+  it('converts ship mentions from data-mention spans', () => {
+    const story = htmlToStory(
+      '<p>hello <span data-mention="~zod">~zod</span> welcome</p>'
+    );
+    expect(story).toEqual([
+      { inline: ['hello ', { ship: 'zod' }, ' welcome'] },
+    ]);
+  });
+
+  it('converts native enriched mention tags', () => {
+    const story = htmlToStory(
+      '<p>hey <mention text="zod" indicator="~" id="~zod">zod</mention> hi</p>'
+    );
+    expect(story).toEqual([
+      { inline: ['hey ', { ship: 'zod' }, ' hi'] },
+    ]);
+  });
+
   it('converts horizontal rules', () => {
     const story = htmlToStory('<hr>');
     expect(story).toEqual([{ block: { rule: null } }]);
@@ -258,6 +285,7 @@ describe('round-trip: storyToHtml → htmlToStory', () => {
     ['header', [{ block: { header: { tag: 'h1', content: ['Title'] } } }]],
     ['code block', [{ block: { code: { code: 'x = 1', lang: '' } } }]],
     ['horizontal rule', [{ block: { rule: null } }]],
+    ['ship mention', [{ inline: ['hi ', { ship: 'zod' }] }]],
   ];
 
   for (const [name, story] of testCases) {
