@@ -31,11 +31,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
+import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
+import { createMentionRoleOptions, MentionOption } from './BareChatInput/useMentions';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MarkdownEditor } from './MarkdownEditor';
+import MentionPopup from './MentionPopup';
 import { EnrichedNoteInput, EnrichedNoteInputRef, PastedImage } from './MessageInput/EnrichedNoteInput';
 import { FormattingToolbar } from './MessageInput/FormattingToolbar';
 import { MessageInput } from './MessageInput';
@@ -171,7 +174,12 @@ export function BigInput({
   editingPost,
   setShowBigInput,
   clearDraft,
+  storeDraft,
+  getDraft,
+  draftType,
   setShouldBlur,
+  groupMembers,
+  groupRoles,
   ...props
 }: MessageInputProps & {
   channelId: string;
@@ -198,6 +206,10 @@ export function BigInput({
     useState<TlonBridgeState | null>(null);
   const [enrichedHtml, setEnrichedHtml] = useState('');
   const [enrichedInitialHtml, setEnrichedInitialHtml] = useState<string | undefined>(undefined);
+  // Mention state for enriched editor (native mention detection)
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionSearchText, setMentionSearchText] = useState('');
+  const [mentionIndicator, setMentionIndicator] = useState('');
   const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
     null
   );
@@ -224,6 +236,67 @@ export function BigInput({
     showToast,
   });
   const { attachments, clearAttachments } = useAttachmentContext();
+
+  // Mention support for enriched editor
+  const roleOptions = useMemo(
+    () => createMentionRoleOptions(groupRoles),
+    [groupRoles]
+  );
+
+  const { data: mentionCandidates = [] } = useQuery({
+    queryKey: ['mentionCandidates', channelId, mentionSearchText],
+    queryFn: () =>
+      db.getMentionCandidates({ chatId: channelId, query: mentionSearchText }),
+    placeholderData: (prev) => prev || [],
+    enabled: enrichedInputEnabled && mentionActive && mentionSearchText.trim().length > 0,
+    select: (data) =>
+      data.map((c) => ({
+        id: c.id,
+        title: c.nickname || c.id,
+        subtitle: c.id,
+        type: 'contact' as const,
+        priority: c.priority,
+        contact: { id: c.id, nickname: c.nickname, avatarImage: c.avatarImage } as db.Contact,
+      })),
+  });
+
+  const mentionOptions = useMemo(() => {
+    const filteredRoles = roleOptions.filter(
+      (o) =>
+        mentionSearchText.trim().length > 0 &&
+        o.title?.toLowerCase().startsWith(mentionSearchText.toLowerCase())
+    );
+    return [...filteredRoles, ...mentionCandidates].sort(
+      (a, b) => a.priority - b.priority
+    );
+  }, [roleOptions, mentionCandidates, mentionSearchText]);
+
+  const handleStartMention = useCallback((indicator: string) => {
+    setMentionActive(true);
+    setMentionIndicator(indicator);
+    setMentionSearchText('');
+  }, []);
+
+  const handleChangeMention = useCallback((_indicator: string, text: string) => {
+    setMentionSearchText(text);
+  }, []);
+
+  const handleEndMention = useCallback(() => {
+    setMentionActive(false);
+    setMentionSearchText('');
+  }, []);
+
+  const handleSelectMention = useCallback(
+    (option: MentionOption) => {
+      const editor = enrichedEditorRef.current?.editor;
+      if (!editor) return;
+      const displayText = option.title || option.id;
+      (editor as any).setMention(mentionIndicator, displayText, option.id);
+      setMentionActive(false);
+      setMentionSearchText('');
+    },
+    [mentionIndicator]
+  );
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
@@ -299,6 +372,36 @@ export function BigInput({
       }
     }
   }, [enrichedInputEnabled, editingPost?.id]);
+
+  // Load draft on mount for enriched editor (when not editing an existing post)
+  useEffect(() => {
+    if (!enrichedInputEnabled || editingPost) return;
+    (async () => {
+      const draft = await getDraft(draftType);
+      if (draft && (draft as any).type === 'enrichedHtml') {
+        const html = (draft as any).html as string;
+        if (html) {
+          setEnrichedInitialHtml(html);
+          setEnrichedHtml(html);
+        }
+      }
+    })().catch((e) => logger.error('Failed to load enriched draft', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrichedInputEnabled]);
+
+  // Save draft on enriched HTML changes
+  useEffect(() => {
+    if (!enrichedInputEnabled || editingPost) return;
+    const textOnly = enrichedHtml.replace(/<[^>]*>/g, '').trim();
+    if (!textOnly) {
+      clearDraft(draftType);
+      return;
+    }
+    // Store as a custom JSON shape so we can distinguish from TipTap drafts
+    storeDraft({ type: 'enrichedHtml', html: enrichedHtml } as any, draftType).catch(
+      (e) => logger.error('Failed to store enriched draft', e)
+    );
+  }, [enrichedInputEnabled, enrichedHtml, editingPost, storeDraft, clearDraft, draftType]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
@@ -846,21 +949,45 @@ export function BigInput({
               testID="BigInputMarkdownEditor"
             />
           ) : enrichedInputEnabled ? (
-            <EnrichedNoteInput
-              ref={enrichedEditorRef}
-              initialHtml={enrichedInitialHtml}
-              onChangeHtml={setEnrichedHtml}
-              onEditorStateChange={setEnrichedEditorState}
-              onPasteImages={handlePasteImages}
-              placeholder="Write your note..."
-              testID="BigInputEnrichedEditor"
-              style={{
-                flex: 1,
-                width: '100%',
-                backgroundColor: theme.background.val,
-                padding: 16,
-              }}
-            />
+            <>
+              <EnrichedNoteInput
+                ref={enrichedEditorRef}
+                initialHtml={enrichedInitialHtml}
+                onChangeHtml={setEnrichedHtml}
+                onEditorStateChange={setEnrichedEditorState}
+                onPasteImages={handlePasteImages}
+                onStartMention={handleStartMention}
+                onChangeMention={handleChangeMention}
+                onEndMention={handleEndMention}
+                placeholder="Write your note..."
+                testID="BigInputEnrichedEditor"
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  backgroundColor: theme.background.val,
+                  padding: 16,
+                }}
+              />
+              {mentionActive && mentionOptions.length > 0 && (
+                <View
+                  position="absolute"
+                  bottom={0}
+                  left={0}
+                  right={0}
+                  zIndex={1000}
+                  backgroundColor="$background"
+                  borderTopWidth={1}
+                  borderTopColor="$border"
+                  maxHeight={300}
+                >
+                  <MentionPopup
+                    options={mentionOptions}
+                    onPress={handleSelectMention}
+                    matchText={mentionSearchText}
+                  />
+                </View>
+              )}
+            </>
           ) : (
             <MessageInput
               ref={editorRef}
@@ -870,6 +997,11 @@ export function BigInput({
               editingPost={editingPost}
               setShouldBlur={setShouldBlur}
               {...props}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+              storeDraft={storeDraft}
+              getDraft={getDraft}
+              draftType={draftType}
               clearDraft={clearDraft}
               frameless={true}
               bigInput={true}

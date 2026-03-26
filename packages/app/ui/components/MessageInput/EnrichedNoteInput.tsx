@@ -46,6 +46,12 @@ export interface EnrichedNoteInputProps {
   onEditorStateChange?: (state: TlonBridgeState) => void;
   /** Called when images are pasted from the clipboard */
   onPasteImages?: (images: PastedImage[]) => void;
+  /** Called when user starts typing a mention (e.g. types @) */
+  onStartMention?: (indicator: string) => void;
+  /** Called as user types mention search text */
+  onChangeMention?: (indicator: string, text: string) => void;
+  /** Called when mention mode ends (user left the trigger context) */
+  onEndMention?: (indicator: string) => void;
   /** Initial HTML content to set when mounting */
   initialHtml?: string;
   placeholder?: string;
@@ -107,7 +113,7 @@ function mapToTlonBridgeState(
  */
 export const EnrichedNoteInput = memo(
   forwardRef<EnrichedNoteInputRef, EnrichedNoteInputProps>(
-    ({ onChangeHtml, onEditorStateChange, onPasteImages, initialHtml, placeholder, testID, style }, ref) => {
+    ({ onChangeHtml, onEditorStateChange, onPasteImages, onStartMention, onChangeMention, onEndMention, initialHtml, placeholder, testID, style }, ref) => {
       const enrichedRef = useRef<EnrichedTextInputInstance>(null);
       const tamagui = useTheme();
       const isDark = useIsDarkTheme();
@@ -163,6 +169,10 @@ export const EnrichedNoteInput = memo(
           a: {
             color: '#3b80e8',
             textDecorationLine: 'underline' as const,
+          },
+          mention: {
+            color: '#3b80e8',
+            backgroundColor: isDark ? 'rgba(59,128,232,0.15)' : 'rgba(59,128,232,0.1)',
           },
         };
       }, [tamagui.primaryText.val, tamagui.secondaryText.val, tamagui.border.val, isDark]);
@@ -291,6 +301,10 @@ export const EnrichedNoteInput = memo(
               }
             },
 
+            // --- Mention support ---
+            setMention: (indicator: string, text: string, id: string) =>
+              enrichedRef.current?.setMention(indicator, text, { id }),
+
             // --- Content methods ---
             setContent: (html: string) => enrichedRef.current?.setValue(html),
             getHTML: () => enrichedRef.current?.getHTML() ?? Promise.resolve(''),
@@ -320,10 +334,14 @@ export const EnrichedNoteInput = memo(
           defaultValue={initialHtml}
           htmlStyle={htmlStyle}
           textShortcuts={nativeTextShortcuts}
+          mentionIndicators={['@', '~']}
           onChangeHtml={handleChangeHtml}
           onChangeState={handleChangeState}
           onChangeSelection={handleChangeSelection}
           onPasteImages={handlePasteImages}
+          onStartMention={onStartMention}
+          onChangeMention={onChangeMention ? (e) => onChangeMention(e.indicator, e.text) : undefined}
+          onEndMention={onEndMention}
           style={{ color: tamagui.primaryText.val, fontSize: 16, ...style as any }}
         />
       );
