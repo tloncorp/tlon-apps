@@ -36,6 +36,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
+import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
@@ -51,6 +52,7 @@ function AuthenticatedApp() {
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
+  useAutomatedTestDbCommands();
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();

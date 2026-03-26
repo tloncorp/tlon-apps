@@ -374,9 +374,8 @@ function useKickOffVoiceMemoTranscriptions({
     // we're catching errors internally, no need to catch outer promise
     void (async () => {
       try {
-        const { status } =
-          await Transcription.requestTranscriptionPermissionsIfNeeded();
-        if (status !== 'granted') {
+        const result = await Transcription.setupTranscriptionIfNeeded();
+        if (!result.canTranscribe) {
           return;
         }
 

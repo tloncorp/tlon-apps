@@ -28,9 +28,9 @@ export interface InitData {
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit6>({
+  const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    path: '/v6/init',
+    path: '/v7/init',
   });
 
   logger.crumb('got init data from api');
@@ -52,7 +52,7 @@ function extractChannelReadersFromV7Groups(
   return readers;
 }
 
-export const toInitData = (response: ub.GroupsInit6): InitData => {
+export const toInitData = (response: ub.GroupsInit7): InitData => {
   logger.crumb('converting init data to client data');
   logger.log('response.groups:', response.groups);
 

@@ -21,3 +21,7 @@ export interface JSON {
 export type UnionToIntersection<T> = {
   [E in T as keyof E]: E[keyof E];
 };
+
+declare global {
+  const __DEV__: boolean | undefined;
+}

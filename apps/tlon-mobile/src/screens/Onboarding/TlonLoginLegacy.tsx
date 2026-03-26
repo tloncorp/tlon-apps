@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { HostingError } from '@tloncorp/api';
 import {
   DEFAULT_TLON_LOGIN_EMAIL,
   DEFAULT_TLON_LOGIN_PASSWORD,
@@ -15,7 +16,6 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -130,7 +130,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                   paddingTop="$m"
                 >
                   <TextInput
-                    testID="email-input"
+                    testID="email-input-legacy"
                     placeholder="Email Address"
                     onBlur={() => {
                       onBlur();
@@ -157,7 +157,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
                   <TextInput
-                    testID="password-input"
+                    testID="password-input-legacy"
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();

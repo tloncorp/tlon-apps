@@ -782,7 +782,7 @@ export const getMentionCandidates = createReadQuery(
   async (
     {
       chatId,
-      limit = 4,
+      limit = 8,
       query,
     }: { chatId: string; limit?: number; query: string },
     ctx: QueryCtx
@@ -790,7 +790,7 @@ export const getMentionCandidates = createReadQuery(
     if (!(query = query.trim())) return [];
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
-    const searchTerm = `${query.toLowerCase()}%`;
+    const searchTerm = `%${query.toLowerCase()}%`;
 
     const $candidates = ctx.db
       .select({
@@ -805,12 +805,16 @@ export const getMentionCandidates = createReadQuery(
         membershipType: $chatMembers.membershipType,
         joinedAt: $chatMembers.joinedAt,
         isBlocked: $contacts.isBlocked,
-        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        // Priority: nickname matches rank higher than ship-id-only matches
+        // Within each match type: channel members > contacts > others
         priority: sql<number>`
           CASE 
-            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
-            WHEN ${$contacts.isContact} = true THEN 2
-            ELSE 3
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$contacts.isContact} = true THEN 2
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} THEN 3
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 4
+            WHEN ${$contacts.isContact} = true THEN 5
+            ELSE 6
           END
         `.as('priority'),
       })
@@ -854,6 +858,7 @@ export const getMentionCandidates = createReadQuery(
         .from($candidates)
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
+        .orderBy(sql`priority ASC`, ascNullsLast($candidates.nickname))
         .limit(limit)
     );
   },

@@ -1,6 +1,215 @@
-/-  c=chat, dv=channels-ver, cv=chat-ver
+/-  c=chat, cv=chat-ver, dv=channels-ver
 /+  ccv=channel-conv
 |%
+++  v7
+  |%
+  ++  reply
+    |%
+    ++  v6
+      |=  =reply:v7:cv
+      ^-  reply:v6:cv
+      [-.reply (v9:reply-essay:v10:ccv +.reply)]
+    --
+  ++  replies
+    |%
+    ++  v6
+      |=  =replies:v7:cv
+      ^-  replies:v6:cv
+      %+  gas:on:replies:v6:cv  ~
+      %+  turn
+        (tap:on:replies:v7:cv replies)
+      |=  [=time reply=(may:v7:cv reply:v7:cv)]
+      [time (mind:v7:cv reply v6:reply:v7)]
+    --
+  ++  seal
+    |%
+    ++  v6
+      |=  =seal:v7:cv
+      ^-  seal:v6:cv
+      :*  id.seal
+          seq.seal
+          time.seal
+          reacts.seal
+          (v6:replies:v7 replies.seal)
+          reply-meta.seal
+      ==
+    --
+  ++  response-delta-replies
+    |%
+    ++  v6
+      |=  =response-delta:replies:v7:cv
+      ^-  response-delta:replies:v6:cv
+      ?-    -.response-delta
+        %add  [%add (v9:reply-essay:v10:ccv reply-essay.response-delta) time.response-delta]
+        %del  [%del ~]
+        %add-react  response-delta
+        %del-react  response-delta
+      ==
+    --
+  ++  delta-replies
+    |%
+    ++  v6
+      |=  =delta:replies:v7:cv
+      ^-  delta:replies:v6:cv
+      ?-    -.delta
+        %add  [%add (v9:reply-essay:v10:ccv reply-essay.delta) time.delta]
+        %del  [%del ~]
+        %add-react  delta
+        %del-react  delta
+      ==
+    --
+  ++  diff-writs
+    |%
+    ++  v6
+      |=  diff=diff:writs:v7:cv
+      ^-  diff:writs:v6:cv
+      =*  delta  q.diff
+      %=  diff  q
+        ?+  -.delta  delta
+          %reply  delta(delta (v6:delta-replies:v7 delta.delta))
+        ==
+      ==
+    --
+  ++  chat-heads
+    |%
+    ++  v4
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v4:cv
+      %-  v4:chat-heads:^v5
+      %-  v5:chat-heads:^v6
+      (v6:chat-heads:v7 chat-heads)
+    ++  v5
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v5:cv
+      (v5:chat-heads:^v6 (v6:chat-heads:v7 chat-heads))
+    ++  v6
+      |=  =chat-heads:v7:cv
+      ^-  chat-heads:v6:cv
+      %+  turn  chat-heads
+      |=  [=whom:c recency=time latest=(unit writ:v7:cv)]
+      [whom recency (bind latest v6:writ:v7)]
+    --
+  ++  writ
+    |%
+    ++  v6
+      |=  =writ:v7:cv
+      ^-  writ:v6:cv
+      [(v6:seal:v7 -.writ) +.writ]
+    ++  v5
+      |=  =writ:v7:cv
+      ^-  writ:v5:cv
+      (v5:writ:^v6 (v6:writ:v7 writ))
+    --
+  ++  writs
+    |%
+    ++  v6
+      |=  =writs:v7:cv
+      ^-  writs:v6:cv
+      %+  gas:on:writs:v6:cv  ~
+      %+  turn
+        (tap:on:writs:v7:cv writs)
+      |=  [=time writ=(may:v7:cv writ:v7:cv)]
+      [time (mind:v7:cv writ v6:writ:v7)]
+    --
+  ++  paged-writs
+    |%
+    ++  v4
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v4:cv
+      %-  v4:paged-writs:^v5
+      %-  v5:paged-writs:^v6
+      (v6:paged-writs:v7 paged-writs)
+    ++  v5
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v5:cv
+      (v5:paged-writs:^v6 (v6:paged-writs:v7 paged-writs))
+    ++  v6
+      |=  =paged-writs:v7:cv
+      ^-  paged-writs:v6:cv
+      :*  (v6:writs:v7 writs.paged-writs)
+          newer.paged-writs
+          older.paged-writs
+          newest.paged-writs
+          total.paged-writs
+      ==
+    --
+  ++  scam
+    |%
+    ++  v6
+      |=  =scam:v7:cv
+      ^-  scam:v6:cv
+      scam(scan (v6:scan:v7 scan.scam))
+    ++  v5
+      |=  =scam:v7:cv
+      ^-  scam:v5:cv
+      (v5:scam:^v6 (v6:scam:v7 scam))
+    ++  v4
+      |=  =scam:v7:cv
+      ^-  scam:v4:cv
+      %-  v4:scam:^v5
+      %-  v5:scam:^v6
+      (v6:scam:v7 scam)
+    --
+  ++  scan
+    |%
+    ++  v6
+      |=  =scan:v7:cv
+      ^-  scan:v6:cv
+      %+  turn  scan
+      |=  ref=reference:v7:cv
+      ^-  reference:v6:cv
+      ?-  -.ref
+        %writ  writ+(mind:v7:cv writ.ref v6:writ:v7)
+        %reply  reply+[id.ref (mind:v7:cv reply.ref v6:reply:v7)]
+      ==
+    ++  v5
+      |=  =scan:v7:cv
+      ^-  scan:v5:cv
+      (v5:scan:^v6 (v6:scan:v7 scan))
+    ++  v4
+      |=  =scan:v7:cv
+      ^-  scan:v4:cv
+      %-  v4:scan:^v5
+      %-  v5:scan:^v6
+      (v6:scan:v7 scan)
+    --
+  ++  response-writs
+    |%
+    ++  v6
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v6:cv
+      =*  r-delta  response.response
+      %=  response  response
+        ?+  -.r-delta  r-delta
+          %reply  r-delta(delta (v6:response-delta-replies:v7 delta.r-delta))
+        ==
+      ==
+    ++  v5
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v5:cv
+      (v5:response-writs:^v6 (v6:response-writs:v7 response))
+    ++  v4
+      |=  =response:writs:v7:cv
+      ^-  response:writs:v4:cv
+      %-  v4:response-writs:^v5
+      %-  v5:response-writs:^v6
+      (v6:response-writs:v7 response)
+    --
+  ++  action-club
+    |%
+    ++  v6
+      |=  =action:club:v7:cv
+      ^-  action:club:v6:cv
+      =*  delta  q.q.action
+      ?:  ?=(%writ -.delta)
+        action(diff.q.q (v6:diff-writs:v7 diff.delta))
+      action
+    ++  v5
+      |=  =action:club:v7:cv
+      ^-  action:club:v5:cv
+      (v5:action-club:^v6 (v6:action-club:v7 action))
+    --
+  --
 ++  v6
   |%
   ++  writ
@@ -9,6 +218,10 @@
       |=  =writ:v6:cv
       ^-  writ:v5:cv
       [(v5:seal -.writ) +.writ]
+    ++  v7
+      |=  =writ:v6:cv
+      ^-  writ:v7:cv
+      [(v7:seal -.writ) +.writ]
     --
   ++  writs
     |%
@@ -19,7 +232,7 @@
       %+  gas:on:writs:v5:cv  ~
       %+  murn
         (tap:on:writs:v6:cv writs)
-      |=  [=time writ=(may:c writ:c)]
+      |=  [=time writ=(may:v6:cv writ:v6:cv)]
       ?:  ?=(%| -.writ)  ~
       `[time (v5:^writ +.writ)]
     --
@@ -57,11 +270,45 @@
       %+  gas:on:replies:v5:cv  ~
       %+  murn
         (tap:on:replies:v6:cv replies)
-      |=  [=time reply=(may:c reply:c)]
+      |=  [=time reply=(may:v6:cv reply:v6:cv)]
       ?:  ?=(%| -.reply)  ~
       `[time +.reply]
+    ++  v7
+      |=  =replies:v6:cv
+      ^-  replies:v7:cv
+      %+  run:on:replies:v6:cv  replies
+      |=  reply=(may:v6:cv reply:v6:cv)
+      ^-  (may:v7:cv reply:v7:cv)
+      ?:  ?=(%| -.reply)  reply
+      =*  reply-seal  +<.reply
+      =*  reply-memo  +>.reply
+      &+[reply-seal [reply-memo ~]]
     --
-  ++  heads
+  ++  delta-replies
+    |%
+    ++  v7
+      |=  =delta:replies:v6:cv
+      ^-  delta:replies:v7:cv
+      ?-    -.delta
+        %add  [%add [memo.delta ~] time.delta]
+        %del  [%del ~]
+        %add-react  delta
+        %del-react  delta
+      ==
+    --
+  ++  diff-writs
+    |%
+    ++  v7
+      |=  diff=diff:writs:v6:cv
+      ^-  diff:writs:v7:cv
+      =*  delta  q.diff
+      %=  diff  q
+        ?+  -.delta  delta
+          %reply  delta(delta (v7:delta-replies:v6 delta.delta))
+        ==
+      ==
+    --
+  ++  chat-heads
     |%
     ++  v5
       |=  heads=chat-heads:v6:cv
@@ -75,7 +322,7 @@
     ++  v4
       |=  heads=chat-heads:v6:cv
       ^-  chat-heads:v4:cv
-      (v4:heads:^v5 (v5 heads))
+      (v4:chat-heads:^v5 (v5 heads))
     --
   ++  seal
     |%
@@ -89,9 +336,26 @@
           (v5:replies replies.seal)
           reply-meta.seal
       ==
+    ++  v7
+      |=  =seal:v6:cv
+      ^-  seal:v7:cv
+      :*  id.seal
+          seq.seal
+          time.seal
+          reacts.seal
+          (v7:replies replies.seal)
+          reply-meta.seal
+      ==
     --
   ++  action-club
     |%
+    ++  v7
+      |=  =action:club:v6:cv
+      ^-  action:club:v7:cv
+      =*  delta  q.q.action
+      ?:  ?=(%writ -.delta)
+        action(diff.q.q (v7:diff-writs:v6 diff.delta))
+      action
     ++  v5
       |=  =action:club:v6:cv
       ^-  action:club:v5:cv
@@ -133,6 +397,59 @@
       ^-  scan:v4:cv
       (v4:scan:^v5 (v5 scan))
     --
+  ++  dm
+    |^  dm
+    ++  dm
+      |%
+      ++  v7
+        |=  dm:v6:cv
+        ^-  dm:v7:cv
+        :*  (v7:^pact pact)
+            remark
+            net
+            pin
+        ==
+      --
+    ++  diff
+      |%
+      ++  v7
+        |=  =diff:dm:v6:cv
+        ^-  diff:dm:v7:cv
+        (v7:diff-writs:v6 diff)
+      --
+    ++  action
+      |%
+      ++  v7
+        |=  =action:dm:v6:cv
+        ^-  action:dm:v7:cv
+        [p.action (v7:diff-writs:v6 q.action)]
+      --
+    --
+  ++  club
+    |^  club
+    ++  club
+      |%
+      ++  v7
+        |=  club:v6:cv
+        ^-  club:v7:cv
+        :*  heard
+            remark
+            (v7:^pact pact)
+            crew
+        ==
+      --
+    --
+  ++  pact
+    |%
+    ++  v7
+      |=  pact:v6:cv
+      ^-  pact:v7:cv
+      :*  num
+          (run:on:writs:v6:cv wit (curr mind:v6:cv v7:writ))
+          dex
+          upd
+      ==
+    --
   --
 ++  v5
   |%
@@ -172,7 +489,7 @@
       %+  gas:on:replies:v6:cv  *replies:v6:cv
       %+  turn
         (tap:on:replies:v5:cv replies)
-      |=  [=time =reply:c]
+      |=  [=time =reply:v5:cv]
       [time %& reply]
     --
   ++  paged-writs
@@ -244,7 +561,7 @@
       ^-  scam:v3:cv
       (v3:scam:^v4 (v4 scam))
     --
-  ++  heads
+  ++  chat-heads
     |%
     ++  v4
       |=  heads=chat-heads:v5:cv
@@ -254,7 +571,7 @@
       [whom recency (bind latest v4:writ)]
     ++  v3
       |=  heads=chat-heads:v5:cv
-      (v3:heads:^v4 (v4 heads))
+      (v3:chat-heads:^v4 (v4 heads))
     --
   --
 ++  v4
@@ -430,7 +747,7 @@
       ^-  scam:v3:cv
       scam(scan (v3:scan scan.scam))
     --
-  ++  heads
+  ++  chat-heads
     |%
     ++  v3
       |=  heads=chat-heads:v4:cv
@@ -485,7 +802,7 @@
       :-  p.diff
       ?+    -.q.diff  q.diff
           %add
-        ^-  delta:writs:c
+        ^-  delta:writs:v4:cv
         [%add [memo [%chat kind] ~ ~]:q.diff time.q.diff]
       ::
           %reply

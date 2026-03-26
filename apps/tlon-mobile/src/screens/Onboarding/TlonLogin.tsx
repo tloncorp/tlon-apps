@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { HostingError } from '@tloncorp/api';
 import {
   DEFAULT_ONBOARDING_PHONE_NUMBER,
   DEFAULT_TLON_LOGIN_EMAIL,
@@ -16,9 +17,8 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { Button } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/api';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -225,6 +225,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
                       onSubmitEditing={onSubmit}
+                      testID="email-input"
                     />
                   </Field>
                 )}
@@ -273,22 +274,27 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   textAlign="center"
                 >
                   We&apos;ll email you a 6-digit code to log in.
-                  <Pressable
-                    testID="Legacy login"
-                    pressStyle={{
-                      opacity: 0.5,
-                    }}
-                    onPress={() => navigation.navigate('TlonLoginLegacy')}
-                  >
-                    <TlonText.Text
-                      color="$secondaryText"
-                      textDecorationLine="underline"
-                      textDecorationDistance={10}
-                    >
-                      Or, log in with a password
-                    </TlonText.Text>
-                  </Pressable>
                 </TlonText.Text>
+                <Pressable
+                  testID="or-use-password"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Or, log in with a password"
+                  pressStyle={{
+                    opacity: 0.5,
+                  }}
+                  onPress={() => navigation.navigate('TlonLoginLegacy')}
+                  marginTop="$s"
+                >
+                  <TlonText.Text
+                    color="$secondaryText"
+                    textDecorationLine="underline"
+                    textDecorationDistance={10}
+                    textAlign="center"
+                  >
+                    Or, log in with a password
+                  </TlonText.Text>
+                </Pressable>
                 <TlonText.Text
                   color="$secondaryText"
                   onPress={handlePressEmailSignup}

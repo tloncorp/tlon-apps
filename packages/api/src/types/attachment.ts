@@ -1,5 +1,6 @@
-import { ImagePickerAsset } from 'expo-image-picker';
-import { memoize, uniqueId } from 'lodash';
+import _ from 'lodash';
+
+const { memoize, uniqueId } = _;
 
 import { ContentReference } from './references';
 import { UploadState } from './uploads';
@@ -45,15 +46,23 @@ export type ReferenceAttachment = {
   path: string;
 };
 
+export interface ImageAsset {
+  uri: string;
+  width: number;
+  height: number;
+  fileSize?: number;
+  mimeType?: string;
+}
+
 export type ImageAttachment = {
   type: 'image';
-  file: ImagePickerAsset;
+  file: ImageAsset;
   uploadState?: UploadState;
 };
 
 export type UploadedImageAttachment = {
   type: 'image';
-  file: ImagePickerAsset;
+  file: ImageAsset;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -178,10 +187,7 @@ export type FinalizedAttachment =
 export namespace Attachment {
   type ImageUploadIntent = {
     type: 'image';
-    asset: Pick<
-      ImagePickerAsset,
-      'uri' | 'width' | 'height' | 'fileSize' | 'mimeType'
-    >;
+    asset: ImageAsset;
   };
   export type UploadIntent =
     | ImageUploadIntent
@@ -207,8 +213,8 @@ export namespace Attachment {
     /** Branded type to avoid using wrong keys downstream */
     export type Key = string & { __brand: 'Attachment.UploadIntent.Key' };
 
-    export function fromImagePickerAsset(
-      asset: ImagePickerAsset
+    export function fromImagePickerAsset<T extends ImageAsset>(
+      asset: T
     ): UploadIntent {
       return {
         type: 'image',
@@ -269,7 +275,7 @@ export namespace Attachment {
 
     export function extractImagePickerAssets(
       xs: UploadIntent[]
-    ): ImagePickerAsset[] {
+    ): ImageAsset[] {
       return xs
         .filter((x): x is ImageUploadIntent => x.type === 'image')
         .map((x) => x.asset);

@@ -14,7 +14,7 @@
   =/  =diff:dm:c  (dm-message ~zod now.bw verse)
   ::  start a dm from zod
   :: ~&  'starting dm from zod'
-  ;<  *  bind:m  (do-poke %chat-dm-diff-1 !>(diff))
+  ;<  *  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
   ;<  *  bind:m  (set-src ~dev)
   ::  accept the dm and set read
   :: ~&  'accepting dm from zod'
@@ -28,7 +28,7 @@
   ;<  *  bind:m  (wait ~s1)
   ;<  bw=bowl  bind:m  get-bowl
   =/  =diff:dm:c  (dm-message ~zod now.bw verse)
-  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff-1 !>(diff))
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
   ::  expect a notification and an unread dm
   =/  =whom:c  [%ship ~zod]
   =/  =unread:unreads:c  [now.bw 1 `[[[~zod now.bw] now.bw] 1] ~]
@@ -39,11 +39,13 @@
   =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
     :-  whom
     %-  v3:response-writs:v5:cc
-    (v5:response-writs:v6:cc response)
+    (v5:response-writs:v7:cc response)
   =/  old-response-4=[whom:v4:cv response:writs:v4:cv]
-    [whom (v4:response-writs:v6:cc response)]
+    [whom (v4:response-writs:v7:cc response)]
   =/  old-response-5=[whom:v5:cv response:writs:v5:cv]
-    [whom (v5:response-writs:v6:cc response)]
+    [whom (v5:response-writs:v7:cc response)]
+  =/  old-response-6=[whom:v6:cv response:writs:v6:cv]
+    [whom (v6:response-writs:v7:cc response)]
   =/  activity-action=action:activity
     [%add %dm-post [[~zod now.bw] now.bw] [%ship ~zod] ~[verse] &]
   ;<  *  bind:m  (ex-scry-result /x/unreads !>(unreads))
@@ -56,7 +58,8 @@
         (ex-fact ~[/ /dm/~zod /dm/~zod/writs] writ-response+!>(old-response-3))
         (ex-fact ~[/v1 /v1/dm/~zod /v1/dm/~zod/writs] writ-response-1+!>(old-response-4))
         (ex-fact ~[/v2 /v2/dm/~zod /v2/dm/~zod/writs] writ-response-2+!>(old-response-5))
-        (ex-fact ~[/v3 /v3/dm/~zod /v3/dm/~zod/writs] writ-response-3+!>([whom response]))
+        (ex-fact ~[/v3 /v3/dm/~zod /v3/dm/~zod/writs] writ-response-3+!>(old-response-6))
+        (ex-fact ~[/v4 /v4/dm/~zod /v4/dm/~zod/writs] writ-response-4+!>([whom response]))
     ==
   ;<  *  bind:m  (wait ~s1)
   ;<  bw=bowl  bind:m  get-bowl
