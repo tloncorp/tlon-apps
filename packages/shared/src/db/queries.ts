@@ -2619,7 +2619,17 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    if (joinedChannelIds.length === 0) return;
+    if (joinedChannelIds.length === 0) {
+      return await ctx.db
+        .update($channels)
+        .set({ currentUserIsMember: false })
+        .where(
+          and(
+            isNotNull($channels.groupId),
+            eq($channels.currentUserIsMember, true)
+          )
+        );
+    }
     return await ctx.db
       .update($channels)
       .set({
