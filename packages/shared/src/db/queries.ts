@@ -1,4 +1,16 @@
 import {
+  ACTIVITY_SOURCE_PAGESIZE,
+  ChannelInit,
+  getCurrentUserId,
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
+import {
+  SourceActivityEvents,
+  interleaveActivityEvents,
+  toSourceActivityEvents,
+} from '@tloncorp/api/lib/activity';
+import { Rank } from '@tloncorp/api/urbit';
+import {
   AnyColumn,
   Column,
   SQLChunk,
@@ -27,22 +39,10 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import {
-  ACTIVITY_SOURCE_PAGESIZE,
-  ChannelInit,
-  getCurrentUserId,
-} from '@tloncorp/api';
-import { parseGroupId } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import {
-  SourceActivityEvents,
-  interleaveActivityEvents,
-  toSourceActivityEvents,
-} from '@tloncorp/api/lib/activity';
 import { Session } from '../store';
-import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -2639,7 +2639,12 @@ export const setLeftGroupChannels = createWriteQuery(
 export const setLeftGroups = createWriteQuery(
   'setLeftGroups',
   async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
-    if (joinedGroupIds.length === 0) return;
+    if (joinedGroupIds.length === 0) {
+      return await ctx.db
+        .update($groups)
+        .set({ currentUserIsMember: false })
+        .where(eq($groups.currentUserIsMember, true));
+    }
     return await ctx.db
       .update($groups)
       .set({
