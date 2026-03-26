@@ -369,6 +369,17 @@ export const sqliteContent = createStorageItem<ArrayBuffer | null>({
   isLarge: true,
 });
 
+/**
+ * Contains locale codes (e.g. `en-US`) that we've already prompted the user to
+ * download for offline use, so we don't repeatedly nag them about it.
+ */
+export const alreadyPromptedLocaleDownloads = createStorageItem<Set<string>>({
+  key: 'alreadyPromptedLocaleDownloads',
+  defaultValue: new Set(),
+  serialize: (value) => JSON.stringify(Array.from(value)),
+  deserialize: (str) => new Set(JSON.parse(str)),
+});
+
 function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);

@@ -1,4 +1,6 @@
-import { memoize, uniqueId } from 'lodash';
+import _ from 'lodash';
+
+const { memoize, uniqueId } = _;
 
 import { ContentReference } from './references';
 import { UploadState } from './uploads';

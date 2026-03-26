@@ -49,7 +49,7 @@ export function createMentionRoleOptions(
     title: role.title || role.id,
     subtitle: role.description,
     type: 'group',
-    priority: 4,
+    priority: 7,
   }));
 
   const all: MentionOption = {
@@ -57,7 +57,7 @@ export function createMentionRoleOptions(
     title: 'All',
     subtitle: 'All members in this channel',
     type: 'group',
-    priority: 5,
+    priority: 8,
   };
   return [...roles, all];
 }
@@ -123,14 +123,21 @@ export const useMentions = ({
     return validOptions.length > 0;
   }, [validOptions]);
 
-  const handleMention = (oldText: string, newText: string) => {
-    // Find cursor position by comparing old and new text
-    let cursorPosition = newText.length;
-    if (oldText.length !== newText.length) {
-      for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
-        if (oldText[i] !== newText[i]) {
-          cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
-          break;
+  const handleMention = (oldText: string, newText: string, explicitCursorPosition?: number) => {
+    // Use explicit cursor position when available (web), fall back to diff-based heuristic
+    let cursorPosition: number;
+    let firstDiffIndex: number | null = null;
+    if (explicitCursorPosition != null) {
+      cursorPosition = explicitCursorPosition;
+    } else {
+      cursorPosition = newText.length;
+      if (oldText.length !== newText.length) {
+        for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
+          if (oldText[i] !== newText[i]) {
+            firstDiffIndex = i;
+            cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
+            break;
+          }
         }
       }
     }
@@ -198,7 +205,7 @@ export const useMentions = ({
         !spaceAfter &&
         !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
-          (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))
+          cursorPosition > lastTriggerIndex)
       ) {
         setIsMentionModeActive(true);
         setMentionStartIndex(lastTriggerIndex);
@@ -216,12 +223,25 @@ export const useMentions = ({
 
     // Update mention positions when text changes
     if (mentions.length > 0) {
-      const updatedMentions = mentions.filter(
-        (mention) =>
-          mention.start <= newText.length &&
-          newText.slice(mention.start, mention.end) === mention.display
-      );
-      if (updatedMentions.length !== mentions.length) {
+      const delta = newText.length - oldText.length;
+      const editPosition = explicitCursorPosition != null
+        ? cursorPosition - (delta > 0 ? delta : 0)
+        : (firstDiffIndex ?? cursorPosition);
+      const updatedMentions = mentions
+        .map((mention) => {
+          if (mention.start >= editPosition) {
+            return { ...mention, start: mention.start + delta, end: mention.end + delta };
+          }
+          return mention;
+        })
+        .filter(
+          (mention) =>
+            mention.start >= 0 &&
+            mention.end <= newText.length &&
+            newText.slice(mention.start, mention.end) === mention.display
+        );
+      if (updatedMentions.length !== mentions.length ||
+          updatedMentions.some((m, i) => m.start !== mentions[i]?.start)) {
         setMentions(updatedMentions);
       }
     }
