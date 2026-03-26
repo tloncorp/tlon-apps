@@ -4,6 +4,7 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -18,6 +19,12 @@ import {
 import { CombinedParamList, RootStackParamList } from './types';
 
 const logger = createDevLogger('nav-utils', false);
+
+export const mediaViewerScreenOptions: NativeStackNavigationOptions = {
+  animation: 'none',
+  presentation: 'transparentModal',
+  contentStyle: { backgroundColor: 'transparent' },
+};
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
