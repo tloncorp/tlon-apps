@@ -343,9 +343,8 @@ export async function acceptGroupInvite(page: Page, _groupName?: string) {
 
   // Click accept
   const acceptButton = page.getByText('Accept invite');
-  if (await acceptButton.isVisible()) {
-    await acceptButton.click();
-  }
+  await expect(acceptButton).toBeVisible({ timeout: 10000 });
+  await acceptButton.click();
 
   // Wait for joining to complete and "Go to group" button to appear
   await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });

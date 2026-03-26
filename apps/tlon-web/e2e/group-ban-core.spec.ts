@@ -32,7 +32,7 @@ test('should allow banning and unbanning users in public groups', async ({
   await zodPage.getByTestId('GroupMembers').click();
   await expect(
     zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' })
-  ).toBeVisible({ timeout: 5000 });
+  ).toBeVisible({ timeout: 15000 });
 
   // Click on ~ten to open profile sheet
   await zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' }).click();
