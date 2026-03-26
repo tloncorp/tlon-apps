@@ -153,6 +153,7 @@
   %+  murn  ~(tap in want)
   |=  [=ship =context]
   ^-  (unit card)
+  ?:  =(ship our.bowl)  ~  ::  don't subscribe to ourselves
   =/  =wire  [%context context]
   ?:  (~(has by wex.bowl) wire ship dap.bowl)  ~
   `(watch-context our.bowl ship context)
@@ -231,16 +232,19 @@
         [disclose.cmd %set +>.cmd]
       ?.  (~(has in disclose.cmd) our.bowl)
         [fus this]
+      ::TODO  send response too?
       :_  this(places (put-presence places +>.cmd))
-      :_  fus
-      :+  %pass
-        ::TODO  +key-wire
-        [%expire (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
-      [%arvo %b %wait end]
+      :+  (give-response %here +>.cmd)
+        :+  %pass
+          ::TODO  +key-wire
+          [%expire (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
+        [%arvo %b %wait end]
+      fus
     ::
         %clear
       ::TODO  no-op if we didn't have it anyway
       :_  this(places (del-presence places key.cmd))
+      :-  (give-response %gone key.cmd)
       %+  give-update
         (~(del ju subs) context.key.cmd src.bowl)
       [~ %clear key.cmd]
@@ -347,6 +351,7 @@
     ::  set up subscription for a specific context
     ::
     =/  =ship  (slav %p i.t.wire)
+    ?<  =(ship our.bowl)  ::  don't subscribe to ourselves
     =*  context  t.t.wire
     ?:  (~(has by wex.bowl) [%context context] ship dap.bowl)
       [~ this]
