@@ -333,13 +333,24 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
-  // Click the stable group row directly instead of depending on the
-  // invite subtitle text, which is not consistently rendered in CI.
-  const inviteRow = groupName
-    ? page.getByTestId(`GroupListItem-${groupName}-unpinned`)
-    : page.getByTestId('GroupListItem-Untitled group-unpinned');
-  await expect(inviteRow).toBeVisible({ timeout: 30000 });
-  await inviteRow.click();
+  // Prefer a row containing the expected display name when provided,
+  // but fall back to the stable untitled-group testID used by quick groups.
+  const namedInviteRow = groupName
+    ? page.getByTestId(/^GroupListItem-/).filter({ hasText: groupName })
+    : null;
+  const untitledInviteRow = page.getByTestId(
+    'GroupListItem-Untitled group-unpinned'
+  );
+
+  if (
+    namedInviteRow &&
+    (await namedInviteRow.first().isVisible({ timeout: 30000 }))
+  ) {
+    await namedInviteRow.first().click();
+  } else {
+    await expect(untitledInviteRow).toBeVisible({ timeout: 30000 });
+    await untitledInviteRow.click();
+  }
   await page.waitForTimeout(500);
 
   // Click accept
