@@ -43,7 +43,7 @@ type RenderItemProps = {
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;
   onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressImage?: (post: db.Post, imageUri: string) => void;
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -71,7 +71,7 @@ export type MinimalRenderItemProps = {
   onPress?: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressImage?: (post: db.Post, imageUri: string) => void;
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;

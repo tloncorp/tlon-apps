@@ -261,7 +261,7 @@ function VideoViewer({
   viewerId,
   goBack,
 }: {
-  uri?: string;
+  uri: string;
   posterUri?: string;
   viewerId?: string;
   goBack: () => void;
@@ -271,22 +271,16 @@ function VideoViewer({
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
   const items = useMemo(
-    () =>
-      uri
-        ? [
-            {
-              type: 'video' as const,
-              uri,
-              posterUri,
-            },
-          ]
-        : [],
+    () => [
+      {
+        type: 'video' as const,
+        uri,
+        posterUri,
+      },
+    ],
     [posterUri, uri]
   );
-  const videoSource = useMemo(
-    () => (uri ? { uri } : null),
-    [uri]
-  );
+  const videoSource = useMemo(() => ({ uri }), [uri]);
   const player = useVideoPlayer(isWeb ? null : videoSource);
   const hasStartedPlaybackRef = useRef(false);
   const hasTrackedPlaybackStartRef = useRef(false);
@@ -318,15 +312,11 @@ function VideoViewer({
       };
     }
     player.timeUpdateEventInterval = 0.25;
-    if (uri) {
-      player.play();
-    } else {
-      player.pause();
-    }
+    player.play();
   }, [player, uri]);
 
   useEffect(() => {
-    if (isWeb || !uri) {
+    if (isWeb) {
       return;
     }
 
@@ -408,7 +398,7 @@ function VideoViewer({
         actions={[{ icon: 'Close', onPress: goBack }]}
         justifyContent="flex-end"
         loadingOverlay={
-          <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+          <VideoLoadingOverlay visible={!isReady || isBuffering} />
         }
       >
           <View
@@ -419,64 +409,42 @@ function VideoViewer({
             padding="$l"
             pointerEvents="box-none"
           >
-            {!uri ? (
-              <Text color="$white">Unable to load video.</Text>
-            ) : (
-              <video
-                src={uri}
-                poster={posterUri}
-                controls
-                autoPlay
-                preload="metadata"
-                onPlay={trackPlaybackStarted}
-                onLoadedData={() => {
-                  setIsReady(true);
-                  setIsBuffering(false);
-                }}
-                onCanPlay={() => {
-                  setIsReady(true);
-                  setIsBuffering(false);
-                }}
-                onWaiting={() => {
-                  setIsBuffering(true);
-                }}
-                onPlaying={() => {
-                  setIsReady(true);
-                  setIsBuffering(false);
-                  trackPlaybackStarted();
-                }}
-                onError={handlePlaybackError}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleOverlay();
-                }}
-                style={{
-                  width: '100%',
-                  maxWidth: 1100,
-                  maxHeight: '90vh',
-                  display: 'block',
-                }}
-              />
-            )}
+            <video
+              src={uri}
+              poster={posterUri}
+              controls
+              autoPlay
+              preload="metadata"
+              onPlay={trackPlaybackStarted}
+              onLoadedData={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+              }}
+              onCanPlay={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+              }}
+              onWaiting={() => {
+                setIsBuffering(true);
+              }}
+              onPlaying={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+                trackPlaybackStarted();
+              }}
+              onError={handlePlaybackError}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleOverlay();
+              }}
+              style={{
+                width: '100%',
+                maxWidth: 1100,
+                maxHeight: '90vh',
+                display: 'block',
+              }}
+            />
           </View>
-      </MediaViewerChrome>
-    );
-  }
-
-  if (!uri) {
-    return (
-      <MediaViewerChrome
-        dismiss={goBack}
-        testID="video-viewer"
-        backgroundColor="$black"
-        top={top}
-        showOverlay={showOverlay}
-        actions={[{ icon: 'Close', onPress: goBack }]}
-        justifyContent="flex-end"
-      >
-        <View flex={1} justifyContent="center" alignItems="center">
-          <Text color="$white">Unable to load video.</Text>
-        </View>
       </MediaViewerChrome>
     );
   }
@@ -500,7 +468,7 @@ function VideoViewer({
       actions={(helpers) => [{ icon: 'Close', onPress: helpers.dismiss }]}
       justifyContent="flex-end"
       loadingOverlay={
-        <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
+        <VideoLoadingOverlay visible={!isReady || isBuffering} />
       }
       renderItem={() =>
         <View
@@ -539,22 +507,19 @@ function VideoViewer({
 }
 
 function ImageViewer(props: {
-  uri?: string;
+  uri: string;
   viewerId?: string;
   goBack: () => void;
 }) {
   const [showOverlay, setShowOverlay] = useState(true);
   const { top } = useSafeAreaInsets();
   const items = useMemo(
-    () =>
-      props.uri
-        ? [
-            {
-              type: 'image' as const,
-              uri: props.uri,
-            },
-          ]
-        : [],
+    () => [
+      {
+        type: 'image' as const,
+        uri: props.uri,
+      },
+    ],
     [props.uri]
   );
 
@@ -757,24 +722,6 @@ function ImageViewer(props: {
       }
     }
   };
-
-  if (!props.uri) {
-    return (
-      <MediaViewerChrome
-        dismiss={props.goBack}
-        testID="image-viewer"
-        backgroundColor="$black"
-        top={top}
-        showOverlay={showOverlay}
-        actions={[{ icon: 'Close', onPress: props.goBack }]}
-        justifyContent="flex-end"
-      >
-        <View flex={1} justifyContent="center" alignItems="center">
-          <Text color="$white">Unable to load image.</Text>
-        </View>
-      </MediaViewerChrome>
-    );
-  }
 
   return (
     <GestureViewerRoute
