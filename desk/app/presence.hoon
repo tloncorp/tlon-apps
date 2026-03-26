@@ -16,8 +16,13 @@
 ::    we use personalized subscription paths so that two parties can
 ::    communicate presence to each other in a public channel without
 ::    signalling that presence to all channel members. the channel host
-::    still acts as intermediary.
-::TODO  what if non-zero .disclosure behaves peer-to-peer instead?
+::    still acts as intermediary, but does not store the presence unless it
+::    itself is in the disclosure set.
+::
+::    context hosts do not give initial facts to subscribers. timing out of
+::    presences does not get propagated to subscribers, but explicit %clear
+::    does. (the latter goes out to _all_ subscribers, regardless of the
+::    disclosure set of the prior presence.)
 ::
 ::    we do not solve for clock skew, instead respecting the received
 ::    timestamps and timeouts as-is, and ignoring any that have expired
@@ -88,10 +93,10 @@
   (~(put by places) context tos)
 ::
 ++  give-update
-  |=  [subs=(jug context ship) upd=update-1]
+  |=  [subs=(jug context ship) disclose=(set ship) upd=update-1]
   ^-  (list card)
   =/  =key  ?-(-.upd %set key.upd, %clear key.upd)
-  =+  s=(~(get ju subs) context.key)
+  =+  s=(~(int in disclose) (~(get ju subs) context.key))
   ?:  =(~ s)  ~
   =/  paz=(list path)
     %+  turn  ~(tap in s)
@@ -220,18 +225,25 @@
       ?:  (gth now.bowl end)
         ::TODO  maybe delete existing one at key?
         [~ this]
-      ::TODO  accept and respect disclosure set
+      =/  fus=(list card)
+        %+  give-update
+          (~(del ju subs) context.key.cmd src.bowl)
+        [disclose.cmd %set +>.cmd]
+      ?.  (~(has in disclose.cmd) our.bowl)
+        [fus this]
       :_  this(places (put-presence places +>.cmd))
-      :-  :+  %pass
-            ::TODO  +key-wire
-            [%expire (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
-          [%arvo %b %wait end]
-      (give-update subs %set +>.cmd)
+      :_  fus
+      :+  %pass
+        ::TODO  +key-wire
+        [%expire (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
+      [%arvo %b %wait end]
     ::
         %clear
       ::TODO  no-op if we didn't have it anyway
       :_  this(places (del-presence places key.cmd))
-      (give-update subs %clear key.cmd)
+      %+  give-update
+        (~(del ju subs) context.key.cmd src.bowl)
+      [~ %clear key.cmd]
     ==
   ==
 ::
