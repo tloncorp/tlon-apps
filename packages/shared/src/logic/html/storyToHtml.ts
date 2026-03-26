@@ -98,8 +98,9 @@ function inlinesToHtml(inlines: Inline[]): string {
 
     if (isShip(inline)) {
       const ship = inline as Ship;
+      const escaped = escapeHtml(ship.ship);
       parts.push(
-        `<span data-mention="~${escapeHtml(ship.ship)}">~${escapeHtml(ship.ship)}</span>`
+        `<mention text="${escaped}" indicator="~" id="~${escaped}">~${escaped}</mention>`
       );
       continue;
     }

@@ -113,12 +113,12 @@ describe('storyToHtml', () => {
     );
   });
 
-  it('converts ship mentions with data-mention attribute', () => {
+  it('converts ship mentions as mention tags', () => {
     const story: Story = [
       { inline: ['hello ', { ship: 'zod' }, ' welcome'] },
     ];
     expect(storyToHtml(story)).toBe(
-      '<p>hello <span data-mention="~zod">~zod</span> welcome</p>'
+      '<p>hello <mention text="zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
     );
   });
 
@@ -242,21 +242,12 @@ describe('htmlToStory', () => {
     ]);
   });
 
-  it('converts ship mentions from data-mention spans', () => {
+  it('converts mention tags to ship inlines', () => {
     const story = htmlToStory(
-      '<p>hello <span data-mention="~zod">~zod</span> welcome</p>'
+      '<p>hello <mention text="zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
     );
     expect(story).toEqual([
       { inline: ['hello ', { ship: 'zod' }, ' welcome'] },
-    ]);
-  });
-
-  it('converts native enriched mention tags', () => {
-    const story = htmlToStory(
-      '<p>hey <mention text="zod" indicator="~" id="~zod">zod</mention> hi</p>'
-    );
-    expect(story).toEqual([
-      { inline: ['hey ', { ship: 'zod' }, ' hi'] },
     ]);
   });
 
