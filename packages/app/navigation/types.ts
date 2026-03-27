@@ -43,7 +43,7 @@ export type RootStackParamList = {
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
-    uri: string;
+    uri?: string;
     posterUri?: string;
     viewerId?: string;
   };

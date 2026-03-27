@@ -8,7 +8,7 @@ export interface PostCollectionContextValue {
   channel: db.Channel;
   collectionConfiguration?: Record<string, JSONValue>;
   editingPost?: db.Post;
-  goToMediaViewer: (post: db.Post, imageUri: string) => void;
+  goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToPost: (post: db.Post) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;

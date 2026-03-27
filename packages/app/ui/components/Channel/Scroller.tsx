@@ -114,7 +114,7 @@ const Scroller = forwardRef(
       onStartReached?: () => void;
       onEndReached?: () => void;
       onPressPost?: (post: db.Post) => void;
-      onPressImage?: (post: db.Post, imageUri: string) => void;
+      onPressImage?: (post: db.Post, imageUri?: string) => void;
       onPressReplies?: (post: db.Post) => void;
       showReplies?: boolean;
       editingPost?: db.Post;
@@ -647,7 +647,7 @@ const BaseScrollerItem = ({
   Component: RenderItemType;
   unreadCount?: number | null;
   onLayout?: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
-  onPressImage?: (post: db.Post, imageUri: string) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
   setViewReactionsPost?: (post: db.Post) => void;

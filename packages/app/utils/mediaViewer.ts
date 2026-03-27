@@ -1,9 +1,13 @@
-export function getPostImageViewerId(postId: string, imageUri: string) {
+export function getPostImageViewerId(postId: string, imageUri?: string) {
+  if (!imageUri) {
+    return undefined;
+  }
+
   return `post-image:${postId}:${encodeURIComponent(imageUri)}`;
 }
 
-export function getVideoViewerId(videoUri: string, posterUri?: string) {
-  if (!posterUri) {
+export function getVideoViewerId(videoUri?: string, posterUri?: string) {
+  if (!videoUri || !posterUri) {
     return undefined;
   }
 

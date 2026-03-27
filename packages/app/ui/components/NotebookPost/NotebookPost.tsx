@@ -287,7 +287,7 @@ export function NotebookPostDetailView({
   onPressImage,
 }: {
   post: db.Post;
-  onPressImage?: (post: db.Post, uri: string) => void;
+  onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);

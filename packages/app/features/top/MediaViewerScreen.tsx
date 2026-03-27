@@ -5,7 +5,7 @@ import {
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { GestureMediaViewer, Icon, Image, Pressable } from '@tloncorp/ui';
+import { GestureMediaViewer, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 // Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
 // (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
 import {
@@ -100,7 +100,7 @@ function VideoViewer({
   viewerId,
   goBack,
 }: {
-  uri: string;
+  uri?: string;
   posterUri?: string;
   viewerId?: string;
   goBack: () => void;
@@ -110,16 +110,19 @@ function VideoViewer({
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
   const items = useMemo(
-    () => [
-      {
-        type: 'video' as const,
-        uri,
-        posterUri,
-      },
-    ],
+    () =>
+      uri
+        ? [
+            {
+              type: 'video' as const,
+              uri,
+              posterUri,
+            },
+          ]
+        : [],
     [posterUri, uri]
   );
-  const videoSource = useMemo(() => ({ uri }), [uri]);
+  const videoSource = useMemo(() => (uri ? { uri } : null), [uri]);
   const player = useVideoPlayer(isWeb ? null : videoSource);
   const hasStartedPlaybackRef = useRef(false);
   const hasTrackedPlaybackStartRef = useRef(false);
@@ -151,11 +154,15 @@ function VideoViewer({
       };
     }
     player.timeUpdateEventInterval = 0.25;
-    player.play();
+    if (uri) {
+      player.play();
+    } else {
+      player.pause();
+    }
   }, [player, uri]);
 
   useEffect(() => {
-    if (isWeb) {
+    if (isWeb || !uri) {
       return;
     }
 
@@ -251,43 +258,47 @@ function VideoViewer({
             padding="$l"
             pointerEvents="box-none"
           >
-            <video
-              src={uri}
-              poster={posterUri}
-              controls
-              autoPlay
-              preload="metadata"
-              onPlay={trackPlaybackStarted}
-              onLoadedData={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-              }}
-              onCanPlay={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-              }}
-              onWaiting={() => {
-                setIsBuffering(true);
-              }}
-              onPlaying={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-                trackPlaybackStarted();
-              }}
-              onError={handlePlaybackError}
-              onClick={(event) => {
-                event.stopPropagation();
-                toggleOverlay();
-              }}
-              style={{
-                width: '100%',
-                maxWidth: 1100,
-                maxHeight: '90vh',
-                display: 'block',
-              }}
-            />
+            {!uri ? (
+              <Text color="$white">Unable to load video.</Text>
+            ) : (
+              <video
+                src={uri}
+                poster={posterUri}
+                controls
+                autoPlay
+                preload="metadata"
+                onPlay={trackPlaybackStarted}
+                onLoadedData={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onCanPlay={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                }}
+                onWaiting={() => {
+                  setIsBuffering(true);
+                }}
+                onPlaying={() => {
+                  setIsReady(true);
+                  setIsBuffering(false);
+                  trackPlaybackStarted();
+                }}
+                onError={handlePlaybackError}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleOverlay();
+                }}
+                style={{
+                  width: '100%',
+                  maxWidth: 1100,
+                  maxHeight: '90vh',
+                  display: 'block',
+                }}
+              />
+            )}
           </View>
-          <VideoLoadingOverlay visible={!isReady || isBuffering} />
+          <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
 
           {showOverlay ? (
             <Pressable
@@ -301,6 +312,29 @@ function VideoViewer({
             </Pressable>
           ) : null}
         </View>
+      </MediaViewerModal>
+    );
+  }
+
+  if (!uri) {
+    return (
+      <MediaViewerModal dismiss={goBack}>
+        <ZStack flex={1} backgroundColor="$black" data-testid="video-viewer">
+          <View flex={1} justifyContent="center" alignItems="center">
+            <Text color="$white">Unable to load video.</Text>
+          </View>
+
+          {showOverlay ? (
+            <Pressable
+              onPress={goBack}
+              position="absolute"
+              top={top}
+              right="$xl"
+            >
+              <OverlayIconButton icon="Close" />
+            </Pressable>
+          ) : null}
+        </ZStack>
       </MediaViewerModal>
     );
   }
@@ -353,7 +387,7 @@ function VideoViewer({
       renderContainer={(children, helpers) => (
         <ZStack flex={1} backgroundColor="$black" data-testid="video-viewer">
           {children}
-          <VideoLoadingOverlay visible={!isReady || isBuffering} />
+          <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
 
           {showOverlay ? (
             <Pressable
@@ -372,24 +406,35 @@ function VideoViewer({
 }
 
 function ImageViewer(props: {
-  uri: string;
+  uri?: string;
   viewerId?: string;
   goBack: () => void;
 }) {
   const [showOverlay, setShowOverlay] = useState(true);
   const { top } = useSafeAreaInsets();
   const items = useMemo(
-    () => [
-      {
-        type: 'image' as const,
-        uri: props.uri,
-      },
-    ],
+    () =>
+      props.uri
+        ? [
+            {
+              type: 'image' as const,
+              uri: props.uri,
+            },
+          ]
+        : [],
     [props.uri]
   );
 
+  useEffect(() => {
+    setShowOverlay(true);
+  }, [props.uri]);
+
   const handleDownloadImage = async () => {
     if (isWeb) {
+      if (!props.uri) {
+        return;
+      }
+
       try {
         await downloadImageForWeb(props.uri);
       } catch (error) {
@@ -579,6 +624,42 @@ function ImageViewer(props: {
       }
     }
   };
+
+  if (!props.uri) {
+    return (
+      <ImageViewerContainer dismiss={props.goBack}>
+        <ZStack
+          flex={1}
+          backgroundColor="$black"
+          paddingTop={top}
+          data-testid="image-viewer"
+        >
+          <View flex={1} justifyContent="center" alignItems="center">
+            <Text color="$white">Unable to load image.</Text>
+          </View>
+
+          {showOverlay ? (
+            <YStack
+              position="absolute"
+              width="100%"
+              padding="$xl"
+              paddingTop={isWeb ? 16 : top}
+            >
+              <XStack justifyContent="flex-end" gap="$m">
+                <TouchableOpacity
+                  onPress={props.goBack}
+                  activeOpacity={0.8}
+                  testID="MediaViewerCloseButton"
+                >
+                  <OverlayIconButton icon="Close" />
+                </TouchableOpacity>
+              </XStack>
+            </YStack>
+          ) : null}
+        </ZStack>
+      </ImageViewerContainer>
+    );
+  }
 
   return (
     <GestureMediaViewer

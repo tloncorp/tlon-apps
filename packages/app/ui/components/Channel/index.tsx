@@ -86,7 +86,7 @@ interface ChannelProps {
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
   goToGroupSettings: () => void;
-  goToMediaViewer: (post: db.Post, imageUri: string) => void;
+  goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
   goToChannelDetails?: (groupId: string, channelId: string) => void;
