@@ -1,5 +1,5 @@
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type * as db from '../types/models';
+import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
@@ -79,7 +79,7 @@ export const updateDMMeta = async ({
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
     multiDmAction(channelId, { meta: fromClientMeta(meta) }),
-    { app: 'chat', path: '/' },
+    { app: 'chat', path: '/v4' },
     (event) => {
       if (!('diff' in event)) {
         return false;
@@ -108,7 +108,7 @@ export function subscribeToChatUpdates(
   subscribe(
     {
       app: 'chat',
-      path: '/v3',
+      path: '/v4',
     },
     (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
@@ -288,11 +288,11 @@ export function unblockUser(userId: string) {
 export function multiDmAction(id: string, delta: ub.ClubDelta) {
   return {
     app: 'chat',
-    mark: 'chat-club-action-0',
+    mark: 'chat-club-action-2',
     json: {
       id,
       diff: {
-        uid: '0v3',
+        uid: '0v4',
         delta,
       },
     },

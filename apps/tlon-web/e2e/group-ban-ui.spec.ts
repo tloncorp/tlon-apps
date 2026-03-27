@@ -16,7 +16,7 @@ test.describe('Group Ban Option UI Visibility', () => {
 
     // Invite ~ten
     await helpers.openGroupSettings(zodPage);
-    await zodPage.getByText('Invite people').click();
+    await helpers.openInvitePeople(zodPage);
     await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
     await zodPage.waitForTimeout(1000);
     await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
@@ -57,7 +57,7 @@ test.describe('Group Ban Option UI Visibility', () => {
 
     // Invite ~ten
     await helpers.openGroupSettings(zodPage);
-    await zodPage.getByText('Invite people').click();
+    await helpers.openInvitePeople(zodPage);
     await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
     await zodPage.waitForTimeout(1000);
     await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
@@ -98,7 +98,7 @@ test.describe('Group Ban Option UI Visibility', () => {
 
     // Invite ~ten
     await helpers.openGroupSettings(zodPage);
-    await zodPage.getByText('Invite people').click();
+    await helpers.openInvitePeople(zodPage);
     await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
     await zodPage.waitForTimeout(1000);
     await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();

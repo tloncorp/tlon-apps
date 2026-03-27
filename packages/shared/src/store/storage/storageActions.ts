@@ -24,6 +24,17 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
+function getVideoPosterMimeType(posterUri: string): string {
+  const normalizedUri = posterUri.toLowerCase();
+  if (normalizedUri.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (normalizedUri.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  return 'image/jpeg';
+}
+
 async function uploadVideoPoster(
   posterUri: string | undefined,
   isWeb: boolean
@@ -38,7 +49,7 @@ async function uploadVideoPoster(
     return await performUpload(
       {
         uri: posterUri,
-        mimeType: 'image/jpeg',
+        mimeType: getVideoPosterMimeType(posterUri),
       },
       isWeb
     );

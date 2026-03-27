@@ -2,7 +2,6 @@ import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   Button,
-  Icon,
   Image,
   Pressable,
   Text,
@@ -210,14 +209,16 @@ export function NotebookPost({
               onReply={handlePress}
               mode="await-trigger"
               trigger={
-                <Button.Frame
-                  backgroundColor="$secondaryBackground"
-                  borderWidth="unset"
-                  onPress={handleOverflowPress}
+                <Button
+                  icon="Overflow"
+                  fill="ghost"
+                  type="secondary"
+                  size="small"
+                  width={32}
+                  height={32}
+                  borderRadius="$m"
                   testID="MessageActionsTrigger"
-                >
-                  <Icon type="Overflow" />
-                </Button.Frame>
+                />
               }
             />
           </Pressable>
@@ -300,6 +301,7 @@ export function NotebookPostDetailView({
   return (
     <NotebookPostFrame
       embedded
+      borderTopWidth={post.image ? 1 : 0}
       paddingHorizontal={0}
       paddingTop={post.image ? '$xl' : '$2xl'}
       width="100%"

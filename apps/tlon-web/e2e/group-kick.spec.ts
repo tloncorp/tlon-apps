@@ -7,6 +7,8 @@ test('should allow kicking users from groups', async ({
   zodSetup,
   tenSetup,
 }) => {
+  test.setTimeout(120000);
+
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -15,7 +17,7 @@ test('should allow kicking users from groups', async ({
 
   // Invite ~ten
   await helpers.openGroupSettings(zodPage);
-  await zodPage.getByText('Invite people').click();
+  await helpers.openInvitePeople(zodPage);
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
   await zodPage.waitForTimeout(1000);
   await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
@@ -83,7 +85,7 @@ test('should allow kicking users from groups', async ({
   await helpers.openGroupSettings(zodPage);
 
   // Re-invite ~ten immediately (no unban required after kick)
-  await zodPage.getByText('Invite people').click();
+  await helpers.openInvitePeople(zodPage);
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
   await zodPage.waitForTimeout(1000);
   await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();

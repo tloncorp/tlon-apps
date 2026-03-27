@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import type { Post } from '@tloncorp/shared/db/types';
+import type { Post } from '../types/models';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
@@ -78,17 +78,18 @@ test('toPostsData handles mix of bot and normal authors', () => {
   expect(typeof normalPost!.authorId).toBe('string');
 });
 
-test('toPostReplyData extracts authorId from BotProfile memo author', () => {
+test('toPostReplyData extracts authorId from BotProfile reply-essay author', () => {
   const reply: ub.Reply = {
     seal: {
       id: '170141184506535176367510061158978551808',
       'parent-id': '170141184506535164684262900635183087616',
       reacts: {},
     },
-    memo: {
+    'reply-essay': {
       content: [{ inline: ['bot reply'] }],
       author: botAuthor,
       sent: 1701276293246,
+      blob: null,
     },
   };
   const result = toPostReplyData(

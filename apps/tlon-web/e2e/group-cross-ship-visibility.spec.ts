@@ -48,7 +48,7 @@ test('should show group info, channel, and role changes to invited user', async 
   await helpers.navigateBack(zodPage);
 
   // Step 2: Invite ~ten to the group
-  await zodPage.getByText('Invite people').click();
+  await helpers.openInvitePeople(zodPage);
   await expect(zodPage.getByText('Select people to invite')).toBeVisible();
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
   await zodPage.waitForTimeout(1000);

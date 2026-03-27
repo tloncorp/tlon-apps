@@ -173,7 +173,7 @@ export function ContactBookPrompt(props: {
   }
 
   return (
-    <NoticeFrame>
+    <NoticeFrame marginTop="$xl">
       <YStack gap="$5xl">
         <YStack gap="$xl">
           <NoticeTitle>Find Friends</NoticeTitle>

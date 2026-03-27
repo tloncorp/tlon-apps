@@ -1,10 +1,9 @@
-import type * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/models';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
-import { useMemo } from 'react';
 
 import * as api from '../client';
 import {
@@ -655,41 +654,6 @@ export const getPostTypeFromChannelId = ({
       return 'chat';
     }
   }
-};
-
-export const usePostMeta = (post: db.Post) => {
-  const { inlines, references, blocks } = useMemo(
-    () => extractContentTypesFromPost(post),
-    [post]
-  );
-  const isText = useMemo(() => isTextPost(post), [post]);
-  const isImage = useMemo(() => isImagePost(post), [post]);
-  const isLink = useMemo(() => textPostIsLink(post), [post]);
-  const isReference = useMemo(() => isReferencePost(post), [post]);
-  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
-  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
-  const image = useMemo(
-    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
-    [blocks, isImage]
-  );
-  const linkedImage = useMemo(
-    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
-    [inlines, isLinkedImage]
-  );
-
-  return {
-    isText,
-    isImage,
-    isLink,
-    isReference,
-    isLinkedImage,
-    isRefInText,
-    inlines,
-    references,
-    blocks,
-    image,
-    linkedImage,
-  };
 };
 
 export const getCompositeGroups = (

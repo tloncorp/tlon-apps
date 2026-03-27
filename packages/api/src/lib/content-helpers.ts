@@ -1,12 +1,6 @@
-import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
-import { createDevLogger } from '@tloncorp/shared/debug';
-import {
-  makeMention,
-  makeParagraph,
-  makeText,
-} from '@tloncorp/shared/logic/tiptap';
-import { filenameFromPath } from '@tloncorp/shared/utils/files';
-import isURL from 'validator/lib/isURL';
+import type { ChannelType, PostMetadata } from '../types/models';
+import { createDevLogger } from '../client/logger';
+import isURL from 'validator/lib/isURL.js';
 
 import {
   FinalizedAttachment,
@@ -27,6 +21,50 @@ import {
 } from '../urbit';
 
 const logger = createDevLogger('content-helpers', false);
+
+const makeText = (text: string): JSONContent => ({
+  type: 'text',
+  text,
+});
+
+const makeMention = (id: string): JSONContent => ({
+  type: 'mention',
+  attrs: { id },
+});
+
+const makeParagraph = (content?: JSONContent[]): JSONContent => {
+  const paragraph: JSONContent = { type: 'paragraph' };
+
+  if (!content) {
+    return paragraph;
+  }
+
+  if (
+    content.length > 0 &&
+    content[0].type === 'text' &&
+    content[0].text === ''
+  ) {
+    return paragraph;
+  }
+
+  return { ...paragraph, content };
+};
+
+function filenameFromPath(
+  path: string,
+  opts: { decodeURI?: boolean } = {}
+): string | null {
+  if (path.endsWith('/')) {
+    return null;
+  }
+
+  let out = path.split('/').pop() ?? null;
+  if (opts.decodeURI && out) {
+    out = decodeURIComponent(out);
+  }
+
+  return out;
+}
 
 const isBoldStart = (text: string): boolean => {
   return text.startsWith('**');
@@ -495,16 +533,17 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
             return;
           }
 
-          text.push(`~${child.attrs.id}`);
+          const id = child.attrs.id;
+          const mentionText = id.startsWith('~') ? id : `~${id}`;
+          const mentionStartIndex = text.join('').length;
 
-          const mentionStartIndex = text.join('').lastIndexOf('~');
-          const mentionEndIndex = mentionStartIndex + child.attrs.id.length + 1;
+          text.push(mentionText);
 
           mentions.push({
-            id: child.attrs!.id,
-            display: `~${child.attrs!.id}`,
+            id,
+            display: mentionText,
             start: mentionStartIndex,
-            end: mentionEndIndex,
+            end: mentionStartIndex + mentionText.length,
           });
         }
       });
