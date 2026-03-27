@@ -19,7 +19,7 @@ export * from './components/FilePreview';
 export * from './components/FloatingActionButton';
 export * from './components/FormInput';
 export * from './components/GestureMediaViewer';
-export { GestureTrigger } from 'react-native-gesture-image-viewer';
+export * from './components/GestureTrigger';
 export * from './components/Icon';
 export * from './components/IconButton';
 export * from './components/Image';

@@ -1,122 +1,32 @@
 import * as React from 'react';
+import { Platform } from 'react-native';
+
 import {
-  GestureViewer,
-  useGestureViewerEvent,
-} from 'react-native-gesture-image-viewer';
-import { FlatList, StyleSheet } from 'react-native';
+  clampGestureMediaViewerIndex,
+  generateGestureMediaViewerId,
+  renderDefaultGestureMediaViewerItem,
+  type GestureMediaViewerProps,
+  type GestureMediaViewerRenderHelpers,
+  type GestureMediaViewerRenderItem,
+} from './GestureMediaViewer.shared';
 
-import { Image } from './Image';
-import { View } from './View';
+export * from './GestureMediaViewer.shared';
 
-type GestureViewerEventData = {
-  scale: number;
-  previousScale: number | null;
-};
+type GestureMediaViewerComponent = (
+  props: GestureMediaViewerProps
+) => React.ReactElement | null;
 
-const ZOOMED_SCALE_THRESHOLD = 1.001;
+let NativeGestureMediaViewer: GestureMediaViewerComponent | null = null;
 
-let nextGeneratedViewerId = 0;
-
-function generateViewerId() {
-  nextGeneratedViewerId += 1;
-  return `gesture-media-viewer-${nextGeneratedViewerId}`;
+if (Platform.OS !== 'web') {
+  NativeGestureMediaViewer = (
+    require('./GestureMediaViewer.native') as {
+      GestureMediaViewer: GestureMediaViewerComponent;
+    }
+  ).GestureMediaViewer;
 }
 
-export type GestureMediaViewerImageItem = {
-  id?: string;
-  type: 'image';
-  uri: string;
-};
-
-export type GestureMediaViewerVideoItem = {
-  id?: string;
-  type: 'video';
-  uri: string;
-  posterUri?: string;
-};
-
-export type GestureMediaViewerItem =
-  | GestureMediaViewerImageItem
-  | GestureMediaViewerVideoItem;
-
-export type GestureMediaViewerRenderHelpers = {
-  dismiss: () => void;
-};
-
-export type GestureMediaViewerZoomState = {
-  isZoomed: boolean;
-  scale: number;
-  previousScale: number | null;
-};
-
-export type GestureMediaViewerRenderContainer = (
-  children: React.ReactElement,
-  helpers: GestureMediaViewerRenderHelpers
-) => React.ReactElement;
-
-export type GestureMediaViewerRenderItem = (
-  item: GestureMediaViewerItem,
-  index: number
-) => React.ReactElement;
-
-export type GestureMediaViewerProps = {
-  id?: string;
-  items: GestureMediaViewerItem[];
-  initialIndex?: number;
-  onIndexChange?: (index: number) => void;
-  onDismiss?: () => void;
-  onDismissStart?: () => void;
-  onZoomStateChange?: (state: GestureMediaViewerZoomState) => void;
-  renderContainer?: GestureMediaViewerRenderContainer;
-  renderItem?: GestureMediaViewerRenderItem;
-  enableDismissGesture?: boolean;
-  enableSwipeGesture?: boolean;
-  enableZoomGesture?: boolean;
-  enableDoubleTapGesture?: boolean;
-  enableZoomPanGesture?: boolean;
-  enableLoop?: boolean;
-  maxZoomScale?: number;
-};
-
-function defaultKeyExtractor(item: GestureMediaViewerItem, index: number) {
-  if (item.id) {
-    return item.id;
-  }
-
-  if (item.type === 'video') {
-    return `${item.type}:${item.posterUri ?? item.uri}:${index}`;
-  }
-
-  return `${item.type}:${item.uri}:${index}`;
-}
-
-function renderDefaultItem(item: GestureMediaViewerItem) {
-  if (item.type === 'image') {
-    return (
-      <View style={StyleSheet.absoluteFill}>
-        <Image
-          source={{ uri: item.uri }}
-          contentFit="contain"
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-    );
-  }
-
-  return (
-    <View style={StyleSheet.absoluteFill} backgroundColor="$black">
-      {item.posterUri ? (
-        <Image
-          source={{ uri: item.posterUri }}
-          contentFit="contain"
-          style={StyleSheet.absoluteFill}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-export function GestureMediaViewer({
+function WebGestureMediaViewer({
   id,
   items,
   initialIndex = 0,
@@ -126,69 +36,73 @@ export function GestureMediaViewer({
   onZoomStateChange,
   renderContainer,
   renderItem,
-  enableDismissGesture,
-  enableSwipeGesture,
-  enableZoomGesture,
-  enableDoubleTapGesture,
-  enableZoomPanGesture,
-  enableLoop,
-  maxZoomScale,
 }: GestureMediaViewerProps) {
   const generatedIdRef = React.useRef<string>();
   if (!generatedIdRef.current) {
-    generatedIdRef.current = generateViewerId();
+    generatedIdRef.current = generateGestureMediaViewerId();
   }
-  const viewerId = id ?? generatedIdRef.current;
 
-  const handleZoomChange = React.useCallback(
-    ({
-      scale,
-      previousScale,
-    }: {
-      scale: number;
-      previousScale: number | null;
-    }) => {
-      onZoomStateChange?.({
-        isZoomed: scale > ZOOMED_SCALE_THRESHOLD,
-        scale,
-        previousScale,
-      });
-    },
-    [onZoomStateChange]
+  const viewerId = id ?? generatedIdRef.current;
+  void viewerId;
+
+  const resolvedIndex = clampGestureMediaViewerIndex(items, initialIndex);
+  const item = items[resolvedIndex];
+
+  React.useEffect(() => {
+    if (!item) {
+      return;
+    }
+
+    onIndexChange?.(resolvedIndex);
+  }, [item, onIndexChange, resolvedIndex]);
+
+  React.useEffect(() => {
+    if (!item) {
+      return;
+    }
+
+    onZoomStateChange?.({
+      isZoomed: false,
+      scale: 1,
+      previousScale: null,
+    });
+  }, [item, onZoomStateChange]);
+
+  const dismiss = React.useCallback(() => {
+    onDismissStart?.();
+    onDismiss?.();
+  }, [onDismiss, onDismissStart]);
+
+  const helpers = React.useMemo<GestureMediaViewerRenderHelpers>(
+    () => ({
+      dismiss,
+    }),
+    [dismiss]
   );
 
-  useGestureViewerEvent(viewerId, 'zoomChange', handleZoomChange);
-
   const resolvedRenderItem = React.useCallback<GestureMediaViewerRenderItem>(
-    (item, index) => renderItem?.(item, index) ?? renderDefaultItem(item),
+    (currentItem, index) =>
+      renderItem?.(currentItem, index) ??
+      renderDefaultGestureMediaViewerItem(currentItem),
     [renderItem]
   );
 
-  if (items.length === 0) {
+  if (!item) {
     return null;
   }
 
-  return (
-    <GestureViewer
-      id={viewerId}
-      data={items}
-      initialIndex={initialIndex}
-      onIndexChange={onIndexChange}
-      onDismiss={onDismiss}
-      onDismissStart={onDismissStart}
-      renderItem={resolvedRenderItem}
-      renderContainer={renderContainer}
-      ListComponent={FlatList}
-      enableDismissGesture={enableDismissGesture}
-      enableSwipeGesture={enableSwipeGesture}
-      enableZoomGesture={enableZoomGesture}
-      enableDoubleTapGesture={enableDoubleTapGesture}
-      enableZoomPanGesture={enableZoomPanGesture}
-      enableLoop={enableLoop}
-      maxZoomScale={maxZoomScale}
-      listProps={{
-        keyExtractor: defaultKeyExtractor,
-      }}
-    />
-  );
+  const content = resolvedRenderItem(item, resolvedIndex);
+  return renderContainer ? renderContainer(content, helpers) : content;
+}
+
+export function GestureMediaViewer(props: GestureMediaViewerProps) {
+  if (Platform.OS === 'web') {
+    return <WebGestureMediaViewer {...props} />;
+  }
+
+  if (!NativeGestureMediaViewer) {
+    return null;
+  }
+
+  return <NativeGestureMediaViewer {...props} />;
 }
