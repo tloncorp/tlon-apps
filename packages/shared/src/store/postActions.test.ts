@@ -183,15 +183,20 @@ describe('sendPost', () => {
     await vi.runOnlyPendingTimersAsync();
     await sendPostPromise;
 
-    expect(capture).toHaveBeenCalledWith(
-      AnalyticsEvent.ActionSendPost,
+    const sendPostEvent = capture.mock.calls.find(
+      ([eventId]) => eventId === AnalyticsEvent.ActionSendPost
+    );
+
+    expect(sendPostEvent).toBeDefined();
+    expect(sendPostEvent?.[1]).toEqual(
       expect.objectContaining({
-        channelId: botDmId,
+        channelId: expect.any(String),
         channelType: 'dm',
         groupId: null,
         isBotDm: true,
       })
     );
+    expect(sendPostEvent?.[1]?.channelId).not.toBe(botDmId);
   });
 });
 
