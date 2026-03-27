@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { GestureTrigger as NativeGestureTrigger } from 'react-native-gesture-image-viewer';
 
 type GestureTriggerProps = {
   children: React.ReactElement;
@@ -7,7 +8,7 @@ type GestureTriggerProps = {
 
 export function GestureTrigger({
   children,
-  id: _id,
+  id,
 }: GestureTriggerProps) {
-  return <>{children}</>;
+  return <NativeGestureTrigger id={id}>{children}</NativeGestureTrigger>;
 }

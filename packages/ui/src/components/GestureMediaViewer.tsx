@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Platform } from 'react-native';
 
 import {
   clampGestureMediaViewerIndex,
@@ -11,20 +10,6 @@ import {
 } from './GestureMediaViewer.shared';
 
 export * from './GestureMediaViewer.shared';
-
-type GestureMediaViewerComponent = (
-  props: GestureMediaViewerProps
-) => React.ReactElement | null;
-
-let NativeGestureMediaViewer: GestureMediaViewerComponent | null = null;
-
-if (Platform.OS !== 'web') {
-  NativeGestureMediaViewer = (
-    require('./GestureMediaViewer.native') as {
-      GestureMediaViewer: GestureMediaViewerComponent;
-    }
-  ).GestureMediaViewer;
-}
 
 function WebGestureMediaViewer({
   id,
@@ -96,13 +81,5 @@ function WebGestureMediaViewer({
 }
 
 export function GestureMediaViewer(props: GestureMediaViewerProps) {
-  if (Platform.OS === 'web') {
-    return <WebGestureMediaViewer {...props} />;
-  }
-
-  if (!NativeGestureMediaViewer) {
-    return null;
-  }
-
-  return <NativeGestureMediaViewer {...props} />;
+  return <WebGestureMediaViewer {...props} />;
 }
