@@ -8,10 +8,8 @@ import AttachmentSheet from '../AttachmentSheet';
 
 export default function AttachmentButton({
   setShouldBlur,
-  mediaType,
 }: {
   setShouldBlur: (shouldBlur: boolean) => void;
-  mediaType: 'image' | 'all';
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
   const { attachAssets } = useAttachmentContext();
@@ -25,9 +23,7 @@ export default function AttachmentButton({
   const handlePress = async () => {
     // On web, skip the sheet and go straight to the system file picker.
     if (isWeb) {
-      const acceptedTypes =
-        mediaType === 'image' ? ['image/*'] : undefined;
-      const { uploadIntents } = await pickFile(acceptedTypes);
+      const { uploadIntents } = await pickFile();
       if (uploadIntents.length > 0) {
         attachAssets(uploadIntents);
       }
@@ -46,7 +42,7 @@ export default function AttachmentButton({
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
-        mediaType={mediaType}
+        mediaType="all"
       />
     </>
   );
