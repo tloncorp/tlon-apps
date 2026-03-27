@@ -147,6 +147,105 @@ export type ListData = {
   children?: ListData[];
 };
 
+// ── Chart Block Types ────────────────────────────────────────────────────
+
+export type ChartBlockData = {
+  type: 'chart';
+  version: number;
+  chartType: 'bar' | 'line' | 'area' | 'pie' | 'sparkline';
+  title?: string;
+  series: Array<{
+    label: string;
+    values: number[];
+    color?: string;
+  }>;
+  xLabels?: string[];
+  yLabel?: string;
+  height?: number;
+};
+
+// ── Table Block Types ────────────────────────────────────────────────────
+
+export type TableBlockData = {
+  type: 'table';
+  version: number;
+  title?: string;
+  columns: string[];
+  rows: Array<Array<string | number>>;
+  style?: 'simple' | 'rich';
+};
+
+// ── Chess Block Types ────────────────────────────────────────────────────
+
+export type ChessBlockData = {
+  type: 'chess';
+  version: number;
+  fen: string;
+  players?: { white: string; black: string };
+  turn?: 'white' | 'black';
+  status?: 'active' | 'check' | 'checkmate' | 'stalemate' | 'draw';
+  lastMove?: string;
+  moveHistory?: string[];
+  theme?: 'blue' | 'slate' | 'green' | 'purple';
+};
+
+// ── A2UI Block Types ─────────────────────────────────────────────────────
+
+export type A2UIComponentType =
+  | 'text'
+  | 'button'
+  | 'image'
+  | 'stack'
+  | 'row'
+  | 'divider'
+  | 'spacer'
+  | 'progress'
+  | 'badge'
+  | 'card'
+  | 'list'
+  | 'chart'
+  | 'table';
+
+export type A2UIComponent = {
+  type: A2UIComponentType;
+  id?: string;
+  text?: string;
+  textRef?: string;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  weight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  action?: string;
+  actionPayload?: Record<string, unknown>;
+  src?: string;
+  srcRef?: string;
+  aspectRatio?: number;
+  children?: A2UIComponent[];
+  gap?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
+  value?: number;
+  valueRef?: string;
+  max?: number;
+  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error';
+  items?: A2UIComponent[];
+  itemsRef?: string;
+  columns?: string[];
+  rows?: Array<Array<string | number>>;
+  rowsRef?: string;
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'sparkline';
+  series?: Array<{ label: string; values: number[]; color?: string }>;
+  seriesRef?: string;
+};
+
+export type A2UIBlockData = {
+  type: 'a2ui';
+  version: number;
+  root: A2UIComponent;
+  data?: Record<string, unknown>;
+  title?: string;
+  icon?: string;
+};
+
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
@@ -160,7 +259,11 @@ export type BlockData =
   | HeaderBlockData
   | RuleBlockData
   | ListBlockData
-  | BigEmojiBlockData;
+  | BigEmojiBlockData
+  | ChartBlockData
+  | TableBlockData
+  | ChessBlockData
+  | A2UIBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -253,6 +356,14 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'chart':
+          return `(Chart: ${block.title ?? block.chartType})`;
+        case 'table':
+          return `(Table: ${block.title ?? 'Data'})`;
+        case 'chess':
+          return '(Chess Game)';
+        case 'a2ui':
+          return `(Interactive: ${block.title ?? 'Component'})`;
       }
     })
     .join(config.blockSeparator)
@@ -381,6 +492,117 @@ export function convertContent(
             alt: entry.name ?? 'video',
             duration: entry.duration,
             posterUri: entry.posterUri,
+          });
+          break;
+        }
+
+        case 'chart': {
+          out.push({
+            type: 'chart',
+            version: entry.version,
+            chartType: entry.chartType,
+            title: entry.title,
+            series: entry.series,
+            xLabels: entry.xLabels,
+            yLabel: entry.yLabel,
+            height: entry.height,
+          });
+          break;
+        }
+
+        case 'table': {
+          out.push({
+            type: 'table',
+            version: entry.version,
+            title: entry.title,
+            columns: entry.columns,
+            rows: entry.rows,
+            style: entry.style,
+          });
+          break;
+        }
+
+        case 'chess': {
+          out.push({
+            type: 'chess',
+            version: entry.version,
+            fen: entry.fen,
+            players: entry.players,
+            turn: entry.turn,
+            status: entry.status,
+            lastMove: entry.lastMove,
+            moveHistory: entry.moveHistory,
+            theme: entry.theme,
+          });
+          break;
+        }
+
+        case 'a2ui': {
+          // Convert flat adjacency list to nested component tree
+          const rawEntry = entry as any;
+          let rootComponent: A2UIComponent;
+
+          if (typeof rawEntry.root === 'string' && Array.isArray(rawEntry.components)) {
+            // Flat format: root is a string ID, components is an array of {id, component}
+            const compMap = new Map<string, any>();
+            for (const c of rawEntry.components) {
+              compMap.set(c.id, c.component);
+            }
+
+            const buildTree = (id: string): A2UIComponent => {
+              const raw = compMap.get(id);
+              if (!raw) return { type: 'text', text: `[missing: ${id}]` };
+
+              // Component is like { Column: { children: [...] } } or { Text: { text: "..." } }
+              const [typeName, props] = Object.entries(raw)[0] as [string, any];
+              const typeMap: Record<string, A2UIComponentType> = {
+                Column: 'stack', Row: 'row', Text: 'text', Button: 'button',
+                Image: 'image', Divider: 'divider', Spacer: 'spacer',
+                Progress: 'progress', Badge: 'badge', Card: 'card',
+                List: 'list', Chart: 'chart', Table: 'table', Stack: 'stack',
+                Icon: 'badge',
+              };
+              const compType = typeMap[typeName] ?? 'text';
+
+              const result: A2UIComponent = { type: compType, ...props };
+
+              // Recursively build children
+              if (Array.isArray(props?.children)) {
+                result.children = props.children.map((childId: string) =>
+                  typeof childId === 'string' && compMap.has(childId)
+                    ? buildTree(childId)
+                    : typeof childId === 'object' ? childId : { type: 'text', text: String(childId) }
+                );
+              }
+
+              // Map Button props
+              if (typeName === 'Button') {
+                result.text = props?.label ?? props?.text;
+                result.action = props?.action;
+                result.variant = props?.preset === 'primary' ? 'primary' : props?.preset === 'secondary' ? 'secondary' : 'default';
+              }
+
+              // Map Text props
+              if (typeName === 'Text') {
+                result.size = props?.usageHint === 'title' ? 'lg' : props?.usageHint === 'body' ? 'md' : props?.size;
+              }
+
+              return result;
+            };
+
+            rootComponent = buildTree(rawEntry.root);
+          } else {
+            // Already nested format
+            rootComponent = rawEntry.root as A2UIComponent;
+          }
+
+          out.push({
+            type: 'a2ui',
+            version: entry.version,
+            root: rootComponent,
+            data: (entry as any).data,
+            title: (entry as any).title,
+            icon: (entry as any).icon,
           });
           break;
         }

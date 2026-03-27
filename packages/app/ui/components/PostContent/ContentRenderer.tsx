@@ -5,6 +5,7 @@ import React from 'react';
 import { YStack, styled } from 'tamagui';
 
 import {
+  A2UIPostContext,
   BlockRenderer,
   BlockRendererConfig,
   BlockRendererProvider,
@@ -42,12 +43,20 @@ export function PostContentRenderer({
     return content;
   }, [post.content, post.blob]);
 
+  // Settings for interactive blocks that need post context
+  const blockSettings = useMemo(() => ({
+    chess: { postId: post.id, channelId: post.channelId ?? undefined },
+    a2ui: { postId: post.id, channelId: post.channelId ?? undefined },
+  }), [post.id, post.channelId]);
+
   return (
-    <BlockRendererProvider>
-      <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
-      </InlineRendererProvider>
-    </BlockRendererProvider>
+    <A2UIPostContext.Provider value={{ postId: post.id, channelId: post.channelId ?? undefined }}>
+      <BlockRendererProvider settings={blockSettings}>
+        <InlineRendererProvider value={undefined}>
+          <ContentRenderer content={content} {...props} />
+        </InlineRendererProvider>
+      </BlockRendererProvider>
+    </A2UIPostContext.Provider>
   );
 }
 

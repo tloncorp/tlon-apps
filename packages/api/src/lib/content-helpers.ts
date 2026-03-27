@@ -639,6 +639,52 @@ export type PostBlobDataEntry =
         /** local preview URI (optional in v1) */
         posterUri?: string;
       }
+    >
+  | BuildPostBlobDataEntry<
+      'chart',
+      { version: 1 },
+      {
+        chartType: 'bar' | 'line' | 'area' | 'pie' | 'sparkline';
+        title?: string;
+        series: Array<{ label: string; values: number[]; color?: string }>;
+        xLabels?: string[];
+        yLabel?: string;
+        height?: number;
+      }
+    >
+  | BuildPostBlobDataEntry<
+      'table',
+      { version: 1 },
+      {
+        title?: string;
+        columns: string[];
+        rows: Array<Array<string | number>>;
+        style?: 'simple' | 'rich';
+      }
+    >
+  | BuildPostBlobDataEntry<
+      'chess',
+      { version: 1 },
+      {
+        fen: string;
+        players?: { white: string; black: string };
+        turn?: 'white' | 'black';
+        status?: 'active' | 'check' | 'checkmate' | 'stalemate' | 'draw';
+        lastMove?: string;
+        moveHistory?: string[];
+        theme?: 'blue' | 'slate' | 'green' | 'purple';
+      }
+    >
+  | BuildPostBlobDataEntry<
+      'a2ui',
+      { version: 1 },
+      {
+        root: string | Record<string, unknown>;
+        components?: Array<{ id: string; component: Record<string, unknown> }>;
+        data?: Record<string, unknown>;
+        title?: string;
+        icon?: string;
+      }
     >;
 
 type PostBlobData = PostBlobDataEntry[];
@@ -736,6 +782,19 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return entry;
     }
     if (entry.type === 'video' && entry.version === 1) {
+      return entry;
+    }
+    // A2UI blob types — pass through as-is for BlockRenderer to handle
+    if (entry.type === 'chart' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'table' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'chess' && entry.version === 1) {
+      return entry;
+    }
+    if (entry.type === 'a2ui' && entry.version === 1) {
       return entry;
     }
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });
