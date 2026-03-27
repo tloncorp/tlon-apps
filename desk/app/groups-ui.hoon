@@ -1,4 +1,5 @@
-/-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver, a=activity
+/-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
+    a=activity, av=activity-ver
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -186,7 +187,7 @@
     =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:v1:dv] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
-    =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
+    =+  .^(=activity:v2:av (scry %gx %activity /activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-2:u
       :*  groups-ui
@@ -203,7 +204,7 @@
     =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:v1:dv] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
-    =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
+    =+  .^(=activity:v3:av (scry %gx %activity /v1/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-3:u
       :*  groups-ui
@@ -220,7 +221,7 @@
     =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /init/v1/noun))
     =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(=activity:v4:av (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-4:u
       :*  groups-ui
@@ -237,7 +238,7 @@
     =+  .^([=groups-ui:v7:gv =foreigns:v8:gv] (scry %gx %groups /v2/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(=activity:v4:av (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-5:u
       :*  groups-ui
@@ -254,7 +255,7 @@
     =+  .^([=groups-ui:v9:gv =foreigns:v8:gv] (scry %gx %groups /v3/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(=activity:v4:av (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-6:u
       :*  groups-ui
@@ -271,7 +272,7 @@
     =+  .^([=groups-ui:v9:gv =foreigns:v8:gv] (scry %gx %groups /v3/init/noun))
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(=activity:v4:av (scry %gx %activity /v4/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-7:u
       :*  groups-ui

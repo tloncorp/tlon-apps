@@ -1,4 +1,4 @@
-/-  a=activity, gv=groups-ver, c=chat
+/-  a=activity, av=activity-ver, gv=groups-ver, c=chat
 /+  gj=groups-json, cj=channel-json, dj=contacts-json-1,
     sj=story-json
 =*  z  ..zuse
@@ -369,66 +369,34 @@
     :~  source+(source s)
         volume+?~(v ~ (volume-map u.v))
     ==
-  +|  %old-types
-  ++  v2
+  ++  v4
     |%
-    ++  update
-      |=  u=update:v2:old:a
-      ?+  -.u  (^update u)
-        %read  (frond -.u (read +.u))
-      ==
-    ++  read
-      |=  [s=source:a as=activity-summary:v2:old:a]
-      %-  pairs
-      :~  source+(source s)
-          activity+(activity-summary as)
-      ==
-    ++  full-info
-      |=  fi=full-info:v2:old:a
-      %-  pairs
-      :~  indices+(indices:v3 indices.fi)
-          activity+(activity activity.fi)
-          settings+(volume-settings volume-settings.fi)
-      ==
-    ++  activity
-      |=  ac=activity:v2:old:a
-      %-  pairs
-      %+  turn  ~(tap by ac)
-      |=  [s=source:a sum=activity-summary:v2:old:a]
-      [(string-source s) (activity-summary sum)]
-    ++  activity-summary
-      |=  sum=activity-summary:v2:old:a
-      %-  pairs
-      :~  recency+(time newest.sum)
-          count+(numb count.sum)
-          notify+b+notify.sum
-          unread/?~(unread.sum ~ (unread-point u.unread.sum))
-          children+?~(children.sum ~ (activity u.children.sum))
-      ==
-    ::
+    ++  feed
+      |=  f=feed:v4:av
+      a+(turn f activity-bundle)
     --
   ++  v3
     |%
     ++  update
-      |=  u=update:v3:old:a
+      |=  u=update:v3:av
       ?+  -.u  (^update u)
         %read  (frond -.u (read +.u))
       ==
     ++  read
-      |=  [s=source:a as=activity-summary:v3:old:a]
+      |=  [s=source:a as=activity-summary:v3:av]
       %-  pairs
       :~  source+(source s)
           activity+(activity-summary as)
       ==
     ++  full-info
-      |=  fi=full-info:v3:old:a
+      |=  fi=full-info:v3:av
       %-  pairs
       :~  indices+(indices indices.fi)
           activity+(activity activity.fi)
           settings+(volume-settings volume-settings.fi)
       ==
     ++  indices
-      |=  ind=indices:v3:old:a
+      |=  ind=indices:v3:av
       %-  pairs
       %+  turn  ~(tap by ind)
       |=  [sc=source:a st=stream:a r=reads:a]
@@ -438,13 +406,13 @@
           reads+(reads r)
       ==
     ++  activity
-      |=  ac=activity:v3:old:a
+      |=  ac=activity:v3:av
       %-  pairs
       %+  turn  ~(tap by ac)
-      |=  [s=source:a sum=activity-summary:v3:old:a]
+      |=  [s=source:a sum=activity-summary:v3:av]
       [(string-source s) (activity-summary sum)]
     ++  activity-summary
-      |=  sum=activity-summary:v3:old:a
+      |=  sum=activity-summary:v3:av
       %-  pairs
       :~  recency+(time newest.sum)
           count+(numb count.sum)
@@ -454,13 +422,42 @@
           children+?~(children.sum ~ (activity u.children.sum))
           reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
       ==
-    ::
     --
-  ++  v4
+  ++  v2
     |%
-    ++  feed
-      |=  f=feed:v4:old:a
-      a+(turn f activity-bundle)
+    ++  update
+      |=  u=update:v2:av
+      ?+  -.u  (^update u)
+        %read  (frond -.u (read +.u))
+      ==
+    ++  read
+      |=  [s=source:a as=activity-summary:v2:av]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ++  full-info
+      |=  fi=full-info:v2:av
+      %-  pairs
+      :~  indices+(indices:v3 indices.fi)
+          activity+(activity activity.fi)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  activity
+      |=  ac=activity:v2:av
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:a sum=activity-summary:v2:av]
+      [(string-source s) (activity-summary sum)]
+    ++  activity-summary
+      |=  sum=activity-summary:v2:av
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+          children+?~(children.sum ~ (activity u.children.sum))
+      ==
     --
   --
 ::

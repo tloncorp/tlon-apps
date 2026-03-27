@@ -1,4 +1,4 @@
-/-  g=groups, meta, e=epic, s=story
+/-  meta, e=epic, s=story
 |%
 ::
 ::  common

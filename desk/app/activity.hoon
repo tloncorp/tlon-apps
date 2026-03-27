@@ -39,7 +39,8 @@
 ::    the children and save ourselves from having to do extra work.
 ::
 ::
-/-  a=activity, c=channels, cv=channels-ver, ch=chat, gv=groups-ver
+/-  a=activity, av=activity-ver, c=channels, cv=channels-ver,
+    ch=chat, gv=groups-ver
 /+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
     imp=import-aid
 /+  default-agent, verb, dbug, logs
@@ -175,19 +176,19 @@
   +$  state-8  current-state
   +$  state-7
     $:  %7
-        allowed=notifications-allowed:v7:old:a
-        =indices:v7:old:a
-        =activity:v7:old:a
-        =volume-settings:v7:old:a
+        allowed=notifications-allowed:v7:av
+        =indices:v7:av
+        =activity:v7:av
+        =volume-settings:v7:av
     ==
-  +$  state-6  _%*(. *state-7 - %6)
-  +$  state-5  _%*(. *state-7 - %5)
+  +$  state-6  _%*(. *state-4 - %6)
+  +$  state-5  _%*(. *state-4 - %5)
   ::
   ++  state-5-to-6
     |=  old=state-5
     ~>  %spin.['state-5-to-6']
     ^-  state-6
-    =/  [=indices:a =activity:a]
+    =/  [=indices:av =activity:av]
       (sync-reads indices.old activity.old volume-settings.old)
     :*  %6
         allowed.old
@@ -197,10 +198,10 @@
     ==
   +$  state-4
     $:  %4
-        allowed=notifications-allowed:a
-        =indices:a
-        =activity:a
-        =volume-settings:a
+        allowed=notifications-allowed:v4:av
+        =indices:v4:av
+        =activity:v4:av
+        =volume-settings:v4:av
     ==
   ++  state-4-to-5
     |=  old=state-4
@@ -213,19 +214,19 @@
         volume-settings.old
     ==
   ++  indices-4-to-5
-    |=  =indices:a
+    |=  =indices:v4:av
     ~>  %spin.['indices-4-to-5']
-    ^-  indices:a
+    ^-  indices:v4:av
     %+  ~(jab by indices)  [%base ~]
-    |=  =index:a
+    |=  =index:v4:av
     =.  stream.index
       %+  run:on-event:a  stream.index
-      |=  =event:a
+      |=  =event:v4:av
       event(child &)
     index
   +$  state-3
     $:  %3
-        allowed=notifications-allowed:a
+        allowed=notifications-allowed:v3:av
         =indices:v3:old:a
         =activity:v3:old:a
         =volume-settings:a
@@ -242,26 +243,26 @@
         volume-settings.old
     ==
   ++  indices-3-to-4
-    |=  =indices:v3:old:a
+    |=  =indices:v3:av
     ~>  %spin.['indices-3-to-4']
-    ^-  indices:a
-    (~(run by indices) |=([=stream:a =reads:a] [stream reads *@da]))
+    ^-  indices:v4:av
+    (~(run by indices) |=([=stream:v3:av =reads:v3:av] [stream reads *@da]))
   ++  activity-3-to-4
-    |=  [=indices:a vs=volume-settings:a]
+    |=  [=indices:v3:av vs=volume-settings:v3:av]
     ~>  %spin.['activity-3-to-4']
-    ^-  activity:a
+    ^-  activity:v4:av
     =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
     %+  roll  sources
-    |=  [=source:a =activity:a]
+    |=  [=source:v3:av =activity:v3:av]
     =/  index  (~(got by indices) source)
     %+  ~(put by activity)  source
     (~(summarize-unreads urd indices activity vs log) source index)
   +$  state-2
     $:  %2
-        allowed=notifications-allowed:a
-        =indices:v3:old:a
-        =activity:v2:old:a
-        =volume-settings:a
+        allowed=notifications-allowed:v2:av
+        =indices:v3:av  :: FIX
+        =activity:v2:av
+        =volume-settings:v2:av
     ==
   ++  state-2-to-3
     |=  old=state-2
@@ -274,7 +275,7 @@
         volume-settings.old
     ==
   +$  state-1
-    [%1 =indices:v3:old:a =activity:v2:old:a =volume-settings:a]
+    [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
   ++  state-1-to-2
     |=  old=state-1
     ~>  %spin.['state-1-to-2']

@@ -1,4 +1,4 @@
-/-  gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
+/-  av=activity-ver, gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
 +$  init-7
   $:  groups=groups-ui:v9:gv
@@ -40,7 +40,7 @@
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
       =channels:v1:dv
-      =activity:v3:old:a
+      =activity:v3:av
       pins=(list whom)
       chat=chat-1
       profile=?
@@ -49,7 +49,7 @@
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
       =channels:v1:dv
-      activity=activity:v2:old:a
+      activity=activity:v2:av
       pins=(list whom)
       chat=chat-1
       profile=?
