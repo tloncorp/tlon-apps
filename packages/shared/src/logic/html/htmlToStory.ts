@@ -259,7 +259,16 @@ function nodeToVerses(node: HtmlNode): Verse[] {
 
   switch (tag) {
     case 'p': {
-      const inlines = nodesToInlines(children);
+      let inlines = nodesToInlines(children);
+      // Strip trailing breaks to prevent accumulation on save/load cycles
+      while (
+        inlines.length > 0 &&
+        typeof inlines[inlines.length - 1] === 'object' &&
+        inlines[inlines.length - 1] !== null &&
+        'break' in (inlines[inlines.length - 1] as object)
+      ) {
+        inlines = inlines.slice(0, -1);
+      }
       if (inlines.length === 0) return [];
       return [{ inline: inlines }];
     }
@@ -281,7 +290,7 @@ function nodeToVerses(node: HtmlNode): Verse[] {
 
     case 'blockquote': {
       // Blockquote children are usually <p> elements
-      // Flatten them into a single inline array
+      // Flatten them into a single inline array, skipping whitespace and <br>
       const allInlines: Inline[] = [];
       for (const child of children) {
         if (child.type === 'element' && child.tag === 'p') {
@@ -289,6 +298,12 @@ function nodeToVerses(node: HtmlNode): Verse[] {
             allInlines.push({ break: null });
           }
           allInlines.push(...nodesToInlines(child.children ?? []));
+        } else if (child.type === 'element' && child.tag === 'br') {
+          // Skip <br> inside blockquote — paragraph breaks handle separation
+          continue;
+        } else if (child.type === 'text' && !child.text?.trim()) {
+          // Skip whitespace-only text nodes
+          continue;
         } else {
           allInlines.push(...nodesToInlines([child]));
         }
@@ -297,8 +312,10 @@ function nodeToVerses(node: HtmlNode): Verse[] {
       return [{ inline: [{ blockquote: allInlines }] }];
     }
 
-    case 'pre': {
-      // Code block — get text from <code> child if present
+    case 'pre':
+    case 'codeblock': {
+      // Code block — get text from <code> child if present, or from
+      // <p> children (enriched editor wraps lines in <p> inside <codeblock>)
       let codeText = '';
       const codeChild = children.find(
         (c) => c.type === 'element' && c.tag === 'code'
@@ -306,20 +323,30 @@ function nodeToVerses(node: HtmlNode): Verse[] {
       if (codeChild) {
         codeText = collectText(codeChild.children ?? []);
       } else {
-        codeText = collectText(children);
+        // Collect text from <p> children, joining with newlines
+        const lines = children
+          .filter((c) => c.type === 'element' || c.type === 'text')
+          .map((c) => collectText(c.type === 'element' ? (c.children ?? []) : [c]));
+        codeText = lines.join('\n').trim();
       }
-      const block: Block = { code: { code: codeText, lang: '' } };
-      return [{ block }];
+      // Use inline BlockCode format { code: "text" } which is what the
+      // backend expects, not the Block Code format { code: { code, lang } }
+      return [{ inline: [{ code: codeText }] }];
     }
 
     case 'ul':
     case 'ol': {
-      const listType = tag === 'ol' ? 'ordered' : 'unordered';
+      const isCheckbox = node.attrs?.['data-type'] === 'checkbox';
+      const listType = isCheckbox
+        ? 'tasklist'
+        : tag === 'ol'
+          ? 'ordered'
+          : 'unordered';
       const items = listItemsFromNodes(children, listType);
       const block: Block = {
         listing: {
           list: {
-            type: listType as 'ordered' | 'unordered',
+            type: listType as 'ordered' | 'unordered' | 'tasklist',
             items,
             contents: [],
           },
@@ -341,7 +368,8 @@ function nodeToVerses(node: HtmlNode): Verse[] {
     }
 
     case 'br':
-      return [];
+      // Top-level <br> between blocks represents an intentional blank line
+      return [{ inline: [{ break: null }] }];
 
     case 'div':
       // Treat div as a container — process children as top-level
@@ -393,37 +421,26 @@ function listItemsFromNodes(
           contents,
         },
       });
-    } else {
-      // Check for checkbox (task list)
-      const hasCheckbox = children.some(
+    } else if (listType === 'tasklist' || node.attrs?.checked !== undefined) {
+      // Checkbox/task list item — either from <ul data-type="checkbox">
+      // or from <li checked> format (enriched editor output)
+      const checked = node.attrs?.checked !== undefined;
+      // Filter out any <input> checkbox elements (legacy format)
+      const contentNodes = children.filter(
         (c) =>
-          c.type === 'element' &&
-          c.tag === 'input' &&
-          c.attrs?.type === 'checkbox'
+          !(c.type === 'element' && c.tag === 'input' && c.attrs?.type === 'checkbox')
       );
+      const unwrapped = unwrapParagraphs(contentNodes);
+      const content = nodesToInlines(unwrapped);
 
-      if (hasCheckbox) {
-        const checkbox = children.find(
-          (c) =>
-            c.type === 'element' &&
-            c.tag === 'input' &&
-            c.attrs?.type === 'checkbox'
-        );
-        const checked = checkbox?.attrs?.checked !== undefined;
-        const contentNodes = children.filter((c) => c !== checkbox);
-        // Unwrap <p> tags inside <li>
-        const unwrapped = unwrapParagraphs(contentNodes);
-        const content = nodesToInlines(unwrapped);
-
-        items.push({
-          item: [{ task: { checked, content } }],
-        });
-      } else {
-        // Regular list item — unwrap <p> tags
-        const unwrapped = unwrapParagraphs(children);
-        const inlines = nodesToInlines(unwrapped);
-        items.push({ item: inlines });
-      }
+      items.push({
+        item: [{ task: { checked, content } }],
+      });
+    } else {
+      // Regular list item — unwrap <p> tags
+      const unwrapped = unwrapParagraphs(children);
+      const inlines = nodesToInlines(unwrapped);
+      items.push({ item: inlines });
     }
   }
 
