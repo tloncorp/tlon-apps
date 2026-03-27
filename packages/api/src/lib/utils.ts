@@ -7,6 +7,7 @@ import { BackoffOptions, backOff } from 'exponential-backoff';
 
 import * as api from '../client';
 import {
+  isBotUserId,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
@@ -15,7 +16,7 @@ import * as domain from '../types';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
 
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
+export { isBotUserId, isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -710,6 +711,21 @@ export function simpleHash(input: string) {
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
+}
+
+export function isBotDmChannel({
+  post,
+  channel,
+}: {
+  post?: Partial<db.Post> | null;
+  channel?: Partial<db.Channel> | null;
+}): boolean {
+  const channelId = channel?.id ?? post?.channelId;
+  if (!channelId || !isDmChannelId(channelId)) {
+    return false;
+  }
+
+  return isBotUserId(channel?.contactId ?? channelId);
 }
 
 const wayfindingGroup = domain.PersonalGroupSlugs;
