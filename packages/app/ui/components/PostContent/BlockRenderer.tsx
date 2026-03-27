@@ -518,18 +518,54 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
 
+  // Calculate constrained dimensions that respect both maxWidth and maxHeight
+  // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
+  // Dimensions are applied to the Pressable wrapper so ContentImage fills it.
+  const constrainedSize = useMemo(() => {
+    const aspect = dimensions.aspect;
+    if (!aspect) return null;
+    const maxW =
+      typeof imageProps?.maxWidth === 'number' ? imageProps.maxWidth : null;
+    const maxH =
+      typeof imageProps?.maxHeight === 'number' ? imageProps.maxHeight : null;
+    if (maxW != null && maxH != null) {
+      const width = Math.min(maxW, maxH * aspect);
+      return { width, height: width / aspect };
+    }
+    return null;
+  }, [dimensions.aspect, imageProps?.maxWidth, imageProps?.maxHeight]);
+
+  // When using constrained sizing, strip maxWidth/maxHeight from imageProps
+  // so they don't override responsive sizing on narrow viewports.
+  const {
+    maxWidth: _imageMaxWidth,
+    maxHeight: _imageMaxHeight,
+    ...remainingImageProps
+  } = imageProps ?? {};
+
   return (
     <Pressable
       overflow="hidden"
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(constrainedSize
+        ? {
+            alignSelf: 'flex-start' as const,
+            width: constrainedSize.width,
+            height: constrainedSize.height,
+            maxWidth: '100%',
+          }
+        : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(shouldUseAspectRatio
+        {...(constrainedSize
+          ? { width: '100%', height: '100%' }
+          : { width: dimensions.width ?? '100%' })}
+        {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
         {...(isInsideReference
@@ -542,7 +578,7 @@ export function ImageBlock({
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
-        {...imageProps}
+        {...(constrainedSize ? remainingImageProps : imageProps)}
       />
     </Pressable>
   );
@@ -552,8 +588,6 @@ const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: ContentContext,
   width: '100%',
-  aspectRatio: 1,
-  backgroundColor: '$secondaryBackground',
 });
 
 export function RuleBlock({
