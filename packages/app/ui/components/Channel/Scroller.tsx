@@ -99,6 +99,7 @@ const Scroller = forwardRef(
       isLoading,
       onPressScrollToBottom,
       listHeaderComponent,
+      listBottomComponent,
       highlightPostId,
     }: {
       anchor?: ScrollAnchor | null;
@@ -136,6 +137,7 @@ const Scroller = forwardRef(
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
       listHeaderComponent?: React.ReactElement;
+      listBottomComponent?: React.ReactElement;
       highlightPostId?: string | null;
     },
     ref
@@ -535,6 +537,7 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
+            listBottomComponent={listBottomComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (

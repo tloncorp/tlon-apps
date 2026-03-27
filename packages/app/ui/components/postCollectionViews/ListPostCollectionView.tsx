@@ -30,7 +30,7 @@ interface ScrollerHandle {
 }
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
-  function ListPostCollection(_props, forwardedRef) {
+  function ListPostCollection({ listBottomComponent }, forwardedRef) {
     const ctx = usePostCollectionContext();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
@@ -158,6 +158,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
         highlightPostId={highlightPostId}
+        listBottomComponent={listBottomComponent}
       />
     );
   }

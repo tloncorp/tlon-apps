@@ -1,7 +1,12 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
+import {
+  ComponentPropsWithoutRef,
+  ReactElement,
+  useCallback,
+  useMemo,
+} from 'react';
 
 import { useLivePost } from '../../contexts';
 import { RenderItemType } from '../../contexts/componentsKits';
@@ -14,8 +19,12 @@ export interface PostCollectionHandle {
   highlightPost?: (postId: string) => void;
 }
 
+export interface PostCollectionViewProps {
+  listBottomComponent?: ReactElement;
+}
+
 export type IPostCollectionView = React.ForwardRefExoticComponent<
-  React.RefAttributes<PostCollectionHandle>
+  PostCollectionViewProps & React.RefAttributes<PostCollectionHandle>
 >;
 
 export function ConnectedPostView({

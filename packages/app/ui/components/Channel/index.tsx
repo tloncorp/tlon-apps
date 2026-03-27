@@ -602,14 +602,16 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   <PostCollectionView
                                     collectionRef={collectionRef}
                                     channel={channel}
+                                    listBottomComponent={
+                                      shouldShowThinkingState ? (
+                                        <ThinkingState conversationId={channel.id} />
+                                      ) : undefined
+                                    }
                                   />
                                 </PostCollectionContext.Provider>
                               </View>
                             )}
                           </AnimatePresence>
-                          {shouldShowThinkingState && (
-                            <ThinkingState conversationId={channel.id} />
-                          )}
 
                           {!canRead ||
                           !canWrite ||
