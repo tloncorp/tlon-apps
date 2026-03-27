@@ -5,26 +5,20 @@ import {
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
+import { GestureMediaViewer, Icon, Image, Pressable } from '@tloncorp/ui';
+// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
+// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
 import {
-  GestureMediaViewer,
-  Icon,
-  Image,
-  Pressable,
-  type GestureMediaViewerItem,
-  type GestureMediaViewerRenderHelpers,
-  type GestureMediaViewerRenderItem
-} from '@tloncorp/ui';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+  VideoView,
+} from 'expo-video/build/VideoView';
 import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
 } from 'expo-video/build/VideoPlayerEvents.types';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import { VideoView } from 'expo-video/build/VideoView';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import {
   PropsWithChildren,
   useCallback,
@@ -32,7 +26,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from 'react';
 import {
   Alert,
@@ -71,166 +64,13 @@ function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
   );
 }
 
-type ViewerOverlayAction = {
-  icon: 'Close' | 'ArrowDown';
-  onPress: () => void;
-  testID?: string;
-};
-
-function ViewerOverlayActions({
-  showOverlay,
-  top,
-  actions,
-  justifyContent = 'space-between',
-}: {
-  showOverlay: boolean;
-  top: number;
-  actions: ViewerOverlayAction[];
-  justifyContent?: 'space-between' | 'flex-end';
-}) {
-  if (!showOverlay) {
-    return null;
-  }
-
-  return (
-    <YStack
-      position="absolute"
-      width="100%"
-      padding="$xl"
-      paddingTop={isWeb ? 16 : top}
-    >
-      <XStack justifyContent={justifyContent} gap="$m">
-        {actions.map((action, index) => (
-          <TouchableOpacity
-            key={`${action.icon}-${index}`}
-            onPress={action.onPress}
-            activeOpacity={0.8}
-            testID={action.testID}
-          >
-            <OverlayIconButton icon={action.icon} />
-          </TouchableOpacity>
-        ))}
-      </XStack>
-    </YStack>
-  );
-}
-
-function MediaViewerChrome({
+function ImageViewerContainer({
   dismiss,
-  testID,
-  backgroundColor,
-  onBackdropPress,
-  top,
-  showOverlay,
-  actions,
-  justifyContent = 'space-between',
-  loadingOverlay,
   children,
 }: PropsWithChildren<{
   dismiss?: () => void;
-  testID: string;
-  backgroundColor?: string;
-  onBackdropPress?: () => void;
-  top: number;
-  showOverlay: boolean;
-  actions: ViewerOverlayAction[];
-  justifyContent?: 'space-between' | 'flex-end';
-  loadingOverlay?: ReactNode;
 }>) {
-  return (
-    <MediaViewerModal dismiss={dismiss}>
-      <ZStack
-        flex={1}
-        data-testid={testID}
-        {...(backgroundColor ? { backgroundColor } : {})}
-      >
-        {onBackdropPress ? (
-          <Pressable
-            onPress={onBackdropPress}
-            position="absolute"
-            top={0}
-            right={0}
-            bottom={0}
-            left={0}
-          />
-        ) : null}
-        {children}
-        {loadingOverlay}
-        <ViewerOverlayActions
-          showOverlay={showOverlay}
-          top={top}
-          actions={actions}
-          justifyContent={justifyContent}
-        />
-      </ZStack>
-    </MediaViewerModal>
-  );
-}
-
-function GestureViewerRoute({
-  viewerId,
-  items,
-  testID,
-  onDismiss,
-  onDismissStart,
-  renderItem,
-  top,
-  showOverlay,
-  actions,
-  justifyContent,
-  loadingOverlay,
-  enableDismissGesture,
-  enableSwipeGesture,
-  enableZoomGesture,
-  enableDoubleTapGesture,
-  enableZoomPanGesture,
-}: {
-  viewerId?: string;
-  items: GestureMediaViewerItem[];
-  testID: string;
-  onDismiss: () => void;
-  onDismissStart?: () => void;
-  renderItem?: GestureMediaViewerRenderItem;
-  top: number;
-  showOverlay: boolean;
-  actions: (
-    helpers: GestureMediaViewerRenderHelpers
-  ) => ViewerOverlayAction[];
-  justifyContent?: 'space-between' | 'flex-end';
-  loadingOverlay?: ReactNode;
-  enableDismissGesture?: boolean;
-  enableSwipeGesture?: boolean;
-  enableZoomGesture?: boolean;
-  enableDoubleTapGesture?: boolean;
-  enableZoomPanGesture?: boolean;
-}) {
-  return (
-    <GestureMediaViewer
-      id={viewerId}
-      items={items}
-      onDismiss={onDismiss}
-      onDismissStart={onDismissStart}
-      renderItem={renderItem}
-      enableDismissGesture={enableDismissGesture}
-      enableSwipeGesture={enableSwipeGesture}
-      enableZoomGesture={enableZoomGesture}
-      enableDoubleTapGesture={enableDoubleTapGesture}
-      enableZoomPanGesture={enableZoomPanGesture}
-      renderContainer={(children, helpers) => (
-        <MediaViewerChrome
-          dismiss={helpers.dismiss}
-          testID={testID}
-          top={top}
-          showOverlay={showOverlay}
-          actions={actions(helpers)}
-          justifyContent={justifyContent}
-          loadingOverlay={loadingOverlay}
-        >
-          {children}
-        </MediaViewerChrome>
-      )}
-    />
-  );
+  return <MediaViewerModal dismiss={dismiss}>{children}</MediaViewerModal>;
 }
 
 function VideoLoadingOverlay({ visible }: { visible: boolean }) {
@@ -387,78 +227,88 @@ function VideoViewer({
 
   if (isWeb) {
     return (
-      <MediaViewerChrome
-        dismiss={goBack}
-        testID="video-viewer"
-        backgroundColor="$black"
-        onBackdropPress={goBack}
-        top={top}
-        showOverlay={showOverlay}
-        actions={[
-          {
-            icon: 'Close',
-            onPress: goBack,
-            testID: 'MediaViewerCloseButton',
-          },
-        ]}
-        justifyContent="flex-end"
-        loadingOverlay={
-          <VideoLoadingOverlay visible={!isReady || isBuffering} />
-        }
-      >
+      <MediaViewerModal dismiss={goBack}>
         <View
           flex={1}
           width="100%"
-          alignItems="center"
-          justifyContent="center"
-          padding="$l"
-          pointerEvents="box-none"
+          height="100%"
+          position="relative"
+          backgroundColor="$black"
         >
-          <video
-            src={uri}
-            poster={posterUri}
-            controls
-            autoPlay
-            preload="metadata"
-            onPlay={trackPlaybackStarted}
-            onLoadedData={() => {
-              setIsReady(true);
-              setIsBuffering(false);
-            }}
-            onCanPlay={() => {
-              setIsReady(true);
-              setIsBuffering(false);
-            }}
-            onWaiting={() => {
-              setIsBuffering(true);
-            }}
-            onPlaying={() => {
-              setIsReady(true);
-              setIsBuffering(false);
-              trackPlaybackStarted();
-            }}
-            onError={handlePlaybackError}
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleOverlay();
-            }}
-            style={{
-              width: '100%',
-              maxWidth: 1100,
-              maxHeight: '90vh',
-              display: 'block',
-            }}
+          <Pressable
+            onPress={goBack}
+            position="absolute"
+            top={0}
+            right={0}
+            bottom={0}
+            left={0}
           />
+          <View
+            flex={1}
+            width="100%"
+            alignItems="center"
+            justifyContent="center"
+            padding="$l"
+            pointerEvents="box-none"
+          >
+            <video
+              src={uri}
+              poster={posterUri}
+              controls
+              autoPlay
+              preload="metadata"
+              onPlay={trackPlaybackStarted}
+              onLoadedData={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+              }}
+              onCanPlay={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+              }}
+              onWaiting={() => {
+                setIsBuffering(true);
+              }}
+              onPlaying={() => {
+                setIsReady(true);
+                setIsBuffering(false);
+                trackPlaybackStarted();
+              }}
+              onError={handlePlaybackError}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleOverlay();
+              }}
+              style={{
+                width: '100%',
+                maxWidth: 1100,
+                maxHeight: '90vh',
+                display: 'block',
+              }}
+            />
+          </View>
+          <VideoLoadingOverlay visible={!isReady || isBuffering} />
+
+          {showOverlay ? (
+            <Pressable
+              onPress={goBack}
+              position="absolute"
+              top={16}
+              right="$xl"
+              testID="MediaViewerCloseButton"
+            >
+              <OverlayIconButton icon="Close" />
+            </Pressable>
+          ) : null}
         </View>
-      </MediaViewerChrome>
+      </MediaViewerModal>
     );
   }
 
   return (
-    <GestureViewerRoute
-      viewerId={viewerId}
+    <GestureMediaViewer
+      id={viewerId}
       items={items}
-      testID="video-viewer"
       onDismiss={goBack}
       onDismissStart={() => {
         setShowOverlay(false);
@@ -468,20 +318,7 @@ function VideoViewer({
       enableZoomGesture={false}
       enableDoubleTapGesture={false}
       enableZoomPanGesture={false}
-      top={top}
-      showOverlay={showOverlay}
-      actions={(helpers) => [
-        {
-          icon: 'Close',
-          onPress: helpers.dismiss,
-          testID: 'MediaViewerCloseButton',
-        },
-      ]}
-      justifyContent="flex-end"
-      loadingOverlay={
-        <VideoLoadingOverlay visible={!isReady || isBuffering} />
-      }
-      renderItem={() => 
+      renderItem={() => (
         <View
           flex={1}
           width="100%"
@@ -512,7 +349,24 @@ function VideoViewer({
             ) : null}
           </ZStack>
         </View>
-      }
+      )}
+      renderContainer={(children, helpers) => (
+        <ZStack flex={1} backgroundColor="$black" data-testid="video-viewer">
+          {children}
+          <VideoLoadingOverlay visible={!isReady || isBuffering} />
+
+          {showOverlay ? (
+            <Pressable
+              onPress={helpers.dismiss}
+              position="absolute"
+              top={top}
+              right="$xl"
+            >
+              <OverlayIconButton icon="Close" />
+            </Pressable>
+          ) : null}
+        </ZStack>
+      )}
     />
   );
 }
@@ -534,16 +388,8 @@ function ImageViewer(props: {
     [props.uri]
   );
 
-  useEffect(() => {
-    setShowOverlay(true);
-  }, [props.uri]);
-
   const handleDownloadImage = async () => {
     if (isWeb) {
-      if (!props.uri) {
-        return;
-      }
-
       try {
         await downloadImageForWeb(props.uri);
       } catch (error) {
@@ -735,31 +581,56 @@ function ImageViewer(props: {
   };
 
   return (
-    <GestureViewerRoute
-      viewerId={props.viewerId}
+    <GestureMediaViewer
+      id={props.viewerId}
       items={items}
-      testID="image-viewer"
       onDismiss={props.goBack}
       onDismissStart={() => {
         setShowOverlay(false);
       }}
       enableSwipeGesture={false}
       enableDismissGesture={!isWeb}
-      top={top}
-      showOverlay={showOverlay}
-      actions={(helpers) => [
-        {
-          icon: 'ArrowDown',
-          onPress: handleDownloadImage,
-          testID: 'MediaViewerDownloadButton',
-        },
-        {
-          icon: 'Close',
-          onPress: helpers.dismiss,
-          testID: 'MediaViewerCloseButton',
-        },
-      ]}
-      justifyContent={isWeb ? 'flex-end' : 'space-between'}
+      renderContainer={(children, helpers) => (
+        <ImageViewerContainer dismiss={helpers.dismiss}>
+          <ZStack
+            flex={1}
+            backgroundColor="$black"
+            paddingTop={top}
+            data-testid="image-viewer"
+          >
+            <View flex={1}>{children}</View>
+
+            {showOverlay ? (
+              <YStack
+                position="absolute"
+                width="100%"
+                padding="$xl"
+                paddingTop={isWeb ? 16 : top}
+              >
+                <XStack
+                  justifyContent={isWeb ? 'flex-end' : 'space-between'}
+                  gap="$m"
+                >
+                  <TouchableOpacity
+                    onPress={handleDownloadImage}
+                    activeOpacity={0.8}
+                  >
+                    <OverlayIconButton icon="ArrowDown" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={helpers.dismiss}
+                    activeOpacity={0.8}
+                    testID="MediaViewerCloseButton"
+                  >
+                    <OverlayIconButton icon="Close" />
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
+            ) : null}
+          </ZStack>
+        </ImageViewerContainer>
+      )}
     />
   );
 }
