@@ -15,6 +15,7 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import type { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -220,7 +221,7 @@ export default function ConnectedApp() {
 const DevTools = ({
   navigationContainerRef,
 }: {
-  navigationContainerRef: NavigationContainerRefWithCurrent<any>;
+  navigationContainerRef: NavigationContainerRefWithCurrent<RootStackParamList>;
 }) => {
   const queryClient = useQueryClient();
   useAsyncStorageDevTools();

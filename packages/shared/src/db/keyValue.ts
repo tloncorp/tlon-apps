@@ -176,6 +176,16 @@ export const postDraft = (opts: {
   });
 };
 
+export type PendingShareIntentFile = {
+  path: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  size?: number | null;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+};
+
 export const lastVisitedChannelId = (groupId: string) => {
   return createStorageItem<string | null>({
     key: `lastVisitedChannelId-${groupId}`,

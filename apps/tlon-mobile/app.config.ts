@@ -16,6 +16,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
+  scheme: 'io.tlon.groups',
   extra: {
     eas: {
       projectId,
@@ -75,6 +76,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-asset',
     'expo-localization',
     'expo-secure-store',
+    [
+      'expo-share-intent',
+      {
+        iosActivationRules: {
+          NSExtensionActivationSupportsText: true,
+          NSExtensionActivationSupportsWebURLWithMaxCount: 1,
+          NSExtensionActivationSupportsWebPageWithMaxCount: 1,
+          NSExtensionActivationSupportsImageWithMaxCount: 1,
+          NSExtensionActivationSupportsMovieWithMaxCount: 1,
+          NSExtensionActivationSupportsFileWithMaxCount: 1,
+        },
+        androidIntentFilters: ['text/*', 'image/*', 'video/*', '*/*'],
+      },
+    ],
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
