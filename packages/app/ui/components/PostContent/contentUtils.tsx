@@ -4,7 +4,6 @@ import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
 export function usePostContent(post: Post): BlockData[] {
-
   return useMemo(() => {
     try {
       return convertContent(post.content, post.blob ?? undefined);
