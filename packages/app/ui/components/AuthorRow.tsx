@@ -1,7 +1,6 @@
-import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useMemo } from 'react';
+import { ComponentProps } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts';
@@ -10,6 +9,7 @@ import { Badge } from './Badge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
+import { SentTimeText } from './SentTimeText';
 
 const RoleBadge = View.styleable<{ role: string }>(
   ({ role, ...props }, ref) => {
@@ -91,18 +91,6 @@ export function DetailViewAuthorRow({
     deleteStatus === 'failed';
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
-  const timeDisplay = useMemo(() => {
-    if (!showSentAt || !sent) {
-      return null;
-    }
-    const date = new Date(sent ?? 0);
-    if (utils.isToday(date.getTime())) {
-      return utils.makePrettyTime(date);
-    }
-    const { asString } = utils.makePrettyDayAndDateAndTime(date);
-    return asString;
-  }, [showSentAt, sent]);
-
   return (
     <XStack
       cursor="default"
@@ -127,11 +115,7 @@ export function DetailViewAuthorRow({
       >
         <ContactName contactId={authorId} />
       </Text>
-      {showSentAt && (
-        <Text color="$secondaryText" size="$label/m">
-          {timeDisplay}
-        </Text>
-      )}
+      {showSentAt && <SentTimeText sentAt={sent} showFullDate />}
       {isBot && <Badge type="neutral" size="micro" text="Bot" />}
     </XStack>
   );
@@ -150,15 +134,6 @@ export function ChatAuthorRow({
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
-
-  const timeDisplay = useMemo(() => {
-    if (!sent) {
-      return null;
-    }
-    const date = new Date(sent);
-    return utils.makePrettyTime(date);
-  }, [sent]);
-
   const firstRole = roles?.[0];
 
   const deliveryFailed =
@@ -192,14 +167,10 @@ export function ChatAuthorRow({
         >
           <ContactName contactId={authorId} />
         </Text>
-        {showSentAt && timeDisplay && (
-          <Text color="$secondaryText" size="$label/m">
-            {timeDisplay}
-          </Text>
-        )}
+        {showSentAt && <SentTimeText sentAt={sent} paddingTop="$xs" />}
         {isBot && <Badge type="neutral" size="micro" text="Bot" />}
         {showEditedIndicator && (
-          <Text size="$label/m" color="$secondaryText">
+          <Text size="$label/m" color="$secondaryText" paddingTop="$xs">
             Edited
           </Text>
         )}

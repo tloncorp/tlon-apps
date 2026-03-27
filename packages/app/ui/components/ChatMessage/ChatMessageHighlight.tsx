@@ -3,6 +3,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from 'tamagui';
@@ -12,14 +13,16 @@ const FADE_DURATION_MS = 2000;
 
 export function ChatMessageHighlight({ active }: { active: boolean }) {
   const theme = useTheme();
-  const opacity = useSharedValue(active ? 1 : 0);
+  const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (active) {
-      opacity.value = 1;
-      opacity.value = withDelay(
-        HOLD_DURATION_MS,
-        withTiming(0, { duration: FADE_DURATION_MS })
+      opacity.value = withSequence(
+        withTiming(1, { duration: 0 }),
+        withDelay(
+          HOLD_DURATION_MS,
+          withTiming(0, { duration: FADE_DURATION_MS })
+        )
       );
     } else {
       opacity.value = 0;
@@ -37,7 +40,7 @@ export function ChatMessageHighlight({ active }: { active: boolean }) {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: theme.secondaryBackground?.val,
+          backgroundColor: theme.positiveBackground?.val,
         },
         animatedStyle,
       ]}
