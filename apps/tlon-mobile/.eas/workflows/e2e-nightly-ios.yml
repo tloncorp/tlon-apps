@@ -2,8 +2,7 @@ name: e2e-nightly-ios
 
 on:
   schedule:
-    # - cron: "0 7 * * *"
-    - cron: "0 * * * *" # every hour for testing
+    - cron: "0 7 * * *"
 
 jobs:
   build_ios_for_e2e:
