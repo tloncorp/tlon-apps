@@ -35,6 +35,7 @@
     "build": "tsup",
     "lint": "eslint src/",
     "prepare": "pnpm build",
+    "watch": "tsup --watch",
     "tsc": "tsc --noEmit"
   },
   "publishConfig": {
