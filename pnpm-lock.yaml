@@ -68,6 +68,9 @@ patchedDependencies:
   react-native-country-codes-picker@2.3.5:
     hash: x27vv6nugdftjhhla3zhu5i7om
     path: patches/react-native-country-codes-picker@2.3.5.patch
+  react-native-enriched@0.5.2:
+    hash: p5ehk2f7js5nfrqomqy5iggyre
+    path: patches/react-native-enriched@0.5.2.patch
   tailwind-rn@4.2.0:
     hash: huubbq5aurym44djogb6gnyabq
     path: patches/tailwind-rn@4.2.0.patch
@@ -399,6 +402,9 @@ importers:
       react-native-email-link:
         specifier: ~1.16.1
         version: 1.16.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react-native-enriched:
+        specifier: ^0.5.1
+        version: 0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: ^3.0.0
         version: 3.0.0
@@ -1067,6 +1073,9 @@ importers:
       react-native-email-link:
         specifier: '*'
         version: 1.16.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      react-native-enriched:
+        specifier: '*'
+        version: 0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: '*'
         version: 3.0.0
@@ -11487,6 +11496,12 @@ packages:
     peerDependencies:
       react: 19.1.0
       react-native: '>=0.40.0'
+
+  react-native-enriched@0.5.2:
+    resolution: {integrity: sha512-9texMnu5+CXLCuVJv987UmzgB70F8Q3okOm2zqZ8jYSEz8IGyd7kbJdZ4J1rW99x3hYaeV+u+cSECzrCj7F4EA==}
+    peerDependencies:
+      react: 19.1.0
+      react-native: '*'
 
   react-native-fetch-api@3.0.0:
     resolution: {integrity: sha512-g2rtqPjdroaboDKTsJCTlcmtw54E25OjyaunUP0anOZn4Fuo2IKs8BVfe02zVggA/UysbmfSnRJIqtNkAgggNA==}
@@ -27391,6 +27406,11 @@ snapshots:
       use-latest-callback: 0.2.6(react@19.1.0)
 
   react-native-email-link@1.16.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)
+
+  react-native-enriched@0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)
