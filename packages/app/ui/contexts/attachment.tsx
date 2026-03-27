@@ -103,6 +103,7 @@ function getVideoBlobPreviewUris(attachment: Attachment): string[] {
     return [];
   }
   const uris = [
+    attachment.posterUri,
     attachment.uploadState?.status === 'success'
       ? attachment.uploadState.posterUri
       : undefined,

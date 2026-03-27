@@ -4,6 +4,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 
 import { isLikelyVideoSource, VIDEO_VALIDATION_ERROR, validateVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
+import type { VideoPreviewData } from '../ui/utils/videoPreviewTypes';
 import { getAudioFileDurationSeconds, getFileSize } from './files';
 import { imageSize } from './images';
 
@@ -211,7 +212,7 @@ export async function normalizeUploadIntent(
     existingHeight == null ||
     existingDuration == null ||
     !existingVideo?.posterUri;
-  let previewData: Awaited<ReturnType<typeof getVideoPreviewData>> = {};
+  let previewData: VideoPreviewData = {};
   if (needsPreviewData) {
     try {
       previewData = await getVideoPreviewData(
