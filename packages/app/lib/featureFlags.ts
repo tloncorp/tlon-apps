@@ -27,9 +27,9 @@ export const featureMeta = {
     onlyTlon: true,
   },
   enrichedInput: {
-    default: false,
+    default: true,
     label: 'Use EnrichedTextInput (native rich text) instead of TipTap webview',
-    onlyTlon: true,
+    onlyTlon: false,
   },
 } satisfies Record<
   string,
