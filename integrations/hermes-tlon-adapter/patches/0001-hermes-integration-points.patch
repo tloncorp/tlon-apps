@@ -1,0 +1,369 @@
+diff --git a/agent/prompt_builder.py b/agent/prompt_builder.py
+index 3dd0f73..882b98f 100644
+--- a/agent/prompt_builder.py
++++ b/agent/prompt_builder.py
+@@ -139,6 +139,14 @@ PLATFORM_HINTS = {
+         "is preserved for threading. Do not include greetings or sign-offs unless "
+         "contextually appropriate."
+     ),
++    "tlon": (
++        "You are on Tlon, a decentralized messaging platform built on Urbit. "
++        "Users are identified by ship names (patps) like ~sampel-palnet. "
++        "You can use basic markdown formatting. When mentioning users, use their "
++        "full ship name with the ~ prefix. You can send images by including "
++        "image URLs in markdown format ![alt](url). In group channels, users "
++        "mention you with your ship name to get your attention."
++    ),
+     "cli": (
+         "You are a CLI AI Agent. Try not to use markdown but simple text "
+         "renderable inside a terminal."
+diff --git a/cron/scheduler.py b/cron/scheduler.py
+index c80122c..c9bca87 100644
+--- a/cron/scheduler.py
++++ b/cron/scheduler.py
+@@ -104,6 +104,7 @@ def _deliver_result(job: dict, content: str) -> None:
+         "whatsapp": Platform.WHATSAPP,
+         "signal": Platform.SIGNAL,
+         "email": Platform.EMAIL,
++        "tlon": Platform.TLON,
+     }
+     platform = platform_map.get(platform_name.lower())
+     if not platform:
+diff --git a/gateway/channel_directory.py b/gateway/channel_directory.py
+index 4d11c3a..a62fe9e 100644
+--- a/gateway/channel_directory.py
++++ b/gateway/channel_directory.py
+@@ -61,7 +61,7 @@ def build_channel_directory(adapters: Dict[Any, Any]) -> Dict[str, Any]:
+             logger.warning("Channel directory: failed to build %s: %s", platform.value, e)
+ 
+     # Telegram, WhatsApp & Signal can't enumerate chats -- pull from session history
+-    for plat_name in ("telegram", "whatsapp", "signal", "email"):
++    for plat_name in ("telegram", "whatsapp", "signal", "email", "tlon"):
+         if plat_name not in platforms:
+             platforms[plat_name] = _build_from_sessions(plat_name)
+ 
+diff --git a/gateway/config.py b/gateway/config.py
+index 5d3dfa9..a2a3997 100644
+--- a/gateway/config.py
++++ b/gateway/config.py
+@@ -29,6 +29,7 @@ class Platform(Enum):
+     SIGNAL = "signal"
+     HOMEASSISTANT = "homeassistant"
+     EMAIL = "email"
++    TLON = "tlon"
+ 
+ 
+ @dataclass
+@@ -458,6 +459,26 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
+                 name=os.getenv("EMAIL_HOME_ADDRESS_NAME", "Home"),
+             )
+ 
++    # Tlon (Urbit)
++    tlon_url = os.getenv("TLON_SHIP_URL")
++    tlon_name = os.getenv("TLON_SHIP_NAME")
++    tlon_code = os.getenv("TLON_SHIP_CODE")
++    if all([tlon_url, tlon_name, tlon_code]):
++        if Platform.TLON not in config.platforms:
++            config.platforms[Platform.TLON] = PlatformConfig()
++        config.platforms[Platform.TLON].enabled = True
++        config.platforms[Platform.TLON].extra.update({
++            "ship_url": tlon_url,
++            "ship_name": tlon_name,
++        })
++        tlon_home = os.getenv("TLON_HOME_CHANNEL")
++        if tlon_home:
++            config.platforms[Platform.TLON].home_channel = HomeChannel(
++                platform=Platform.TLON,
++                chat_id=tlon_home,
++                name=os.getenv("TLON_HOME_CHANNEL_NAME", "Home"),
++            )
++
+     # Session settings
+     idle_minutes = os.getenv("SESSION_IDLE_MINUTES")
+     if idle_minutes:
+diff --git a/tools/send_message_tool.py b/tools/send_message_tool.py
+index 5617638..de0da1d 100644
+--- a/tools/send_message_tool.py
++++ b/tools/send_message_tool.py
+@@ -8,6 +8,7 @@ human-friendly channel names to IDs. Works in both CLI and gateway contexts.
+ import json
+ import logging
+ import os
++import uuid
+ import re
+ import time
+ 
+@@ -120,6 +121,7 @@ def _handle_send(args):
+         "whatsapp": Platform.WHATSAPP,
+         "signal": Platform.SIGNAL,
+         "email": Platform.EMAIL,
++        "tlon": Platform.TLON,
+     }
+     platform = platform_map.get(platform_name)
+     if not platform:
+@@ -188,6 +190,8 @@ async def _send_to_platform(platform, pconfig, chat_id, message, thread_id=None)
+         return await _send_signal(pconfig.extra, chat_id, message)
+     elif platform == Platform.EMAIL:
+         return await _send_email(pconfig.extra, chat_id, message)
++    elif platform == Platform.TLON:
++        return await _send_tlon(pconfig.extra, chat_id, message)
+     return {"error": f"Direct sending not yet implemented for {platform.value}"}
+ 
+ 
+@@ -315,6 +319,119 @@ async def _send_email(extra, chat_id, message):
+         return {"error": f"Email send failed: {e}"}
+ 
+ 
++async def _send_tlon(extra, chat_id, message):
++    """Send via Tlon ship HTTP API (one-shot poke)."""
++    import aiohttp
++    import time as _time
++
++    ship_url = extra.get("ship_url") or os.getenv("TLON_SHIP_URL", "")
++    ship_name = extra.get("ship_name") or os.getenv("TLON_SHIP_NAME", "")
++    ship_code = os.getenv("TLON_SHIP_CODE", "")
++
++    if not all([ship_url, ship_name, ship_code]):
++        return {"error": "Tlon not configured (TLON_SHIP_URL, TLON_SHIP_NAME, TLON_SHIP_CODE)"}
++
++    ship_url = ship_url.rstrip("/")
++    if ship_name and not ship_name.startswith("~"):
++        ship_name = "~" + ship_name
++
++    try:
++        async with aiohttp.ClientSession() as session:
++            # Authenticate
++            async with session.post(
++                f"{ship_url}/~/login",
++                data={"password": ship_code},
++                allow_redirects=False,
++                timeout=aiohttp.ClientTimeout(total=15),
++            ) as auth_resp:
++                cookie = None
++                for c in session.cookie_jar:
++                    if c.key.startswith("urbauth"):
++                        cookie = f"{c.key}={c.value}"
++                        break
++                if not cookie:
++                    return {"error": "Tlon authentication failed"}
++
++            # Build story content
++            from gateway.platforms.tlon import _text_to_story
++            story = _text_to_story(message)
++            sent_at = int(_time.time() * 1000)
++
++            # Create channel and poke
++            channel_id = f"{int(_time.time())}-send-{uuid.uuid4().hex[:6]}"
++            channel_url = f"{ship_url}/~/channel/{channel_id}"
++            headers = {"Content-Type": "application/json", "Cookie": cookie}
++
++            if chat_id.startswith("~"):
++                # DM
++                action = {
++                    "id": 1,
++                    "action": "poke",
++                    "ship": ship_name.lstrip("~"),
++                    "app": "chat",
++                    "mark": "chat-action",
++                    "json": {
++                        "ship": chat_id.lstrip("~"),
++                        "diff": {
++                            "add": {
++                                "essay": {
++                                    "content": story,
++                                    "author": ship_name.lstrip("~"),
++                                    "sent": sent_at,
++                                }
++                            }
++                        },
++                    },
++                }
++            else:
++                # Channel post
++                action = {
++                    "id": 1,
++                    "action": "poke",
++                    "ship": ship_name.lstrip("~"),
++                    "app": "channels",
++                    "mark": "channel-action",
++                    "json": {
++                        "channel": {
++                            "nest": chat_id,
++                            "action": {
++                                "post": {
++                                    "add": {
++                                        "essay": {
++                                            "content": story,
++                                            "author": ship_name.lstrip("~"),
++                                            "sent": sent_at,
++                                        }
++                                    }
++                                }
++                            },
++                        }
++                    },
++                }
++
++            async with session.put(
++                channel_url,
++                json=[action],
++                headers=headers,
++                timeout=aiohttp.ClientTimeout(total=30),
++            ) as resp:
++                if resp.status not in (200, 204):
++                    text = await resp.text()
++                    return {"error": f"Tlon send failed: HTTP {resp.status} - {text[:200]}"}
++
++            # Clean up channel
++            try:
++                async with session.delete(channel_url, headers=headers, timeout=5):
++                    pass
++            except Exception:
++                pass
++
++            return {"success": True, "message_id": f"{ship_name}/{sent_at}"}
++
++    except Exception as e:
++        return {"error": f"Tlon send failed: {e}"}
++
++
+ def _check_send_message():
+     """Gate send_message on gateway running (always available on messaging platforms)."""
+     platform = os.getenv("HERMES_SESSION_PLATFORM", "")
+@@ -327,6 +444,114 @@ def _check_send_message():
+         return False
+ 
+ 
++async def _send_tlon(extra, chat_id, message):
++    """Send via Tlon (Urbit) ship HTTP API (one-shot, no SSE needed)."""
++    try:
++        import aiohttp
++        ship_url = extra.get("ship_url") or os.getenv("TLON_SHIP_URL", "")
++        ship_name = os.getenv("TLON_SHIP_NAME", "")
++        ship_code = os.getenv("TLON_SHIP_CODE", "")
++        if not all([ship_url, ship_name, ship_code]):
++            return {"error": "Tlon not configured (TLON_SHIP_URL/NAME/CODE required)"}
++
++        ship_url = ship_url.rstrip("/")
++        # Normalize ship
++        if ship_name and not ship_name.startswith("~"):
++            ship_name = "~" + ship_name
++
++        async with aiohttp.ClientSession() as session:
++            # Authenticate
++            async with session.post(
++                f"{ship_url}/~/login",
++                data={"password": ship_code},
++                allow_redirects=False,
++                timeout=aiohttp.ClientTimeout(total=15),
++            ) as resp:
++                if resp.status not in (200, 204, 302, 303, 307):
++                    return {"error": f"Tlon auth failed: HTTP {resp.status}"}
++                cookie = resp.headers.get("set-cookie", "")
++                if not cookie:
++                    for c in session.cookie_jar:
++                        if c.key.startswith("urbauth"):
++                            cookie = f"{c.key}={c.value}"
++                            break
++
++            # Create channel and poke
++            import time, uuid
++            channel_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
++            channel_url = f"{ship_url}/~/channel/{channel_id}"
++
++            sent_at = int(time.time() * 1000)
++            story = [{"inline": [message]}]
++            bare_ship = ship_name.lstrip("~")
++
++            # Determine if DM or channel post
++            if chat_id.startswith("~"):
++                poke_data = {
++                    "id": 1,
++                    "action": "poke",
++                    "ship": bare_ship,
++                    "app": "chat",
++                    "mark": "chat-action",
++                    "json": {
++                        "ship": chat_id.lstrip("~"),
++                        "diff": {
++                            "add": {
++                                "essay": {
++                                    "content": story,
++                                    "author": bare_ship,
++                                    "sent": sent_at,
++                                }
++                            }
++                        },
++                    },
++                }
++            else:
++                poke_data = {
++                    "id": 1,
++                    "action": "poke",
++                    "ship": bare_ship,
++                    "app": "channels",
++                    "mark": "channel-action",
++                    "json": {
++                        "channel": {
++                            "nest": chat_id,
++                            "action": {
++                                "post": {
++                                    "add": {
++                                        "essay": {
++                                            "content": story,
++                                            "author": bare_ship,
++                                            "sent": sent_at,
++                                        }
++                                    }
++                                }
++                            },
++                        }
++                    },
++                }
++
++            headers = {"Content-Type": "application/json"}
++            if cookie:
++                headers["Cookie"] = cookie
++
++            async with session.put(
++                channel_url,
++                json=[poke_data],
++                headers=headers,
++                timeout=aiohttp.ClientTimeout(total=30),
++            ) as resp:
++                if resp.status not in (200, 204):
++                    text = await resp.text()
++                    return {"error": f"Tlon send failed: HTTP {resp.status} - {text[:200]}"}
++
++            return {"success": True, "platform": "tlon", "chat_id": chat_id}
++    except ImportError:
++        return {"error": "aiohttp not installed. Run: pip install aiohttp"}
++    except Exception as e:
++        return {"error": f"Tlon send error: {str(e)}"}
++
++
+ # --- Registry ---
+ from tools.registry import registry
+ 
+diff --git a/toolsets.py b/toolsets.py
+index 4aa37f8..c4c4892 100644
+--- a/toolsets.py
++++ b/toolsets.py
+@@ -273,10 +273,16 @@ TOOLSETS = {
+         "includes": []
+     },
+ 
++    "hermes-tlon": {
++        "description": "Tlon bot toolset - decentralized Urbit messaging (full access)",
++        "tools": _HERMES_CORE_TOOLS,
++        "includes": []
++    },
++
+     "hermes-gateway": {
+         "description": "Gateway toolset - union of all messaging platform tools",
+         "tools": [],
+-        "includes": ["hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-homeassistant", "hermes-email"]
++        "includes": ["hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-homeassistant", "hermes-email", "hermes-tlon"]
+     }
+ }
+ 
