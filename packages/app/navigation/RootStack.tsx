@@ -37,6 +37,7 @@ import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import type { RootStackParamList } from './types';
+import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 
@@ -99,7 +100,7 @@ export function RootStack() {
       <Root.Screen
         name="MediaViewer"
         component={MediaViewerScreen}
-        options={{ animation: 'fade' }}
+        options={mediaViewerScreenOptions}
       />
       <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
       <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
