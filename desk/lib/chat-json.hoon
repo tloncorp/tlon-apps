@@ -5,48 +5,24 @@
 ++  enjs
   =,  enjs:format
   |%
-  ++  club-action
-    |=  a=action:club:c
-    ^-  json
-    %-  pairs
-    :~  id/s/(scot %uv p.a)
-        diff/(club-diff q.a)
-    ==
+  ++  ship
+    |=  her=@p
+    n+(rap 3 '"' (scot %p her) '"' ~)
+  ++  id
+    |=  =id:c
+    n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
-  ++  club-diff
-    |=  d=diff:club:c
-    ^-  json
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
+  ::
+  ++  meta
+    |=  m=data:^meta
     %-  pairs
-    :~  uid/s/(scot %uv p.d)
-        delta/(club-delta q.d)
-    ==
-  ++  club-delta
-    |=  d=delta:club:c
-    %+  frond  -.d
-    ?-  -.d
-        %writ  (writs-diff diff.d)
-    ::
-        %meta  (meta meta.d)
-    ::
-        %team
-      %-  pairs
-      :~  ship/(ship ship.d)
-          ok/b/ok.d
-      ==
-    ::
-        %hive
-      %-  pairs
-      :~  by/(ship by.d)
-          for/(ship for.d)
-          add/b/add.d
-      ==
-    ::
-        %init
-      %-  pairs
-      :~  team/a/(turn ~(tap in team.d) ship)
-          hive/a/(turn ~(tap in hive.d) ship)
-          meta/(meta met.d)
-      ==
+    :~  title/s/title.m
+        description/s/description.m
+        image/s/image.m
+        cover/s/cover.m
     ==
   ::
   ++  club-invite
@@ -56,15 +32,6 @@
         team/a/(turn ~(tap in team.i) ship)
         hive/a/(turn ~(tap in hive.i) ship)
         meta/(meta met.i)
-    ==
-  ::
-  ++  meta
-    |=  m=data:^meta
-    %-  pairs
-    :~  title/s/title.m
-        description/s/description.m
-        image/s/image.m
-        cover/s/cover.m
     ==
   ::
   ++  club-rsvp
@@ -180,113 +147,6 @@
     :~  blocked/a/(turn ~(tap in bs) ship)
     ==
   ::
-  ++  ship
-    |=  her=@p
-    n+(rap 3 '"' (scot %p her) '"' ~)
-  ++  id
-    |=  =id:c
-    n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
-  ::
-  ++  writs-diff
-    |=  =diff:writs:c
-    %-  pairs
-    :~  id/(id p.diff)
-        delta/(writs-delta q.diff)
-    ==
-  ::
-  ++  writs-delta
-    |=  =delta:writs:c
-    %+  frond  -.delta
-    ?-  -.delta
-      %del       ~
-      %add-react  (add-react +.delta)
-      %del-react  (author:enjs:dj author.delta)
-      %reply      (reply-delta +.delta)
-    ::
-        %add
-      %-  pairs
-      :~  essay+(essay:enjs:dj essay.delta)
-          time+?~(time.delta ~ (time-id u.time.delta))
-      ==
-    ==
-  ++  writs-response
-    |=  [=whom:c =response:writs:c]
-    %-  pairs
-    :~  whom/s/(^whom whom)
-        id/(id id.response)
-        response/(response-delta response.response)
-    ==
-  ::
-  ++  response-delta
-    |=  delta=response-delta:writs:c
-    %+  frond  -.delta
-    ?-  -.delta
-        %del       ~
-        %add-react  (add-react [author react]:delta)
-        %del-react  (author:enjs:dj author.delta)
-        %reply     (reply-response-delta +.delta)
-        %add
-      %-  pairs
-      :~  essay+(essay:enjs:dj essay.delta)
-          seq+(numb seq.delta)
-          time+(time-id time.delta)
-      ==
-    ==
-  ::
-  ++  reply-delta
-    |=  [i=id:c meta=(unit reply-meta:c) =delta:replies:c]
-    ^-  json
-    %-  pairs
-    :~  id+(id i)
-        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
-        :-  %delta
-        %+  frond  -.delta
-        ?-  -.delta
-          %del       ~
-          %add-react  (add-react +.delta)
-          %del-react  (author:enjs:dj author.delta)
-        ::
-            %add
-          %-  pairs
-          :~  memo+(memo:enjs:dj memo.delta)
-              time+?~(time.delta ~ (time-id u.time.delta))
-          ==
-        ==
-    ==
-  ++  reply-response-delta
-    |=  [i=id:c meta=(unit reply-meta:c) delta=response-delta:replies:c]
-    ^-  json
-    %-  pairs
-    :~  id+(id i)
-        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
-        :-  %delta
-        %+  frond  -.delta
-        ?-  -.delta
-          %del       ~
-          %add-react  (add-react +.delta)
-          %del-react  (author:enjs:dj author.delta)
-        ::
-            %add
-          %-  pairs
-          :~  memo+(memo:enjs:dj memo.delta)
-              time+(time-id time.delta)
-          ==
-        ==
-    ==
-  ++  add-react
-    |=  [=author:c =react:c]
-    %-  pairs
-    :~  react+(react:enjs:dj react)
-        author+(author:enjs:dj author)
-    ==
-  ::
-  ++  dm-action
-    |=  =action:dm:c
-    %-  pairs
-    :~  ship+(ship p.action)
-        diff+(writs-diff q.action)
-    ==
-  ::
   ++  clubs
     |=  cs=(map id:club:c crew:club:c)
     %-  pairs
@@ -302,126 +162,494 @@
         meta/(meta met.cr)
         net/s/net.cr
     ==
-  ::
-  ++  writ-list
-    |=  w=(list writ:c)
-    ^-  json
-    a+(turn w writ)
-  ::
-  ++  writs
-    |=  =writs:c
-    ^-  json
-    %-  pairs
-    %+  turn  (tap:on:writs:c writs)
-    |=  [key=@da w=(may:c writ:c)]
-    [(scot %ud key) (may writ w)]
-  ::
-  ++  writ
-    |=  =writ:c
-    %-  pairs
-    :~  seal+(seal -.writ)
-        essay+(essay:enjs:dj +.writ)
-        type+s+%post
-    ==
-  ::
-  ++  chat-heads
-    |=  heads=chat-heads:c
-    :-  %a
-    %+  turn  heads
-    |=  [=whom:c recency=^time latest=(unit writ:c)]
-    %-  pairs
-    :~  whom+s+(^whom whom)
-        recency+(time recency)
-        latest+?~(latest ~ (writ u.latest))
-    ==
-  ::
-  ++  paged-writs
-    |=  pw=paged-writs:c
-    %-  pairs
-    :~  writs+(writs writs.pw)
-        newer+?~(newer.pw ~ (time-id u.newer.pw))
-        older+?~(older.pw ~ (time-id u.older.pw))
-        newest+(numb newest.pw)
-        total+(numb total.pw)
-    ==
-  ::
-  ++  time-id
-    |=  =@da
-    s+`@t`(rsh 4 (scot %ui da))
-  ::
-  ++  seal
-    |=  =seal:c
-    %-  pairs
-    :~  id+(id id.seal)
-        seq+(numb seq.seal)
-        time+(time-id time.seal)
-        reacts+(reacts:enjs:dj reacts.seal)
-        replies+(replies replies.seal)
-        meta+(reply-meta:enjs:dj reply-meta.seal)
-    ==
-  ::
-  ++  replies
-    |=  =replies:c
-    %-  pairs
-    %+  turn  (tap:on:replies:c replies)
-    |=  [key=@da q=(may:c reply:c)]
-    [(scot %ud key) (may reply q)]
-  ::
-  ++  reply
-    |=  =reply:c
-    %-  pairs
-    :~  seal+(reply-seal -.reply)
-        memo+(memo:enjs:dj +.reply)
-    ==
-  ::
-  ++  reply-seal
-    |=  =reply-seal:c
-    %-  pairs
-    :~  id+(id id.reply-seal)
-        parent-id+(id parent-id.reply-seal)
-        time+(time-id time.reply-seal)
-        reacts+(reacts:enjs:dj reacts.reply-seal)
-    ==
-  ::
-  ++  reference
-    |=  =reference:c
-    %+  frond  -.reference
-    ?-    -.reference
-        %writ  (may writ writ.reference)
-        %reply
+  ++  v7
+    =,  v6
+    |%
+    ++  writs-diff
+      |=  =diff:writs:v7:cv
       %-  pairs
-      :~  id-note+(id id.reference)
-          reply+(may reply reply.reference)
+      :~  id/(id p.diff)
+          delta/(writs-delta q.diff)
       ==
-    ==
-  ::
-  ++  tombstone
-    |=  =tombstone:c
-    %-  pairs
-    :~  id+(id id.tombstone)
-        time+(time-id time.tombstone)
-        author+(author:enjs:dj author.tombstone)
-        seq+(numb seq.tombstone)
-        deleted-at+(time del-at.tombstone)
-        type+s+%tombstone
-    ==
-  ::
-  ++  may
-    |*  [f=$-(* json) m=(may:c *)]
-    ?-  -.m
-      %&  (f +.m)
-      %|  (tombstone +.m)
-    ==
-  ++  v6  .
+    ::
+    ++  writs-delta
+      |=  =delta:writs:v7:cv
+      %+  frond  -.delta
+      ?-  -.delta
+        %del       ~
+        %add-react  (add-react +.delta)
+        %del-react  (author:v9:enjs:dj author.delta)
+        %reply      (reply-delta +.delta)
+      ::
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            time+?~(time.delta ~ (time-id u.time.delta))
+        ==
+      ==
+    ::
+    ++  writs-response
+      |=  [=whom:v7:cv =response:writs:v7:cv]
+      %-  pairs
+      :~  whom/s/(^whom whom)
+          id/(id id.response)
+          response/(response-delta response.response)
+      ==
+    ::
+    ++  response-delta
+      |=  delta=response-delta:writs:v7:cv
+      %+  frond  -.delta
+      ?-  -.delta
+          %del       ~
+          %add-react  (add-react [author react]:delta)
+          %del-react  (author:v9:enjs:dj author.delta)
+          %reply     (reply-response-delta +.delta)
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            seq+(numb seq.delta)
+            time+(time-id time.delta)
+        ==
+      ==
+    ::
+    ++  reply-delta
+      |=  [i=id:c meta=(unit reply-meta:v7:cv) =delta:replies:v7:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  reply-essay+(reply-essay:v10:enjs:dj reply-essay.delta)
+                time+?~(time.delta ~ (time-id u.time.delta))
+            ==
+          ==
+      ==
+    ::
+    ++  reply-response-delta
+      |=  [i=id:c meta=(unit reply-meta:v7:cv) delta=response-delta:replies:v7:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  reply-essay+(reply-essay:v10:enjs:dj reply-essay.delta)
+                time+(time-id time.delta)
+            ==
+          ==
+      ==
+    ::
+    ++  dm-action
+      |=  =action:dm:v7:cv
+      %-  pairs
+      :~  ship+(ship p.action)
+          diff+(writs-diff q.action)
+      ==
+    ::
+    ++  writ-list
+      |=  w=(list writ:v7:cv)
+      ^-  json
+      a+(turn w writ)
+    ::
+    ++  writs
+      |=  =writs:v7:cv
+      ^-  json
+      %-  pairs
+      %+  turn  (tap:on:writs:v7:cv writs)
+      |=  [key=@da w=(may:v7:cv writ:v7:cv)]
+      [(scot %ud key) (may writ w)]
+    ::
+    ++  writ
+      |=  =writ:v7:cv
+      %-  pairs
+      :~  seal+(seal -.writ)
+          essay+(essay:v9:enjs:dj +.writ)
+          type+s+%post
+      ==
+    ::
+    ++  chat-heads
+      |=  heads=chat-heads:v7:cv
+      :-  %a
+      %+  turn  heads
+      |=  [=whom:v7:cv recency=^time latest=(unit writ:v7:cv)]
+      %-  pairs
+      :~  whom+s+(^whom whom)
+          recency+(time recency)
+          latest+?~(latest ~ (writ u.latest))
+      ==
+    ::
+    ++  paged-writs
+      |=  pw=paged-writs:v7:cv
+      %-  pairs
+      :~  writs+(writs writs.pw)
+          newer+?~(newer.pw ~ (time-id u.newer.pw))
+          older+?~(older.pw ~ (time-id u.older.pw))
+          newest+(numb newest.pw)
+          total+(numb total.pw)
+      ==
+    ::
+    ++  seal
+      |=  =seal:v7:cv
+      %-  pairs
+      :~  id+(id id.seal)
+          seq+(numb seq.seal)
+          time+(time-id time.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
+      ==
+    ::
+    ++  replies
+      |=  =replies:v7:cv
+      %-  pairs
+      %+  turn  (tap:on:replies:v7:cv replies)
+      |=  [key=@da q=(may:v7:cv reply:v7:cv)]
+      [(scot %ud key) (may reply q)]
+    ::
+    ++  reply
+      |=  =reply:v7:cv
+      %-  pairs
+      :~  seal+(reply-seal -.reply)
+          reply-essay+(reply-essay:v10:enjs:dj +.reply)
+      ==
+    ::
+    ++  reference
+      |=  =reference:v7:cv
+      %+  frond  -.reference
+      ?-    -.reference
+          %writ  (may writ writ.reference)
+          %reply
+        %-  pairs
+        :~  id-note+(id id.reference)
+            reply+(may reply reply.reference)
+        ==
+      ==
+    ::
+    ++  club-action
+      |=  a=action:club:v7:cv
+      ^-  json
+      %-  pairs
+      :~  id/s/(scot %uv p.a)
+          diff/(club-diff q.a)
+      ==
+    ::
+    ++  club-diff
+      |=  d=diff:club:v7:cv
+      ^-  json
+      %-  pairs
+      :~  uid/s/(scot %uv p.d)
+          delta/(club-delta q.d)
+      ==
+    ::
+    ++  club-delta
+      |=  d=delta:club:v7:cv
+      %+  frond  -.d
+      ?-  -.d
+          %writ  (writs-diff diff.d)
+      ::
+          %meta  (meta meta.d)
+      ::
+          %team
+        %-  pairs
+        :~  ship/(ship ship.d)
+            ok/b/ok.d
+        ==
+      ::
+          %hive
+        %-  pairs
+        :~  by/(ship by.d)
+            for/(ship for.d)
+            add/b/add.d
+        ==
+      ::
+          %init
+        %-  pairs
+        :~  team/a/(turn ~(tap in team.d) ship)
+            hive/a/(turn ~(tap in hive.d) ship)
+            meta/(meta met.d)
+        ==
+      ==
+    --
+  ++  v6
+    |%
+    ++  writs-diff
+      |=  =diff:writs:v6:cv
+      %-  pairs
+      :~  id/(id p.diff)
+          delta/(writs-delta q.diff)
+      ==
+    ::
+    ++  writs-delta
+      |=  =delta:writs:v6:cv
+      %+  frond  -.delta
+      ?-  -.delta
+        %del       ~
+        %add-react  (add-react +.delta)
+        %del-react  (author:v9:enjs:dj author.delta)
+        %reply      (reply-delta +.delta)
+      ::
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            time+?~(time.delta ~ (time-id u.time.delta))
+        ==
+      ==
+    ::
+    ++  writs-response
+      |=  [=whom:v6:cv =response:writs:v6:cv]
+      %-  pairs
+      :~  whom/s/(^whom whom)
+          id/(id id.response)
+          response/(response-delta response.response)
+      ==
+    ::
+    ++  response-delta
+      |=  delta=response-delta:writs:v6:cv
+      %+  frond  -.delta
+      ?-  -.delta
+          %del       ~
+          %add-react  (add-react [author react]:delta)
+          %del-react  (author:v9:enjs:dj author.delta)
+          %reply     (reply-response-delta +.delta)
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            seq+(numb seq.delta)
+            time+(time-id time.delta)
+        ==
+      ==
+    ::
+    ++  reply-delta
+      |=  [i=id:c meta=(unit reply-meta:v6:cv) =delta:replies:v6:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  memo+(memo:v9:enjs:dj memo.delta)
+                time+?~(time.delta ~ (time-id u.time.delta))
+            ==
+          ==
+      ==
+    ::
+    ++  reply-response-delta
+      |=  [i=id:c meta=(unit reply-meta:v6:cv) delta=response-delta:replies:v6:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  memo+(memo:v9:enjs:dj memo.delta)
+                time+(time-id time.delta)
+            ==
+          ==
+      ==
+    ::
+    ++  add-react
+      |=  [=author:v6:cv =react:v6:cv]
+      %-  pairs
+      :~  react+(react:v9:enjs:dj react)
+          author+(author:v9:enjs:dj author)
+      ==
+    ::
+    ++  dm-action
+      |=  =action:dm:v6:cv
+      %-  pairs
+      :~  ship+(ship p.action)
+          diff+(writs-diff q.action)
+      ==
+    ::
+    ++  writ-list
+      |=  w=(list writ:v6:cv)
+      ^-  json
+      a+(turn w writ)
+    ::
+    ++  writs
+      |=  =writs:v6:cv
+      ^-  json
+      %-  pairs
+      %+  turn  (tap:on:writs:v6:cv writs)
+      |=  [key=@da w=(may:v6:cv writ:v6:cv)]
+      [(scot %ud key) (may writ w)]
+    ::
+    ++  writ
+      |=  =writ:v6:cv
+      %-  pairs
+      :~  seal+(seal -.writ)
+          essay+(essay:v9:enjs:dj +.writ)
+          type+s+%post
+      ==
+    ::
+    ++  chat-heads
+      |=  heads=chat-heads:v6:cv
+      :-  %a
+      %+  turn  heads
+      |=  [=whom:v6:cv recency=^time latest=(unit writ:v6:cv)]
+      %-  pairs
+      :~  whom+s+(^whom whom)
+          recency+(time recency)
+          latest+?~(latest ~ (writ u.latest))
+      ==
+    ::
+    ++  paged-writs
+      |=  pw=paged-writs:v6:cv
+      %-  pairs
+      :~  writs+(writs writs.pw)
+          newer+?~(newer.pw ~ (time-id u.newer.pw))
+          older+?~(older.pw ~ (time-id u.older.pw))
+          newest+(numb newest.pw)
+          total+(numb total.pw)
+      ==
+    ::
+    ++  seal
+      |=  =seal:v6:cv
+      %-  pairs
+      :~  id+(id id.seal)
+          seq+(numb seq.seal)
+          time+(time-id time.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
+      ==
+    ::
+    ++  replies
+      |=  =replies:v6:cv
+      %-  pairs
+      %+  turn  (tap:on:replies:v6:cv replies)
+      |=  [key=@da q=(may:v6:cv reply:v6:cv)]
+      [(scot %ud key) (may reply q)]
+    ::
+    ++  reply
+      |=  =reply:v6:cv
+      %-  pairs
+      :~  seal+(reply-seal -.reply)
+          memo+(memo:v9:enjs:dj +.reply)
+      ==
+    ::
+    ++  reply-seal
+      |=  =reply-seal:v6:cv
+      %-  pairs
+      :~  id+(id id.reply-seal)
+          parent-id+(id parent-id.reply-seal)
+          time+(time-id time.reply-seal)
+          reacts+(reacts:v9:enjs:dj reacts.reply-seal)
+      ==
+    ::
+    ++  reference
+      |=  =reference:v6:cv
+      %+  frond  -.reference
+      ?-    -.reference
+          %writ  (may writ writ.reference)
+          %reply
+        %-  pairs
+        :~  id-note+(id id.reference)
+            reply+(may reply reply.reference)
+        ==
+      ==
+    ::
+    ++  may
+      |*  [f=$-(* json) m=(may:v6:cv *)]
+      ?-  -.m
+        %&  (f +.m)
+        %|  (tombstone +.m)
+      ==
+    ::
+    ++  tombstone
+      |=  =tombstone:v6:cv
+      %-  pairs
+      :~  id+(id id.tombstone)
+          time+(time-id time.tombstone)
+          author+(author:v9:enjs:dj author.tombstone)
+          seq+(numb seq.tombstone)
+          deleted-at+(time del-at.tombstone)
+          type+s+%tombstone
+      ==
+    ::
+    ++  club-action
+      |=  a=action:club:v6:cv
+      ^-  json
+      %-  pairs
+      :~  id/s/(scot %uv p.a)
+          diff/(club-diff q.a)
+      ==
+    ::
+    ++  club-diff
+      |=  d=diff:club:v6:cv
+      ^-  json
+      %-  pairs
+      :~  uid/s/(scot %uv p.d)
+          delta/(club-delta q.d)
+      ==
+    ::
+    ++  club-delta
+      |=  d=delta:club:v6:cv
+      %+  frond  -.d
+      ?-  -.d
+          %writ  (writs-diff diff.d)
+      ::
+          %meta  (meta meta.d)
+      ::
+          %team
+        %-  pairs
+        :~  ship/(ship ship.d)
+            ok/b/ok.d
+        ==
+      ::
+          %hive
+        %-  pairs
+        :~  by/(ship by.d)
+            for/(ship for.d)
+            add/b/add.d
+        ==
+      ::
+          %init
+        %-  pairs
+        :~  team/a/(turn ~(tap in team.d) ship)
+            hive/a/(turn ~(tap in hive.d) ship)
+            meta/(meta met.d)
+        ==
+      ==
+    --
   ::
   ++  v5
-    =,  v6
+    =,  v4
     |%
     ++  writ
       |=  =writ:v5:cv
       %-  pairs
       :~  seal+(seal -.writ)
-          essay+(essay:enjs:dj +.writ)
+          essay+(essay:v9:enjs:dj +.writ)
       ==
     ++  writs
       |=  =writs:v5:cv
@@ -430,14 +658,104 @@
       %+  turn  (tap:on:writs:v5:cv writs)
       |=  [key=@da w=writ:v5:cv]
       [(scot %ud key) (writ w)]
+    ++  writs-diff
+      |=  =diff:writs:v5:cv
+      %-  pairs
+      :~  id/(id p.diff)
+          delta/(writs-delta q.diff)
+      ==
+    ++  writs-delta
+      |=  =delta:writs:v5:cv
+      %+  frond  -.delta
+      ?-  -.delta
+        %del       ~
+        %add-react  (add-react +.delta)
+        %del-react  (author:v9:enjs:dj author.delta)
+        %reply      (reply-delta +.delta)
+      ::
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            time+?~(time.delta ~ (time-id u.time.delta))
+        ==
+      ==
+    ++  reply-delta
+      |=  [i=id:c meta=(unit reply-meta:v5:cv) =delta:replies:v5:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  memo+(memo:v9:enjs:dj memo.delta)
+                time+?~(time.delta ~ (time-id u.time.delta))
+            ==
+          ==
+      ==
+    ++  writs-response
+      |=  [=whom:c =response:writs:v5:cv]
+      %-  pairs
+      :~  whom/s/(^whom whom)
+          id/(id id.response)
+          response/(response-delta response.response)
+      ==
+    ++  response-delta
+      |=  delta=response-delta:writs:v5:cv
+      %+  frond  -.delta
+      ?-  -.delta
+          %del       ~
+          %add-react  (add-react [author react]:delta)
+          %del-react  (author:v9:enjs:dj author.delta)
+          %reply     (reply-response-delta +.delta)
+          %add
+        %-  pairs
+        :~  essay+(essay:v9:enjs:dj essay.delta)
+            seq+(numb seq.delta)
+            time+(time-id time.delta)
+        ==
+      ==
+    ++  reply-response-delta
+      |=  [i=id:c meta=(unit reply-meta:c) delta=response-delta:replies:v5:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  memo+(memo:v9:enjs:dj memo.delta)
+                time+(time-id time.delta)
+            ==
+          ==
+      ==
+    ::
+    ++  add-react
+      |=  [=author:v5:cv =react:v5:cv]
+      %-  pairs
+      :~  react+(react:v9:enjs:dj react)
+          author+(author:v9:enjs:dj author)
+      ==
     ++  seal
       |=  =seal:v5:cv
       %-  pairs
       :~  id+(id id.seal)
           time+(time-id time.seal)
-          reacts+(reacts:enjs:dj reacts.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
           replies+(replies replies.seal)
-          meta+(reply-meta:enjs:dj reply-meta.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
       ==
     ++  replies
       |=  =replies:v5:cv
@@ -477,7 +795,7 @@
     --
   ::
   ++  v4
-    =,  v5
+    =,  v3
     |%
     ++  writs-response
       |=  [=whom:v4:cv =response:writs:v4:cv]
@@ -487,19 +805,47 @@
           response/(response-delta response.response)
       ==
     ::
+    ++  add-react
+      |=  [=author:v4:cv =react:v4:cv]
+      %-  pairs
+      :~  react+(react:v9:enjs:dj react)
+          author+(author:v9:enjs:dj author)
+      ==
+    ::
     ++  response-delta
       |=  delta=response-delta:writs:v4:cv
       %+  frond  -.delta
       ?-  -.delta
           %del       ~
           %add-react  (add-react [author react]:delta)
-          %del-react  (author:enjs:dj author.delta)
+          %del-react  (author:v9:enjs:dj author.delta)
           %reply     (reply-response-delta +.delta)
           %add
         %-  pairs
-        :~  essay+(essay:enjs:dj essay.delta)
+        :~  essay+(essay:v9:enjs:dj essay.delta)
             time+(time-id time.delta)
         ==
+      ==
+    ::
+    ++  reply-response-delta
+      |=  [i=id:c meta=(unit reply-meta:v4:cv) delta=response-delta:replies:v4:cv]
+      ^-  json
+      %-  pairs
+      :~  id+(id i)
+          meta+?~(meta ~ (reply-meta:v9:enjs:dj u.meta))
+          :-  %delta
+          %+  frond  -.delta
+          ?-  -.delta
+            %del       ~
+            %add-react  (add-react +.delta)
+            %del-react  (author:v9:enjs:dj author.delta)
+          ::
+              %add
+            %-  pairs
+            :~  memo+(memo:v9:enjs:dj memo.delta)
+                time+(time-id time.delta)
+            ==
+          ==
       ==
     ::
     ++  writ-list
@@ -519,7 +865,7 @@
       |=  =writ:v4:cv
       %-  pairs
       :~  seal+(seal -.writ)
-          essay+(essay:enjs:dj +.writ)
+          essay+(essay:v9:enjs:dj +.writ)
       ==
     ::
     ++  chat-heads
@@ -547,9 +893,32 @@
       %-  pairs
       :~  id+(id id.seal)
           time+(time-id time.seal)
-          reacts+(reacts:enjs:dj reacts.seal)
+          reacts+(reacts:v9:enjs:dj reacts.seal)
           replies+(replies replies.seal)
-          meta+(reply-meta:enjs:dj reply-meta.seal)
+          meta+(reply-meta:v9:enjs:dj reply-meta.seal)
+      ==
+    ::
+    ++  replies
+      |=  =replies:v4:cv
+      %-  pairs
+      %+  turn  (tap:on:replies:v4:cv replies)
+      |=  [key=@da q=reply:v4:cv]
+      [(scot %ud key) (reply q)]
+    ::
+    ++  reply
+      |=  =reply:v4:cv
+      %-  pairs
+      :~  seal+(reply-seal -.reply)
+          memo+(memo:v9:enjs:dj +.reply)
+      ==
+    ::
+    ++  reply-seal
+      |=  =reply-seal:v4:cv
+      %-  pairs
+      :~  id+(id id.reply-seal)
+          parent-id+(id parent-id.reply-seal)
+          time+(time-id time.reply-seal)
+          reacts+(reacts:v9:enjs:dj reacts.reply-seal)
       ==
     ::
     ++  reference
@@ -566,7 +935,6 @@
     --
   ::
   ++  v3
-    =,  v4
     |%
     ++  club-action
       |=  a=action:club:v3:cv
@@ -806,44 +1174,49 @@
 ++  dejs
   =,  dejs:format
   |%
-  ++  rsvp
-    %-  ot
-    :~  ship/(se %p)
-        ok/bo
-    ==
-  ::
-  ++  block-ship
-    %-  ot
-    :~  ship/(se %p)
-    ==
-  ::
-  ++  unblock-ship
-    %-  ot
-    :~  ship/(se %p)
-    ==
-  ::
-  ++  club-rsvp
-    %-  ot
-    :~  id/(se %uv)
-        ship/(se %p)
-        ok/bo
-    ==
-  ::
-  ++  pins
-    %-  ot
-    :~  pins/(ar whom)
-    ==
-  ::
-  ++  blocked
-    %-  ot
-    :~  blocked/(as ship)
-    ==
+  ++  ship  (su ;~(pfix sig fed:ag))
+  ++  club-id-rule
+    (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
   ++  whom
     ^-  $-(json whom:c)
     %-  su
     ;~  pose
       (stag %ship ;~(pfix sig fed:ag))
       (stag %club club-id-rule)
+    ==
+  ++  meta
+    %-  ot
+    :~  title/so
+        description/so
+        image/so
+        cover/so
+    ==
+  ++  rsvp
+    %-  ot
+    :~  ship/(se %p)
+        ok/bo
+    ==
+  ++  block-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ++  unblock-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ++  club-rsvp
+    %-  ot
+    :~  id/(se %uv)
+        ship/(se %p)
+        ok/bo
+    ==
+  ++  pins
+    %-  ot
+    :~  pins/(ar whom)
+    ==
+  ++  blocked
+    %-  ot
+    :~  blocked/(as ship)
     ==
   ++  remark-action
     %-  ot
@@ -857,9 +1230,6 @@
         watch/ul
         unwatch/ul
     ==
-  ++  ship  (su ;~(pfix sig fed:ag))
-  ++  club-id-rule
-    (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
   ++  club-id  (su club-id-rule)
   ++  club-create
     ^-  $-(json create:club:c)
@@ -868,129 +1238,14 @@
         hive/(as (se %p))
     ==
   ::
-  ++  club-action
-    ^-  $-(json action:club:c)
-    %-  ot
-    :~  id/(se %uv)
-        diff/club-diff
-    ==
-  ::
-  ++  club-diff
-    ^-  $-(json diff:club:c)
-    %-  ot
-    :~  uid/(se %uv)
-        delta/club-delta
-    ==
-  ::
-  ++  meta
-    %-  ot
-    :~  title/so
-        description/so
-        image/so
-        cover/so
-    ==
-  ::
-  ++  club-delta
-    %-  of
-    :~
-      writ/writs-diff
-      meta/meta
-    ::
-      :-  %team
-      %-  ot
-      :~  ship/(se %p)
-          ok/bo
-      ==
-    ::
-      :-  %hive
-      %-  ot
-      :~  by/(se %p)
-          for/(se %p)
-          add/bo
-      ==
-    ==
-  ::
-  ++  dm-action
-    ^-  $-(json action:dm:c)
-    %-  ot
-    :~  ship/ship
-        diff/writs-diff
-    ==
-  ::
   ++  id
     ^-  $-(json id:c)
     %-  su
     %+  cook  |=([p=@p q=@] `id:c`[p `@da`q])
     ;~((glue fas) ;~(pfix sig fed:ag) dem:ag)
-  ::
-  ++  writs-diff
-    ^-  $-(json diff:writs:c)
-    %-  ot
-    :~  id/id
-        delta/writs-delta
-    ==
-  ++  essay
-    ^-  $-(json essay:c)
-    %+  cu
-      |=  $:  =story:d  =author:c  =time
-              kind=[%chat path]  meta=(unit data:^^meta)
-              blob=(unit @t)
-          ==
-      `essay:c`[[story author time] kind meta blob]
-    %-  ot
-    :~  content/story:dejs:sj
-        author/author:dejs:dj
-        sent/di
-        :-  %kind
-        (cu |=(=path ?>(?=([%chat *] path) path)) pa)
-        ::
-        meta/(mu meta)
-        blob/(mu so)
-    ==
-  ++  writs-delta
-    ^-  $-(json delta:writs:c)
-    %-  of
-    :~  del/ul
-        add-react/add-react
-        del-react/author:dejs:dj
-        reply/reply-delta
-    ::
-      :-  %add
-      ^-  $-(json [=essay:c time=(unit time)])
-      %-  ot
-      :~  essay/essay
-          time/(mu (se %ud))
-      ==
-    ==
-  ::
-  ++  reply-delta
-    ^-  $-(json [id:c (unit reply-meta:c) delta:replies:c])
-    %-  ot
-    :~  id/id
-        meta/ul
-        :-  %delta
-        %-  of
-        :~  del/ul
-            add-react/add-react
-            del-react/author:dejs:dj
-        ::
-          :-  %add
-          ^-  $-(json [=memo:d time=(unit time)])
-          %-  ot
-          :~  memo/memo:dejs:dj
-              time/(mu (se %ud))
-          ==
-        ==
-    ==
   ++  add-sects  (as (se %tas))
   ::
   ++  del-sects  (as so)
-  ::
-  ++  add-react
-    %-  ot
-    :~  author/author:dejs:dj
-        react/react:dejs:dj
-    ==
   ::
   ++  toggle-message
     ^-  $-(json message-toggle:c)
@@ -999,7 +1254,216 @@
         show/id
     ==
   ::
-  ++  v5  .
+  ++  v7
+    =,  v6
+    |%
+    ++  club-action
+      ^-  $-(json action:club:v7:cv)
+      %-  ot
+      :~  id/(se %uv)
+          diff/club-diff
+      ==
+    ::
+    ++  club-diff
+      ^-  $-(json diff:club:v7:cv)
+      %-  ot
+      :~  uid/(se %uv)
+          delta/club-delta
+      ==
+    ++  club-delta
+      %-  of
+      :~
+        writ/writs-diff
+        meta/meta
+      ::
+        :-  %team
+        %-  ot
+        :~  ship/(se %p)
+            ok/bo
+        ==
+      ::
+        :-  %hive
+        %-  ot
+        :~  by/(se %p)
+            for/(se %p)
+            add/bo
+        ==
+      ==
+    ::
+    ++  dm-action
+      ^-  $-(json action:dm:v7:cv)
+      %-  ot
+      :~  ship/ship
+          diff/writs-diff
+      ==
+    ++  essay
+      ^-  $-(json essay:v7:cv)
+      %+  cu
+        |=  $:  =story:d  =author:v7:cv  =time
+                kind=[%chat path]  meta=(unit data:^^meta)
+                blob=(unit @t)
+            ==
+        `essay:v7:cv`[[story author time] kind meta blob]
+      %-  ot
+      :~  content/story:dejs:sj
+          author/author:v9:dejs:dj
+          sent/di
+          :-  %kind
+          (cu |=(=path ?>(?=([%chat *] path) path)) pa)
+          ::
+          meta/(mu meta)
+          blob/(mu so)
+      ==
+    ++  writs-diff
+      ^-  $-(json diff:writs:v7:cv)
+      %-  ot
+      :~  id/id
+          delta/writs-delta
+      ==
+    ++  writs-delta
+      ^-  $-(json delta:writs:v7:cv)
+      %-  of
+      :~  del/ul
+          add-react/add-react
+          del-react/author:v9:dejs:dj
+          reply/reply-delta
+      ::
+        :-  %add
+        ^-  $-(json [=essay:v7:cv time=(unit time)])
+        %-  ot
+        :~  essay/essay
+            time/(mu (se %ud))
+        ==
+      ==
+    ::
+    ++  reply-delta
+      ^-  $-(json [id:v7:cv (unit reply-meta:v7:cv) delta:replies:v7:cv])
+      %-  ot
+      :~  id/id
+          meta/ul
+          :-  %delta
+          %-  of
+          :~  del/ul
+              add-react/add-react
+              del-react/author:v9:dejs:dj
+          ::
+            :-  %add
+            ^-  $-(json [=reply-essay:d time=(unit time)])
+            %-  ot
+            :~  reply-essay/reply-essay:v10:dejs:dj
+                time/(mu (se %ud))
+            ==
+          ==
+      ==
+    --
+  ++  v6  v5
+  ::
+  ++  v5
+    |%
+    ++  club-action
+      ^-  $-(json action:club:v5:cv)
+      %-  ot
+      :~  id/(se %uv)
+          diff/club-diff
+      ==
+    ::
+    ++  club-diff
+      ^-  $-(json diff:club:v5:cv)
+      %-  ot
+      :~  uid/(se %uv)
+          delta/club-delta
+      ==
+    ++  club-delta
+      %-  of
+      :~
+        writ/writs-diff
+        meta/meta
+      ::
+        :-  %team
+        %-  ot
+        :~  ship/(se %p)
+            ok/bo
+        ==
+      ::
+        :-  %hive
+        %-  ot
+        :~  by/(se %p)
+            for/(se %p)
+            add/bo
+        ==
+      ==
+    ::
+    ++  dm-action
+      ^-  $-(json action:dm:v5:cv)
+      %-  ot
+      :~  ship/ship
+          diff/writs-diff
+      ==
+    ++  essay
+      ^-  $-(json essay:v5:cv)
+      %+  cu
+        |=  $:  =story:d  =author:v5:cv  =time
+                kind=[%chat path]  meta=(unit data:^^meta)
+                blob=(unit @t)
+            ==
+        `essay:v5:cv`[[story author time] kind meta blob]
+      %-  ot
+      :~  content/story:dejs:sj
+          author/author:v9:dejs:dj
+          sent/di
+          :-  %kind
+          (cu |=(=path ?>(?=([%chat *] path) path)) pa)
+          ::
+          meta/(mu meta)
+          blob/(mu so)
+      ==
+    ++  writs-diff
+      ^-  $-(json diff:writs:v5:cv)
+      %-  ot
+      :~  id/id
+          delta/writs-delta
+      ==
+    ++  writs-delta
+      ^-  $-(json delta:writs:v5:cv)
+      %-  of
+      :~  del/ul
+          add-react/add-react
+          del-react/author:v9:dejs:dj
+          reply/reply-delta
+      ::
+        :-  %add
+        ^-  $-(json [=essay:v5:cv time=(unit time)])
+        %-  ot
+        :~  essay/essay
+            time/(mu (se %ud))
+        ==
+      ==
+    ::
+    ++  reply-delta
+      ^-  $-(json [id:v5:cv (unit reply-meta:v5:cv) delta:replies:v5:cv])
+      %-  ot
+      :~  id/id
+          meta/ul
+          :-  %delta
+          %-  of
+          :~  del/ul
+              add-react/add-react
+              del-react/author:v9:dejs:dj
+          ::
+            :-  %add
+            ^-  $-(json [=memo:d time=(unit time)])
+            %-  ot
+            :~  memo/memo:v9:dejs:dj
+                time/(mu (se %ud))
+            ==
+          ==
+      ==
+    ++  add-react
+      %-  ot
+      :~  author/author:v9:dejs:dj
+          react/react:v9:dejs:dj
+      ==
+    --
   ++  v3
     |%
     ::

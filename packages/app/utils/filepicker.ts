@@ -2,11 +2,7 @@ import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import {
-  isLikelyVideoSource,
-  VIDEO_VALIDATION_ERROR,
-  validateVideoSource,
-} from '../ui/contexts/attachmentRules';
+import { isLikelyVideoSource, VIDEO_VALIDATION_ERROR, validateVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import { getAudioFileDurationSeconds, getFileSize } from './files';
 import { imageSize } from './images';
@@ -15,6 +11,39 @@ type UploadIntentVideoMetadata = Exclude<
   Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
   false | undefined
 >;
+
+function getAssetFile(asset: Pick<ImagePickerAsset, 'file'>): File | undefined {
+  if (typeof File === 'undefined') {
+    return undefined;
+  }
+
+  return asset.file instanceof File ? asset.file : undefined;
+}
+
+function positiveNumberOrUndefined(value: number | null | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function imagePickerAssetVideoMetadata(
+  asset: Pick<ImagePickerAsset, 'width' | 'height' | 'duration'>,
+  assetFile?: File
+) {
+  // On web, expo-image-picker's returnMediaData path (which also sets asset.file)
+  // provides duration directly from HTMLVideoElement.duration — already in seconds.
+  // On native, duration is in milliseconds. Use assetFile as the signal.
+  const durationSeconds =
+    asset.duration == null ? undefined
+    : assetFile ? asset.duration        // web: already seconds
+    : asset.duration / 1000;            // native: ms → seconds
+
+  return {
+    width: positiveNumberOrUndefined(asset.width),
+    height: positiveNumberOrUndefined(asset.height),
+    duration: positiveNumberOrUndefined(durationSeconds),
+  };
+}
 
 function resolveVideoSize(
   size: number | undefined,
@@ -46,22 +75,33 @@ export function imagePickerAssetToUploadIntent(
   asset: ImagePickerAsset
 ): Attachment.UploadIntent {
   if (asset.type === 'video') {
+    const assetFile = getAssetFile(asset);
+    const video = imagePickerAssetVideoMetadata(asset, assetFile);
+
+    if (assetFile) {
+      return {
+        type: 'file',
+        file: assetFile,
+        video,
+      };
+    }
+
     return {
       type: 'fileUri',
       localUri: asset.uri,
       name: asset.fileName ?? undefined,
       size: resolveVideoSize(asset.fileSize ?? undefined, asset.uri) ?? -1,
       mimeType: asset.mimeType ?? undefined,
-      video: {
-        width: asset.width ?? undefined,
-        height: asset.height ?? undefined,
-        duration: asset.duration != null ? asset.duration / 1000 : undefined,
-      },
+      video,
     };
   }
+
   return {
     type: 'image',
-    asset,
+    asset: {
+      ...asset,
+      mimeType: asset.mimeType ?? undefined,
+    },
   };
 }
 
@@ -163,20 +203,29 @@ export async function normalizeUploadIntent(
   }
 
   const existingVideo = asVideoMetadata(uploadIntent.video);
+  const existingWidth = positiveNumberOrUndefined(existingVideo?.width);
+  const existingHeight = positiveNumberOrUndefined(existingVideo?.height);
+  const existingDuration = positiveNumberOrUndefined(existingVideo?.duration);
   const needsPreviewData =
-    existingVideo?.width == null ||
-    existingVideo?.height == null ||
-    existingVideo?.duration == null ||
+    existingWidth == null ||
+    existingHeight == null ||
+    existingDuration == null ||
     !existingVideo?.posterUri;
-  const previewData = needsPreviewData
-    ? await getVideoPreviewData(
+  let previewData: Awaited<ReturnType<typeof getVideoPreviewData>> = {};
+  if (needsPreviewData) {
+    try {
+      previewData = await getVideoPreviewData(
         isFileIntent ? { file: uploadIntent.file } : { uri: uploadIntent.localUri }
-      )
-    : {};
+      );
+    } catch {
+      previewData = {};
+    }
+  }
   const video = {
-    width: existingVideo?.width ?? previewData.width,
-    height: existingVideo?.height ?? previewData.height,
-    duration: existingVideo?.duration ?? previewData.duration,
+    width: existingWidth ?? positiveNumberOrUndefined(previewData.width),
+    height: existingHeight ?? positiveNumberOrUndefined(previewData.height),
+    duration:
+      existingDuration ?? positiveNumberOrUndefined(previewData.duration),
     posterUri: existingVideo?.posterUri ?? previewData.posterUri,
   };
 

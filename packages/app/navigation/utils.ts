@@ -182,12 +182,13 @@ export function useNavigateToPost() {
     navigation.getState()?.index === activityIndex;
 
   return useCallback(
-    (post: db.Post) => {
+    (post: db.Post, options?: { selectedPostId?: string | null }) => {
       const postParams = {
         postId: post.id,
         authorId: post.authorId,
         channelId: post.channelId,
         groupId: post.groupId ?? undefined,
+        selectedPostId: options?.selectedPostId,
       };
 
       if (!isWindowNarrow && currentScreenIsActivity) {
@@ -204,12 +205,7 @@ export function useNavigateToPost() {
         return;
       }
 
-      navigation.navigate('Post', {
-        postId: post.id,
-        authorId: post.authorId,
-        channelId: post.channelId,
-        groupId: post.groupId ?? undefined,
-      });
+      navigation.navigate('Post', postParams);
     },
     [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
   );
@@ -430,6 +426,7 @@ export function getDesktopChannelRoute(
       screen: screenName,
       params: {
         channelId,
+        selectedPostId,
         ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
         params: {

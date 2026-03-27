@@ -78,7 +78,7 @@
 ++  mo-v-posts  ((mp id-post (may v-post)) lte)
 ::  $v-reply: a post comment
 ::
-+$  v-reply       [v-reply-seal (rev memo)]
++$  v-reply       [v-reply-seal (rev reply-essay)]
 +$  id-reply      time
 +$  v-replies     ((mop id-reply (may v-reply)) lte)
 ++  on-v-replies  ((on id-reply (may v-reply)) lte)
@@ -109,6 +109,10 @@
   $:  memo
       kind=path
       meta=(unit data:m)
+      blob=(unit @t)
+  ==
++$  reply-essay
+  $:  memo
       blob=(unit @t)
   ==
 ::  $reply-meta: metadata for all replies
@@ -164,7 +168,7 @@
 +$  v-reacts  (map author (rev (unit react)))
 +$  client-id  [author=ship sent=time]
 +$  pending-posts  (map client-id essay)
-+$  pending-replies  (map [top=id-post id=client-id] memo)
++$  pending-replies  (map [top=id-post id=client-id] reply-essay)
 +$  pending-messages
   $:  posts=pending-posts
       replies=pending-replies
@@ -254,6 +258,12 @@
   |$  [data]
   ::NOTE  not +each, avoids p= faces for better ergonomics
   $%([%& data] [%| tombstone])
+::  +mind: bind for $may. mind the gap.
+::
+++  mind
+  |*  [a=(may) b=gate]
+  ?:  ?=(%| -.a)  a
+  &+(b +.a)
 +$  tombstone
   $:  id=?(id-post id-reply)  ::NOTE  the same type, how convenient!
       =author
@@ -336,8 +346,8 @@
   ==
 ::
 +$  c-reply
-  $%  [%add =memo]
-      [%edit id=id-reply =memo]
+  $%  [%add =reply-essay]
+      [%edit id=id-reply =reply-essay]
       [%del id=id-reply]
       c-react
   ==
@@ -402,7 +412,7 @@
 ::
 +$  r-pending
   $%  [%post =essay]
-      [%reply top=id-post =reply-meta =memo]
+      [%reply top=id-post =reply-meta =reply-essay]
   ==
 +$  r-reply
   $%  [%set reply=(may reply)]
@@ -485,8 +495,8 @@
       =reply-meta
   ==
 +$  reacts  (map author react)
-+$  reply  [reply-seal (rev memo)]
-+$  simple-reply  [reply-seal memo]
++$  reply  [reply-seal (rev reply-essay)]
++$  simple-reply  [reply-seal reply-essay]
 +$  replies  ((mop id-reply (may reply)) lte)
 +$  simple-replies     ((mop id-reply simple-reply) lte)
 +$  reply-seal  [id=id-reply parent-id=id-post =reacts]

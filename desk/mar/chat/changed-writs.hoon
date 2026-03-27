@@ -13,7 +13,7 @@
     |=  [=whom:v6:cv writs=(unit writs:v6:cv)]
     ^-  [@t json]
     :-  (^whom whom)
-    ?~(writs ~ (^writs u.writs))
+    ?~(writs ~ (writs:v6 u.writs))
   --
 ++  grab
   |%

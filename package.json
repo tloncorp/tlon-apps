@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build:api": "pnpm --filter '@tloncorp/api' build",
+    "dev:api": "pnpm --filter '@tloncorp/api' watch",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",

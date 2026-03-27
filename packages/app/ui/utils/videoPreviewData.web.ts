@@ -7,9 +7,7 @@ const MEDIA_EVENT_TIMEOUT_MS = 1500;
 export async function getVideoPreviewData(
   source: VideoPreviewSource
 ): Promise<VideoPreviewData> {
-  const sourceUri =
-    'uri' in source ? source.uri : URL.createObjectURL(source.file);
-  const shouldRevokeSourceUri = 'file' in source;
+  const { sourceUri, shouldRevokeSourceUri } = await getLoadableSource(source);
   const video = document.createElement('video');
 
   video.preload = 'metadata';
@@ -65,7 +63,12 @@ async function capturePosterUri(
   if (captureTime > 0) {
     const didSeek = await seekTo(video, captureTime);
     if (!didSeek) {
-      return undefined;
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const didLoadFrame = await waitForFrame(video);
+        if (!didLoadFrame) {
+          return undefined;
+        }
+      }
     }
   } else if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
     const didLoadFrame = await waitForFrame(video);
@@ -130,6 +133,32 @@ function seekTo(video: HTMLVideoElement, time: number): Promise<boolean> {
       resolve(false);
     }
   });
+}
+
+async function getLoadableSource(source: VideoPreviewSource): Promise<{
+  sourceUri: string;
+  shouldRevokeSourceUri: boolean;
+}> {
+  if ('file' in source) {
+    return {
+      sourceUri: URL.createObjectURL(source.file),
+      shouldRevokeSourceUri: true,
+    };
+  }
+
+  if (!source.uri.trim().toLowerCase().startsWith('data:')) {
+    return {
+      sourceUri: source.uri,
+      shouldRevokeSourceUri: false,
+    };
+  }
+
+  const response = await fetch(source.uri);
+  const blob = await response.blob();
+  return {
+    sourceUri: URL.createObjectURL(blob),
+    shouldRevokeSourceUri: true,
+  };
 }
 
 function waitForVideoEvent(

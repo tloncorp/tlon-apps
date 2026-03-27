@@ -56,22 +56,18 @@
       :~  :+  %noun               &  -:!>(*vale:m-noun)
           :+  %group              &  -:!>(*vale:m-group)
           :+  %group-1            &  -:!>(*vale:m-group-1)
-          :+  %group-2            |  -:!>(*vale:m-group-2)
+          :+  %group-2            &  -:!>(*vale:m-group-2)
         ::
           :+  %groups             &  -:!>(*vale:m-groups)
           :+  %groups-1           &  -:!>(*vale:m-groups-1)
-          :+  %groups-2           |  -:!>(*vale:m-groups-2)
+          :+  %groups-2           &  -:!>(*vale:m-groups-2)
         ::
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
-          ::
-          ::TODO make strict once used
-          :+  %groups-ui-2        |  -:!>(*vale:m-groups-ui-2)
+          :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
         ::
           :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
-          ::
-          ::TODO make strict once used
-          :+  %group-changed-groups-2  |  -:!>(*vale:m-group-changed-groups-2)
+          :+  %group-changed-groups-2  &  -:!>(*vale:m-group-changed-groups-2)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -88,19 +84,13 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          ::
-          ::TODO make strict once used
-          :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
+          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
-          ::
-          ::TODO make strict once used
-          :+  %foreign-1          |  -:!>(*vale:m-foreign-1)
-          ::
-          ::TODO make strict once used
-          :+  %foreigns-1         |  -:!>(*vale:m-foreigns-1)
+          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
+          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
     ::
@@ -175,8 +165,8 @@
       [~.groups^%2 ~ ~]
     %-  my
     :~  %groups^[~.groups^%2 ~ ~]
-        %channels^[~.channels^%3 ~ ~]
-        %channels-server^[~.channels^%3 ~ ~]
+        %channels^[~.channels^%4 ~ ~]
+        %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
 %^  verb  |  %warn
@@ -3388,8 +3378,7 @@
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
-      ::TODO use versioned channel api
-      =/  action=a-channels:d  [%channel nes %leave ~]
+      =/  action=a-channels:v9:dv  [%channel nes %leave ~]
       =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
       `[%pass wire %agent dock %poke cage]
@@ -3405,8 +3394,7 @@
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
-      ::TODO use version channels types
-      =/  action=a-channels:d  [%channel nes %join flag]
+      =/  action=a-channels:v9:dv  [%channel nes %join flag]
       =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
