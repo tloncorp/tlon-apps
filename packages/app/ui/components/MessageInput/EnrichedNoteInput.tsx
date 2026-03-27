@@ -1,11 +1,4 @@
 import {
-  EnrichedTextInput,
-  type EnrichedTextInputInstance,
-  type OnChangeSelectionEvent,
-  type OnChangeStateEvent,
-  type OnPasteImagesEvent,
-} from 'react-native-enriched';
-import {
   forwardRef,
   memo,
   useCallback,
@@ -16,13 +9,17 @@ import {
   useState,
 } from 'react';
 import type { NativeSyntheticEvent, TextStyle, ViewStyle } from 'react-native';
+import {
+  EnrichedTextInput,
+  type EnrichedTextInputInstance,
+  type OnChangeSelectionEvent,
+  type OnChangeStateEvent,
+  type OnPasteImagesEvent,
+} from 'react-native-enriched';
 import { useTheme } from 'tamagui';
 
 import { useIsDarkTheme } from '../../utils';
-import type {
-  TlonBridgeState,
-  TlonEditorBridge,
-} from './toolbarActions';
+import type { TlonBridgeState, TlonEditorBridge } from './toolbarActions';
 
 /**
  * Subset of TlonEditorBridge that EnrichedNoteInput can fulfill via
@@ -79,9 +76,7 @@ function mapToTlonBridgeState(
     isLinkActive,
     isUnderlineActive: s?.underline?.isActive ?? false,
     headingLevel:
-      [1, 2, 3, 4, 5, 6].find(
-        (l) => (s as any)?.[`h${l}`]?.isActive
-      ) ?? 0,
+      [1, 2, 3, 4, 5, 6].find((l) => (s as any)?.[`h${l}`]?.isActive) ?? 0,
 
     canToggleBold: true,
     canToggleItalic: true,
@@ -113,7 +108,21 @@ function mapToTlonBridgeState(
  */
 export const EnrichedNoteInput = memo(
   forwardRef<EnrichedNoteInputRef, EnrichedNoteInputProps>(
-    ({ onChangeHtml, onEditorStateChange, onPasteImages, onStartMention, onChangeMention, onEndMention, initialHtml, placeholder, testID, style }, ref) => {
+    (
+      {
+        onChangeHtml,
+        onEditorStateChange,
+        onPasteImages,
+        onStartMention,
+        onChangeMention,
+        onEndMention,
+        initialHtml,
+        placeholder,
+        testID,
+        style,
+      },
+      ref
+    ) => {
       const enrichedRef = useRef<EnrichedTextInputInstance>(null);
       const tamagui = useTheme();
       const isDark = useIsDarkTheme();
@@ -128,12 +137,12 @@ export const EnrichedNoteInput = memo(
         const codeColor = isDark ? '#c9d1d9' : '#616161';
 
         return {
-          h1: { fontSize: 30, bold: true },
-          h2: { fontSize: 24, bold: true },
-          h3: { fontSize: 20, bold: true },
-          h4: { fontSize: 18, bold: true },
-          h5: { fontSize: 16, bold: true },
-          h6: { fontSize: 14, bold: true },
+          h1: { fontSize: 24, bold: true },
+          h2: { fontSize: 20, bold: true },
+          h3: { fontSize: 16, bold: true },
+          h4: { fontSize: 14, bold: true },
+          h5: { fontSize: 12, bold: true },
+          h6: { fontSize: 10, bold: true },
           blockquote: {
             borderColor,
             borderWidth: 3,
@@ -172,25 +181,35 @@ export const EnrichedNoteInput = memo(
           },
           mention: {
             color: '#3b80e8',
-            backgroundColor: isDark ? 'rgba(59,128,232,0.15)' : 'rgba(59,128,232,0.1)',
+            backgroundColor: isDark
+              ? 'rgba(59,128,232,0.15)'
+              : 'rgba(59,128,232,0.1)',
           },
         };
-      }, [tamagui.primaryText.val, tamagui.secondaryText.val, tamagui.border.val, isDark]);
+      }, [
+        tamagui.primaryText.val,
+        tamagui.secondaryText.val,
+        tamagui.border.val,
+        isDark,
+      ]);
 
       // Track active style state from onChangeState for the toolbar adapter
       const [styleState, setStyleState] = useState<OnChangeStateEvent | null>(
         null
       );
       // Track current selection for link operations
-      const selectionRef = useRef<{ start: number; end: number; text: string }>({
-        start: 0,
-        end: 0,
-        text: '',
-      });
+      const selectionRef = useRef<{ start: number; end: number; text: string }>(
+        {
+          start: 0,
+          end: 0,
+          text: '',
+        }
+      );
 
       // onChangeHtml gives NativeSyntheticEvent — unwrap and forward
       const handleChangeHtml = useCallback(
         (e: NativeSyntheticEvent<{ value: string }>) => {
+          console.log('[EnrichedNoteInput] onChangeHtml:', e.nativeEvent.value);
           onChangeHtml?.(e.nativeEvent.value);
         },
         [onChangeHtml]
@@ -218,6 +237,7 @@ export const EnrichedNoteInput = memo(
           { trigger: '`', style: 'inline_code', type: 'inline' as const },
           { trigger: '**', style: 'bold', type: 'inline' as const },
           { trigger: '*', style: 'italic', type: 'inline' as const },
+          { trigger: '_', style: 'italic', type: 'inline' as const },
           { trigger: '~~', style: 'strikethrough', type: 'inline' as const },
         ],
         []
@@ -227,7 +247,9 @@ export const EnrichedNoteInput = memo(
         (e: NativeSyntheticEvent<OnChangeStateEvent>) => {
           const nativeState = e.nativeEvent;
           setStyleState(nativeState);
-          onEditorStateChange?.(mapToTlonBridgeState(nativeState, selectionRef.current));
+          onEditorStateChange?.(
+            mapToTlonBridgeState(nativeState, selectionRef.current)
+          );
         },
         [onEditorStateChange]
       );
@@ -240,7 +262,9 @@ export const EnrichedNoteInput = memo(
             text: e.nativeEvent.text,
           };
           // Re-emit state so canSetLink updates based on new selection
-          onEditorStateChange?.(mapToTlonBridgeState(styleState, selectionRef.current));
+          onEditorStateChange?.(
+            mapToTlonBridgeState(styleState, selectionRef.current)
+          );
         },
         [onEditorStateChange, styleState]
       );
@@ -307,7 +331,8 @@ export const EnrichedNoteInput = memo(
 
             // --- Content methods ---
             setContent: (html: string) => enrichedRef.current?.setValue(html),
-            getHTML: () => enrichedRef.current?.getHTML() ?? Promise.resolve(''),
+            getHTML: () =>
+              enrichedRef.current?.getHTML() ?? Promise.resolve(''),
             getJSON: () => Promise.resolve({}),
             setSelection: noop,
             undo: noop,
@@ -317,7 +342,8 @@ export const EnrichedNoteInput = memo(
             focus: () => enrichedRef.current?.focus(),
             blur: () => enrichedRef.current?.blur(),
 
-            getEditorState: () => mapToTlonBridgeState(styleState, selectionRef.current),
+            getEditorState: () =>
+              mapToTlonBridgeState(styleState, selectionRef.current),
           } as unknown as TlonEditorBridge;
 
           return { editor: adapter };
@@ -340,9 +366,17 @@ export const EnrichedNoteInput = memo(
           onChangeSelection={handleChangeSelection}
           onPasteImages={handlePasteImages}
           onStartMention={onStartMention}
-          onChangeMention={onChangeMention ? (e) => onChangeMention(e.indicator, e.text) : undefined}
+          onChangeMention={
+            onChangeMention
+              ? (e) => onChangeMention(e.indicator, e.text)
+              : undefined
+          }
           onEndMention={onEndMention}
-          style={{ color: tamagui.primaryText.val, fontSize: 16, ...style as any }}
+          style={{
+            color: tamagui.primaryText.val,
+            fontSize: 16,
+            ...(style as any),
+          }}
         />
       );
     }

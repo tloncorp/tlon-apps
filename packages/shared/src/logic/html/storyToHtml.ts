@@ -53,6 +53,65 @@ function isRuleBlock(block: Block): block is Rule {
 }
 
 /**
+ * Strip trailing break inlines from an array.
+ */
+/**
+ * Strip trailing breaks and whitespace-only strings from an inline array.
+ */
+function stripTrailingBreaks(inlines: Inline[]): Inline[] {
+  const result = [...inlines];
+  while (result.length > 0) {
+    const last = result[result.length - 1];
+    if (isBreak(last)) {
+      result.pop();
+    } else if (typeof last === 'string' && !last.trim()) {
+      result.pop();
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+/**
+ * Strip leading breaks and whitespace-only strings from an inline array.
+ */
+function stripLeadingBreaks(inlines: Inline[]): Inline[] {
+  const result = [...inlines];
+  while (result.length > 0) {
+    const first = result[0];
+    if (isBreak(first)) {
+      result.shift();
+    } else if (typeof first === 'string' && !first.trim()) {
+      result.shift();
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+/**
+ * Clean an inline array by stripping leading/trailing whitespace and breaks.
+ */
+function cleanInlines(inlines: Inline[]): Inline[] {
+  return stripTrailingBreaks(stripLeadingBreaks(inlines));
+}
+
+/**
+ * Check if an inline is a block-level element that should not be wrapped in <p>.
+ */
+function isBlockLevelInline(inline: Inline): boolean {
+  if (typeof inline === 'string') return false;
+  return (
+    isBlockquote(inline) ||
+    isBlockCode(inline) ||
+    isCode(inline as unknown as Block) ||
+    isListing(inline as unknown as Block)
+  );
+}
+
+/**
  * Convert an array of Inline elements to an HTML string.
  */
 function inlinesToHtml(inlines: Inline[]): string {
@@ -66,19 +125,19 @@ function inlinesToHtml(inlines: Inline[]): string {
 
     if (isBold(inline)) {
       const bold = inline as Bold;
-      parts.push(`<strong>${inlinesToHtml(bold.bold)}</strong>`);
+      parts.push(`<b>${inlinesToHtml(bold.bold)}</b>`);
       continue;
     }
 
     if (isItalics(inline)) {
       const italics = inline as Italics;
-      parts.push(`<em>${inlinesToHtml(italics.italics)}</em>`);
+      parts.push(`<i>${inlinesToHtml(italics.italics)}</i>`);
       continue;
     }
 
     if (isStrikethrough(inline)) {
       const strike = inline as Strikethrough;
-      parts.push(`<del>${inlinesToHtml(strike.strike)}</del>`);
+      parts.push(`<s>${inlinesToHtml(strike.strike)}</s>`);
       continue;
     }
 
@@ -113,28 +172,32 @@ function inlinesToHtml(inlines: Inline[]): string {
     if (isTask(inline)) {
       const task = inline as Task;
       const checkbox = task.task.checked ? '[x]' : '[ ]';
-      parts.push(`${checkbox} ${inlinesToHtml(task.task.content)}`);
+      parts.push(
+        `${checkbox} ${inlinesToHtml(stripTrailingBreaks(task.task.content))}`
+      );
       continue;
     }
 
     if (isBlockquote(inline)) {
       const bq = inline as Blockquote;
       parts.push(
-        `<blockquote><p>${inlinesToHtml(bq.blockquote)}</p></blockquote>`
+        `<blockquote><p>${inlinesToHtml(cleanInlines(bq.blockquote))}</p></blockquote>`
       );
       continue;
     }
 
     if (isBlockCode(inline)) {
       const codeContent = (inline as { code: string }).code;
-      parts.push(`<pre><code>${escapeHtml(codeContent)}</code></pre>`);
+      const codeLines = escapeHtml(codeContent).split('\n');
+      parts.push(`<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`);
       continue;
     }
 
     // Handle Code block in inline context
     if (isCode(inline as unknown as Block)) {
       const code = inline as unknown as Code;
-      parts.push(`<pre><code>${escapeHtml(code.code.code)}</code></pre>`);
+      const codeLines = escapeHtml(code.code.code).split('\n');
+      parts.push(`<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`);
       continue;
     }
 
@@ -160,14 +223,15 @@ function listingToHtml(listings: Listing[], listType: string): string {
     if (isListItem(listing)) {
       const listItem = listing as ListItem;
 
-      if (listType === 'tasklist' && listItem.item.length > 0 && isTask(listItem.item[0])) {
-        const task = listItem.item[0] as Task;
+      const cleanedItem = stripTrailingBreaks(listItem.item);
+      if (listType === 'tasklist' && cleanedItem.length > 0 && isTask(cleanedItem[0])) {
+        const task = cleanedItem[0] as Task;
         const checked = task.task.checked ? ' checked' : '';
         items.push(
-          `<li><input type="checkbox"${checked} disabled>${inlinesToHtml(task.task.content)}</li>`
+          `<li${checked}>${inlinesToHtml(stripTrailingBreaks(task.task.content))}</li>`
         );
       } else {
-        items.push(`<li>${inlinesToHtml(listItem.item)}</li>`);
+        items.push(`<li>${inlinesToHtml(cleanedItem)}</li>`);
       }
     } else if (isList(listing)) {
       const list = listing as List;
@@ -193,7 +257,8 @@ function blockToHtml(block: Block): string {
 
   if (isCode(block)) {
     const code = block as Code;
-    return `<pre><code>${escapeHtml(code.code.code)}</code></pre>`;
+    const codeLines = escapeHtml(code.code.code).split('\n');
+    return `<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`;
   }
 
   if (isImage(block)) {
@@ -212,6 +277,11 @@ function blockToHtml(block: Block): string {
 
     if (isList(listing)) {
       const list = listing as List;
+      if (list.list.type === 'tasklist') {
+        // Add <br> before checkbox list to prevent the enriched editor
+        // from absorbing the previous element into the list
+        return `<br><ul data-type="checkbox">${listingToHtml(list.list.items, list.list.type)}</ul>`;
+      }
       const tag = list.list.type === 'ordered' ? 'ol' : 'ul';
       return `<${tag}>${listingToHtml(list.list.items, list.list.type)}</${tag}>`;
     } else if (isListItem(listing)) {
@@ -243,33 +313,45 @@ export function storyToHtml(story: Story): string {
         parts.push(html);
       }
     } else {
-      // VerseInline — split on blockquotes that need their own block
+      // VerseInline — check for empty line (just a break)
       const inlines = verse.inline;
+      if (
+        inlines.length === 1 &&
+        typeof inlines[0] === 'object' &&
+        inlines[0] !== null &&
+        isBreak(inlines[0])
+      ) {
+        parts.push('<br>');
+        continue;
+      }
+
+      // Split on block-level elements (blockquotes, code blocks)
+      // that should not be wrapped in <p>
       let currentSegment: Inline[] = [];
+
+      const flushSegment = () => {
+        if (currentSegment.length > 0) {
+          const cleaned = cleanInlines(currentSegment);
+          if (cleaned.length > 0) {
+            parts.push(`<p>${inlinesToHtml(cleaned)}</p>`);
+          }
+          currentSegment = [];
+        }
+      };
 
       for (let i = 0; i < inlines.length; i++) {
         const item = inlines[i];
 
-        if (isBlockquote(item)) {
-          // Flush current segment as <p>
-          if (currentSegment.length > 0) {
-            const html = inlinesToHtml(currentSegment);
-            if (html) {
-              parts.push(`<p>${html}</p>`);
-            }
-            currentSegment = [];
-          }
-
-          const bq = item as Blockquote;
-          parts.push(
-            `<blockquote><p>${inlinesToHtml(bq.blockquote)}</p></blockquote>`
-          );
+        if (isBlockLevelInline(item)) {
+          // Flush current segment as <p>, then render block-level element directly
+          flushSegment();
+          parts.push(inlinesToHtml([item]));
         } else {
-          // Skip breaks right before blockquotes
+          // Skip breaks right before block-level elements
           if (
             isBreak(item) &&
             i + 1 < inlines.length &&
-            isBlockquote(inlines[i + 1])
+            isBlockLevelInline(inlines[i + 1])
           ) {
             continue;
           }
@@ -277,19 +359,7 @@ export function storyToHtml(story: Story): string {
         }
       }
 
-      // Flush remaining segment
-      if (currentSegment.length > 0) {
-        // Remove trailing breaks
-        while (
-          currentSegment.length > 0 &&
-          isBreak(currentSegment[currentSegment.length - 1])
-        ) {
-          currentSegment.pop();
-        }
-        if (currentSegment.length > 0) {
-          parts.push(`<p>${inlinesToHtml(currentSegment)}</p>`);
-        }
-      }
+      flushSegment();
     }
   }
 

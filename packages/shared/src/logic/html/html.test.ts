@@ -22,7 +22,7 @@ describe('storyToHtml', () => {
       },
     ];
     expect(storyToHtml(story)).toBe(
-      '<p><strong>bold</strong> <em>italic</em> <del>strike</del></p>'
+      '<p><b>bold</b> <i>italic</i> <s>strike</s></p>'
     );
   });
 
@@ -53,7 +53,7 @@ describe('storyToHtml', () => {
       { block: { code: { code: 'const x = 1;', lang: 'js' } } },
     ];
     expect(storyToHtml(story)).toBe(
-      '<pre><code>const x = 1;</code></pre>'
+      '<codeblock><p>const x = 1;</p></codeblock>'
     );
   });
 
@@ -147,7 +147,7 @@ describe('htmlToStory', () => {
 
   it('converts bold, italic, strikethrough', () => {
     const story = htmlToStory(
-      '<p><strong>bold</strong> <em>italic</em> <del>strike</del></p>'
+      '<p><b>bold</b> <i>italic</i> <s>strike</s></p>'
     );
     expect(story).toEqual([
       {
@@ -188,10 +188,10 @@ describe('htmlToStory', () => {
 
   it('converts code blocks', () => {
     const story = htmlToStory(
-      '<pre><code>const x = 1;</code></pre>'
+      '<codeblock><p>const x = 1;</p></codeblock>'
     );
     expect(story).toEqual([
-      { block: { code: { code: 'const x = 1;', lang: '' } } },
+      { inline: [{ code: 'const x = 1;' }] },
     ]);
   });
 
@@ -274,7 +274,7 @@ describe('round-trip: storyToHtml → htmlToStory', () => {
     ['inline code', [{ inline: ['text ', { 'inline-code': 'code' }] }]],
     ['link', [{ inline: [{ link: { href: 'https://example.com', content: 'link' } }] }]],
     ['header', [{ block: { header: { tag: 'h1', content: ['Title'] } } }]],
-    ['code block', [{ block: { code: { code: 'x = 1', lang: '' } } }]],
+    ['code block', [{ inline: [{ code: 'x = 1' }] }]],
     ['horizontal rule', [{ block: { rule: null } }]],
     ['ship mention', [{ inline: ['hi ', { ship: 'zod' }] }]],
   ];

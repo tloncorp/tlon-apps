@@ -69,7 +69,7 @@ patchedDependencies:
     hash: x27vv6nugdftjhhla3zhu5i7om
     path: patches/react-native-country-codes-picker@2.3.5.patch
   react-native-enriched@0.5.2:
-    hash: b267c4k6qvjs34jy4juawkhvre
+    hash: p5ehk2f7js5nfrqomqy5iggyre
     path: patches/react-native-enriched@0.5.2.patch
   tailwind-rn@4.2.0:
     hash: huubbq5aurym44djogb6gnyabq
@@ -404,7 +404,7 @@ importers:
         version: 1.16.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-enriched:
         specifier: ^0.5.1
-        version: 0.5.2(patch_hash=b267c4k6qvjs34jy4juawkhvre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        version: 0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: ^3.0.0
         version: 3.0.0
@@ -1075,7 +1075,7 @@ importers:
         version: 1.16.1(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-enriched:
         specifier: '*'
-        version: 0.5.2(patch_hash=b267c4k6qvjs34jy4juawkhvre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        version: 0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: '*'
         version: 3.0.0
@@ -27410,7 +27410,7 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)
 
-  react-native-enriched@0.5.2(patch_hash=b267c4k6qvjs34jy4juawkhvre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  react-native-enriched@0.5.2(patch_hash=p5ehk2f7js5nfrqomqy5iggyre)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)

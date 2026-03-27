@@ -4,6 +4,7 @@ import {
   extractContentTypesFromPost,
   htmlToStory,
   markdownToStory,
+  postContentToHtml,
   storyToContent,
   storyToHtml,
   storyToMarkdown,
@@ -53,7 +54,7 @@ import {
 } from './MessageInput/toolbarActions';
 import { ScreenHeader } from './ScreenHeader';
 
-const logger = createDevLogger('BigInput', false);
+const logger = createDevLogger('BigInput', true);
 
 /**
  * Manages markdown-mode state and the conversions between markdown text and
@@ -220,8 +221,8 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
-  // TODO: restore feature flag gating before merging
-  const enrichedInputEnabled = Platform.OS !== 'web';
+  const [enrichedInputFlag] = useFeatureFlag('enrichedInput');
+  const enrichedInputEnabled = enrichedInputFlag && Platform.OS !== 'web';
   const {
     isMarkdownMode,
     markdownContent,
@@ -365,10 +366,23 @@ export function BigInput({
   useEffect(() => {
     if (enrichedInputEnabled && editingPost?.content) {
       try {
-        const { inlines, blocks } = extractContentTypesFromPost(editingPost);
-        // Reconstruct Story from flat inlines + blocks, then convert to HTML
-        const story = constructStory([...inlines, ...blocks]);
-        const html = storyToHtml(story);
+        const { story } = extractContentTypesFromPost(editingPost);
+        logger.log('editingPost postContent:', JSON.stringify(story));
+        if (!story) return;
+        // Content can be either PostContent (BlockData[]) or Story (Verse[]).
+        // Detect by checking if items have 'type' field (PostContent) or
+        // 'inline'/'block' fields (Story).
+        const firstItem = story[0] as any;
+        let html: string;
+        if (firstItem && ('inline' in firstItem || 'block' in firstItem)) {
+          // Story (Verse[]) format
+          const innerHtml = storyToHtml(story as any);
+          html = innerHtml ? `<html>${innerHtml}</html>` : '';
+        } else {
+          // PostContent (BlockData[]) format
+          html = postContentToHtml(story as any);
+        }
+        logger.log('initialHtml:', html);
         setEnrichedInitialHtml(html);
         setEnrichedHtml(html);
       } catch (e) {
@@ -439,8 +453,15 @@ export function BigInput({
     if (enrichedInputEnabled) {
       // Enriched editor: convert HTML to Story
       try {
-        const story = htmlToStory(enrichedHtml);
+        logger.log('enrichedHtml:', enrichedHtml);
+        // Strip <html> wrapper that the enriched editor adds
+        const innerHtml = enrichedHtml
+          .replace(/^<html>\n?/, '')
+          .replace(/\n?<\/html>$/, '');
+        const story = htmlToStory(innerHtml);
+        logger.log('story:', JSON.stringify(story));
         content = storyToContent(story);
+        logger.log('content:', JSON.stringify(content));
       } catch (error) {
         logger.error('Failed to convert HTML for send:', error);
         showToast({
@@ -829,6 +850,16 @@ export function BigInput({
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View flex={1} flexDirection="column">
+        {__DEV__ && (
+          <Text
+            fontSize={10}
+            color="$tertiaryText"
+            paddingHorizontal="$l"
+            paddingTop="$xs"
+          >
+            {enrichedInputEnabled ? 'enriched' : isMarkdownMode ? 'markdown' : 'tiptap'}
+          </Text>
+        )}
         {channelType === 'notebook' && (
           <>
             <View padding="$m" paddingBottom="$s">

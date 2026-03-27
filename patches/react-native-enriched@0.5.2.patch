@@ -1,197 +1,67 @@
+diff --git a/ReactNativeEnriched.podspec b/ReactNativeEnriched.podspec
+index fc0cbbb7e6003878729c11922b6f776c80370b5c..03d19b107d698b623647251233bf4d6598f6d5f2 100644
+--- a/ReactNativeEnriched.podspec
++++ b/ReactNativeEnriched.podspec
+@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
+   s.source       = { :git => "https://github.com/software-mansion/react-native-enriched.git", :tag => "#{s.version}" }
+ 
+   s.source_files = ["ios/**/*.{h,m,mm,cpp}", "cpp/**/*.{h,hpp,c,cpp}"]
+-  s.exclude_files = ["cpp/tests/**"]
++  s.exclude_files = ["cpp/tests/**", "ios/generated/**"]
+   s.private_header_files = "ios/**/*.h"
+   s.pod_target_xcconfig = {
+     'HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}/cpp/parser" "${PODS_TARGET_SRCROOT}/cpp/GumboParser"'
+diff --git a/android/build.gradle b/android/build.gradle
+index c9acfa0da38e879b8e3fb0d5e87d3a07460e6774..b425610669d3ed41e6ae01a22e2143ee114c822f 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -78,10 +78,6 @@ android {
+ 
+ 	sourceSets {
+ 		main {
+-			java.srcDirs += [
+-				"generated/java",
+-				"generated/jni"
+-			]
+ 		}
+ 	}
+ }
 diff --git a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-index d015c8f6686660cc295287f254f2323326028030..69d0242dace6eb8defb658334febac6f378cf103 100644
---- a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-+++ b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-@@ -64,6 +64,18 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
-       case "contextMenuItems":
-         mViewManager.setContextMenuItems(view, (ReadableArray) value);
-         break;
-+      case "textShortcuts":
-+        mViewManager.setTextShortcuts(view, (ReadableArray) value);
-+        break;
-+      case "returnKeyType":
-+        mViewManager.setReturnKeyType(view, value == null ? null : (String) value);
-+        break;
-+      case "returnKeyLabel":
-+        mViewManager.setReturnKeyLabel(view, value == null ? null : (String) value);
-+        break;
-+      case "submitBehavior":
-+        mViewManager.setSubmitBehavior(view, value == null ? null : (String) value);
-+        break;
-       case "color":
-         mViewManager.setColor(view, ColorPropConverter.getColor(value, view.getContext()));
-         break;
+deleted file mode 100644
+index d015c8f6686660cc295287f254f2323326028030..0000000000000000000000000000000000000000
 diff --git a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-index ddc5617f00fa70a693893eba2d6d66ebf7a209bf..417d21db99f477c0448768903946c01c78ac1f80 100644
---- a/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-+++ b/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-@@ -29,6 +29,10 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
-   void setScrollEnabled(T view, boolean value);
-   void setLinkRegex(T view, @Nullable ReadableMap value);
-   void setContextMenuItems(T view, @Nullable ReadableArray value);
-+  void setTextShortcuts(T view, @Nullable ReadableArray value);
-+  void setReturnKeyType(T view, @Nullable String value);
-+  void setReturnKeyLabel(T view, @Nullable String value);
-+  void setSubmitBehavior(T view, @Nullable String value);
-   void setColor(T view, @Nullable Integer value);
-   void setFontSize(T view, float value);
-   void setLineHeight(T view, float value);
+deleted file mode 100644
+index ddc5617f00fa70a693893eba2d6d66ebf7a209bf..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ComponentDescriptors.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ComponentDescriptors.cpp
+deleted file mode 100644
+index 2e5279c29dfc43f53abc992703558640ba674267..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ComponentDescriptors.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ComponentDescriptors.h
+deleted file mode 100644
+index 9b925c260f816f8ad22da7a3fa36405be1c6899e..0000000000000000000000000000000000000000
 diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
-index 6e04a8c7979b5a99891eb2183186282e7ef77304..735f74509c12aa9696dd9527ffda7fcd0f7290a9 100644
---- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
-+++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
-@@ -422,4 +422,13 @@ payload.setProperty(runtime, "selectionEnd", event.selectionEnd);
-   });
- }
- 
-+
-+void EnrichedTextInputViewEventEmitter::onSubmitEditing(OnSubmitEditing event) const {
-+  dispatchEvent("submitEditing", [event=std::move(event)](jsi::Runtime &runtime) {
-+    auto payload = jsi::Object(runtime);
-+    payload.setProperty(runtime, "text", event.text);
-+    return payload;
-+  });
-+}
-+
- } // namespace facebook::react
+deleted file mode 100644
+index 6e04a8c7979b5a99891eb2183186282e7ef77304..0000000000000000000000000000000000000000
 diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
-index 857faaac4627a29f8fdf012882566d0bb29e5b1c..aa9bfabb9b3c803dc52e80ab0b50f04afba0418c 100644
---- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
-+++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
-@@ -356,6 +356,10 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
-     int selectionEnd;
-     OnContextMenuItemPressStyleState styleState;
-     };
-+
-+  struct OnSubmitEditing {
-+      std::string text;
-+    };
-   void onInputFocus(OnInputFocus value) const;
- 
-   void onInputBlur(OnInputBlur value) const;
-@@ -381,5 +385,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
-   void onPasteImages(OnPasteImages value) const;
- 
-   void onContextMenuItemPress(OnContextMenuItemPress value) const;
-+
-+  void onSubmitEditing(OnSubmitEditing value) const;
- };
- } // namespace facebook::react
+deleted file mode 100644
+index 857faaac4627a29f8fdf012882566d0bb29e5b1c..0000000000000000000000000000000000000000
 diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
-index 04b33f9dee23bca335195747572315a548dd7471..436463345ad735dc3993263dbf249cb1c2b31833 100644
---- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
-+++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
-@@ -33,6 +33,10 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
-     scrollEnabled(convertRawProp(context, rawProps, "scrollEnabled", sourceProps.scrollEnabled, {false})),
-     linkRegex(convertRawProp(context, rawProps, "linkRegex", sourceProps.linkRegex, {})),
-     contextMenuItems(convertRawProp(context, rawProps, "contextMenuItems", sourceProps.contextMenuItems, {})),
-+    textShortcuts(convertRawProp(context, rawProps, "textShortcuts", sourceProps.textShortcuts, {})),
-+    returnKeyType(convertRawProp(context, rawProps, "returnKeyType", sourceProps.returnKeyType, {})),
-+    returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
-+    submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
-     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
-     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
-     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
-@@ -112,6 +116,22 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
-     result["contextMenuItems"] = toDynamic(contextMenuItems);
-   }
-     
-+  if (textShortcuts != oldProps->textShortcuts) {
-+    result["textShortcuts"] = toDynamic(textShortcuts);
-+  }
-+    
-+  if (returnKeyType != oldProps->returnKeyType) {
-+    result["returnKeyType"] = returnKeyType;
-+  }
-+    
-+  if (returnKeyLabel != oldProps->returnKeyLabel) {
-+    result["returnKeyLabel"] = returnKeyLabel;
-+  }
-+    
-+  if (submitBehavior != oldProps->submitBehavior) {
-+    result["submitBehavior"] = submitBehavior;
-+  }
-+    
-   if (color != oldProps->color) {
-     result["color"] = *color;
-   }
+deleted file mode 100644
+index 04b33f9dee23bca335195747572315a548dd7471..0000000000000000000000000000000000000000
 diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
-index 3ca484d56e83977d053cc3273e13fc2802641e00..4474c019ccc9d8f9699b71ae53207bfe03d0510f 100644
---- a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
-+++ b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
-@@ -789,6 +789,61 @@ static inline void fromRawValue(const PropsParserContext& context, const RawValu
-   }
- }
- 
-+
-+struct EnrichedTextInputViewTextShortcutsStruct {
-+  std::string trigger{};
-+  std::string style{};
-+  std::string type{};
-+
-+#ifdef RN_SERIALIZABLE_STATE
-+  bool operator==(const EnrichedTextInputViewTextShortcutsStruct&) const = default;
-+
-+  folly::dynamic toDynamic() const {
-+    folly::dynamic result = folly::dynamic::object();
-+    result["trigger"] = trigger;
-+    result["style"] = style;
-+    result["type"] = type;
-+    return result;
-+  }
-+#endif
-+};
-+
-+static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, EnrichedTextInputViewTextShortcutsStruct &result) {
-+  auto map = (std::unordered_map<std::string, RawValue>)value;
-+
-+  auto tmp_trigger = map.find("trigger");
-+  if (tmp_trigger != map.end()) {
-+    fromRawValue(context, tmp_trigger->second, result.trigger);
-+  }
-+  auto tmp_style = map.find("style");
-+  if (tmp_style != map.end()) {
-+    fromRawValue(context, tmp_style->second, result.style);
-+  }
-+  auto tmp_type = map.find("type");
-+  if (tmp_type != map.end()) {
-+    fromRawValue(context, tmp_type->second, result.type);
-+  }
-+}
-+
-+static inline std::string toString(const EnrichedTextInputViewTextShortcutsStruct &value) {
-+  return "[Object EnrichedTextInputViewTextShortcutsStruct]";
-+}
-+
-+#ifdef RN_SERIALIZABLE_STATE
-+static inline folly::dynamic toDynamic(const EnrichedTextInputViewTextShortcutsStruct &value) {
-+  return value.toDynamic();
-+}
-+#endif
-+
-+static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, std::vector<EnrichedTextInputViewTextShortcutsStruct> &result) {
-+  auto items = (std::vector<RawValue>)value;
-+  for (const auto &item : items) {
-+    EnrichedTextInputViewTextShortcutsStruct newItem;
-+    fromRawValue(context, item, newItem);
-+    result.emplace_back(newItem);
-+  }
-+}
-+
- class EnrichedTextInputViewProps final : public ViewProps {
-  public:
-   EnrichedTextInputViewProps() = default;
-@@ -809,6 +864,10 @@ class EnrichedTextInputViewProps final : public ViewProps {
-   bool scrollEnabled{false};
-   EnrichedTextInputViewLinkRegexStruct linkRegex{};
-   std::vector<EnrichedTextInputViewContextMenuItemsStruct> contextMenuItems{};
-+  std::vector<EnrichedTextInputViewTextShortcutsStruct> textShortcuts{};
-+  std::string returnKeyType{};
-+  std::string returnKeyLabel{};
-+  std::string submitBehavior{};
-   SharedColor color{};
-   Float fontSize{0.0};
-   Float lineHeight{0.0};
+deleted file mode 100644
+index 3ca484d56e83977d053cc3273e13fc2802641e00..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ShadowNodes.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ShadowNodes.cpp
+deleted file mode 100644
+index feadde3309610ba00dcd907f2e30bc24fd5fe285..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ShadowNodes.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/ShadowNodes.h
+deleted file mode 100644
+index 615dfa650f45293c65581e280a39025848661b3c..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/States.cpp b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/States.cpp
+deleted file mode 100644
+index 1dbb184cbddb6252d499bd11296bef0b11d20f7f..0000000000000000000000000000000000000000
+diff --git a/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/States.h b/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/States.h
+deleted file mode 100644
+index 2e55bce756519fb849f97b1da518a937cc8ccb12..0000000000000000000000000000000000000000
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt b/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
 index 851e290cce3902e6a7acf28a7b763c2bed4644b0..bf6d4bbac444e2b076e8e3c703b109503ebc9c39 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
@@ -414,10 +284,10 @@ index c2eb4a97e6c9470c68937ec03238ba6bc871f74b..83caed1ec3f7867434d7d194be584899
  - (CGSize)measureSize:(CGFloat)maxWidth;
  - (void)emitOnLinkDetectedEvent:(NSString *)text
 diff --git a/ios/EnrichedTextInputView.mm b/ios/EnrichedTextInputView.mm
-index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f2ca2580e 100644
+index 5e81c9f26df463cdada4da2bb51f83fa6225760e..9820bf8d289e7fe85b8d84026a5e39f9bbf76b2f 100644
 --- a/ios/EnrichedTextInputView.mm
 +++ b/ios/EnrichedTextInputView.mm
-@@ -9,6 +9,7 @@
+@@ -9,12 +9,13 @@
  #import "TextBlockTapGestureRecognizer.h"
  #import "UIView+React.h"
  #import "WordsUtils.h"
@@ -425,14 +295,50 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
  #import "ZeroWidthSpaceUtils.h"
  #import <React/RCTConversions.h>
  #import <ReactNativeEnriched/EnrichedTextInputViewComponentDescriptor.h>
-@@ -761,6 +762,22 @@ - (void)updateProps:(Props::Shared const &)props
+-#import <ReactNativeEnriched/EventEmitters.h>
+-#import <ReactNativeEnriched/Props.h>
+-#import <ReactNativeEnriched/RCTComponentViewHelpers.h>
++#import <react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h>
++#import <react/renderer/components/ReactNativeEnrichedSpec/Props.h>
++#import <react/renderer/components/ReactNativeEnrichedSpec/RCTComponentViewHelpers.h>
+ #import <folly/dynamic.h>
+ #import <react/utils/ManagedObjectWrapper.h>
+ 
+@@ -100,6 +101,12 @@ - (void)setDefaults {
+   defaultTypingAttributes =
+       [[NSMutableDictionary<NSAttributedStringKey, id> alloc] init];
+ 
++  // Add default paragraph spacing between blocks
++  NSMutableParagraphStyle *defaultParagraphStyle =
++      [[NSMutableParagraphStyle alloc] init];
++  defaultParagraphStyle.paragraphSpacing = 12.0;
++  defaultTypingAttributes[NSParagraphStyleAttributeName] = defaultParagraphStyle;
++
+   stylesDict = @{
+     @([BoldStyle getStyleType]) : [[BoldStyle alloc] initWithInput:self],
+     @([ItalicStyle getStyleType]) : [[ItalicStyle alloc] initWithInput:self],
+@@ -761,6 +768,41 @@ - (void)updateProps:(Props::Shared const &)props
      useHtmlNormalizer = newViewProps.useHtmlNormalizer;
    }
  
-+  // textShortcuts
-+  if (newViewProps.textShortcuts != oldViewProps.textShortcuts) {
++  // textShortcuts — compare manually since codegen struct lacks operator==
++  bool textShortcutsChanged = newViewProps.textShortcuts.size() != oldViewProps.textShortcuts.size();
++  if (!textShortcutsChanged) {
++    for (size_t i = 0; i < newViewProps.textShortcuts.size(); i++) {
++      if (newViewProps.textShortcuts[i].trigger != oldViewProps.textShortcuts[i].trigger ||
++          newViewProps.textShortcuts[i].style != oldViewProps.textShortcuts[i].style ||
++          newViewProps.textShortcuts[i].type != oldViewProps.textShortcuts[i].type) {
++        textShortcutsChanged = true;
++        break;
++      }
++    }
++  }
++  if (textShortcutsChanged) {
 +    NSMutableArray *shortcuts = [NSMutableArray new];
 +    for (const auto &item : newViewProps.textShortcuts) {
++      if (item.trigger.empty() || item.style.empty()) {
++        continue;
++      }
 +      NSString *type = item.type.empty()
 +          ? @"block"
 +          : [NSString fromCppString:item.type];
@@ -442,13 +348,18 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
 +        @"type" : type
 +      }];
 +    }
++    // Sort by trigger length descending so longer triggers match first
++    // (e.g. "**" for bold is checked before "*" for italic)
++    [shortcuts sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
++      return [@([b[@"trigger"] length]) compare:@([a[@"trigger"] length])];
++    }];
 +    textShortcuts = shortcuts;
 +  }
 +
    // default value - must be set before placeholder to make sure it correctly
    // shows on first mount
    if (newViewProps.defaultValue != oldViewProps.defaultValue) {
-@@ -1966,6 +1983,269 @@ - (void)handleKeyPressInRange:(NSString *)text range:(NSRange)range {
+@@ -1966,6 +2008,297 @@ - (void)handleKeyPressInRange:(NSString *)text range:(NSRange)range {
    }
  }
  
@@ -662,6 +573,32 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
 +      continue;
 +    }
 +
++    // Check if this opening delimiter is actually part of a longer trigger.
++    // For example, when text is "**bold" and we matched "*" at position 1,
++    // check if "**" (a longer trigger) exists and the chars at the opening
++    // position form that longer trigger. If so, skip this match.
++    BOOL isPartOfLongerTrigger = NO;
++    for (NSDictionary *otherShortcut in textShortcuts) {
++      NSString *otherType = otherShortcut[@"type"];
++      if (![otherType isEqualToString:@"inline"]) continue;
++      NSString *otherTrigger = otherShortcut[@"trigger"];
++      if (otherTrigger.length <= trigger.length) continue;
++      // Check if the longer trigger appears at or before our opening position
++      NSInteger longerStart = openRange.location - (otherTrigger.length - trigger.length);
++      if (longerStart >= 0 &&
++          longerStart + (NSInteger)otherTrigger.length <= (NSInteger)fullText.length) {
++        NSString *candidate =
++            [fullText substringWithRange:NSMakeRange(longerStart, otherTrigger.length)];
++        if ([candidate isEqualToString:otherTrigger]) {
++          isPartOfLongerTrigger = YES;
++          break;
++        }
++      }
++    }
++    if (isPartOfLongerTrigger) {
++      continue;
++    }
++
 +    // Must be on the same paragraph
 +    NSRange paragraphRange = [fullText paragraphRangeForRange:range];
 +    if (openRange.location < paragraphRange.location) {
@@ -685,8 +622,8 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
 +       additionalAttributes:nullptr
 +                    input:self
 +            withSelection:NO];
-+      // Adjust contentEnd after removal
-+      contentEnd -= delimPrefixLen;
++      // Note: contentEnd is NOT adjusted here because the closing prefix
++      // is at closeDelimStart which is >= contentEnd (after content).
 +    }
 +
 +    // Remove the opening delimiter
@@ -706,8 +643,10 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
 +    textView.selectedRange = NSMakeRange(contentStart, contentEnd - contentStart);
 +    [self toggleRegularStyle:(StyleType)[styleType integerValue]];
 +
-+    // Move cursor to end of styled text
++    // Move cursor to end of styled text and turn off the style
++    // so subsequent typing is unstyled
 +    textView.selectedRange = NSMakeRange(contentEnd, 0);
++    [self toggleRegularStyle:(StyleType)[styleType integerValue]];
 +
 +    return YES;
 +  }
@@ -718,7 +657,7 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
  - (bool)textView:(UITextView *)textView
      shouldChangeTextInRange:(NSRange)range
              replacementText:(NSString *)text {
-@@ -1986,14 +2266,19 @@ - (bool)textView:(UITextView *)textView
+@@ -1986,14 +2319,19 @@ - (bool)textView:(UITextView *)textView
    H5Style *h5Style = stylesDict[@([H5Style getStyleType])];
    H6Style *h6Style = stylesDict[@([H6Style getStyleType])];
  
@@ -740,168 +679,111 @@ index 5e81c9f26df463cdada4da2bb51f83fa6225760e..5c8eb9731c190c6cdbe42c663987c50f
        [cbLStyle handleBackspaceInRange:range replacementText:text] ||
        [cbLStyle handleNewlinesInRange:range replacementText:text] ||
        [bqStyle handleBackspaceInRange:range replacementText:text] ||
+diff --git a/ios/generated/ReactNativeEnrichedSpec/ComponentDescriptors.cpp b/ios/generated/ReactNativeEnrichedSpec/ComponentDescriptors.cpp
+deleted file mode 100644
+index 2e5279c29dfc43f53abc992703558640ba674267..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/ComponentDescriptors.h b/ios/generated/ReactNativeEnrichedSpec/ComponentDescriptors.h
+deleted file mode 100644
+index 9b925c260f816f8ad22da7a3fa36405be1c6899e..0000000000000000000000000000000000000000
 diff --git a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
-index 6e04a8c7979b5a99891eb2183186282e7ef77304..735f74509c12aa9696dd9527ffda7fcd0f7290a9 100644
---- a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
-+++ b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.cpp
-@@ -422,4 +422,13 @@ payload.setProperty(runtime, "selectionEnd", event.selectionEnd);
-   });
- }
- 
-+
-+void EnrichedTextInputViewEventEmitter::onSubmitEditing(OnSubmitEditing event) const {
-+  dispatchEvent("submitEditing", [event=std::move(event)](jsi::Runtime &runtime) {
-+    auto payload = jsi::Object(runtime);
-+    payload.setProperty(runtime, "text", event.text);
-+    return payload;
-+  });
-+}
-+
- } // namespace facebook::react
+deleted file mode 100644
+index 6e04a8c7979b5a99891eb2183186282e7ef77304..0000000000000000000000000000000000000000
 diff --git a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
-index 857faaac4627a29f8fdf012882566d0bb29e5b1c..aa9bfabb9b3c803dc52e80ab0b50f04afba0418c 100644
---- a/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
-+++ b/ios/generated/ReactNativeEnrichedSpec/EventEmitters.h
-@@ -356,6 +356,10 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
-     int selectionEnd;
-     OnContextMenuItemPressStyleState styleState;
-     };
-+
-+  struct OnSubmitEditing {
-+      std::string text;
-+    };
-   void onInputFocus(OnInputFocus value) const;
- 
-   void onInputBlur(OnInputBlur value) const;
-@@ -381,5 +385,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
-   void onPasteImages(OnPasteImages value) const;
- 
-   void onContextMenuItemPress(OnContextMenuItemPress value) const;
-+
-+  void onSubmitEditing(OnSubmitEditing value) const;
- };
- } // namespace facebook::react
+deleted file mode 100644
+index 857faaac4627a29f8fdf012882566d0bb29e5b1c..0000000000000000000000000000000000000000
 diff --git a/ios/generated/ReactNativeEnrichedSpec/Props.cpp b/ios/generated/ReactNativeEnrichedSpec/Props.cpp
-index 04b33f9dee23bca335195747572315a548dd7471..436463345ad735dc3993263dbf249cb1c2b31833 100644
---- a/ios/generated/ReactNativeEnrichedSpec/Props.cpp
-+++ b/ios/generated/ReactNativeEnrichedSpec/Props.cpp
-@@ -33,6 +33,10 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
-     scrollEnabled(convertRawProp(context, rawProps, "scrollEnabled", sourceProps.scrollEnabled, {false})),
-     linkRegex(convertRawProp(context, rawProps, "linkRegex", sourceProps.linkRegex, {})),
-     contextMenuItems(convertRawProp(context, rawProps, "contextMenuItems", sourceProps.contextMenuItems, {})),
-+    textShortcuts(convertRawProp(context, rawProps, "textShortcuts", sourceProps.textShortcuts, {})),
-+    returnKeyType(convertRawProp(context, rawProps, "returnKeyType", sourceProps.returnKeyType, {})),
-+    returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
-+    submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
-     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
-     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
-     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
-@@ -112,6 +116,22 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
-     result["contextMenuItems"] = toDynamic(contextMenuItems);
-   }
-     
-+  if (textShortcuts != oldProps->textShortcuts) {
-+    result["textShortcuts"] = toDynamic(textShortcuts);
-+  }
-+    
-+  if (returnKeyType != oldProps->returnKeyType) {
-+    result["returnKeyType"] = returnKeyType;
-+  }
-+    
-+  if (returnKeyLabel != oldProps->returnKeyLabel) {
-+    result["returnKeyLabel"] = returnKeyLabel;
-+  }
-+    
-+  if (submitBehavior != oldProps->submitBehavior) {
-+    result["submitBehavior"] = submitBehavior;
-+  }
-+    
-   if (color != oldProps->color) {
-     result["color"] = *color;
-   }
+deleted file mode 100644
+index 04b33f9dee23bca335195747572315a548dd7471..0000000000000000000000000000000000000000
 diff --git a/ios/generated/ReactNativeEnrichedSpec/Props.h b/ios/generated/ReactNativeEnrichedSpec/Props.h
-index 3ca484d56e83977d053cc3273e13fc2802641e00..9cd4ccff23a4966b8876e9bc859cd28e7a5b1120 100644
---- a/ios/generated/ReactNativeEnrichedSpec/Props.h
-+++ b/ios/generated/ReactNativeEnrichedSpec/Props.h
-@@ -789,6 +789,67 @@ static inline void fromRawValue(const PropsParserContext& context, const RawValu
-   }
+deleted file mode 100644
+index 3ca484d56e83977d053cc3273e13fc2802641e00..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/RCTComponentViewHelpers.h b/ios/generated/ReactNativeEnrichedSpec/RCTComponentViewHelpers.h
+deleted file mode 100644
+index 29c1e14401b47569a8791bf5514f518221c13cf3..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/ShadowNodes.cpp b/ios/generated/ReactNativeEnrichedSpec/ShadowNodes.cpp
+deleted file mode 100644
+index feadde3309610ba00dcd907f2e30bc24fd5fe285..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/ShadowNodes.h b/ios/generated/ReactNativeEnrichedSpec/ShadowNodes.h
+deleted file mode 100644
+index 615dfa650f45293c65581e280a39025848661b3c..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/States.cpp b/ios/generated/ReactNativeEnrichedSpec/States.cpp
+deleted file mode 100644
+index 1dbb184cbddb6252d499bd11296bef0b11d20f7f..0000000000000000000000000000000000000000
+diff --git a/ios/generated/ReactNativeEnrichedSpec/States.h b/ios/generated/ReactNativeEnrichedSpec/States.h
+deleted file mode 100644
+index 2e55bce756519fb849f97b1da518a937cc8ccb12..0000000000000000000000000000000000000000
+diff --git a/ios/inputParser/InputParser.mm b/ios/inputParser/InputParser.mm
+index 1348728de92c8e621a32b4ebd5e61426bd0c4292..3d2c8cf573dd6acc7fcc32a049c0c027cb401e37 100644
+--- a/ios/inputParser/InputParser.mm
++++ b/ios/inputParser/InputParser.mm
+@@ -617,6 +617,30 @@ - (void)replaceWholeFromHtml:(NSString *_Nonnull)html {
+   [self applyProcessedStyles:stylesInfo
+          offsetFromBeginning:0
+              plainTextLength:plainText.length];
++
++  // Apply default paragraph spacing to all paragraphs.
++  // UITextView.text= does not use typingAttributes, so we need to
++  // retroactively set paragraphSpacing on every paragraph style.
++  NSParagraphStyle *defaultPS = _input->defaultTypingAttributes[NSParagraphStyleAttributeName];
++  if (defaultPS && plainText.length > 0) {
++    [_input->textView.textStorage
++        enumerateAttribute:NSParagraphStyleAttributeName
++                   inRange:NSMakeRange(0, _input->textView.textStorage.length)
++                   options:0
++                usingBlock:^(id _Nullable value, NSRange range, BOOL *_Nonnull stop) {
++                  NSMutableParagraphStyle *pStyle;
++                  if (value) {
++                    pStyle = [(NSParagraphStyle *)value mutableCopy];
++                  } else {
++                    pStyle = [[NSMutableParagraphStyle alloc] init];
++                  }
++                  pStyle.paragraphSpacing = defaultPS.paragraphSpacing;
++                  [_input->textView.textStorage
++                      addAttribute:NSParagraphStyleAttributeName
++                             value:pStyle
++                             range:range];
++                }];
++  }
  }
  
-+
-+struct EnrichedTextInputViewTextShortcutsStruct {
-+  std::string trigger{};
-+  std::string style{};
-+  std::string type{};
-+
-+  bool operator==(const EnrichedTextInputViewTextShortcutsStruct& other) const {
-+    return trigger == other.trigger && style == other.style && type == other.type;
-+  }
-+  bool operator!=(const EnrichedTextInputViewTextShortcutsStruct& other) const {
-+    return !(*this == other);
-+  }
-+
-+#ifdef RN_SERIALIZABLE_STATE
-+
-+  folly::dynamic toDynamic() const {
-+    folly::dynamic result = folly::dynamic::object();
-+    result["trigger"] = trigger;
-+    result["style"] = style;
-+    result["type"] = type;
-+    return result;
-+  }
-+#endif
-+};
-+
-+static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, EnrichedTextInputViewTextShortcutsStruct &result) {
-+  auto map = (std::unordered_map<std::string, RawValue>)value;
-+
-+  auto tmp_trigger = map.find("trigger");
-+  if (tmp_trigger != map.end()) {
-+    fromRawValue(context, tmp_trigger->second, result.trigger);
-+  }
-+  auto tmp_style = map.find("style");
-+  if (tmp_style != map.end()) {
-+    fromRawValue(context, tmp_style->second, result.style);
-+  }
-+  auto tmp_type = map.find("type");
-+  if (tmp_type != map.end()) {
-+    fromRawValue(context, tmp_type->second, result.type);
-+  }
-+}
-+
-+static inline std::string toString(const EnrichedTextInputViewTextShortcutsStruct &value) {
-+  return "[Object EnrichedTextInputViewTextShortcutsStruct]";
-+}
-+
-+#ifdef RN_SERIALIZABLE_STATE
-+static inline folly::dynamic toDynamic(const EnrichedTextInputViewTextShortcutsStruct &value) {
-+  return value.toDynamic();
-+}
-+#endif
-+
-+static inline void fromRawValue(const PropsParserContext& context, const RawValue &value, std::vector<EnrichedTextInputViewTextShortcutsStruct> &result) {
-+  auto items = (std::vector<RawValue>)value;
-+  for (const auto &item : items) {
-+    EnrichedTextInputViewTextShortcutsStruct newItem;
-+    fromRawValue(context, item, newItem);
-+    result.emplace_back(newItem);
-+  }
-+}
-+
- class EnrichedTextInputViewProps final : public ViewProps {
-  public:
-   EnrichedTextInputViewProps() = default;
-@@ -809,6 +870,10 @@ class EnrichedTextInputViewProps final : public ViewProps {
-   bool scrollEnabled{false};
-   EnrichedTextInputViewLinkRegexStruct linkRegex{};
-   std::vector<EnrichedTextInputViewContextMenuItemsStruct> contextMenuItems{};
-+  std::vector<EnrichedTextInputViewTextShortcutsStruct> textShortcuts{};
-+  std::string returnKeyType{};
-+  std::string returnKeyLabel{};
-+  std::string submitBehavior{};
-   SharedColor color{};
-   Float fontSize{0.0};
-   Float lineHeight{0.0};
+ - (void)replaceFromHtml:(NSString *_Nonnull)html range:(NSRange)range {
+diff --git a/ios/interfaces/LinkRegexConfig.h b/ios/interfaces/LinkRegexConfig.h
+index c08c353f8646d2e319cdba5a5c24f3a784ec4dc5..071eb76410534a9bac3d99f4b9a9aa3dd0a41872 100644
+--- a/ios/interfaces/LinkRegexConfig.h
++++ b/ios/interfaces/LinkRegexConfig.h
+@@ -1,5 +1,5 @@
+ #pragma once
+-#import <ReactNativeEnriched/Props.h>
++#import <react/renderer/components/ReactNativeEnrichedSpec/Props.h>
+ #import <UIKit/UIKit.h>
+ 
+ using namespace facebook::react;
+diff --git a/ios/internals/EnrichedTextInputViewComponentDescriptor.h b/ios/internals/EnrichedTextInputViewComponentDescriptor.h
+index eae9472d5445afa9796d58a6f9a12537fbd17132..70dd340414d07935d9a3dbe4987cafc5bd017059 100644
+--- a/ios/internals/EnrichedTextInputViewComponentDescriptor.h
++++ b/ios/internals/EnrichedTextInputViewComponentDescriptor.h
+@@ -1,6 +1,6 @@
+ #pragma once
+ #include <ReactNativeEnriched/EnrichedTextInputViewShadowNode.h>
+-#include <ReactNativeEnriched/Props.h>
++#include <react/renderer/components/ReactNativeEnrichedSpec/Props.h>
+ #include <react/debug/react_native_assert.h>
+ #include <react/renderer/core/ConcreteComponentDescriptor.h>
+ 
+diff --git a/ios/internals/EnrichedTextInputViewShadowNode.h b/ios/internals/EnrichedTextInputViewShadowNode.h
+index 9789e9b767123352bafac1986129d5f927e1ee56..55902491cc779cf3a4d3009a744db959ada8eb40 100644
+--- a/ios/internals/EnrichedTextInputViewShadowNode.h
++++ b/ios/internals/EnrichedTextInputViewShadowNode.h
+@@ -1,7 +1,7 @@
+ #pragma once
+ #include <ReactNativeEnriched/EnrichedTextInputViewState.h>
+-#include <ReactNativeEnriched/EventEmitters.h>
+-#include <ReactNativeEnriched/Props.h>
++#include <react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h>
++#include <react/renderer/components/ReactNativeEnrichedSpec/Props.h>
+ #include <jsi/jsi.h>
+ #include <react/renderer/components/view/ConcreteViewShadowNode.h>
+ #include <react/renderer/core/LayoutConstraints.h>
 diff --git a/lib/module/EnrichedTextInput.js b/lib/module/EnrichedTextInput.js
 index da75a301a91297902caf3bb2590cc17ce73b05e2..5ba54135f4ec909f5fe1233ef7bf0ee6b6418dbd 100644
 --- a/lib/module/EnrichedTextInput.js
@@ -922,6 +804,25 @@ index da75a301a91297902caf3bb2590cc17ce73b05e2..5ba54135f4ec909f5fe1233ef7bf0ee6
      ...rest
    });
  };
+diff --git a/lib/module/spec/EnrichedTextInputNativeComponent.ts b/lib/module/spec/EnrichedTextInputNativeComponent.ts
+index 8bf5186aa4414485703ca3b86eca53803584911d..011d4a3a5dce2fbca1ef49fbfdd1d6cdeacf0148 100644
+--- a/lib/module/spec/EnrichedTextInputNativeComponent.ts
++++ b/lib/module/spec/EnrichedTextInputNativeComponent.ts
+@@ -385,6 +385,14 @@ export interface NativeProps extends ViewProps {
+   fontWeight?: string;
+   fontStyle?: string;
+ 
++  // Configurable text shortcuts that auto-convert typed prefixes into block styles
++  textShortcuts: ReadonlyArray<Readonly<{ trigger: string; style: string; type?: string }>>;
++
++  // Keyboard return key configuration
++  returnKeyType?: string;
++  returnKeyLabel?: string;
++  submitBehavior?: string;
++
+   // Used for onChangeHtml event performance optimization
+   isOnChangeHtmlSet: boolean;
+   // Used for onChangeText event performance optimization
 diff --git a/lib/typescript/src/EnrichedTextInput.d.ts b/lib/typescript/src/EnrichedTextInput.d.ts
 index d3b12ecfef2f746f906b83e464c6eb874a8585e6..f0381a58bd89751d2403fc87e83ffbef56077930 100644
 --- a/lib/typescript/src/EnrichedTextInput.d.ts
@@ -942,6 +843,31 @@ index d3b12ecfef2f746f906b83e464c6eb874a8585e6..f0381a58bd89751d2403fc87e83ffbef
      /**
       * If true, Android will use experimental synchronous events.
       * This will prevent from input flickering when updating component size.
+diff --git a/package.json b/package.json
+index 25bd3844faab4f1748f48405befbbc4a90c6ee9e..4d7f9cd4fd46c0171cb50739b39d7e507390a7b9 100644
+--- a/package.json
++++ b/package.json
+@@ -168,10 +168,6 @@
+     "name": "ReactNativeEnrichedSpec",
+     "type": "components",
+     "jsSrcsDir": "src/spec",
+-    "outputDir": {
+-      "ios": "ios/generated",
+-      "android": "android/generated"
+-    },
+     "android": {
+       "javaPackageName": "com.swmansion.enriched"
+     },
+@@ -179,8 +175,7 @@
+       "componentProvider": {
+         "EnrichedTextInputView": "EnrichedTextInputView"
+       }
+-    },
+-    "includesGeneratedCode": true
++    }
+   },
+   "create-react-native-library": {
+     "languages": "kotlin-objc",
 diff --git a/src/EnrichedTextInput.tsx b/src/EnrichedTextInput.tsx
 index ed6063eacef9cd9e871a58579dd532b6725a082f..3a286cc9bb1fa455addeff3355be9f32380a115f 100644
 --- a/src/EnrichedTextInput.tsx
@@ -985,15 +911,20 @@ index ed6063eacef9cd9e871a58579dd532b6725a082f..3a286cc9bb1fa455addeff3355be9f32
      />
    );
 diff --git a/src/spec/EnrichedTextInputNativeComponent.ts b/src/spec/EnrichedTextInputNativeComponent.ts
-index 8bf5186aa4414485703ca3b86eca53803584911d..4780083b85d3161743f8b667899aa821da32643b 100644
+index 8bf5186aa4414485703ca3b86eca53803584911d..011d4a3a5dce2fbca1ef49fbfdd1d6cdeacf0148 100644
 --- a/src/spec/EnrichedTextInputNativeComponent.ts
 +++ b/src/spec/EnrichedTextInputNativeComponent.ts
-@@ -385,6 +385,9 @@ export interface NativeProps extends ViewProps {
+@@ -385,6 +385,14 @@ export interface NativeProps extends ViewProps {
    fontWeight?: string;
    fontStyle?: string;
  
 +  // Configurable text shortcuts that auto-convert typed prefixes into block styles
 +  textShortcuts: ReadonlyArray<Readonly<{ trigger: string; style: string; type?: string }>>;
++
++  // Keyboard return key configuration
++  returnKeyType?: string;
++  returnKeyLabel?: string;
++  submitBehavior?: string;
 +
    // Used for onChangeHtml event performance optimization
    isOnChangeHtmlSet: boolean;
