@@ -10,32 +10,29 @@ import {
   Icon,
   Image,
   Pressable,
-  Text,
   type GestureMediaViewerItem,
   type GestureMediaViewerRenderHelpers,
-  type GestureMediaViewerRenderItem,
+  type GestureMediaViewerRenderItem
 } from '@tloncorp/ui';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import {
-  VideoView,
-} from 'expo-video/build/VideoView';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
 } from 'expo-video/build/VideoPlayerEvents.types';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
+// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
+import { VideoView } from 'expo-video/build/VideoView';
 import {
   PropsWithChildren,
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import {
   Alert,
@@ -77,6 +74,7 @@ function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
 type ViewerOverlayAction = {
   icon: 'Close' | 'ArrowDown';
   onPress: () => void;
+  testID?: string;
 };
 
 function ViewerOverlayActions({
@@ -107,6 +105,7 @@ function ViewerOverlayActions({
             key={`${action.icon}-${index}`}
             onPress={action.onPress}
             activeOpacity={0.8}
+            testID={action.testID}
           >
             <OverlayIconButton icon={action.icon} />
           </TouchableOpacity>
@@ -395,56 +394,62 @@ function VideoViewer({
         onBackdropPress={goBack}
         top={top}
         showOverlay={showOverlay}
-        actions={[{ icon: 'Close', onPress: goBack }]}
+        actions={[
+          {
+            icon: 'Close',
+            onPress: goBack,
+            testID: 'MediaViewerCloseButton',
+          },
+        ]}
         justifyContent="flex-end"
         loadingOverlay={
           <VideoLoadingOverlay visible={!isReady || isBuffering} />
         }
       >
-          <View
-            flex={1}
-            width="100%"
-            alignItems="center"
-            justifyContent="center"
-            padding="$l"
-            pointerEvents="box-none"
-          >
-            <video
-              src={uri}
-              poster={posterUri}
-              controls
-              autoPlay
-              preload="metadata"
-              onPlay={trackPlaybackStarted}
-              onLoadedData={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-              }}
-              onCanPlay={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-              }}
-              onWaiting={() => {
-                setIsBuffering(true);
-              }}
-              onPlaying={() => {
-                setIsReady(true);
-                setIsBuffering(false);
-                trackPlaybackStarted();
-              }}
-              onError={handlePlaybackError}
-              onClick={(event) => {
-                event.stopPropagation();
-                toggleOverlay();
-              }}
-              style={{
-                width: '100%',
-                maxWidth: 1100,
-                maxHeight: '90vh',
-                display: 'block',
-              }}
-            />
-          </View>
+        <View
+          flex={1}
+          width="100%"
+          alignItems="center"
+          justifyContent="center"
+          padding="$l"
+          pointerEvents="box-none"
+        >
+          <video
+            src={uri}
+            poster={posterUri}
+            controls
+            autoPlay
+            preload="metadata"
+            onPlay={trackPlaybackStarted}
+            onLoadedData={() => {
+              setIsReady(true);
+              setIsBuffering(false);
+            }}
+            onCanPlay={() => {
+              setIsReady(true);
+              setIsBuffering(false);
+            }}
+            onWaiting={() => {
+              setIsBuffering(true);
+            }}
+            onPlaying={() => {
+              setIsReady(true);
+              setIsBuffering(false);
+              trackPlaybackStarted();
+            }}
+            onError={handlePlaybackError}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleOverlay();
+            }}
+            style={{
+              width: '100%',
+              maxWidth: 1100,
+              maxHeight: '90vh',
+              display: 'block',
+            }}
+          />
+        </View>
       </MediaViewerChrome>
     );
   }
@@ -465,12 +470,18 @@ function VideoViewer({
       enableZoomPanGesture={false}
       top={top}
       showOverlay={showOverlay}
-      actions={(helpers) => [{ icon: 'Close', onPress: helpers.dismiss }]}
+      actions={(helpers) => [
+        {
+          icon: 'Close',
+          onPress: helpers.dismiss,
+          testID: 'MediaViewerCloseButton',
+        },
+      ]}
       justifyContent="flex-end"
       loadingOverlay={
         <VideoLoadingOverlay visible={!isReady || isBuffering} />
       }
-      renderItem={() =>
+      renderItem={() => 
         <View
           flex={1}
           width="100%"
@@ -642,7 +653,7 @@ function ImageViewer(props: {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri, 
+            props.uri,
             localUri
           );
 
@@ -737,8 +748,16 @@ function ImageViewer(props: {
       top={top}
       showOverlay={showOverlay}
       actions={(helpers) => [
-        { icon: 'ArrowDown', onPress: handleDownloadImage },
-        { icon: 'Close', onPress: helpers.dismiss },
+        {
+          icon: 'ArrowDown',
+          onPress: handleDownloadImage,
+          testID: 'MediaViewerDownloadButton',
+        },
+        {
+          icon: 'Close',
+          onPress: helpers.dismiss,
+          testID: 'MediaViewerCloseButton',
+        },
       ]}
       justifyContent={isWeb ? 'flex-end' : 'space-between'}
     />

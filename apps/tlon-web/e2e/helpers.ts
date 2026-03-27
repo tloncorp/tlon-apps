@@ -1326,6 +1326,50 @@ export async function createGalleryPost(page: Page, content: string) {
   await expect(page.getByText(content).first()).toBeVisible();
 }
 
+/**
+ * Creates a new gallery image post.
+ */
+export async function createGalleryImagePost(
+  page: Page,
+  caption?: string,
+  imagePath?: string
+) {
+  const imageToUpload =
+    imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
+
+  await page.getByTestId('AddGalleryPost').click();
+  await page.getByTestId('AddGalleryPostImage').click();
+
+  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
+
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByText('Upload Media', { exact: true }).click(),
+  ]);
+
+  await fileChooser.setFiles(imageToUpload);
+
+  await expect(page.getByTestId('GalleryPostButton')).toBeVisible({
+    timeout: 10000,
+  });
+
+  if (caption) {
+    await page.getByPlaceholder('Add a caption...').fill(caption);
+  }
+
+  await page.getByTestId('GalleryPostButton').click();
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId('GalleryPostContentPreview')).toBeVisible({
+    timeout: 15000,
+  });
+
+  if (caption) {
+    await expect(page.getByText(caption).first()).toBeVisible({
+      timeout: 10000,
+    });
+  }
+}
+
 // Chat-related helper functions
 
 /**
