@@ -350,7 +350,7 @@ export function GalleryPostDetailView({
   onPressImage,
 }: {
   post: db.Post;
-  onPressImage?: (post: db.Post, uri: string) => void;
+  onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
   const { usePost } = useRequests();
   // we use usePost so we can get updated reactions

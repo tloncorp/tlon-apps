@@ -16,7 +16,7 @@ export interface DetailViewProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   posts?: db.Post[];
-  onPressImage?: (post: db.Post, imageUri: string) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
   goBack?: () => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;

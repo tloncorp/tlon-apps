@@ -50,7 +50,7 @@ const ChatMessage = ({
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
   onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri: string) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
