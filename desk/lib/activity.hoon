@@ -1,4 +1,4 @@
-/-  a=activity
+/-  a=activity, av=activity-ver
 |%
 ++  src
   |%
@@ -312,20 +312,20 @@
     |%
     ++  feed
       |=  =feed:a
-      ^-  feed:v4:old:a
+      ^-  feed:v4:av
       feed.feed
     --
   ++  v3
     |%
     ++  activity
       |=  =activity:a
-      ^-  activity:v3:old:a
+      ^-  activity:v3:av
       %-  ~(run by activity)
       |=  as=activity-summary:a
       (activity-summary as activity)
     ++  activity-summary
       |=  [as=activity-summary:a =activity:a]
-      ^-  activity-summary:v3:old:a
+      ^-  activity-summary:v3:av
       :*  newest.as
           count.as
           notify-count.as
@@ -334,7 +334,7 @@
         ::
           ?:  =(~ children.as)  ~
           :-  ~
-          %-  ~(gas by *activity:v3:old:a)
+          %-  ~(gas by *activity:v3:av)
           %+  turn
             ~(tap in children.as)
           |=  =source:a
@@ -346,7 +346,7 @@
       ==
     ++  update
       |=  [=update:a =activity:a]
-      ^-  update:v3:old:a
+      ^-  update:v3:av
       ?+  -.update  update
           %activity  !!
           %read
@@ -357,20 +357,20 @@
     |%
     ++  activity
       |=  =activity:a
-      ^-  activity:v2:old:a
+      ^-  activity:v2:av
       %-  ~(run by activity)
       |=  as=activity-summary:a
       (activity-summary as activity)
     ++  activity-summary
       |=  [as=activity-summary:a =activity:a]
-      ^-  activity-summary:v2:old:a
+      ^-  activity-summary:v2:av
       :*  newest.as
           count.as
           notify.as
           unread.as
         ::
           :-  ~
-          %-  ~(gas by *activity:v2:old:a)
+          %-  ~(gas by *activity:v2:av)
           %+  turn
             ~(tap in children.as)
           |=  =source:a
@@ -380,7 +380,7 @@
       ==
     ++  update
       |=  [=update:a =activity:a]
-      ^-  update:v2:old:a
+      ^-  update:v2:av
       ?+  -.update  update
           %activity  !!
           %read
