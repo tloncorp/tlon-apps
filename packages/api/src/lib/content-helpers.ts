@@ -800,7 +800,7 @@ export function toPostData({
           blob = appendFileUploadToPostBlob(blob, {
             fileUri: UploadedFileAttachment.uri(attachment),
             name,
-            mimeType: attachment.type,
+            mimeType: attachment.mimeType,
             size: attachment.size,
           });
           break;

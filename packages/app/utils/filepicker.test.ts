@@ -1,6 +1,7 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
+import { isLikelyVideoSource, validateVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
@@ -13,6 +14,16 @@ vi.mock('expo-document-picker', () => ({
 
 vi.mock('../ui/utils/videoPreviewData', () => ({
   getVideoPreviewData: vi.fn(),
+}));
+
+vi.mock('../ui/contexts/attachmentRules', () => ({
+  isLikelyVideoSource: vi.fn(() => false),
+  validateVideoSource: vi.fn(() => true),
+  VIDEO_VALIDATION_ERROR: 'Unsupported video attachment',
+}));
+
+vi.mock('./images', () => ({
+  imageSize: vi.fn(),
 }));
 
 vi.mock('./files', () => ({
@@ -122,6 +133,8 @@ test('drops non-positive picker video metadata during upload intent conversion',
 });
 
 test('normalizeUploadIntent keeps supported quicktime videos with known size', async () => {
+  vi.mocked(isLikelyVideoSource).mockReturnValueOnce(true);
+  vi.mocked(validateVideoSource).mockReturnValueOnce(true);
   vi.mocked(getVideoPreviewData).mockResolvedValueOnce({});
 
   const result = await normalizeUploadIntent({
