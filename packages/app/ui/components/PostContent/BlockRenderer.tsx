@@ -780,10 +780,10 @@ export function ChessBlock({
                     key={`dot-${r}-${c}`}
                     cx={c * sq + sq / 2}
                     cy={r * sq + sq / 2}
-                    r={sq * (targetPiece ? 0.46 : 0.16)}
-                    fill={targetPiece ? 'rgba(59,128,232,0.25)' : 'rgba(59,128,232,0.3)'}
-                    stroke={targetPiece ? 'rgba(59,128,232,0.4)' : 'none'}
-                    strokeWidth={targetPiece ? sq * 0.06 : 0}
+                    r={sq * (targetPiece ? 0.46 : 0.18)}
+                    fill={targetPiece ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.25)'}
+                    stroke={targetPiece ? 'rgba(0,0,0,0.35)' : 'none'}
+                    strokeWidth={targetPiece ? sq * 0.07 : 0}
                   />
                 );
               })}
