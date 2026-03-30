@@ -1,0 +1,62 @@
+{
+  "configVersion": "1.6",
+  "$schema": "https://github.com/jayu/rev-dep/blob/master/config-schema/1.6.schema.json?raw=true",
+  "rules": [
+    {
+      "path": "apps/tlon-mobile",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "apps/tlon-web",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "packages/api",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "packages/app",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "packages/shared",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "packages/ui",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    },
+    {
+      "path": "packages/editor",
+      "followMonorepoPackages": true,
+      "circularImportsDetection": {
+        "enabled": true,
+        "ignoreTypeImports": true
+      }
+    }
+  ]
+}

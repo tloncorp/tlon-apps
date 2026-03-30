@@ -29,8 +29,9 @@
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild && pnpm run -r test run -u",
     "test:ci": "npm rebuild && pnpm run -r test run",
-    "lint:all": "pnpm -r lint",
-    "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
+    "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo",
+    "lint:circular-deps": "rev-dep config run",
+    "lint:all": "pnpm -r lint"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
@@ -48,6 +49,7 @@
     "lint-staged": "^15.0.0",
     "prettierignore-monorepo": "^1.0.5",
     "react-cosmos": "6.1.1",
+    "rev-dep": "^2.12.0",
     "tsup": "^8.0.1",
     "vitest": "^1.2.2"
   },

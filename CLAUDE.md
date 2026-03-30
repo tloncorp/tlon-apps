@@ -33,6 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm run lint:all` - Run linting across all packages
 -   `pnpm lint:fix` - Fix linting issues (per package)
 -   `pnpm lint:format` - Format code with prettier (per package)
+-   `pnpm lint:circular-deps` - Run check for circular JS imports
 
 ### Typechecking
 
