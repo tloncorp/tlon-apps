@@ -1,13 +1,13 @@
-import type * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/models';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { BackoffOptions, backOff } from 'exponential-backoff';
-import { useMemo } from 'react';
 
 import * as api from '../client';
 import {
+  isBotUserId,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
@@ -16,7 +16,7 @@ import * as domain from '../types';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
 
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
+export { isBotUserId, isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -657,41 +657,6 @@ export const getPostTypeFromChannelId = ({
   }
 };
 
-export const usePostMeta = (post: db.Post) => {
-  const { inlines, references, blocks } = useMemo(
-    () => extractContentTypesFromPost(post),
-    [post]
-  );
-  const isText = useMemo(() => isTextPost(post), [post]);
-  const isImage = useMemo(() => isImagePost(post), [post]);
-  const isLink = useMemo(() => textPostIsLink(post), [post]);
-  const isReference = useMemo(() => isReferencePost(post), [post]);
-  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
-  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
-  const image = useMemo(
-    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
-    [blocks, isImage]
-  );
-  const linkedImage = useMemo(
-    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
-    [inlines, isLinkedImage]
-  );
-
-  return {
-    isText,
-    isImage,
-    isLink,
-    isReference,
-    isLinkedImage,
-    isRefInText,
-    inlines,
-    references,
-    blocks,
-    image,
-    linkedImage,
-  };
-};
-
 export const getCompositeGroups = (
   groups: db.Group[],
   base: Partial<db.Group>[]
@@ -746,6 +711,21 @@ export function simpleHash(input: string) {
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
+}
+
+export function isBotDmChannel({
+  post,
+  channel,
+}: {
+  post?: Partial<db.Post> | null;
+  channel?: Partial<db.Channel> | null;
+}): boolean {
+  const channelId = channel?.id ?? post?.channelId;
+  if (!channelId || !isDmChannelId(channelId)) {
+    return false;
+  }
+
+  return isBotUserId(channel?.contactId ?? channelId);
 }
 
 const wayfindingGroup = domain.PersonalGroupSlugs;

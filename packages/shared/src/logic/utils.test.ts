@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { PersonalGroupSlugs } from '../domain';
-import { getModelAnalytics, normalizeUrbitColor } from '@tloncorp/api/lib/utils';
+import {
+  getModelAnalytics,
+  isBotDmChannel,
+  normalizeUrbitColor,
+} from '@tloncorp/api/lib/utils';
 import { isPersonalGroup } from '@tloncorp/api/lib/wayfinding';
 
 describe('normalizeUrbitColor', () => {
@@ -194,5 +198,40 @@ describe('getModelAnalytics', () => {
       isTlonTeamDM: true,
     };
     expect(getModelAnalytics(input)).toEqual(expectedOutput);
+  });
+
+  it('detects bot DMs from channel ids', () => {
+    expect(
+      isBotDmChannel({
+        channel: {
+          id: '~pinser-botter-sampel',
+          contactId: '~pinser-botter-sampel',
+          type: 'dm' as db.ChannelType,
+        },
+      })
+    ).toBe(true);
+  });
+
+  it('does not treat non-bot DMs as bot DMs', () => {
+    expect(
+      isBotDmChannel({
+        channel: {
+          id: '~sampel-palnet',
+          contactId: '~sampel-palnet',
+          type: 'dm' as db.ChannelType,
+        },
+      })
+    ).toBe(false);
+  });
+
+  it('does not treat group chats with bot-like ids as bot DMs', () => {
+    expect(
+      isBotDmChannel({
+        channel: {
+          id: 'chat/~pinser-botter-sampel/group',
+          type: 'chat' as db.ChannelType,
+        },
+      })
+    ).toBe(false);
   });
 });

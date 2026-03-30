@@ -1,8 +1,8 @@
 import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import type * as db from '../types/models';
+import { createDevLogger } from './logger';
 import { simpleHash } from '../lib/utils';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
 import { AnalyticsEvent } from '../types/analytics';

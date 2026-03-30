@@ -15,14 +15,11 @@
 # - This ensures Node.js receives signals directly, not through shell intermediaries
 # - Cleanup handlers in index.ts can then properly terminate all child processes
 
+set -euo pipefail
+
 # Compile TypeScript
 echo "Compiling rube..."
-npx tsc --isolatedModules --skipLibCheck ./rube/index.ts --outDir ./rube/dist
-
-if [ $? -ne 0 ]; then
-    echo "TypeScript compilation failed"
-    exit 1
-fi
+bash ./rube/compile-rube.sh
 
 # Run the Node.js process and forward all signals
 echo "Starting rube..."

@@ -106,13 +106,10 @@ RUN npm install -g typescript
 WORKDIR /workspace/apps/tlon-web
 RUN echo "Compiling rube scripts..." && \
     ls -la ./rube/ && \
-    tsc --isolatedModules --skipLibCheck ./rube/*.ts --outDir ./rube/dist && \
-    echo "Rube scripts compiled successfully" && \
+    bash ./rube/compile-rube.sh && \
     echo "Verifying compiled files..." && \
-    ls -la ./rube/dist/ && \
-    test -f ./rube/dist/index.js || (echo "ERROR: index.js not found after compilation!" && exit 1) && \
-    echo "Ensuring binaries and scripts are executable..." && \
-    chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
+    ls -la ./rube/dist/
+RUN chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
 
 # Set environment variables for testing
 ENV CI=true

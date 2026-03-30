@@ -1,6 +1,5 @@
-import { ThemeName } from 'tamagui';
-
 import {
+  AppThemeName,
   StorageConfiguration,
   StorageCredentials,
   StorageService,
@@ -184,7 +183,7 @@ export const lastVisitedChannelId = (groupId: string) => {
   });
 };
 
-export const themeSettings = createStorageItem<ThemeName | null>({
+export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',
   defaultValue: null,
 });
@@ -368,6 +367,17 @@ export const sqliteContent = createStorageItem<ArrayBuffer | null>({
   serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
   deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
   isLarge: true,
+});
+
+/**
+ * Contains locale codes (e.g. `en-US`) that we've already prompted the user to
+ * download for offline use, so we don't repeatedly nag them about it.
+ */
+export const alreadyPromptedLocaleDownloads = createStorageItem<Set<string>>({
+  key: 'alreadyPromptedLocaleDownloads',
+  defaultValue: new Set(),
+  serialize: (value) => JSON.stringify(Array.from(value)),
+  deserialize: (str) => new Set(JSON.parse(str)),
 });
 
 function stringToArrayBuffer(str: string) {

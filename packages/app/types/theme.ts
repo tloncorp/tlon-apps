@@ -1,3 +1,1 @@
-import type { ThemeName } from 'tamagui';
-
-export type AppTheme = ThemeName | 'auto';
+export type { AppTheme, AppThemeName } from '@tloncorp/api';

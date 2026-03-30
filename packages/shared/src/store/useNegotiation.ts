@@ -3,9 +3,9 @@ import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as api from '@tloncorp/api';
-import { queryClient } from '@tloncorp/api';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '@tloncorp/api/urbit/negotiation';
+import { queryClient } from './reactQuery';
 
 const logger = createDevLogger('useNegotiation', false);
 

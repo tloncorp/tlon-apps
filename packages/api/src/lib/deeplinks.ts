@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../client/logger';
 import type { ContentReference } from '../types/references';
 import { getConstants } from '../types/constants';
 import { citeToPath } from '../urbit';

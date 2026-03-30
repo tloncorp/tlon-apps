@@ -558,8 +558,8 @@ const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
 }>(({ contentProps, ...props }, ref) => {
   const actions = Children.toArray(props.children);
   return (
-    <ActionSheetActionGroupFrame {...props} ref={ref}>
-      <ActionSheetActionGroupContent {...contentProps}>
+    <ActionSheetActionGroupFrame {...props} ref={ref} accessible={false}>
+      <ActionSheetActionGroupContent {...contentProps} accessible={false}>
         {actions.map((c, index) => (
           <Fragment key={index}>
             {c}
@@ -713,7 +713,14 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
   }
 
   return (
-    <Pressable onPress={handlePress} pressStyle={pressStyle}>
+    <Pressable
+      onPress={handlePress}
+      pressStyle={pressStyle}
+      testID={testID}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={action.title}
+    >
       <ActionSheetActionFrame
         type={
           action.selected
@@ -722,7 +729,7 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
               ? 'disabled'
               : action.accent ?? accent
         }
-        testID={testID}
+        accessible={false}
         ref={ref}
         {...props}
       >

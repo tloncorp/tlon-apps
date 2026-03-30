@@ -6,7 +6,7 @@ import {
 } from '@urbit/aura';
 import bigInt from 'big-integer';
 
-import * as db from '@tloncorp/shared/db/types';
+import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import { BadResponseError } from './urbit';
 
@@ -23,6 +23,7 @@ export function isColor(value: string) {
 // Limit max image string size since this isn't currently limited serverside +
 // it's possible for these to be massive and cause issues.
 const maxImageStringSize = 2048;
+const BOT_USER_ID_PREFIX = '~pinser-botter-';
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
@@ -81,6 +82,10 @@ export function formatDateParam(date: Date) {
 
 export function isDmChannelId(channelId: string) {
   return channelId.startsWith('~');
+}
+
+export function isBotUserId(userId: string | null | undefined) {
+  return userId?.startsWith(BOT_USER_ID_PREFIX) ?? false;
 }
 
 export function isGroupDmChannelId(channelId: string) {
@@ -161,6 +166,21 @@ export function getCanonicalPostId(inputId: string) {
   return id;
 }
 
+export type AuthorProfile = Pick<ub.BotProfile, 'nickname' | 'avatar'>;
+
+export function toAuthor(
+  authorId: string,
+  botProfile?: AuthorProfile
+): ub.Author {
+  return botProfile
+    ? {
+        ship: authorId,
+        nickname: botProfile.nickname ?? null,
+        avatar: botProfile.avatar ?? null,
+      }
+    : authorId;
+}
+
 export function toPostEssay({
   content,
   authorId,
@@ -168,6 +188,7 @@ export function toPostEssay({
   channelType,
   blob,
   metadata,
+  botProfile,
 }: {
   content: ub.Story;
   authorId: string;
@@ -175,6 +196,7 @@ export function toPostEssay({
   channelType: db.ChannelType;
   blob?: string;
   metadata?: ub.Metadata;
+  botProfile?: AuthorProfile;
 }): ub.PostEssay {
   const essay: ub.PostEssay = {
     content,
@@ -185,7 +207,7 @@ export function toPostEssay({
         : channelType === 'gallery'
           ? '/heap'
           : '/chat',
-    author: authorId,
+    author: toAuthor(authorId, botProfile),
     blob: blob || null,
     meta: metadata || null,
   };
@@ -232,7 +254,7 @@ export function deriveFullWritReply({
 }): ub.WritReply {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
-    : da.fromUnix(delta.add.memo.sent).toString();
+    : da.fromUnix(delta.add['reply-essay'].sent).toString();
 
   const seal: ub.WritReplySeal = {
     id,
@@ -240,7 +262,7 @@ export function deriveFullWritReply({
     'parent-id': parentId,
     reacts: {},
   };
-  const memo = delta.add.memo;
+  const replyEssay = delta.add['reply-essay'];
 
-  return { seal, memo };
+  return { seal, 'reply-essay': replyEssay };
 }

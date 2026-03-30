@@ -3,6 +3,8 @@
   "name": "tlon-apps",
   "type": "module",
   "scripts": {
+    "build:api": "pnpm --filter '@tloncorp/api' build",
+    "dev:api": "pnpm --filter '@tloncorp/api' watch",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
@@ -10,7 +12,7 @@
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
     "build:apps": "pnpm run build:mobile && pnpm run build:web",
-    "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
+    "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
     "cosmos:native": "cosmos-native",
@@ -72,7 +74,7 @@
       "expo-image-picker@16.0.6": "patches/expo-image-picker@16.0.6.patch",
       "expo-localization@16.0.1": "patches/expo-localization@16.0.1.patch",
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
-      "expo-speech-transcriber@0.1.9": "patches/expo-speech-transcriber@0.1.9.patch",
+      "expo-task-manager@12.0.6": "patches/expo-task-manager@12.0.6.patch",
       "expo-audio@0.3.5": "patches/expo-audio@0.3.5.patch"
     },
     "allowNonAppliedPatches": true,

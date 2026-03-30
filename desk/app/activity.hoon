@@ -1382,7 +1382,7 @@
     %-  some
     %+  murn
       (tab:on-replies:v8:cv replies.u.u.post `(sub id 1) count)
-    |=  [=time reply=(unit reply:c)]
+    |=  [=time reply=(unit reply:v8:cv)]
     ^-  (unit [^time incoming-event:a])
     ?~  reply  ~
     %-  some
