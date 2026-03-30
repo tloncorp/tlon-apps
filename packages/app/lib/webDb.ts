@@ -208,10 +208,13 @@ export class WebDb extends BaseDb {
   async purgeDb() {
     if (!this.sqlocal) {
       logger.warn('purgeDb called before setupDb, ignoring');
+      await sqliteContent.resetValue();
       return;
     }
     logger.log('purging sqlite database');
-    this.sqlocal.destroy();
+    this.saveToFile.cancel();
+    await sqliteContent.resetValue();
+    await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;
     logger.log('purged sqlite database, recreating');
