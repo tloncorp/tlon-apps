@@ -133,16 +133,21 @@ export class WebDb extends BaseDb {
       }
       await this.maybeCompactBeforeSave();
 
-      const { getDatabaseFile } = this.sqlocal;
+      const sqlocal = this.sqlocal;
+      if (sqlocal == null) {
+        return;
+      }
 
-      const dbFile = await getDatabaseFile();
-      if (dbFile != null) {
-        try {
-          const encoded = await readArrayBufferFromBlob(dbFile);
-          await sqliteContent.setValue(encoded);
-        } catch (e) {
-          console.error('Failed to save to file', e);
+      try {
+        const dbFile = await sqlocal.getDatabaseFile();
+        if (dbFile == null) {
+          return;
         }
+
+        const encoded = await readArrayBufferFromBlob(dbFile);
+        await sqliteContent.setValue(encoded);
+      } catch (e) {
+        console.error('Failed to save to file', e);
       }
     },
     1000,
