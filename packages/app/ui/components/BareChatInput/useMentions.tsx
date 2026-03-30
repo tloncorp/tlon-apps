@@ -4,6 +4,7 @@ import { valid } from '@urbit/aura';
 import * as db from '@tloncorp/shared/db';
 import { useMemo, useState } from 'react';
 
+import { useCurrentUserId } from '../../contexts';
 import { formatUserId } from '../../utils';
 
 export const ALL_MENTION_ID = allID;
@@ -81,6 +82,23 @@ export const useMentions = ({
     number | null
   >(null);
 
+  const currentUserId = useCurrentUserId();
+
+  // Fetch bot identity from claw if installed
+  const { data: botOption } = useQuery({
+    queryKey: ['clawBotConfig'],
+    queryFn: async () => {
+      try {
+        const r = await fetch('/~/scry/claw/config.json', { credentials: 'include' });
+        if (!r.ok) return null;
+        const c = await r.json();
+        if (c?.['bot-name']) return { name: c['bot-name'], avatar: c['bot-avatar'] || null };
+      } catch { /* claw not installed */ }
+      return null;
+    },
+    staleTime: 60_000,
+  });
+
   const { data: mentionCandidates = [] } = useQuery({
     queryKey: ['mentionCandidates', chatId, mentionSearchText],
     queryFn: () =>
@@ -111,17 +129,30 @@ export const useMentions = ({
     },
   });
 
-  // Combine role options and mention candidates
+  // Combine role options, bot option, and mention candidates
   const validOptions = useMemo(() => {
     const validRoleOptions = roleOptions.filter(
       (o) =>
         mentionSearchText.trim().length > 0 &&
         o.title?.toLowerCase().startsWith(mentionSearchText.toLowerCase())
     );
-    return [...validRoleOptions, ...mentionCandidates].sort(
+    // Inject bot as mention candidate if name matches
+    const botCandidates: MentionOption[] = [];
+    if (botOption?.name && currentUserId &&
+        mentionSearchText.trim().length > 0 &&
+        botOption.name.toLowerCase().startsWith(mentionSearchText.toLowerCase())) {
+      botCandidates.push({
+        id: currentUserId,
+        title: botOption.name,
+        subtitle: `Bot · ${formatUserId(currentUserId, true)?.display ?? currentUserId}`,
+        type: 'bot',
+        priority: 0,
+      });
+    }
+    return [...botCandidates, ...validRoleOptions, ...mentionCandidates].sort(
       (a, b) => a.priority - b.priority
     );
-  }, [roleOptions, mentionCandidates, mentionSearchText]);
+  }, [roleOptions, mentionCandidates, mentionSearchText, botOption, currentUserId]);
 
   const hasMentionCandidates = useMemo(() => {
     return validOptions.length > 0;

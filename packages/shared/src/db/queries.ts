@@ -877,7 +877,6 @@ export const getMentionCandidates = createReadQuery(
       .from($posts)
       .where(
         and(
-          eq($posts.channelId, chatId),
           eq($posts.isBot, true),
           isNotNull($posts.botNickname),
           sql`LOWER(${$posts.botNickname}) LIKE ${searchTerm}`
