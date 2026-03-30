@@ -119,9 +119,9 @@ export const PostList: PostListComponent = React.forwardRef(
             listRef.current.scrollToEnd({ animated: opts.animated });
           }
         },
-        scrollToIndex: ({ index, animated }) => {
+        scrollToIndex: ({ index, animated, viewPosition }) => {
           if (listRef.current) {
-            listRef.current.scrollToIndex({ index, animated });
+            listRef.current.scrollToIndex({ index, animated, viewPosition });
           }
         },
       })

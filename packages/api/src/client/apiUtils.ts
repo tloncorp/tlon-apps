@@ -23,6 +23,7 @@ export function isColor(value: string) {
 // Limit max image string size since this isn't currently limited serverside +
 // it's possible for these to be massive and cause issues.
 const maxImageStringSize = 2048;
+const BOT_USER_ID_PREFIX = '~pinser-botter-';
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
@@ -81,6 +82,10 @@ export function formatDateParam(date: Date) {
 
 export function isDmChannelId(channelId: string) {
   return channelId.startsWith('~');
+}
+
+export function isBotUserId(userId: string | null | undefined) {
+  return userId?.startsWith(BOT_USER_ID_PREFIX) ?? false;
 }
 
 export function isGroupDmChannelId(channelId: string) {

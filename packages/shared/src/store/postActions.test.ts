@@ -6,7 +6,9 @@ import { poke, scry } from '@tloncorp/api';
 import * as db from '../db';
 import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
 import { PostDataDraft } from '@tloncorp/api/types/post';
+import { AnalyticsEvent } from '../domain';
 import { toPostData } from '../logic';
+import { useDebugStore } from '../debug';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import { finalizeAndSendPost } from './postActions';
 import { updateSession } from './session';
@@ -44,6 +46,7 @@ describe('sendPost', () => {
     vi.useRealTimers();
     vi.mocked(scry).mockClear();
     vi.mocked(poke).mockClear();
+    useDebugStore.setState({ errorLogger: null });
     updateSession(null);
   });
 
@@ -148,6 +151,52 @@ describe('sendPost', () => {
       deliveryStatus: 'failed',
     });
     expect(mockedPoke).toHaveBeenCalledTimes(0);
+  });
+
+  test('tracks whether a sent post is going to a bot DM', async () => {
+    const botDmId = '~pinser-botter-sampel';
+    const capture = vi.fn();
+
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    vi.useFakeTimers();
+    vi.mocked(poke).mockResolvedValue(0);
+
+    await db.insertChannels([
+      db.buildChannel({
+        id: botDmId,
+        contactId: botDmId,
+        type: 'dm',
+      }),
+    ]);
+
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+
+    const sendPostPromise = finalizeAndSendPost({
+      channelId: botDmId,
+      content: ['hello bot'],
+      attachments: [],
+      channelType: 'dm',
+      replyToPostId: null,
+      isEdit: false,
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+    await sendPostPromise;
+
+    const sendPostEvent = capture.mock.calls.find(
+      ([eventId]) => eventId === AnalyticsEvent.ActionSendPost
+    );
+
+    expect(sendPostEvent).toBeDefined();
+    expect(sendPostEvent?.[1]).toEqual(
+      expect.objectContaining({
+        channelId: expect.any(String),
+        channelType: 'dm',
+        groupId: null,
+        isBotDm: true,
+      })
+    );
+    expect(sendPostEvent?.[1]?.channelId).not.toBe(botDmId);
   });
 });
 

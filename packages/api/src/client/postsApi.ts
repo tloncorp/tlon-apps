@@ -34,6 +34,7 @@ import {
   formatUd,
   getCanonicalPostId,
   getChannelIdType,
+  isBotUserId,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
@@ -1197,7 +1198,7 @@ function isBotProfile(author: ub.Author): author is ub.BotProfile {
  * This ensures bot authors are consistently represented as BotProfile objects.
  */
 function normalizeAuthor(author: ub.Author): ub.Author {
-  if (typeof author === 'string' && author.startsWith('~pinser-botter-')) {
+  if (typeof author === 'string' && isBotUserId(author)) {
     return {
       ship: author,
       nickname: null,
