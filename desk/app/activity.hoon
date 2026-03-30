@@ -329,7 +329,7 @@
     ==
   ::
       %activity-action
-    =+  !<(=action:a vase)
+    =+  !<(=action:v8:av vase)
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
@@ -374,46 +374,29 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v4) *] pole)
+  =?  pole  !?=([?(%v4) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+pole !!)
-    [%v0 ~]                 ?>(from-self cor)
-    [%v1 ~]                 ?>(from-self cor)
     [%v4 ~]                 ?>(from-self cor)
-    [%v0 %unreads ~]        ?>(from-self cor)
-    [%v1 %unreads ~]        ?>(from-self cor)
     [%v4 %unreads ~]        ?>(from-self cor)
     [%v4 %reads ~]          ?>(from-self cor)
-    [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
   ^-  (unit (unit cage))
-  =/  any  ?(%v0 %v1 %v2 %v3 %v4 %v5)
-  =/  upto-4  ?(%v0 %v1 %v2 %v3 %v4)
-  =?  +.pole  !?=([any *] +.pole)
-    [%v0 +.pole]
-  ?+  pole  [~ ~]
-      [%x ?(%v0 %v2) ~]
-    =/  =activity:v2:av  (activity:v2:convert-to activity)
-    ``activity-full+!>([indices activity volume-settings])
-  ::
-      [%x ?(%v1 %v3) ~]
-    =/  =activity:v3:av  (activity:v3:convert-to activity)
-    ``activity-full-1+!>([indices activity volume-settings])
-  ::
+  ?+    pole  [~ ~]
       [%x %v4 ~]
     =/  =activity:v8:av  activity
     ``activity-full-4+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
-      [%x any %all ~]
+      [%x %v4 %all ~]
     ``activity-stream+!>(`stream:v8:av`stream:base)
   ::
-      [%x any %all count=@ start=?(~ [u=@ ~])]
+      [%x %v4 %all count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -422,7 +405,7 @@
     =-  ``activity-stream+!>(`stream:v8:av`(gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
-      [%x upto-4 %feed %init count=@ ~]
+      [%x %v4 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
     =;  init=[all=feed:v4:av mentions=feed:v4:av replies=feed:v4:av]
@@ -432,7 +415,6 @@
         (feed:v4:convert-to (feed %replies start count))
     ==
   ::
-      ::TODO version
       [%x %v5 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
@@ -450,7 +432,7 @@
         summaries.replies
     ==
   ::
-      [%x upto-4 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x %v4 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -475,7 +457,7 @@
   ::      suffer from the "search range" "problem", where we want .count to
   ::      mean entries trawled, not entries returned...
   ::
-      [%x any %each start=@ count=@ ~]
+      [%x %v5 %each start=@ count=@ ~]
     =;  =stream:v8:av
       ``activity-stream+!>(stream)
     =/  start  (slav %da start.pole)
@@ -487,8 +469,8 @@
   ::
   ::  /indexed: per-index
   ::
-      [%x any %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
-    =/  =source:a
+      [%x %v5 %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+    =/  =source:v8:av
       ?-  -.concern.pole
           %dm
         :-  %dm
@@ -508,28 +490,21 @@
     ?~  dice=(~(get by indices) source)  [~ ~]
     ?+  rest  ~
         ~
-      ``activity-stream+!>(stream.u.dice)
+      ``activity-stream+!>(`stream:v8:av`stream.u.dice)
     ::
         [start=@ count=@ ~]
       =/  start  (slav %da start.rest)
       =/  count  (slav %ud count.rest)
       =/  ls  (tab:on-event:a stream.u.dice `start count)
-      ``activity-stream+!>((gas:on-event:a *stream:a ls))
+      ``activity-stream+!>(`stream:v8:av`(gas:on-event:a *stream:a ls))
     ==
   ::  /event: individual events
   ::
-      [%u any %event id=@ ~]
+      [%u %v4 %event id=@ ~]
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
-      [%x any %event id=@ ~]
+      [%x %v4 %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
-  ::
-      [%x ?(%v0 %v2) %activity ~]
-    ``activity-summary+!>((activity:v2:convert-to activity))
-  ::
-      [%x ?(%v1 %v3) %activity ~]
-    =/  =activity:v3:av  (activity:v3:convert-to activity)
-    ``activity-summary-1+!>(activity)
   ::
       [%x %v4 %activity ~]
     =/  =activity:v8:av  (strip-threads activity)
@@ -568,7 +543,7 @@
     ``activity-summary-4+!>(threads)
   ::
       [%x %v4 %activity %unreads ~]
-    =/  unreads
+    =/  unreads=(list [=source:v8:av =activity-summary:v8:av])
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
@@ -585,15 +560,15 @@
       notify.as
     ``activity-summary-pairs-4+!>(notified)
   ::
-      [%x any %volume-settings ~]
+      [%x ?(%v4 %v5) %volume-settings ~]
     ``activity-settings+!>(`volume-settings:v8:av`volume-settings)
   ::
-      [%x any %notifications-allowed ~]
+      [%x ?(%v4 %v5) %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ::
       [%x %v4 %activity %changes since=@ ~]
     =/  since=time  (slav %da since.pole)
-    =;  summaries=activity:a
+    =;  summaries=activity:v8:av
       ``activity-summary-4+!>(summaries)
     %-  ~(gas by *activity:a)
     %+  skim
@@ -753,32 +728,6 @@
   ~>  %spin.['give-update']
   ^+  cor
   %-  (log |.("{<[update dist]>}"))
-  =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /reads]
-    =/  v0-paths
-      =/  hose=(list path)  ~[/ /v0 /v2]
-      =/  only=(list path)  ~[path.dist [%v0 path.dist] [%v2 path.dist]]
-      ?-  -.dist
-        %hose  hose
-        %only  only
-        %both  (weld only hose)
-      ==
-    =/  v0-cage=cage
-      activity-update+!>((update:v2:convert-to update activity))
-    (give %fact v0-paths v0-cage)
-  =?  cor  ?!(?=(%activity -.update))
-    =?  dist  ?=(%read -.update)  [%both /reads]
-    =/  v1-paths
-      =/  hose=(list path)  ~[/v1 /v3]
-      =/  only=(list path)  ~[path.dist [%v1 path.dist] [%v3 path.dist]]
-      ?-  -.dist
-        %hose  hose
-        %only  only
-        %both  (weld only hose)
-      ==
-    =/  v1-cage=cage
-      activity-update-1+!>((update:v3:convert-to update activity))
-    (give %fact v1-paths v1-cage)
   =/  v4-paths
     =/  hose=(list path)  ~[/v4]
     =/  only=(list path)  ~[[%v4 path.dist]]
