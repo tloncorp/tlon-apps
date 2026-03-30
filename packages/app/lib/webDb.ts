@@ -15,6 +15,8 @@ const IS_SECURE_CONTEXT =
   typeof globalThis !== 'undefined' && globalThis.isSecureContext !== false;
 const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
 const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
+const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
+const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
 
 // crypto.randomUUID() is only available in secure contexts. Polyfill it
 // for plain HTTP so that SQLocal (which uses it internally) can function.
@@ -129,6 +131,8 @@ export class WebDb extends BaseDb {
       if (this.sqlocal == null) {
         return;
       }
+      await this.maybeCompactBeforeSave();
+
       const { getDatabaseFile } = this.sqlocal;
 
       const dbFile = await getDatabaseFile();
@@ -144,6 +148,44 @@ export class WebDb extends BaseDb {
     1000,
     { trailing: true }
   );
+
+  private async maybeCompactBeforeSave() {
+    if (this.sqlocal == null) return;
+
+    try {
+      const [stats] = await this.sqlocal.sql<{
+        page_count: number;
+        freelist_count: number;
+        page_size: number;
+      }>(`
+        SELECT page_count AS page_count, freelist_count AS freelist_count, page_size AS page_size
+        FROM pragma_page_count(), pragma_freelist_count(), pragma_page_size()
+      `);
+      if (!stats) return;
+
+      const { page_count, freelist_count, page_size } = stats;
+      const freeBytes = freelist_count * page_size;
+      const freeRatio = freelist_count / page_count;
+
+      if (
+        freeBytes < MIN_FREE_BYTES_BEFORE_VACUUM &&
+        freeRatio < MIN_FREE_RATIO_BEFORE_VACUUM
+      ) {
+        return;
+      }
+
+      logger.log('Vacuuming SQLite database before export', {
+        page_count,
+        freelist_count,
+        page_size,
+        freeBytes,
+        freeRatio,
+      });
+      await this.sqlocal.sql('VACUUM');
+    } catch (e) {
+      console.warn('Failed to compact SQLite database before export', e);
+    }
+  }
 
   override async processChanges() {
     await super.processChanges();
