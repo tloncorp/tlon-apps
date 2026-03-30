@@ -362,6 +362,45 @@
     --
   ++  v4
     |%
+    ++  indices
+      |=  =indices:a
+      ^-  indices:v4:av
+      %-  ~(gas by *indices:v4:av)
+      %+  murn  ~(tap by indices)
+      |=  [=source:a =index:a]
+      ^-  (unit [source:v4:av index:v4:av])
+      ?~  src=(^source source)  ~
+      ?~  idx=(^index index)  ~
+      `[u.src u.idx]
+    ++  source
+      |=  =source:a
+      ^-  (unit source:v4:av)
+      ?:  ?=(%contact -.source)  ~
+      `source
+    ++  index
+      |=  =index:a
+      ^-  (unit index:v4:av)
+      ?~  stm=(stream stream.index)  ~
+      `[u.stm reads.index bump.index]
+    ++  stream
+      |=  =stream:a
+      ^-  (unit stream:v4:av)
+      =/  out=stream:v4:av
+        %+  gas:on-event:v4:av
+          *stream:v4:av
+        (murn (tap:on-event:a stream) time-event)
+      %-  some
+      out
+    ++  volume-settings
+      |=  =volume-settings:a
+      ^-  volume-settings:v4:av
+      %-  ~(gas by *volume-settings:v4:av)
+      %+  murn  ~(tap by volume-settings)
+      |=  [=source:a vm0=volume-map:a]
+      ^-  (unit [source:v4:av volume-map:v4:av])
+      ?~  src=(^source source)  ~
+      ?~  vm=(volume-map vm0)  ~
+      `[u.src u.vm]
     ++  feed
       |=  =feed:a
       ^-  feed:v4:av
@@ -410,6 +449,16 @@
         ::
           [*@da ~]
       ==
+    ++  volume-map
+      |=  =volume-map:a
+      ^-  (unit volume-map:v4:av)
+      %-  some
+      %-  ~(gas by *volume-map:v4:av)
+      %+  murn  ~(tap by volume-map)
+      |=  [=event-type:a =volume:a]
+      ^-  (unit [event-type:v4:av volume:v4:av])
+      ?:  ?=(%contact event-type)  ~
+      `[event-type volume]
     --
   ++  v3
     |%

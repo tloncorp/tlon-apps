@@ -52,10 +52,10 @@
   ::
   +$  current-state
     $:  %8
-        allowed=notifications-allowed:a
-        =indices:a
-        =activity:a
-        =volume-settings:a
+        allowed=notifications-allowed:v8:av
+        =indices:v8:av
+        =activity:v8:av
+        =volume-settings:v8:av
     ==
   --
 ::
@@ -168,6 +168,7 @@
   ?>  ?=(%8 -.old)
   =.  state  old
   refresh-all-summaries
+  ::
   +$  versioned-state
     $%  state-8
         state-7
