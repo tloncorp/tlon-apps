@@ -369,6 +369,7 @@
     :~  source+(source s)
         volume+?~(v ~ (volume-map u.v))
     ==
+  ++  v8  .
   ++  v4
     |%
     ++  feed
@@ -485,186 +486,188 @@
     :~  id/msg-id
         time/(se %ud)
     ==
-  ++  event-type
-    %-  perk
-    :~  %post-mention
-        %reply-mention
-        %dm-post-mention
-        %dm-reply-mention
-        %post
-        %reply
-        %dm-invite
-        %dm-post
-        %dm-reply
-        %flag-post
-        %flag-reply
-        %group-ask
-        %group-join
-        %group-kick
-        %group-role
-        %group-invite
-    ==
-  +|  %action
-  ++  action
-    ^-  $-(json action:a)
-    %-  of
-    :~  add/add
-        clear-group-invites/ul
-        del/source
-        read/read
-        adjust/adjust
-        allow-notifications/(su (perk %all %some %none ~))
-    ==
-  ::
-  ++  add  incoming-event
-  ::
-  ++  adjust
-    %-  ot
-    :~  source/source
-        volume/(mu volume-map)
-    ==
-  ::
-  ++  read
-    ^-  $-(json [source:a read-action:a])
-    %-  ot
-    :~  source/source
-        action/read-action
-    ==
-  ::
-  ++  read-action
-    %-  of
-    :~  item/id
-        all/all-read
-        event/incoming-event
-    ==
-  ++  all-read
-    %-  ou
-    :~  time/(un (mu (se %ud)))
-        deep/(uf | bo)
-    ==
-  ::
-  +|  %basics
-  ++  source
-    ^-  $-(json source:a)
-    %-  of
-    :~  base/ul
-        group/flag:dejs:gj
-        dm/whom
-        channel/channel-source
-        thread/thread-source
-        dm-thread/dm-thread-source
-    ==
-  ::
-  ++  channel-source
-    %-  ot
-    :~  nest+nest:dejs:cj
-        group+flag:dejs:gj
-    ==
-  ++  thread-source
-    %-  ot
-    :~  key+msg-key
-        channel+nest:dejs:cj
-        group+flag:dejs:gj
-    ==
-  ::
-  ++  dm-thread-source
-    %-  ot
-    :~  key/msg-key
-        whom/whom
-    ==
-  ::
-  ++  volume-map  (op event-type volume)
-  ++  volume
-    %-  ot
-    :~  unreads/bo
-        notify/bo
-    ==
-  ::
-  ++  incoming-event
-    ^-  $-(json incoming-event:a)
-    %-  of
-    :~  post/post-event
-        reply/reply-event
-        chan-init/chan-init-event
-        dm-invite/whom
-        dm-post/dm-post-event
-        dm-reply/dm-reply-event
-        flag-post/flag-post-event
-        flag-reply/flag-reply-event
-        group-ask/group-event
-        group-join/group-event
-        group-kick/group-event
-        group-invite/group-event
-        group-role/group-role-event
-    ==
-  ++  chan-init-event
-    %-  ot
-    :~  channel/nest:dejs:cj
-        group/flag:dejs:gj
-    ==
-  ::
-  ++  post-event
-    %-  ot
-    :~  key/msg-key
-        channel/nest:dejs:cj
-        group/flag:dejs:gj
-        content/story:dejs:sj
-        mention/bo
-    ==
-  ::
-  ++  reply-event
-    %-  ot
-    :~  key/msg-key
-        parent/msg-key
-        channel/nest:dejs:cj
-        group/flag:dejs:gj
-        content/story:dejs:sj
-        mention/bo
-    ==
-  ::
-  ++  dm-post-event
-    %-  ot
-    :~  key/msg-key
-        whom/whom
-        content/story:dejs:sj
-        mention/bo
-    ==
-  ::
-  ++  dm-reply-event
-    %-  ot
-    :~  key/msg-key
-        parent/msg-key
-        whom/whom
-        content/story:dejs:sj
-        mention/bo
-    ==
-  ::
-  ++  flag-post-event
-    %-  ot
-    :~  key/msg-key
-        channel/nest:dejs:cj
-        group/flag:dejs:gj
-    ==
-  ::
-  ++  flag-reply-event
-    %-  ot
-    :~  key/msg-key
-        parent/msg-key
-        channel/nest:dejs:cj
-        group/flag:dejs:gj
-    ==
-  ::
-  ++  group-event
-    %-  ot
-    :~  group/flag:dejs:gj
-        ship/ship
-    ==
-  ::
-  ++  group-role-event
-    %-  ot
-    :~  group/flag:dejs:gj
-        ship/ship
-        roles/(as (se %tas))
-    ==
+  ++  v8
+    |%
+    ++  event-type
+      %-  perk
+      :~  %post-mention
+          %reply-mention
+          %dm-post-mention
+          %dm-reply-mention
+          %post
+          %reply
+          %dm-invite
+          %dm-post
+          %dm-reply
+          %flag-post
+          %flag-reply
+          %group-ask
+          %group-join
+          %group-kick
+          %group-role
+          %group-invite
+      ==
+    ++  action
+      ^-  $-(json action:a)
+      %-  of
+      :~  add/add
+          clear-group-invites/ul
+          del/source
+          read/read
+          adjust/adjust
+          allow-notifications/(su (perk %all %some %none ~))
+      ==
+    ::
+    ++  add  incoming-event
+    ::
+    ++  adjust
+      %-  ot
+      :~  source/source
+          volume/(mu volume-map)
+      ==
+    ::
+    ++  read
+      ^-  $-(json [source:a read-action:a])
+      %-  ot
+      :~  source/source
+          action/read-action
+      ==
+    ::
+    ++  read-action
+      %-  of
+      :~  item/id
+          all/all-read
+          event/incoming-event
+      ==
+    ++  all-read
+      %-  ou
+      :~  time/(un (mu (se %ud)))
+          deep/(uf | bo)
+      ==
+    ++  source
+      ^-  $-(json source:a)
+      %-  of
+      :~  base/ul
+          group/flag:dejs:gj
+          dm/whom
+          channel/channel-source
+          thread/thread-source
+          dm-thread/dm-thread-source
+          ::TODO contact
+      ==
+    ::
+    ++  channel-source
+      %-  ot
+      :~  nest+nest:dejs:cj
+          group+flag:dejs:gj
+      ==
+    ++  thread-source
+      %-  ot
+      :~  key+msg-key
+          channel+nest:dejs:cj
+          group+flag:dejs:gj
+      ==
+    ::
+    ++  dm-thread-source
+      %-  ot
+      :~  key/msg-key
+          whom/whom
+      ==
+    ::
+    ++  volume-map  (op event-type volume)
+    ++  volume
+      %-  ot
+      :~  unreads/bo
+          notify/bo
+      ==
+    ::
+    ++  incoming-event
+      ^-  $-(json incoming-event:a)
+      %-  of
+      :~  post/post-event
+          reply/reply-event
+          chan-init/chan-init-event
+          dm-invite/whom
+          dm-post/dm-post-event
+          dm-reply/dm-reply-event
+          flag-post/flag-post-event
+          flag-reply/flag-reply-event
+          group-ask/group-event
+          group-join/group-event
+          group-kick/group-event
+          group-invite/group-event
+          group-role/group-role-event
+          ::TODO contact
+      ==
+    ++  chan-init-event
+      %-  ot
+      :~  channel/nest:dejs:cj
+          group/flag:dejs:gj
+      ==
+    ::
+    ++  post-event
+      %-  ot
+      :~  key/msg-key
+          channel/nest:dejs:cj
+          group/flag:dejs:gj
+          content/story:dejs:sj
+          mention/bo
+      ==
+    ::
+    ++  reply-event
+      %-  ot
+      :~  key/msg-key
+          parent/msg-key
+          channel/nest:dejs:cj
+          group/flag:dejs:gj
+          content/story:dejs:sj
+          mention/bo
+      ==
+    ::
+    ++  dm-post-event
+      %-  ot
+      :~  key/msg-key
+          whom/whom
+          content/story:dejs:sj
+          mention/bo
+      ==
+    ::
+    ++  dm-reply-event
+      %-  ot
+      :~  key/msg-key
+          parent/msg-key
+          whom/whom
+          content/story:dejs:sj
+          mention/bo
+      ==
+    ::
+    ++  flag-post-event
+      %-  ot
+      :~  key/msg-key
+          channel/nest:dejs:cj
+          group/flag:dejs:gj
+      ==
+    ::
+    ++  flag-reply-event
+      %-  ot
+      :~  key/msg-key
+          parent/msg-key
+          channel/nest:dejs:cj
+          group/flag:dejs:gj
+      ==
+    ::
+    ++  group-event
+      %-  ot
+      :~  group/flag:dejs:gj
+          ship/ship
+      ==
+    ::
+    ++  group-role-event
+      %-  ot
+      :~  group/flag:dejs:gj
+          ship/ship
+          roles/(as (se %tas))
+      ==
+    --
   --
 --

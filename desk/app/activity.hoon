@@ -405,12 +405,13 @@
     ``activity-full-1+!>([indices activity volume-settings])
   ::
       [%x %v4 ~]
+    =/  =activity:v8:av  activity
     ``activity-full-4+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
       [%x any %all ~]
-    ``activity-stream+!>(stream:base)
+    ``activity-stream+!>(`stream:v8:av`stream:base)
   ::
       [%x any %all count=@ start=?(~ [u=@ ~])]
     =/  start
@@ -418,24 +419,24 @@
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
+    =-  ``activity-stream+!>(`stream:v8:av`(gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
       [%x upto-4 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
-    =;  init=[all=feed:v7:av mentions=feed:v7:av replies=feed:v7:av]
+    =;  init=[all=feed:v4:av mentions=feed:v4:av replies=feed:v4:av]
       ``activity-feed-init+!>(init)
-    :*  (feed:v7:convert-to (feed %all start count))
-        (feed:v7:convert-to (feed %mentions start count))
-        (feed:v7:convert-to (feed %replies start count))
+    :*  (feed:v4:convert-to (feed %all start count))
+        (feed:v4:convert-to (feed %mentions start count))
+        (feed:v4:convert-to (feed %replies start count))
     ==
   ::
       ::TODO version
       [%x %v5 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
-    =;  =feed-init:a
+    =;  =feed-init:v8:av
       ``activity-feed-init-5+!>(feed-init)
     =/  all  (feed %all start count)
     =/  mentions  (feed %mentions start count)
@@ -475,8 +476,8 @@
   ::      mean entries trawled, not entries returned...
   ::
       [%x any %each start=@ count=@ ~]
-    =;  =stream:a
-      ``activity-stream+!>(-)
+    =;  =stream:v8:av
+      ``activity-stream+!>(stream)
     =/  start  (slav %da start.pole)
     =/  count  (slav %ud count.pole)
     %-  ~(rep by indices)
@@ -531,17 +532,18 @@
     ``activity-summary-1+!>(activity)
   ::
       [%x %v4 %activity ~]
-    ``activity-summary-4+!>((strip-threads activity))
+    =/  =activity:v8:av  (strip-threads activity)
+    ``activity-summary-4+!>(activity)
   ::
       [%x %v4 %activity %full ~]
-    ``activity-summary-4+!>(activity)
+    ``activity-summary-4+!>(`activity:v8:av`activity)
   ::
       [%x %v4 %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
     =/  =flag:gv  [(slav %p host.pole) group.pole]
     =/  =nest:c  [kind.pole (slav %p ship.pole) name.pole]
     =/  =source:a  [%channel nest flag]
     =/  sum  (~(got by activity) source)
-    =/  threads=activity:a
+    =/  threads=activity:v8:av
       %+  roll
         ~(tap in children.sum)
       |=  [=source:a out=activity:a]
@@ -558,7 +560,7 @@
         club/u.club
       ship/u.ship
     =/  sum  (~(got by activity) source)
-    =/  threads=activity:a
+    =/  threads=activity:v8:av
       %+  roll
         ~(tap in children.sum)
       |=  [=source:a out=activity:a]
@@ -584,7 +586,7 @@
     ``activity-summary-pairs-4+!>(notified)
   ::
       [%x any %volume-settings ~]
-    ``activity-settings+!>(volume-settings)
+    ``activity-settings+!>(`volume-settings:v8:av`volume-settings)
   ::
       [%x any %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)

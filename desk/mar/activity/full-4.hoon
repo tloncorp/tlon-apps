@@ -1,15 +1,14 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-::TODO this should be version 4?
-|_  =full-info:a
+|_  =full-info:v8:av
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  full-info
-  ++  json  (full-info:enjs:aj full-info)
+  ++  json  (full-info:v8:enjs:aj full-info)
   --
 ++  grab
   |%
-  ++  noun  full-info:a
+  ++  noun  full-info:v8:av
   --
 --

@@ -1,6 +1,6 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  =action:a
+|_  =action:v8:av
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   --
 ++  grab
   |%
-  ++  noun  action:a
-  ++  json  action:dejs:aj
+  ++  noun  action:v8:av
+  ++  json  action:v8:dejs:aj
   --
 --
