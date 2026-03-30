@@ -32,6 +32,11 @@ const makeMention = (id: string): JSONContent => ({
   attrs: { id },
 });
 
+const makeTag = (tag: string): JSONContent => ({
+  type: 'tag',
+  attrs: { tag },
+});
+
 const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const paragraph: JSONContent = { type: 'paragraph' };
 
@@ -149,6 +154,7 @@ export interface Mention {
   display: string;
   start: number;
   end: number;
+  mentionType?: 'ship' | 'tag';
 }
 
 interface TextNode {
@@ -223,7 +229,11 @@ const processLine = (line: Line): JSONContent => {
     const marks = [];
 
     if (node.type === 'mention') {
-      parsedContent.push(makeMention(node.mention.id));
+      if (node.mention.mentionType === 'tag') {
+        parsedContent.push(makeTag(node.mention.display.replace(/^@/, '')));
+      } else {
+        parsedContent.push(makeMention(node.mention.id));
+      }
       return;
     }
 

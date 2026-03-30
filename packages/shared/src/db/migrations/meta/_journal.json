@@ -8,6 +8,13 @@
       "when": 1770685230541,
       "tag": "0000_reflective_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1743368400000,
+      "tag": "0001_add_bot_metadata",
+      "breakpoints": true
     }
   ]
 }

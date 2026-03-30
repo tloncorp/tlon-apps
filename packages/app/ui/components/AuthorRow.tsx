@@ -43,6 +43,8 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   editStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   isBot?: boolean;
+  botNickname?: string | null;
+  botAvatar?: string | null;
   detailView?: boolean;
   showEditedIndicator?: boolean;
   showSentAt?: boolean;
@@ -71,6 +73,7 @@ export function DetailViewAuthorRow({
   showSentAt,
   sent,
   isBot,
+  botNickname,
   ...props
 }: {
   authorId: string;
@@ -83,6 +86,7 @@ export function DetailViewAuthorRow({
   sent?: number;
   type?: db.PostType;
   isBot?: boolean;
+  botNickname?: string | null;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
@@ -125,7 +129,7 @@ export function DetailViewAuthorRow({
         cursor="pointer"
         onPress={deliveryFailed ? undefined : openProfile}
       >
-        <ContactName contactId={authorId} />
+        {isBot && botNickname ? botNickname : <ContactName contactId={authorId} />}
       </Text>
       {showSentAt && (
         <Text color="$secondaryText" size="$label/m">
@@ -147,6 +151,7 @@ export function ChatAuthorRow({
   deleteStatus,
   showSentAt = true,
   isBot,
+  botNickname,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -190,7 +195,7 @@ export function ChatAuthorRow({
           onPress={deliveryFailed ? undefined : openProfile}
           cursor="pointer"
         >
-          <ContactName contactId={authorId} />
+          {isBot && botNickname ? botNickname : <ContactName contactId={authorId} />}
         </Text>
         {showSentAt && timeDisplay && (
           <Text color="$secondaryText" size="$label/m">

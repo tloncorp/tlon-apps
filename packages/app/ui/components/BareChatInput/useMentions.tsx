@@ -13,11 +13,12 @@ export interface Mention {
   display: string;
   start: number;
   end: number;
+  mentionType?: 'ship' | 'tag';
 }
 
 export interface MentionOption {
   id: string;
-  type: 'contact' | 'group';
+  type: 'contact' | 'group' | 'bot';
   title?: string | null;
   subtitle?: string | null;
   priority: number;
@@ -89,21 +90,24 @@ export const useMentions = ({
     },
     enabled: isMentionModeActive && mentionSearchText.trim().length > 0,
     select: (data) => {
-      return data.map((candidate) => ({
-        id: candidate.id,
-        title: candidate.nickname || candidate.id,
-        subtitle: formatUserId(candidate.id, true)?.display,
-        type: 'contact' as const,
-        priority: candidate.priority,
-        contact: {
+      return data.map((candidate) => {
+        const isBot = candidate.priority === 0;
+        return {
           id: candidate.id,
-          nickname: candidate.nickname,
-          avatarImage: candidate.avatarImage,
-          bio: candidate.bio,
-          status: candidate.status,
-          color: candidate.color,
-        } as db.Contact,
-      }));
+          title: isBot ? candidate.nickname : (candidate.nickname || candidate.id),
+          subtitle: isBot ? `Bot · ${formatUserId(candidate.id, true)?.display ?? candidate.id}` : formatUserId(candidate.id, true)?.display,
+          type: isBot ? 'bot' as const : 'contact' as const,
+          priority: candidate.priority,
+          contact: isBot ? undefined : {
+            id: candidate.id,
+            nickname: candidate.nickname,
+            avatarImage: candidate.avatarImage,
+            bio: candidate.bio,
+            status: candidate.status,
+            color: candidate.color,
+          } as db.Contact,
+        };
+      });
     },
   });
 
@@ -263,6 +267,7 @@ export const useMentions = ({
       display: mentionDisplay,
       start: mentionStartIndex,
       end: mentionStartIndex + mentionDisplay.length,
+      mentionType: option.type === 'bot' ? 'tag' : 'ship',
     };
 
     setMentions((prev) => [...prev, newMention]);

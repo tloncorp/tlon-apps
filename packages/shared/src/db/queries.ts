@@ -839,8 +839,7 @@ export const getMentionCandidates = createReadQuery(
       )
       .as('candidates');
 
-    return (
-      ctx.db
+    const contactResults = await ctx.db
         .select({
           id: $candidates.id,
           nickname: $candidates.nickname,
@@ -859,10 +858,45 @@ export const getMentionCandidates = createReadQuery(
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
         .orderBy(sql`priority ASC`, ascNullsLast($candidates.nickname))
-        .limit(limit)
-    );
+        .limit(limit);
+
+    // Also find bot authors in this channel whose nickname matches
+    const botResults = await ctx.db
+      .selectDistinct({
+        id: $posts.authorId,
+        nickname: $posts.botNickname,
+        avatarImage: $posts.botAvatar,
+        bio: sql<string | null>`null`.as('bio'),
+        status: sql<string | null>`null`.as('status'),
+        color: sql<string | null>`null`.as('color'),
+        membershipType: sql<string | null>`null`.as('membershipType'),
+        joinedAt: sql<number | null>`null`.as('joinedAt'),
+        isBlocked: sql<boolean | null>`null`.as('isBlocked'),
+        priority: sql<number>`0`.mapWith((p) => parseInt(p)).as('priority'),
+      })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, chatId),
+          eq($posts.isBot, true),
+          isNotNull($posts.botNickname),
+          sql`LOWER(${$posts.botNickname}) LIKE ${searchTerm}`
+        )
+      )
+      .limit(3);
+
+    // Merge, dedup by id (contact results take precedence)
+    const seenIds = new Set(contactResults.map((r) => r.id));
+    const merged = [...contactResults];
+    for (const bot of botResults) {
+      if (!seenIds.has(bot.id)) {
+        merged.push(bot);
+        seenIds.add(bot.id);
+      }
+    }
+    return merged;
   },
-  ['chatMembers', 'contacts']
+  ['chatMembers', 'contacts', 'posts']
 );
 
 export const getChats = createReadQuery(

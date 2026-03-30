@@ -32,6 +32,7 @@ function MentionOptionItem({
 }) {
   const handlePress = useBoundHandler(option, onPress);
   const isContact = option.type === 'contact';
+  const isBot = option.type === 'bot';
   const size = '$4xl';
   return (
     <Pressable
@@ -47,6 +48,8 @@ function MentionOptionItem({
         backgroundColor={selected ? '$positiveBackground' : 'unset'}
       >
         {isContact ? (
+          <ListItem.ContactIcon size={size} contactId={option.id} />
+        ) : isBot ? (
           <ListItem.ContactIcon size={size} contactId={option.id} />
         ) : (
           <ListItem.SystemIcon icon="Face" size={size} />

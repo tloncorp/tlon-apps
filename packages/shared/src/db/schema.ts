@@ -1116,6 +1116,8 @@ export const posts = sqliteTable(
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
     isBot: boolean('is_bot').default(false),
+    botNickname: text('bot_nickname'),
+    botAvatar: text('bot_avatar'),
     isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),

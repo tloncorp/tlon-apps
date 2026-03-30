@@ -431,6 +431,7 @@ export function GalleryPostDetailView({
         <DetailViewAuthorRow
           authorId={post.authorId}
           isBot={post.isBot ?? undefined}
+          botNickname={post.botNickname}
           sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}

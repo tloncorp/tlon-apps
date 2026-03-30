@@ -325,6 +325,13 @@ export function JSONToInlines(
         },
       ];
     }
+    case 'tag': {
+      const tagName = json.attrs?.tag;
+      if (tagName) {
+        return [{ tag: tagName }];
+      }
+      return [];
+    }
     case 'diary-image': {
       if (!json.attrs) {
         return [];
@@ -615,6 +622,10 @@ export const inlineToContent = (
 
   if ('sect' in inline) {
     return makeMention(inline.sect || ALL_MENTION_ID);
+  }
+
+  if ('tag' in inline) {
+    return { type: 'text', text: `@${inline.tag}` };
   }
 
   if ('link' in inline) {

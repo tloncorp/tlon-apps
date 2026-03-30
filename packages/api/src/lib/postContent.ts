@@ -29,6 +29,11 @@ export type GroupMentionInlineData = {
   group: 'all' | string;
 };
 
+export type BotMentionInlineData = {
+  type: 'botMention';
+  botName: string;
+};
+
 export type LineBreakInlineData = {
   type: 'lineBreak';
 };
@@ -50,6 +55,7 @@ export type InlineData =
   | TextInlineData
   | MentionInlineData
   | GroupMentionInlineData
+  | BotMentionInlineData
   | LineBreakInlineData
   | LinkInlineData
   | TaskInlineData;
@@ -649,6 +655,11 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
         type: 'task',
         checked: inline.task.checked,
         children: convertInlineContent(inline.task.content),
+      });
+    } else if (ub.isTag(inline)) {
+      nodes.push({
+        type: 'botMention',
+        botName: inline.tag,
       });
     } else {
       console.warn('Unhandled inline type:', { inline });

@@ -77,6 +77,18 @@ export function InlineMention({
   );
 }
 
+export function InlineBotMention({
+  inline,
+}: PropsWithChildren<{
+  inline: { type: 'botMention'; botName: string };
+}>) {
+  return (
+    <MentionText color={'$positiveActionText'}>
+      @{inline.botName}
+    </MentionText>
+  );
+}
+
 export function InlineGroupMention({
   inline,
 }: PropsWithChildren<{
@@ -212,6 +224,7 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   text: InlineText,
   style: InlineStyle,
   mention: InlineMention,
+  botMention: InlineBotMention,
   groupMention: InlineGroupMention,
   lineBreak: InlineLineBreak,
   link: InlineLink,

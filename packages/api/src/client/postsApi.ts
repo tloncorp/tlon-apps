@@ -1222,6 +1222,8 @@ export function toPostData(
   // Check if author is a bot (BotProfile object)
   const author = isPostTombstone(post) ? post.author : post.essay.author;
   const isBot = isBotProfile(author);
+  const botNickname = isBotProfile(author) ? author.nickname : null;
+  const botAvatar = isBotProfile(author) ? author.avatar : null;
 
   const channelType = channelId.split('/')[0];
   const getPostType = (
@@ -1252,6 +1254,8 @@ export function toPostData(
       sentAt: getReceivedAtFromId(post.id),
       isDeleted: true,
       isBot,
+      botNickname,
+      botAvatar,
       deletedAt: post['deleted-at'],
       receivedAt: getReceivedAtFromId(post.id),
       sequenceNum: post.seq ? Number(post.seq) : null,
@@ -1318,6 +1322,8 @@ export function toPostData(
     authorId: getAuthorId(post.essay.author),
     isEdited: 'revision' in post && post.revision !== '0',
     isBot,
+    botNickname,
+    botAvatar,
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
@@ -1410,10 +1416,14 @@ export function toPostReplyData(
   reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
   if (isPostTombstone(reply)) {
+    reply.author = normalizeAuthor(reply.author);
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
       authorId: getAuthorId(reply.author),
+      isBot: isBotProfile(reply.author),
+      botNickname: isBotProfile(reply.author) ? reply.author.nickname : null,
+      botAvatar: isBotProfile(reply.author) ? reply.author.avatar : null,
       channelId,
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
@@ -1436,6 +1446,8 @@ export function toPostReplyData(
           ).memo,
           blob: null,
         };
+  replyEssay.author = normalizeAuthor(replyEssay.author);
+  const replyIsBot = isBotProfile(replyEssay.author);
   const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
@@ -1447,6 +1459,9 @@ export function toPostReplyData(
     channelId,
     type: 'reply',
     authorId: getAuthorId(replyEssay.author),
+    isBot: replyIsBot,
+    botNickname: isBotProfile(replyEssay.author) ? replyEssay.author.nickname : null,
+    botAvatar: isBotProfile(replyEssay.author) ? replyEssay.author.avatar : null,
     isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
