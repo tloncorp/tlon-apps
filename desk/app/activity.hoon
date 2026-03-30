@@ -153,13 +153,18 @@
   =?  old  ?=(%7 -.old)
     ::  insert missing volume defaults to %base
     ::
-    =/  base-volume
-      (~(gut by volume-settings.state) [%base ~] *volume-map:a)
-    =.  volume-settings.old
-      %+  ~(put by volume-settings.state)  [%base ~]
-      (~(uni by *volume-map:a) base-volume)
+    =/  base-volume=volume-map:v8:av
+      (~(gut by volume-settings.old) [%base ~] *volume-map:v7:av)
+    =/  =volume-settings:v8:av
+      %+  ~(put by `volume-settings:v8:av`volume-settings.old)  [%base ~]
+      (~(uni by *volume-map:v8:av) base-volume)
     =.  allowed.old  %all
-    [%8 +.old]
+    :*  %8
+        allowed.old
+        indices.old
+        activity.old
+        volume-settings
+    ==
   ?>  ?=(%8 -.old)
   =.  state  old
   refresh-all-summaries
@@ -183,25 +188,40 @@
     ==
   +$  state-6  _%*(. *state-4 - %6)
   +$  state-5  _%*(. *state-4 - %5)
-  ::
-  ++  state-5-to-6
-    |=  old=state-5
-    ~>  %spin.['state-5-to-6']
-    ^-  state-6
-    =/  [=indices:av =activity:av]
-      (sync-reads indices.old activity.old volume-settings.old)
-    :*  %6
-        allowed.old
-        indices
-        activity
-        volume-settings.old
-    ==
   +$  state-4
     $:  %4
         allowed=notifications-allowed:v4:av
         =indices:v4:av
         =activity:v4:av
         =volume-settings:v4:av
+    ==
+  +$  state-3
+    $:  %3
+        allowed=notifications-allowed:v3:av
+        =indices:v3:av
+        =activity:v3:av
+        =volume-settings:v3:av
+    ==
+  +$  state-2
+    $:  %2
+        allowed=notifications-allowed:v2:av
+        =indices:v2:av
+        =activity:v2:av
+        =volume-settings:v2:av
+    ==
+  +$  state-1
+    [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
+  ++  state-5-to-6
+    |=  old=state-5
+    ~>  %spin.['state-5-to-6']
+    ^-  state-6
+    =/  [=indices:v5:av =activity:v5:av]
+      (sync-reads-5 indices.old activity.old volume-settings.old)
+    :*  %6
+        allowed.old
+        indices
+        activity
+        volume-settings.old
     ==
   ++  state-4-to-5
     |=  old=state-4
@@ -224,13 +244,6 @@
       |=  =event:v4:av
       event(child &)
     index
-  +$  state-3
-    $:  %3
-        allowed=notifications-allowed:v3:av
-        =indices:v3:old:a
-        =activity:v3:old:a
-        =volume-settings:a
-    ==
   ++  state-3-to-4
     |=  old=state-3
     ~>  %spin.['state-3-to-4']
@@ -239,7 +252,7 @@
     :*  %4
         allowed.old
         new-indices
-        (activity-3-to-4 new-indices volume-settings.old)
+        (activity-3-to-4 indices.old volume-settings.old)
         volume-settings.old
     ==
   ++  indices-3-to-4
@@ -251,19 +264,10 @@
     |=  [=indices:v3:av vs=volume-settings:v3:av]
     ~>  %spin.['activity-3-to-4']
     ^-  activity:v4:av
-    =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
-    %+  roll  sources
-    |=  [=source:v3:av =activity:v3:av]
-    =/  index  (~(got by indices) source)
-    %+  ~(put by activity)  source
-    (~(summarize-unreads urd indices activity vs log) source index)
-  +$  state-2
-    $:  %2
-        allowed=notifications-allowed:v2:av
-        =indices:v3:av  :: FIX
-        =activity:v2:av
-        =volume-settings:v2:av
-    ==
+    ::NOTE this used to perform a conversion using utility function
+    ::     that only takes the current version types. we bunt here,
+    ::     relying on summaries refresh performed during +on-load.
+    *activity:v4:av
   ++  state-2-to-3
     |=  old=state-2
     ~>  %spin.['state-2-to-3']
@@ -274,8 +278,6 @@
         ~  ::  this will just get re-derived when we do v3 -> v4
         volume-settings.old
     ==
-  +$  state-1
-    [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
   ++  state-1-to-2
     |=  old=state-1
     ~>  %spin.['state-1-to-2']
@@ -319,11 +321,6 @@
       %show-orphans  (drop-orphans &)
       %drop-orphans  (drop-orphans |)
       %adjust-old-default  adjust-old-default
-    ::
-        %sync-reads
-      =^  indices  activity
-        (sync-reads indices activity volume-settings)
-      cor(indices indices)
     ::
         %migrate
       =.  state  *current-state
@@ -400,11 +397,11 @@
     [%v0 +.pole]
   ?+  pole  [~ ~]
       [%x ?(%v0 %v2) ~]
-    =/  =activity:v2:old:a  (activity:v2:convert-to activity)
+    =/  =activity:v2:av  (activity:v2:convert-to activity)
     ``activity-full+!>([indices activity volume-settings])
   ::
       [%x ?(%v1 %v3) ~]
-    =/  =activity:v3:old:a  (activity:v3:convert-to activity)
+    =/  =activity:v3:av  (activity:v3:convert-to activity)
     ``activity-full-1+!>([indices activity volume-settings])
   ::
       [%x %v4 ~]
@@ -427,13 +424,14 @@
       [%x upto-4 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
-    =;  init=[all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
+    =;  init=[all=feed:v7:av mentions=feed:v7:av replies=feed:v7:av]
       ``activity-feed-init+!>(init)
-    :*  feed:(feed %all start count)
-        feed:(feed %mentions start count)
-        feed:(feed %replies start count)
+    :*  (feed:v7:convert-to (feed %all start count))
+        (feed:v7:convert-to (feed %mentions start count))
+        (feed:v7:convert-to (feed %replies start count))
     ==
   ::
+      ::TODO version
       [%x %v5 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
@@ -457,7 +455,7 @@
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =;  =feed:v4:old:a
+    =;  =feed:v4:av
       ``activity-feed+!>(feed)
     (feed:v4:convert-to (feed type.pole start count))
   ::
@@ -529,7 +527,7 @@
     ``activity-summary+!>((activity:v2:convert-to activity))
   ::
       [%x ?(%v1 %v3) %activity ~]
-    =/  =activity:v3:old:a  (activity:v3:convert-to activity)
+    =/  =activity:v3:av  (activity:v3:convert-to activity)
     ``activity-summary-1+!>(activity)
   ::
       [%x %v4 %activity ~]
@@ -1136,41 +1134,38 @@
 ::  floors were not local, but we have reverted to local floors and not
 ::  tracking individual reads
 ::
-++  sync-reads
-  |=  [=indices:a =activity:a vs=volume-settings:a]
+++  sync-reads-5
+  |=  [=indices:v5:av =activity:v5:av vs=volume-settings:v5:av]
   ~>  %spin.['sync-reads']
-  =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
+  =/  sources  (sort-sources-5 ~(tap in ~(key by indices)))
   |-
   ?~  sources  [indices activity]
-  =/  =source:a  i.sources
-  =/  =index:a  (~(got by indices) source)
+  =/  =source:v5:av  i.sources
+  =/  =index:v5:av  (~(got by indices) source)
   =/  old-floor  floor.reads.index
-  =/  old=(unit activity-summary:a)  (~(get by activity) source)
+  =/  old=(unit activity-summary:v5:av)  (~(get by activity) source)
   ::  get all our reads, removing children
   =/  new-floor=time
     =-  st
-    %^  (dip:on-read-items:a ,st=@da)  items.reads.index  floor.reads.index
-    |=  [st=@da =time-id:a *]
-    =/  event=(unit event:a)  (get:on-event:a stream.index time-id)
+    %^  (dip:on-read-items:v5:av ,st=@da)  items.reads.index  floor.reads.index
+    |=  [st=@da =time-id:v5:av *]
+    =/  event=(unit event:v5:av)  (get:on-event:v5:av stream.index time-id)
     ?~  event  [~ %.n st]
     ?:  child.u.event  [~ %.n st]
     [~ %.n ?:((gth time-id st) time-id st)]
   =.  reads.index  [new-floor ~]
   ::  with new reads, update our index and summary
   =.  indices  (~(put by indices) source index)
-  =/  new-summary
-    %+  ~(summarize-unreads urd indices activity vs log)
-      source
-    index
-  =.  activity
-    (~(put by activity) source new-summary)
-  ?:  !=(?~(old ~ u.old(reads ~)) new-summary(reads ~))
-    ~&  "%sync-reads: WARNING old and new summaries differ {<source>}"
-    ~&  "old floor: {<old-floor>} new floor: {<new-floor>}"
-    ~&  "old:  {<old>}"
-    ~&  "new:  {<`new-summary>}"
-    $(sources t.sources)
   $(sources t.sources)
+++  sort-sources-5
+  |=  sources=(list source:v5:av)
+  ::  sort children first in order so we only have to make one pass
+  ::  of summarization aka not repeatedly updating the same source
+  ::
+  %+  sort
+    sources
+  |=  [asrc=source:v5:av bsrc=source:v5:av]
+  (gth (get-order:src asrc) (get-order:src bsrc))
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
 ::  with bad message/parent identifiers (respectively) got pushed into our

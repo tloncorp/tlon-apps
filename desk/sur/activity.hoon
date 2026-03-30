@@ -85,8 +85,6 @@
       [%adjust =source volume-map=(unit volume-map)]
       [%allow-notifications allow=notifications-allowed]
   ==
-::
-+|  %basics
 ::  $event: a single point of activity, from one of our sources
 ::
 ::    $incoming-event: the event that was sent to us
@@ -279,6 +277,49 @@
   ++  v7
     |%
     +$  stream  ((mop time event) lte)
+    ++  on-stream  ((on time event) lte)
+    +$  indices
+      $~  [[[%base ~] *index] ~ ~]
+      (map source index)
+    +$  volume-settings  (map source volume-map)
+    +$  activity  (map source activity-summary)
+    +$  full-info  [=indices =activity =volume-settings]
+    +$  volume-map
+      $~  default-volumes
+      (map event-type volume)
+    +$  feed
+      $:  feed=(list activity-bundle)
+          summaries=activity
+      ==
+    +$  feed-init
+      $:  all=(list activity-bundle)
+          mentions=(list activity-bundle)
+          replies=(list activity-bundle)
+          summaries=activity
+      ==
+    +$  action
+      $%  [%add =incoming-event]
+          [%bump =source]
+          [%clear-group-invites ~]
+          [%del =source]
+          [%del-event =source event=incoming-event]
+          [%read =source =read-action]
+          [%adjust =source =(unit volume-map)]
+          [%allow-notifications allow=notifications-allowed]
+      ==
+    +$  read-action
+      $%  [%item id=time-id]
+          [%event event=incoming-event]
+          [%all time=(unit time) deep=?]
+      ==
+    +$  update
+      $%  [%add =source time-event]
+          [%del =source]
+          [%read =source =activity-summary]
+          [%activity =activity]
+          [%adjust =source volume-map=(unit volume-map)]
+          [%allow-notifications allow=notifications-allowed]
+      ==
     +$  event
       $:  incoming-event
           notified=?
@@ -299,6 +340,34 @@
           [%flag-post key=message-key channel=nest:c group=flag:g]
           [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
       ==
+    +$  post-event
+      $:  key=message-key
+          channel=nest:c
+          group=flag:g
+          content=story:s
+          mention=?
+      ==
+    +$  reply-event
+      $:  key=message-key
+          parent=message-key
+          channel=nest:c
+          group=flag:g
+          content=story:s
+          mention=?
+      ==
+    +$  dm-post-event
+      $:  key=message-key
+          =whom
+          content=story:s
+          mention=?
+      ==
+    +$  dm-reply-event
+      $:  key=message-key
+          parent=message-key
+          =whom
+          content=story:s
+          mention=?
+      ==
     +$  source
       $%  [%base ~]
           [%group =flag:g]
@@ -308,6 +377,69 @@
           [%dm-thread key=message-key =whom]
       ==
     +$  index  [=stream =reads bump=time]
+    +$  reads
+      $:  floor=time
+          items=read-items
+      ==
+    +$  read-items  ((mop time-id ,~) lte)
+    +$  activity-summary
+      $~  [*@da 0 0 | ~ ~ ~]
+      $:  newest=time
+          count=@ud
+          notify-count=@ud
+          notify=_|
+          unread=(unit unread-point)
+          children=(set source)
+          reads=*  ::  DO NOT USE, 🚨 ⚠️ REMOVE
+      ==
+    +$  unread-point  [message-key count=@ud notify=_|]
+    +$  volume  [unreads=? notify=?]
+    +$  notifications-allowed  ?(%all %some %none)
+    +$  activity-bundle
+      $:  =source
+          latest=time
+          events=(list time-event)
+      ==
+    +$  event-type
+      $?  %chan-init
+          %post
+          %post-mention
+          %reply
+          %reply-mention
+          %dm-invite
+          %dm-post
+          %dm-post-mention
+          %dm-reply
+          %dm-reply-mention
+          %group-invite
+          %group-kick
+          %group-join
+          %group-ask
+          %group-role
+          %flag-post
+          %flag-reply
+      ==
+    ++  default-volumes
+      ^~
+      ^-  (map event-type volume)
+      %-  my
+      :~  [%post & &]
+          [%reply & |]
+          [%dm-reply & &]
+          [%post-mention & &]
+          [%reply-mention & &]
+          [%dm-invite & &]
+          [%dm-post & &]
+          [%dm-post-mention & &]
+          [%dm-reply-mention & &]
+          [%group-invite & &]
+          [%group-ask & &]
+          [%flag-post & &]
+          [%flag-reply & &]
+          [%group-kick & |]
+          [%group-join & |]
+          [%group-role & |]
+      ==
     --
   --
 --

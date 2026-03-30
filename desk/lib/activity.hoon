@@ -308,20 +308,121 @@
   --
 ++  convert-to
   |%
+  ++  v7
+    |%
+    ++  feed
+      |=  =feed:a
+      ^-  feed:v7:av
+      :-  (murn feed.feed activity-bundle)
+      (activity summaries.feed)
+    ++  activity-bundle
+      |=  =activity-bundle:a
+      ^-  (unit activity-bundle:v7:av)
+      ?:  ?=(%contact -.source.activity-bundle)  ~
+      %-  some
+      :*  source.activity-bundle
+          latest.activity-bundle
+          (murn events.activity-bundle time-event)
+      ==
+    ++  time-event
+      |=  =time-event:a
+      ^-  (unit time-event:v7:av)
+      ?:  ?=(%contact -<.event.time-event)  ~
+      `time-event
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v7:av
+      %-  ~(gas by *activity:v7:av)
+      %+  murn  ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      ^-  (unit [source:v7:av activity-summary:v7:av])
+      ?:  ?=(%contact -.source)  ~
+      :+  ~
+        source
+      (activity-summary as activity)
+    ++  activity-summary
+      |=  [as=activity-summary:a =activity:a]
+      ^-  activity-summary:v7:av
+      :*  newest.as
+          count.as
+          notify-count.as
+          notify.as
+          unread.as
+        ::
+          ?:  =(~ children.as)  ~
+          ^-  (set source:v7:av)
+          %-  ~(gas in *(set source:v7:av))
+          ^-  (list source:v7:av)
+          %+  murn  ~(tap in children.as)
+          |=  =source:a
+          ?:(?=(%contact -.source) ~ `source)
+        ::
+          ~  ::  unused
+      ==
+    --
   ++  v4
     |%
     ++  feed
       |=  =feed:a
       ^-  feed:v4:av
-      feed.feed
+      (murn feed.feed activity-bundle)
+    ++  activity-bundle
+      |=  =activity-bundle:a
+      ^-  (unit activity-bundle:v4:av)
+      ?:  ?=(%contact -.source.activity-bundle)  ~
+      %-  some
+      :*  source.activity-bundle
+          latest.activity-bundle
+          (murn events.activity-bundle time-event)
+      ==
+    ++  time-event
+      |=  =time-event:a
+      ^-  (unit time-event:v4:av)
+      ?:  ?=(%contact -<.event.time-event)  ~
+      `time-event
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v4:av
+      %-  ~(gas by *activity:v4:av)
+      %+  murn  ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      ^-  (unit [source:v4:av activity-summary:v4:av])
+      ?:  ?=(%contact -.source)  ~
+      :+  ~
+        source
+      (activity-summary as activity)
+    ++  activity-summary
+      |=  [as=activity-summary:a =activity:a]
+      ^-  activity-summary:v4:av
+      :*  newest.as
+          count.as
+          notify-count.as
+          notify.as
+          unread.as
+        ::
+          ?:  =(~ children.as)  ~
+          ^-  (set source:v4:av)
+          %-  ~(gas in *(set source:v4:av))
+          ^-  (list source:v4:av)
+          %+  murn  ~(tap in children.as)
+          |=  =source:a
+          ?:(?=(%contact -.source) ~ `source)
+        ::
+          [*@da ~]
+      ==
     --
   ++  v3
     |%
     ++  activity
       |=  =activity:a
       ^-  activity:v3:av
-      %-  ~(run by activity)
-      |=  as=activity-summary:a
+      %-  ~(gas by *activity:v3:av)
+      %+  murn  ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      ^-  (unit [source:v3:av activity-summary:v3:av])
+      ?:  ?=(%contact -.source)  ~
+      :+  ~
+        source
       (activity-summary as activity)
     ++  activity-summary
       |=  [as=activity-summary:a =activity:a]
@@ -335,31 +436,71 @@
           ?:  =(~ children.as)  ~
           :-  ~
           %-  ~(gas by *activity:v3:av)
-          %+  turn
+          %+  murn
             ~(tap in children.as)
           |=  =source:a
+          ?:  ?=(%contact -.source)  ~
           =/  sum  (~(got by activity) source)
-          :-  source
+          :+  ~
+            source
           (activity-summary sum(children ~) ~)
         ::
           [*@da ~]
       ==
     ++  update
       |=  [=update:a =activity:a]
-      ^-  update:v3:av
-      ?+  -.update  update
-          %activity  !!
+      ^-  (unit update:v3:av)
+      ?-    -.update
+          %add
+        ?:  ?=(%contact -.source.update)  ~
+        ?~  ev=(time-event +>.update)  ~
+        `[%add source.update u.ev]
+      ::
+          %del
+        ?:  ?=(%contact -.source.update)  ~
+        `[%del source.update]
+      ::
           %read
-        [%read source.update (activity-summary activity-summary.update activity)]
+        ?:  ?=(%contact -.source.update)  ~
+        `[%read source.update (activity-summary activity-summary.update activity)]
+      ::
+        %activity  !!
+      ::
+          %adjust
+        ?:  ?=(%contact -.source.update)  ~
+        `[%adjust source.update (bind volume-map.update volume-map)]
+      ::
+          %allow-notifications
+        `[%allow-notifications allow.update]
       ==
+    ++  volume-map
+      |=  =volume-map:a
+      ^-  volume-map:v4:av
+      %-  ~(gas by *volume-map:v4:av)
+      %+  murn  ~(tap by volume-map)
+      |=  [=event-type:a =volume:a]
+      ^-  (unit [event-type:v4:av volume:v4:av])
+      ?:  ?=(%contact event-type)  ~
+      %-  some
+      [event-type volume]
+    ++  time-event
+      |=  =time-event:a
+      ^-  (unit time-event:v4:av)
+      ?:  ?=(%contact -<.event.time-event)  ~
+      `time-event
     --
   ++  v2
     |%
     ++  activity
       |=  =activity:a
       ^-  activity:v2:av
-      %-  ~(run by activity)
-      |=  as=activity-summary:a
+      %-  ~(gas by *activity:v2:av)
+      %+  murn  ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      ^-  (unit [source:v2:av activity-summary:v2:av])
+      ?:  ?=(%contact -.source)  ~
+      :+  ~
+        source
       (activity-summary as activity)
     ++  activity-summary
       |=  [as=activity-summary:a =activity:a]
@@ -371,21 +512,56 @@
         ::
           :-  ~
           %-  ~(gas by *activity:v2:av)
-          %+  turn
+          %+  murn
             ~(tap in children.as)
           |=  =source:a
+          ?:  ?=(%contact -.source)  ~
           =/  sum  (~(got by activity) source)
-          :-  source
+          :+  ~
+            source
           (activity-summary sum(children ~) ~)
       ==
     ++  update
       |=  [=update:a =activity:a]
-      ^-  update:v2:av
-      ?+  -.update  update
-          %activity  !!
+      ^-  (unit update:v2:av)
+      ?-    -.update
+          %add
+        ?:  ?=(%contact -.source.update)  ~
+        ?~  ev=(time-event +>.update)  ~
+        `[%add source.update u.ev]
+      ::
+          %del
+        ?:  ?=(%contact -.source.update)  ~
+        `[%del source.update]
+      ::
           %read
-        [%read source.update (activity-summary activity-summary.update activity)]
+        ?:  ?=(%contact -.source.update)  ~
+        `[%read source.update (activity-summary activity-summary.update activity)]
+      ::
+        %activity  !!
+      ::
+          %adjust
+        ?:  ?=(%contact -.source.update)  ~
+        `[%adjust source.update (bind volume-map.update volume-map)]
+      ::
+          %allow-notifications
+        `[%allow-notifications allow.update]
       ==
+    ++  volume-map
+      |=  =volume-map:a
+      ^-  volume-map:v2:av
+      %-  ~(gas by *volume-map:v2:av)
+      %+  murn  ~(tap by volume-map)
+      |=  [=event-type:a =volume:a]
+      ^-  (unit [event-type:v4:av volume:v4:av])
+      ?:  ?=(%contact event-type)  ~
+      %-  some
+      [event-type volume]
+    ++  time-event
+      |=  =time-event:a
+      ^-  (unit time-event:v2:av)
+      ?:  ?=(%contact -<.event.time-event)  ~
+      `time-event
     --
   --
 --
