@@ -394,8 +394,6 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v4) *] pole)
-    [%v0 pole]
   ?+  pole  ~|(bad-watch-path+pole !!)
     [%v4 ~]                 ?>(from-self cor)
     [%v4 %unreads ~]        ?>(from-self cor)
