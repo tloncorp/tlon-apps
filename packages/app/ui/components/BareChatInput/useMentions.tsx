@@ -84,19 +84,27 @@ export const useMentions = ({
 
   const currentUserId = useCurrentUserId();
 
-  // Fetch bot identity from claw if installed
-  const { data: botOption } = useQuery({
-    queryKey: ['clawBotConfig'],
+  // Fetch bot identities from claw if installed (multi-bot)
+  const { data: clawBots } = useQuery({
+    queryKey: ['clawBots'],
     queryFn: async () => {
       try {
-        const r = await fetch('/~/scry/claw/config.json', { credentials: 'include' });
-        if (!r.ok) return null;
-        const c = await r.json();
-        if (c?.['bot-name']) return { name: c['bot-name'], avatar: c['bot-avatar'] || null };
-      } catch { /* claw not installed */ }
+        const r = await fetch('/apps/claw/api/bots', { credentials: 'include' });
+        if (!r.ok) {
+          console.warn('claw bots fetch failed:', r.status);
+          return null;
+        }
+        const data = await r.json();
+        if (!data?.bots) return null;
+        const bots = Object.entries(data.bots as Record<string, {name: string; avatar: string}>)
+          .filter(([_, b]) => b.name)
+          .map(([id, b]) => ({ id, name: b.name, avatar: b.avatar || null }));
+        console.log('claw bots:', bots);
+        return bots;
+      } catch (e) { console.warn('claw not installed:', e); }
       return null;
     },
-    staleTime: 60_000,
+    staleTime: 10_000,
   });
 
   const { data: mentionCandidates = [] } = useQuery({
@@ -136,23 +144,32 @@ export const useMentions = ({
         mentionSearchText.trim().length > 0 &&
         o.title?.toLowerCase().startsWith(mentionSearchText.toLowerCase())
     );
-    // Inject bot as mention candidate if name matches
+    // Inject matching bots: match by bot name OR by host @p (shows all bots)
     const botCandidates: MentionOption[] = [];
-    if (botOption?.name && currentUserId &&
-        mentionSearchText.trim().length > 0 &&
-        botOption.name.toLowerCase().startsWith(mentionSearchText.toLowerCase())) {
-      botCandidates.push({
-        id: currentUserId,
-        title: botOption.name,
-        subtitle: `Bot · ${formatUserId(currentUserId, true)?.display ?? currentUserId}`,
-        type: 'bot',
-        priority: 0,
-      });
+    const seenBotNames = new Set<string>();
+    if (clawBots && currentUserId && mentionSearchText.trim().length > 0) {
+      const search = mentionSearchText.toLowerCase();
+      const hostMatch = currentUserId.toLowerCase().startsWith('~' + search) ||
+                        currentUserId.toLowerCase().startsWith(search);
+      for (const bot of clawBots) {
+        if (seenBotNames.has(bot.name)) continue;
+        const nameMatch = bot.name.toLowerCase().startsWith(search);
+        if (nameMatch || hostMatch) {
+          seenBotNames.add(bot.name);
+          botCandidates.push({
+            id: currentUserId,
+            title: bot.name,
+            subtitle: `Bot · ${formatUserId(currentUserId, true)?.display ?? currentUserId}`,
+            type: 'bot',
+            priority: 0,
+          });
+        }
+      }
     }
     return [...botCandidates, ...validRoleOptions, ...mentionCandidates].sort(
       (a, b) => a.priority - b.priority
     );
-  }, [roleOptions, mentionCandidates, mentionSearchText, botOption, currentUserId]);
+  }, [roleOptions, mentionCandidates, mentionSearchText, clawBots, currentUserId]);
 
   const hasMentionCandidates = useMemo(() => {
     return validOptions.length > 0;
