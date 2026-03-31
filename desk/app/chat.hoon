@@ -1492,7 +1492,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  a
+  =,  v8:av
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
