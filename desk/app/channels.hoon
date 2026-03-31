@@ -1838,7 +1838,7 @@
           |=  [=time reply=(may:c v-reply:c)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
-      =/  =path  (scry-path %activity /volume-settings/noun)
+      =/  =path  (scry-path %activity /v4/volume-settings/noun)
       =+  .^(settings=volume-settings %gx path)
       =/  =action
         :*  %add  %reply
