@@ -173,7 +173,6 @@ export const MessageInputContainer = memo(
               <AttachmentButtonContainer>
                 <AttachmentButton
                   setShouldBlur={setShouldBlur}
-                  mediaType="all"
                 />
               </AttachmentButtonContainer>
             ) : null}
