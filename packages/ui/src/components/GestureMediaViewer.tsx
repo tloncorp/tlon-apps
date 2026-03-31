@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
   clampGestureMediaViewerIndex,
@@ -22,7 +22,7 @@ function WebGestureMediaViewer({
   renderContainer,
   renderItem,
 }: GestureMediaViewerProps) {
-  const generatedIdRef = React.useRef<string>();
+  const generatedIdRef = useRef<string>();
   if (!generatedIdRef.current) {
     generatedIdRef.current = generateGestureMediaViewerId();
   }
@@ -33,7 +33,7 @@ function WebGestureMediaViewer({
   const resolvedIndex = clampGestureMediaViewerIndex(items, initialIndex);
   const item = items[resolvedIndex];
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!item) {
       return;
     }
@@ -41,7 +41,7 @@ function WebGestureMediaViewer({
     onIndexChange?.(resolvedIndex);
   }, [item, onIndexChange, resolvedIndex]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!item) {
       return;
     }
@@ -53,19 +53,19 @@ function WebGestureMediaViewer({
     });
   }, [item, onZoomStateChange]);
 
-  const dismiss = React.useCallback(() => {
+  const dismiss = useCallback(() => {
     onDismissStart?.();
     onDismiss?.();
   }, [onDismiss, onDismissStart]);
 
-  const helpers = React.useMemo<GestureMediaViewerRenderHelpers>(
+  const helpers = useMemo<GestureMediaViewerRenderHelpers>(
     () => ({
       dismiss,
     }),
     [dismiss]
   );
 
-  const resolvedRenderItem = React.useCallback<GestureMediaViewerRenderItem>(
+  const resolvedRenderItem = useCallback<GestureMediaViewerRenderItem>(
     (currentItem, index) =>
       renderItem?.(currentItem, index) ??
       renderDefaultGestureMediaViewerItem(currentItem),

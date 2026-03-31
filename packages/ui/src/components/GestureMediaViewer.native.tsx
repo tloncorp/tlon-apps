@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   GestureViewer,
   useGestureViewerController,
@@ -45,16 +45,16 @@ export function GestureMediaViewer({
   enableLoop,
   maxZoomScale,
 }: GestureMediaViewerProps) {
-  const generatedIdRef = React.useRef<string>();
+  const generatedIdRef = useRef<string>();
   if (!generatedIdRef.current) {
     generatedIdRef.current = generateGestureMediaViewerId();
   }
   const viewerId = id ?? generatedIdRef.current;
-  const [isZoomed, setIsZoomed] = React.useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
   const controller = useGestureViewerController(viewerId);
   const usesCustomTap = onSingleTap != null || onDoubleTap != null;
 
-  const handleZoomChange = React.useCallback(
+  const handleZoomChange = useCallback(
     ({ scale, previousScale }: GestureViewerEventData) => {
       const nextIsZoomed = getGestureMediaViewerIsZoomed(scale);
 
@@ -70,17 +70,17 @@ export function GestureMediaViewer({
 
   useGestureViewerEvent(viewerId, 'zoomChange', handleZoomChange);
 
-  const resolvedRenderItem = React.useCallback<GestureMediaViewerRenderItem>(
+  const resolvedRenderItem = useCallback<GestureMediaViewerRenderItem>(
     (item, index) =>
       renderItem?.(item, index) ?? renderDefaultGestureMediaViewerItem(item),
     [renderItem]
   );
 
-  const handleSingleTap = React.useCallback(() => {
+  const handleSingleTap = useCallback(() => {
     onSingleTap?.();
   }, [onSingleTap]);
 
-  const handleDoubleTap = React.useCallback(() => {
+  const handleDoubleTap = useCallback(() => {
     if (isZoomed) {
       controller.resetZoom();
     } else {
@@ -90,7 +90,7 @@ export function GestureMediaViewer({
     onDoubleTap?.();
   }, [controller, isZoomed, maxZoomScale, onDoubleTap]);
 
-  const tapGesture = React.useMemo(
+  const tapGesture = useMemo(
     () =>
       Gesture.Exclusive(
         Gesture.Tap()
@@ -109,7 +109,7 @@ export function GestureMediaViewer({
     [handleDoubleTap, handleSingleTap]
   );
 
-  const resolvedRenderContainer = React.useMemo(
+  const resolvedRenderContainer = useMemo(
     () =>
       !usesCustomTap
         ? renderContainer

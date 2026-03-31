@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type { ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Image } from './Image';
@@ -41,14 +41,14 @@ export type GestureMediaViewerZoomState = {
 };
 
 export type GestureMediaViewerRenderContainer = (
-  children: React.ReactElement,
+  children: ReactElement,
   helpers: GestureMediaViewerRenderHelpers
-) => React.ReactElement;
+) => ReactElement;
 
 export type GestureMediaViewerRenderItem = (
   item: GestureMediaViewerItem,
   index: number
-) => React.ReactElement;
+) => ReactElement;
 
 export type GestureMediaViewerProps = {
   id?: string;
