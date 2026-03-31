@@ -1,6 +1,6 @@
 ::  broadcaster: multi-target dms
 ::
-/-  c=chat, c3=chat-3, c4=chat-4, ch=channels
+/-  c=chat, cv=chat-ver, c3=chat-3, c4=chat-4, ch=channels
 /+  sj=story-json, cc=chat-conv,
     dbug, verb
 ::
@@ -152,13 +152,13 @@
     ^-  card
     =/  =wire
       /broadcast/(scot %t cohort.action)/(scot %da now.bowl)/(scot %p who)
-    =/  =essay:c
+    =/  =essay:v7:cv
       [[story.action our.bowl now.bowl] [%chat /] ~ ~]
-    =/  =action:dm:c
+    =/  =action:dm:v7:cv
       :-  who
       :-  [our now]:bowl
       [%add essay ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action)]
   ::
       %delete
     =/  =cohort
@@ -175,8 +175,8 @@
     =/  =wire
       /delete/(scot %t cohort.action)/(scot %da time-id.action)/(scot %p who)
     =/  =id:c         [our.bowl time-id.action]
-    =/  =action:dm:c  [who id %del ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
+    =/  =action:dm:v7:cv  [who id %del ~]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action)]
   ==
 ::
 ++  on-agent
