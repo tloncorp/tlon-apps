@@ -119,10 +119,10 @@ index f680cd5d96d1f73277c17c38567883c3fb44d15f..9e0f33fe96ca854dea4c0e5fb73815e2
      )
  
 diff --git a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt b/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
-index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc10d847d8 100644
+index 01801239e5b5d2a83ed0f346e3d85147a69348b3..436d5d5cfdea37303ed5f9c9c5a3c15bb948801a 100644
 --- a/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
 +++ b/android/src/main/java/com/swmansion/enriched/textinput/styles/ListStyles.kt
-@@ -239,6 +239,138 @@ class ListStyles(
+@@ -239,6 +239,163 @@ class ListStyles(
      }
    }
  
@@ -215,7 +215,11 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc
 +    val text = s.toString()
 +    val (paraStart, _) = s.getParagraphBounds(cursorPosition)
 +
-+    for ((trigger, styleName, type) in shortcuts) {
++    // Sort by trigger length descending so longer triggers match first
++    // (e.g. "**" for bold is checked before "*" for italic)
++    val sortedShortcuts = shortcuts.sortedByDescending { it.first.length }
++
++    for ((trigger, styleName, type) in sortedShortcuts) {
 +      if (type != "inline") continue
 +      if (trigger.isEmpty()) continue
 +
@@ -239,6 +243,25 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc
 +      val contentEnd = closeDelimStart
 +      if (contentEnd <= contentStart) continue
 +
++      // Check if this opening delimiter is actually part of a longer trigger.
++      // For example, when text is "**bold" and we matched "*" at position 1,
++      // check if "**" (a longer trigger) exists and the chars at the opening
++      // position form that longer trigger. If so, skip this match.
++      var isPartOfLongerTrigger = false
++      for ((otherTrigger, _, otherType) in sortedShortcuts) {
++        if (otherType != "inline") continue
++        if (otherTrigger.length <= trigger.length) continue
++        val longerStart = openAbsolute - (otherTrigger.length - trigger.length)
++        if (longerStart >= 0 && longerStart + otherTrigger.length <= text.length) {
++          val candidate = text.substring(longerStart, longerStart + otherTrigger.length)
++          if (candidate == otherTrigger) {
++            isPartOfLongerTrigger = true
++            break
++          }
++        }
++      }
++      if (isPartOfLongerTrigger) continue
++
 +      // Remove closing delimiter first (higher index)
 +      s.delete(closeDelimStart, cursorPosition)
 +      // Remove opening delimiter
@@ -252,8 +275,10 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc
 +      view.setCustomSelection(adjustedStart, adjustedEnd)
 +      view.inlineStyles?.toggleStyle(resolvedStyle)
 +
-+      // Move cursor to end of styled text
++      // Move cursor to end of styled text and turn off the style
++      // so subsequent typing is unstyled
 +      view.setCustomSelection(adjustedEnd, adjustedEnd)
++      view.inlineStyles?.toggleStyle(resolvedStyle)
 +      return
 +    }
 +  }
@@ -261,7 +286,7 @@ index 01801239e5b5d2a83ed0f346e3d85147a69348b3..c07f75dcf240a1e85359abae6932e2dc
    fun afterTextChanged(
      s: Editable,
      endCursorPosition: Int,
-@@ -247,6 +379,8 @@ class ListStyles(
+@@ -247,6 +404,8 @@ class ListStyles(
      handleAfterTextChanged(s, EnrichedSpans.ORDERED_LIST, endCursorPosition, previousTextLength)
      handleAfterTextChanged(s, EnrichedSpans.UNORDERED_LIST, endCursorPosition, previousTextLength)
      handleAfterTextChanged(s, EnrichedSpans.CHECKBOX_LIST, endCursorPosition, previousTextLength)
@@ -713,40 +738,25 @@ diff --git a/ios/generated/ReactNativeEnrichedSpec/States.h b/ios/generated/Reac
 deleted file mode 100644
 index 2e55bce756519fb849f97b1da518a937cc8ccb12..0000000000000000000000000000000000000000
 diff --git a/ios/inputParser/InputParser.mm b/ios/inputParser/InputParser.mm
-index 1348728de92c8e621a32b4ebd5e61426bd0c4292..3d2c8cf573dd6acc7fcc32a049c0c027cb401e37 100644
+index 1348728de92c8e621a32b4ebd5e61426bd0c4292..0fb7aaf6cfd58a0efea1e166ac0e24fee30b0840 100644
 --- a/ios/inputParser/InputParser.mm
 +++ b/ios/inputParser/InputParser.mm
-@@ -617,6 +617,30 @@ - (void)replaceWholeFromHtml:(NSString *_Nonnull)html {
-   [self applyProcessedStyles:stylesInfo
-          offsetFromBeginning:0
-              plainTextLength:plainText.length];
-+
-+  // Apply default paragraph spacing to all paragraphs.
-+  // UITextView.text= does not use typingAttributes, so we need to
-+  // retroactively set paragraphSpacing on every paragraph style.
-+  NSParagraphStyle *defaultPS = _input->defaultTypingAttributes[NSParagraphStyleAttributeName];
-+  if (defaultPS && plainText.length > 0) {
-+    [_input->textView.textStorage
-+        enumerateAttribute:NSParagraphStyleAttributeName
-+                   inRange:NSMakeRange(0, _input->textView.textStorage.length)
-+                   options:0
-+                usingBlock:^(id _Nullable value, NSRange range, BOOL *_Nonnull stop) {
-+                  NSMutableParagraphStyle *pStyle;
-+                  if (value) {
-+                    pStyle = [(NSParagraphStyle *)value mutableCopy];
-+                  } else {
-+                    pStyle = [[NSMutableParagraphStyle alloc] init];
-+                  }
-+                  pStyle.paragraphSpacing = defaultPS.paragraphSpacing;
-+                  [_input->textView.textStorage
-+                      addAttribute:NSParagraphStyleAttributeName
-+                             value:pStyle
-+                             range:range];
-+                }];
-+  }
- }
+@@ -610,8 +610,13 @@ - (void)replaceWholeFromHtml:(NSString *_Nonnull)html {
+   _input->textView.text = @"";
+   _input->textView.typingAttributes = _input->defaultTypingAttributes;
  
- - (void)replaceFromHtml:(NSString *_Nonnull)html range:(NSRange)range {
+-  // set new text
+-  _input->textView.text = plainText;
++  // Set new text using an attributed string so the default paragraph style
++  // (with paragraphSpacing) is baked in from the start. UITextView.text=
++  // does NOT use typingAttributes, so we build the attributed string manually.
++  NSAttributedString *attrText =
++      [[NSAttributedString alloc] initWithString:plainText
++                                      attributes:_input->defaultTypingAttributes];
++  [_input->textView.textStorage setAttributedString:attrText];
+ 
+   // re-apply the styles
+   [self applyProcessedStyles:stylesInfo
 diff --git a/ios/interfaces/LinkRegexConfig.h b/ios/interfaces/LinkRegexConfig.h
 index c08c353f8646d2e319cdba5a5c24f3a784ec4dc5..071eb76410534a9bac3d99f4b9a9aa3dd0a41872 100644
 --- a/ios/interfaces/LinkRegexConfig.h
