@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/api",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "files": [
     "dist",
@@ -22,7 +22,6 @@
     "./api/*": "./src/client/*.ts",
     "./client": "./src/client/index.ts",
     "./client/*": "./src/client/*.ts",
-    "./lib/utilityTypes": "./src/lib/utilityTypes.d.ts",
     "./lib/*": "./src/lib/*.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/*": "./src/urbit/*.ts",

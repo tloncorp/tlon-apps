@@ -5,13 +5,11 @@ export type Stringified<T> = string & {
 };
 
 export interface JSON {
-  // stringify(value: any, replacer?: (key: string, value: any) => any, space?: string | number): string;
   stringify<T>(
     value: T,
     replacer?: (key: string, value: any) => any,
     space?: string | number
   ): string & Stringified<T>;
-  // parse(text: string, reviver?: (key: any, value: any) => any): any;
   parse<T>(text: Stringified<T>, reviver?: (key: any, value: any) => any): T;
 }
 
