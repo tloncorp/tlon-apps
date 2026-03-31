@@ -260,12 +260,13 @@ const Scroller = forwardRef(
         const isLastPostOfBlock =
           post.type !== 'notice' &&
           (post.type === 'chat' || post.type === 'reply') &&
-          ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
+          ((nextItem && (nextItem.authorId !== post.authorId || (nextItem.botNickname || '') !== (post.botNickname || ''))) || !isSameDay);
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
           !previousItem ||
           previousItem?.authorId !== post.authorId ||
+          (previousItem?.botNickname || '') !== (post.botNickname || '') ||
           previousItem?.type === 'notice' ||
           previousItem?.isDeleted === true ||
           isFirstPostOfDay;
