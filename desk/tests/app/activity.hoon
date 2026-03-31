@@ -34,8 +34,8 @@
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=state-8 new)
-  =/  new-indices  indices.state-8
+  =+  !<(=state-9 new)
+  =/  new-indices  indices.state-9
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -64,10 +64,10 @@
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=state-8 new)
-  (ex-equal !>(activity.state-8) !>(post-fix))
-+$  state-8
-  $:  %8
+  =+  !<(=state-9 new)
+  (ex-equal !>(activity.state-9) !>(post-fix))
++$  state-9
+  $:  %9
       allowed=notifications-allowed:a
       =indices:a
       =activity:a

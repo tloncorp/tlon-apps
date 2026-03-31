@@ -526,7 +526,7 @@
   ::
       [%x %v4 %event id=@ ~]
     =/  =time-event:v8:av
-      [id.pole (got:on-event:a stream:base (slav %da id.pole))])
+      [id.pole (got:on-event:a stream:base (slav %da id.pole))]
     ``activity-event+!>(time-event)
   ::
       [%x %v4 %activity ~]
