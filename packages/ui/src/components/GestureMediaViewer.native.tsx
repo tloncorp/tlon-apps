@@ -1,9 +1,12 @@
 import * as React from 'react';
 import {
   GestureViewer,
+  useGestureViewerController,
   useGestureViewerEvent,
 } from 'react-native-gesture-image-viewer';
 import { FlatList } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 import {
   defaultGestureMediaViewerKeyExtractor,
@@ -11,6 +14,7 @@ import {
   getGestureMediaViewerIsZoomed,
   renderDefaultGestureMediaViewerItem,
   type GestureMediaViewerProps,
+  type GestureMediaViewerRenderContainer,
   type GestureMediaViewerRenderItem,
 } from './GestureMediaViewer.shared';
 
@@ -28,6 +32,8 @@ export function GestureMediaViewer({
   onIndexChange,
   onDismiss,
   onDismissStart,
+  onSingleTap,
+  onDoubleTap,
   onZoomStateChange,
   renderContainer,
   renderItem,
@@ -44,11 +50,17 @@ export function GestureMediaViewer({
     generatedIdRef.current = generateGestureMediaViewerId();
   }
   const viewerId = id ?? generatedIdRef.current;
+  const [isZoomed, setIsZoomed] = React.useState(false);
+  const controller = useGestureViewerController(viewerId);
+  const usesCustomTap = onSingleTap != null || onDoubleTap != null;
 
   const handleZoomChange = React.useCallback(
     ({ scale, previousScale }: GestureViewerEventData) => {
+      const nextIsZoomed = getGestureMediaViewerIsZoomed(scale);
+
+      setIsZoomed(nextIsZoomed);
       onZoomStateChange?.({
-        isZoomed: getGestureMediaViewerIsZoomed(scale),
+        isZoomed: nextIsZoomed,
         scale,
         previousScale,
       });
@@ -64,6 +76,55 @@ export function GestureMediaViewer({
     [renderItem]
   );
 
+  const handleSingleTap = React.useCallback(() => {
+    onSingleTap?.();
+  }, [onSingleTap]);
+
+  const handleDoubleTap = React.useCallback(() => {
+    if (isZoomed) {
+      controller.resetZoom();
+    } else {
+      controller.resetZoom(maxZoomScale ?? 2);
+    }
+
+    onDoubleTap?.();
+  }, [controller, isZoomed, maxZoomScale, onDoubleTap]);
+
+  const tapGesture = React.useMemo(
+    () =>
+      Gesture.Exclusive(
+        Gesture.Tap()
+          .numberOfTaps(2)
+          .onEnd((_event, success) => {
+            if (success) {
+              runOnJS(handleDoubleTap)();
+            }
+          }),
+        Gesture.Tap().onEnd((_event, success) => {
+          if (success) {
+            runOnJS(handleSingleTap)();
+          }
+        })
+      ),
+    [handleDoubleTap, handleSingleTap]
+  );
+
+  const resolvedRenderContainer = React.useMemo(
+    () =>
+      !usesCustomTap
+        ? renderContainer
+        : ((children, helpers) => {
+            const tappableChildren = (
+              <GestureDetector gesture={tapGesture}>{children}</GestureDetector>
+            );
+
+            return renderContainer
+              ? renderContainer(tappableChildren, helpers)
+              : tappableChildren;
+          }) satisfies GestureMediaViewerRenderContainer,
+    [renderContainer, tapGesture, usesCustomTap]
+  );
+
   if (items.length === 0) {
     return null;
   }
@@ -77,12 +138,14 @@ export function GestureMediaViewer({
       onDismiss={onDismiss}
       onDismissStart={onDismissStart}
       renderItem={resolvedRenderItem}
-      renderContainer={renderContainer}
+      renderContainer={resolvedRenderContainer}
       ListComponent={FlatList}
       enableDismissGesture={enableDismissGesture}
       enableSwipeGesture={enableSwipeGesture}
       enableZoomGesture={enableZoomGesture}
-      enableDoubleTapGesture={enableDoubleTapGesture}
+      enableDoubleTapGesture={
+        usesCustomTap ? false : enableDoubleTapGesture
+      }
       enableZoomPanGesture={enableZoomPanGesture}
       enableLoop={enableLoop}
       maxZoomScale={maxZoomScale}
