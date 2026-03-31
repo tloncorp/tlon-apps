@@ -469,7 +469,7 @@
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =;  =feed:a
+    =;  =feed:v8:av
       ``activity-feed-5+!>(feed)
     (feed type.pole start count)
   ::
@@ -525,7 +525,9 @@
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
       [%x %v4 %event id=@ ~]
-    ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
+    =/  =time-event:v8:av
+      [id.pole (got:on-event:a stream:base (slav %da id.pole))])
+    ``activity-event+!>(time-event)
   ::
       [%x %v4 %activity ~]
     =/  =activity:v8:av  (strip-threads activity)
@@ -574,7 +576,7 @@
     ``activity-summary-pairs-4+!>(unreads)
   ::
       [%x %v4 %activity %notified ~]
-    =/  notified
+    =/  notified=(list [source:v8:av activity-summary:v8:av])
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
@@ -757,7 +759,7 @@
       %only  only
       %both  (weld only hose)
     ==
-  =/  v4-cage=cage  activity-update-4+!>(update)
+  =/  v4-cage=cage  activity-update-4+!>(`update:v8:av`update)
   (give %fact v4-paths v4-cage)
 ++  add-event
   =/  start-time=time  now.bowl
@@ -775,7 +777,9 @@
   =?  cor  !importing
     (give-update update [%hose ~])
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
-    (give %fact ~[/v4/notifications] activity-event+!>([time-id event]))
+    =/  =time-event:v8:av
+      [time-id event]
+    (give %fact ~[/v4/notifications] activity-event+!>(time-event))
   ::  we always update sources in order, so make sure base is processed last
   =.  cor
     ?+  -<.event  (add-to-index source time-id event)
