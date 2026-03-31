@@ -67,7 +67,8 @@
       "@tamagui/sheet@2.0.0-rc.22": "patches/@tamagui__sheet@2.0.0-rc.22.patch",
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
       "expo-speech-transcriber@0.1.9": "patches/expo-speech-transcriber@0.1.9.patch",
-      "expo-task-manager@14.0.9": "patches/expo-task-manager@14.0.9.patch"
+      "expo-task-manager@14.0.9": "patches/expo-task-manager@14.0.9.patch",
+      "react-native@0.81.5": "patches/react-native@0.81.5.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
