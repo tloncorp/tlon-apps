@@ -8,6 +8,7 @@ import type {
 } from '@tloncorp/app/navigation/types';
 import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { APP_SCHEME } from '@tloncorp/app/constants';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useShareIntent } from 'expo-share-intent';
@@ -45,7 +46,7 @@ export function ShareIntentForwardSheetProvider({
   const lastHandledShareRef = useRef<string | null>(null);
   const { error, hasShareIntent, isReady, resetShareIntent, shareIntent } =
     useShareIntent({
-      scheme: 'io.tlon.groups',
+      scheme: APP_SCHEME,
     });
 
   useEffect(() => {
