@@ -46,7 +46,7 @@
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
     "react-hook-form": "^7.52.0",
-    "react-qr-code": "^2.0.12",
+    "react-qr-code": "^2.0.18",
     "react-tweet": "^3.0.4",
     "tamagui": "~2.0.0-rc.22",
     "urbit-ob": "^5.0.1"
