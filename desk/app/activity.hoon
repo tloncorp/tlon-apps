@@ -51,7 +51,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %8
+    $:  %9
         allowed=notifications-allowed:v8:av
         =indices:v8:av
         =activity:v8:av
@@ -165,12 +165,24 @@
         activity.old
         volume-settings
     ==
-  ?>  ?=(%8 -.old)
+  =?  cor  ?=(%8 -.old)
+    ::  kick all deprecated subscriptions
+    %-  emil
+    %+  roll  ~(tap by sup.bowl)
+    |=  [[* [=ship =path]] caz=(list card)]
+    ?~  path  caz
+    ?:  ?=(%v4 i.path)  caz
+    :_  caz
+    [%give %kick ~[path] ~]
+  =?  old  ?=(%8 -.old)
+    old(- %9)
+  ?>  ?=(%9 -.old)
   =.  state  old
   refresh-all-summaries
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -179,7 +191,14 @@
         state-2
         state-1
     ==
-  +$  state-8  current-state
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
+        allowed=notifications-allowed:v8:av
+        =indices:v8:av
+        =activity:v8:av
+        =volume-settings:v8:av
+    ==
   +$  state-7
     $:  %7
         allowed=notifications-allowed:v7:av
@@ -381,6 +400,7 @@
     [%v4 ~]                 ?>(from-self cor)
     [%v4 %unreads ~]        ?>(from-self cor)
     [%v4 %reads ~]          ?>(from-self cor)
+    [%v4 %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
@@ -755,7 +775,7 @@
   =?  cor  !importing
     (give-update update [%hose ~])
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
-    (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
+    (give %fact ~[/v4/notifications] activity-event+!>([time-id event]))
   ::  we always update sources in order, so make sure base is processed last
   =.  cor
     ?+  -<.event  (add-to-index source time-id event)
