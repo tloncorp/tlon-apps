@@ -585,7 +585,7 @@
     ``activity-settings+!>(`volume-settings:v8:av`volume-settings)
   ::
       [%x ?(%v4 %v5) %notifications-allowed ~]
-    ``activity-allowed+!>(`notifications-allowed:a`allowed)
+    ``activity-allowed+!>(`notifications-allowed:v8:av`allowed)
   ::
       [%x %v4 %activity %changes since=@ ~]
     =/  since=time  (slav %da since.pole)
