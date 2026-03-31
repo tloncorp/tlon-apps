@@ -195,7 +195,9 @@ const Scroller = forwardRef(
       }
     };
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>({});
+    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
+      {}
+    );
 
     const handleSetActive = useCallback((active: db.Post) => {
       if (active.type !== 'notice') {
@@ -372,7 +374,12 @@ const Scroller = forwardRef(
             };
           }
         }
-      }, [insets.bottom, posts?.length, collectionLayoutType, rootVerticalPadding])
+      }, [
+        insets.bottom,
+        posts?.length,
+        collectionLayoutType,
+        rootVerticalPadding,
+      ])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(

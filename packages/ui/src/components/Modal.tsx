@@ -13,7 +13,7 @@ export function Modal(props: ComponentProps<typeof RNModal>) {
 
   return (
     <RNModal transparent={true} {...props}>
-      <ZStack flex={1} justifyContent="center" alignItems="center">
+      <ZStack flex={1}>
         <Overlay onPress={onDismiss} />
         <View flex={1} position="absolute">
           {props.children}
