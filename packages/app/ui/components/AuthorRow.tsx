@@ -74,6 +74,7 @@ export function DetailViewAuthorRow({
   sent,
   isBot,
   botNickname,
+  botAvatar,
   ...props
 }: {
   authorId: string;
@@ -87,6 +88,7 @@ export function DetailViewAuthorRow({
   type?: db.PostType;
   isBot?: boolean;
   botNickname?: string | null;
+  botAvatar?: string | null;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
@@ -120,6 +122,7 @@ export function DetailViewAuthorRow({
         size="$2xl"
         contactId={authorId}
         onPress={openProfile}
+        overrideUrl={isBot && botAvatar ? botAvatar : undefined}
       />
       <Text
         size="$label/l"
@@ -152,6 +155,7 @@ export function ChatAuthorRow({
   showSentAt = true,
   isBot,
   botNickname,
+  botAvatar,
   ...props
 }: AuthorRowProps) {
   const openProfile = useNavigateToProfile(authorId);
@@ -186,6 +190,7 @@ export function ChatAuthorRow({
         onPress={openProfile}
         size="$2xl"
         contactId={authorId}
+        overrideUrl={isBot && botAvatar ? botAvatar : undefined}
       />
       <XStack gap="$l" alignItems="center" flex={1}>
         <Text

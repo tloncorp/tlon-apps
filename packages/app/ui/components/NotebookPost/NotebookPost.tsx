@@ -273,6 +273,7 @@ function NotebookPostHeader({
           authorId={post.authorId}
           isBot={post.isBot ?? undefined}
           botNickname={post.botNickname}
+          botAvatar={post.botAvatar}
           deliveryStatus={post.deliveryStatus}
           editStatus={post.editStatus}
           deleteStatus={post.deleteStatus}

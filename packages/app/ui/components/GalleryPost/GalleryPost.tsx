@@ -432,6 +432,7 @@ export function GalleryPostDetailView({
           authorId={post.authorId}
           isBot={post.isBot ?? undefined}
           botNickname={post.botNickname}
+          botAvatar={post.botAvatar}
           sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}
