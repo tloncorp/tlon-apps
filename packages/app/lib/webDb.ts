@@ -166,7 +166,7 @@ export class WebDb extends BaseDb {
         SELECT page_count AS page_count, freelist_count AS freelist_count, page_size AS page_size
         FROM pragma_page_count(), pragma_freelist_count(), pragma_page_size()
       `);
-      if (!stats) return;
+      if (!stats || stats.page_count <= 0) return;
 
       const { page_count, freelist_count, page_size } = stats;
       const freeBytes = freelist_count * page_size;
