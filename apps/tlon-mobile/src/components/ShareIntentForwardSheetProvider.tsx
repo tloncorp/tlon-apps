@@ -10,6 +10,7 @@ import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { APP_SCHEME } from '@tloncorp/app/constants';
 import { createDevLogger } from '@tloncorp/shared';
+import { useMutableRef } from '@tloncorp/shared/logic';
 import * as db from '@tloncorp/shared/db';
 import { useShareIntent } from 'expo-share-intent';
 import { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
@@ -48,6 +49,7 @@ export function ShareIntentForwardSheetProvider({
     useShareIntent({
       scheme: APP_SCHEME,
     });
+  const resetShareIntentRef = useMutableRef(resetShareIntent);
 
   useEffect(() => {
     if (!error) {
@@ -71,9 +73,10 @@ export function ShareIntentForwardSheetProvider({
     if (lastHandledShareRef.current === fingerprint) {
       return;
     }
+
     lastHandledShareRef.current = fingerprint;
 
-    void (async () => {
+    try {
       const sharedText = extractSharedText(shareIntent);
       const sharedFile = extractSharedFile(shareIntent.files);
       const hasMoreThanOneFile = (shareIntent.files?.length ?? 0) > 1;
@@ -93,14 +96,12 @@ export function ShareIntentForwardSheetProvider({
       shareIntentLogger.log(
         `Processed share intent type=${shareIntent.type} files=${shareIntent.files?.length ?? 0}`
       );
-    })()
-      .catch((err) => {
-        shareIntentLogger.error('Failed to process share intent', err);
-      })
-      .finally(() => {
-        resetShareIntent();
-      });
-  }, [hasShareIntent, isReady, resetShareIntent, shareIntent]);
+    } catch (err) {
+      shareIntentLogger.error('Failed to process share intent', err);
+    } finally {
+      resetShareIntentRef.current();
+    }
+  }, [hasShareIntent, isReady, resetShareIntentRef, shareIntent]);
 
   useEffect(() => {
     if (!pendingShare || !enabled || isOpen) {
