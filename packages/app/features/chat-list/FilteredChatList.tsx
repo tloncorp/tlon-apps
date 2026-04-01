@@ -161,7 +161,7 @@ export const FilteredChatList = React.memo(
     );
 
     const renderItem: ListRenderItem<ChatListItemData> = useCallback(
-      ({ item }) => {
+      ({ item, index }) => {
         if (isSectionHeader(item)) {
           return (
             <SectionListHeader onLayout={handleHeaderLayout}>
@@ -180,7 +180,7 @@ export const FilteredChatList = React.memo(
               showGroupTitle={true}
               borderWidth={'$2xs'}
               marginHorizontal={-1}
-              {...(listItems[selectedIndex] === item
+              {...(selectedIndex === index
                 ? activeSelectionStyles
                 : {
                     borderColor: 'transparent',
