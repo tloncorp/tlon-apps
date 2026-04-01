@@ -291,10 +291,10 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
 3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
 4. **Common pollution sources**:
-   - `invite-service.spec.ts` - creates contacts via invite links
-   - Tests with profile editing - may leave custom nicknames
-   - Tests creating DMs - both ships must clean up
-   - Tests with group invites - may leave pending invitations
+   -   `invite-service.spec.ts` - creates contacts via invite links
+   -   Tests with profile editing - may leave custom nicknames
+   -   Tests creating DMs - both ships must clean up
+   -   Tests with group invites - may leave pending invitations
 
 **E2E Helper Function Design Principles:**
 
