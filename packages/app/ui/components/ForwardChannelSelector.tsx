@@ -47,8 +47,6 @@ export function ForwardChannelSelector({
   const channels = useMemo(() => {
     const allChats = displayData.flatMap((section) => section.data);
 
-    // TODO: Move this closer to the query if this list gets big. For now,
-    // keep the filtering here for the share-target picker.
     return allChats
       .flatMap((chat) => (chat.type === 'channel' ? [chat.channel] : []))
       .filter((channel) => (channelFilter ? channelFilter(channel) : true));
