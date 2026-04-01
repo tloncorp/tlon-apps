@@ -20,8 +20,9 @@ export const GroupListItem = ({
   onLongPress,
   customSubtitle,
   disableOptions = false,
+  selected = false,
   ...props
-}: { customSubtitle?: string } & ListItemProps<db.Group>) => {
+}: { customSubtitle?: string; selected?: boolean } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
@@ -121,6 +122,9 @@ export const GroupListItem = ({
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
+        borderWidth={selected ? 1 : 0}
+        borderColor={selected ? '$positiveBorder' : 'transparent'}
+        backgroundColor={selected ? '$positiveBackground' : undefined}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}

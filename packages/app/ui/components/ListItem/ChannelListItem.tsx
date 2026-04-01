@@ -32,6 +32,7 @@ export function ChannelListItem({
   disableFocusedStyle = false,
   showGroupTitle = false,
   onLayout,
+  selected = false,
   ...props
 }: {
   showGroupTitle?: boolean;
@@ -40,6 +41,7 @@ export function ChannelListItem({
   dimmed?: boolean;
   disableFocusedStyle?: boolean;
   onLayout?: ComponentProps<typeof ListItem>['onLayout'];
+  selected?: boolean;
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
@@ -131,8 +133,14 @@ export function ChannelListItem({
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
+        borderWidth={selected ? 1 : 0}
+        borderColor={selected ? '$positiveBorder' : 'transparent'}
         backgroundColor={
-          !disableFocusedStyle && isFocused ? '$shadow' : undefined
+          selected
+            ? '$positiveBackground'
+            : !disableFocusedStyle && isFocused
+              ? '$shadow'
+              : undefined
         }
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
