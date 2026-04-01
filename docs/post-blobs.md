@@ -56,17 +56,35 @@ Metadata for a voice recording.
 | `waveformPreview` | `number[]` (optional) | values between 0 and 1 |
 | `duration`        | `number` (optional)   | seconds                |
 
+### `video` v1
+
+Metadata for a video upload.
+
+| field       | type                | notes                    |
+| ----------- | ------------------- | ------------------------ |
+| `type`      | `'video'`           | discriminant             |
+| `version`   | `1`                 | schema version           |
+| `fileUri`   | `string`            | uploaded URI             |
+| `mimeType`  | `string` (optional) |                          |
+| `name`      | `string` (optional) | display name             |
+| `size`      | `number`            | bytes                    |
+| `width`     | `number` (optional) | pixels                   |
+| `height`    | `number` (optional) | pixels                   |
+| `duration`  | `number` (optional) | seconds                  |
+| `posterUri` | `string` (optional) | preview or poster image  |
+
 ## Where the types live
 
 | artifact                                                          | location                                      |
 | ----------------------------------------------------------------- | --------------------------------------------- |
-| `definePostBlobDataEntrySchema` helper                            | `packages/api/src/lib/content-helpers.ts:546` |
-| `safeParseArrayWithFallback` helper                               | `packages/api/src/lib/content-helpers.ts:562` |
-| `PostBlobDataEntryFileSchema` / `PostBlobDataEntryFile`           | `packages/api/src/lib/content-helpers.ts:577` |
-| `PostBlobDataEntryVoiceMemoSchema` / `PostBlobDataEntryVoiceMemo` | `packages/api/src/lib/content-helpers.ts:592` |
-| `postBlobDataEntryDefinitions` registry                           | `packages/api/src/lib/content-helpers.ts:611` |
-| `PostBlobDataEntrySchema` / `PostBlobDataEntry`                   | `packages/api/src/lib/content-helpers.ts:616` |
-| `ClientPostBlobData` (parsed, includes `{type:'unknown'}`)        | `packages/api/src/lib/content-helpers.ts:673` |
+| `definePostBlobDataEntrySchema` helper                            | `packages/api/src/lib/content-helpers.ts:586` |
+| `safeParseArrayWithFallback` helper                               | `packages/api/src/lib/content-helpers.ts:602` |
+| `PostBlobDataEntryFileSchema` / `PostBlobDataEntryFile`           | `packages/api/src/lib/content-helpers.ts:617` |
+| `PostBlobDataEntryVoiceMemoSchema` / `PostBlobDataEntryVoiceMemo` | `packages/api/src/lib/content-helpers.ts:633` |
+| `PostBlobDataEntryVideoSchema` / `PostBlobDataEntryVideo`         | `packages/api/src/lib/content-helpers.ts:654` |
+| `postBlobDataEntryDefinitions` registry                           | `packages/api/src/lib/content-helpers.ts:678` |
+| `PostBlobDataEntrySchema` / `PostBlobDataEntry`                   | `packages/api/src/lib/content-helpers.ts:684` |
+| `ClientPostBlobData` (parsed, includes `{type:'unknown'}`)        | `packages/api/src/lib/content-helpers.ts:791` |
 
 ## Callsites
 
@@ -93,9 +111,10 @@ These functions build the blob string from attachment data.
 
 | function                     | file                                      | line | purpose                                                                                                                                               |
 | ---------------------------- | ----------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `appendToPostBlob`           | `packages/api/src/lib/content-helpers.ts` | 624  | Validates a new entry against the union schema, parses any existing blob array, appends, and re-serializes. Base function used by all writers.        |
-| `appendFileUploadToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 653  | Convenience wrapper: creates a `file` v1 entry and appends.                                                                                           |
-| `toPostData`                 | `packages/api/src/lib/content-helpers.ts` | 694  | Iterates finalized attachments; calls the blob helpers to produce the blob. Also builds `story` and `metadata`. Returns `{ story, metadata, blob? }`. |
+| `appendToPostBlob`           | `packages/api/src/lib/content-helpers.ts` | 709  | Validates a new entry against the union schema, parses any existing blob array, appends, and re-serializes. Base function used by all writers.        |
+| `appendFileUploadToPostBlob` | `packages/api/src/lib/content-helpers.ts` | 738  | Convenience wrapper: creates a `file` v1 entry and appends.                                                                                           |
+| `appendVideoToPostBlob`      | `packages/api/src/lib/content-helpers.ts` | 758  | Convenience wrapper: creates a `video` v1 entry and appends.                                                                                          |
+| `toPostData`                 | `packages/api/src/lib/content-helpers.ts` | 811  | Iterates finalized attachments; calls the blob helpers to produce the blob. Also builds `story` and `metadata`. Returns `{ story, metadata, blob? }`. |
 
 `toPostData` routes each attachment type as follows (`packages/api/src/lib/content-helpers.ts`):
 
@@ -103,6 +122,7 @@ These functions build the blob string from attachment data.
 | --------------- | --------------------------------- | -------------------------- |
 | `file`          | `appendFileUploadToPostBlob`      | no                         |
 | `voicememo`     | `appendToPostBlob` (inline entry) | no                         |
+| `video`         | `appendVideoToPostBlob`           | no                         |
 | `image`         | —                                 | yes (`{image: ...}` block) |
 | `reference`     | —                                 | yes (reference block)      |
 | `link`          | —                                 | yes (link block)           |
@@ -111,23 +131,23 @@ These functions build the blob string from attachment data.
 
 | function         | file                                      | line | purpose                                                                                                                                                                                                                   |
 | ---------------- | ----------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parsePostBlob`  | `packages/api/src/lib/content-helpers.ts` | 678  | Safely parses the blob JSON, then validates each element with `safeParseArrayWithFallback` and returns `ClientPostBlobData`. Malformed or unrecognized entries become `{type:'unknown'}`.                                 |
-| `convertContent` | `packages/api/src/lib/postContent.ts`     | 347  | Calls `parsePostBlob`, then converts each entry to a `PostContent` block for rendering: `file` → `FileUploadBlockData`, `voicememo` → `VoiceMemoBlockData`, `unknown` → blockquote ("Upgrade your app to see this post"). |
+| `parsePostBlob`  | `packages/api/src/lib/content-helpers.ts` | 795  | Safely parses the blob JSON, then validates each element with `safeParseArrayWithFallback` and returns `ClientPostBlobData`. Malformed or unrecognized entries become `{type:'unknown'}`.                                 |
+| `convertContent` | `packages/api/src/lib/postContent.ts`     | 353  | Calls `parsePostBlob`, then converts each entry to a `PostContent` block for rendering: `file` → `FileUploadBlockData`, `voicememo` → `VoiceMemoBlockData`, `video` → `VideoBlockData`, `unknown` → blockquote ("Upgrade your app to see this post"). |
 
 ### API transport
 
 | function              | file                                  | line | purpose                                                                                           |
 | --------------------- | ------------------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
-| `toPostEssay`         | `packages/api/src/client/apiUtils.ts` | 164  | Constructs `PostEssay` with `blob: blob \|\| null` for poke to backend.                           |
-| `sendPost`            | `packages/api/src/client/postsApi.ts` | 138  | Accepts `blob?: string`, passes to `toPostEssay` (channels) or inlines into `WritDeltaAdd` (DMs). |
-| `editPost`            | `packages/api/src/client/postsApi.ts` | 204  | Accepts `blob?: string`, passes to `toPostEssay` for channel post edits.                          |
-| `toPostData` (API→DB) | `packages/api/src/client/postsApi.ts` | 1343 | Extracts `post.essay.blob ?? null` when converting server response to local post record.          |
+| `toPostEssay`         | `packages/api/src/client/apiUtils.ts` | 184  | Constructs `PostEssay` with `blob: blob \|\| null` for poke to backend.                           |
+| `sendPost`            | `packages/api/src/client/postsApi.ts` | 141  | Accepts `blob?: string`, passes to `toPostEssay` (channels) or inlines into `WritDeltaAdd` (DMs). |
+| `editPost`            | `packages/api/src/client/postsApi.ts` | 212  | Accepts `blob?: string`, passes to `toPostEssay` for channel post edits.                          |
+| `toPostData` (API→DB) | `packages/api/src/client/postsApi.ts` | 1360 | Extracts `post.essay.blob ?? null` when converting server response to local post record.          |
 
 ### Database & model builders
 
 | function            | file                                      | line | purpose                                                     |
 | ------------------- | ----------------------------------------- | ---- | ----------------------------------------------------------- |
-| `posts.blob` column | `packages/shared/src/db/schema.ts`        | 1127 | `text('blob')` — nullable text column on the `posts` table. |
+| `posts.blob` column | `packages/shared/src/db/schema.ts`        | 1137 | `text('blob')` — nullable text column on the `posts` table. |
 | `buildPostUpdate`   | `packages/shared/src/db/modelBuilders.ts` | 135  | Accepts optional `blob`, includes in the update partial.    |
 | `buildPost`         | `packages/shared/src/db/modelBuilders.ts` | 168  | Accepts optional `blob`, passes through `buildPostUpdate`.  |
 
@@ -137,22 +157,21 @@ All blob threading through the store happens in `packages/shared/src/store/postA
 
 | line(s) | context                                                                    |
 | ------- | -------------------------------------------------------------------------- |
-| 93-96   | `finalizePostDraft` calls `toPostData`, destructures `blob` from result.   |
-| 98-103  | Blob included in `PostDataFinalized` object.                               |
-| 126-134 | `finalizePostDraftLocal` — same pattern for optimistic local finalization. |
-| 251-253 | Optimistic post insert: blob passed to `buildPost`.                        |
-| 291-293 | Post update after finalization: blob passed to `buildPostUpdate`.          |
-| 324-327 | `sendPost` API call: blob passed to `api.sendPost`.                        |
-| 614-616 | Edit flow optimistic update: blob included in `db.updatePost`.             |
-| 634     | Edit API call: uses `postBeforeEdit.blob` — **blob is not editable**.      |
+| 97-107  | `finalizePostDraft` calls `toPostData`, destructures `blob` from result, and includes it in the finalized payload. |
+| 130-139 | `finalizePostDraftUsingLocalAttachments` does the same for optimistic local finalization. |
+| 249-257 | Optimistic post insert: blob passed to `buildPost`.                        |
+| 296-303 | Post update after finalization: blob passed to `buildPostUpdate`.          |
+| 330-336 | `sendPost` API call: blob passed to `api.sendPost`.                        |
+| 617-624 | Edit flow optimistic update: blob included in `db.updatePost`.             |
+| 637-642 | Edit API call: uses `postBeforeEdit.blob` — **blob is not editable**.      |
 
 ### Post data types
 
 | type                      | file                             | line | blob field           |
 | ------------------------- | -------------------------------- | ---- | -------------------- |
-| `_PostDataFinalizedBase`  | `packages/api/src/types/post.ts` | 30   | `blob?: string`      |
-| `PostDataFinalizedParent` | `packages/api/src/types/post.ts` | 41   | (inherits from base) |
-| `PostDataFinalizedEdit`   | `packages/api/src/types/post.ts` | 45   | (inherits from base) |
+| `_PostDataFinalizedBase`  | `packages/api/src/types/post.ts` | 126  | `blob?: string`      |
+| `PostDataFinalizedParent` | `packages/api/src/types/post.ts` | 137  | (inherits from base) |
+| `PostDataFinalizedEdit`   | `packages/api/src/types/post.ts` | 141  | (inherits from base) |
 
 Note: `PostDataDraft` does **not** have a blob field. The blob is computed during finalization from the draft's attachments.
 
@@ -170,7 +189,7 @@ Note: `PostDataDraft` does **not** have a blob field. The blob is computed durin
 
 6. **Graceful degradation.** Unrecognized entry types are parsed as `{type:'unknown'}` and rendered as an "Upgrade your app" blockquote so older clients don't crash on new entry types.
 
-7. **Blob ≠ content.** Media that the backend can natively represent (images, references, links) goes in the Story `content` field as blocks. Blob is reserved for data the backend schema cannot express — currently file metadata and voice memo metadata.
+7. **Blob ≠ content.** Media that the backend can natively represent (images, references, links) goes in the Story `content` field as blocks. Blob is reserved for data the backend schema cannot express — currently file metadata, voice memo metadata, and video metadata.
 
 ## Adding a new entry type
 
@@ -178,11 +197,11 @@ Note: `PostDataDraft` does **not** have a blob field. The blob is computed durin
 
 2. Add that schema to `postBlobDataEntryDefinitions`. `PostBlobDataEntry` will update automatically from the union schema. Add an `appendXToPostBlob` convenience function if the new entry type will be written from more than one place.
 
-3. In `toPostData` (`content-helpers.ts:694`), add a `case` for the new attachment type that calls your append function.
+3. In `toPostData` (`content-helpers.ts:811`), add a `case` for the new attachment type that calls your append function.
 
 4. You do **not** add a manual `parsePostBlob` branch. Once the schema is in the registry, `parsePostBlob` will validate it automatically on read.
 
-5. In `convertContent` (`postContent.ts:347`), add a `case` that maps the parsed entry to the appropriate `PostContent` block type for rendering.
+5. In `convertContent` (`postContent.ts:353`), add a `case` that maps the parsed entry to the appropriate `PostContent` block type for rendering.
 
 6. Add tests for both the happy path and malformed payloads. The existing `packages/api/src/__tests__/content-helpers.test.ts` file covers the current pattern.
 
