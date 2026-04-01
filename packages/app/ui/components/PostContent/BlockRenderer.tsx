@@ -481,7 +481,7 @@ export function VideoBlock({
   ComponentProps<typeof VideoEmbed>,
   'video'
 >) {
-  return <VideoEmbed video={block} {...props} />;
+  return <VideoEmbed video={block.video} {...props} />;
 }
 
 export function ImageBlock({
