@@ -639,7 +639,7 @@ async function _editPost({
         postId: finalized.editTargetPostId,
         authorId: postBeforeEdit.authorId,
         sentAt: postBeforeEdit.sentAt,
-        blob: postBeforeEdit.blob ?? undefined, // TODO: blob is editable — this should use finalized.blob to allow attachment changes
+        blob: postBeforeEdit.blob ?? undefined, // NB: blob is not editable - so you can't e.g. change or remove a file attachment
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,

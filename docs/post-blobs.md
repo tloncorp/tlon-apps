@@ -166,7 +166,7 @@ Note: `PostDataDraft` does **not** have a blob field. The blob is computed durin
 
 4. **Backend-opaque.** The Hoon agents treat blob as `(unit @t)`. They never parse or validate its contents. All semantics live in the client.
 
-5. **Editable with the post.** The blob is included in the edit payload and can be modified when a post is edited. Attachments carried in the blob can be added, removed, or changed via the normal post-editing flow.
+5. **Immutable after send.** Blob is not editable; the edit flow preserves the original blob from the pre-edit post in `postActions.ts`. Attachments carried in the blob cannot be added, removed, or modified via post editing.
 
 6. **Graceful degradation.** Unrecognized entry types are parsed as `{type:'unknown'}` and rendered as an "Upgrade your app" blockquote so older clients don't crash on new entry types.
 
