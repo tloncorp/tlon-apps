@@ -401,118 +401,20 @@ Uses Drizzle ORM with SQLite for local data storage:
 
 ## Adding a New Post Blob Entry Type
 
-Post blobs are the `blob` field on posts: a JSON-stringified array of typed, versioned entries that carry structured metadata the backend treats as opaque text. See `docs/post-blobs.md` for the full specification.
+See `docs/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
 
-No backend (Hoon) changes are needed. The agents store and relay `blob` as `(unit @t)` without inspecting it.
-
-**Example: adding an `etherscan-tx` entry type for Etherscan transactions.**
-
-### 1. Define the entry type
-
-Add a new named schema and inferred type in `packages/api/src/lib/content-helpers.ts`, then include that schema in `postBlobDataEntryDefinitions`:
-
-```ts
-const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema(
-    'etherscan-tx',
-    1,
-    {
-        txHash: z.string().min(1),
-        chainId: z.number().int().nonnegative(),
-        from: z.string().min(1),
-        to: z.string().min(1),
-        /** in wei */
-        value: z.string().min(1),
-        status: z.enum(['success', 'failed', 'pending']),
-    }
-);
-
-type PostBlobDataEntryEtherscanTx = z.infer<typeof PostBlobDataEntryEtherscanTxSchema>;
-
-const postBlobDataEntryDefinitions = [
-    PostBlobDataEntryFileSchema,
-    PostBlobDataEntryVoiceMemoSchema,
-    PostBlobDataEntryVideoSchema,
-    PostBlobDataEntryEtherscanTxSchema,
-] as const;
-```
-
-`PostBlobDataEntry` is inferred from `PostBlobDataEntrySchema` automatically. You do not add a manual union branch elsewhere.
-
-### 2. Add a convenience append function
-
-In the same file, below the existing append helpers:
-
-```ts
-export function appendEtherscanTxToPostBlob(
-    blob: string | undefined,
-    opts: {
-        txHash: string;
-        chainId: number;
-        from: string;
-        to: string;
-        value: string;
-        status: 'success' | 'failed' | 'pending';
-    }
-) {
-    return appendToPostBlob(blob, {
-        type: 'etherscan-tx',
-        version: 1,
-        ...opts,
-    });
-}
-```
-
-### 3. Add attachment plumbing and write it to blob
-
-Add the new attachment shape to the relevant attachment unions in `packages/api/src/types/attachment.ts`, then add a case in `toPostData` in `packages/api/src/lib/content-helpers.ts`:
-
-```ts
-case 'etherscan-tx': {
-    blob = appendEtherscanTxToPostBlob(blob, {
-        txHash: attachment.txHash,
-        chainId: attachment.chainId,
-        from: attachment.from,
-        to: attachment.to,
-        value: attachment.value,
-        status: attachment.status,
-    });
-    break;
-}
-```
-
-### 4. Let the registry handle parsing
-
-No extra `parsePostBlob` branch is needed. Once the schema is in `postBlobDataEntryDefinitions`, both `appendToPostBlob` and `parsePostBlob` will validate against it automatically.
-
-### 5. Map to a renderable block
-
-In `convertContent` in `packages/api/src/lib/postContent.ts`, add a case that maps the parsed entry to a `PostContent` block:
-
-```ts
-case 'etherscan-tx': {
-    out.push({
-        type: 'etherscan-tx',
-        tx: entry,
-    });
-    break;
-}
-```
-
-You will also need to add the corresponding block data type to `PostContent` in the same file.
-
-### 6. Build the UI
-
-Create a renderer component for the new block type in `packages/ui` (or `packages/app`) that accepts the block data and displays it. Then register it in `packages/app/ui/components/PostContent/BlockRenderer.tsx` so the default renderer path knows how to render the new block type.
+Use this section as a compact checklist when changing blob behavior.
 
 ### Checklist
 
-- [ ] New named schema and inferred type added for the blob entry
-- [ ] Schema added to `postBlobDataEntryDefinitions`
-- [ ] `appendXToPostBlob` convenience function added
-- [ ] Attachment types updated so the new entry can be finalized and passed into `toPostData`
-- [ ] `toPostData` case added for the new attachment type
-- [ ] No manual `parsePostBlob` branch added; the registry handles it
-- [ ] `convertContent` case added, mapping to a new `PostContent` block type
-- [ ] Tests added for valid and malformed blob payloads
-- [ ] Renderer component created and registered in `BlockRenderer.tsx`
-- [ ] Older clients gracefully degrade; unrecognized types render the "Upgrade your app" blockquote without extra work
+1. Add a named schema and inferred type in `packages/api/src/lib/content-helpers.ts`, then register it in `postBlobDataEntryDefinitions`.
+2. Add an `appendXToPostBlob` helper if the new entry will be written from more than one place.
+3. Update the relevant attachment unions in `packages/api/src/types/attachment.ts`, then update `toPostData` in `packages/api/src/lib/content-helpers.ts` to write the new entry type.
+4. Do not add ad hoc `parsePostBlob` branches. Once the schema is in `postBlobDataEntryDefinitions`, the shared parser handles it.
+5. Update `convertContent` and the `PostContent` block types in `packages/api/src/lib/postContent.ts`.
+6. If the new block renders in the app, register it in `packages/app/ui/components/PostContent/BlockRenderer.tsx`.
+7. Add tests for valid payloads and malformed payloads.
+8. Preserve graceful degradation. Unknown entries should continue to render the "Upgrade your app" blockquote.
+9. Current frontend policy: blob edits are unsupported. The edit transport can carry a blob, but frontend edit flows preserve the original blob until explicit blob-edit support is implemented.
+
+No backend (Hoon) changes are needed for ordinary blob schema work. The backend stores and relays `blob` as opaque text.

@@ -73,6 +73,7 @@ Video upload metadata.
 - Writes happen through helpers in `packages/api/src/lib/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.
 - `toPostData` builds blobs from finalized attachments.
 - `PostDataDraft` does not store `blob`; blob is computed during finalization from attachments.
+- The edit transport can carry a blob, but current frontend edit flows do not implement blob editing. Network edits preserve the original blob.
 - `parsePostBlob` reads blob JSON and validates each entry against the registered union schema.
 - `convertContent` maps parsed entries into renderable `PostContent` blocks.
 - The backend stores and relays `blob` but does not inspect it.
@@ -83,7 +84,7 @@ Video upload metadata.
 2. The registry is the source of truth. Add new entry types to `postBlobDataEntryDefinitions`; do not add ad hoc parse branches elsewhere.
 3. The top-level blob value is always an array so a post can carry multiple blob entries.
 4. Blob is for data the backend schema cannot represent directly. Content the backend already knows how to encode, such as images, references, and links, should stay in Story content.
-5. Blob is not editable after send. The edit flow preserves the original blob.
+5. Current frontend policy is to treat blob as immutable in edit flows. The backend transport can carry a blob on edit, but the frontend preserves the original blob until explicit blob-edit support exists.
 6. Unknown or malformed entries degrade to `{ type: 'unknown' }` so older clients fail gracefully instead of crashing.
 
 ## Adding a new entry type
@@ -96,5 +97,44 @@ Video upload metadata.
 6. Update `convertContent` to render the parsed entry.
 7. Register the new block in `packages/app/ui/components/PostContent/BlockRenderer.tsx` so the default renderer path can display it.
 8. Add tests for valid payloads and malformed payloads.
+
+### Example pattern
+
+For a new `etherscan-tx` entry, the schema/helper shape should look roughly like this:
+
+```ts
+const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema(
+  'etherscan-tx',
+  1,
+  {
+    txHash: z.string().min(1),
+    chainId: z.number().int().nonnegative(),
+  }
+);
+
+type PostBlobDataEntryEtherscanTx = z.infer<
+  typeof PostBlobDataEntryEtherscanTxSchema
+>;
+
+const postBlobDataEntryDefinitions = [
+  PostBlobDataEntryFileSchema,
+  PostBlobDataEntryVoiceMemoSchema,
+  PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryEtherscanTxSchema,
+] as const;
+
+export function appendEtherscanTxToPostBlob(
+  blob: string | undefined,
+  opts: { txHash: string; chainId: number }
+) {
+  return appendToPostBlob(blob, {
+    type: 'etherscan-tx',
+    version: 1,
+    ...opts,
+  });
+}
+```
+
+`PostBlobDataEntry` is inferred from `PostBlobDataEntrySchema`, so adding the schema to `postBlobDataEntryDefinitions` updates the shared union automatically.
 
 No backend changes are needed. The backend continues to treat blob as opaque text.
