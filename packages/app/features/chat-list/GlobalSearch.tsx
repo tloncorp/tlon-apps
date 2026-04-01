@@ -1,6 +1,5 @@
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 
 import {
   TextInput,
@@ -57,28 +56,6 @@ export function GlobalSearch({
       }
     },
     [setIsOpen]
-  );
-
-  const handleKeyPress = useCallback(
-    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-      const key = e.nativeEvent.key;
-      const metaKey = (e.nativeEvent as any).metaKey;
-      const ctrlKey = (e.nativeEvent as any).ctrlKey;
-
-      if ((metaKey || ctrlKey) && key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsOpen(false);
-      } else if (
-        key === 'ArrowDown' ||
-        key === 'ArrowUp' ||
-        key === 'Enter' ||
-        key === 'Escape'
-      ) {
-        e.preventDefault();
-        handleNavigationKey(key);
-      }
-    },
-    [handleNavigationKey, setIsOpen]
   );
 
   useEffect(() => {
@@ -156,7 +133,6 @@ export function GlobalSearch({
           icon="Search"
           value={searchQuery}
           onChangeText={setSearchQuery}
-          onKeyPress={handleKeyPress}
           rightControls={
             <TextInput.InnerButton
               label="Close"
