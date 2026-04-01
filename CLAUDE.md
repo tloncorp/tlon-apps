@@ -462,9 +462,9 @@ export function appendEtherscanTxToPostBlob(
 }
 ```
 
-### 3. Wire up the attachment → blob conversion
+### 3. Add attachment plumbing and write it to blob
 
-In `toPostData` in the same file, add a case for your new attachment type:
+Add the new attachment shape to the relevant attachment unions in `packages/api/src/types/attachment.ts`, then add a case in `toPostData` in `packages/api/src/lib/content-helpers.ts`:
 
 ```ts
 case 'etherscan-tx': {
@@ -502,16 +502,17 @@ You will also need to add the corresponding block data type to `PostContent` in 
 
 ### 6. Build the UI
 
-Create a renderer component for the new block type in `packages/ui` (or `packages/app`) that accepts the block data and displays it.
+Create a renderer component for the new block type in `packages/ui` (or `packages/app`) that accepts the block data and displays it. Then register it in `packages/app/ui/components/PostContent/BlockRenderer.tsx` so the default renderer path knows how to render the new block type.
 
 ### Checklist
 
 - [ ] New named schema and inferred type added for the blob entry
 - [ ] Schema added to `postBlobDataEntryDefinitions`
 - [ ] `appendXToPostBlob` convenience function added
+- [ ] Attachment types updated so the new entry can be finalized and passed into `toPostData`
 - [ ] `toPostData` case added for the new attachment type
 - [ ] No manual `parsePostBlob` branch added; the registry handles it
 - [ ] `convertContent` case added, mapping to a new `PostContent` block type
 - [ ] Tests added for valid and malformed blob payloads
-- [ ] Renderer component created
+- [ ] Renderer component created and registered in `BlockRenderer.tsx`
 - [ ] Older clients gracefully degrade; unrecognized types render the "Upgrade your app" blockquote without extra work

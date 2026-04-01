@@ -91,8 +91,10 @@ Video upload metadata.
 1. Add a named schema and inferred type in `packages/api/src/lib/content-helpers.ts`.
 2. Add that schema to `postBlobDataEntryDefinitions`.
 3. Add an `appendXToPostBlob` helper if the new entry will be written from more than one place.
-4. Update `toPostData` to write the new entry type.
-5. Update `convertContent` to render the parsed entry.
-6. Add tests for valid payloads and malformed payloads.
+4. Update the relevant attachment unions in `packages/api/src/types/attachment.ts` so the new entry can be finalized and passed into `toPostData`.
+5. Update `toPostData` to write the new entry type.
+6. Update `convertContent` to render the parsed entry.
+7. Register the new block in `packages/app/ui/components/PostContent/BlockRenderer.tsx` so the default renderer path can display it.
+8. Add tests for valid payloads and malformed payloads.
 
 No backend changes are needed. The backend continues to treat blob as opaque text.
