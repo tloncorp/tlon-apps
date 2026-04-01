@@ -1,5 +1,6 @@
 import {
   ForwardToChannelSheet,
+  useChannelShareIntent,
   useForwardToChannelSheet,
 } from '@tloncorp/app/ui';
 import type {
@@ -35,6 +36,7 @@ export function ShareIntentForwardSheetProvider({
   const [isOpen, setIsOpen] = useState(false);
   const [pendingShare, setPendingShare] =
     useState<ChannelShareIntentParams | null>(null);
+  const { pushShareIntent } = useChannelShareIntent();
   const lastHandledShareRef = useRef<string | null>(null);
   const { error, hasShareIntent, isReady, resetShareIntent, shareIntent } =
     useShareIntent({
@@ -128,30 +130,29 @@ export function ShareIntentForwardSheetProvider({
         channel.type === 'gallery' &&
         pendingShare.file
       );
+      pushShareIntent({
+        channelId: channel.id,
+        shareIntent: pendingShare,
+        startDraft: shouldStartDraft,
+      });
       if (screenName === 'Channel') {
         navigation.navigate('Channel', {
           channelId: channel.id,
           groupId: channel.groupId ?? undefined,
-          startDraft: shouldStartDraft,
-          shareIntent: pendingShare,
         });
       } else if (screenName === 'DM') {
         navigation.navigate('DM', {
           channelId: channel.id,
-          startDraft: shouldStartDraft,
-          shareIntent: pendingShare,
         });
       } else {
         navigation.navigate('GroupDM', {
           channelId: channel.id,
-          startDraft: shouldStartDraft,
-          shareIntent: pendingShare,
         });
       }
 
       setPendingShare(null);
     },
-    [enabled, navigation, pendingShare]
+    [enabled, navigation, pendingShare, pushShareIntent]
   );
 
   const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
