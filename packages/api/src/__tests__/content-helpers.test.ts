@@ -157,6 +157,52 @@ describe('post blob helpers', () => {
     ).toEqual([{ type: 'unknown' }]);
   });
 
+  test('parsePostBlob preserves unknown-size sentinel entries', () => {
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'file',
+            version: 1,
+            fileUri: 'https://files.example/report.pdf',
+            size: -1,
+          },
+          {
+            type: 'voicememo',
+            version: 1,
+            fileUri: 'https://files.example/memo.m4a',
+            size: -1,
+          },
+          {
+            type: 'video',
+            version: 1,
+            fileUri: 'https://cdn.example.com/movie.mp4',
+            size: -1,
+          },
+        ])
+      )
+    ).toEqual([
+      {
+        type: 'file',
+        version: 1,
+        fileUri: 'https://files.example/report.pdf',
+        size: -1,
+      },
+      {
+        type: 'voicememo',
+        version: 1,
+        fileUri: 'https://files.example/memo.m4a',
+        size: -1,
+      },
+      {
+        type: 'video',
+        version: 1,
+        fileUri: 'https://cdn.example.com/movie.mp4',
+        size: -1,
+      },
+    ]);
+  });
+
   test('appendToPostBlob preserves unknown existing entries and validates new ones', () => {
     const blob = appendFileUploadToPostBlob(
       JSON.stringify([{ type: 'future', version: 1, value: 'kept' }]),
@@ -176,12 +222,30 @@ describe('post blob helpers', () => {
       },
     ]);
 
+    expect(
+      appendToPostBlob(undefined, {
+        type: 'file',
+        version: 1,
+        fileUri: 'https://files.example/report.pdf',
+        size: -1,
+      })
+    ).toBe(
+      JSON.stringify([
+        {
+          type: 'file',
+          version: 1,
+          fileUri: 'https://files.example/report.pdf',
+          size: -1,
+        },
+      ])
+    );
+
     expect(() =>
       appendToPostBlob(undefined, {
         type: 'file',
         version: 1,
-        fileUri: '',
-        size: -1,
+        fileUri: 'https://files.example/report.pdf',
+        size: -2,
       } as any)
     ).toThrow('Invalid PostBlobDataEntry');
   });

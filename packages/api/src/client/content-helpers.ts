@@ -614,6 +614,14 @@ function safeParseArrayWithFallback<
   });
 }
 
+const postBlobSizeSchema = z
+  .number()
+  .finite()
+  // Existing upload flows use -1 when size is unknown.
+  .refine((size) => size >= 0 || size === -1, {
+    message: 'size must be nonnegative or -1',
+  });
+
 export const PostBlobDataEntryFileSchema = definePostBlobDataEntrySchema(
   'file',
   1,
@@ -622,7 +630,7 @@ export const PostBlobDataEntryFileSchema = definePostBlobDataEntrySchema(
     mimeType: z.string().optional(),
     name: z.string().optional(),
     /** in bytes */
-    size: z.number().finite().nonnegative(),
+    size: postBlobSizeSchema,
   }
 );
 
@@ -636,7 +644,7 @@ export const PostBlobDataEntryVoiceMemoSchema = definePostBlobDataEntrySchema(
   {
     fileUri: z.string().min(1),
     /** in bytes */
-    size: z.number().finite().nonnegative(),
+    size: postBlobSizeSchema,
     transcription: z.string().optional(),
     /** waveform preview; values should be between 0 and 1 */
     waveformPreview: z
@@ -659,7 +667,7 @@ export const PostBlobDataEntryVideoSchema = definePostBlobDataEntrySchema(
     mimeType: z.string().optional(),
     name: z.string().optional(),
     /** in bytes */
-    size: z.number().finite().nonnegative(),
+    size: postBlobSizeSchema,
     /** in pixels */
     width: z.number().finite().nonnegative().optional(),
     /** in pixels */
