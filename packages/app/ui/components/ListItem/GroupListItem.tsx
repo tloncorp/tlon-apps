@@ -129,7 +129,10 @@ export const GroupListItem = ({
         <ListItem
           {...props}
           alignItems={isPending ? 'center' : 'stretch'}
-          backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
+          backgroundColor={
+            props.backgroundColor ??
+            (shouldHighlight ? '$positiveBackground' : 'unset')
+          }
         >
           <ListItem.GroupIcon
             model={model}
