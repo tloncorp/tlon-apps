@@ -10,6 +10,8 @@ type ForwardToChannelSheetProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   onChannelSelected: (channel: db.Channel) => void;
+  // Temporary escape hatch for share-target filtering. Should probably push it
+  // down into the underlying query.
   channelFilter?: (channel: db.Channel) => boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
